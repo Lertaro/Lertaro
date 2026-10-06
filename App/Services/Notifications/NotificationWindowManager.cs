@@ -49,6 +49,8 @@ internal sealed class NotificationWindowManager(
 
     internal int Count => _runners.Count;
 
+    internal bool IsStackMoving => _runners.Values.Any(r => r.Moving != null);
+
     internal IEnumerable<NotificationRunner> Countdown() => _runners.Values.ToArray();
 
     /// <summary>Builds and shows the window for an accepted notification.</summary>
@@ -126,14 +128,11 @@ internal sealed class NotificationWindowManager(
         if (gone.Count > 0) onGoneBatch(gone);
     }
 
-    /// <summary>The title bar's "mark all read": every visible card goes, each as a success. The queue offers the
-    /// freed slots straight away, which is why a new batch can arrive immediately.</summary>
-    internal void DismissAllCards()
-    {
-        CloseBatch(_runners.Values
+    /// <summary>The title bar's "mark all read": every visible card goes, each as a success.
+    /// The clock admits waiting cards after the remaining stack settles.</summary>
+    internal void DismissAllCards() => CloseBatch(_runners.Values
             .Where(r => r.Item.EffectivePosition == NotificationPosition.CardStack)
             .ToArray());
-    }
 
     /// <summary>Closes everything on screen now, for when the launcher is going away. The queue has already
     /// ended the requests by the time this runs, so it takes the windows down without reporting each one back.</summary>

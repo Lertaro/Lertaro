@@ -39,10 +39,6 @@ internal sealed class NotificationQueue(
     private readonly List<NotificationItem> _pending = [];
     private NotificationItem? _notice;
 
-    // Suppresses the refill that a close would otherwise trigger while a bulk cancellation is still
-    // pulling items out from under it, so a cancel cannot show a card it is about to cancel.
-    private bool _batching;
-
     /// <summary>Accepts a request and returns the item that carries it. Never throws and never leaves
     /// the caller's task uncompleted: a rejected request comes back already failed.</summary>
     public NotificationItem Submit(NotificationRequest request, string pluginKey, string sourceName)
@@ -85,7 +81,6 @@ internal sealed class NotificationQueue(
         // this is the only path that reaches the window then: the paths that tore it down themselves (a
         // replacement, a cancellation) find nothing left to do inside.
         if (hadWindow) hide(item);
-        if (!_batching) PromoteOne();
     }
 
     /// <summary>Offers the screen one more waiting card, for whoever runs the clock. The queue keeps no time of
@@ -105,61 +100,32 @@ internal sealed class NotificationQueue(
         lock (gate) NotifyClosed(item);
     }
 
-    /// <summary>Ends a batch the screen already took down, which is "mark all read" and several notifications
-    /// coming due on one tick: deciding about the freed slots once is the whole point, because deciding per card
-    /// promotes and re-lays out the stack again while the rest of the batch is still being pulled out from under
-    /// it.</summary>
+    /// <summary>Ends a group without refilling mid-removal. Only Feed admits waiting cards,
+    /// after the host has finished moving the surviving windows.</summary>
     public void CloseBatch(IReadOnlyList<NotificationItem> items)
     {
-        _batching = true;
-        try
-        {
-            foreach (var item in items) NotifyClosed(item);
-        }
-        finally
-        {
-            _batching = false;
-        }
-        PromoteOne();
+        foreach (var item in items) NotifyClosed(item);
     }
 
     /// <summary>Cancels everything the given plugin still has outstanding, shown or queued.</summary>
     public void CancelPlugin(string pluginKey)
     {
         const NotificationFailure reason = NotificationFailure.CancelledByPluginUnload;
-        _batching = true;
-        try
-        {
-            foreach (var item in _pending.Where(item => item.PluginKey == pluginKey).ToArray())
-                FinishCancelled(item, _pending, reason);
-            foreach (var item in _cards.Where(item => item.PluginKey == pluginKey).ToArray())
-                FinishCancelled(item, _cards, reason);
-            if (_notice?.PluginKey == pluginKey)
-                FinishCancelled(_notice, null, reason, clearNotice: true);
-        }
-        finally
-        {
-            _batching = false;
-        }
-        PromoteOne();
+        foreach (var item in _pending.Where(item => item.PluginKey == pluginKey).ToArray())
+            FinishCancelled(item, _pending, reason);
+        foreach (var item in _cards.Where(item => item.PluginKey == pluginKey).ToArray())
+            FinishCancelled(item, _cards, reason);
+        if (_notice?.PluginKey == pluginKey)
+            FinishCancelled(_notice, null, reason, clearNotice: true);
     }
 
-    /// <summary>Ends every outstanding request because the launcher is closing. Takes the animation, and
-    /// with it any wait for an answer, with it.</summary>
+    /// <summary>Ends every outstanding request because the launcher is closing.</summary>
     public void Shutdown()
     {
         const NotificationFailure reason = NotificationFailure.HostShuttingDown;
-        _batching = true;
-        try
-        {
-            foreach (var item in _pending.ToArray()) FinishCancelled(item, _pending, reason);
-            foreach (var item in _cards.ToArray()) FinishCancelled(item, _cards, reason);
-            if (_notice != null) FinishCancelled(_notice, null, reason, clearNotice: true);
-        }
-        finally
-        {
-            _batching = false;
-        }
+        foreach (var item in _pending.ToArray()) FinishCancelled(item, _pending, reason);
+        foreach (var item in _cards.ToArray()) FinishCancelled(item, _cards, reason);
+        if (_notice != null) FinishCancelled(_notice, null, reason, clearNotice: true);
     }
 
     private void FinishCancelled(NotificationItem item, List<NotificationItem>? from, NotificationFailure reason, bool clearNotice = false)

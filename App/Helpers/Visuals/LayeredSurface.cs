@@ -25,7 +25,10 @@ public static class LayeredSurface
         {
             // Rounded by the window manager, which needs a handle to be told about, hence the event rather
             // than a call here: it fires before the first paint, so the corners never visibly change.
-            window.SourceInitialized += (_, _) => DwmWindowCorners.ApplyRound(window);
+            window.SourceInitialized += (_, _) =>
+                // DWMWCP_ROUND uses an 8 DIP outer radius, independent of the theme's painted
+                // radius. Keep overlays on this contour; older Windows keeps square corners.
+                surface.CornerRadius = new CornerRadius(DwmWindowCorners.ApplyRound(window) ? 8 : 0);
             return;
         }
 

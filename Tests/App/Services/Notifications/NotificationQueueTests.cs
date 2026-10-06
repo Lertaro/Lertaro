@@ -89,6 +89,8 @@ public class NotificationQueueTests
 
         _queue.NotifyClosed(shown[0]);
         _queue.NotifyClosed(shown[1]);
+        _queue.Feed();
+        _queue.Feed();
 
         Assert.AreEqual(queued, _screen.Shown[5]);
         Assert.AreEqual(overflow, _screen.Shown[6]);
@@ -142,6 +144,7 @@ public class NotificationQueueTests
         Assert.IsTrue(IsOutstanding(arriving));
 
         _queue.NotifyClosed(shown[0]);
+        _queue.Feed();
         Assert.AreEqual(queued, _screen.Shown[5]);
         Assert.IsTrue(IsOutstanding(arriving));
     }
@@ -249,6 +252,7 @@ public class NotificationQueueTests
         // The screen went busy after the request was accepted, so the queue has to notice at display time.
         _screen.Fullscreen = true;
         _queue.NotifyClosed(shown[0]);
+        _queue.Feed();
 
         Assert.AreEqual(NotificationPosition.BottomNotice, queued.EffectivePosition);
         Assert.AreEqual(NotificationQueue.CollapsedCardMaxSeconds, queued.DurationSeconds);
@@ -263,12 +267,14 @@ public class NotificationQueueTests
         _screen.Fullscreen = true;
 
         _queue.NotifyClosed(shown[0]);
+        _queue.Feed();
 
         // Feeding all three at once would have each replace the one before it before anyone could read it.
         Assert.HasCount(6, _screen.Shown);
         Assert.AreEqual(queued[0], _screen.Shown[^1]);
 
         _queue.NotifyClosed(_screen.Shown[^1]);
+        _queue.Feed();
         Assert.AreEqual(queued[1], _screen.Shown[^1]);
         Assert.AreEqual(queued[0], _screen.Shown[^2]);
     }
@@ -282,8 +288,10 @@ public class NotificationQueueTests
 
         _queue.NotifyClosed(shown[0]);
         _queue.NotifyClosed(shown[1]);
+        _queue.Feed();
+        _queue.Feed();
 
-        // Two closes, two promotions, two reads. The screen cannot change underneath a synchronous refill, and
+        // Two clock passes, two promotions, two reads. The screen cannot change underneath a synchronous refill, and
         // every read is a handful of P/Invokes paid on whatever thread the countdown happened to be on.
         Assert.AreEqual(2, _screen.ScreenReads);
     }
@@ -297,6 +305,9 @@ public class NotificationQueueTests
         _screen.ScreenReads = 0;
 
         _queue.CloseBatch(shown);
+        Assert.HasCount(5, _screen.Shown, "closing a batch must not refill before the stack settles");
+        Assert.AreEqual(0, _screen.ScreenReads);
+        _queue.Feed();
 
         // Five slots went at once, so the batch is decided about once. But only one card arrives: a burst that
         // filled every free slot in the same frame was due again on the same tick several seconds later, which
@@ -343,6 +354,8 @@ public class NotificationQueueTests
         var beta = ShowCard("beta waiting", plugin: PluginB, source: SourceB);
 
         _queue.CancelPlugin(PluginA);
+        Assert.IsFalse(beta.ReachedScreen);
+        _queue.Feed();
 
         Assert.IsTrue(IsOutstanding(beta));
         Assert.AreEqual(beta, _screen.Shown[^1]);
@@ -379,6 +392,7 @@ public class NotificationQueueTests
         Assert.HasCount(0, _screen.Hidden);
 
         _queue.NotifyClosed(shown[0]);
+        _queue.Feed();
         Assert.HasCount(5, _screen.Shown);
     }
 

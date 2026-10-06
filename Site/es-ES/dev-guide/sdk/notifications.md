@@ -41,7 +41,7 @@ Un plugin que necesite una ventana propia usa [`Windows.PluginWindow`](./service
 
 Otros dos números de cadencia conviene conocerlos cuando se emite una ráfaga:
 
-- El anfitrión ejecuta un único **tick de 100 ms**, y promueve **como máximo una** tarjeta en cola por tick. Una ráfaga españa por tanto sus propias llegadas y, como cada tarjeta cuenta su tiempo desde el momento en que apareció, espaciar las llegadas también espacia los vencimientos: una ráfaga ya no arranca cinco huecos de la pila de un solo movimiento.
+- El anfitrión comprueba los tiempos cada **100 ms**. Solo ese tick presenta tarjetas en cola, como máximo una por vez y tras terminar el movimiento de **200 ms** de la pila. El vencimiento automático también espera al movimiento y cierra juntas las tarjetas vencidas. Cerrar tarjetas o descargar un complemento no rellena la pila durante la retirada. Se mantienen las pausas al pasar el cursor y al bloquear la sesión.
 - **Un plugin puede tener como máximo 10 peticiones de tarjeta aceptadas** (en pantalla *y* en cola, sumadas). La undécima se descarta como `QueueFull` y se registra. El tope se aplica solo en la ruta de admisión de tarjetas: una petición `BottomNotice` nunca cuenta contra él, porque el aviso es un único hueco que se sobreescribe a sí mismo. No hay un tope global de pendientes entre plugins, así que un plugin no puede quedar hambriento por la ráfaga de otro, pero tampoco un productor desbocado está limitado de forma global.
 
 ## 4. Reemplazo por Id

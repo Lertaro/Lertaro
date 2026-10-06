@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Windows.Threading;
-using Lertaro.App.Services.Theme;
 using Lertaro.Core;
 using Lertaro.Core.Hook;
 using Lertaro.PluginSdk.Abstractions;
@@ -138,18 +137,15 @@ internal static class NotificationService
     {
         lock (_gate)
         {
-            // Slide first, then promote. A refill presents its card wherever the stack is going to end up, and
-            // doing that before the slide starts leaves the survivors snapped into their new places with nothing
-            // left to animate.
+            // Start one slide now; the clock refills only after it has finished.
             Windows.Restack(animated: Windows.Count > 0);
             Queue.NotifyClosed(item);
             StopTickerIfIdle();
         }
     }
 
-    /// <summary>Called once a batch of windows is really gone, which is the title bar's "mark all read": the
-    /// queue promotes into the freed slots once instead of once per card, so five cards going means one slide
-    /// rather than five jumps.</summary>
+    /// <summary>Repositions survivors once for a removed group, then frees its queue slots.
+    /// Waiting cards are admitted by the clock after that movement finishes.</summary>
     private static void OnNotificationsGone(IReadOnlyList<NotificationItem> items)
     {
         if (items.Count == 0) return;
@@ -227,6 +223,7 @@ internal static class NotificationService
             if (_sessionLocked || elapsedMs <= 0) return;
 
             List<NotificationRunner>? doomed = null;
+            var stackMoving = Windows.IsStackMoving;
             foreach (var runner in Windows.Countdown())
             {
                 // Hovering holds the time: a card the pointer is resting on is not being read yet. The cursor is
@@ -236,6 +233,9 @@ internal static class NotificationService
 
                 runner.RemainingMs -= elapsedMs;
                 if (runner.RemainingMs > 0) continue;
+                // Finish the previous slide before removing another card beneath it. Countdown
+                // still advances; overdue cards leave together on the next settled frame.
+                if (stackMoving && runner.Item.EffectivePosition == NotificationPosition.CardStack) continue;
                 (doomed ??= []).Add(runner);
             }
 
@@ -246,7 +246,8 @@ internal static class NotificationService
             // One waiting card per tick, so a burst is fed a card at a time instead of in one frame. The queue
             // keeps no clock of its own; this is the clock, and it is already running whenever anything is on
             // screen with something still waiting behind it.
-            Queue.Feed();
+            // Refill after survivors reach their slots so arrivals cannot overlap the moving stack.
+            if (!Windows.IsStackMoving) Queue.Feed();
         }
     }
 

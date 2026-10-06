@@ -125,11 +125,11 @@
 
             <!-- Drawn once, on arrival, and faded out: the accent rim is what tells a card that has just come in
                  from one that has merely been sitting there. Last child so it paints over the content, no fill so
-                 it cannot catch a click meant for the body, and the radius is the window's own so the rim follows
-                 the corner the window manager rounded. -->
+                 it cannot catch a click meant for the body. Expand over Surface's one-DIP border so
+                 both borders share their outer bounds as well as their actual surface radius. -->
             <Border x:Name="ArrivalRim" Grid.ColumnSpan="2" Opacity="0" IsHitTestVisible="False"
                     BorderThickness="2" BorderBrush="{DynamicResource AccentBlue}"
-                    CornerRadius="{DynamicResource CornerRadiusWindow}"/>
+                    Margin="-1" CornerRadius="{Binding CornerRadius, ElementName=Surface}"/>
         </Grid>
     </Border>
 </Window>

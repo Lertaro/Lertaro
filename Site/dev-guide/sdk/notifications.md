@@ -41,7 +41,7 @@ A plugin that needs a window it owns uses [`Windows.PluginWindow`](./services); 
 
 Two more pacing numbers are worth knowing when you emit a burst:
 
-- The host runs one **100 ms tick**, and it promotes **at most one** waiting card per tick. A burst therefore spaces its own arrivals, and because each card counts its time from the moment it appeared, spacing the arrivals also spaces the expiries — a burst no longer takes five slots out of the stack in one move.
+- The host checks countdowns every **100 ms**. Only that tick promotes waiting cards, at most one at a time, after the current **200 ms** stack movement finishes. Automatic expiry also waits for the movement, then closes overdue cards together. Closing cards or unloading a plugin does not refill the stack during removal. Hover and session-lock pauses still apply.
 - **One plugin may have at most 10 accepted card requests** (on screen *and* waiting combined). The eleventh is dropped as `QueueFull` and logged. The cap is enforced on the card-admission path only: a `BottomNotice` request is never counted against it, because the notice is a single slot that overwrites itself. There is no global pending cap across plugins, so a plugin cannot be starved by another's burst, but neither is a runaway producer limited globally.
 
 ## 4. Replacing by Id

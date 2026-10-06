@@ -22,13 +22,13 @@ public static class DwmWindowCorners
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 
-    public static void ApplyRound(Window window)
+    public static bool ApplyRound(Window window)
     {
         // No gate on the version: the attribute simply fails on an OS that has never heard of it, and one
         // fewer platform check is one fewer thing to keep in step with the next Windows release.
         var hwnd = new WindowInteropHelper(window).Handle;
-        if (hwnd == IntPtr.Zero) return;
+        if (hwnd == IntPtr.Zero) return false;
         var preference = DwmwcpRound;
-        _ = DwmSetWindowAttribute(hwnd, DwmwaWindowCornerPreference, ref preference, sizeof(int));
+        return DwmSetWindowAttribute(hwnd, DwmwaWindowCornerPreference, ref preference, sizeof(int)) >= 0;
     }
 }
