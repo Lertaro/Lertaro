@@ -14,6 +14,8 @@
   "WindowSwitcher_MenuMaximize": "Maximizar",
   "WindowSwitcher_MenuMinimize": "Minimizar",
   "WindowSwitcher_MenuRestore": "Restaurar",
+  "WindowSwitcher_MenuFitToScreen": "Ajustar a la pantalla y centrar",
+  "WindowSwitcher_MenuCenter": "Centrar ventana",
   "WindowSwitcher_MenuClose": "Cerrar",
   "WindowSwitcher_MenuFocus": "Enfocar",
   "Plugin_Comp_Desc_WindowSwitcherInstantProvider": "Busca las ventanas actualmente abiertas por título, nombre de proceso o PID, y ofrece una acción de un clic para cambiar a la ventana seleccionada desde el cuadro de búsqueda.",

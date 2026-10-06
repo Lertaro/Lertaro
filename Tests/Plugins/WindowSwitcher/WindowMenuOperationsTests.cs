@@ -9,12 +9,14 @@ public sealed class WindowMenuOperationsTests
         var entries = WindowMenuOperations.Build(new WindowMenuOperations.WindowMenuState(
             IsValid: true, IsTopmost: false, IsVisible: true, IsMaximized: false, IsMinimized: false));
 
-        Assert.HasCount(6, entries);
+        Assert.HasCount(8, entries);
         Assert.IsTrue(Find(entries, WindowMenuOperations.MenuCommand.ToggleTopmost).Enabled);
         Assert.IsTrue(Find(entries, WindowMenuOperations.MenuCommand.Maximize).Enabled);
         Assert.IsTrue(Find(entries, WindowMenuOperations.MenuCommand.Minimize).Enabled);
         Assert.IsTrue(Find(entries, WindowMenuOperations.MenuCommand.Close).Enabled);
         Assert.IsTrue(Find(entries, WindowMenuOperations.MenuCommand.Focus).Enabled);
+        Assert.IsTrue(Find(entries, WindowMenuOperations.MenuCommand.FitToScreen).Enabled);
+        Assert.IsTrue(Find(entries, WindowMenuOperations.MenuCommand.Center).Enabled);
         // A normal window is neither maximized nor minimized, so there is nothing to restore.
         Assert.IsFalse(Find(entries, WindowMenuOperations.MenuCommand.Restore).Enabled);
     }
@@ -31,6 +33,8 @@ public sealed class WindowMenuOperationsTests
         Assert.AreEqual("WindowSwitcher_MenuRestore", Find(entries, WindowMenuOperations.MenuCommand.Restore).LabelKey);
         Assert.AreEqual("WindowSwitcher_MenuClose", Find(entries, WindowMenuOperations.MenuCommand.Close).LabelKey);
         Assert.AreEqual("WindowSwitcher_MenuFocus", Find(entries, WindowMenuOperations.MenuCommand.Focus).LabelKey);
+        Assert.AreEqual("WindowSwitcher_MenuFitToScreen", Find(entries, WindowMenuOperations.MenuCommand.FitToScreen).LabelKey);
+        Assert.AreEqual("WindowSwitcher_MenuCenter", Find(entries, WindowMenuOperations.MenuCommand.Center).LabelKey);
     }
 
     [TestMethod]

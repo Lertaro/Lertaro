@@ -14,6 +14,8 @@
   "WindowSwitcher_MenuMaximize": "最大化",
   "WindowSwitcher_MenuMinimize": "最小化",
   "WindowSwitcher_MenuRestore": "元のサイズに戻す",
+  "WindowSwitcher_MenuFitToScreen": "画面に収めて中央に配置",
+  "WindowSwitcher_MenuCenter": "中央に配置",
   "WindowSwitcher_MenuClose": "閉じる",
   "WindowSwitcher_MenuFocus": "フォーカス",
   "Plugin_Comp_Desc_WindowSwitcherInstantProvider": "タイトル、プロセス名、または PID で現在開いているウィンドウを検索し、検索ボックスから選択したウィンドウへワンクリックで切り替えられるようにします。",

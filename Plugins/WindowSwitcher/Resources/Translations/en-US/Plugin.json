@@ -14,6 +14,8 @@
   "WindowSwitcher_MenuMaximize": "Maximize",
   "WindowSwitcher_MenuMinimize": "Minimize",
   "WindowSwitcher_MenuRestore": "Restore",
+  "WindowSwitcher_MenuFitToScreen": "Fit to screen and center",
+  "WindowSwitcher_MenuCenter": "Center window",
   "WindowSwitcher_MenuClose": "Close",
   "WindowSwitcher_MenuFocus": "Focus",
   "Plugin_Comp_Desc_WindowSwitcherInstantProvider": "Searches currently open windows by title, process name, or PID, and provides a one-click action to switch to the selected window in the search box.",

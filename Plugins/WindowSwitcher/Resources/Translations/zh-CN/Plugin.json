@@ -14,6 +14,8 @@
   "WindowSwitcher_MenuMaximize": "最大化",
   "WindowSwitcher_MenuMinimize": "最小化",
   "WindowSwitcher_MenuRestore": "还原",
+  "WindowSwitcher_MenuFitToScreen": "适配屏幕并居中",
+  "WindowSwitcher_MenuCenter": "位置居中",
   "WindowSwitcher_MenuClose": "关闭",
   "WindowSwitcher_MenuFocus": "聚焦",
   "Plugin_Comp_Desc_WindowSwitcherInstantProvider": "在搜索栏输入特定触发词，按标题、进程名或 PID 检索当前打开的窗口列表，并提供一键切换到选定窗口的快捷方式。",

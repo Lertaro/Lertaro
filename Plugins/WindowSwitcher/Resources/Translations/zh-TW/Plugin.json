@@ -14,6 +14,8 @@
   "WindowSwitcher_MenuMaximize": "最大化",
   "WindowSwitcher_MenuMinimize": "最小化",
   "WindowSwitcher_MenuRestore": "還原",
+  "WindowSwitcher_MenuFitToScreen": "符合螢幕大小並置中",
+  "WindowSwitcher_MenuCenter": "位置置中",
   "WindowSwitcher_MenuClose": "關閉",
   "WindowSwitcher_MenuFocus": "聚焦",
   "Plugin_Comp_Desc_WindowSwitcherInstantProvider": "在搜尋列輸入特定觸發詞，可依標題、處理程序名稱或 PID 檢索目前開啟的視窗清單，並提供一鍵切換到所選視窗的功能。",

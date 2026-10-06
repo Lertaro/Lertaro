@@ -65,6 +65,11 @@ A half-width space, a full-width space or a tab all separate the keyword from wh
 | `flow` | **Flow Launcher Bridge** | Lists loaded Flow.Launcher plugins and their action keywords, connecting with the Flow community ecosystem. | `flow` |
 | `cs` | **Content Search** | Searches the text of indexed local documents and returns matching files with snippets. | `cs project plan` |
 
+Select a `win` result and open its actions menu (`Ctrl+O`) to access these window controls. Both use the work area of the window's own monitor, excluding the taskbar, and restore minimized or maximized windows before positioning them.
+
+- Fit to screen and center (`s`): If the window's width or height exceeds the corresponding work-area dimension, reduce only that dimension to the available size minus 12 pixels, then center the window. Dimensions that fit, including exact matches, remain unchanged.
+- Center window (`e`): Move the restored window to the center of the work area without resizing it.
+
 ## 3. Web Search Engines
 
 The Web Search plugin provides built-in shortcuts for major search engines. Type the prefix followed by your query to search in your default browser:

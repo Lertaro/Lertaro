@@ -20,7 +20,9 @@ internal static class WindowMenuOperations
         Minimize = 5704,
         Restore = 5705,
         Close = 5706,
-        Focus = 5707
+        Focus = 5707,
+        FitToScreen = 5708,
+        Center = 5709
     }
 
     /// <summary>
@@ -57,6 +59,8 @@ internal static class WindowMenuOperations
             Entry(MenuCommand.Maximize, "WindowSwitcher_MenuMaximize", !state.IsMaximized, 'm'),
             Entry(MenuCommand.Minimize, "WindowSwitcher_MenuMinimize", !state.IsMinimized, 'n'),
             Entry(MenuCommand.Restore, "WindowSwitcher_MenuRestore", canRestore, 'r'),
+            Entry(MenuCommand.FitToScreen, "WindowSwitcher_MenuFitToScreen", true, 's'),
+            Entry(MenuCommand.Center, "WindowSwitcher_MenuCenter", true, 'e'),
             Entry(MenuCommand.Close, "WindowSwitcher_MenuClose", true, 'c'),
             Entry(MenuCommand.Focus, "WindowSwitcher_MenuFocus", true, 'f')
         };

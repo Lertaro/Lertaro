@@ -26,8 +26,7 @@ public sealed class WindowMenuActionProviderTests
     [TestMethod]
     public void CanProvideForInstantResults_IsDeclared() => Assert.IsTrue(new WindowMenuActionProvider().CanProvideForInstantResults);
 
-    // The letters the user asked for, exactly: 置顶/取消置顶 p, 隐藏/显示 h, 最大化 m, 最小化 n, 还原 r,
-    // 关闭 c, 聚焦 f. The host activates a row by matching a typed letter against this hint, so this table
+    // Each row has a distinct mnemonic. The host activates it by matching a typed letter, so this table
     // IS the mnemonic map -- a row with no hint simply cannot be reached by letter.
     [TestMethod]
     public void Build_GivesEveryRowItsMnemonicLetter()
@@ -43,6 +42,9 @@ public sealed class WindowMenuActionProviderTests
         Assert.AreEqual("r", hints[WindowMenuOperations.MenuCommand.Restore]);
         Assert.AreEqual("c", hints[WindowMenuOperations.MenuCommand.Close]);
         Assert.AreEqual("f", hints[WindowMenuOperations.MenuCommand.Focus]);
+        Assert.AreEqual("s", hints[WindowMenuOperations.MenuCommand.FitToScreen]);
+        Assert.AreEqual("e", hints[WindowMenuOperations.MenuCommand.Center]);
+        Assert.HasCount(hints.Count, hints.Values.Distinct());
     }
 
     [TestMethod]

@@ -5,8 +5,8 @@ using Lertaro.PluginSdk.Services;
 namespace Lertaro.Plugins.WindowSwitcher;
 
 /// <summary>
-/// Dynamic action menu for the window an instant result points at: toggle always-on-top, hide/show,
-/// maximize, minimize, restore, close, and focus. The target is identified by the instant result's own
+/// Dynamic action menu for the window an instant result points at: toggle always-on-top,
+/// maximize, minimize, restore, fit to screen, center, close, and focus. The target is identified by the instant result's own
 /// <c>activatewindow:&lt;hwnd&gt;</c> action argument, so this offers itself only when exactly one such
 /// result is selected (see <see cref="WindowMenuOperations.ParseWindowHandle"/>).
 /// </summary>
@@ -84,6 +84,12 @@ public class WindowMenuActionProvider : IDynamicActionProvider
                 break;
             case WindowMenuOperations.MenuCommand.Restore:
                 WindowMenuOperations.Restore(hwnd);
+                break;
+            case WindowMenuOperations.MenuCommand.FitToScreen:
+                WindowPositioning.Apply(hwnd, fitToScreen: true);
+                break;
+            case WindowMenuOperations.MenuCommand.Center:
+                WindowPositioning.Apply(hwnd, fitToScreen: false);
                 break;
             case WindowMenuOperations.MenuCommand.Close:
                 WindowMenuOperations.Close(hwnd);

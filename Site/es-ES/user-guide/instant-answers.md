@@ -65,6 +65,11 @@ Como separador vale un espacio simple, un espacio de ancho completo o una tabula
 | `flow` | **Puente Flow Launcher** | Muestra los plugins cargados de Flow.Launcher y sus palabras clave, aprovechando su ecosistema. | `flow` |
 | `cs` | **Búsqueda de contenido** | Busca en el texto de documentos locales indexados y muestra archivos coincidentes con fragmentos. | `cs plan del proyecto` |
 
+Selecciona un resultado de `win` y abre su menú de acciones (`Ctrl+O`) para acceder a estos controles. Ambos usan el área de trabajo del monitor donde está la ventana, sin la barra de tareas, y restauran las ventanas minimizadas o maximizadas antes de colocarlas.
+
+- Ajustar a la pantalla y centrar (`s`): Comprueba el ancho y el alto por separado. Solo si una dimensión supera la del área de trabajo, la reduce al tamaño disponible menos 12 píxeles; después centra la ventana. Las dimensiones que caben, incluidas las que coinciden exactamente, no cambian.
+- Centrar ventana (`e`): Mueve la ventana restaurada al centro del área de trabajo sin cambiar su tamaño.
+
 ## 3. Motores de búsqueda web
 
 El plugin de Búsqueda web incluye accesos directos para los principales motores. Escribe el prefijo seguido de tu consulta para buscar en el navegador:

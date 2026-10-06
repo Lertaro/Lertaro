@@ -14,6 +14,8 @@
   "WindowSwitcher_MenuMaximize": "최대화",
   "WindowSwitcher_MenuMinimize": "최소화",
   "WindowSwitcher_MenuRestore": "복원",
+  "WindowSwitcher_MenuFitToScreen": "화면에 맞추고 가운데 배치",
+  "WindowSwitcher_MenuCenter": "가운데 배치",
   "WindowSwitcher_MenuClose": "닫기",
   "WindowSwitcher_MenuFocus": "포커스",
   "Plugin_Comp_Desc_WindowSwitcherInstantProvider": "제목, 프로세스 이름 또는 PID로 현재 열려 있는 창을 검색하고, 검색 상자에서 선택한 창으로 한 번의 클릭으로 전환하는 기능을 제공합니다.",
