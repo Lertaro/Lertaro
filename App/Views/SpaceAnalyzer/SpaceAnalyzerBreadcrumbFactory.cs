@@ -1,7 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
+using Lertaro.App.Services;
 using Brush = System.Windows.Media.Brush;
-using FontFamily = System.Windows.Media.FontFamily;
 
 namespace Lertaro.App.Views.SpaceAnalyzer;
 
@@ -14,7 +14,7 @@ internal static class SpaceAnalyzerBreadcrumbFactory
     public static TextBlock Create(FrameworkElement resourceOwner) => new()
     {
         Text = "\uE76C",
-        FontFamily = new FontFamily("Segoe MDL2 Assets"),
+        FontFamily = AppTypography.IconFont,
         FontSize = 9,
         Foreground = (Brush)resourceOwner.FindResource("TextSecondary"),
         VerticalAlignment = VerticalAlignment.Center,

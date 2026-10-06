@@ -131,7 +131,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="Bd" Background="Transparent" CornerRadius="4">
-                        <TextBlock x:Name="Glyph" Text="&#xE8CB;" FontFamily="Segoe MDL2 Assets"
+                        <TextBlock x:Name="Glyph" Text="&#xE8CB;" FontFamily="{DynamicResource AppIconFontFamily}"
                                    FontSize="10" Foreground="{DynamicResource TextSecondary2}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
@@ -163,7 +163,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="Bd" Background="Transparent" CornerRadius="4">
-                        <TextBlock x:Name="Glyph" Text="&#xE8FD;" FontFamily="Segoe MDL2 Assets"
+                        <TextBlock x:Name="Glyph" Text="&#xE8FD;" FontFamily="{DynamicResource AppIconFontFamily}"
                                    FontSize="10" Foreground="{DynamicResource TextSecondary2}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>

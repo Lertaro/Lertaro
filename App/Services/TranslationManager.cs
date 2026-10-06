@@ -64,6 +64,8 @@ public class TranslationManager : INotifyPropertyChanged
                     System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = ci;
                 }
                 catch { }
+                if (System.Windows.Application.Current is { } app)
+                    AppTypography.UpdateLanguage(app.Resources, value);
                 ReloadTranslations();
                 PluginSdk.Services.TranslationService.NotifyCultureChanged(value);
                 OnPropertyChanged();

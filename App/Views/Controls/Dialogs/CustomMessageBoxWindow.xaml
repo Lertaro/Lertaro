@@ -62,7 +62,7 @@
 
                     <!-- Icon -->
                     <TextBlock x:Name="TxtIcon" Grid.Column="0" 
-                               FontFamily="Segoe MDL2 Assets" FontSize="28" 
+                               FontFamily="{DynamicResource AppIconFontFamily}" FontSize="28"
                                VerticalAlignment="Top" Margin="0,2,0,0"/>
 
                     <!-- Message Text: scrolls instead of growing the window past the screen for long

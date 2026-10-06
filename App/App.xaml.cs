@@ -20,6 +20,15 @@ using Application = System.Windows.Application;
 namespace Lertaro.App;
 public partial class App : Application
 {
+    // Set before InitializeComponent creates controls, including plugin content and popup controls.
+    static App()
+    {
+        System.Windows.Media.TextOptions.TextFormattingModeProperty.OverrideMetadata(
+            typeof(FrameworkElement), new FrameworkPropertyMetadata(System.Windows.Media.TextFormattingMode.Display));
+        System.Windows.Media.TextOptions.TextFormattingModeProperty.OverrideMetadata(
+            typeof(FrameworkContentElement), new FrameworkPropertyMetadata(System.Windows.Media.TextFormattingMode.Display));
+    }
+
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
     private static extern bool AllowSetForegroundWindow(int dwProcessId);
@@ -75,6 +84,7 @@ public partial class App : Application
         TaskScheduler.UnobservedTaskException += (s, args) => { Helpers.App.AppCrashHandler.LogException("TaskScheduler UnobservedTaskException", args.Exception); args.SetObserved(); };
 
         var settings = UserSettings.Load();
+        AppTypography.Initialize(Resources, TranslationManager.Instance.CurrentCulture);
         Logger.MinimumLevel = SettingsOptionGenerator.ParseLogLevel(settings.LogLevel);
         // Everything this process matches outside the search pipeline -- plugin catalog items,
         // favorites, shell-menu filtering, display highlighting -- reads this rather than the

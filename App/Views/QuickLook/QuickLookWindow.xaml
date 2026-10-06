@@ -48,7 +48,7 @@
                     <TextBlock x:Name="TxtFilePath" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
                 </StackPanel>
                 <!-- Affordance only; the drag target is the whole row above, not just these bars. -->
-                <TextBlock x:Name="TxtDragGrip" Grid.Column="2" Text="&#xE76F;" FontFamily="Segoe MDL2 Assets"
+                <TextBlock x:Name="TxtDragGrip" Grid.Column="2" Text="&#xE76F;" FontFamily="{DynamicResource AppIconFontFamily}"
                            FontSize="14" Foreground="{DynamicResource TextSecondary}" Opacity="0.5"
                            VerticalAlignment="Center" Margin="8,0,0,0" IsHitTestVisible="False"/>
             </Grid>

@@ -7,7 +7,6 @@ using Lertaro.App.Services.ShellMenu.QuickNav;
 using ContextMenu = System.Windows.Controls.ContextMenu;
 using MenuItem = System.Windows.Controls.MenuItem;
 using Brushes = System.Windows.Media.Brushes;
-using FontFamily = System.Windows.Media.FontFamily;
 using HorizontalAlignment = System.Windows.HorizontalAlignment;
 
 namespace Lertaro.App.Services.Tray;
@@ -124,7 +123,7 @@ internal sealed class TrayMenuController : IDisposable
         var icon = new TextBlock
         {
             Text = glyph,
-            FontFamily = new FontFamily("Segoe MDL2 Assets"),
+            FontFamily = AppTypography.IconFont,
             FontSize = 14,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center

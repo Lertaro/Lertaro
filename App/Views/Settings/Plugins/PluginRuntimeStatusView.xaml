@@ -39,7 +39,7 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                    <TextBlock Grid.Column="0" Text="&#xE721;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="12"
                                Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="8,0,4,0"/>
                     <Grid Grid.Column="1">
                         <TextBox x:Name="RuntimeStatusSearchBox" Background="Transparent" BorderThickness="0" FontSize="12"

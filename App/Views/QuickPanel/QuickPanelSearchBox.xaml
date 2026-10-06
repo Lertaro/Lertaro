@@ -33,7 +33,7 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <TextBlock Grid.Column="0" Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="11"
+            <TextBlock Grid.Column="0" Text="&#xE721;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="11"
                        Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="8,0,4,0"/>
 
             <Grid Grid.Column="1">

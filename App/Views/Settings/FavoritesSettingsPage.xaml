@@ -27,7 +27,7 @@
                 <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="Cursor" Value="Hand"/>
-                <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+                <Setter Property="FontFamily" Value="{DynamicResource AppIconFontFamily}"/>
                 <Setter Property="FontSize" Value="14"/>
                 <Setter Property="Template">
                     <Setter.Value>
@@ -70,7 +70,7 @@
                                 <Ellipse Grid.Row="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/><Ellipse Grid.Row="1" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
                                 <Ellipse Grid.Row="2" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/><Ellipse Grid.Row="2" Grid.Column="1" Width="2.5" Height="2.5" Fill="{DynamicResource TextSecondary2}" Margin="1"/>
                             </Grid>
-                            <TextBlock Grid.Column="1" Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="&#xE71B;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="14" Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="2" Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="4,0,8,0"/>
                             <TextBlock Grid.Column="3" Text="{Binding Path}" FontSize="12" Foreground="{DynamicResource TextSecondary2}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
                             <ctrl:HotkeyRecorderControl Grid.Column="4" Value="{Binding Hotkey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" RequireModifier="True" HorizontalAlignment="Right"/>
@@ -97,7 +97,7 @@
                             <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsEditing}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Grid.Style>
                             <settings:PathEntryEditor Grid.Column="2" Grid.ColumnSpan="2" EntryName="{Binding EditName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" EntryPath="{Binding EditPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" BrowseFolderCommand="{Binding DataContext.BrowseEditFolderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" BrowseFileCommand="{Binding DataContext.BrowseEditFileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
                             <StackPanel Grid.Column="4" Orientation="Horizontal" HorizontalAlignment="Right">
-                                <Button Content="&#xE73E;" Style="{StaticResource PrimarySettingsButton}" Width="30" MinWidth="30" Height="30" Padding="0" FontFamily="Segoe MDL2 Assets" FontSize="14" Command="{Binding DataContext.SaveEditCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                                <Button Content="&#xE73E;" Style="{StaticResource PrimarySettingsButton}" Width="30" MinWidth="30" Height="30" Padding="0" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="14" Command="{Binding DataContext.SaveEditCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
                                 <Button Content="&#xE711;" Style="{StaticResource FavIconButton}" Command="{Binding DataContext.CancelEditCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
                             </StackPanel>
                         </Grid>

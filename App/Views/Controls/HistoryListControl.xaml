@@ -35,7 +35,7 @@
                 <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="Cursor" Value="Hand"/>
-                <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+                <Setter Property="FontFamily" Value="{DynamicResource AppIconFontFamily}"/>
                 <Setter Property="FontSize" Value="14"/>
                 <Setter Property="Template">
                     <Setter.Value>
@@ -66,7 +66,7 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Text="{Binding IconGlyph}"
+                        <TextBlock FontFamily="{DynamicResource AppIconFontFamily}" FontSize="14" Text="{Binding IconGlyph}"
                                    Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
 
                         <StackPanel Grid.Column="1" Orientation="Vertical" Margin="8,0,0,0" VerticalAlignment="Center">

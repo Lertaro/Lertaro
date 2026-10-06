@@ -1,10 +1,9 @@
-using System.Globalization;
 using System.Windows;
 using System.Windows.Documents;
 using System.Windows.Input;
-using System.Windows.Markup;
 using System.Windows.Media;
 using Lertaro.App.Helpers;
+using Lertaro.App.Services;
 using Lertaro.App.ViewModels.Settings;
 using Lertaro.Core;
 
@@ -81,16 +80,21 @@ public partial class ServiceSettingsPage : System.Windows.Controls.UserControl
         LogTextBox.ScrollToEnd();
     }
 
-    private void RebuildLogDocument(IEnumerable<LogLineViewModel> lines)
+    protected override void OnPropertyChanged(DependencyPropertyChangedEventArgs e)
+    {
+        base.OnPropertyChanged(e);
+        if (e.Property == LanguageProperty && _pendingLines != null)
+            RequestRebuild();
+    }
+
+    internal void RebuildLogDocument(IEnumerable<LogLineViewModel> lines)
     {
         // A page wider than any line is FlowDocument's trick for "don't wrap this text, let long lines
         // scroll horizontally instead" -- there's no direct TextWrapping=NoWrap for it. How much wider
         // has to come from the text, because that width is also the horizontal scroll range.
         var document = new FlowDocument { PagePadding = new Thickness(0) };
-        // Mark the whole document as Simplified Chinese so WPF's per-glyph font fallback picks the CJK
-        // fonts from the composite FontFamily (Microsoft YaHei UI and the other East Asian UI fonts)
-        // even on a non-Chinese Windows install; Latin glyphs still come from Consolas, the first family.
-        document.Language = XmlLanguage.GetLanguage("zh-CN");
+        document.SetResourceReference(TextElement.FontFamilyProperty, AppTypography.MonospaceFontKey);
+        document.SetResourceReference(FrameworkContentElement.LanguageProperty, AppTypography.LanguageKey);
         var paragraph = new Paragraph { Margin = new Thickness(0) };
         var typeface = new Typeface(LogTextBox.FontFamily, LogTextBox.FontStyle, LogTextBox.FontWeight, LogTextBox.FontStretch);
         var pixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
@@ -104,10 +108,9 @@ public partial class ServiceSettingsPage : System.Windows.Controls.UserControl
             paragraph.Inlines.Add(new LineBreak());
         }
 
-        // Only the widest line sets PageWidth, and the log is monospaced (Latin from Consolas, CJK from a
-        // full-width East Asian font), so a line's rendered width is proportional to its WeightedLength.
-        // Measuring every line with FormattedText was the bulk of this rebuild's cost; measuring only the
-        // heaviest few lands on the same maximum for a fraction of the work.
+        // ponytail: rank a few likely widest lines to avoid measuring the entire live log every refresh.
+        // Consolas is monospaced, but CJK fallback is not exactly twice its width; emoji and other scripts
+        // can also defeat this heuristic. If clipping is reported, cache real measurements per line.
         var widestCandidates = all
             .OrderByDescending(line => WeightedLength(line.Text))
             .Take(MeasuredCandidates)
@@ -122,9 +125,7 @@ public partial class ServiceSettingsPage : System.Windows.Controls.UserControl
     // that renders wider than this weighting assumes cannot distort the answer.
     private const int MeasuredCandidates = 8;
 
-    // Rough width proxy: a full-width character (CJK, kana, Hangul, fullwidth forms) occupies twice the
-    // advance of a Latin one in the log's monospaced font, so counting it as two ranks lines the way
-    // FormattedText would. Internal so the ranking can be tested without a visual tree.
+    // Rough width proxy only: CJK fallback fonts are not guaranteed to align to two Latin cells.
     internal static int WeightedLength(string text)
     {
         var weight = 0;
@@ -133,15 +134,14 @@ public partial class ServiceSettingsPage : System.Windows.Controls.UserControl
         return weight;
     }
 
-    // Start of CJK Radicals Supplement; everything from here up (kana, CJK ideographs, Hangul, fullwidth
-    // forms) renders full-width in the log's monospaced font.
+    // Start of CJK Radicals Supplement; later characters are treated as wide by this heuristic.
     private const char FullWidthThreshold = '\u2E80';
 
-    // Measured rather than estimated from the character count: the log is a monospaced font, but a line
-    // with CJK in it is still about twice as wide per character as an ASCII one.
+    // Use the same language and formatting mode as the viewer so CJK fallback metrics match.
     private double MeasureWidth(string text, Typeface typeface, double pixelsPerDip)
-        => new FormattedText(text, CultureInfo.CurrentCulture, System.Windows.FlowDirection.LeftToRight, typeface,
-                             LogTextBox.FontSize, System.Windows.Media.Brushes.Black, pixelsPerDip).WidthIncludingTrailingWhitespace;
+        => new FormattedText(text, LogTextBox.Language.GetSpecificCulture(), System.Windows.FlowDirection.LeftToRight, typeface,
+                             LogTextBox.FontSize, System.Windows.Media.Brushes.Black, null,
+                             TextOptions.GetTextFormattingMode(LogTextBox), pixelsPerDip).WidthIncludingTrailingWhitespace;
 
     private static string ForegroundKeyFor(LogLevel level) => level switch
     {

@@ -89,7 +89,7 @@
 
     <!-- ═══════════ Sidebar Group Clear Button (small "x", shown only while the group has a selection) ═══════════ -->
     <Style x:Key="SidebarClearButtonStyle" TargetType="Button">
-        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="FontFamily" Value="{DynamicResource AppIconFontFamily}"/>
         <Setter Property="FontSize" Value="10"/>
         <Setter Property="Width" Value="18"/>
         <Setter Property="Height" Value="18"/>
@@ -216,7 +216,7 @@
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="FontSize" Value="13"/>
-        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="FontFamily" Value="{DynamicResource AppIconFontFamily}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">

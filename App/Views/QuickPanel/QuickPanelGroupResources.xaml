@@ -11,7 +11,7 @@
                     <Border x:Name="Bar" Background="Transparent" CornerRadius="6" Padding="8,3,8,3">
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <TextBlock x:Name="Chevron" Grid.Column="0" Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="9"
+                            <TextBlock x:Name="Chevron" Grid.Column="0" Text="&#xE70D;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="9"
                                        Foreground="{DynamicResource TextSecondary2}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                             <ContentPresenter Grid.Column="1" VerticalAlignment="Center"/>
                         </Grid>

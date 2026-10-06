@@ -114,7 +114,7 @@
                                         </Style.Triggers>
                                     </Style>
                                 </Border.Style>
-                                <TextBlock Text="&#xE706;" FontFamily="Segoe MDL2 Assets" FontSize="20"
+                                <TextBlock Text="&#xE706;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="20"
                                            Foreground="{DynamicResource AccentBlue}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                         </Border>
@@ -140,7 +140,7 @@
                                         </Style.Triggers>
                                     </Style>
                                 </Border.Style>
-                                <TextBlock Text="&#xE708;" FontFamily="Segoe MDL2 Assets" FontSize="20"
+                                <TextBlock Text="&#xE708;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="20"
                                            Foreground="{DynamicResource AccentBlue}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                         </Border>
@@ -182,7 +182,7 @@
                                     <Polygon Points="104,0 104,60 0,60" Fill="#1E1E1E"/>
                                     <Border Width="26" Height="26" CornerRadius="13"
                                             Background="{DynamicResource AccentBlue}" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                        <TextBlock Text="&#xE895;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="12"
                                                    Foreground="{DynamicResource PrimaryButtonText}"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>

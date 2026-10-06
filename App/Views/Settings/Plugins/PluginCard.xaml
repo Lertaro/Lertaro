@@ -42,7 +42,7 @@
                 <!-- Plugin icon -->
                 <Border Grid.Column="0" Width="36" Height="36" CornerRadius="8" VerticalAlignment="Top"
                         Background="{DynamicResource HoverBackground}" Margin="0,0,12,0">
-                    <TextBlock Text="&#xEA86;" FontFamily="Segoe MDL2 Assets" FontSize="16"
+                    <TextBlock Text="&#xEA86;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="16"
                                Foreground="{DynamicResource AccentBlue}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
                 <!-- Name + meta -->
@@ -66,7 +66,7 @@
                             <ControlTemplate TargetType="Button">
                                 <StackPanel Orientation="Horizontal" Background="Transparent">
                                     <TextBlock x:Name="Txt" Text="{Binding DisplayWebsiteLabel}" FontSize="12" Foreground="{DynamicResource AccentBlue}"/>
-                                    <TextBlock Text="&#xE8A7;" FontFamily="Segoe MDL2 Assets" FontSize="11" Foreground="{DynamicResource AccentBlue}" Margin="4,1,0,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="&#xE8A7;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="11" Foreground="{DynamicResource AccentBlue}" Margin="4,1,0,0" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
@@ -299,7 +299,7 @@
                                                   Visibility="{Binding IsToggleable, Converter={StaticResource BoolToVis}}"/>
 
                                         <!-- Lock icon shown for read-only components (e.g. TranslationProvider) -->
-                                        <TextBlock Grid.Column="2" Text="&#xE72E;" FontFamily="Segoe MDL2 Assets" FontSize="13"
+                                        <TextBlock Grid.Column="2" Text="&#xE72E;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="13"
                                                    Foreground="{DynamicResource SeparatorBrush}"
                                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_ReadOnlyTooltip]}"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"

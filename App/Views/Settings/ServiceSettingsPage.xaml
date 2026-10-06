@@ -44,7 +44,7 @@
                     <!-- Visual indicator (Heartbeat / Ring / Alert) -->
                     <Grid Grid.Column="0" VerticalAlignment="Center" Margin="0,0,24,0">
                         <!-- Loading Ring -->
-                        <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" 
+                        <TextBlock Text="&#xE895;" FontFamily="{DynamicResource AppIconFontFamily}"
                                    Foreground="{DynamicResource AccentBlue}" FontSize="32" 
                                    RenderTransformOrigin="0.5,0.5"
                                    Visibility="{Binding Service.ProgressBarVisibility}">
@@ -72,7 +72,7 @@
                         <!-- Error icon (when not loading and error is visible) -->
                         <Border Width="42" Height="42" CornerRadius="21" Background="{DynamicResource ErrorBackground}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                 Visibility="{Binding Service.ErrorIconVisibility}">
-                            <TextBlock Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" 
+                            <TextBlock Text="&#xE7BA;" FontFamily="{DynamicResource AppIconFontFamily}"
                                        Foreground="{DynamicResource ErrorBrush}" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         
@@ -92,7 +92,7 @@
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
-                            <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" 
+                            <TextBlock Text="&#xE73E;" FontFamily="{DynamicResource AppIconFontFamily}"
                                        Foreground="{DynamicResource SuccessBadgeText}" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                     </Grid>
@@ -255,8 +255,7 @@
             <RichTextBox x:Name="LogTextBox" IsReadOnly="True" IsReadOnlyCaretVisible="True"
                          Background="Transparent" BorderThickness="0" Padding="12,10"
                          CaretBrush="{DynamicResource TextPrimary}"
-                         FontFamily="Consolas, Microsoft YaHei UI, Microsoft JhengHei UI, Malgun Gothic, Yu Gothic UI" FontSize="11"
-                         xml:lang="zh-CN"
+                         FontFamily="{DynamicResource AppMonospaceFontFamily}" FontSize="11"
                          HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                          PreviewMouseWheel="LogTextBox_PreviewMouseWheel">
                 <!-- The app's TextBox style gives every plain TextBox this same themed context menu

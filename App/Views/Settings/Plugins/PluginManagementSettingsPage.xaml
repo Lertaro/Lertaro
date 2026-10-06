@@ -228,7 +228,7 @@
                                         </Style>
                                     </Border.Style>
                                 </Border>
-                                <TextBlock Text="&#xE71D;" FontFamily="Segoe MDL2 Assets"
+                                <TextBlock Text="&#xE71D;" FontFamily="{DynamicResource AppIconFontFamily}"
                                            FontSize="16" Foreground="{DynamicResource AccentBlue}"
                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Grid>

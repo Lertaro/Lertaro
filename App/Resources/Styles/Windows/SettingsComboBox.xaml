@@ -79,7 +79,7 @@
                                                               ContentStringFormat="{Binding SelectionBoxItemStringFormat, RelativeSource={RelativeSource AncestorType=ComboBox}}"/>
                                             <TextBlock Grid.Column="1"
                                                        Text="&#xE70D;"
-                                                       FontFamily="Segoe MDL2 Assets"
+                                                       FontFamily="{DynamicResource AppIconFontFamily}"
                                                        FontSize="10"
                                                        Foreground="{DynamicResource TextSecondary}"
                                                        HorizontalAlignment="Center"

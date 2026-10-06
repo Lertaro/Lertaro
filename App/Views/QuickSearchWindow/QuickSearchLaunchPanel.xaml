@@ -34,7 +34,7 @@
             <Setter Property="Width" Value="22"/>
             <Setter Property="Height" Value="22"/>
             <Setter Property="Margin" Value="3"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontFamily" Value="{DynamicResource AppUiFontFamily}"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Panel.ZIndex" Value="2"/>
             <Setter Property="Visibility" Value="Collapsed"/>
@@ -137,7 +137,7 @@
                                                    helpers:MarqueeBehavior.EnableMarquee="{Binding RelativeSource={RelativeSource AncestorType={x:Type Border}}, Path=IsMouseOver}"/>
                                     </ScrollViewer>
                                 </StackPanel>
-                                <Button Content="&#xE712;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource LaunchItemMenuButtonStyle}"
+                                <Button Content="&#xE712;" FontFamily="{DynamicResource AppIconFontFamily}" Style="{StaticResource LaunchItemMenuButtonStyle}"
                                         HorizontalAlignment="Right" VerticalAlignment="Top"
                                         Click="LaunchItemMenu_Click">
                                     <Button.ContextMenu>
@@ -145,13 +145,13 @@
                                             <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_Edit]}"
                                                       Click="EditLaunchItem_Click">
                                                 <MenuItem.Icon>
-                                                    <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" Foreground="{DynamicResource MenuText}"/>
+                                                    <TextBlock Text="&#xE70F;" FontFamily="{DynamicResource AppIconFontFamily}" Foreground="{DynamicResource MenuText}"/>
                                                 </MenuItem.Icon>
                                             </MenuItem>
                                             <MenuItem Header="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[QuickLaunch_Remove]}"
                                                       Click="DeleteLaunchItem_Click">
                                                 <MenuItem.Icon>
-                                                    <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" Foreground="{DynamicResource MenuText}"/>
+                                                    <TextBlock Text="&#xE74D;" FontFamily="{DynamicResource AppIconFontFamily}" Foreground="{DynamicResource MenuText}"/>
                                                 </MenuItem.Icon>
                                             </MenuItem>
                                         </ContextMenu>

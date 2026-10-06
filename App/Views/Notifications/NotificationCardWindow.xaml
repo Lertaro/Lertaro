@@ -32,7 +32,7 @@
                 <Setter Property="Height" Value="24"/>
                 <Setter Property="Background" Value="Transparent"/>
                 <Setter Property="BorderThickness" Value="0"/>
-                <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+                <Setter Property="FontFamily" Value="{DynamicResource AppIconFontFamily}"/>
                 <Setter Property="FontSize" Value="10"/>
                 <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
                 <Setter Property="Cursor" Value="Hand"/>
@@ -89,7 +89,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" x:Name="LevelIcon" Width="16" FontFamily="Segoe MDL2 Assets"
+                        <TextBlock Grid.Column="0" x:Name="LevelIcon" Width="16" FontFamily="{DynamicResource AppIconFontFamily}"
                                    FontSize="14" Text="&#xE946;" VerticalAlignment="Center" Margin="0,0,8,0"
                                    Foreground="{DynamicResource AccentBlue}"/>
                         <TextBlock Grid.Column="1" x:Name="TxtTitle" FontSize="13" FontWeight="SemiBold"

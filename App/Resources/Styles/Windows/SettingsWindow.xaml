@@ -68,6 +68,7 @@
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Focusable" Value="False"/>
         <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="Padding" Value="0,0,0,10"/>
         <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
         <Setter Property="Template">
@@ -131,7 +132,7 @@
         <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="FontFamily" Value="{DynamicResource AppIconFontFamily}"/>
         <Setter Property="FontSize" Value="14"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -162,7 +163,7 @@
         <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="FontFamily" Value="{DynamicResource AppIconFontFamily}"/>
         <Setter Property="FontSize" Value="14"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -198,7 +199,7 @@
         <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
         <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
         <Setter Property="VerticalContentAlignment" Value="Top"/>
-        <Setter Property="FontFamily" Value="Cascadia Mono, Consolas"/>
+        <Setter Property="FontFamily" Value="{DynamicResource AppMonospaceFontFamily}"/>
     </Style>
 
     <!-- Reorder button with accent-colored hover feedback for quick-navigation rows. -->
@@ -212,7 +213,7 @@
         <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="FontFamily" Value="{DynamicResource AppIconFontFamily}"/>
         <Setter Property="FontSize" Value="14"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -245,7 +246,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="&#xEA18;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                <TextBlock Text="&#xEA18;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="14"
                            Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="13"
                            Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center"

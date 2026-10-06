@@ -71,7 +71,7 @@
                         Padding="24,32" Margin="0,8,0,0"
                         Visibility="{Binding NetworkDrive.IsFolderIndexesEmpty, Converter={StaticResource BoolToVis}}">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="36"
+                        <TextBlock Text="&#xE8B7;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="36"
                                    Foreground="{DynamicResource EmptyPlaceholderIcon}" HorizontalAlignment="Center" Margin="0,0,0,12"/>
                         <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Folder_Placeholder]}" FontSize="13"
                                    Foreground="{DynamicResource TextSecondary2}" HorizontalAlignment="Center"/>

@@ -80,7 +80,7 @@
                            Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis"/>
                 <Border x:Name="SelectedBadge" Width="14" Height="14" CornerRadius="7"
                         Background="{Binding Accent}" HorizontalAlignment="Right" Visibility="Collapsed">
-                    <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="7"
+                    <TextBlock Text="&#xE73E;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="7"
                                Foreground="{Binding AccentText}"
                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>

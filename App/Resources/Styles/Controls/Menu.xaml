@@ -77,7 +77,7 @@
                                 <TextBlock x:Name="Arrow"
                                            Grid.Column="2"
                                            Text="&#xE76C;"
-                                           FontFamily="Segoe MDL2 Assets"
+                                           FontFamily="{DynamicResource AppIconFontFamily}"
                                            FontSize="10"
                                            Foreground="{DynamicResource TextSecondary}"
                                            Margin="8,0,8,0"
@@ -235,7 +235,7 @@
         <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="FontFamily" Value="{DynamicResource AppIconFontFamily}"/>
         <Setter Property="FontSize" Value="10"/>
         <Setter Property="Template">
             <Setter.Value>

@@ -70,7 +70,7 @@
                      IsReadOnly="{Binding EditorReadOnly, RelativeSource={RelativeSource AncestorType={x:Type ctrl:InlineEditorHost}}}"
                      AcceptsReturn="True" AcceptsTab="True"
                      TextWrapping="Wrap" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
-                     VerticalContentAlignment="Top" Padding="10,8" FontFamily="Cascadia Mono, Consolas">
+                     VerticalContentAlignment="Top" Padding="10,8" FontFamily="{DynamicResource AppMonospaceFontFamily}">
                 <ctrl:LineBreakMarkerTextBox.Style>
                     <Style TargetType="{x:Type ctrl:LineBreakMarkerTextBox}" BasedOn="{StaticResource ThemedTextBox}">
                         <Setter Property="Visibility" Value="Collapsed"/>
@@ -157,7 +157,7 @@
             </DataTrigger>
             <!-- StringList fields -->
             <DataTrigger Binding="{Binding IsStringList}" Value="True">
-                <Setter Property="ContentTemplate"><Setter.Value><DataTemplate><TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}" Width="260" Height="80" AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top" Padding="6,4" FontFamily="Cascadia Mono, Consolas"/></DataTemplate></Setter.Value></Setter>
+                <Setter Property="ContentTemplate"><Setter.Value><DataTemplate><TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" MaxLength="{Binding MaxLength}" Width="260" Height="80" AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top" Padding="6,4" FontFamily="{DynamicResource AppMonospaceFontFamily}"/></DataTemplate></Setter.Value></Setter>
             </DataTrigger>
             <!-- Integer fields -->
             <DataTrigger Binding="{Binding IsInteger}" Value="True">
@@ -192,7 +192,7 @@
         <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="FontFamily" Value="{DynamicResource AppIconFontFamily}"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="Template">
             <Setter.Value>

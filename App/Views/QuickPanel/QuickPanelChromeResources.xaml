@@ -17,7 +17,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="ToggleButton">
                     <Border x:Name="Bd" Background="Transparent" CornerRadius="4">
-                        <TextBlock x:Name="Glyph" Text="&#xE718;" FontFamily="Segoe MDL2 Assets"
+                        <TextBlock x:Name="Glyph" Text="&#xE718;" FontFamily="{DynamicResource AppIconFontFamily}"
                                    FontSize="12" Foreground="{DynamicResource TextSecondary2}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
@@ -45,7 +45,7 @@
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Focusable" Value="False"/>
-        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="FontFamily" Value="{DynamicResource AppIconFontFamily}"/>
         <Setter Property="Foreground" Value="{DynamicResource TextSecondary2}"/>
         <Setter Property="Template">
             <Setter.Value>
