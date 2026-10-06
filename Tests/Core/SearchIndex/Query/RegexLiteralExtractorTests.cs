@@ -6,6 +6,27 @@ namespace Lertaro.Core.Tests.SearchIndex.Query;
 public sealed class RegexLiteralExtractorTests
 {
     [TestMethod]
+    [DataRow(@"^\u0061$", "a")]
+    [DataRow(@"^\x61$", "a")]
+    [DataRow(@"^(a)\k<1>$", "aa")]
+    [DataRow(@"^\141$", "a")]
+    [DataRow(@"(?x)^a #comment", "a")]
+    [DataRow(@"a{00,2}b", "b")]
+    [DataRow(@"a{00,2}b", "ab")]
+    [DataRow(@"a{2,3}b", "aab")]
+    [DataRow(@"[a-z-[aeiou]]", "z")]
+    [DataRow(@"ab]cd", "ab]cd")]
+    [DataRow(@"ab}cd", "ab}cd")]
+    [DataRow(@"(?# unmatched ( here)abc", "abc")]
+    public void Extract_ValidRegexMatch_AlwaysContainsReturnedLiteral(string regex, string text)
+    {
+        Assert.IsTrue(System.Text.RegularExpressions.Regex.IsMatch(text, regex,
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant));
+        var literal = RegexLiteralExtractor.ExtractRequiredLiteral(regex);
+        Assert.IsTrue(text.Contains(literal, StringComparison.OrdinalIgnoreCase), $"'{literal}' is not required by {regex}");
+    }
+
+    [TestMethod]
     public void Extract_AlternationWithClasses_KeepsOnlyTheLiteralRun() => Assert.AreEqual("ab", RegexLiteralExtractor.ExtractRequiredLiteral("^ab.c\\..{3}$"));
 
     [TestMethod]
@@ -139,7 +160,7 @@ public sealed class RegexLiteralExtractorTests
 
     [TestMethod]
     public void Extract_CommentGroup_ContributesNothing() =>
-        Assert.AreEqual("abc", RegexLiteralExtractor.ExtractRequiredLiteral("(?#note)abc"));
+        Assert.AreEqual(string.Empty, RegexLiteralExtractor.ExtractRequiredLiteral("(?#note)abc"));
 
     // The two forms that DO carry the match's text keep being scanned, so the rule above stays narrow.
     [TestMethod]

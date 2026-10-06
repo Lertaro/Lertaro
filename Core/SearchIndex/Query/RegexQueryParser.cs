@@ -47,13 +47,13 @@ public static class RegexQueryParser
         while (index < query.Length)
         {
             var start = query.IndexOf(Delimiter, index);
-            if (start < 0 || !IsAtTokenBoundary(query, start))
+            if (start < 0)
             {
                 remaining.Append(query, index, query.Length - index);
                 break;
             }
 
-            if (!TryReadClause(query, start, out var pattern, out var end))
+            if (!IsAtTokenBoundary(query, start) || !TryReadClause(query, start, out var pattern, out var end))
             {
                 // A '/' that does not open a well-formed clause -- keep it as ordinary text rather than
                 // silently swallowing part of the query.
@@ -88,7 +88,7 @@ public static class RegexQueryParser
         var wordEnd = FindWordEnd(query, start);
         // Three characters is the shortest clause there is ("/a/"): the body must not be empty, so "//" is
         // a UNC path's opening, not an empty pattern that would match everything.
-        if (wordEnd - start < 3 || query[wordEnd - 1] != Delimiter)
+        if (wordEnd - start < 3 || query[wordEnd - 1] != Delimiter || IsEscaped(query, wordEnd - 1))
             return false;
 
         var builder = new System.Text.StringBuilder(wordEnd - start - 2);

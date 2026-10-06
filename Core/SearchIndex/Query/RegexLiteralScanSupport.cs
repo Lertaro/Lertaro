@@ -172,13 +172,9 @@ internal static class RegexLiteralScanSupport
         while (i < pattern.Length && pattern[i] == ' ')
             i++;
 
-        if (i < pattern.Length && pattern[i] == '0')
-        {
-            var after = i + 1;
-            return after >= pattern.Length || pattern[after] == ',' || pattern[after] == '}';
-        }
-
-        return false;
+        var start = i;
+        while (i < pattern.Length && pattern[i] == '0') i++;
+        return i > start && i < pattern.Length && pattern[i] is ',' or '}';
     }
 
     internal static int SkipUntil(string pattern, int from, char terminator)

@@ -249,7 +249,7 @@ internal static class NameSearch
             SearchMatcher.ReturnHitList(hits);
         }
 
-        MatchDeltaRows(snapshot, delta, pattern, matchAll, ctx, topN, fileNamePatterns);
+        MatchDeltaRows(snapshot, delta, pattern, matchAll, ctx, topN, token, fileNamePatterns);
     }
 
     private static bool MatchesFileScope(Snapshot snapshot, DeltaOverlay delta, int row, string[]? patterns)
@@ -275,13 +275,14 @@ internal static class NameSearch
     // Delta churn is always small (live USN/watcher batches, not bulk scans), so both loops just check
     // the row's own full path against the filter prefix -- correct for renamed/moved/added rows alike,
     // unlike the row-index ancestor cache above (a snapshot-only optimization for the hot base-row path).
-    private static void MatchDeltaRows(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, bool matchAll, DirectoryContext ctx, FzfTopN topN, string[]? fileNamePatterns)
+    private static void MatchDeltaRows(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, bool matchAll, DirectoryContext ctx, FzfTopN topN, CancellationToken token, string[]? fileNamePatterns)
     {
         var slab = new FzfSlab();
         var queryLen = pattern.GetTotalTermLength();
 
         foreach (var (row, record) in delta.BaseOverrides)
         {
+            token.ThrowIfCancellationRequested();
             if (record.Name.Length == 0)
                 continue;
             if (!MatchesFileScope(record.Name, record.Flags, fileNamePatterns))
@@ -295,6 +296,7 @@ internal static class NameSearch
         }
         for (var i = 0; i < delta.Added.Count; i++)
         {
+            token.ThrowIfCancellationRequested();
             var record = delta.Added[i];
             if (record.Removed || record.Name.Length == 0)
                 continue;

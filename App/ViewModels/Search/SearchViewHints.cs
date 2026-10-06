@@ -57,7 +57,10 @@ public sealed class SearchViewHints(SearchViewModel viewModel) : INotifyProperty
             // be stale (a search the user has already typed past), missing (a clause the compile cache
             // answered without re-reporting), or empty for the common case (a clause compiled in the
             // service process, whose report never came back).
-            var invalid = SearchContext.UncompilableClauses(viewModel.AdvancedQuery);
+            var clean = Core.SearchIndex.Query.QueryTokenScanner.Scan(
+                Core.SearchIndex.Query.QueryTokenScanner.StripExclusionBypass(viewModel.AdvancedQuery, out _),
+                Helpers.GlobalTokenPrefix.Current).Text;
+            var invalid = SearchContext.UncompilableClauses(clean);
             if (invalid.Count == 0)
                 return null;
 

@@ -6,7 +6,7 @@ using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.CoreExtensions.Providers.QueryTokens;
 
-// Built-in implementation of the "<keyword> \<category>" query suffix token, e.g. "report \audio".
+// Built-in implementation of the "\<category>" query token, e.g. "report \audio".
 //
 // Each category keyword is resolved to the regex its configured rule denotes -- "\audio" becomes
 // "\.(?:ogg|m4a|mp3|wav|flac|aac)$" -- and matched against the result's file name. The rule field keeps
@@ -52,7 +52,11 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
     }
 
     public Task<IReadOnlyList<ISearchResult>> ApplyAsync(string token, IReadOnlyList<ISearchResult> results)
+        => ApplyAsync(token, results, CancellationToken.None);
+
+    public Task<IReadOnlyList<ISearchResult>> ApplyAsync(string token, IReadOnlyList<ISearchResult> results, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (results == null || results.Count == 0)
             return Task.FromResult<IReadOnlyList<ISearchResult>>(Array.Empty<ISearchResult>());
 
@@ -82,9 +86,21 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
             // reference to another filter that resolved to nothing.
             return Task.FromResult<IReadOnlyList<ISearchResult>>(Array.Empty<ISearchResult>());
 
-        return Task.FromResult<IReadOnlyList<ISearchResult>>(results.Where(r => r.IsDir
-            ? admitDirs
-            : admitAnyFile || (nameRegex?.IsMatch(r.Name) ?? false)).ToList());
+        var filtered = new List<ISearchResult>();
+        foreach (var result in results)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                if (result.IsDir ? admitDirs : admitAnyFile || (nameRegex?.IsMatch(result.Name) ?? false))
+                    filtered.Add(result);
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                // A pathological rule/name pair is a miss; the next row still observes cancellation.
+            }
+        }
+        return Task.FromResult<IReadOnlyList<ISearchResult>>(filtered);
     }
 
     // Splits an already-expanded rule into the one name regex it implies plus the two things a name regex
@@ -163,7 +179,16 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
             Regex compiled;
             try
             {
-                compiled = new Regex(RuleToRegex(rule), MatchOptions);
+                var pattern = RuleToRegex(rule);
+                try
+                {
+                    compiled = new Regex(pattern, MatchOptions | RegexOptions.NonBacktracking, TimeSpan.FromMilliseconds(250));
+                }
+                catch (NotSupportedException)
+                {
+                    // Large wildcard alternatives can exceed the non-backtracking engine's state limit.
+                    compiled = new Regex(pattern, MatchOptions, TimeSpan.FromMilliseconds(250));
+                }
             }
             catch (ArgumentException)
             {
