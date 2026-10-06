@@ -1,11 +1,62 @@
+using Lertaro.PluginSdk.Services;
 using Lertaro.Plugins.CoreExtensions.Providers.InstantAnswers;
 
 namespace Lertaro.Plugins.CoreExtensions.Tests.Providers.InstantAnswers;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class CommandInstantProviderTests
 {
     private static readonly CommandInstantProvider Provider = new();
+    private Func<string, string, object?, object?>? _oldSettings;
+
+    [TestInitialize]
+    public void Initialize()
+    {
+        _oldSettings = PluginSettingsService.GetSettingFunc;
+        PluginSettingsService.GetSettingFunc = null;
+    }
+
+    [TestCleanup]
+    public void Cleanup() => PluginSettingsService.GetSettingFunc = _oldSettings;
+
+    [TestMethod]
+    [DataRow("$dir", null)]
+    [DataRow("#dir", null)]
+    [DataRow("$dir", "")]
+    [DataRow("#dir", "")]
+    [DataRow("$dir", "   ")]
+    [DataRow("#dir", "   ")]
+    public void GetInstantResults_MissingCurrentDirectory_UsesUserProfile(string query, string? contextDirectory)
+    {
+        PluginSettingsService.GetSettingFunc = (_, key, fallback) => key == "CommandUseCurrentDirectory" ? true : fallback;
+        (bool Current, string? Directory)? executed = null;
+        var provider = new CommandInstantProvider((_, _, _, current, directory) => executed = (current, directory));
+        var expectedDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        Assert.IsNotEmpty(expectedDirectory);
+
+        var result = Assert.ContainsSingle(provider.GetInstantResults(query, contextDirectory));
+        Assert.IsNotNull(result.OnExecute);
+        result.OnExecute();
+
+        Assert.AreEqual((true, expectedDirectory), executed);
+        Assert.EndsWith(" · " + expectedDirectory, result.Description);
+    }
+
+    [TestMethod]
+    public void GetInstantResults_CurrentDirectoryDisabled_DoesNotSelectUserProfile()
+    {
+        PluginSettingsService.GetSettingFunc = (_, key, fallback) => key == "CommandUseCurrentDirectory" ? false : fallback;
+        (bool Current, string? Directory)? executed = null;
+        var provider = new CommandInstantProvider((_, _, _, current, directory) => executed = (current, directory));
+
+        var result = Assert.ContainsSingle(provider.GetInstantResults("$dir"));
+        Assert.IsNotNull(result.OnExecute);
+        result.OnExecute();
+
+        Assert.AreEqual((false, (string?)null), executed);
+        Assert.DoesNotContain(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), result.Description);
+    }
 
     [TestMethod]
     public void GetInstantResults_EmptyQuery_ReturnsNothing() => Assert.IsEmpty(Provider.GetInstantResults(""));

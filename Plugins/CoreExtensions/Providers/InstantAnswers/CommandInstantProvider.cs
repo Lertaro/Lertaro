@@ -45,6 +45,9 @@ public class CommandInstantProvider : IInstantResultProvider
 
         var shell = CommandSettings.Shell;
         var useCurrentDirectory = CommandSettings.UseCurrentDirectory;
+        // Quick search may have no folder context before an Explorer window has been tracked.
+        if (useCurrentDirectory && string.IsNullOrWhiteSpace(contextDirectory))
+            contextDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         yield return new InstantResultItem
         {
             Title = title,

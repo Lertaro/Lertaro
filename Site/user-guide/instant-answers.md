@@ -35,7 +35,7 @@ Run commands directly without launching a terminal window first:
 - `#<command>`: Opens a command prompt and executes the command **with Administrator privileges** (e.g. `#sfc /scannow` or `#net start LertaroService`).
 - `$<command>`: Opens a command prompt and executes the command with **standard user permissions** (e.g. `$ping 1.1.1.1` or `$ipconfig /all`).
 
-Under **Settings → Plugins → Core Extensions → Configure → Command Executor**, choose CMD (default), Windows PowerShell, or PowerShell (pwsh). **Run in current directory** uses the inline window's directory or the last browsed directory for quick search. An unavailable directory stops execution.
+Under **Settings → Plugins → Core Extensions → Configure → Command Executor**, choose CMD (default), Windows PowerShell, or PowerShell (pwsh). **Run in current directory** uses the inline window's directory or the last browsed directory for quick search. If no directory has been obtained (for example, when first using quick search), it uses your user profile directory. An unavailable chosen directory stops execution.
 
 Enable **Show in cascading folder browser** to add **Run command in this directory**. Its prompt lets you choose an interpreter and elevation for each command, always using the menu's source directory; a child folder's context menu uses that folder. Empty input opens the selected shell, and `#`/`$` overrides the elevation checkbox. Exact `cmd`, `powershell`, or `pwsh` after the prefix (case-insensitive, trimming whitespace) opens that program directly; only a missing executable falls back to CMD with the original input. A missing interpreter selected for an ordinary command reports an error without changing script syntax.
 

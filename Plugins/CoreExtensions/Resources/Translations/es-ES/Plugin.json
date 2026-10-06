@@ -223,7 +223,7 @@
   "CoreExtensions_Config_WildcardFilterPrefixDesc": "Carácter de prefijo para activar el filtro comodín secundario (predeterminado ?).",
   "Command_Config_Shell": "Intérprete de comandos",
   "Command_Config_CurrentDirectory": "Ejecutar en el directorio actual",
-  "Command_Config_CurrentDirectoryDesc": "Usa el directorio de búsqueda integrada o la última carpeta visitada en búsqueda rápida. Se detiene si no está disponible.",
+  "Command_Config_CurrentDirectoryDesc": "Usa el directorio de búsqueda integrada o la última carpeta visitada en búsqueda rápida. Si no se ha obtenido un directorio, usa la carpeta de perfil del usuario; se detiene si el directorio elegido no está disponible.",
   "Command_Config_ShowInQuickNav": "Mostrar en el explorador de carpetas en cascada",
   "Command_RunHere": "Ejecutar un comando aquí",
   "Command_Input": "Comando",

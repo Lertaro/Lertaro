@@ -223,7 +223,7 @@
   "CoreExtensions_Config_WildcardFilterPrefixDesc": "Prefix character to trigger wildcard secondary filtering (default ?).",
   "Command_Config_Shell": "Command interpreter",
   "Command_Config_CurrentDirectory": "Run in the current directory",
-  "Command_Config_CurrentDirectoryDesc": "Uses the inline search directory, or the last browsed folder in quick search. Stops if no valid directory is available.",
+  "Command_Config_CurrentDirectoryDesc": "Uses the inline search directory, or the last browsed folder in quick search. Uses your user profile directory if no directory has been obtained; stops if the chosen directory is unavailable.",
   "Command_Config_ShowInQuickNav": "Show in the cascading folder browser",
   "Command_RunHere": "Run a command here",
   "Command_Input": "Command",
