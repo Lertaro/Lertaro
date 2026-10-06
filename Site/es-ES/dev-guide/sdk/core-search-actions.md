@@ -48,6 +48,8 @@ Se ejecuta de forma sincrónica con cada pulsación de tecla, ideal para resulta
 public interface IInstantResultProvider : IPluginComponent
 {
     IEnumerable<InstantResultItem> GetInstantResults(string query);
+    IEnumerable<InstantResultItem> GetInstantResults(string query, string? contextDirectory) => GetInstantResults(query);
+    bool SupportsInlineSearch => false;
     bool[]? GetHighlightMask(string text, string query) => null; // Máscara de resaltado
 
     // Las palabras que invocan a este proveedor, que el propio paso de recorte del anfitrión
@@ -56,6 +58,10 @@ public interface IInstantResultProvider : IPluginComponent
     IReadOnlyList<string> QueryTriggerKeywords => [];
 }
 ```
+
+Sobrescriba `GetInstantResults(query, contextDirectory)` para recibir el directorio capturado para la búsqueda; por defecto llama a la sobrecarga original. Establezca `SupportsInlineSearch` en `true` para participar en la búsqueda integrada del Explorador. `SearchableItem.Keywords` aporta palabras adicionales: cada palabra de la consulta debe ser prefijo de una palabra del título o de las palabras clave. La propiedad pertenece a `SearchableItem`, no a `InstantResultItem`.
+
+`Lertaro.PluginSdk.Helpers.ShellCommandLauncher.Launch(command, shell = "cmd", runAsAdmin = false, workingDirectory = null)` inicia `cmd`, `powershell` o `pwsh`. `ResolveWorkingDirectory(configuredDirectory, useCurrentDirectory, contextDirectory)` expande rutas configuradas, usa literalmente el directorio capturado y rechaza directorios no disponibles. Un comando normal falla si falta el intérprete elegido; solo un comando que sea exactamente un nombre de intérprete puede recurrir a CMD.
 
 > [!TIP]
 > `GetInstantResults` se ejecuta de forma síncrona para garantizar la fluidez de escritura. Para peticiones asíncronas de red (traducción, sugerencias web), devuelve un elemento de marcador provisional, obtén los datos en segundo plano mediante `Task.Run`, almacénalos en caché y llama a `SearchRefreshService.RefreshIfMatches` para actualizar los resultados activos.
@@ -192,7 +198,7 @@ public interface IDynamicActionProvider : IPluginComponent
 
 ## 4. Estructuras auxiliares
 
-- **`SearchableItem`**: Contiene `Title`, `Description`, `IconData`, `IconColor`, `ActionType` (`"Copy"` / `"Execute"` / `"None"`), `ActionArgument`, `TabCompletion`, `HBitmapIcon` (liberado automáticamente por el anfitrión), `ResultKind` (una etiqueta elegida por el plugin sobre la que pueden apoyarse los filtros y las columnas del anfitrión) y dos devoluciones de llamada de ejecución: `OnExecute` (`Action`) para fire-and-forget, u `OnExecuteFunc` (`Func<bool>`) cuando la acción necesita informar de si tuvo éxito; el anfitrión usa esa respuesta para decidir, por ejemplo, si cierra la ventana. `InstantResultItem` lleva los mismos miembros de presentación y de devolución de llamada **salvo `ResultKind`**, que solo existe en el modelo de elemento consultable.
+- **`SearchableItem`**: Contiene `Title`, `Description`, `IconData`, `IconColor`, `ActionType` (`"Copy"` / `"Execute"` / `"None"`), `ActionArgument`, `TabCompletion`, `HBitmapIcon` (liberado automáticamente por el anfitrión), `ResultKind` (una etiqueta elegida por el plugin sobre la que pueden apoyarse los filtros y las columnas del anfitrión) y dos devoluciones de llamada de ejecución: `OnExecute` (`Action`) para fire-and-forget, u `OnExecuteFunc` (`Func<bool>`) cuando la acción necesita informar de si tuvo éxito; el anfitrión usa esa respuesta para decidir, por ejemplo, si cierra la ventana. `InstantResultItem` lleva los mismos miembros de presentación y de devolución de llamada **salvo `ResultKind` y `Keywords`**, que solo existe en el modelo de elemento consultable.
 - **`DynamicMenuItem`**: Contiene `Text`, `CommandId`, `IsSeparator`, `HasSubMenu`, `SubMenuHandle`, `IsDisabled`, `OnExecute`, `IsActionable` (por defecto `true`; `false` marca una fila que solo abre un submenú), `HBitmapItem` (un manejador de icono nativo del menú del Shell que se está reflejando), `ShortcutHint` (la letra con la que coincide una tecla mnemotécnica), `IsContinuation` (un cursor de paginación: este lote continúa un menú que el anfitrión aún está rellenando, y el anfitrión sigue preguntando mientras esté activo) e `IsHeader` (se renderiza como encabezado de grupo con un botón de acción opcional).
 - **`SearchWindowType`**: Enumerador con `Main` (Ventana principal), `Quick` (Ventana rápida) e `Inline` (Diálogo de archivos incrustado).
 

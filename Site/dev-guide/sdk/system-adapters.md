@@ -110,6 +110,7 @@ public interface IInlineSearchAdapter : IPluginComponent
 
     string? GetSearchScope(IntPtr hwnd);
     bool ExecuteItem(IntPtr hwnd, string path, string searchInput);
+    bool LocateItem(IntPtr hwnd, string path) => false;
     bool GetDockBounds(IntPtr hwnd, out AdapterRect rect);
 
     IEnumerable<string> GetListItems(IntPtr hwnd) => Array.Empty<string>();
@@ -128,6 +129,8 @@ public interface IInlineSearchAdapter : IPluginComponent
 - **`GetListItems`**: Names of the rows currently shown, used for selection mirroring. Returning nothing is fine; several supported managers report empty strings for their rows, which is why the host does not identify a row by name alone.
 - **`CanEnterActionsMode`**: `false` removes the action menu for this host entirely — right-click, `Ctrl+O` and `→` all stand down, rather than opening an empty panel.
 - **`OnSearchFinished(hwnd, executed)`**: Called when the card closes, with whether a result was actually run, which is when a host that had to suppress its own UI (info tips, rename edits) should put it back.
+
+`LocateItem(hwnd, path)` shows the parent folder and selects the item without opening it. Unsupported adapters return `false` by default. Like `ExecuteItem`, it identifies folders by a trailing directory separator. Implement locating separately from execution: Directory Opus and Total Commander locate in their own window instead of opening another Explorer window.
 
 ## 5. Quick Navigation Provider `IQuickNavigationProvider`
 

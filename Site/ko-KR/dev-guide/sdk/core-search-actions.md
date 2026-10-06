@@ -47,6 +47,8 @@ public interface ISearchableItemProvider : IPluginComponent
 public interface IInstantResultProvider : IPluginComponent
 {
     IEnumerable<InstantResultItem> GetInstantResults(string query);
+    IEnumerable<InstantResultItem> GetInstantResults(string query, string? contextDirectory) => GetInstantResults(query);
+    bool SupportsInlineSearch => false;
     bool[]? GetHighlightMask(string text, string query) => null; // 커스텀 하이라이트 마스크
 
     // 이 제공자를 호출하는 단어어들. 호스트 자신의 제거 단계가 이 값을 읽으므로
@@ -54,6 +56,10 @@ public interface IInstantResultProvider : IPluginComponent
     IReadOnlyList<string> QueryTriggerKeywords => [];
 }
 ```
+
+`GetInstantResults(query, contextDirectory)`를 재정의하면 이번 검색에서 캡처한 디렉터리를 받습니다. 기본 구현은 기존 오버로드를 호출합니다. 탐색기 인라인 검색에 참여하려면 `SupportsInlineSearch`를 `true`로 설정합니다. `SearchableItem.Keywords`에 추가 검색어를 지정할 수 있으며, 각 쿼리 단어는 제목이나 키워드의 단어 접두사와 일치해야 합니다. 이 속성은 `SearchableItem`에만 있고 `InstantResultItem`에는 없습니다.
+
+`Lertaro.PluginSdk.Helpers.ShellCommandLauncher.Launch(command, shell = "cmd", runAsAdmin = false, workingDirectory = null)`는 `cmd`, `powershell`, `pwsh`를 실행합니다. `ResolveWorkingDirectory(configuredDirectory, useCurrentDirectory, contextDirectory)`는 설정 경로를 확장하고 캡처한 현재 디렉터리는 문자 그대로 사용하며 사용할 수 없는 디렉터리를 거부합니다. 일반 명령은 선택한 인터프리터가 없으면 실패합니다. 명령 자체가 정확한 셸 이름인 경우에만 CMD로 대체할 수 있습니다.
 
 > [!TIP]
 > `GetInstantResults`는 타이핑 반응성을 위해 동기식으로 호출됩니다. 비동기 네트워크 요청(번역, 검색 제안 등)이 필요한 경우 플레이스홀더를 즉시 반환하고 `Task.Run`으로 백그라운드에서 조회 후 `SearchRefreshService.RefreshIfMatches`를 호출하여 호스트 검색 결과를 갱신하세요.
@@ -186,7 +192,7 @@ public interface IDynamicActionProvider : IPluginComponent
 
 ## 4. 보조 데이터 구조
 
-- **`SearchableItem`**: `Title`, `Description`, `IconData`, `IconColor`, `ActionType`(`"Copy"` / `"Execute"` / `"None"`), `ActionArgument`, `TabCompletion`, `HBitmapIcon`(호스트 자동 해제), `ResultKind`(호스트의 필터와 열이 기준으로 삼을 수 있는, 플러그인이 선택한 태그), 실행 콜백 두 개(`OnExecute`(`Action`)는 fire-and-forget용, 작업이 성공 여부를 알려야 할 때는 `OnExecuteFunc`(`Func<bool>`) — 호스트는 그 답변으로 예를 들어 창을 닫을지 결정함)를 포함합니다. `InstantResultItem`은 표시 및 콜백 멤버를 똑같이 갖지만 **`ResultKind`는 없습니다**. `ResultKind`는 검색 가능 항목 모델에만 있는 멤버입니다.
+- **`SearchableItem`**: `Title`, `Description`, `IconData`, `IconColor`, `ActionType`(`"Copy"` / `"Execute"` / `"None"`), `ActionArgument`, `TabCompletion`, `HBitmapIcon`(호스트 자동 해제), `ResultKind`(호스트의 필터와 열이 기준으로 삼을 수 있는, 플러그인이 선택한 태그), 실행 콜백 두 개(`OnExecute`(`Action`)는 fire-and-forget용, 작업이 성공 여부를 알려야 할 때는 `OnExecuteFunc`(`Func<bool>`) — 호스트는 그 답변으로 예를 들어 창을 닫을지 결정함)를 포함합니다. `InstantResultItem`은 표시 및 콜백 멤버를 똑같이 갖지만 **`ResultKind`와 `Keywords`는 없습니다**. `ResultKind`는 검색 가능 항목 모델에만 있는 멤버입니다.
 - **`DynamicMenuItem`**: `Text`, `CommandId`, `IsSeparator`, `HasSubMenu`, `SubMenuHandle`, `IsDisabled`, `OnExecute`, `IsActionable`(기본값 `true`; `false`는 하위 메뉴를 여는 일 외에는 동작하지 않는 행을 표시), `HBitmapItem`(미러링 중인 Shell 메뉴의 네이티브 아이콘 핸들), `ShortcutHint`(메모닉 키가 일치시키는 문자), `IsContinuation`(페이지 나누기 커서 — 이번 묶음이 호스트가 아직 채우고 있는 메뉴의 연속이며, 이 값이 설정되어 있는 동안 호스트는 계속 요청함), `IsHeader`(선택적 액션 버튼이 있는 그룹 헤더로 렌더링)를 포함합니다.
 - **`SearchWindowType`**: `Main`(메인 창), `Quick`(퀵 검색창), `Inline`(인라인 파일 대화상자) 열거형.
 

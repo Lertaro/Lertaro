@@ -112,6 +112,7 @@ public interface IInlineSearchAdapter : IPluginComponent
 
     string? GetSearchScope(IntPtr hwnd);
     bool ExecuteItem(IntPtr hwnd, string path, string searchInput);
+    bool LocateItem(IntPtr hwnd, string path) => false;
     bool GetDockBounds(IntPtr hwnd, out AdapterRect rect);
 
     IEnumerable<string> GetListItems(IntPtr hwnd) => Array.Empty<string>();
@@ -130,6 +131,8 @@ public interface IInlineSearchAdapter : IPluginComponent
 - **`GetListItems`**：現在表示されている行の名前で、選択のミラーリングに使われます。何も返さないのも問題ありません。対応済みのファイラーには行について空文字列を報告するものが複数あるため、ホストは行を名前だけで識別しません。
 - **`CanEnterActionsMode`**：`false` にすると、このホストではアクションメニューが完全に消えます。右クリック、`Ctrl+O`、`→` はいずれも、空のパネルを開くのではなく中止されます。
 - **`OnSearchFinished(hwnd, executed)`**：カードが閉じるときに、結果が実際に実行されたかどうかとともに呼ばれます。自身の UI（情報ツールチップや名前変更編集）を抑える必要のあったホストがそれを元へ戻すタイミングです。
+
+`LocateItem(hwnd, path)` は親フォルダーを表示して項目を選択し、項目自体は開きません。未対応アダプターの既定値は `false` です。`ExecuteItem` と同様に末尾のディレクトリ区切り文字でフォルダーを識別します。実行とは別に実装してください。Directory Opus と Total Commander は別のエクスプローラーを開かず、自身のウィンドウで項目を選択します。
 
 ## 5. クイックナビゲーションプロバイダー `IQuickNavigationProvider`
 

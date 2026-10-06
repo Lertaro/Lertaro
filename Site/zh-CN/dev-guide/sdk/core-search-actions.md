@@ -47,6 +47,8 @@ public interface ISearchableItemProvider : IPluginComponent
 public interface IInstantResultProvider : IPluginComponent
 {
     IEnumerable<InstantResultItem> GetInstantResults(string query);
+    IEnumerable<InstantResultItem> GetInstantResults(string query, string? contextDirectory) => GetInstantResults(query);
+    bool SupportsInlineSearch => false;
     bool[]? GetHighlightMask(string text, string query) => null; // 自定义匹配高亮掩码
 
     // 唤起该提供者的那些词，宿主自己的剥离步骤读的就是它，这样宿主的剥离
@@ -54,6 +56,10 @@ public interface IInstantResultProvider : IPluginComponent
     IReadOnlyList<string> QueryTriggerKeywords => [];
 }
 ```
+
+重写 `GetInstantResults(query, contextDirectory)` 可接收本次搜索捕获的目录；默认实现仍调用原有重载。将 `SupportsInlineSearch` 设为 `true` 才会参与资源管理器的内嵌搜索。`SearchableItem.Keywords` 可提供附加搜索词：每个查询词都必须是标题或关键词中某个词的前缀。该属性属于 `SearchableItem`，不属于 `InstantResultItem`。
+
+`Lertaro.PluginSdk.Helpers.ShellCommandLauncher.Launch(command, shell = "cmd", runAsAdmin = false, workingDirectory = null)` 可启动 `cmd`、`powershell` 或 `pwsh`。`ResolveWorkingDirectory(configuredDirectory, useCurrentDirectory, contextDirectory)` 会展开配置路径，按字面使用捕获的当前目录，并拒绝不可用的目录。普通命令所选解释器缺失时执行失败；只有命令本身恰好是解释器名称时，才允许回退到 CMD。
 
 > [!TIP]
 > `GetInstantResults` 为同步调用以保障打字流畅度。若需要发起网络请求（如在线翻译或搜索建议）：可先立即返回一个占位结果项，通过 `Task.Run` 在后台异步获取数据并缓存，请求完成后调用 `SearchRefreshService.RefreshIfMatches` 通知宿主就地刷新当前搜索结果。
@@ -186,7 +192,7 @@ public interface IDynamicActionProvider : IPluginComponent
 
 ## 4. 辅助数据结构
 
-- **`SearchableItem`**：包含 `Title`、`Description`、`IconData`、`IconColor`、`ActionType`（`"Copy"` / `"Execute"` / `"None"`）、`ActionArgument`、`TabCompletion`、`HBitmapIcon`（宿主自动接管释放）、`ResultKind`（由插件自选的标记，宿主的筛选器与列都可以依据它来匹配），以及两个执行回调：`OnExecute`（`Action`）用于发出去就不管，或当动作需要汇报成功与否时用 `OnExecuteFunc`（`Func<bool>`）——宿主会用这个答复来决定例如是否关闭窗口。`InstantResultItem` 带有同样的展示与回调成员，**只是不含 `ResultKind`**，那个只有可搜索条目模型才有。
+- **`SearchableItem`**：包含 `Title`、`Description`、`IconData`、`IconColor`、`ActionType`（`"Copy"` / `"Execute"` / `"None"`）、`ActionArgument`、`TabCompletion`、`HBitmapIcon`（宿主自动接管释放）、`ResultKind`（由插件自选的标记，宿主的筛选器与列都可以依据它来匹配），以及两个执行回调：`OnExecute`（`Action`）用于发出去就不管，或当动作需要汇报成功与否时用 `OnExecuteFunc`（`Func<bool>`）——宿主会用这个答复来决定例如是否关闭窗口。`InstantResultItem` 带有同样的展示与回调成员，**只是不含 `ResultKind` 和 `Keywords`**，那个只有可搜索条目模型才有。
 - **`DynamicMenuItem`**：包含 `Text`、`CommandId`、`IsSeparator`、`HasSubMenu`、`SubMenuHandle`、`IsDisabled`、`OnExecute`、`IsActionable`（默认 `true`；`false` 标记的是只用于打开子菜单的那一行）、`HBitmapItem`（来自被镜像的 Shell 菜单的原生图标句柄）、`ShortcutHint`（助记键所匹配的字母）、`IsContinuation`（一个分页游标：这一批延续的是宿主仍在填充的菜单，只要它置位，宿主就会接着向你要下一批），以及 `IsHeader`（渲染为带可选操作按钮的分组标题行）。
 - **`SearchWindowType`**：枚举值包括 `Main`（主搜索窗口）、`Quick`（居中快速浮窗）与 `Inline`（嵌入式文件对话框）。
 

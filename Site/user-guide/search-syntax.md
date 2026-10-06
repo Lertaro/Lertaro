@@ -30,6 +30,8 @@ Chinese names are searchable by pinyin, in two forms: the **initials** (one lett
 
 **With fuzzy matching off**, pinyin matches must line up with word starts. `ex` finds 恶性 (initials of two characters) but not 学习 (which would have to splice the end of `xue` onto the start of `xi`). With fuzzy matching on, that loose reading is what you asked for and remains available.
 
+In the inline window’s Current Folder section, direct children come before deeper descendants. Direct children are sorted by the leftmost match position, then folders before files at equal positions, then match type and Explorer-style name order. Name length does not determine their order.
+
 ## 2. Multiple Terms & Boolean Logic
 
 ### Space: AND

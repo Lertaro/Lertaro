@@ -107,6 +107,7 @@ public interface IInlineSearchAdapter : IPluginComponent
 
     string? GetSearchScope(IntPtr hwnd);
     bool ExecuteItem(IntPtr hwnd, string path, string searchInput);
+    bool LocateItem(IntPtr hwnd, string path) => false;
     bool GetDockBounds(IntPtr hwnd, out AdapterRect rect);
 
     IEnumerable<string> GetListItems(IntPtr hwnd) => Array.Empty<string>();
@@ -124,6 +125,8 @@ public interface IInlineSearchAdapter : IPluginComponent
 - **`GetListItems`**：目前顯示的各列名稱，用於選取鏡像。返回空也沒有關係；幾個受支援的管理器會為其各列回報空字串，這就是宿主不只用名稱辨識某列的原因。
 - **`CanEnterActionsMode`**：`false` 會為此宿主完全移除動作功能表——右鍵、`Ctrl+O` 與 `→` 一併退下，而不是開啟一個空白面板。
 - **`OnSearchFinished(hwnd, executed)`**：卡片關閉時呼叫，並帶上是否有結果真的被執行；這時那些必須隱藏自身 UI（資訊提示、重新命名編輯框）的宿主就該把它們放回去。
+
+`LocateItem(hwnd, path)` 只顯示父資料夾並選取項目，不會開啟該項目；不支援定位的配接器預設傳回 `false`。它與 `ExecuteItem` 一樣透過路徑結尾的目錄分隔符號識別資料夾。定位與執行應分別實作：Directory Opus 和 Total Commander 會在自身視窗中定位，而非另外開啟檔案總管。
 
 ## 5. 快速導覽提供者 `IQuickNavigationProvider`
 

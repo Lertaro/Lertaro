@@ -47,6 +47,8 @@ public interface ISearchableItemProvider : IPluginComponent
 public interface IInstantResultProvider : IPluginComponent
 {
     IEnumerable<InstantResultItem> GetInstantResults(string query);
+    IEnumerable<InstantResultItem> GetInstantResults(string query, string? contextDirectory) => GetInstantResults(query);
+    bool SupportsInlineSearch => false;
     bool[]? GetHighlightMask(string text, string query) => null; // カスタムハイライトマスク
 
     // このプロバイダーを起動するワード。ホスト自身の除去処理がこの値を読むため、
@@ -54,6 +56,10 @@ public interface IInstantResultProvider : IPluginComponent
     IReadOnlyList<string> QueryTriggerKeywords => [];
 }
 ```
+
+`GetInstantResults(query, contextDirectory)` をオーバーライドすると、今回の検索で取得したディレクトリを受け取れます。既定実装は従来のオーバーロードを呼び出します。エクスプローラーのインライン検索に参加するには `SupportsInlineSearch` を `true` にします。`SearchableItem.Keywords` には追加の検索語を指定でき、各クエリ語はタイトルまたはキーワード内の単語の先頭と一致する必要があります。このプロパティは `SearchableItem` 専用で、`InstantResultItem` にはありません。
+
+`Lertaro.PluginSdk.Helpers.ShellCommandLauncher.Launch(command, shell = "cmd", runAsAdmin = false, workingDirectory = null)` は `cmd`、`powershell`、`pwsh` を起動します。`ResolveWorkingDirectory(configuredDirectory, useCurrentDirectory, contextDirectory)` は設定パスを展開し、取得済みの現在のディレクトリをそのまま使用し、利用不能なディレクトリは拒否します。通常のコマンドでは選択したシェルがなければ失敗します。コマンドがシェル名そのものの場合に限り CMD にフォールバックできます。
 
 > [!TIP]
 > `GetInstantResults` はスムーズなタイピングのため同期呼び出しされます。非同期ネットワーク処理（翻訳やサジェスト取得等）を行う場合は、仮のプレースホルダーを即座に返し、`Task.Run` でバックグラウンド取得した後に `SearchRefreshService.RefreshIfMatches` を呼び出してホスト側の結果を再描画してください。
@@ -188,7 +194,7 @@ public interface IDynamicActionProvider : IPluginComponent
 
 ## 4. 補助データ構造
 
-- **`SearchableItem`**：`Title`、`Description`、`IconData`、`IconColor`、`ActionType`（`"Copy"` / `"Execute"` / `"None"`）、`ActionArgument`、`TabCompletion`、`HBitmapIcon`（ホストが自動解放）、`ResultKind`（プラグインが選択するタグで、ホストのフィルターや列がこれを手がかりにする）、および 2 つの実行コールバックを保持します。使い捨てであれば `OnExecute`（`Action`）、アクションが成否を報告する必要がある場合は `OnExecuteFunc`（`Func<bool>`）を使い、ホストはその戻り値を、たとえばウィンドウを閉じるかどうかの判断に利用します。`InstantResultItem` は表示用・コールバック系のメンバーを同じく持ちますが、**`ResultKind` だけは除かれます**。これは検索アイテム側のモデルだけに存在するメンバーです。
+- **`SearchableItem`**：`Title`、`Description`、`IconData`、`IconColor`、`ActionType`（`"Copy"` / `"Execute"` / `"None"`）、`ActionArgument`、`TabCompletion`、`HBitmapIcon`（ホストが自動解放）、`ResultKind`（プラグインが選択するタグで、ホストのフィルターや列がこれを手がかりにする）、および 2 つの実行コールバックを保持します。使い捨てであれば `OnExecute`（`Action`）、アクションが成否を報告する必要がある場合は `OnExecuteFunc`（`Func<bool>`）を使い、ホストはその戻り値を、たとえばウィンドウを閉じるかどうかの判断に利用します。`InstantResultItem` は表示用・コールバック系のメンバーを同じく持ちますが、**`ResultKind` と `Keywords` は除かれます**。これは検索アイテム側のモデルだけに存在するメンバーです。
 - **`DynamicMenuItem`**：`Text`、`CommandId`、`IsSeparator`、`HasSubMenu`、`SubMenuHandle`、`IsDisabled`、`OnExecute`、`IsActionable`（既定は `true`。`false` はサブメニューを開くだけの行を示す）、`HBitmapItem`（ミラー対象の Shell メニューから取得するネイティブのアイコンハンドル）、`ShortcutHint`（ニーモニックキーが一致させる文字）、`IsContinuation`（ページング用カーソル。このバッチがホストがまだ埋め途中のメニューの続きであることを示し、値が立っている間ホストは要求を続けます）、`IsHeader`（操作ボタン付きのグループヘッダー行として描画）を保持します。
 - **`SearchWindowType`**：`Main`（メイン検索窓）、`Quick`（クイック検索バー）、`Inline`（インラインダイアログ）の列挙型。
 

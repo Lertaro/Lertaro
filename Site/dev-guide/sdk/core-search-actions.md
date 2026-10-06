@@ -47,6 +47,8 @@ Executes synchronously on every keystroke, ideal for results derived purely from
 public interface IInstantResultProvider : IPluginComponent
 {
     IEnumerable<InstantResultItem> GetInstantResults(string query);
+    IEnumerable<InstantResultItem> GetInstantResults(string query, string? contextDirectory) => GetInstantResults(query);
+    bool SupportsInlineSearch => false;
     bool[]? GetHighlightMask(string text, string query) => null; // Custom highlight mask
 
     // The words that invoke this provider, read by the host's own strip step so its
@@ -54,6 +56,10 @@ public interface IInstantResultProvider : IPluginComponent
     IReadOnlyList<string> QueryTriggerKeywords => [];
 }
 ```
+
+Override `GetInstantResults(query, contextDirectory)` to receive the directory captured for this search; by default it calls the original overload. Set `SupportsInlineSearch` to `true` to participate in Explorer inline search. `SearchableItem.Keywords` supplies optional search words: each query word must prefix a title or keyword word. The property belongs to `SearchableItem`, not `InstantResultItem`.
+
+`Lertaro.PluginSdk.Helpers.ShellCommandLauncher.Launch(command, shell = "cmd", runAsAdmin = false, workingDirectory = null)` starts `cmd`, `powershell`, or `pwsh`. `ResolveWorkingDirectory(configuredDirectory, useCurrentDirectory, contextDirectory)` expands configured paths, treats captured current directories literally, and rejects unavailable directories. Ordinary commands fail if the chosen interpreter is missing; only an exact shell-name command may fall back to CMD.
 
 > [!TIP]
 > `GetInstantResults` is synchronous for typing fluidity. For async network queries (translation, web suggestions), return a placeholder item immediately, fetch data via `Task.Run` in the background, cache the result, and call `SearchRefreshService.RefreshIfMatches` to notify the host to refresh live results.
@@ -186,7 +192,7 @@ public interface IDynamicActionProvider : IPluginComponent
 
 ## 4. Supporting Models
 
-- **`SearchableItem`**: Contains `Title`, `Description`, `IconData`, `IconColor`, `ActionType` (`"Copy"` / `"Execute"` / `"None"`), `ActionArgument`, `TabCompletion`, `HBitmapIcon` (auto-disposed by host), `ResultKind` (a plugin-chosen tag the host's filters and columns can key off), and two execute callbacks: `OnExecute` (`Action`) for fire-and-forget, or `OnExecuteFunc` (`Func<bool>`) when the action needs to report success — the host uses that answer, for example, to decide whether to close the window. `InstantResultItem` carries the same display and callback members **except `ResultKind`**, which only the searchable-item model has.
+- **`SearchableItem`**: Contains `Title`, `Description`, `IconData`, `IconColor`, `ActionType` (`"Copy"` / `"Execute"` / `"None"`), `ActionArgument`, `TabCompletion`, `HBitmapIcon` (auto-disposed by host), `ResultKind` (a plugin-chosen tag the host's filters and columns can key off), and two execute callbacks: `OnExecute` (`Action`) for fire-and-forget, or `OnExecuteFunc` (`Func<bool>`) when the action needs to report success — the host uses that answer, for example, to decide whether to close the window. `InstantResultItem` carries the same display and callback members **except `ResultKind` and `Keywords`**, which only the searchable-item model has.
 - **`DynamicMenuItem`**: Contains `Text`, `CommandId`, `IsSeparator`, `HasSubMenu`, `SubMenuHandle`, `IsDisabled`, `OnExecute`, `IsActionable` (default `true`; `false` marks a row that only opens a submenu), `HBitmapItem` (a native icon handle from the Shell menu being mirrored), `ShortcutHint` (the letter a mnemonic key matches), `IsContinuation` (a paging cursor: this batch continues a menu the host is still filling, and the host keeps asking while it is set), and `IsHeader` (renders as a group header with an optional action button).
 - **`SearchWindowType`**: Enum with `Main`, `Quick`, and `Inline`.
 

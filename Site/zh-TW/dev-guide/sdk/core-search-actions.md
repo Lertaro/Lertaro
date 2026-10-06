@@ -47,6 +47,8 @@ public interface ISearchableItemProvider : IPluginComponent
 public interface IInstantResultProvider : IPluginComponent
 {
     IEnumerable<InstantResultItem> GetInstantResults(string query);
+    IEnumerable<InstantResultItem> GetInstantResults(string query, string? contextDirectory) => GetInstantResults(query);
+    bool SupportsInlineSearch => false;
     bool[]? GetHighlightMask(string text, string query) => null; // 自訂比對反白遮罩
 
     // 呼叫這個提供者的詞，由宿主自己的移除步驟讀取，因此宿主的移除與你的比對不會
@@ -54,6 +56,10 @@ public interface IInstantResultProvider : IPluginComponent
     IReadOnlyList<string> QueryTriggerKeywords => [];
 }
 ```
+
+覆寫 `GetInstantResults(query, contextDirectory)` 可接收本次搜尋擷取的目錄；預設實作仍呼叫原有多載。將 `SupportsInlineSearch` 設為 `true` 才會參與檔案總管的內嵌搜尋。`SearchableItem.Keywords` 可提供額外搜尋詞：每個查詢詞都必須是標題或關鍵字中某個詞的前綴。此屬性屬於 `SearchableItem`，不屬於 `InstantResultItem`。
+
+`Lertaro.PluginSdk.Helpers.ShellCommandLauncher.Launch(command, shell = "cmd", runAsAdmin = false, workingDirectory = null)` 可啟動 `cmd`、`powershell` 或 `pwsh`。`ResolveWorkingDirectory(configuredDirectory, useCurrentDirectory, contextDirectory)` 會展開設定路徑，按字面使用擷取的目前目錄，並拒絕無法使用的目錄。一般命令所選的解譯器缺少時執行失敗；只有命令本身恰好是解譯器名稱時，才允許回退至 CMD。
 
 > [!TIP]
 > `GetInstantResults` 為同步呼叫以保障打字流暢度。若需要發起網路請求（如線上翻譯或搜尋建議）：可先立即返回一個佔位結果項目，透過 `Task.Run` 在背景非同步獲取資料並快取，請求完成後呼叫 `SearchRefreshService.RefreshIfMatches` 通知宿主就地重新整理目前搜尋結果。
@@ -186,7 +192,7 @@ public interface IDynamicActionProvider : IPluginComponent
 
 ## 4. 輔助資料結構
 
-- **`SearchableItem`**：包含 `Title`、`Description`、`IconData`、`IconColor`、`ActionType`（`"Copy"` / `"Execute"` / `"None"`）、`ActionArgument`、`TabCompletion`、`HBitmapIcon`（GDI 點陣圖控制代碼，宿主自動接管釋放）、`ResultKind`（一個由外掛模組選擇、供宿主的篩選器與資料欄據以取用的標籤），以及兩個執行回呼：用於一觸即擲的 `OnExecute`（`Action`），或當動作需要回報成功時的 `OnExecuteFunc`（`Func<bool>`）——宿主會依據那個回答，例如決定是否關閉視窗。`InstantResultItem` 帶有相同的顯示與回呼成員，**唯獨沒有 `ResultKind`**，那個成員只有可搜尋項目的模型才有。
+- **`SearchableItem`**：包含 `Title`、`Description`、`IconData`、`IconColor`、`ActionType`（`"Copy"` / `"Execute"` / `"None"`）、`ActionArgument`、`TabCompletion`、`HBitmapIcon`（GDI 點陣圖控制代碼，宿主自動接管釋放）、`ResultKind`（一個由外掛模組選擇、供宿主的篩選器與資料欄據以取用的標籤），以及兩個執行回呼：用於一觸即擲的 `OnExecute`（`Action`），或當動作需要回報成功時的 `OnExecuteFunc`（`Func<bool>`）——宿主會依據那個回答，例如決定是否關閉視窗。`InstantResultItem` 帶有相同的顯示與回呼成員，**不含 `ResultKind` 和 `Keywords`**，那個成員只有可搜尋項目的模型才有。
 - **`DynamicMenuItem`**：包含 `Text`、`CommandId`、`IsSeparator`、`HasSubMenu`、`SubMenuHandle`、`IsDisabled`、`OnExecute`、`IsActionable`（預設 `true`；`false` 標記一個只會開啟子功能表的列）、`HBitmapItem`（來自被鏡像的 Shell 功能表的原生圖示控制代碼）、`ShortcutHint`（記憶鍵所對應的字母）、`IsContinuation`（一個分頁游標：這一梯次接續的是宿主仍在填補的功能表，而只要它被設定，宿主就會持續詢問），以及 `IsHeader`（轉譯為帶選填動作按鈕的分組標題）。
 - **`SearchWindowType`**：列舉值包括 `Main`（主搜尋視窗）、`Quick`（置中快速浮動視窗）與 `Inline`（嵌入式檔案對話方塊）。
 

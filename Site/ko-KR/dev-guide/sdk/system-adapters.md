@@ -109,6 +109,7 @@ public interface IInlineSearchAdapter : IPluginComponent
 
     string? GetSearchScope(IntPtr hwnd);
     bool ExecuteItem(IntPtr hwnd, string path, string searchInput);
+    bool LocateItem(IntPtr hwnd, string path) => false;
     bool GetDockBounds(IntPtr hwnd, out AdapterRect rect);
 
     IEnumerable<string> GetListItems(IntPtr hwnd) => Array.Empty<string>();
@@ -127,6 +128,8 @@ public interface IInlineSearchAdapter : IPluginComponent
 - **`GetListItems`**: 선택 미러링에 쓰는, 현재 표시된 행들의 이름입니다. 아무것도 반환하지 않아도 괜찮습니다. 지원하는 일부 관리자는 행 이름을 빈 문자열로 보고하며, 그래서 호스트는 이름만으로 행을 식별하지 않습니다.
 - **`CanEnterActionsMode`**: `false`면 이 호스트에서 액션 메뉴가 완전히 사라집니다. 빈 패널을 여는 대신 우클릭과 `Ctrl+O`와 `→`가 모두 물러납니다.
 - **`OnSearchFinished(hwnd, executed)`**: 카드가 닫힐 때, 결과가 실제로 실행되었는지 여부와 함께 호출됩니다. 자체 UI(정보 툴팁, 이름 변경 입력)를 숨겨야 했던 호스트는 이때 그것을 되돌려야 합니다.
+
+`LocateItem(hwnd, path)`는 부모 폴더를 표시하고 항목을 선택하며 항목 자체는 열지 않습니다. 미지원 어댑터는 기본적으로 `false`를 반환합니다. `ExecuteItem`처럼 경로 끝의 디렉터리 구분자로 폴더를 구분합니다. 실행과 별도로 구현하세요. Directory Opus와 Total Commander는 다른 탐색기 창을 열지 않고 자체 창에서 항목을 선택합니다.
 
 ## 5. 퀵 내비게이션 제공자 `IQuickNavigationProvider`
 

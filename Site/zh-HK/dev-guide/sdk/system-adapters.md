@@ -107,6 +107,7 @@ public interface IInlineSearchAdapter : IPluginComponent
 
     string? GetSearchScope(IntPtr hwnd);
     bool ExecuteItem(IntPtr hwnd, string path, string searchInput);
+    bool LocateItem(IntPtr hwnd, string path) => false;
     bool GetDockBounds(IntPtr hwnd, out AdapterRect rect);
 
     IEnumerable<string> GetListItems(IntPtr hwnd) => Array.Empty<string>();
@@ -124,6 +125,8 @@ public interface IInlineSearchAdapter : IPluginComponent
 - **`GetListItems`**：目前畫面上各列的名稱，供選取鏡像同步使用。返回空值沒問題；數個受支援的管理器會為自己的列回報空白字串，這正是宿主不只靠名稱來辨識資料列的原因。
 - **`CanEnterActionsMode`**：`false` 會為這個宿主程式完全移除動作選單——滑鼠右鍵、`Ctrl+O` 與 `→` 一律退讓，而不是開出一個空白的面板。
 - **`OnSearchFinished(hwnd, executed)`**：卡片關閉時呼叫，並一併帶上結果是否真的被執行過；被迫隱藏自身 UI（提示氣球、重新命名編輯框）的宿主程式就是在這個時機把它們放回原位。
+
+`LocateItem(hwnd, path)` 只顯示父資料夾並選取項目，不會開啟該項目；不支援定位的適配器預設傳回 `false`。它與 `ExecuteItem` 一樣透過路徑結尾的目錄分隔符號識別資料夾。定位與執行應分別實作：Directory Opus 和 Total Commander 會在自身視窗中定位，而非另外開啟檔案總管。
 
 ## 5. 快速導覽提供者 `IQuickNavigationProvider`
 

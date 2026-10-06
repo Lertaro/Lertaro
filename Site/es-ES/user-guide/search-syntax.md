@@ -30,6 +30,8 @@ Los nombres en chino se pueden buscar por pinyin, en dos formas: las **iniciales
 
 **Con la coincidencia difusa desactivada**, las coincidencias por pinyin deben alinearse con el inicio de una sílaba. `ex` encuentra 恶性 (las iniciales de dos caracteres) pero no 学习 (que exigiría empalmar el final de `xue` con el principio de `xi`). Con la coincidencia difusa activada, esa lectura laxa es justo lo que pediste y sigue disponible.
 
+En la sección Carpeta actual de la búsqueda integrada, los elementos directos preceden a los descendientes más profundos. Los elementos directos se ordenan por la posición de coincidencia más a la izquierda; a igual posición, primero las carpetas, después el tipo de coincidencia y el orden de nombres del Explorador. La longitud del nombre no decide su orden.
+
 ## 2. Varios términos y operadores lógicos
 
 ### Espacio: AND (Y)

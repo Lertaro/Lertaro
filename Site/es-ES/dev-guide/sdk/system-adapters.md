@@ -111,6 +111,7 @@ public interface IInlineSearchAdapter : IPluginComponent
 
     string? GetSearchScope(IntPtr hwnd);
     bool ExecuteItem(IntPtr hwnd, string path, string searchInput);
+    bool LocateItem(IntPtr hwnd, string path) => false;
     bool GetDockBounds(IntPtr hwnd, out AdapterRect rect);
 
     IEnumerable<string> GetListItems(IntPtr hwnd) => Array.Empty<string>();
@@ -129,6 +130,8 @@ public interface IInlineSearchAdapter : IPluginComponent
 - **`GetListItems`**: Nombres de las filas mostradas actualmente, usados para reflejar la selección. No devolver nada es válido; varios gestores soportados reportan cadenas vacías para sus filas, y por eso el anfitrión no identifica una fila solo por su nombre.
 - **`CanEnterActionsMode`**: `false` elimina por completo el menú de acciones para este anfitrión: el clic derecho, `Ctrl+O` y `→` se retiran, en lugar de abrir un panel vacío.
 - **`OnSearchFinished(hwnd, executed)`**: Se llama cuando la tarjeta se cierra, indicando si realmente se ejecutó un resultado, que es cuando un anfitrión que haya tenido que reprimir su propia interfaz (consejos de información, ediciones de renombrado) debe restituirla.
+
+`LocateItem(hwnd, path)` muestra la carpeta padre y selecciona el elemento sin abrirlo. Los adaptadores sin soporte devuelven `false` por defecto. Como `ExecuteItem`, identifica carpetas por el separador final. Implemente la localización aparte de la ejecución: Directory Opus y Total Commander localizan en su propia ventana sin abrir otro Explorador.
 
 ## 5. Proveedor de Navegación rápida `IQuickNavigationProvider`
 
