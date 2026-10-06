@@ -9,6 +9,52 @@ namespace Lertaro.Plugins.CoreExtensions.Tests.Providers.QueryTokens;
 [DoNotParallelize]
 public class CustomFilterQueryTokenProviderTests
 {
+    [TestMethod]
+    public void ExpandRule_LongSharedReferenceChain_VisitsEveryRuleWithoutRecursion()
+    {
+        var filters = Enumerable.Range(0, 5000).Select(i => new CustomFilterItem
+        {
+            Keyword = $"r{i}",
+            Rule = i == 4999 ? "*.md" : $"\\r{i + 1}; \\r{i + 1}"
+        }).ToList();
+
+        Assert.AreEqual("*.md", CustomFilterQueryTokenProvider.ExpandRule(@"\r0", filters, "\\"));
+    }
+
+    [TestMethod]
+    public void ExpandRule_CycleWithSharedLeaves_PreservesFirstOccurrenceOrder()
+    {
+        var filters = new List<CustomFilterItem>
+        {
+            new() { Keyword = "a", Rule = @"*.txt; \b; *.md" },
+            new() { Keyword = "b", Rule = @"\a; *.pdf" }
+        };
+        Assert.AreEqual("*.txt; *.pdf; *.md", CustomFilterQueryTokenProvider.ExpandRule(@"\a; \b", filters, "\\"));
+    }
+
+    [TestMethod]
+    public async Task ApplyAsync_RepeatedWildcardNearMiss_CompletesAndKeepsTheMatchingName()
+    {
+        var rule = string.Concat(Enumerable.Repeat("*a", 24)) + "b";
+        PluginSettingsService.GetSettingFunc = (_, key, fallback) => key == CustomFilterQueryTokenProvider.SettingKey
+            ? new List<CustomFilterItem> { new() { Keyword = "stress", Rule = rule } } : fallback;
+        var match = new FakeSearchResult { Name = new string('a', 100) + "b" };
+        var results = new ISearchResult[] { new FakeSearchResult { Name = new string('a', 100) + "c" }, match };
+
+        var filtered = await new CustomFilterQueryTokenProvider().ApplyAsync(@"\stress", results);
+
+        Assert.AreSame(match, Assert.ContainsSingle(filtered));
+    }
+
+    [TestMethod]
+    public void ApplyAsync_CancelledQuery_StopsBeforeFiltering()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        Assert.ThrowsExactly<OperationCanceledException>(() => new CustomFilterQueryTokenProvider()
+            .ApplyAsync(@"\doc", new[] { new FakeSearchResult { Name = "report.docx" } }, cancellation.Token));
+    }
+
     [TestInitialize]
     [TestCleanup]
     public void Reset()
