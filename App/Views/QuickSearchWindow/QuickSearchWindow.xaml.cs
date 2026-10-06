@@ -37,6 +37,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     public QuickSearchWindow()
     {
         InitializeComponent();
+        System.Windows.Media.TextOptions.SetTextFormattingMode(SearchBox.SearchTextBox, System.Windows.Media.TextFormattingMode.Ideal);
         ThemedWindowIconHelper.Apply(this);
         SystemMenuBlocker.Attach(this);
         _viewModel = new QuickSearchViewModel();
