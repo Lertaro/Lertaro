@@ -1,3 +1,5 @@
+using Lertaro.PluginSdk.Abstractions;
+
 namespace Lertaro.App.ViewModels.Settings.Plugins;
 
 // Owns the staged-edit lifecycle of one plugin's config tab -- what to do when it is opened, left, or
@@ -22,6 +24,13 @@ internal sealed class PluginConfigTabState
     private int _state;
 
     internal PluginConfigTabState(PluginInfoViewModel plugin) => _plugin = plugin;
+
+    // ponytail: custom panels edit opaque plugin models, so an opened panel gets its save hook on
+    // every Apply. Precise dirty tracking would require a change-notification contract in the SDK.
+    internal bool RequiresCustomSave => _state != 0 && _plugin.ConfigFields.Any(item => ContainsCustomControl(item.SchemaField));
+
+    private static bool ContainsCustomControl(PluginConfigField field) =>
+        field.FieldType == ConfigFieldType.CustomControl || field.SubFields?.Any(ContainsCustomControl) == true;
 
     /// <summary>Called when the config tab is shown.</summary>
     internal void Opened()

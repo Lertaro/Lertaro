@@ -165,6 +165,7 @@ public class PluginInfoViewModel : ViewModelBase
     /// across plugin switches, since the Settings window's Apply/OK is the one commit point.
     /// </summary>
     public bool HasPendingConfigEdits => ConfigFields.Any(f => f.IsDirty);
+    internal bool RequiresCustomConfigSave => _configTabState.RequiresCustomSave;
 
     // Plugin-wide select-all/deselect-all, toggling every component across every group at once --
     // separate from each PluginComponentGroupViewModel's own per-group toggle. Same single-item
@@ -295,4 +296,3 @@ public class PluginInfoViewModel : ViewModelBase
     private ICommand? _selectConfigGroupCommand;
     public ICommand SelectConfigGroupCommand => _selectConfigGroupCommand ??= new RelayCommand<PluginConfigFieldViewModel>(g => SelectedConfigGroup = g);
 }
-

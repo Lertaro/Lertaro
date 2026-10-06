@@ -68,7 +68,19 @@
                     <TextBlock Text="{Binding Description}" FontSize="10" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" HorizontalAlignment="Left" Margin="0,0,0,6" Visibility="{Binding Description, Converter={StaticResource StringToVis}}"/>
 
                     <Border BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="1,0,0,0" Margin="8,0,0,0" Padding="12,0,0,0">
-                        <ItemsControl ItemsSource="{Binding Children}"/>
+                        <!-- Collapsed layouts still create children. Only the matching layout may
+                             host them: a plugin's CustomControl can have only one visual parent. -->
+                        <ItemsControl>
+                            <ItemsControl.Style>
+                                <Style TargetType="ItemsControl">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsObject}" Value="True">
+                                            <Setter Property="ItemsSource" Value="{Binding Children}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ItemsControl.Style>
+                        </ItemsControl>
                     </Border>
                 </StackPanel>
 
@@ -81,7 +93,17 @@
                     <TextBlock Text="{Binding Description}" FontSize="10" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" HorizontalAlignment="Left" Margin="0,0,0,6" Visibility="{Binding Description, Converter={StaticResource StringToVis}}"/>
 
                     <Border BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="1,0,0,0" Margin="8,0,0,0" Padding="12,0,0,0">
-                        <ItemsControl ItemsSource="{Binding Children}"/>
+                        <ItemsControl>
+                            <ItemsControl.Style>
+                                <Style TargetType="ItemsControl">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsGroup}" Value="True">
+                                            <Setter Property="ItemsSource" Value="{Binding Children}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ItemsControl.Style>
+                        </ItemsControl>
                     </Border>
                 </StackPanel>
 

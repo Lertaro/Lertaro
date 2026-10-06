@@ -39,7 +39,9 @@ internal static class SettingsWindowSearchExtensions
 
         var pluginsSectionLabel = TranslationManager.Instance["Settings_Plugins"];
         var plugins = vm?.Plugins.Plugins ?? (IEnumerable<PluginInfoViewModel>)PluginLoaderHelper.BuildPluginList(UserSettings.Load());
-        foreach (var plugin in plugins)
+        // SDK navigation uses positions in the canonical list. The live page may sink disabled
+        // plugins or change its display sort; retain its VM instances, but not that display order.
+        foreach (var plugin in PluginLoaderHelper.SortForDisplay(plugins))
         {
             var capturedPlugin = plugin;
             void RevealPlugin(SettingsViewModel settings)

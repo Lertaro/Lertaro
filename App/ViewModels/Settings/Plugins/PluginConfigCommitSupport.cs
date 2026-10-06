@@ -18,9 +18,10 @@ internal static class PluginConfigCommitSupport
     /// tells the hook process to re-read what changed.
     /// </summary>
     /// <remarks>
-    /// Gated on <see cref="PluginInfoViewModel.HasPendingConfigEdits"/> rather than committing every
+    /// Field commits are gated on <see cref="PluginInfoViewModel.HasPendingConfigEdits"/> rather than committing every
     /// plugin: a plugin's OnSave hook can be far from cheap (ContentSearch's triggers a full re-index),
-    /// and a user who merely looked at a config without changing anything must not pay for it. The gate
+    /// and merely viewing ordinary fields must not trigger it. Opened custom panels still need their
+    /// OnSave hook because their private models do not report dirty state. The field gate
     /// is also what keeps a plugin whose fields write straight through a custom SetValue (the Flow
     /// Launcher bridge) from re-writing every field on every Apply.
     ///
@@ -34,8 +35,13 @@ internal static class PluginConfigCommitSupport
 
         foreach (var plugin in plugins)
         {
-            if (plugin.ConfigFields.Count == 0 || !plugin.HasPendingConfigEdits)
+            if (!plugin.HasPendingConfigEdits)
+            {
+                // A hosted settings panel edits its own model, outside our value-field dirty flags.
+                // Persist that model without rewriting untouched host-managed fields.
+                if (plugin.RequiresCustomConfigSave) plugin.OnSave?.Invoke();
                 continue;
+            }
 
             foreach (var field in plugin.ConfigFields)
                 field.Commit();

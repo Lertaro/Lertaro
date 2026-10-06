@@ -61,6 +61,55 @@ public sealed class SettingsWindowSearchExtensionsTests
     }
 
     [TestMethod]
+    public void BuildAllEntries_DisabledPluginsReordered_PreservesConfigNavigationIndex()
+    {
+        var settings = new UserSettings();
+        var group = new PluginConfigFieldViewModel("flow", new PluginConfigField
+        {
+            Key = "MDictGroup", LabelKey = "MDict", FieldType = ConfigFieldType.Group,
+            SubFields = [new PluginConfigField
+            {
+                Key = "MDict.ActionKeyword", LabelKey = "MDict trigger", GroupKey = "MDict",
+                FieldType = ConfigFieldType.Text, DefaultValue = "md"
+            }]
+        }, settings);
+        var files = new PluginInfoViewModel("Files", "1.0", "Files.dll", "1.0",
+            [new PluginComponentViewModel("files", PluginComponentType.Action, "Files action", false)], []);
+        var flow = new PluginInfoViewModel("Flow", "1.0", "Flow.dll", "1.0",
+            [new PluginComponentViewModel("flow", PluginComponentType.InstantProvider, "Flow search", true)], [group]);
+        var vm = new SettingsViewModel();
+        try
+        {
+            vm.Plugins.Plugins.Clear();
+            foreach (var plugin in PluginLoaderHelper.SortForDisplay([files, flow]))
+                vm.Plugins.Plugins.Add(plugin);
+            var canonical = SettingsWindowSearchExtensions.BuildAllEntries(vm, evaluateConditionalVisibility: false);
+            var index = canonical.FindIndex(entry => entry.Label == "MDict trigger");
+            Assert.IsGreaterThanOrEqualTo(0, index);
+
+            // The SDK feed uses name order; the live settings page sinks disabled Files below Flow.
+            var displayed = PluginManagementViewModel.SortPluginsList(vm.Plugins.Plugins.ToList(), disabledLast: true);
+            vm.Plugins.Plugins.Clear();
+            foreach (var plugin in displayed) vm.Plugins.Plugins.Add(plugin);
+            Assert.AreSame(flow, vm.Plugins.Plugins[0]);
+            var live = SettingsWindowSearchExtensions.BuildAllEntries(vm, evaluateConditionalVisibility: false);
+
+            CollectionAssert.AreEqual(canonical.Select(entry => (entry.Label, entry.SectionLabel)).ToArray(),
+                live.Select(entry => (entry.Label, entry.SectionLabel)).ToArray());
+            Assert.IsNotNull(live[index].Activate);
+            live[index].Activate!(vm);
+            Assert.AreSame(flow, vm.Plugins.SelectedPlugin);
+            Assert.IsTrue(flow.IsConfigTab);
+            Assert.AreSame(group, flow.SelectedConfigGroup);
+            Assert.AreSame(flow, vm.Plugins.Plugins[0], "Index construction must not reorder the displayed list.");
+        }
+        finally
+        {
+            vm.Cleanup();
+        }
+    }
+
+    [TestMethod]
     public void ActivateResult_SwitchesSelectedConfigGroup_WhenFieldBelongsToGroupTab()
     {
         var settings = new UserSettings();
