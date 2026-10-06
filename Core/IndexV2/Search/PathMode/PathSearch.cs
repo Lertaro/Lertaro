@@ -26,6 +26,7 @@ internal static class PathSearch
     // "t:\a\b\" lists children; "t:\a\b\pre" filters them by the last segment as a name prefix query.
     private static bool TryDirectoryChildren(Snapshot snapshot, DeltaOverlay delta, ParsedSearchQuery parsed, int limit, Action<SearchResult> onResult, CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
         if (parsed.ExactPathLower == null || parsed.TargetDrive == null)
             return false;
         if (!DirectoryFilterResolver.TryResolve(snapshot, delta, parsed.ExactPathLower, forceLastSegmentAsQuery: !parsed.PathEndsWithSeparator, out var current, out var childPrefix))
@@ -55,6 +56,7 @@ internal static class PathSearch
         {
             foreach (var child in snapshot.ChildrenOf(current))
             {
+                token.ThrowIfCancellationRequested();
                 if (snapshot.IsDeleted(child) || delta.IsSuperseded(child))
                     continue;
                 AddBaseMatch(child);
@@ -69,6 +71,7 @@ internal static class PathSearch
                 : deltaChildren.ChildrenOfFrn(delta.Added[current - snapshot.Count].Id);
             foreach (var child in children)
             {
+                token.ThrowIfCancellationRequested();
                 if (DirectoryFilterResolver.IsSuperseded(snapshot, delta, child))
                     continue;
                 AddDeltaMatch(child);

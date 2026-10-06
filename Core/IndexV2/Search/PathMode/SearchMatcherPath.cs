@@ -24,18 +24,21 @@ internal static class SearchMatcherPath
         if (pattern == null)
         {
             var worker = SearchMatcher.RentWorker();
-            for (var uid = 0; uid < snapshot.UniqueCount; uid++)
+            try
             {
-                // The dir-only query takes the serial branch, so it needs the check itself rather than
-                // getting it from ParallelOptions. Cheap on an already-cancelled token, and this loop is
-                // over every unique name on the drive.
-                token.ThrowIfCancellationRequested();
-                var utf8 = snapshot.UniqueNameUtf8(uid);
-                if (utf8.Length == 0)
-                    continue;
-                merged.Add(new PathUniqueMatch(uid, default, 0xFFFFFFFFu, NameCharLength(snapshot, uid, worker, utf8)));
+                for (var uid = 0; uid < snapshot.UniqueCount; uid++)
+                {
+                    token.ThrowIfCancellationRequested();
+                    var utf8 = snapshot.UniqueNameUtf8(uid);
+                    if (utf8.Length == 0)
+                        continue;
+                    merged.Add(new PathUniqueMatch(uid, default, 0xFFFFFFFFu, NameCharLength(snapshot, uid, worker, utf8)));
+                }
             }
-            SearchMatcher.ReturnWorker(worker);
+            finally
+            {
+                SearchMatcher.ReturnWorker(worker);
+            }
             return merged;
         }
 
@@ -58,6 +61,7 @@ internal static class SearchMatcherPath
                 {
                     if (ctx.CanFilter && ((masks[uid] & ctx.RequiredMask) != ctx.RequiredMask || !SearchMatcher.PassesOrSets(masks[uid], ctx.OrSetMasks)))
                         continue;
+                    token.ThrowIfCancellationRequested();
                     PathMatchOne(snapshot, ctx, uid, worker, hits);
                 }
                 perChunk[chunk] = hits;

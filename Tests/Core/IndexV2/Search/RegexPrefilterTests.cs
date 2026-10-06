@@ -11,6 +11,26 @@ namespace Lertaro.Core.Tests.IndexV2.Search;
 public sealed class RegexPrefilterTests
 {
     [TestMethod]
+    [DataRow(@"/^\u0061$/")]
+    [DataRow(@"/^\x61$/")]
+    [DataRow(@"/^\141$/")]
+    [DataRow(@"/^a{00,2}b$/")]
+    public void Search_AdvancedRegexSyntax_DoesNotLoseMatchingIndexedNames(string query)
+    {
+        var name = query.Contains("{00", StringComparison.Ordinal) ? "b" : "a";
+        using var fixture = LiveIndexFixture.Build("T", new[]
+        {
+            LiveIndexFixture.Root(),
+            new FileRecord(2, 1, name, FileRecordFlags.None)
+        });
+        var results = new List<SearchResult>();
+
+        IndexV2Searcher.SearchStreaming(fixture.Index, query, 10, results.Add, CancellationToken.None);
+
+        Assert.AreEqual(name, Assert.ContainsSingle(results).Name);
+    }
+
+    [TestMethod]
     public void BuildContext_RegexWithALiteral_AddsTheLiteralsBitsToTheMask()
     {
         var pattern = FzfPattern.Parse(@"/^report.*\.md$/");

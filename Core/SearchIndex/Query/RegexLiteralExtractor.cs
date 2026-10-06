@@ -43,6 +43,12 @@ internal static class RegexLiteralExtractor
         if (string.IsNullOrEmpty(pattern))
             return string.Empty;
 
+        // ponytail: this optional prefilter only handles simple regex syntax. Bound its nested group
+        // rescans and leave advanced escapes/options/classes to the regex engine; guessing can drop hits.
+        // Extend the walker only with a proof that every matching name contains the returned literal.
+        if (pattern.Length > 4096 || pattern.AsSpan().Count('(') > 64 || NeedsEngineParsing(pattern))
+            return string.Empty;
+
         if (HasTopLevelAlternation(pattern))
             return string.Empty;
 
@@ -200,9 +206,6 @@ internal static class RegexLiteralExtractor
                     i = SkipUntil(pattern, i, '}');
                     continue;
 
-                case '}':
-                    continue;
-
                 case '[':
                     Flush(current, ref best);
                     lastIsOptional = false;
@@ -210,8 +213,6 @@ internal static class RegexLiteralExtractor
                     i = SkipCharacterClass(pattern, i);
                     continue;
 
-                case ']':
-                    continue;
             }
 
             // A character that follows a dropped one starts a new run rather than extending the old.
@@ -225,6 +226,30 @@ internal static class RegexLiteralExtractor
 
         Flush(current, ref best);
         return best;
+    }
+
+    private static bool NeedsEngineParsing(string pattern)
+    {
+        if (pattern.Contains("-[", StringComparison.Ordinal) || pattern.Contains("(?#", StringComparison.Ordinal))
+            return true;
+
+        for (var i = 0; i < pattern.Length; i++)
+        {
+            if (pattern[i] == '\\' && i + 1 < pattern.Length)
+            {
+                var escaped = pattern[++i];
+                if (escaped is 'u' or 'x' or 'c' or 'k' or 'p' or 'P'
+                    || char.IsAsciiDigit(escaped) && i + 1 < pattern.Length && char.IsAsciiDigit(pattern[i + 1]))
+                    return true;
+            }
+            else if (pattern[i] == '(' && i + 1 < pattern.Length && pattern[i + 1] == '?')
+            {
+                for (var j = i + 2; j < pattern.Length && pattern[j] is 'i' or 'm' or 'n' or 's' or 'x' or '-'; j++)
+                    if (pattern[j] == 'x') return true;
+            }
+        }
+
+        return false;
     }
 
 }

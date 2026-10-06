@@ -19,6 +19,16 @@ public sealed class SortFilterQueryTokenProviderTests
     private static readonly SortFilterQueryTokenProvider Provider = new();
 
     [TestMethod]
+    [DataRow("99-8-3", 2099)]
+    [DataRow("50.8.3", 2050)]
+    [DataRow("1999/8/3", 1999)]
+    public void TryParseDate_TwoDigitYear_UsesTwentyFirstCentury(string text, int year)
+    {
+        Assert.IsTrue(SortFilterQueryTokenProvider.TryParseDate(text, out var value));
+        Assert.AreEqual(new DateTime(year, 8, 3), value);
+    }
+
+    [TestMethod]
     [DataRow("<s")]
     [DataRow(">s")]
     [DataRow("<c")]

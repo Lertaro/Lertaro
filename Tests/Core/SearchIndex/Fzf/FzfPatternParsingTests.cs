@@ -117,14 +117,22 @@ public sealed class FzfPatternParsingTests
         // The quote characters were dropped from the operator set, but the phrase merger still folds a matched
         // pair into ONE term -- and the delimiters survive into its text, which is the documented behaviour
         // rather than a defect: the user guide states that quoting is not phrase syntax, that the quotes are
-        // matched as literal characters, and that such a query therefore finds nothing (no file name contains
-        // an apostrophe). What the merger buys is that the phrase is not split into two ANDed words, which
-        // would match names the documentation says it cannot match.
+        // matched as literal characters. Apostrophes are legal in Windows names, so the merged term can
+        // match a name containing the apostrophes and the intervening space.
         var pattern = FzfPattern.Parse("'cad acb'");
 
         Assert.HasCount(1, pattern.TermSets);
         Assert.AreEqual(FzfTermKind.Fuzzy, pattern.TermSets[0].Terms[0].Kind);
         Assert.AreEqual("'cad acb'", pattern.TermSets[0].Terms[0].Text);
+    }
+
+    [TestMethod]
+    public void Parse_UnclosedQuotesBeforePipe_DoesNotPreventLaterQuotedTerm()
+    {
+        var query = string.Join(' ', Enumerable.Repeat("'unclosed", 5000)) + " | 'final report'";
+        var pattern = FzfPattern.Parse(query);
+        Assert.IsTrue(pattern.TryMatch("'final report'", out _, FzfScoringScheme.Default));
+        Assert.IsFalse(pattern.TryMatch("final report", out _, FzfScoringScheme.Default));
     }
 
     [TestMethod]

@@ -30,6 +30,8 @@ public sealed class NotificationWindowManagerTests
             Assert.IsTrue(first.Completion.IsCompleted);
             Assert.AreEqual(NotificationResult.Success, first.Completion.Result);
             Assert.ContainsSingle(closed);
+            Assert.AreEqual(0, windows.Count);
+            queue.Feed();
             Assert.AreSame(waiting, windows.Countdown().Single().Item);
             windows.HideForSession(true);
             windows.HideForSession(false);
@@ -260,6 +262,8 @@ public sealed class NotificationWindowManagerTests
             Assert.IsFalse(next.Completion.IsCompleted);
             windows.Countdown().Single().Window.Close();
             Assert.AreEqual(NotificationResult.Success, first.Completion.Result);
+            Assert.AreEqual(0, windows.Count);
+            queue.Feed();
             Assert.AreSame(next, windows.Countdown().Single().Item);
         }
         finally

@@ -5,7 +5,7 @@ using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.CoreExtensions.Providers.QueryTokens;
 
-// Built-in implementation of the "<key>" / ">key" query suffix tokens: sort by a property, and
+// Built-in implementation of the "<key>" / ">key" query tokens: sort by a property, and
 // optionally keep only results on one side of a threshold.
 //
 //   <s          sort by size, smallest first
@@ -213,7 +213,7 @@ public class SortFilterQueryTokenProvider : IQueryTokenProvider
     // cannot mean two different days on two machines.
     //
     // The year-only and year-month forms ("2008", "2008.8") are kept: a threshold only needs day
-    // precision, and "<c>2008" is a natural way to say "created during 2008".
+    // precision; missing month/day components become January/1 before the strict comparison.
     private static readonly string[] DateFormats =
     {
         // '-'
@@ -241,7 +241,10 @@ public class SortFilterQueryTokenProvider : IQueryTokenProvider
         if (HasMixedSeparators(text.Trim()))
             return false;
 
-        return DateTime.TryParseExact(text.Trim(), DateFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out value);
+        var normalized = text.Trim();
+        if (normalized.Length > 2 && normalized[2] is '-' or '.' or '/')
+            normalized = "20" + normalized;
+        return DateTime.TryParseExact(normalized, DateFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out value);
     }
 
     private static bool HasMixedSeparators(string text)

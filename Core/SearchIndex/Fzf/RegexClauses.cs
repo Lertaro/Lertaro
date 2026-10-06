@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 
 namespace Lertaro.Core.SearchIndex.Fzf;
@@ -25,6 +26,9 @@ internal static class RegexClauses
     private const int MaxCacheEntries = 256;
     private static readonly ConcurrentDictionary<string, Regex> Cache = new(StringComparer.Ordinal);
     private static readonly object CacheGate = new();
+    // Keep a live query's pattern instances compiled even if the shared cache is cleared. Weak keys
+    // release them with the query; a query with more than 256 clauses must not recompile per candidate.
+    private static readonly ConditionalWeakTable<string, Regex> ActivePatterns = new();
 
     // A pattern that exceeds its match budget is a per-candidate miss, not a per-candidate log line.
     private static readonly RegexTimeoutLogThrottle TimeoutLog = new(60_000);
@@ -61,6 +65,9 @@ internal static class RegexClauses
     // The fast path is a plain read, so the common case (a pattern already compiled) never takes the
     // lock. The cap is enforced inside it, where the count cannot change underneath the check.
     private static Regex GetOrCreate(string pattern)
+        => ActivePatterns.GetValue(pattern, GetOrCompileCached);
+
+    private static Regex GetOrCompileCached(string pattern)
     {
         if (Cache.TryGetValue(pattern, out var cached))
             return cached;
@@ -120,24 +127,5 @@ internal static class RegexClauses
     // is broken. Reads the compile cache when the clause is already in it -- which is the normal case, since
     // a query's clauses have been compiled by the time anyone wants to explain the empty result.
     internal static bool IsUncompilable(string pattern)
-    {
-        if (Cache.TryGetValue(pattern, out var cached))
-            return ReferenceEquals(cached, Unmatchable);
-
-        try
-        {
-            // The same two attempts Compile makes, because a pattern NonBacktracking merely REFUSES is not
-            // a user error: lookaround and backreferences are legal and the timed engine accepts them.
-            _ = new Regex(pattern, BaseOptions | RegexOptions.NonBacktracking);
-            return false;
-        }
-        catch (NotSupportedException)
-        {
-            return false;
-        }
-        catch (ArgumentException)
-        {
-            return true;
-        }
-    }
+        => ReferenceEquals(GetOrCreate(pattern), Unmatchable);
 }
