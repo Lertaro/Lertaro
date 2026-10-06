@@ -21,10 +21,12 @@ public class ResultTypeOrderViewModel : ViewModelBase
     private readonly System.ComponentModel.PropertyChangedEventHandler _translationHandler;
 
     private readonly UserSettings _userSettings;
+    private readonly Func<char> _getTokenPrefix;
 
-    public ResultTypeOrderViewModel(UserSettings userSettings)
+    public ResultTypeOrderViewModel(UserSettings userSettings, Func<char>? getTokenPrefix = null)
     {
         _userSettings = userSettings;
+        _getTokenPrefix = getTokenPrefix ?? (() => QueryTokenPrefixRules.PrefixFor(userSettings));
 
         var order = userSettings.ResultTypeOrder;
         var triggers = userSettings.ResultTypeTriggers;
@@ -177,7 +179,7 @@ public class ResultTypeOrderViewModel : ViewModelBase
         {
             item.Error = string.IsNullOrEmpty(item.TriggerChar)
                 ? null
-                : SearchSyntaxReserved.ValidateLeadingCharacter(item.TriggerChar)
+                : SearchSyntaxReserved.ValidateLeadingCharacter(item.TriggerChar, _getTokenPrefix())
                     ?? (counts.GetValueOrDefault(item.TriggerChar) > 1
                         ? TranslationManager.Instance["General_ResultTypeTriggerDuplicate"]
                         : null);
@@ -186,7 +188,12 @@ public class ResultTypeOrderViewModel : ViewModelBase
 
     // Any row's trigger change re-validates every row, because a duplicate is a property of the set and
     // not of the row that was just typed in.
-    private void OnTriggerCharChanged() => ValidateTriggers();
+    internal event Action? TriggersChanged;
+    private void OnTriggerCharChanged()
+    {
+        ValidateTriggers();
+        TriggersChanged?.Invoke();
+    }
 
     /// <summary>
     /// The trigger errors that must block saving, each row named. Read by the Settings window's Apply gate

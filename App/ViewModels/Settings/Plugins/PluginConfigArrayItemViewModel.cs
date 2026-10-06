@@ -69,7 +69,8 @@ public class PluginConfigArrayItemViewModel : ViewModelBase
 
                 var subFieldVM = new PluginConfigFieldViewModel(parent.PluginId, sf, parent.Settings, () => parent.OnChildChanged())
                 {
-                    LocalValueStore = valToUse
+                    LocalValueStore = valToUse,
+                    GetTokenPrefix = () => parent.TokenPrefix
                 };
                 Children.Add(subFieldVM);
             }
@@ -87,7 +88,8 @@ public class PluginConfigArrayItemViewModel : ViewModelBase
 
             SimpleValueViewModel = new PluginConfigFieldViewModel(parent.PluginId, sf, parent.Settings, () => parent.OnChildChanged())
             {
-                LocalValueStore = ConfigValueHelper.UnpackValue(initialValue) ?? string.Empty
+                LocalValueStore = ConfigValueHelper.UnpackValue(initialValue) ?? string.Empty,
+                GetTokenPrefix = () => parent.TokenPrefix
             };
         }
     }

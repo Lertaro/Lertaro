@@ -6,8 +6,8 @@ namespace Lertaro.App.Helpers;
 // to save.
 //
 // There is exactly one token prefix, the app-wide GlobalTokenPrefix, and every plugin reads it back through
-// the SDK (PluginSdk.Services.SearchSyntaxService) instead of storing a copy. The only collision left is
-// with the search syntax itself.
+// the SDK (PluginSdk.Services.SearchSyntaxService) instead of storing a copy. Syntax, built-in providers
+// and configured trigger words must leave this character available.
 //
 // A second check, "another plugin already answers to this character", was removed: the scanner lifts a word
 // by the GLOBAL prefix and hands the token over with that character still attached, so a provider's own
@@ -15,6 +15,11 @@ namespace Lertaro.App.Helpers;
 // only one that works.
 public static class QueryTokenPrefixRules
 {
+    internal static char PrefixFor(Core.UserSettings settings)
+    {
+        var text = settings.GlobalTokenPrefix;
+        return string.IsNullOrEmpty(text) ? GlobalTokenPrefix.Default : text[0];
+    }
     /// <summary>The conflict to show under the app-wide prefix field, or null when it is usable.</summary>
     /// <remarks>
     /// Any character the search syntax owns is unusable here, not just the always-on sort/filter pair
@@ -32,16 +37,20 @@ public static class QueryTokenPrefixRules
     /// '\' is deliberately NOT one of them: it is this field's own character (see
     /// SearchSyntaxReserved.IsUnusableAsTokenPrefix), so the shipped default reports nothing.
     /// </remarks>
-    public static string? GlobalPrefixConflict(string? globalPrefix)
+    public static string? GlobalPrefixConflict(string? globalPrefix, IEnumerable<string>? otherTriggers = null)
     {
         if (string.IsNullOrEmpty(globalPrefix))
             return TranslationManager.Instance["General_GlobalTokenPrefixConflictEmpty"];
 
-        return SearchSyntaxReserved.IsUnusableAsTokenPrefix(globalPrefix[0])
-            ? string.Format(
+        if (globalPrefix.Length != 1 || SearchSyntaxReserved.IsUnusableAsTokenPrefix(globalPrefix[0]))
+            return string.Format(
                 TranslationManager.Instance["General_GlobalTokenPrefixConflictReserved"],
-                SearchSyntaxReserved.DescribeUnusableTokenPrefixCharacters())
-            : null;
+                SearchSyntaxReserved.DescribeUnusableTokenPrefixCharacters());
+
+        otherTriggers ??= ViewModels.Search.Dispatch.PluginTriggerQuery.Collect().Select(entry => entry.Word);
+        return otherTriggers.Any(trigger => !string.IsNullOrEmpty(trigger)
+            && char.ToUpperInvariant(trigger[0]) == char.ToUpperInvariant(globalPrefix[0]))
+            ? TranslationManager.Instance["General_GlobalTokenPrefixConflictConfigured"] : null;
     }
 
     /// <summary>
@@ -51,7 +60,7 @@ public static class QueryTokenPrefixRules
     /// silently does nothing. The shared rule lives in SearchSyntaxReserved so this and the prefix check
     /// cannot drift apart.
     /// </summary>
-    public static string? TriggerKeywordConflict(string? keyword) => SearchSyntaxReserved.ValidateLeadingCharacter(keyword);
+    public static string? TriggerKeywordConflict(string? keyword, char? prefix = null) => SearchSyntaxReserved.ValidateLeadingCharacter(keyword, prefix);
 
     /// <summary>
     /// Whether an error a page is showing next to a prefix/trigger field should also STOP the whole

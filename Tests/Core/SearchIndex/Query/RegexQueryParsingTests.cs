@@ -108,15 +108,13 @@ public sealed class RegexQueryParserTests
     }
 
     [TestMethod]
-    public void Split_EscapedSpaceInsidePattern_IsKeptInTheBody()
+    public void Split_EscapedSpaceInsidePattern_DoesNotCreateAClause()
     {
-        // The same escape convention QueryTokenScanner uses to split a query into words, so a pattern may
-        // still contain a space.
+        // Ordinary whitespace is always a separator, including after a backslash.
         var rest = RegexQueryParser.Split(@"/^my\ file$/ tail", out var patterns);
 
-        Assert.AreEqual("tail", rest);
-        Assert.HasCount(1, patterns!);
-        Assert.AreEqual(@"^my\ file$", patterns![0]);
+        Assert.AreEqual(@"/^my\ file$/ tail", rest);
+        Assert.IsNull(patterns);
     }
 
     [TestMethod]
