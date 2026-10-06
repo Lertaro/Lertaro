@@ -146,7 +146,7 @@ public class PluginManager : PluginRegistry
         // the row appears but every field in it shows blank until the app restarts and reloads from disk.
         object? normalized = value == null ? null : System.Text.Json.JsonSerializer.SerializeToElement(value);
         settings.SetPluginSetting(pluginId, key, normalized);
-        settings.Save();
+        if (!settings.Save()) throw new System.IO.IOException("Could not persist the plugin setting.");
     }
 
     // Raised so callers that cache anything derived from IsEnabled-filtered collections (e.g.

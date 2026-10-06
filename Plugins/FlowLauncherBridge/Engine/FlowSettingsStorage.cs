@@ -1,102 +1,52 @@
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Lertaro.Plugins.FlowLauncherBridge.Engine;
 
-/// <summary>
-/// Manages per-user JSON settings storage for Flow.Launcher plugins.
-/// Stores configuration files in the host-resolved user data directory under FlowData\Settings\Plugins\{pluginName}\.
-/// to ensure complete multi-user session isolation.
-/// </summary>
+/// <summary>Per-user Flow configuration, stored separately from the host settings JSON.</summary>
 public class FlowSettingsStorage
 {
     private readonly string _baseSettingsDirectory;
-    private readonly Dictionary<string, object> _loadedSettings = [];
+    private readonly Dictionary<(string PluginId, Type Type), object> _loadedSettings = [];
     private readonly object _lock = new();
-
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = true,
-        PropertyNameCaseInsensitive = true
-    };
+    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true, PropertyNameCaseInsensitive = true };
 
     public FlowSettingsStorage(string? baseSettingsDirectory = null)
     {
-        if (!string.IsNullOrWhiteSpace(baseSettingsDirectory))
-        {
-            _baseSettingsDirectory = baseSettingsDirectory;
-        }
-        else
-        {
-            _baseSettingsDirectory = Path.Combine(
-                PluginSdk.Services.UserDataService.GetUserDataDirectory() ?? AppDomain.CurrentDomain.BaseDirectory,
-                "FlowData",
-                "Settings",
-                "Plugins");
-        }
-
-        if (!Directory.Exists(_baseSettingsDirectory))
-        {
-            Directory.CreateDirectory(_baseSettingsDirectory);
-        }
+        _baseSettingsDirectory = !string.IsNullOrWhiteSpace(baseSettingsDirectory) ? baseSettingsDirectory
+            : Path.Combine(PluginSdk.Services.UserDataService.GetUserDataDirectory() ?? AppDomain.CurrentDomain.BaseDirectory,
+                "FlowData", "Settings", "Plugins");
+        Directory.CreateDirectory(_baseSettingsDirectory);
     }
 
     public string GetPluginSettingsDirectory(string pluginId)
     {
-        var dir = Path.Combine(_baseSettingsDirectory, pluginId);
-        if (!Directory.Exists(dir))
-        {
-            Directory.CreateDirectory(dir);
-        }
-        return dir;
+        var directory = Path.Combine(_baseSettingsDirectory, pluginId);
+        Directory.CreateDirectory(directory);
+        return directory;
     }
 
     public T LoadSetting<T>(string pluginId) where T : new()
     {
         lock (_lock)
         {
-            var cacheKey = $"{pluginId}_{typeof(T).FullName}";
-            if (_loadedSettings.TryGetValue(cacheKey, out var existing) && existing is T cached)
-            {
-                return cached;
-            }
-
-            var filePath = Path.Combine(GetPluginSettingsDirectory(pluginId), $"{typeof(T).Name}.json");
-            if (File.Exists(filePath))
-            {
-                try
-                {
-                    var json = File.ReadAllText(filePath);
-                    var deserialized = JsonSerializer.Deserialize<T>(json, JsonOptions);
-                    if (deserialized != null)
-                    {
-                        _loadedSettings[cacheKey] = deserialized;
-                        return deserialized;
-                    }
-                }
-                catch
-                {
-                    // Fall back to default instance if file is corrupt
-                }
-            }
-
-            var newInstance = new T();
-            _loadedSettings[cacheKey] = newInstance;
-            return newInstance;
+            var key = (pluginId, typeof(T));
+            if (_loadedSettings.TryGetValue(key, out var cached)) return (T)cached;
+            var path = Path.Combine(GetPluginSettingsDirectory(pluginId), $"{typeof(T).Name}.json");
+            var json = ReadJsonFile(path);
+            T value;
+            try { value = json == null ? new T() : JsonSerializer.Deserialize<T>(json, JsonOptions) ?? throw new InvalidDataException($"Invalid settings: {path}"); }
+            catch (JsonException ex) { throw new InvalidDataException($"Invalid settings: {path}", ex); }
+            _loadedSettings[key] = value!;
+            return value;
         }
     }
 
     public void SaveSetting<T>(string pluginId) where T : new()
     {
-        // Defer disk write until SaveAll is called by the host during configuration commit.
-        lock (_lock)
-        {
-            var cacheKey = $"{pluginId}_{typeof(T).FullName}";
-            if (!_loadedSettings.ContainsKey(cacheKey))
-            {
-                _loadedSettings[cacheKey] = new T();
-            }
-        }
+        // Defer to the configuration commit; never substitute defaults for unreadable persisted data.
+        _ = LoadSetting<T>(pluginId);
     }
 
     public void SaveAll()
@@ -105,23 +55,16 @@ public class FlowSettingsStorage
         {
             foreach (var (key, instance) in _loadedSettings)
             {
-                var separatorIndex = key.IndexOf('_');
-                if (separatorIndex <= 0)
-                    continue;
-
-                var pluginId = key[..separatorIndex];
-                var typeName = instance.GetType().Name;
-                var filePath = Path.Combine(GetPluginSettingsDirectory(pluginId), $"{typeName}.json");
-
-                try
+                var path = Path.Combine(GetPluginSettingsDirectory(key.PluginId), $"{key.Type.Name}.json");
+                var updated = JsonSerializer.SerializeToNode(instance, key.Type, JsonOptions);
+                // Preserve fields added by a different plugin version, while retaining the plugin's
+                // native file names and format. Nested third-party model migrations remain its own.
+                if (ReadJsonFile(path) is { } previous && JsonNode.Parse(previous) is JsonObject original && updated is JsonObject changes)
                 {
-                    var json = JsonSerializer.Serialize(instance, JsonOptions);
-                    File.WriteAllText(filePath, json);
+                    foreach (var (name, value) in changes) original[name] = value?.DeepClone();
+                    updated = original;
                 }
-                catch
-                {
-                    // Ignore transient write errors
-                }
+                WriteJsonFile(path, updated?.ToJsonString(JsonOptions) ?? "null");
             }
         }
     }
@@ -132,33 +75,8 @@ public class FlowSettingsStorage
         {
             foreach (var (key, instance) in _loadedSettings)
             {
-                var separatorIndex = key.IndexOf('_');
-                if (separatorIndex <= 0) continue;
-
-                var pluginId = key[..separatorIndex];
-                var typeName = instance.GetType().Name;
-                var filePath = Path.Combine(GetPluginSettingsDirectory(pluginId), $"{typeName}.json");
-
-                if (File.Exists(filePath))
-                {
-                    try
-                    {
-                        var json = File.ReadAllText(filePath);
-                        var diskObj = JsonSerializer.Deserialize(json, instance.GetType(), JsonOptions);
-                        if (diskObj != null)
-                        {
-                            foreach (var prop in instance.GetType().GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
-                            {
-                                if (prop.CanRead && prop.CanWrite && prop.GetIndexParameters().Length == 0)
-                                {
-                                    var val = prop.GetValue(diskObj);
-                                    prop.SetValue(instance, val);
-                                }
-                            }
-                        }
-                    }
-                    catch { }
-                }
+                var path = Path.Combine(GetPluginSettingsDirectory(key.PluginId), $"{key.Type.Name}.json");
+                if (ReadJsonFile(path) is { } json) RestoreObject(instance, key.Type, json);
             }
         }
     }
@@ -166,49 +84,61 @@ public class FlowSettingsStorage
     public Dictionary<string, string> TakeSnapshot(string pluginId)
     {
         lock (_lock)
-        {
-            var snapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var (key, instance) in _loadedSettings)
-            {
-                if (key.StartsWith($"{pluginId}_", StringComparison.OrdinalIgnoreCase))
-                {
-                    try
-                    {
-                        snapshot[key] = JsonSerializer.Serialize(instance, instance.GetType(), JsonOptions);
-                    }
-                    catch { }
-                }
-            }
-            return snapshot;
-        }
+            return _loadedSettings.Where(pair => pair.Key.PluginId.Equals(pluginId, StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(pair => $"{pair.Key.PluginId}_{pair.Key.Type.FullName}",
+                    pair => JsonSerializer.Serialize(pair.Value, pair.Key.Type, JsonOptions), StringComparer.OrdinalIgnoreCase);
     }
 
     public void RestoreSnapshot(string pluginId, Dictionary<string, string> snapshot)
     {
         lock (_lock)
         {
-            foreach (var (key, json) in snapshot)
+            foreach (var (key, instance) in _loadedSettings)
+                if (key.PluginId.Equals(pluginId, StringComparison.OrdinalIgnoreCase) &&
+                    snapshot.TryGetValue($"{key.PluginId}_{key.Type.FullName}", out var json))
+                    RestoreObject(instance, key.Type, json);
+        }
+    }
+
+    private static void RestoreObject(object instance, Type type, string json)
+    {
+        var restored = JsonSerializer.Deserialize(json, type, JsonOptions) ?? throw new InvalidDataException("Invalid plugin settings snapshot.");
+        foreach (var property in type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            if (property.CanRead && property.CanWrite && property.GetIndexParameters().Length == 0)
+                property.SetValue(instance, property.GetValue(restored));
+    }
+
+    internal static string? ReadJsonFile(string path)
+    {
+        try { return File.ReadAllText(path); }
+        catch (FileNotFoundException) { return null; }
+        catch (DirectoryNotFoundException) { return null; }
+    }
+
+    // Shared by the bridge's typed, template and enablement stores; no dependency on the host's Core.
+    internal static void WriteJsonFile(string path, string json)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
+        var temporary = $"{path}.{Guid.NewGuid():N}.tmp";
+        var created = false;
+        try
+        {
+            using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            using (var writer = new StreamWriter(stream))
             {
-                if (_loadedSettings.TryGetValue(key, out var instance) && instance != null)
-                {
-                    try
-                    {
-                        var restored = JsonSerializer.Deserialize(json, instance.GetType(), JsonOptions);
-                        if (restored != null)
-                        {
-                            foreach (var prop in instance.GetType().GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
-                            {
-                                if (prop.CanRead && prop.CanWrite && prop.GetIndexParameters().Length == 0)
-                                {
-                                    var val = prop.GetValue(restored);
-                                    prop.SetValue(instance, val);
-                                }
-                            }
-                        }
-                    }
-                    catch { }
-                }
+                created = true;
+                writer.Write(json);
+                writer.Flush();
+                stream.Flush(flushToDisk: true);
             }
+            if (File.Exists(path)) File.Replace(temporary, path, null);
+            else File.Move(temporary, path);
+        }
+        finally
+        {
+            if (created)
+                try { File.Delete(temporary); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
     }
 }

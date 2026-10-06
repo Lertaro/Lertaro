@@ -24,6 +24,20 @@ public sealed class FlowSettingsTemplateStorageTests
     }
 
     [TestMethod]
+    public void SaveSettings_ReadOnlyFile_ReportsFailureAndPreservesOriginal()
+    {
+        var path = Path.Combine(_tempDir, "Settings.json");
+        File.WriteAllText(path, "{\"value\":\"old\"}");
+        File.SetAttributes(path, FileAttributes.ReadOnly);
+        try
+        {
+            Assert.Throws<UnauthorizedAccessException>(() => FlowSettingsTemplateStorage.SaveSettingValue(path, "value", "new"));
+            Assert.AreEqual("old", FlowSettingsTemplateStorage.LoadSettings(path)["value"]!.ToString());
+        }
+        finally { File.SetAttributes(path, FileAttributes.Normal); }
+    }
+
+    [TestMethod]
     public void EnsureDefaultSettings_PreservesEmptyStringsAndUnescapedNewlines()
     {
         var templatePath = Path.Combine(_tempDir, "SettingsTemplate.yaml");

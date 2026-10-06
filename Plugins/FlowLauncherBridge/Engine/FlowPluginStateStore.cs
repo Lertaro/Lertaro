@@ -6,7 +6,7 @@ using System.Text.Json.Serialization;
 namespace Lertaro.Plugins.FlowLauncherBridge.Engine;
 
 /// <summary>
-/// Persists and loads custom ActionKeyword and Disabled state overrides for Flow.Launcher plugins in FlowData\Plugins.json.
+/// Persists and loads custom ActionKeyword and Disabled state overrides for Flow.Launcher plugins in FlowData\Settings\Plugins.json.
 /// Kept isolated from plugin settings to prevent pollution.
 /// </summary>
 public static class FlowPluginStateStore
@@ -30,38 +30,20 @@ public static class FlowPluginStateStore
     public static Dictionary<string, FlowPluginCustomState> LoadAll()
     {
         var result = new Dictionary<string, FlowPluginCustomState>(StringComparer.OrdinalIgnoreCase);
-        try
+        var json = FlowSettingsStorage.ReadJsonFile(GetFilePath());
+        if (json == null) return result;
+        var root = JsonNode.Parse(json) as JsonObject ?? throw new InvalidDataException("Invalid Flow plugin enablement settings.");
+        foreach (var (key, value) in root)
         {
-            var path = GetFilePath();
-            if (File.Exists(path))
-            {
-                var json = File.ReadAllText(path);
-                var node = JsonNode.Parse(json);
-                if (node is JsonObject obj)
-                {
-                    foreach (var (key, valNode) in obj)
-                    {
-                        if (valNode is JsonValue jVal && jVal.TryGetValue<string>(out var strVal))
-                        {
-                            result[key] = new FlowPluginCustomState { ActionKeyword = strVal };
-                        }
-                        else if (valNode is JsonObject stateObj)
-                        {
-                            var state = new FlowPluginCustomState();
-                            if (stateObj.TryGetPropertyValue("ActionKeyword", out var kwNode) && kwNode is JsonValue kwVal && kwVal.TryGetValue<string>(out var kwStr))
-                                state.ActionKeyword = kwStr;
-                            if (stateObj.TryGetPropertyValue("Disabled", out var disNode) && disNode is JsonValue disVal && disVal.TryGetValue<bool>(out var disBool))
-                                state.Disabled = disBool;
-                            result[key] = state;
-                        }
-                    }
-                }
-            }
+            if (value is JsonValue legacy && legacy.TryGetValue<string>(out var keyword))
+                result[key] = new FlowPluginCustomState { ActionKeyword = keyword };
+            else if (value is JsonObject state)
+                result[key] = state.Deserialize<FlowPluginCustomState>(JsonOptions)!;
+            else
+                throw new InvalidDataException($"Invalid state for Flow plugin '{key}'.");
         }
-        catch { }
         return result;
     }
-
     public static string? GetCustomKeyword(string pluginName)
     {
         if (string.IsNullOrWhiteSpace(pluginName)) return null;
@@ -81,35 +63,27 @@ public static class FlowPluginStateStore
     public static void SaveCustomKeyword(string pluginName, string newKeyword)
     {
         if (string.IsNullOrWhiteSpace(pluginName)) return;
-        try
+        var dict = LoadAll();
+        if (!dict.TryGetValue(pluginName, out var state))
         {
-            var dict = LoadAll();
-            if (!dict.TryGetValue(pluginName, out var state))
-            {
-                state = new FlowPluginCustomState();
-                dict[pluginName] = state;
-            }
-            state.ActionKeyword = newKeyword;
-            SaveAll(dict);
+            state = new FlowPluginCustomState();
+            dict[pluginName] = state;
         }
-        catch { }
+        state.ActionKeyword = newKeyword;
+        SaveAll(dict);
     }
 
     public static void SetPluginDisabled(string pluginName, bool disabled)
     {
         if (string.IsNullOrWhiteSpace(pluginName)) return;
-        try
+        var dict = LoadAll();
+        if (!dict.TryGetValue(pluginName, out var state))
         {
-            var dict = LoadAll();
-            if (!dict.TryGetValue(pluginName, out var state))
-            {
-                state = new FlowPluginCustomState();
-                dict[pluginName] = state;
-            }
-            state.Disabled = disabled;
-            SaveAll(dict);
+            state = new FlowPluginCustomState();
+            dict[pluginName] = state;
         }
-        catch { }
+        state.Disabled = disabled;
+        SaveAll(dict);
     }
 
     private static void SaveAll(Dictionary<string, FlowPluginCustomState> dict)
@@ -120,7 +94,7 @@ public static class FlowPluginStateStore
             Directory.CreateDirectory(dir);
 
         var json = JsonSerializer.Serialize(dict, JsonOptions);
-        File.WriteAllText(path, json);
+        FlowSettingsStorage.WriteJsonFile(path, json);
     }
 }
 
@@ -128,4 +102,5 @@ public class FlowPluginCustomState
 {
     public string? ActionKeyword { get; set; }
     public bool Disabled { get; set; }
+    [JsonExtensionData] public Dictionary<string, JsonElement>? AdditionalSettings { get; set; }
 }

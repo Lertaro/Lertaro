@@ -71,8 +71,8 @@ public class FlowPluginHost : IAsyncDisposable
     {
         var pair = FindPluginPair(pluginNameOrId);
         if (pair == null) return;
-        pair.Metadata.Disabled = !enabled;
         FlowPluginStateStore.SetPluginDisabled(pair.Metadata.Name, !enabled);
+        pair.Metadata.Disabled = !enabled;
         if (enabled) _keywordManager.RegisterPluginKeywords(pair);
         else _keywordManager.UnregisterPluginKeywords(pair);
     }
@@ -263,9 +263,9 @@ public class FlowPluginHost : IAsyncDisposable
 
     public void SaveAll()
     {
-        _storage.SaveAll();
         foreach (var pair in _loadedPlugins.Values)
-            if (pair.Plugin is ISavable savable) try { savable.Save(); } catch { }
+            if (pair.Plugin is ISavable savable) savable.Save();
+        _storage.SaveAll();
     }
 
     public void RollbackAll() => _storage.ReloadAll();
@@ -274,7 +274,8 @@ public class FlowPluginHost : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        SaveAll();
+        try { SaveAll(); }
+        catch (Exception ex) { PluginSdk.Logger.Log($"[FlowLauncherBridge] Could not save before shutdown: {ex.Message}", PluginSdk.LogLevel.Error); }
         foreach (var pair in _loadedPlugins.Values)
         {
             if (pair.Plugin is IAsyncDisposable asyncDisposable)

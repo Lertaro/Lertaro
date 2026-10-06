@@ -17,31 +17,14 @@ public static class FlowSettingsTemplateStorage
 
     public static JsonObject LoadSettings(string path)
     {
-        try
-        {
-            if (File.Exists(path))
-            {
-                var text = File.ReadAllText(path);
-                var node = JsonNode.Parse(text);
-                if (node is JsonObject obj) return obj;
-            }
-        }
-        catch { }
-        return new JsonObject();
+        var text = FlowSettingsStorage.ReadJsonFile(path);
+        return text == null ? new JsonObject()
+            : JsonNode.Parse(text) as JsonObject ?? throw new InvalidDataException($"Invalid settings: {path}");
     }
 
     public static void SaveSettings(string path, JsonObject obj)
     {
-        try
-        {
-            var dir = Path.GetDirectoryName(path);
-            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
-
-            var json = obj.ToJsonString(JsonOptions);
-            File.WriteAllText(path, json);
-        }
-        catch { }
+        FlowSettingsStorage.WriteJsonFile(path, obj.ToJsonString(JsonOptions));
     }
 
     public static void EnsureDefaultSettings(string templateFilePath, string settingsJsonPath)
@@ -95,44 +78,40 @@ public static class FlowSettingsTemplateStorage
 
     public static void SaveSettingValue(string path, string key, object? value)
     {
-        try
+        var settings = LoadSettings(path);
+        if (value == null)
         {
-            var settings = LoadSettings(path);
-            if (value == null)
-            {
-                settings.Remove(key);
-            }
-            else if (value is bool b)
-            {
-                settings[key] = b;
-            }
-            else if (value is int i)
-            {
-                settings[key] = i;
-            }
-            else if (value is System.Collections.IEnumerable en && !(value is string))
-            {
-                var items = new List<string>();
-                foreach (var item in en)
-                {
-                    if (item != null) items.Add(item.ToString() ?? string.Empty);
-                }
-                settings[key] = string.Join("\n", items);
-            }
-            else if (value is JsonElement el)
-            {
-                if (el.ValueKind == JsonValueKind.True) settings[key] = true;
-                else if (el.ValueKind == JsonValueKind.False) settings[key] = false;
-                else if (el.ValueKind == JsonValueKind.Number && el.TryGetInt32(out var num)) settings[key] = num;
-                else settings[key] = el.GetString();
-            }
-            else
-            {
-                settings[key] = value.ToString();
-            }
-            SaveSettings(path, settings);
+            settings.Remove(key);
         }
-        catch { }
+        else if (value is bool b)
+        {
+            settings[key] = b;
+        }
+        else if (value is int i)
+        {
+            settings[key] = i;
+        }
+        else if (value is System.Collections.IEnumerable en && !(value is string))
+        {
+            var items = new List<string>();
+            foreach (var item in en)
+            {
+                if (item != null) items.Add(item.ToString() ?? string.Empty);
+            }
+            settings[key] = string.Join("\n", items);
+        }
+        else if (value is JsonElement el)
+        {
+            if (el.ValueKind == JsonValueKind.True) settings[key] = true;
+            else if (el.ValueKind == JsonValueKind.False) settings[key] = false;
+            else if (el.ValueKind == JsonValueKind.Number && el.TryGetInt32(out var num)) settings[key] = num;
+            else settings[key] = el.GetString();
+        }
+        else
+        {
+            settings[key] = value.ToString();
+        }
+        SaveSettings(path, settings);
     }
 
     public static object? GetSettingValue(string path, string key)
