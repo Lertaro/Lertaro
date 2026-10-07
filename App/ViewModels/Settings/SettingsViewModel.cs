@@ -43,7 +43,6 @@ public class SettingsViewModel : ViewModelBase
         LocalSend = new LocalSend.LocalSendSettingsViewModel(_userSettings);
         RefreshCommand = new RelayCommand(Refresh);
         ApplyCommand = new RelayCommand(Apply, () => CanApply);
-        RestartPluginsCommand = new RelayCommand(RestartPlugins, () => CanApply);
         _deferred = new DeferredSettingsViewModels(_userSettings, _searchService);
         _statusMonitor = new SettingsStatusMonitor(_searchService, ApplyUiState);
         TranslationManager.Instance.PropertyChanged += OnLanguageChanged;
@@ -97,18 +96,20 @@ public class SettingsViewModel : ViewModelBase
     public QuickPanel.QuickPanelSettingsViewModel QuickPanel { get; }
     public ICommand RefreshCommand { get; }
     public ICommand ApplyCommand { get; }
-    public ICommand RestartPluginsCommand { get; }
     public bool RequiresPluginRestart => PluginManager.Instance.RequiresPluginRestart;
 
-    private async void RestartPlugins()
+    private bool _pluginRestartStarted;
+    public async Task RestartPluginsAfterCloseAsync()
     {
-        if (!await ApplyAsync()) return;
+        if (_pluginRestartStarted || System.Windows.Application.Current?.Dispatcher.HasShutdownStarted != false || !RequiresPluginRestart) return;
+        _pluginRestartStarted = true;
         try
         {
             foreach (var plugin in PluginManager.Instance.Plugins) await plugin.PrepareForSettingsTransferAsync();
             if (App.HookClient is { } hook) await hook.StopAsync();
             if (!Services.AppLifecycle.AppRestartService.RequestRestart())
                 throw new IOException(TranslationManager.Instance["Plugins_RestartFailed"]);
+            Logger.Log("[Settings] Plugin activation changed; silently restarting after settings closed.", LogLevel.Info);
         }
         catch (Exception ex)
         {
@@ -161,7 +162,12 @@ public class SettingsViewModel : ViewModelBase
 
     public async void Apply() => await ApplyAsync();
 
-    public async Task<bool> ApplyAsync(bool personalOnly = false)
+    public Task<bool> PendingApply { get; private set; } = Task.FromResult(true);
+
+    public Task<bool> ApplyAsync(bool personalOnly = false) =>
+        PendingApply.IsCompleted ? PendingApply = ApplyCoreAsync(personalOnly) : PendingApply;
+
+    private async Task<bool> ApplyCoreAsync(bool personalOnly)
     {
         if (!CanApply)
             return false;

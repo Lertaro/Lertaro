@@ -1,9 +1,8 @@
 {
   "Plugins_EnableAssembly": "プラグインを有効にする",
-  "Plugins_RestartPending": "プラグインの変更は保存されました。再起動後に反映されます。",
-  "Plugins_RestartNow": "保存して再起動",
-  "Plugins_AssemblyRestartHint": "すべての機能を無効にするとプラグイン全体が無効になります。変更をまとめて適用し、最後に一度再起動してください。",
-  "Plugins_DisabledUntilRestart": "プラグインは未読み込みです。有効にして保存し、再起動するとコンポーネントと設定を表示できます。",
+  "Plugins_RestartPending": "プラグインの変更は保存されました。設定を閉じると自動で静かに再起動します。",
+  "Plugins_AssemblyRestartHint": "すべての機能を無効にするとプラグイン全体が無効になります。「適用」後に設定を閉じるか「OK」を押すと、自動で静かに再起動します。",
+  "Plugins_DisabledUntilRestart": "プラグインは未読み込みです。有効にして「OK」を押すか「適用」後に設定を閉じると、自動で再起動して読み込みます。",
   "Plugins_RestartFailed": "設定は保存されましたが、再起動できませんでした。Lertaro を終了して再起動してください。",
   "Settings_Title": "Lertaro 設定",
   "Settings_TriggerWordTaken": "このトリガーワードは既に「{0}」が使用しています。両方が同時に反応し、ファイル検索ではこのワードが一度だけ取り除かれるため、区別できる別のワードにすることをおすすめします。",

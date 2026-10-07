@@ -1,9 +1,8 @@
 {
   "Plugins_EnableAssembly": "Activar complemento",
-  "Plugins_RestartPending": "Los cambios de complementos se han guardado y se aplicarán al reiniciar.",
-  "Plugins_RestartNow": "Guardar y reiniciar",
-  "Plugins_AssemblyRestartHint": "Desactivar todas las funciones desactiva el complemento completo. Aplique todos los cambios y reinicie una sola vez cuando termine.",
-  "Plugins_DisabledUntilRestart": "Complemento no cargado. Actívelo, guarde y reinicie para ver sus componentes y ajustes.",
+  "Plugins_RestartPending": "Los cambios se han guardado. Lertaro se reiniciará automáticamente sin avisos al cerrar Ajustes.",
+  "Plugins_AssemblyRestartHint": "Desactivar todas las funciones desactiva el complemento completo. Pulse Aplicar y cierre Ajustes, o pulse Aceptar: Lertaro se reiniciará automáticamente sin avisos.",
+  "Plugins_DisabledUntilRestart": "Complemento no cargado. Actívelo y pulse Aceptar, o Aplicar y cierre Ajustes, para reiniciar automáticamente y cargar sus componentes y ajustes.",
   "Plugins_RestartFailed": "Los ajustes se guardaron, pero no se pudo reiniciar. Cierre y vuelva a iniciar Lertaro para aplicar el estado del complemento.",
   "Settings_Title": "Configuración de Lertaro",
   "Settings_TriggerWordTaken": "Esta palabra de activación ya la usa «{0}». Ambas funciones responden a ella y la palabra se quita una sola vez de la búsqueda de archivos, así que usa otra palabra para distinguirlas.",

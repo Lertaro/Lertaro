@@ -97,7 +97,15 @@ public partial class SettingsWindow : Window
             // Now that the window and its first page are up, fill in the tabs the user has not visited.
             _pagePrewarmer.Begin();
         };
-        Closed += (_, _) =>
+        // Closing via OK, window chrome, Alt+F4 or Close() all wait for an in-flight save.
+        Closing += async (_, e) =>
+        {
+            if (vm.PendingApply.IsCompleted) return;
+            e.Cancel = true;
+            await vm.PendingApply;
+            if (IsLoaded) Close();
+        };
+        Closed += async (_, _) =>
         {
             _pagePrewarmer.Stop();
             vm.Cleanup();
@@ -106,6 +114,7 @@ public partial class SettingsWindow : Window
             // wants the UI thread away from a hang (see SearchWindow's own note on the same call).
             ShellIconHelper.ClearCache();
             Services.IdleWorkingSetTrimmer.RequestTrim();
+            await vm.RestartPluginsAfterCloseAsync();
         };
         this.AddHandler(Validation.ErrorEvent, new EventHandler<ValidationErrorEventArgs>(OnValidationError));
         // The popup is StaysOpen="True" (see its XAML comment), so it won't auto-close when the whole

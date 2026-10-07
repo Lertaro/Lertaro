@@ -1,9 +1,8 @@
 {
   "Plugins_EnableAssembly": "启用插件",
-  "Plugins_RestartPending": "插件修改已保存，重启后生效。",
-  "Plugins_RestartNow": "保存并重启",
-  "Plugins_AssemblyRestartHint": "关闭全部功能即禁用整个插件。应用可保存所有修改，完成后统一重启一次。",
-  "Plugins_DisabledUntilRestart": "插件未加载。启用、保存并重启后即可查看组件与配置。",
+  "Plugins_RestartPending": "插件修改已保存。关闭设置后，程序将自动静默重启。",
+  "Plugins_AssemblyRestartHint": "关闭全部功能即禁用整个插件。点击“应用”后关闭设置，或点击“确认”，程序将自动静默重启。",
+  "Plugins_DisabledUntilRestart": "插件未加载。启用后点击“确认”，或点击“应用”后关闭设置，程序将自动静默重启并加载组件与配置。",
   "Plugins_RestartFailed": "设置已保存，但无法重启。请退出并重新启动 Lertaro，使插件开关生效。",
   "Settings_Title": "Lertaro 设置",
   "Settings_TriggerWordTaken": "该触发词已被「{0}」使用，两者会同时响应，文件搜索只剥离这个词一次；建议改用不同的词以便区分。",

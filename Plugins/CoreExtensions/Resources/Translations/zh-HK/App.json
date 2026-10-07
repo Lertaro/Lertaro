@@ -1,9 +1,8 @@
 {
   "Plugins_EnableAssembly": "啟用外掛",
-  "Plugins_RestartPending": "外掛修改已儲存，重新啟動後生效。",
-  "Plugins_RestartNow": "儲存並重新啟動",
-  "Plugins_AssemblyRestartHint": "關閉全部功能即停用整個外掛。套用可儲存所有修改，完成後統一重新啟動一次。",
-  "Plugins_DisabledUntilRestart": "外掛未載入。啟用、儲存並重新啟動後即可查看元件與設定。",
+  "Plugins_RestartPending": "外掛修改已儲存。關閉設定後，程式將自動靜默重新啟動。",
+  "Plugins_AssemblyRestartHint": "關閉全部功能即停用整個外掛。按「套用」後關閉設定，或按「確認」，程式將自動靜默重新啟動。",
+  "Plugins_DisabledUntilRestart": "外掛未載入。啟用後按「確認」，或按「套用」後關閉設定，程式將自動靜默重新啟動並載入元件與設定。",
   "Plugins_RestartFailed": "設定已儲存，但無法重新啟動。請結束並重新啟動 Lertaro，使外掛開關生效。",
   "Settings_Title": "Lertaro 設定",
   "Settings_TriggerWordTaken": "該觸發詞已被「{0}」使用，兩者會同時回應，檔案搜尋只會剝離這個詞一次；建議改用不同的詞以便區分。",

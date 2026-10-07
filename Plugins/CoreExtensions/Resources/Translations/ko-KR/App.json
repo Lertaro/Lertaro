@@ -1,9 +1,8 @@
 {
   "Plugins_EnableAssembly": "플러그인 사용",
-  "Plugins_RestartPending": "플러그인 변경 사항이 저장되었습니다. 다시 시작하면 적용됩니다.",
-  "Plugins_RestartNow": "저장 후 다시 시작",
-  "Plugins_AssemblyRestartHint": "모든 기능을 끄면 플러그인 전체가 비활성화됩니다. 변경 사항을 모두 적용한 뒤 한 번만 다시 시작하세요.",
-  "Plugins_DisabledUntilRestart": "플러그인이 로드되지 않았습니다. 활성화하고 저장한 뒤 다시 시작하면 구성 요소와 설정을 볼 수 있습니다.",
+  "Plugins_RestartPending": "플러그인 변경 사항이 저장되었습니다. 설정을 닫으면 자동으로 조용히 다시 시작합니다.",
+  "Plugins_AssemblyRestartHint": "모든 기능을 끄면 플러그인 전체가 비활성화됩니다. 적용 후 설정을 닫거나 확인을 누르면 자동으로 조용히 다시 시작합니다.",
+  "Plugins_DisabledUntilRestart": "플러그인이 로드되지 않았습니다. 활성화하고 확인을 누르거나 적용 후 설정을 닫으면 자동으로 다시 시작하여 구성 요소와 설정을 로드합니다.",
   "Plugins_RestartFailed": "설정은 저장되었지만 다시 시작하지 못했습니다. Lertaro를 종료한 후 다시 시작하세요.",
   "Settings_Title": "Lertaro 설정",
   "Settings_TriggerWordTaken": "이 트리거 단어는 이미 '{0}'에서 사용 중입니다. 두 기능이 함께 반응하고 파일 검색에서는 이 단어가 한 번만 제거되므로, 구분할 수 있는 다른 단어를 사용하는 것이 좋습니다.",

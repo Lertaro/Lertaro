@@ -1,9 +1,8 @@
 {
   "Plugins_EnableAssembly": "Enable plugin",
-  "Plugins_RestartPending": "Plugin changes are saved and will take effect after restarting.",
-  "Plugins_RestartNow": "Save and restart",
-  "Plugins_AssemblyRestartHint": "Disable all features to disable the entire plugin. Apply saves all changes; restart once when ready.",
-  "Plugins_DisabledUntilRestart": "Plugin not loaded. Enable it, save and restart to view its components and settings.",
+  "Plugins_RestartPending": "Plugin changes are saved. Lertaro will restart silently when Settings closes.",
+  "Plugins_AssemblyRestartHint": "Disabling all features disables the entire plugin. Save with Apply, then close Settings, or click OK: Lertaro will restart silently.",
+  "Plugins_DisabledUntilRestart": "Plugin not loaded. Enable it and click OK, or Apply then close Settings, to restart silently and load its components and settings.",
   "Plugins_RestartFailed": "Settings were saved, but restart failed. Exit and restart Lertaro to apply the plugin state.",
   "Settings_Title": "Lertaro Settings",
   "Settings_TriggerWordTaken": "This trigger word is already used by {0}. Both features answer to it and the word is stripped from the file search once, so use a different word to tell them apart.",
