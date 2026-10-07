@@ -1,6 +1,6 @@
 {
   "name": "lertaro-site",
-  "version": "2026.10.6",
+  "version": "2026.10.7",
   "scripts": {
     "site:dev": "node copy-assets.js && vitepress dev",
     "site:build": "node copy-assets.js && vitepress build",
