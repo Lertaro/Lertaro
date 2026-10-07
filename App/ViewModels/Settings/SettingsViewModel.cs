@@ -130,10 +130,7 @@ public class SettingsViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Reports the window's binding-level error count, from WPF's own Validation.Error. Routed through the
-    /// view model rather than assigned onto CanApply directly, because the gate has more than one input --
-    /// writing the flag from the window used to erase whatever service readiness had set it to, and be
-    /// erased by it in turn, so whichever ran last won.
+    /// Reports WPF binding errors without overriding the guard for an in-flight save.
     /// </summary>
     public void SetBindingErrorCount(int count)
     {
@@ -161,11 +158,6 @@ public class SettingsViewModel : ViewModelBase
     /// no error, and going through a lazy property to ask would construct it (see Plugins) purely to be
     /// told so.
     /// </summary>
-    /// <summary>
-    /// Every blocking error the settings pages are currently showing, and the status-bar reason shown when
-    /// Apply refused because of them. Public because SettingsWindow.xaml binds it -- see the type's own
-    /// comment on why a binding path needs public members.
-    /// </summary>
     public SettingsValidationGate Validation { get; }
 
     /// <summary>The gate's own list, kept as the name callers and tests already read.</summary>
@@ -176,7 +168,7 @@ public class SettingsViewModel : ViewModelBase
     public bool IsServiceReady
     {
         get => _isServiceReady;
-        set { if (SetProperty(ref _isServiceReady, value)) RefreshCanApply(); }
+        set => SetProperty(ref _isServiceReady, value);
     }
 
     private bool _isSaved;
@@ -413,11 +405,6 @@ public class SettingsViewModel : ViewModelBase
         // If it was the active tab, fall back to Network so the page never lands on a hidden tab.
         if (LocalDrive.SelectedTab == "Wsl" && !NetworkDrive.IsWslPanelVisible)
             LocalDrive.SelectedTab = "Network";
-        // The shared Apply/OK button only needs the service to be reachable: MachineSettings is loaded
-        // synchronously at SearchEngine construction, before the indexer's own loading-cache/indexing/
-        // pending lifecycle even starts, so an active scan or cache load never means the data Apply()
-        // would read and save is stale or empty -- only an unreachable service does (RefreshLists()
-        // falls back to an empty MachineSettings() in that case).
         IsServiceReady = isServiceReady;
         _deferred.ExistingLog?.IsServiceReady = isServiceReady;
         IsBusy = !isServiceReady;

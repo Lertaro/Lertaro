@@ -177,7 +177,26 @@ public sealed class SettingsValidationGateTests
     }
 
     [TestMethod]
-    public void Apply_RefusesWhileAPageReportsAnError()
+    public void BindingErrors_RemainBlockingAcrossServiceStatusChanges()
+    {
+        var vm = new SettingsViewModel();
+        try
+        {
+            vm.SetBindingErrorCount(1);
+            vm.IsServiceReady = false;
+            Assert.IsFalse(vm.CanApply);
+            vm.IsServiceReady = true;
+            Assert.IsFalse(vm.CanApply);
+            vm.SetBindingErrorCount(0);
+            Assert.IsTrue(vm.CanApply);
+            vm.IsServiceReady = false;
+            Assert.IsTrue(vm.CanApply, "Personal settings remain available without the service.");
+        }
+        finally { vm.Cleanup(); }
+    }
+
+    [TestMethod]
+    public async Task Apply_RefusesWhileAPageReportsAnError()
     {
         var vm = new SettingsViewModel();
         try
@@ -186,7 +205,7 @@ public sealed class SettingsValidationGateTests
             vm.General.GlobalTokenPrefix = Reserved;
             Assert.IsNotEmpty(vm.ValidationErrors.ToList(), "the General page is reporting this, so Apply has something to refuse on");
             Assert.IsTrue(vm.CanApply, "the button stays enabled -- the walk is deliberately not on that path");
-            Assert.IsFalse(vm.Apply(), "Apply must not save a value a page is reporting as broken");
+            Assert.IsFalse(await vm.ApplyAsync(), "Apply must not save a value a page is reporting as broken");
         }
         finally
         {
@@ -195,7 +214,7 @@ public sealed class SettingsValidationGateTests
     }
 
     [TestMethod]
-    public void Apply_Refused_SaysSoInTheWindowsStatusBar()
+    public async Task Apply_Refused_SaysSoInTheWindowsStatusBar()
     {
         // A refused Apply used to be invisible: the button stays enabled by design and the page-level
         // warning can sit on a tab the user is not looking at, so clicking OK looked like nothing happening.
@@ -206,7 +225,7 @@ public sealed class SettingsValidationGateTests
             Assert.IsFalse(vm.Validation.HasRefusal, "nothing has been refused yet");
 
             vm.General.GlobalTokenPrefix = Reserved;
-            Assert.IsFalse(vm.Apply());
+            Assert.IsFalse(await vm.ApplyAsync());
 
             Assert.IsTrue(vm.Validation.HasRefusal);
             Assert.IsNotNull(vm.Validation.RefusalMessage);

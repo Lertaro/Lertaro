@@ -19,6 +19,7 @@ public sealed class UsnServicePipeAuthorizationTests
         SearchRequestId.CancelDriveIndex,
         SearchRequestId.SetMachineSettings,
         SearchRequestId.ClearServiceLog,
+        SearchRequestId.GetServiceLog,
         SearchRequestId.ClearPathCaches,
     ];
 
@@ -44,6 +45,8 @@ public sealed class UsnServicePipeAuthorizationTests
         // HookLaunchRequestHandler does (IsGenuineAppProcess) before it touches anything. Listing it here
         // records that the gate exists, just not at this table.
         SearchRequestId.ApplyUpdate,
+        // Handled by the server with its own App identity check before dispatch.
+        SearchRequestId.StopService,
     ];
 
     [TestMethod]

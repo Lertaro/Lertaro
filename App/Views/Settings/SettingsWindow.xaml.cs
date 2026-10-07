@@ -158,8 +158,7 @@ public partial class SettingsWindow : Window
         else
             _validationErrorCount--;
 
-        // Reported to the view model rather than assigned onto CanApply here: the gate also depends on
-        // service readiness, so writing the flag from this handler erased whatever that had set it to.
+        // The view model combines binding errors with its in-flight save guard.
         (DataContext as SettingsViewModel)?.SetBindingErrorCount(_validationErrorCount);
     }
 
