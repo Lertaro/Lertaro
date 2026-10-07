@@ -28,18 +28,22 @@ Un plugin de Lertaro es un proyecto de biblioteca de clases estándar de .NET 10
       <Private>false</Private>
     </Reference>
   </ItemGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="Lertaro.Plugin.Name" Value="My Custom Plugin" />
+    <AssemblyMetadata Include="Lertaro.Plugin.Description" Value="Ejemplo básico que demuestra la integración con el SDK de Lertaro." />
+  </ItemGroup>
 </Project>
 ```
 
 > [!WARNING]
-> El prefijo `Lertaro.Plugins.` es un filtro estricto, no una convención: el escaneo recursivo de `Plugins\**\*.dll` lee el nombre del ensamblado y ni siquiera refleja una DLL que no empiece por él, así que un plugin llamado `YourCompany.MyPlugin.dll` no se carga y nadie te avisa. Mantén el prefijo en `AssemblyName` y deja `<Private>false</Private>` para que el SDK no se copie en tu salida.
+> App y Hook por usuario seleccionan nombres `Lertaro.Plugins.*.dll` y excluyen los ensamblados desactivados antes de cargarlos o inspeccionarlos por reflexión. Mantenga el prefijo en `AssemblyName` y no distribuya otra copia del SDK. Evite referencias a DLL de entrada de otros complementos nativos: el resolvedor estándar podría cargar una dependencia desactivada.
 
 > [!TIP]
 > Los plugins de lógica pura (como fuentes de búsqueda, alias o utilidades CLI) no necesitan `<UseWPF>`.
 
 ## 2. Implementar el punto de entrada `IPlugin`
 
-Cada ensamblado de plugin contiene al menos una clase pública que implementa `IPlugin`, y el cargador la instancia como punto de entrada principal del plugin:
+Se recomienda un punto de entrada público `IPlugin` por ensamblado para su descripción, configuración y preparación opcional del reinicio. También se admiten ensamblados con solo proveedores, como PinyinAlias.
 
 ```csharp
 using Lertaro.PluginSdk.Abstractions.Plugins;
@@ -53,7 +57,7 @@ public class MyCustomPlugin : IPlugin
 }
 ```
 
-La reflexión encuentra **todas** las implementaciones de `IPlugin` del DLL y crea una instancia de cada una, así que publicar dos registra dos plugins con dos tarjetas de configuración. Envía una sola salvo que de verdad quieras dos entradas.
+Ajustes agrupa los componentes por ensamblado. Varias clases de entrada no crean complementos desactivables por separado; separe en ensamblados distintos las funciones que necesiten administración independiente.
 
 A partir de aquí, puedes implementar interfaces adicionales en esta clase o en clases de componentes independientes. Por ejemplo, implementa `IInstantResultProvider` para cálculos dinámicos o `IConfigurable` para formularios de configuración.
 
@@ -61,7 +65,7 @@ A partir de aquí, puedes implementar interfaces adicionales en esta clase o en 
 
 1. Compila el proyecto para generar `Lertaro.Plugins.MyCustomPlugin.dll`.
 2. Coloca el archivo DLL compilado (junto con sus dependencias de terceros) bajo la carpeta `Plugins\` de la raíz de la aplicación Lertaro. La convención es una subcarpeta por plugin y el escaneo es recursivo (`Plugins\**\*.dll`), así que `Plugins\MyCustomPlugin\` funciona; la automatización de compilación del repositorio deja los DLL directamente en `Plugins\` y eso también funciona.
-3. Inicia o reinicia Lertaro; el proceso App escanea la carpeta `Plugins\` y carga todo ensamblado cuyo nombre lleve el prefijo.
+3. Inicie o reinicie Lertaro. App carga los complementos activados y muestra los desactivados mediante metadatos estáticos.
 4. Abre **Configuración → Plugins** para comprobar el estado y las opciones del plugin.
 
 > [!NOTE]

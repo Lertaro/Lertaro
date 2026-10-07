@@ -19,7 +19,7 @@ Enlaces interactivos para abrir los directorios de almacenamiento en el Explorad
 
 ### Directorio de datos de usuario
 
-- **Contenido**: Configuración personal (`user-settings.json`), historial de búsqueda y palabras clave, cachés y certificados de seguridad.
+- **Contenido**: Configuración personal (`user-settings.json`, `plugin-settings.json`), historial de búsqueda y palabras clave, cachés y certificados de seguridad.
 - **Rotación de 5 copias de seguridad**: Cada vez que se guarda la configuración, Lertaro crea automáticamente una copia de respaldo `user-settings.json.bak.1`, conservando hasta `.bak.5`. Ante cualquier fallo o corte de energía, se puede restaurar cualquiera de las últimas 5 copias.
 
 ### Directorio de datos de equipo (Machine)
@@ -38,3 +38,9 @@ Enlaces interactivos para abrir los directorios de almacenamiento en el Explorad
   - **Actualización silenciosa** —— Descarga e instala en segundo plano y reinicia Lertaro al terminar.
   - **Ir a la página de descargas** —— Abre la página de lanzamientos de GitHub en el navegador predeterminado para su descarga manual.
 - **Avisos de permisos**: Si se ejecuta con una cuenta sin permisos de administrador para reiniciar el servicio, un aviso guiará hacia la página de descarga manual.
+
+## 4. Configuración de complementos y copias de seguridad
+
+Los parámetros nativos están en `plugin-settings.json`, junto a `user-settings.json`; cada archivo conserva hasta cinco copias rotativas. Los parámetros incrustados antiguos se migran una sola vez. El ZIP completo incluye ambos archivos, datos de Calendar y ajustes de Flow; los archivos ejecutables de complementos Flow requieren inclusión explícita. No transfiera solo el archivo principal para mover la configuración actual de complementos.
+
+Si el software de sincronización ocupa temporalmente el destino, un fallo recuperable conserva la configuración actual y abre la aplicación normalmente. El bloqueo de ejecución permanece en `%LocalAppData%\Lertaro\RuntimeLocks`, fuera de los datos sincronizados, también en instalaciones portátiles. Si la reversión no puede completarse, no se inician complementos sobre ajustes restaurados parcialmente.

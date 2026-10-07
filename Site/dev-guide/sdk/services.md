@@ -35,6 +35,12 @@ The `Lertaro.PluginSdk.Services` namespace provides high-performance static serv
 
 `PluginSettingsService.IsComponentEnabled(...)` reads the host's per-component switch. Components that own directory watchers, background workers, external runtimes, or other expensive state should check it before initializing that state and subscribe to `ComponentEnablementChanged` to start or stop it when the user changes the switch. The method returns `true` when no host callback is registered or the callback fails, so plugins remain usable outside the full host.
 
+### Plugin storage and restart preparation
+
+Native parameters are stored in `plugin-settings.json`, keyed by plugin ID and parameter name. Use `PluginSettingsService.GetSetting/SetSetting` and configuration schemas; do not edit the file or the old embedded `PluginSettings` object directly. Assembly/component enablement remains in `user-settings.json`. Legacy parameters migrate once; the separate file wins, and missing or corrupt migrated data is never replaced with stale legacy values. Calendar reminders and Flow community settings retain their own data files.
+
+Whole-plugin changes take effect at restart. Component switches only control their corresponding features while code is still loaded. Check component enablement before starting expensive work. Implement `IPlugin.PrepareForSettingsTransferAsync()` when pending persistent writes or plugin-owned external writers must be flushed/stopped before restart or backup. Await completion and propagate failures; an empty default implementation is sufficient when nothing needs flushing. FlowLauncherBridge already implements this hook for its community runtime. Do not rely on a component checkbox to unload an assembly.
+
 ## 2. Shell Native File Operations
 
 `Lertaro.PluginSdk.Shell.FileOperations` wraps the native Windows Shell `IFileOperation` COM interface, providing native progress dialogs, conflict prompts, and `Ctrl+Z` undo support:

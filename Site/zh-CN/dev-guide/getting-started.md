@@ -25,18 +25,22 @@ Lertaro 插件是一个标准的 .NET 10 类库项目。新建一个 C# 类库�
       <Private>false</Private>
     </Reference>
   </ItemGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="Lertaro.Plugin.Name" Value="My Custom Plugin" />
+    <AssemblyMetadata Include="Lertaro.Plugin.Description" Value="这是一个演示 Lertaro 插件开发的基础范例。" />
+  </ItemGroup>
 </Project>
 ```
 
 > [!WARNING]
-> `Lertaro.Plugins.` 前缀是一道硬性过滤器，而不是命名约定：递归扫描 `Plugins\**\*.dll` 时会读取程序集名，不以前缀开头的 DLL 连反射都不会做，因此名为 `YourCompany.MyPlugin.dll` 的插件会被静默忽略。请在 `AssemblyName` 中保留该前缀，并设置 `<Private>false</Private>`，以免把 SDK 复制进你的输出目录。
+> App 与当前用户的 Hook 按 `Lertaro.Plugins.*.dll` 文件名筛选，并在加载或反射之前排除禁用的程序集。请在 `AssemblyName` 中保留此前缀，且不要附带另一份 SDK。避免引用其他原生插件入口 DLL，否则标准程序集解析器可能把已禁用的依赖加载进来。
 
 > [!TIP]
 > 纯逻辑型插件（如搜索源、别名转写引擎、命令行工具）无需启用 `<UseWPF>`。
 
 ## 2. 实现插件主入口 `IPlugin`
 
-每个插件程序集至少包含一个实现 `IPlugin` 接口的公开类，加载器会实例化它作为插件的入口点：
+建议每个程序集只提供一个公开的 `IPlugin` 入口，负责介绍、配置及可选的重启准备。也支持只有 Provider 的程序集，例如 PinyinAlias。
 
 ```csharp
 using Lertaro.PluginSdk.Abstractions.Plugins;
@@ -50,7 +54,7 @@ public class MyCustomPlugin : IPlugin
 }
 ```
 
-反射会找出该 DLL 中**所有** `IPlugin` 实现，并各创建一个实例，因此同时暴露两个实现就会注册出两个插件、两张设置卡片。除非你确实需要两个条目，否则只放一个。
+设置界面按程序集组织组件。多个入口类不会形成可独立禁用的插件；需要独立管理的功能应拆成不同程序集。
 
 在此基础上，你可以根据插件的功能定位组合实现其他 SDK 接口。例如让该类同时实现 `IInstantResultProvider` 提供即时答案计算，或实现 `IConfigurable` 提供可视化的参数配置表单。
 
@@ -58,7 +62,7 @@ public class MyCustomPlugin : IPlugin
 
 1. 编译你的插件项目生成 `Lertaro.Plugins.MyCustomPlugin.dll`。
 2. 将编译生成的 DLL（及该插件所依赖的第三方库）放入 Lertaro App 根目录下的 `Plugins\` 文件夹中。为每个插件建一个独立子目录是通行约定，且扫描是递归的（`Plugins\**\*.dll`），所以 `Plugins\MyCustomPlugin\` 可用；仓库内的构建自动化则把 DLL 平铺放进 `Plugins\`，这样同样有效。
-3. 启动或重启 Lertaro，App 进程会扫描 `Plugins\` 目录，并加载所有程序集名带该前缀的程序集。
+3. 启动或重启 Lertaro。App 加载已启用的插件程序集；禁用插件通过静态元数据展示。
 4. 打开**设置 → 插件**，即可在已安装列表中看到你的插件及其组件运行状态。
 
 > [!NOTE]

@@ -2,12 +2,30 @@ using System.IO;
 using Lertaro.App.Helpers;
 using Lertaro.App.ViewModels.Settings.Plugins;
 using Lertaro.Core;
+using Lertaro.PluginSdk.Abstractions.Plugins;
 
 namespace Lertaro.App.Tests.Helpers;
 
 [TestClass]
 public sealed class PluginLoaderHelperTests
 {
+    [TestMethod]
+    [DataRow("Runtime description", "Runtime description")]
+    [DataRow("", "Literal plugin description")]
+    public void LoadedPlugin_PreservesRuntimeDescriptionOrUsesStaticFallback(string runtime, string expected) => Assert.AreEqual(expected, PluginLoaderHelper.GetPluginDescription(typeof(PluginLoaderHelperTests).Assembly, new FakePlugin(runtime)));
+
+    private sealed class FakePlugin(string description) : IPlugin
+    {
+        public string Description => description;
+    }
+
+    [TestMethod]
+    public void LoadedProviderOnlyPlugin_UsesStaticDescription()
+    {
+        var description = PluginLoaderHelper.GetPluginDescription(typeof(PluginLoaderHelperTests).Assembly, null);
+        Assert.AreEqual("Literal plugin description", description);
+    }
+
     [TestMethod]
     public void DisabledPluginCard_DisplaysMetadataWithNoComponentsOrConfigCallbacks()
     {

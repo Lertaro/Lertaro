@@ -19,7 +19,7 @@ Lertaro/
 
 - **Automatic Dependency Probing**: When Lertaro loads the primary DLL via `Assembly.LoadFrom`, the .NET runtime automatically probes the plugin's folder for adjacent dependencies without cross-contaminating other plugins.
 - **Native dependencies sit next to the DLL, not under `runtimes\<rid>\native`**: shipped plugin projects set `<GenerateDependencyFile>false</GenerateDependencyFile>`, so no `.deps.json` is produced and the runtime has no deps graph to resolve an RID subfolder from. A native library therefore has to be discoverable in the application base directory — copy it flat. This is also why the two architectures are published as separate artifacts rather than one combined installer: only one architecture's native copy can occupy that flat load directory.
-- **Native File Toleration**: When non-.NET native binaries (e.g. `e_sqlite3.dll`) are encountered by the assembly scan, the loader logs them at `Debug` level and moves on instead of raising a false-positive `Error`.
+- The App and per-user Hook select `Lertaro.Plugins.*.dll` filenames and exclude disabled assemblies before loading or reflecting over them. Keep this prefix in `AssemblyName` and do not bundle another copy of the SDK. Avoid dependencies on other native plugin entry DLLs: the standard assembly resolver can otherwise load a disabled dependency.
 
 ## 2. Automated PostBuild Copy Configuration
 
@@ -52,18 +52,19 @@ Organize files as `Resources/Translations/{culture}/{type}.json`, where `{type}`
 
 ## 4. Versioning & Metadata
 
-Define assembly version numbers and descriptions inside your `.csproj`:
+The plugin card reads the assembly version. Declare the display name and description as static metadata so disabled plugins remain identifiable without executing their code:
 
 ```xml
 <PropertyGroup>
   <Version>1.2.0</Version>
-  <AssemblyVersion>1.2.0.0</AssemblyVersion>
-  <FileVersion>1.2.0.0</FileVersion>
-  <Description>High-performance search source and context action extension plugin.</Description>
 </PropertyGroup>
+<ItemGroup>
+  <AssemblyMetadata Include="Lertaro.Plugin.NameKey" Value="MyPlugin_Name" />
+  <AssemblyMetadata Include="Lertaro.Plugin.DescriptionKey" Value="MyPlugin_Description" />
+</ItemGroup>
 ```
 
-This version and description string will be presented automatically inside the **Settings → Plugins** card.
+Use `Lertaro.Plugin.Name` and `Lertaro.Plugin.Description` for literal text, or the `NameKey`/`DescriptionKey` forms for keys in the embedded translation JSON. Keep them consistent with runtime properties. The host reads English first and overlays the selected language; it uses `PEReader`, without constructing attributes or plugin objects. Old DLLs fall back to `AssemblyTitle`/`AssemblyDescription`, then the filename. Rebuild the DLL after adding declarations.
 
 ## 5. Release Build & Architecture Artifacts
 

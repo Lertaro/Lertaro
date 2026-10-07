@@ -87,7 +87,7 @@ public static class PluginLoaderHelper
             if (components.Count == 0 && configFields.Count == 0)
                 continue;
 
-            var description = pluginInstance != null ? PluginComponentBuilder.GetDescriptionWithFallback(pluginInstance) : string.Empty;
+            var description = GetPluginDescription(assembly, pluginInstance);
             var websiteUrl = pluginInstance?.WebsiteUrl;
             var websiteLabel = pluginInstance?.WebsiteLabel;
             result.Add(new PluginInfoViewModel(pluginName, pluginVersion, dllName, sdkVersion, components, configFields, description, schema?.OnSave, schema?.OnRollback, websiteUrl, websiteLabel,
@@ -113,6 +113,13 @@ public static class PluginLoaderHelper
             result.Add(new PluginInfoViewModel(metadata.Name, metadata.Version, dllName, metadata.SdkVersion, [], [],
                 description: metadata.Description, isPluginEnabled: false));
         }
+    }
+
+    internal static string GetPluginDescription(Assembly assembly, IPlugin? plugin)
+    {
+        var description = plugin != null ? PluginComponentBuilder.GetDescriptionWithFallback(plugin) : string.Empty;
+        return !string.IsNullOrWhiteSpace(description) ? description
+            : PluginMetadataReader.Read(assembly.Location, TranslationManager.Instance.CurrentCulture).Description;
     }
 
     /// <summary>Final display order of the plugin list: the core plugin first, then name, with the pinned

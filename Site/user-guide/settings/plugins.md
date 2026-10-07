@@ -7,6 +7,10 @@ Lertaro features a modular plugin architecture. Core extensions, native C# plugi
 - **Plugin SDK Badge**: The top-right badge displays the currently loaded `Lertaro.PluginSdk` version. Clicking it opens the [**Developer Guide**](../../dev-guide/) directly.
 - **Independent Dual-Pane Layout**: The left pane lists all installed plugins, while the right pane renders details and configuration forms for the selected plugin, with independent scrolling.
 
+### Plugin activation and restart
+
+Turning off all toggleable components also disables the whole plugin. You can edit several plugins, click Apply, and continue editing. **After Apply, closing Settings by any method restarts Lertaro silently if plugin activation changed; OK saves and closes immediately.** No separate restart button is needed. Closing without saving discards unsaved changes. The host records one Info message for this restart. After restart, disabled plugins are not loaded in the App or per-user Hook. Their names, versions and introductions remain visible; components and configuration require re-enabling and restarting. Theme/translation component switches are read-only, but their whole plugin can be disabled. The shared Windows indexing service continues using alias plugins.
+
 ## 2. Plugin Details & Component Toggles
 
 Clicking any plugin on the left displays its icon, name, version, and overview in the right pane:

@@ -27,18 +27,22 @@ Lertaro 外掛模組是一個標準的 .NET 10 類別庫專案。新建一個 C#
       <Private>false</Private>
     </Reference>
   </ItemGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="Lertaro.Plugin.Name" Value="My Custom Plugin" />
+    <AssemblyMetadata Include="Lertaro.Plugin.Description" Value="這是一個示範 Lertaro 外掛模組開發的基礎範例。" />
+  </ItemGroup>
 </Project>
 ```
 
 > [!WARNING]
-> `Lertaro.Plugins.` 前綴是一道硬性篩選，而非慣例：遞迴的 `Plugins\**\*.dll` 掃描會讀取組件名稱，名稱不是以該前綴開頭的 DLL 甚至不會被反映掃描，所以名為 `YourCompany.MyPlugin.dll` 的外掛模組會被默默地跳過、完全不會載入。請在 `AssemblyName` 中保留前綴，並設定 `<Private>false</Private>`，以免 SDK 被複製進你的編譯輸出。
+> App 與目前使用者的 Hook 依 `Lertaro.Plugins.*.dll` 檔名篩選，並在載入或反射之前排除停用的組件。請在 `AssemblyName` 中保留此前綴，且不要附帶另一份 SDK。避免參考其他原生外掛入口 DLL，否則標準組件解析器可能載入已停用的相依項。
 
 > [!TIP]
 > 純邏輯型外掛模組（如搜尋來源、別名轉寫引擎、命令列工具）無需啟用 `<UseWPF>`，僅當需要自訂預覽面板或主題資源字典時才需要啟用。
 
 ## 2. 實作外掛模組主入口 `IPlugin`
 
-每個外掛模組組件至少包含一個實作了 `IPlugin` 介面的公開類別，載入器會把它實例化作為該外掛模組的入口點：
+建議每個組件只提供一個公開的 `IPlugin` 入口，負責介紹、設定及選用的重新啟動準備。也支援只有 Provider 的組件，例如 PinyinAlias。
 
 ```csharp
 using Lertaro.PluginSdk.Abstractions.Plugins;
@@ -52,7 +56,7 @@ public class MyCustomPlugin : IPlugin
 }
 ```
 
-反映掃描會找出 DLL 中**每一個**實作 `IPlugin` 的類別，並各自建立一個執行個體，因此放兩個類別就會註冊兩個外掛模組、出現兩張設定卡片。除非你真的想要兩個條目，否則只放一個。
+設定介面依組件組織功能。多個入口類別不會形成可獨立停用的外掛；需要獨立管理的功能應拆成不同組件。
 
 在此基礎上，你可以根據外掛模組的功能定位組合實作其他 SDK 介面。例如讓該類別同時實作 `IInstantResultProvider` 提供即時答案計算，或實作 `IConfigurable` 提供視覺化的參數設定表單。
 
@@ -60,7 +64,7 @@ public class MyCustomPlugin : IPlugin
 
 1. 編譯你的外掛模組專案產生 `Lertaro.Plugins.MyCustomPlugin.dll`。
 2. 將編譯產生的 DLL（及該外掛模組所相依的第三方庫）放入 Lertaro App 根目錄下的 `Plugins\` 資料夾中。每個外掛模組一個專屬子目錄是慣例，而掃描是遞迴的（`Plugins\**\*.dll`），所以 `Plugins\MyCustomPlugin\` 可以使用；儲存庫內的建置自動化則把 DLL 平放到 `Plugins\`，同樣有效。
-3. 啟動或重啟 Lertaro，App 處理程序會掃描 `Plugins\` 並載入所有名稱帶有該前綴的組件。
+3. 啟動或重新啟動 Lertaro。App 載入已啟用的外掛組件；停用外掛透過靜態中繼資料顯示。
 4. 開啟**設定 → 外掛模組**，即可在已安裝清單中看到你的外掛模組及其元件執行狀態。
 
 > [!NOTE]

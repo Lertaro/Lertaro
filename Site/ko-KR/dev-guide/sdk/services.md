@@ -35,6 +35,12 @@
 
 `PluginSettingsService.IsComponentEnabled(...)`는 호스트가 관리하는 컴포넌트별 스위치를 읽습니다. 디렉터리 감시기, 백그라운드 작업자, 외부 런타임 또는 기타 비용이 큰 상태를 소유한 컴포넌트는 해당 상태를 초기화하기 전에 스위치를 확인하고, `ComponentEnablementChanged`를 구독하여 사용자가 스위치를 변경할 때 관련 런타임을 시작하거나 중지해야 합니다. 호스트 콜백이 등록되지 않았거나 콜백이 실패하면 이 메서드는 `true`를 반환하므로 완전한 호스트 외부에서도 플러그인을 사용할 수 있습니다.
 
+### 플러그인 저장소와 다시 시작 준비
+
+네이티브 매개변수는 플러그인 ID와 키별로 `plugin-settings.json`에 저장됩니다. `PluginSettingsService.GetSetting/SetSetting`과 설정 스키마를 사용하고 파일이나 이전 내장 `PluginSettings` 객체를 직접 수정하지 마세요. 어셈블리와 구성 요소 활성화 상태는 `user-settings.json`에 남습니다. 이전 매개변수는 한 번만 이전하며 새 파일이 우선합니다. 이전 후 파일이 없어지거나 손상되어도 오래된 값으로 되돌리지 않습니다. 캘린더 알림과 Flow 커뮤니티 설정은 각자의 데이터 파일을 유지합니다.
+
+플러그인 전체 변경은 재시작 후 적용됩니다. 구성 요소 스위치는 로드된 코드의 해당 기능만 제어합니다. 비용이 큰 작업을 시작하기 전에 상태를 확인하세요. 아직 저장하지 않은 데이터나 플러그인 소유의 외부 쓰기 프로세스가 있으면 `IPlugin.PrepareForSettingsTransferAsync()`를 구현하여 재시작 또는 백업 전에 저장하고 중지하세요. 완료를 기다리고 실패를 호출자에게 전달해야 합니다. 처리할 것이 없으면 기본 빈 구현을 사용할 수 있습니다. FlowLauncherBridge는 이 훅으로 커뮤니티 런타임을 처리합니다. 체크박스가 어셈블리를 언로드한다고 가정하지 마세요.
+
 ## 2. Windows Shell 파일 작업 래퍼
 
 `Lertaro.PluginSdk.Shell.FileOperations`는 Windows Shell의 `IFileOperation` COM 인터페이스를 래핑하여 진행률 대화상자, 충돌 안내, `Ctrl+Z` 실행 취소를 네이티브 수준으로 지원합니다:

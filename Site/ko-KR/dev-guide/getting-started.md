@@ -27,18 +27,22 @@ Lertaro 플러그인은 표준 .NET 10 클래스 라이브러리 프로젝트입
       <Private>false</Private>
     </Reference>
   </ItemGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="Lertaro.Plugin.Name" Value="My Custom Plugin" />
+    <AssemblyMetadata Include="Lertaro.Plugin.Description" Value="Lertaro SDK 플러그인 개발 기초를 보여주는 예제입니다." />
+  </ItemGroup>
 </Project>
 ```
 
 > [!WARNING]
-> `Lertaro.Plugins.` 접두사는 관례가 아니라 강제 필터입니다. 재귀적인 `Plugins\**\*.dll` 스캔은 어셈블리 이름을 읽어, 그 접두어로 시작하지 않는 DLL은 리플렉션조차 하지 않습니다. 따라서 `YourCompany.MyPlugin.dll`이라는 플러그인은 아무 알림 없이 로드되지 않습니다. `AssemblyName`에 접두사를 유지하고 `<Private>false</Private>`를 설정해 SDK가 출력 폴더에 복사되지 않게 하세요.
+> App과 사용자별 Hook은 `Lertaro.Plugins.*.dll` 파일명을 선택하고 로드나 리플렉션 전에 비활성화한 어셈블리를 제외합니다. `AssemblyName`에 이 접두사를 유지하고 SDK 복사본을 추가로 배포하지 마세요. 다른 네이티브 플러그인 진입 DLL을 참조하면 표준 의존성 해석기가 비활성화한 DLL을 로드할 수 있으므로 피하세요.
 
 > [!TIP]
 > 검색 소스, 별칭 엔진, CLI 도구 등 순수 로직형 플러그인은 `<UseWPF>`가 불필요합니다.
 
 ## 2. 플러그인 진입점 `IPlugin` 구현
 
-각 플러그인 어셈블리에는 로더가 메인 진입점으로 인스턴스화하는 `IPlugin` 인터페이스 구현 공개 클래스가 최소 하나 포함되어야 합니다.
+어셈블리마다 설명, 설정, 선택적인 재시작 준비를 담당하는 공개 `IPlugin` 진입점을 하나 두는 것을 권장합니다. PinyinAlias처럼 Provider만 있는 어셈블리도 지원합니다.
 
 ```csharp
 using Lertaro.PluginSdk.Abstractions.Plugins;
@@ -52,7 +56,7 @@ public class MyCustomPlugin : IPlugin
 }
 ```
 
-리플렉션은 DLL 안의 **모든** `IPlugin` 구현을 찾아 각각 인스턴스 하나씩을 만들기 때문에, 두 개를 노출하면 설정 카드 두 개를 가진 플러그인 두 개가 등록됩니다. 항목이 실제로 두 개 필요하지 않다면 하나만 남겨 두세요.
+설정은 어셈블리 단위로 구성 요소를 묶습니다. 진입 클래스가 여러 개여도 독립적으로 비활성화할 플러그인이 되지는 않습니다. 따로 관리할 기능은 별도 어셈블리로 나누세요.
 
 이 클래스 또는 별도의 컴포넌트 클래스에 필요한 SDK 인터페이스를 추가로 구현합니다. 예를 들어 실시간 계산 응답을 제공하려면 `IInstantResultProvider`, 설정 폼을 제공하려면 `IConfigurable`을 구현합니다.
 
@@ -60,7 +64,7 @@ public class MyCustomPlugin : IPlugin
 
 1. 프로젝트를 빌드하여 `Lertaro.Plugins.MyCustomPlugin.dll`을 생성합니다.
 2. 컴파일된 DLL(및 의존하는 서드파티 라이브러리)을 Lertaro App 루트의 `Plugins\` 폴더 아래에 배치합니다. 플러그인별 전용 하위 폴더가 관례이고 스캔은 재귀적이므로(`Plugins\**\*.dll`) `Plugins\MyCustomPlugin\`처럼 넣으면 되고, 저장소 내 빌드 자동화는 DLL을 `Plugins\`에 곧바로 복사해 두는데, 그것도 정상적으로 동작합니다.
-3. Lertaro를 실행(또는 재시작)하면 App 프로세스가 `Plugins\`를 스캔하여 이름에 접두사를 담은 어셈블리를 모두 로드합니다.
+3. Lertaro를 시작하거나 다시 시작합니다. App은 활성화한 플러그인을 로드하고 비활성화한 플러그인은 정적 메타데이터로 표시합니다.
 4. **설정 → 플러그인**으로 이동하여 설치된 플러그인 및 컴포넌트 상태를 확인합니다.
 
 > [!NOTE]

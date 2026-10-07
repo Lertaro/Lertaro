@@ -35,6 +35,12 @@ Los índices devueltos por `SettingsSearchService.GetEntries()` solo son válido
 
 `PluginSettingsService.IsComponentEnabled(...)` lee el interruptor por componente administrado por el anfitrión. Los componentes que poseen observadores de directorios, trabajadores en segundo plano, runtimes externos u otro estado costoso deben comprobarlo antes de inicializar ese estado y suscribirse a `ComponentEnablementChanged` para iniciar o detener el runtime correspondiente cuando el usuario cambie el interruptor. El método devuelve `true` si no hay un callback del anfitrión registrado o si este falla, de modo que los plugins sigan funcionando fuera del anfitrión completo.
 
+### Almacenamiento y preparación del reinicio
+
+Los parámetros nativos se guardan por ID y clave en `plugin-settings.json`. Use `PluginSettingsService.GetSetting/SetSetting` y esquemas de configuración; no edite el archivo ni el antiguo objeto incrustado `PluginSettings`. La activación de ensamblados y componentes permanece en `user-settings.json`. Los valores antiguos se migran una sola vez y el archivo separado tiene prioridad; los datos migrados ausentes o dañados nunca se sustituyen por valores antiguos. Los recordatorios de Calendar y los ajustes comunitarios de Flow conservan sus propios archivos.
+
+Los cambios del complemento completo se aplican al reiniciar. Los interruptores de componentes solo controlan sus funciones mientras el código sigue cargado. Compruebe su estado antes de iniciar trabajo costoso. Implemente `IPlugin.PrepareForSettingsTransferAsync()` si necesita guardar escrituras pendientes o detener escritores externos propiedad del complemento antes del reinicio o la copia. Espere a que terminen y propague los errores; la implementación vacía basta si no hay nada pendiente. FlowLauncherBridge ya usa este método para su entorno comunitario. No suponga que una casilla descarga el ensamblado.
+
 ## 2. Operaciones de archivos nativas del Shell
 
 `Lertaro.PluginSdk.Shell.FileOperations` envuelve la interfaz COM `IFileOperation` de Windows, ofreciendo diálogos de progreso nativos, avisos de conflicto y soporte para deshacer con `Ctrl+Z`:

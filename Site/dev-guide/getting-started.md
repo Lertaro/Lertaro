@@ -27,18 +27,22 @@ A Lertaro plugin is a standard .NET 10 class library project. Create a new C# cl
       <Private>false</Private>
     </Reference>
   </ItemGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="Lertaro.Plugin.Name" Value="My Custom Plugin" />
+    <AssemblyMetadata Include="Lertaro.Plugin.Description" Value="A sample plugin demonstrating Lertaro SDK integration." />
+  </ItemGroup>
 </Project>
 ```
 
 > [!WARNING]
-> The `Lertaro.Plugins.` prefix is a hard filter, not a convention: the recursive `Plugins\**\*.dll` scan reads the assembly name and never even reflects over a DLL that does not start with it, so a plugin named `YourCompany.MyPlugin.dll` is silently not loaded. Keep the prefix in `AssemblyName` and set `<Private>false</Private>` so the SDK is not copied into your output.
+> The App and per-user Hook select `Lertaro.Plugins.*.dll` filenames and exclude disabled assemblies before loading or reflecting over them. Keep this prefix in `AssemblyName` and do not bundle another copy of the SDK. Avoid dependencies on other native plugin entry DLLs: the standard assembly resolver can otherwise load a disabled dependency.
 
 > [!TIP]
 > Pure logic plugins (such as search providers, alias engines, or CLI helpers) do not require `<UseWPF>`.
 
 ## 2. Implementing the `IPlugin` Entry Point
 
-Every plugin assembly contains at least one public class implementing `IPlugin`, which the loader instantiates as the plugin's entry point:
+Use one public `IPlugin` entry point per assembly for its description, configuration and optional restart preparation. Provider-only assemblies are also supported; PinyinAlias is an example.
 
 ```csharp
 using Lertaro.PluginSdk.Abstractions.Plugins;
@@ -52,7 +56,7 @@ public class MyCustomPlugin : IPlugin
 }
 ```
 
-Reflection finds **every** `IPlugin` implementation in the DLL and creates one instance each, so putting two on screen registers two plugins with two settings cards. Ship one unless you genuinely want two entries.
+Settings groups components by assembly. Multiple entry classes do not provide independently disableable plugins; split independently managed functionality into separate assemblies.
 
 From here, you can implement additional SDK interfaces on the same class or on separate component classes. For instance, implement `IInstantResultProvider` to calculate dynamic answers or `IConfigurable` to provide a schema-driven configuration form.
 
@@ -60,7 +64,7 @@ From here, you can implement additional SDK interfaces on the same class or on s
 
 1. Build your project to produce `Lertaro.Plugins.MyCustomPlugin.dll`.
 2. Place the compiled DLL (along with any third-party dependencies) under the `Plugins\` folder of the Lertaro App root. A dedicated subfolder per plugin is the convention and the scan is recursive (`Plugins\**\*.dll`), so `Plugins\MyCustomPlugin\` works; the in-repo build automation drops the DLLs flat into `Plugins\` and that works too.
-3. Start or restart Lertaro; the App process scans `Plugins\` and loads every assembly whose name carries the prefix.
+3. Start or restart Lertaro. The App loads enabled plugin assemblies; disabled plugins are listed from static metadata.
 4. Navigate to **Settings → Plugins** to inspect your active components and settings.
 
 > [!NOTE]

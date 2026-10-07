@@ -19,7 +19,7 @@ Lertaro/
 
 - **相依性自動探測**：Lertaro 的組件載入器透過 `Assembly.LoadFrom` 機制載入主 DLL，.NET 執行階段會自動從該子目錄中解析並載入其同級相依庫，絕不會與其他外掛模組相互干擾。
 - **原生相依要與 DLL 同層，而不是放在 `runtimes\<rid>\native`**：隨包外掛模組專案都設有 `<GenerateDependencyFile>false</GenerateDependencyFile>`，因此不會產生 `.deps.json`，執行階段也沒有 deps 相依圖可用來解析 RID 子資料夾。原生程式庫必須能在應用程式基底目錄中被發現——所以要平鋪複製。這也是兩種架構各自獨立交貨、而不是合併成單一安裝程式的原因：平鋪的載入目錄只能容納一個架構的原生複本。
-- **原生檔案容錯**：組件掃描若遇到非 .NET 的原生二進位檔（如 `e_sqlite3.dll`），載入器會以 `Debug` 偵錯層級記錄後繼續，而不會產生誤報的 `Error`。
+- App 與目前使用者的 Hook 依 `Lertaro.Plugins.*.dll` 檔名篩選，並在載入或反射之前排除停用的組件。請在 `AssemblyName` 中保留此前綴，且不要附帶另一份 SDK。避免參考其他原生外掛入口 DLL，否則標準組件解析器可能載入已停用的相依項。
 
 ## 2. 自動化建置複製設定（PostBuild）
 
@@ -52,18 +52,19 @@ Lertaro/
 
 ## 4. 外掛模組版本與中繼資料定義
 
-在 `.csproj` 中定義外掛模組的版本號與組件資訊：
+外掛卡片讀取組件版本號。透過靜態中繼資料宣告名稱與介紹，讓停用的外掛無需執行程式碼也能正常顯示：
 
 ```xml
 <PropertyGroup>
   <Version>1.2.0</Version>
-  <AssemblyVersion>1.2.0.0</AssemblyVersion>
-  <FileVersion>1.2.0.0</FileVersion>
-  <Description>針對特定業務系統的高效能即時檢索與動作擴充外掛模組。</Description>
 </PropertyGroup>
+<ItemGroup>
+  <AssemblyMetadata Include="Lertaro.Plugin.NameKey" Value="MyPlugin_Name" />
+  <AssemblyMetadata Include="Lertaro.Plugin.DescriptionKey" Value="MyPlugin_Description" />
+</ItemGroup>
 ```
 
-該版本號與描述資訊會自動呈現在 Lertaro **設定 → 外掛模組** 的管理卡片中，方便使用者和開發者直觀核驗元件版本。
+固定文字使用 `Lertaro.Plugin.Name` 和 `Lertaro.Plugin.Description`，翻譯鍵使用 `NameKey`/`DescriptionKey`，並與執行階段屬性保持一致。翻譯鍵來自外掛內嵌的 JSON；宿主先讀取英語，再覆蓋目前語言。宿主使用 `PEReader`，不建立屬性或外掛物件。舊 DLL 退回 `AssemblyTitle`/`AssemblyDescription`，最後使用檔名。新增宣告後必須重新編譯 DLL。
 
 ## 5. Release 建構與架構產物
 

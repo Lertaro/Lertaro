@@ -19,7 +19,7 @@ Lertaro/
 
 - **의존성 자동 탐색**: Lertaro 로더가 `Assembly.LoadFrom`으로 메인 DLL을 로드하면 .NET 런타임이 동일 폴더 내의 의존 라이브러리를 다른 플러그인 간섭 없이 자동 해석하여 로드합니다.
 - **네이티브 의존성은 `runtimes\<rid>\native`가 아니라 DLL 바로 옆에**: 배포되는 플러그인 프로젝트들은 `<GenerateDependencyFile>false</GenerateDependencyFile>`를 설정하므로 `.deps.json`이 생성되지 않고, 런타임에는 RID 하위 폴더를 해석할 deps 그래프가 없습니다. 따라서 네이티브 라이브러리는 애플리케이션 기본 디렉토리에서 발견 가능해야 하고, 그래서 하위 폴더 없이 나란히 복사해야 합니다. 두 아키텍처를 통합 설치 프로그램 하나가 아니라 별도의 산출물로 게시하는 이유도 이것입니다 — 그 평면 로드 디렉토리를 차지할 수 있는 네이티브 복사본은 하나뿐입니다.
-- **네이티브 바이너리 허용**: 어셈블리 스캔이 .NET이 아닌 네이티브 바이너리(`e_sqlite3.dll` 등)를 만나면 로더는 `Debug` 레벨로 기록하고 넘어갈 뿐, 잘못된 `Error`를 제기하지 않습니다.
+- App과 사용자별 Hook은 `Lertaro.Plugins.*.dll` 파일명을 선택하고 로드나 리플렉션 전에 비활성화한 어셈블리를 제외합니다. `AssemblyName`에 이 접두사를 유지하고 SDK 복사본을 추가로 배포하지 마세요. 다른 네이티브 플러그인 진입 DLL을 참조하면 표준 의존성 해석기가 비활성화한 DLL을 로드할 수 있으므로 피하세요.
 
 ## 2. 빌드 후 자동 복사 설정 (PostBuild)
 
@@ -52,18 +52,19 @@ Lertaro/
 
 ## 4. 버전 및 메타데이터 정의
 
-`.csproj`에 버전 번호와 설명을 작성합니다.
+플러그인 카드의 버전은 어셈블리에서 읽습니다. 비활성화한 플러그인의 코드를 실행하지 않고 이름과 설명을 표시하려면 정적 메타데이터를 선언하세요.
 
 ```xml
 <PropertyGroup>
   <Version>1.2.0</Version>
-  <AssemblyVersion>1.2.0.0</AssemblyVersion>
-  <FileVersion>1.2.0.0</FileVersion>
-  <Description>고성능 검색 소스 및 컨텍스트 액션 확장 플러그인.</Description>
 </PropertyGroup>
+<ItemGroup>
+  <AssemblyMetadata Include="Lertaro.Plugin.NameKey" Value="MyPlugin_Name" />
+  <AssemblyMetadata Include="Lertaro.Plugin.DescriptionKey" Value="MyPlugin_Description" />
+</ItemGroup>
 ```
 
-이 정보는 **설정 → 플러그인**의 관리 카드에 자동으로 표시됩니다.
+고정 문자열은 `Lertaro.Plugin.Name`과 `Lertaro.Plugin.Description`, 내장 번역 JSON의 키는 `NameKey`/`DescriptionKey`로 선언하고 런타임 속성과 일치시키세요. 영어를 먼저 읽고 선택한 언어로 덮어씁니다. 호스트는 `PEReader`를 사용하므로 특성이나 플러그인 인스턴스를 만들지 않습니다. 이전 DLL은 `AssemblyTitle`/`AssemblyDescription`, 마지막으로 파일명을 사용합니다. 선언을 추가한 뒤 DLL을 다시 빌드하세요.
 
 ## 5. 릴리스 빌드 및 아키텍처별 산출물
 

@@ -19,7 +19,7 @@ Lertaro/
 
 - **依存ライブラリの自動解決**：Lertaro のローダーが `Assembly.LoadFrom` でメイン DLL を読み込むと、.NET ランタイムが同一サブフォルダー内の依存ライブラリを自動的に探して読み込みます。
 - **ネイティブ依存は DLL と並べ、`runtimes\<rid>\native` には置かない**：同梱のプラグイン プロジェクトは `<GenerateDependencyFile>false</GenerateDependencyFile>` を設定しているため `.deps.json` は生成されず、ランタイムには RID サブフォルダーを解決するための deps グラフがありません。したがってネイティブ ライブラリはアプリケーションのベースディレクトリで見付かる必要があり、フラットにコピーします。2 つのアーキテクチャを単一のインストーラーではなく別々の成果物として公開しているのも同じ理由で、フラットな読み込みディレクトリを占められるのは一方のアーキテクチャのネイティブコピーだけだからです。
-- **ネイティブファイルの許容**：アセンブリのスキャン中にマネージドアセンブリ以外のネイティブバイナリ（例: `e_sqlite3.dll`）に遭遇した場合、ローダーは `Debug` レベルでログ出力して先へ進み、誤検知の `Error` を出力しません。
+- App とユーザー別 Hook は `Lertaro.Plugins.*.dll` というファイル名で選別し、ロードやリフレクションの前に無効なアセンブリを除外します。`AssemblyName` にこの接頭辞を残し、SDK の別コピーを同梱しないでください。他のネイティブプラグインの入口 DLL を参照すると、標準の依存関係解決で無効な DLL がロードされる可能性があります。
 
 ## 2. ビルド後の自動コピー設定（PostBuild）
 
@@ -52,18 +52,19 @@ Lertaro/
 
 ## 4. バージョンとメタデータの指定
 
-`.csproj` にバージョン番号と説明を記述します。
+プラグインカードにはアセンブリのバージョンを表示します。無効なプラグインでもコードを実行せず名前と説明を表示できるよう、静的メタデータを宣言してください。
 
 ```xml
 <PropertyGroup>
   <Version>1.2.0</Version>
-  <AssemblyVersion>1.2.0.0</AssemblyVersion>
-  <FileVersion>1.2.0.0</FileVersion>
-  <Description>高速な検索ソースおよびコンテキストアクション拡張プラグイン。</Description>
 </PropertyGroup>
+<ItemGroup>
+  <AssemblyMetadata Include="Lertaro.Plugin.NameKey" Value="MyPlugin_Name" />
+  <AssemblyMetadata Include="Lertaro.Plugin.DescriptionKey" Value="MyPlugin_Description" />
+</ItemGroup>
 ```
 
-これらの情報は **設定 → プラグイン** の管理カードに自動的に表示されます。
+固定文字列には `Lertaro.Plugin.Name` と `Lertaro.Plugin.Description`、埋め込み翻訳 JSON のキーには `NameKey`/`DescriptionKey` を使い、実行時プロパティと一致させます。英語を読み込んだ後、選択言語で上書きします。ホストは `PEReader` を使い、属性やプラグインのインスタンスを生成しません。古い DLL は `AssemblyTitle`/`AssemblyDescription`、最後にファイル名へフォールバックします。宣言の追加後は DLL を再ビルドしてください。
 
 ## 5. リリースビルドとアーキテクチャ別成果物
 

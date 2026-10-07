@@ -7,6 +7,10 @@ Lertaro cuenta con una arquitectura modular de extensiones. Tanto los componente
 - **Insignia del SDK**: En la esquina superior derecha se muestra la versión cargada de `Lertaro.PluginSdk`. Al hacer clic se abre la [**Guía de desarrollo**](../../dev-guide/).
 - **Diseño de doble panel independiente**: La columna izquierda muestra los plugins instalados y la derecha presenta los detalles y el formulario de configuración del plugin seleccionado, con desplazamiento independiente.
 
+### Activación de complementos y reinicio
+
+Desactivar todos los componentes con interruptor desactiva el complemento completo. Puede editar varios complementos, pulsar Aplicar y seguir editando. **Después de Aplicar, cerrar Ajustes de cualquier forma reinicia Lertaro automáticamente sin avisos si cambió la activación; Aceptar guarda y cierra inmediatamente.** No necesita un botón de reinicio separado. Cerrar sin guardar descarta los cambios pendientes. Este reinicio registra un mensaje Info. Tras reiniciar, App y Hook por usuario no cargan complementos desactivados. Sus nombres, versiones y descripciones siguen visibles; para ver componentes y configuración debe activarlos y reiniciar. Los interruptores de temas y traducciones son de solo lectura, pero puede desactivar el complemento completo. El servicio compartido de indexación de Windows sigue usando los complementos de alias.
+
 ## 2. Detalles del plugin y conmutadores de componentes
 
 Al seleccionar un plugin a la izquierda, el panel derecho muestra su icono, nombre, versión y descripción:

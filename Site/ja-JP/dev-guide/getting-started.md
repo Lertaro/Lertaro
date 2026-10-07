@@ -27,18 +27,22 @@ Lertaro プラグインは標準的な .NET 10 クラスライブラリプロジ
       <Private>false</Private>
     </Reference>
   </ItemGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="Lertaro.Plugin.Name" Value="My Custom Plugin" />
+    <AssemblyMetadata Include="Lertaro.Plugin.Description" Value="Lertaro プラグイン開発の基本を示すサンプルプラグインです。" />
+  </ItemGroup>
 </Project>
 ```
 
 > [!WARNING]
-> `Lertaro.Plugins.` という接頭辞は慣習ではなく硬性のフィルターです。`Plugins\**\*.dll` の再帰スキャンはアセンブリ名を読み取り、この接頭辞で始まらない DLL にはリフレクションすら行わないため、`YourCompany.MyPlugin.dll` という名前のプラグインは通知なく読み込まれません。`AssemblyName` に接頭辞を残し、`<Private>false</Private>` を設定して SDK が出力先にコピーされないようにしてください。
+> App とユーザー別 Hook は `Lertaro.Plugins.*.dll` というファイル名で選別し、ロードやリフレクションの前に無効なアセンブリを除外します。`AssemblyName` にこの接頭辞を残し、SDK の別コピーを同梱しないでください。他のネイティブプラグインの入口 DLL を参照すると、標準の依存関係解決で無効な DLL がロードされる可能性があります。
 
 > [!TIP]
 > 検索ソース、エイリアスエンジン、コマンドラインツールなどの純粋なロジックプラグインでは `<UseWPF>` は不要です。
 
 ## 2. プラグインエントリポイント `IPlugin` の実装
 
-各プラグインアセンブリには、`IPlugin` を実装した公開クラスが少なくとも 1 つ含まれており、ローダーがそれをインスタンス化してプラグインのエントリポイントとします。
+説明、設定、必要な再起動準備を担当する公開 `IPlugin` 入口を、アセンブリごとに一つ用意することを推奨します。PinyinAlias のような Provider のみのアセンブリも利用できます。
 
 ```csharp
 using Lertaro.PluginSdk.Abstractions.Plugins;
@@ -52,7 +56,7 @@ public class MyCustomPlugin : IPlugin
 }
 ```
 
-リフレクションは DLL 内の **すべての** `IPlugin` 実装を見つけて、それぞれ 1 インスタンスずつ生成します。そのため 2 つ含めればプラグインは 2 つとして登録され、設定カードも 2 枚並びます。エントリが 2 つ本当に必要な場合を除き、1 つだけ置いてください。
+設定画面はアセンブリ単位でコンポーネントをまとめます。入口クラスを増やしても個別に無効化できるプラグインにはなりません。独立して管理する機能は別アセンブリに分けてください。
 
 このクラスまたは別のコンポーネントクラスに、目的に応じた SDK インターフェイスを追加実装します。例えば、動的計算結果を返すなら `IInstantResultProvider`、設定画面を提供するなら `IConfigurable` を実装します。
 
@@ -60,7 +64,7 @@ public class MyCustomPlugin : IPlugin
 
 1. プロジェクトをビルドして `Lertaro.Plugins.MyCustomPlugin.dll` を生成します。
 2. 生成された DLL（および依存するサードパーティ製ライブラリ）を、Lertaro の App ルート直下にある `Plugins\` フォルダーの中に配置します。プラグインごとに専用サブフォルダーを分けるのが慣習で、スキャンは再帰的（`Plugins\**\*.dll`）なので `Plugins\MyCustomPlugin\` で動作します。本リポジトリーのビルド自動化は DLL を `Plugins\` にフラットに展開しますが、それでも動作します。
-3. Lertaro を起動（または再起動）すると、App プロセスが `Plugins\` をスキャンし、接頭辞を持つすべてのアセンブリを読み込みます。
+3. Lertaro を起動または再起動します。App は有効なプラグインをロードし、無効なプラグインは静的メタデータから表示します。
 4. **設定 → プラグイン** を開くと、インストール済みリストにプラグインと各コンポーネントが表示されます。
 
 > [!NOTE]

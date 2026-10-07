@@ -35,6 +35,12 @@
 
 `PluginSettingsService.IsComponentEnabled(...)` 用於讀取宿主儲存的元件級開關。擁有目錄監聽器、背景工作執行緒、外部執行階段或其他高成本狀態的元件，應在初始化這些狀態前先檢查開關，並訂閱 `ComponentEnablementChanged`，在使用者切換開關後啟動或停止對應執行階段。如果宿主沒有註冊回調或回調失敗，此方法會返回 `true`，確保外掛模組在未接入完整宿主時仍可使用。
 
+### 外掛儲存與重新啟動準備
+
+原生外掛參數依外掛 ID 和參數名稱儲存在 `plugin-settings.json`。使用 `PluginSettingsService.GetSetting/SetSetting` 和設定 Schema，不要直接修改檔案或舊的內嵌 `PluginSettings` 物件。組件與元件啟用狀態仍屬於 `user-settings.json`。舊參數只移轉一次，新檔案優先；移轉後檔案遺失或損壞時，不會用過期舊參數回填。行事曆提醒及 Flow 社群外掛設定繼續使用各自的資料檔案。
+
+整個外掛的開關在重新啟動後生效；元件開關只控制已載入程式碼中的對應功能。啟動高成本工作前應檢查元件狀態。若有待寫入資料或外掛擁有的外部寫入處理程序，需要實作 `IPlugin.PrepareForSettingsTransferAsync()`，在重新啟動或備份前儲存並停止寫入。必須等待完成並回報失敗；沒有此類工作時可使用預設空實作。FlowLauncherBridge 已用此介面處理社群外掛執行階段。不能依賴元件核取方塊卸載組件。
+
 ## 2. Shell 原生檔案操作封裝
 
 `Lertaro.PluginSdk.Shell.FileOperations` 封裝了 Windows Shell 原生的 `IFileOperation` 介面。外掛模組執行檔案移動、複製與刪除時，使用者將獲得與檔案總管完全一致的原生進度對話方塊、衝突替換提示與 `Ctrl+Z` 復原支援：

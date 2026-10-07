@@ -19,7 +19,7 @@ Lertaro/
 
 - **依赖自动探测**：Lertaro 的程序集加载器通过 `Assembly.LoadFrom` 机制加载主 DLL，.NET 运行时会自动从该子目录中解析并加载其同级依赖库，绝不会与其他插件相互干扰。
 - **原生依赖与 DLL 同级，而不是放在 `runtimes\<rid>\native` 下**：随包发布的插件工程都设置了 `<GenerateDependencyFile>false</GenerateDependencyFile>`，因此不会生成 `.deps.json`，运行时也就没有可据以解析 RID 子目录的依赖图。原生库必须能在应用程序基目录中被发现——所以要平铺复制。这也是两种架构要分别发布为独立产物、而不是合成一个安装包的原因：那个平铺的加载目录只能容纳一种架构的原生副本。
-- **原生文件容错**：程序集扫描遇到非 .NET 的原生二进制文件（如 `e_sqlite3.dll`）时，加载器会以 `Debug` 级别记录后继续，而不是抛出误报的 `Error`。
+- App 与当前用户的 Hook 按 `Lertaro.Plugins.*.dll` 文件名筛选，并在加载或反射之前排除禁用的程序集。请在 `AssemblyName` 中保留此前缀，且不要附带另一份 SDK。避免引用其他原生插件入口 DLL，否则标准程序集解析器可能把已禁用的依赖加载进来。
 
 ## 2. 自动化构建复制配置（PostBuild）
 
@@ -52,18 +52,19 @@ Lertaro/
 
 ## 4. 插件版本与元数据定义
 
-在 `.csproj` 中定义插件的版本号与程序集信息：
+插件卡片读取程序集版本号。通过静态元数据声明名称与介绍，让禁用插件无需执行代码也能正常显示：
 
 ```xml
 <PropertyGroup>
   <Version>1.2.0</Version>
-  <AssemblyVersion>1.2.0.0</AssemblyVersion>
-  <FileVersion>1.2.0.0</FileVersion>
-  <Description>针对特定业务系统的高性能即时检索与动作扩展插件。</Description>
 </PropertyGroup>
+<ItemGroup>
+  <AssemblyMetadata Include="Lertaro.Plugin.NameKey" Value="MyPlugin_Name" />
+  <AssemblyMetadata Include="Lertaro.Plugin.DescriptionKey" Value="MyPlugin_Description" />
+</ItemGroup>
 ```
 
-该版本号与描述信息会自动呈现在 Lertaro **设置 → 插件** 的管理卡片中，方便用户和开发者直观核验组件版本。
+固定文本使用 `Lertaro.Plugin.Name` 和 `Lertaro.Plugin.Description`，翻译键使用 `NameKey`/`DescriptionKey`，并与运行时属性保持一致。翻译键来自插件内嵌的 JSON；宿主先读取英语，再覆盖当前语言。宿主使用 `PEReader`，不实例化属性或插件对象。旧 DLL 回退到 `AssemblyTitle`/`AssemblyDescription`，最后使用文件名。添加声明后必须重新编译 DLL。
 
 ## 5. Release 构建与架构产物
 

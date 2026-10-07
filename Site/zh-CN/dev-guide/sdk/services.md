@@ -35,6 +35,12 @@
 
 `PluginSettingsService.IsComponentEnabled(...)` 用于读取宿主保存的组件级开关。拥有目录监听器、后台工作线程、外部运行时或其他高成本状态的组件，应在初始化这些状态前先检查该开关，并订阅 `ComponentEnablementChanged`，在用户切换开关后启动或停止对应运行时。如果宿主没有注册回调或回调失败，该方法返回 `true`，从而保证插件在未接入完整宿主时仍可用。
 
+### 插件存储与重启准备
+
+原生插件参数按插件 ID 和参数名存储在 `plugin-settings.json` 中。使用 `PluginSettingsService.GetSetting/SetSetting` 和配置 Schema，不要直接修改文件或旧的内嵌 `PluginSettings` 对象。程序集与组件启用状态仍属于 `user-settings.json`。旧参数只迁移一次，新文件优先；迁移后文件丢失或损坏时，不会用过期的旧参数回填。日历提醒及 Flow 社区插件配置继续使用各自的数据文件。
+
+整插件开关在重启后生效；组件开关只控制已加载代码中的对应功能。启动高成本任务前应检查组件状态。若有待落盘数据或插件拥有的外部写入进程，需要实现 `IPlugin.PrepareForSettingsTransferAsync()`，在重启或备份前保存并停止写入。必须等待完成并向上报告失败；没有此类工作时可使用默认空实现。FlowLauncherBridge 已用此接口处理社区插件运行时。不能依赖组件复选框卸载程序集。
+
 ## 2. Shell 原生文件操作封装
 
 `Lertaro.PluginSdk.Shell.FileOperations` 封装了 Windows Shell 原生的 `IFileOperation` 接口。插件执行文件移动、复制与删除时，用户将获得与资源管理器完全一致的原生进度对话框、冲突替换提示与 `Ctrl+Z` 撤销支持：

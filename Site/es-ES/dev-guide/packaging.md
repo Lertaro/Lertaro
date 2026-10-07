@@ -19,7 +19,7 @@ Lertaro/
 
 - **Resolución automática de dependencias**: Al cargar la DLL principal mediante `Assembly.LoadFrom`, el entorno de .NET resuelve automáticamente las dependencias adyacentes sin interferir con otros plugins.
 - **Las dependencias nativas van junto a la DLL, no bajo `runtimes\<rid>\native`**: los proyectos de plugin incluidos en el repositorio fijan `<GenerateDependencyFile>false</GenerateDependencyFile>`, así que no se genera ningún `.deps.json` y el entorno no dispone de un grafo de dependencias desde el que resolver una subcarpeta de RID. Una librería nativa tiene que poder encontrarse, por lo tanto, en el directorio base de la aplicación: cópiala en plano. También es la razón de que las dos arquitecturas se publiquen como artefactos separados y no como un instalador único: una sola copia nativa, la de una arquitectura, puede ocupar ese directorio de carga plano.
-- **Tolerancia a archivos nativos**: Cuando el escaneo de ensamblados encuentra binarios nativos (p. ej. `e_sqlite3.dll`), el cargador los registra como `Debug` y sigue adelante en lugar de lanzar un `Error` falso positivo.
+- App y Hook por usuario seleccionan nombres `Lertaro.Plugins.*.dll` y excluyen los ensamblados desactivados antes de cargarlos o inspeccionarlos por reflexión. Mantenga el prefijo en `AssemblyName` y no distribuya otra copia del SDK. Evite referencias a DLL de entrada de otros complementos nativos: el resolvedor estándar podría cargar una dependencia desactivada.
 
 ## 2. Configuración de copia automática PostBuild
 
@@ -52,18 +52,19 @@ Organiza los archivos como `Resources/Translations/{cultura}/{tipo}.json`, donde
 
 ## 4. Definición de versión y metadatos
 
-Especifica la versión y la descripción en el `.csproj`:
+La tarjeta muestra la versión del ensamblado. Declare el nombre y la descripción como metadatos estáticos para identificarlos sin ejecutar el código de un complemento desactivado:
 
 ```xml
 <PropertyGroup>
   <Version>1.2.0</Version>
-  <AssemblyVersion>1.2.0.0</AssemblyVersion>
-  <FileVersion>1.2.0.0</FileVersion>
-  <Description>Plugin de extensión para fuentes de búsqueda y acciones contextuales.</Description>
 </PropertyGroup>
+<ItemGroup>
+  <AssemblyMetadata Include="Lertaro.Plugin.NameKey" Value="MyPlugin_Name" />
+  <AssemblyMetadata Include="Lertaro.Plugin.DescriptionKey" Value="MyPlugin_Description" />
+</ItemGroup>
 ```
 
-Esta información se presentará de forma automática en la tarjeta de **Configuración → Plugins**.
+Use `Lertaro.Plugin.Name` y `Lertaro.Plugin.Description` para texto literal, o `NameKey`/`DescriptionKey` para claves del JSON de traducción incrustado. Deben coincidir con las propiedades en ejecución. Se lee inglés primero y se superpone el idioma seleccionado. El anfitrión usa `PEReader` sin crear atributos ni objetos del complemento. Las DLL antiguas recurren a `AssemblyTitle`/`AssemblyDescription` y, finalmente, al nombre del archivo. Recompile la DLL tras añadir las declaraciones.
 
 ## 5. Compilación de Release y artefactos por arquitectura
 
