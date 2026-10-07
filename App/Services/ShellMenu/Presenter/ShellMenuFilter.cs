@@ -3,6 +3,23 @@ namespace Lertaro.App.Services.ShellMenu.Presenter;
 
 public static class ShellMenuFilter
 {
+    internal static void ApplyToList(System.Windows.Controls.ListBox list, List<ActionMenuItem> rawItems, string filter, bool preserveSelection = false)
+    {
+        var selected = preserveSelection ? list.SelectedItem as ActionMenuItem : null;
+        var cleanItems = Apply(rawItems, filter);
+        foreach (var item in cleanItems) item.SearchQuery = filter;
+
+        // A late dynamic-menu merge rebuilds static items and may reorder sections. Restore by
+        // command identity, not object identity or row index; zero is not a command identity.
+        var selectedIndex = selected == null ? -1 : cleanItems.FindIndex(item =>
+            !item.IsSeparator && !item.IsSectionHeader && !item.IsDisabled
+            && (ReferenceEquals(item, selected) || (selected.CommandId != 0 && item.CommandId == selected.CommandId)));
+        list.ItemsSource = cleanItems;
+        list.SelectedIndex = selectedIndex >= 0 ? selectedIndex
+            : cleanItems.FindIndex(i => !i.IsSeparator && !i.IsSectionHeader && !i.IsDisabled);
+        if (list.SelectedItem != null) list.ScrollIntoView(list.SelectedItem);
+    }
+
     public static List<ActionMenuItem> Apply(List<ActionMenuItem> rawItems, string filter)
     {
         var filtered = rawItems;

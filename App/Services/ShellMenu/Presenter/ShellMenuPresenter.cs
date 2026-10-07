@@ -187,7 +187,7 @@ public class ShellMenuPresenter : IDisposable
                 var merged = ActionMenuBuilder.BuildStatic(_activeResults, GetWindowType());
                 merged.AddRange(dynamicItems);
                 _currentRawItems = ActionMenuBuilder.FinalizeItems(merged);
-                ApplyFilter(GetActionSearchTextBox().Text);
+                ApplyFilter(GetActionSearchTextBox().Text, preserveSelection: true);
                 _view.UpdateActionsLayout();
             }));
         });
@@ -211,22 +211,10 @@ public class ShellMenuPresenter : IDisposable
         ApplyFilter(GetActionSearchTextBox().Text);
         _view.UpdateActionsLayout();
     }
-    private void ApplyFilter(string filter)
+    private void ApplyFilter(string filter, bool preserveSelection = false)
     {
         if (!_isInActionsMode) return;
-        var cleanItems = ShellMenuFilter.Apply(_currentRawItems, filter);
-        foreach (var item in cleanItems)
-        {
-            item.SearchQuery = filter;
-        }
-        _view.LstActions.ItemsSource = cleanItems;
-
-        if (cleanItems.Count > 0)
-        {
-            var firstSelectable = cleanItems.FindIndex(i => !i.IsSeparator && !i.IsSectionHeader && !i.IsDisabled);
-            _view.LstActions.SelectedIndex = firstSelectable >= 0 ? firstSelectable : 0;
-            _view.LstActions.ScrollIntoView(_view.LstActions.SelectedItem);
-        }
+        ShellMenuFilter.ApplyToList(_view.LstActions, _currentRawItems, filter, preserveSelection);
 
         // See HandleActionsMouseMove's own comment: reseed so the synthetic MouseMove WPF fires once
         // these rows finish relaying out under a stationary cursor doesn't steal selection back.

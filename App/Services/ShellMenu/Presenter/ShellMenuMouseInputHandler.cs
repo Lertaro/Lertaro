@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services.AppWindow;
+using Lertaro.App.Views.Controls.Results;
 
 namespace Lertaro.App.Services.ShellMenu.Presenter;
 
@@ -14,7 +15,7 @@ internal sealed class ShellMenuMouseInputHandler
 {
     private readonly ShellMenuPresenter _presenter;
     private readonly ISearchWindow _view;
-    private System.Windows.Point? _lastHoverPos;
+    private System.Windows.Point? _lastScreenPosition;
 
     public ShellMenuMouseInputHandler(ShellMenuPresenter presenter, ISearchWindow view)
     {
@@ -22,17 +23,14 @@ internal sealed class ShellMenuMouseInputHandler
         _view = view;
     }
 
-    // Mirrors LstResults' own MouseMove wiring in ResultsControl.xaml.cs (hovering a row selects it) --
-    // the actions list never had this, so it was the odd one out: the results list picks up a hover
-    // as selection, but right-clicking into the actions menu lost that behavior entirely. Same
-    // synthetic-MouseMove guard as the results list: WPF re-hit-tests a stationary cursor whenever the
-    // list's rows relayout underneath it (e.g. after ApplyFilter reloads items), which would otherwise
-    // steal selection away from the filter's own first-selectable default.
+    // WPF re-hit-tests a stationary cursor when the dynamic menu relayouts. List-relative coordinates
+    // can change as the window resizes/moves, so use the same screen-position guard as result rows
+    // to avoid stealing the keyboard selection without physical pointer movement.
     public void HandleActionsMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
     {
-        var pos = e.GetPosition(_view.LstActions);
-        if (_lastHoverPos.HasValue && pos == _lastHoverPos.Value) return;
-        _lastHoverPos = pos;
+        if (!ResultsHoverSelection.TryGetScreenPosition(out var position)
+            || !ResultsHoverSelection.UpdatePointerPosition(ref _lastScreenPosition, position))
+            return;
 
         var item = FindVisualParent<ListBoxItem>(e.OriginalSource as DependencyObject);
         if (item?.Content is ActionMenuItem actionItem
@@ -43,7 +41,8 @@ internal sealed class ShellMenuMouseInputHandler
         }
     }
 
-    public void ReseedHoverBaseline() => _lastHoverPos = Mouse.GetPosition(_view.LstActions);
+    public void ReseedHoverBaseline() => _lastScreenPosition =
+        ResultsHoverSelection.TryGetScreenPosition(out var position) ? position : null;
 
     public void HandleActionsPreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
