@@ -42,6 +42,9 @@ public static class AppRestartService
             if (Process.Start(startInfo) == null)
                 throw new InvalidOperationException("The replacement process could not be started.");
 
+            // Run normal WPF shutdown first, then end any foreground threads retained by plugins.
+            // Otherwise the replacement can start while the disabled plugin's old process survives.
+            application.Exit += (_, _) => Environment.Exit(0);
             application.Dispatcher.BeginInvoke(new Action(application.Shutdown));
             return true;
         }

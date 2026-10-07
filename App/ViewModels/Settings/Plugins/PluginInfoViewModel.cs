@@ -93,8 +93,10 @@ public class PluginInfoViewModel : ViewModelBase
         Action? onSave = null,
         Action? onRollback = null,
         string? websiteUrl = null,
-        string? websiteLabel = null)
+        string? websiteLabel = null,
+        bool isPluginEnabled = true)
     {
+        _isPluginEnabled = isPluginEnabled && (!components.Any(c => c.IsToggleable) || components.Any(c => c.IsToggleable && c.IsEnabled));
         Name = name;
         Version = version;
         DllFileName = dllFileName;
@@ -137,6 +139,20 @@ public class PluginInfoViewModel : ViewModelBase
     public string Description { get; }
     public string Version { get; }
     public string DllFileName { get; }
+    private bool _isPluginEnabled;
+    public bool IsPluginEnablementDirty { get; private set; }
+    public bool IsPluginEnabled
+    {
+        get => _isPluginEnabled;
+        set
+        {
+            if (!SetProperty(ref _isPluginEnabled, value)) return;
+            IsPluginEnablementDirty = true;
+            foreach (var component in RawComponents.Where(c => c.IsToggleable))
+                component.IsEnabled = value;
+            IsFullyDisabled = ComputeFullyDisabled();
+        }
+    }
     public string SdkVersion { get; }
     public string? WebsiteUrl { get; }
     public string? WebsiteLabel { get; }
@@ -179,9 +195,8 @@ public class PluginInfoViewModel : ViewModelBase
     private bool _isFullyDisabled;
 
     /// <summary>
-    /// Whether every toggleable component of this plugin is currently disabled. A plugin with no
-    /// toggleable components at all (translation/theme-only) can never be "fully disabled" --
-    /// there is nothing the user turned off.
+    /// Whether the whole plugin or all of its toggleable components are disabled. Translation/theme-only
+    /// plugins have no component switches but can still be disabled with the whole-plugin switch.
     /// </summary>
     public bool IsFullyDisabled
     {
@@ -190,6 +205,7 @@ public class PluginInfoViewModel : ViewModelBase
 
     private bool ComputeFullyDisabled()
     {
+        if (!IsPluginEnabled) return true;
         var toggleable = RawComponents.Where(c => c.IsToggleable).ToList();
         return toggleable.Count > 0 && toggleable.All(c => !c.IsEnabled);
     }
@@ -198,6 +214,13 @@ public class PluginInfoViewModel : ViewModelBase
     {
         if (e.PropertyName != nameof(PluginComponentViewModel.IsEnabled)) return;
         OnPropertyChanged(nameof(SelectAllToggleLabel));
+        var enabled = RawComponents.Any(c => c.IsToggleable && c.IsEnabled);
+        if (_isPluginEnabled != enabled)
+        {
+            _isPluginEnabled = enabled;
+            IsPluginEnablementDirty = true;
+            OnPropertyChanged(nameof(IsPluginEnabled));
+        }
         IsFullyDisabled = ComputeFullyDisabled();
     }
 

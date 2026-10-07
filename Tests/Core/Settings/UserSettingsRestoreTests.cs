@@ -19,6 +19,7 @@ public sealed class UserSettingsRestoreTests
     {
         _dir = Path.Combine(Path.GetTempPath(), "LertaroRestoreTests_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_dir);
+        File.WriteAllText(Path.Combine(_dir, "plugin-settings.json"), "{}");
         _mainPath = Path.Combine(_dir, "user-settings.json");
         _sourcePath = Path.Combine(_dir, "exported-settings.json");
     }
@@ -30,7 +31,7 @@ public sealed class UserSettingsRestoreTests
     }
 
     private static string Serialize(string logLevel) =>
-        JsonSerializer.Serialize(new UserSettings { LogLevel = logLevel }, new JsonSerializerOptions { WriteIndented = true });
+        JsonSerializer.Serialize(new UserSettings { LogLevel = logLevel, PluginSettingsStorageVersion = 1 }, new JsonSerializerOptions { WriteIndented = true });
 
     [TestMethod]
     public void WriteRestored_ValidSource_ReplacesMainFile()

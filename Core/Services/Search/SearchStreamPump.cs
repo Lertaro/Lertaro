@@ -43,17 +43,7 @@ public static class SearchStreamPump
         using var watchdogStopCts = new CancellationTokenSource();
         _ = WatchForClientDisconnectAsync(stream, queryCts, watchdogStopCts.Token);
 
-        HashSet<byte>? disabledIds = null;
-        if (msg.DisabledAliasComponents != null && msg.DisabledAliasComponents.Count > 0)
-        {
-            disabledIds = new HashSet<byte>();
-            foreach (var comp in msg.DisabledAliasComponents)
-            {
-                var id = AliasProviderRegistry.GetProviderIdByComponentId(comp);
-                if (id != 255)
-                    disabledIds.Add(id);
-            }
-        }
+        var disabledIds = AliasProviderRegistry.ResolveDisabledProviders(msg.DisabledAliasComponents);
         SearchContext.DisabledAliasIds = disabledIds;
         // The service runs as a different identity and cannot read the calling user's settings file,
         // so this preference only exists here as whatever the request carried over the pipe.

@@ -69,8 +69,8 @@ public class UserSettings
     public string PreferredLanguage { get; set; } = GetDefaultSystemLanguage();
     public string Theme { get; set; } = "Light";
     public bool ThemeFollowSystem { get; set; } = false;
-    // Empty means "unset" -- themes come entirely from plugins, so there's no safe hardcoded default
-    // here; ThemeManager.ResolveLightDarkThemeId falls back to whatever theme is first available.
+    // Empty means "unset"; ThemeManager.ResolveLightDarkThemeId falls back to the first available theme,
+    // including the host's Light/Dark resources when the theme plugins are disabled.
     public string LightThemeId { get; set; } = string.Empty;
     public string DarkThemeId { get; set; } = string.Empty;
     public HotkeyPageSettings Hotkeys { get; set; } = new();
@@ -100,6 +100,9 @@ public class UserSettings
     /// Format: "{PluginDllFileName}::{ComponentType}::{ComponentName}"
     /// </summary>
     public List<string> DisabledPluginComponents { get; set; } = new();
+
+    /// <summary>Whole plugin DLL filenames excluded before loading. Changes take effect after restart.</summary>
+    public List<string> DisabledPluginAssemblies { get; set; } = new();
 
     /// <summary>
     /// User-chosen display order for IQuickNavigationProvider entries in the quick-navigation menu's
@@ -179,7 +182,12 @@ public class UserSettings
     /// </summary>
     public Dictionary<string, string> ResultTypeTriggers { get; set; } = new();
 
+    public int? PluginSettingsStorageVersion { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore]
     public Dictionary<string, Dictionary<string, object>> PluginSettings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public bool SavePluginSettings() => UserSettingsPersistence.SavePluginSettings(this);
 
     public T GetPluginSetting<T>(string pluginId, string key, T defaultValue) =>
         UserSettingsPluginSupport.GetPluginSetting(this, pluginId, key, defaultValue);

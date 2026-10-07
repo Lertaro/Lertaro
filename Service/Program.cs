@@ -102,6 +102,9 @@ static class Program
             {
                 Logger.Log("Running in hook mode.");
                 HookModeLauncher.Run();
+                // Run() has disposed the hook and pipes; plugin-owned foreground threads must not
+                // keep this per-user process alive after its host requests a stop/restart.
+                Environment.Exit(0);
                 return;
             }
         }

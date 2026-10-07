@@ -10,6 +10,49 @@ namespace Lertaro.App.Tests.Services;
 public sealed class SettingsTransferRestartTests
 {
     [TestMethod]
+    public void StartSession_SyncClientHoldsLegacyLock_AppStillStarts()
+    {
+        var root = Directory.CreateTempSubdirectory("LertaroSyncLock-").FullName;
+        try
+        {
+            using var sync = new FileStream(Path.Combine(root, ".settings-session.lock"), FileMode.Create, FileAccess.ReadWrite, FileShare.None);
+            using var session = SettingsTransferRestart.StartSession(root, [], out var message);
+            Assert.IsNull(message);
+            Assert.Throws<IOException>(() => SettingsBackup.OpenSession(root, true));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [TestMethod]
+    public void StartSession_LockedExportDestination_KeepsSettingsAndRequestAndResumesSession()
+    {
+        var root = Directory.CreateTempSubdirectory("LertaroFailedExport-").FullName;
+        try
+        {
+            var data = Directory.CreateDirectory(Path.Combine(root, "data")).FullName;
+            var main = Path.Combine(data, "user-settings.json");
+            File.WriteAllText(main, "{}");
+            File.WriteAllText(Path.Combine(data, "plugin-settings.json"), "{}");
+            var id = Guid.NewGuid().ToString("N");
+            var requestDirectory = Directory.CreateDirectory(Path.Combine(data, "ConfigTransfers", id)).FullName;
+            var destination = Path.Combine(root, "backup.zip");
+            File.WriteAllText(destination, "previous backup");
+            var requestPath = Path.Combine(requestDirectory, "request.json");
+            File.WriteAllText(requestPath, JsonSerializer.Serialize(new SettingsTransferRestart.Request(true, destination, false, "Saved {0}")));
+            using (var sync = new FileStream(destination, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var session = SettingsTransferRestart.StartSession(data, [SettingsTransferRestart.ArgumentPrefix + id], out var message))
+            {
+                Assert.IsNotNull(message);
+                Assert.AreEqual("{}", File.ReadAllText(main));
+                Assert.IsTrue(File.Exists(requestPath));
+                Assert.Throws<IOException>(() => SettingsBackup.OpenSession(data, true));
+            }
+            Assert.AreEqual("previous backup", File.ReadAllText(destination));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [TestMethod]
     public void ParseRequestId_MissingRequest_DoesNotScheduleTransfer() =>
         Assert.IsNull(SettingsTransferRestart.ParseRequestId(["--ordinary-launch"]));
 
@@ -45,7 +88,8 @@ public sealed class SettingsTransferRestartTests
             var arguments = new[] { SettingsTransferRestart.ArgumentPrefix + id };
             using (var oldProcess = SettingsTransferRestart.StartSession(root, [], out _))
             {
-                Assert.Throws<IOException>(() => SettingsTransferRestart.StartSession(root, arguments, out _));
+                using var failedTransfer = SettingsTransferRestart.StartSession(root, arguments, out var failure);
+                Assert.IsNotNull(failure);
                 Assert.AreEqual("{\"Theme\":\"old-memory\"}", File.ReadAllText(main));
                 // Simulates an old plugin's exit save, after import validation but before restart.
                 File.WriteAllText(main, "{\"Theme\":\"saved-on-exit\"}");
@@ -54,7 +98,8 @@ public sealed class SettingsTransferRestartTests
 
             using var restarted = SettingsTransferRestart.StartSession(root, arguments, out var message);
 
-            Assert.AreEqual("{\"Theme\":\"imported\"}", File.ReadAllText(main));
+            using var imported = JsonDocument.Parse(File.ReadAllText(main));
+            Assert.AreEqual("imported", imported.RootElement.GetProperty("Theme").GetString());
             Assert.AreEqual("{\"Theme\":\"saved-on-exit\"}", File.ReadAllText(main + ".bak.1"));
             Assert.IsNotNull(message);
             Assert.Contains("ConfigBackups", message);
@@ -74,6 +119,7 @@ public sealed class SettingsTransferRestartTests
             var data = Directory.CreateDirectory(Path.Combine(root, "data")).FullName;
             var main = Path.Combine(data, "user-settings.json");
             File.WriteAllText(main, "{}");
+            File.WriteAllText(Path.Combine(data, "plugin-settings.json"), "{}");
             var id = Guid.NewGuid().ToString("N");
             var requestDirectory = Directory.CreateDirectory(Path.Combine(data, "ConfigTransfers", id)).FullName;
             var zipPath = Path.Combine(root, "backup.zip");

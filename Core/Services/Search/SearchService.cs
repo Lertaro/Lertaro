@@ -66,21 +66,12 @@ public class SearchService : IDisposable
             OrFirstPrecedence = settings.OrFirstPrecedence,
             DisabledAliasComponents = settings.DisabledPluginComponents
                 .Where(c => c.Contains("::AliasProvider::", StringComparison.OrdinalIgnoreCase))
+                .Concat(settings.DisabledPluginAssemblies.Select(dll => dll + "::AliasProvider::*"))
                 .ToList(),
             FileNameFilter = fileNameFilter
         };
 
-        HashSet<byte>? disabledIds = null;
-        if (msg.DisabledAliasComponents != null && msg.DisabledAliasComponents.Count > 0)
-        {
-            disabledIds = new HashSet<byte>();
-            foreach (var comp in msg.DisabledAliasComponents)
-            {
-                var id = AliasProviderRegistry.GetProviderIdByComponentId(comp);
-                if (id != 255)
-                    disabledIds.Add(id);
-            }
-        }
+        var disabledIds = AliasProviderRegistry.ResolveDisabledProviders(msg.DisabledAliasComponents);
         SearchContext.DisabledAliasIds = disabledIds;
         // Applies to the sources this process searches itself (network drives, live directory scans);
         // the local-drive path carries the same flag over the pipe instead -- see SearchStreamPump.

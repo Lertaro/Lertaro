@@ -68,4 +68,21 @@ public sealed class AliasProviderRegistryTests
         public IReadOnlyList<(char Start, char End)> InputRanges { get; } = Array.Empty<(char, char)>();
         public IReadOnlyList<(char Start, char End)> OutputRanges { get; } = Array.Empty<(char, char)>();
     }
+
+    [TestMethod]
+    public void WholePluginDisabled_SearchExcludesAllItsAliasesWithoutDisablingAnotherPlugin()
+    {
+        var providers = new Dictionary<string, byte>
+        {
+            ["Lertaro.Plugins.A.dll::AliasProvider::First"] = 0,
+            ["Lertaro.Plugins.A.dll::AliasProvider::Second"] = 1,
+            ["Lertaro.Plugins.AExtra.dll::AliasProvider::First"] = 2,
+            ["Lertaro.Plugins.B.dll::AliasProvider::First"] = 3
+        };
+        var ids = AliasProviderRegistry.ResolveDisabledProviders(
+            ["lertaro.plugins.a.DLL::AliasProvider::*", "Lertaro.Plugins.B.dll::AliasProvider::First"], providers);
+        Assert.IsNotNull(ids);
+        CollectionAssert.AreEquivalent(new byte[] { 0, 1, 3 }, ids.ToArray());
+        Assert.IsNull(AliasProviderRegistry.ResolveDisabledProviders([], providers));
+    }
 }

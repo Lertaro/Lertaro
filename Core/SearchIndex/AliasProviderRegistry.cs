@@ -64,6 +64,20 @@ public static class AliasProviderRegistry
 
     public static byte GetProviderIdByComponentId(string componentId) => ProviderIdMap.TryGetValue(componentId, out var id) ? id : NotFoundProviderId;
 
+    internal static HashSet<byte>? ResolveDisabledProviders(IEnumerable<string>? components)
+        => ResolveDisabledProviders(components, ProviderIdMap);
+
+    internal static HashSet<byte>? ResolveDisabledProviders(IEnumerable<string>? components,
+        IEnumerable<KeyValuePair<string, byte>> providerIds)
+    {
+        if (components == null) return null;
+        var disabled = components.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (disabled.Count == 0) return null;
+        return providerIds.Where(p => disabled.Contains(p.Key)
+                || disabled.Contains(p.Key[..p.Key.IndexOf("::", StringComparison.Ordinal)] + "::AliasProvider::*"))
+            .Select(p => p.Value).ToHashSet();
+    }
+
     private const byte NotFoundProviderId = 255;
 
     private static string GetComponentId(IAliasProvider provider)

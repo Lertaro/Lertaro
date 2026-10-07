@@ -33,4 +33,12 @@
     <Resource Include="tray.png" />
   </ItemGroup>
 
+  <!-- The host must remain usable with every plugin disabled. Share the existing resource sources,
+       but compile the fallback resources into the host, not a plugin DLL. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\Plugins\CoreExtensions\Resources\Translations\**\App.json" Link="Resources\Translations\%(RecursiveDir)App.json" />
+    <Page Include="..\Plugins\CoreExtensions\Resources\Themes\Light.xaml" Link="Resources\Themes\Light.xaml" />
+    <Page Include="..\Plugins\CoreExtensions\Resources\Themes\Dark.xaml" Link="Resources\Themes\Dark.xaml" />
+  </ItemGroup>
+
 </Project>

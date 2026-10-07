@@ -1,3 +1,4 @@
+using Lertaro.Core.Settings.Migration;
 using System.Diagnostics;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -247,11 +248,14 @@ public sealed class PermissionCompatibilityTests
         var path = Path.Combine(_root, "user-settings.json");
         File.WriteAllText(path, """{"FutureOption":{"Version":9},"DisabledPlugins":["inactive"],"PluginSettings":{"inactive":{"secret":"preserve"}}} """);
         var userSettings = UserSettingsPersistence.LoadFromPath(path, out _);
+        LegacyPluginSettingsMigration.Upgrade(path, userSettings);
         userSettings.LogLevel = "Warn";
         Assert.IsTrue(UserSettingsPersistence.TryPersist(System.Text.Json.JsonSerializer.Serialize(userSettings), path));
         using var json = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path));
         Assert.AreEqual(9, json.RootElement.GetProperty("FutureOption").GetProperty("Version").GetInt32());
-        Assert.AreEqual("preserve", json.RootElement.GetProperty("PluginSettings").GetProperty("inactive").GetProperty("secret").GetString());
+        Assert.IsFalse(json.RootElement.TryGetProperty("PluginSettings", out _));
+        using var pluginJson = System.Text.Json.JsonDocument.Parse(File.ReadAllText(PluginSettingsStore.PathFor(path)));
+        Assert.AreEqual("preserve", pluginJson.RootElement.GetProperty("inactive").GetProperty("secret").GetString());
         Assert.AreEqual("inactive", json.RootElement.GetProperty("DisabledPlugins")[0].GetString());
 
         var machinePath = Path.Combine(_root, "machine-settings.json");

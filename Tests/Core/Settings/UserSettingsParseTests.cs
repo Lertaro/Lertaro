@@ -8,6 +8,10 @@ namespace Lertaro.Core.Tests.Settings;
 public sealed class UserSettingsParseTests
 {
     [TestMethod]
+    public void TryParse_NullPluginDisableList_RejectsCorruptStateInsteadOfLoadingPlugins()
+        => Assert.IsNull(UserSettings.TryParse("""{"DisabledPluginAssemblies":null}"""));
+
+    [TestMethod]
     public void TryParse_ValidJson_ReturnsSettings()
     {
         var json = JsonSerializer.Serialize(new UserSettings { LogLevel = "Debug" });
@@ -30,5 +34,20 @@ public sealed class UserSettingsParseTests
 
         Assert.IsNotNull(settings);
         Assert.AreEqual(new HotkeyPageSettings().ToggleWindowHotkey, settings.Hotkeys.ToggleWindowHotkey);
+    }
+
+    [TestMethod]
+    public void SettingsRoundTrip_PreservesWholePluginAndComponentStatesIndependently()
+    {
+        var settings = new UserSettings
+        {
+            DisabledPluginAssemblies = ["Lertaro.Plugins.A.dll"],
+            DisabledPluginComponents = ["Lertaro.Plugins.A.dll::Action::One"]
+        };
+        var restored = UserSettings.TryParse(JsonSerializer.Serialize(settings));
+        Assert.IsNotNull(restored);
+        CollectionAssert.AreEqual(settings.DisabledPluginAssemblies, restored.DisabledPluginAssemblies);
+        CollectionAssert.AreEqual(settings.DisabledPluginComponents, restored.DisabledPluginComponents);
+        Assert.IsEmpty(UserSettings.TryParse("{}")!.DisabledPluginAssemblies);
     }
 }

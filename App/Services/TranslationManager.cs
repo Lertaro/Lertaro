@@ -110,6 +110,10 @@ public class TranslationManager : INotifyPropertyChanged
     {
         _translations.Clear();
 
+        foreach (var culture in new[] { "en-US", _currentCulture })
+            foreach (var pair in PluginSdk.Services.TranslationService.LoadEmbeddedTranslations(typeof(TranslationManager).Assembly, culture, "App"))
+                _translations[pair.Key] = pair.Value;
+
         // Load translations from registered plugins with fallbacks
         foreach (var provider in PluginManager.Instance.TranslationProviders)
         {

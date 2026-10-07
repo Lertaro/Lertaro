@@ -100,6 +100,13 @@
         </StackPanel>
 
         <StackPanel Grid.Row="1" Visibility="{Binding IsPluginManagementTab, Converter={StaticResource BoolToVis}}">
+            <StackPanel Margin="0,0,0,8"
+                        Visibility="{Binding DataContext.RequiresPluginRestart, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_RestartPending]}" TextWrapping="Wrap"/>
+                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_RestartNow]}"
+                        Command="{Binding DataContext.RestartPluginsCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                        HorizontalAlignment="Left" Margin="0,6,0,0"/>
+            </StackPanel>
             <!-- Page header -->
             <Grid Margin="0,0,0,4">
                 <Grid.ColumnDefinitions>

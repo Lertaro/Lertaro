@@ -15,6 +15,7 @@ public sealed class SettingsBackupRecoveryTests
         var path = Path.Combine(root, relative);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, value);
+        if (relative == "user-settings.json") File.WriteAllText(Path.Combine(root, "plugin-settings.json"), "{}");
         return path;
     }
 

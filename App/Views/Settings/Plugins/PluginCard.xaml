@@ -48,6 +48,10 @@
                 <!-- Name + meta -->
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                    <CheckBox IsChecked="{Binding IsPluginEnabled}" Margin="0,8,0,0"
+                              Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_EnableAssembly]}"/>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_AssemblyRestartHint]}"
+                               TextWrapping="Wrap" FontSize="12" Margin="0,4,0,0" Foreground="{DynamicResource TextSecondary2}"/>
                     <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,4,0,0" Foreground="{DynamicResource TextSecondary2}" FontSize="12">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">

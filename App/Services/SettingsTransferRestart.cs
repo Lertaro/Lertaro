@@ -42,8 +42,9 @@ internal static class SettingsTransferRestart
         var requestId = ParseRequestId(arguments);
         FileStream exclusive;
         try { exclusive = SettingsBackup.OpenSession(dataDirectory, exclusive: true); }
-        catch (IOException) when (requestId == null)
+        catch (IOException ex)
         {
+            if (requestId != null) message = TransferFailure(ex);
             return SettingsBackup.OpenSession(dataDirectory, exclusive: false);
         }
         using (exclusive)
@@ -53,35 +54,53 @@ internal static class SettingsTransferRestart
             SettingsBackup.RecoverInterruptedImports(dataDirectory);
             if (requestId != null)
             {
-                var directory = Path.Combine(dataDirectory, "ConfigTransfers", requestId);
-                using var requestFolder = new SettingsBackupPaths(directory);
-                Request request;
-                using (var input = requestFolder.Read("request.json"))
-                    request = JsonSerializer.Deserialize<Request>(input) ?? throw new InvalidDataException("Invalid settings transfer request.");
-                if (request.Export)
-                {
-                    SettingsBackup.Export(dataDirectory, request.Destination ?? throw new InvalidDataException("Missing export destination."),
-                        typeof(App).Assembly.GetName().Version?.ToString() ?? "", request.IncludePluginFiles, applicationDirectory);
-                    message = string.Format(request.SuccessMessage, request.Destination);
-                }
-                else
-                {
-                    var backup = SettingsBackup.Apply(Path.Combine(directory, "payload"), dataDirectory, request.IncludePluginFiles);
-                    message = string.Format(request.SuccessMessage, backup);
-                }
-                // Consume the request only after a successful operation; failures keep staging/recovery data.
                 try
                 {
-                    File.Delete(requestFolder.Resolve("request.json"));
-                    requestFolder.ClearFiles("payload");
+                    var directory = Path.Combine(dataDirectory, "ConfigTransfers", requestId);
+                    using var requestFolder = new SettingsBackupPaths(directory);
+                    Request request;
+                    using (var input = requestFolder.Read("request.json"))
+                        request = JsonSerializer.Deserialize<Request>(input) ?? throw new InvalidDataException("Invalid settings transfer request.");
+                    if (request.Export)
+                    {
+                        SettingsBackup.Export(dataDirectory, request.Destination ?? throw new InvalidDataException("Missing export destination."),
+                            typeof(App).Assembly.GetName().Version?.ToString() ?? "", request.IncludePluginFiles, applicationDirectory);
+                        message = string.Format(request.SuccessMessage, request.Destination);
+                    }
+                    else
+                    {
+                        var backup = SettingsBackup.Apply(Path.Combine(directory, "payload"), dataDirectory, request.IncludePluginFiles);
+                        message = string.Format(request.SuccessMessage, backup);
+                    }
+                    // Consume the request only after a successful operation; failures keep staging/recovery data.
+                    try
+                    {
+                        File.Delete(requestFolder.Resolve("request.json"));
+                        requestFolder.ClearFiles("payload");
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        Logger.Log($"[SettingsTransfer] Completed, but could not clean staging: {ex.Message}", LogLevel.Warn);
+                    }
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
                 {
-                    Logger.Log($"[SettingsTransfer] Completed, but could not clean staging: {ex.Message}", LogLevel.Warn);
+                    // Only resume plugins after any interrupted import has been fully rolled back.
+                    SettingsBackup.RecoverInterruptedImports(dataDirectory);
+                    message = TransferFailure(ex);
                 }
             }
         }
         return SettingsBackup.OpenSession(dataDirectory, exclusive: false);
+    }
+
+    private static string TransferFailure(Exception exception)
+    {
+        Logger.Log($"[SettingsTransfer] {exception}", LogLevel.Error);
+        var text = PluginSdk.Services.TranslationService.LoadEmbeddedTranslations(typeof(SettingsTransferRestart).Assembly, "en-US", "App");
+        foreach (var pair in PluginSdk.Services.TranslationService.LoadEmbeddedTranslations(typeof(SettingsTransferRestart).Assembly,
+                     System.Globalization.CultureInfo.CurrentUICulture.Name, "App")) text[pair.Key] = pair.Value;
+        return string.Format(text["About_ConfigActionFailed"], exception.Message);
     }
 
     internal static string? ParseRequestId(IReadOnlyList<string> arguments)

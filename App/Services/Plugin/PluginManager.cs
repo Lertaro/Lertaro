@@ -48,6 +48,8 @@ public class PluginManager : PluginRegistry
     private Dictionary<string, Dictionary<string, object?>> _pluginSchemaDefaults = new(StringComparer.OrdinalIgnoreCase);
 
     private readonly ComponentFilter _filter = new();
+    private readonly HashSet<string> _disabledAtStartup = new(UserSettings.Load().DisabledPluginAssemblies, StringComparer.OrdinalIgnoreCase);
+    public bool RequiresPluginRestart => !_disabledAtStartup.SetEquals(UserSettings.Load().DisabledPluginAssemblies);
     private readonly PluginManagerOrderedProviders _orderedProviders;
 
     private PluginManager()
@@ -146,7 +148,7 @@ public class PluginManager : PluginRegistry
         // the row appears but every field in it shows blank until the app restarts and reloads from disk.
         object? normalized = value == null ? null : System.Text.Json.JsonSerializer.SerializeToElement(value);
         settings.SetPluginSetting(pluginId, key, normalized);
-        if (!settings.Save()) throw new System.IO.IOException("Could not persist the plugin setting.");
+        if (!settings.SavePluginSettings()) throw new System.IO.IOException("Could not persist the plugin setting.");
     }
 
     // Raised so callers that cache anything derived from IsEnabled-filtered collections (e.g.

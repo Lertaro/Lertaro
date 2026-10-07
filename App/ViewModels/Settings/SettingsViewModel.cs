@@ -43,6 +43,7 @@ public class SettingsViewModel : ViewModelBase
         LocalSend = new LocalSend.LocalSendSettingsViewModel(_userSettings);
         RefreshCommand = new RelayCommand(Refresh);
         ApplyCommand = new RelayCommand(Apply, () => CanApply);
+        RestartPluginsCommand = new RelayCommand(RestartPlugins, () => CanApply);
         _deferred = new DeferredSettingsViewModels(_userSettings, _searchService);
         _statusMonitor = new SettingsStatusMonitor(_searchService, ApplyUiState);
         TranslationManager.Instance.PropertyChanged += OnLanguageChanged;
@@ -96,6 +97,24 @@ public class SettingsViewModel : ViewModelBase
     public QuickPanel.QuickPanelSettingsViewModel QuickPanel { get; }
     public ICommand RefreshCommand { get; }
     public ICommand ApplyCommand { get; }
+    public ICommand RestartPluginsCommand { get; }
+    public bool RequiresPluginRestart => PluginManager.Instance.RequiresPluginRestart;
+
+    private async void RestartPlugins()
+    {
+        if (!await ApplyAsync()) return;
+        try
+        {
+            foreach (var plugin in PluginManager.Instance.Plugins) await plugin.PrepareForSettingsTransferAsync();
+            if (App.HookClient is { } hook) await hook.StopAsync();
+            if (!Services.AppLifecycle.AppRestartService.RequestRestart())
+                throw new IOException(TranslationManager.Instance["Plugins_RestartFailed"]);
+        }
+        catch (Exception ex)
+        {
+            Views.Controls.Dialogs.CustomMessageBox.Show(ex.Message, TranslationManager.Instance["Service_Error"]);
+        }
+    }
 
     public bool CanApply
     {
@@ -214,6 +233,7 @@ public class SettingsViewModel : ViewModelBase
             Core.Services.LocalSend.LocalSendServiceManager.Instance.ApplySettings(_userSettings);
             App.HookClient?.SendMessage(new IpcMessage { Id = IpcMessageId.ReloadSettings });
             PluginManager.Instance.RefreshDisabledComponents();
+            OnPropertyChanged(nameof(RequiresPluginRestart));
             InlineSearchManager.Instance.ExplorerTracker.RefreshActiveWindowAdapters();
             NetworkDrive.ResetPendingEdits();
             // Favorites/quick-launch edits must reach search windows that are already open: the quick

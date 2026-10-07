@@ -36,11 +36,8 @@ internal static class PluginLoader
             // assembly loads; loading them here as if they were plugins can fail with
             // "Assembly with same name is already loaded" when two plugins bundle the same package
             // (e.g. Microsoft.Data.Sqlite in both BrowserData and ContentSearch).
-            foreach (var dllFile in Directory.GetFiles(pluginsDir, "*.dll", SearchOption.AllDirectories))
+            foreach (var dllFile in Core.Services.Plugin.Loading.ServicePluginLoader.EnabledAssemblyFiles(pluginsDir, UserSettings.Load().DisabledPluginAssemblies))
             {
-                var assemblyName = Path.GetFileNameWithoutExtension(dllFile);
-                if (!assemblyName.StartsWith("Lertaro.Plugins.", StringComparison.OrdinalIgnoreCase))
-                    continue;
                 TryLoadAssembly(dllFile, registry);
             }
         }

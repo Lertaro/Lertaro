@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
+using Lertaro.Core.Settings.Migration;
 
 namespace Lertaro.Core;
 
@@ -17,13 +18,14 @@ public static class SettingsBackup
         if (fullDestination.StartsWith(source.Root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
             throw new IOException("Choose a backup destination outside the live user data directory.");
         using (var settings = source.Read("user-settings.json")) SettingsBackupFormat.ValidateSettings(settings);
+        using (var parameters = source.Read(PluginSettingsStore.FileName)) PluginSettingsStore.Parse(SettingsBackupFormat.ReadJson(parameters));
         var manifest = new SettingsBackupManifest
         {
             ApplicationVersion = applicationVersion, IncludesPluginFiles = includePluginFiles,
             Plugins = SettingsBackupInventory.Read(source, applicationDirectory)
         };
         manifest.BridgeVersion = manifest.Plugins.FirstOrDefault(p => p.Name == "Lertaro.Plugins.FlowLauncherBridge")?.Version;
-        var paths = new List<string> { "user-settings.json" };
+        var paths = new List<string> { "user-settings.json", PluginSettingsStore.FileName };
         paths.AddRange(source.Files("FlowData/Settings"));
         paths.AddRange(source.Files("Calendar"));
         if (includePluginFiles) paths.AddRange(source.Files("FlowData/Plugins"));
@@ -103,6 +105,17 @@ public static class SettingsBackup
             using var normalized = staging.Read("user-settings.json");
             var index = manifest.Files.FindIndex(f => f.Path.Equals("user-settings.json", StringComparison.OrdinalIgnoreCase));
             manifest.Files[index] = manifest.Files[index] with { Length = normalized.Length, Sha256 = Convert.ToHexString(SHA256.HashData(normalized)) };
+        }
+        var restored = UserSettings.TryParse(mainJson)!;
+        LegacyPluginSettingsMigration.Upgrade(staging.Resolve("user-settings.json"), restored);
+        if (restored.PluginSettingsStorageVersion != 1) throw new InvalidDataException("Unsupported plugin settings storage version.");
+        using (var parameters = staging.Read(PluginSettingsStore.FileName)) PluginSettingsStore.Parse(SettingsBackupFormat.ReadJson(parameters));
+        foreach (var path in new[] { "user-settings.json", PluginSettingsStore.FileName })
+        {
+            using var content = staging.Read(path);
+            var descriptor = new SettingsBackupFile(path, content.Length, Convert.ToHexString(SHA256.HashData(content)), SettingsBackupFormat.Category(path, false));
+            manifest.Files.RemoveAll(f => f.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
+            manifest.Files.Add(descriptor);
         }
         staging.Write("manifest.json", output => JsonSerializer.Serialize(output, manifest, SettingsBackupFormat.JsonOptions));
         return manifest;
@@ -189,11 +202,17 @@ public static class SettingsBackup
     /// <summary>All App instances hold a shared lease. Transfers require an exclusive lease.</summary>
     public static FileStream OpenSession(string dataDirectory, bool exclusive)
     {
-        using var root = new SettingsBackupPaths(dataDirectory);
-        var path = root.Resolve(".settings-session.lock");
+        // Coordination is local to this machine, not portable user data. Sync clients must never
+        // copy or contend for a live process lease beside the settings they are synchronizing.
+        var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro", "RuntimeLocks");
+        Directory.CreateDirectory(directory);
+        using var root = new SettingsBackupPaths(directory);
+        var name = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(
+            Path.TrimEndingDirectorySeparator(Path.GetFullPath(dataDirectory)).ToUpperInvariant()))) + ".lock";
+        var path = root.Resolve(name);
         try
         {
-            using var existing = root.Read(".settings-session.lock");
+            using var existing = root.Read(name);
         }
         catch (FileNotFoundException)
         {

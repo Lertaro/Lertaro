@@ -294,4 +294,18 @@ public sealed class PluginInfoViewModelTests
 
         Assert.IsTrue(vm.IsFullyDisabled);
     }
+
+    [TestMethod]
+    public void WholePluginToggle_TogglesAllFeaturesAndMarksPendingChange()
+    {
+        var component = new PluginComponentViewModel("a", PluginComponentType.Action, "Action", true);
+        var plugin = new PluginInfoViewModel("A", "1", "A.dll", "1", [component], []);
+        Assert.IsFalse(plugin.IsPluginEnablementDirty);
+        plugin.IsPluginEnabled = false;
+        Assert.IsTrue(plugin.IsPluginEnablementDirty);
+        Assert.IsTrue(plugin.IsFullyDisabled);
+        plugin.IsPluginEnabled = true;
+        Assert.IsTrue(component.IsEnabled);
+        Assert.IsTrue(component.IsDirty);
+    }
 }

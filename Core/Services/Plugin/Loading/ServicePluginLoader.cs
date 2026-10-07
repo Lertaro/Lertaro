@@ -8,6 +8,16 @@ namespace Lertaro.Core.Services.Plugin.Loading;
 
 public static class ServicePluginLoader
 {
+    // Discovery must not load assemblies: disabled DLLs may contain module initializers or constructors.
+    internal static IEnumerable<string> EnabledAssemblyFiles(string directory, IEnumerable<string> disabledAssemblies)
+    {
+        var disabled = new HashSet<string>(disabledAssemblies, StringComparer.OrdinalIgnoreCase);
+        return Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)
+            .Where(file => Path.GetFileName(file).StartsWith("Lertaro.Plugins.", StringComparison.OrdinalIgnoreCase)
+                && file.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)
+                && !disabled.Contains(Path.GetFileName(file)));
+    }
+
     public static void LoadForService() => LoadPlugins(loadHookPlugins: false);
 
     public static void LoadForHook() => LoadPlugins(loadHookPlugins: true);
@@ -39,7 +49,8 @@ public static class ServicePluginLoader
             // Recursive: a plugin with its own dependency DLLs can sit in its own subdirectory (they
             // colocate with Assembly.LoadFrom's own implicit same-directory probing for dependency
             // resolution) instead of every DLL needing to live flat in Plugins/ directly.
-            var dllFiles = Directory.GetFiles(pluginsDir, "*.dll", SearchOption.AllDirectories).OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToArray();
+            var dllFiles = EnabledAssemblyFiles(pluginsDir, loadHookPlugins ? UserSettings.Load().DisabledPluginAssemblies : [])
+                .OrderBy(file => file, StringComparer.OrdinalIgnoreCase);
             foreach (var dllFile in dllFiles)
             {
                 try

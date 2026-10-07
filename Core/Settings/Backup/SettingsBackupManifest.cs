@@ -35,6 +35,7 @@ internal static class SettingsBackupFormat
     {
         SettingsBackupPaths.Validate(path);
         if (path.Equals("user-settings.json", StringComparison.OrdinalIgnoreCase)) return "user-settings";
+        if (path.Equals(PluginSettingsStore.FileName, StringComparison.OrdinalIgnoreCase)) return "plugin-settings";
         if (path.StartsWith("FlowData/Settings/", StringComparison.OrdinalIgnoreCase)) return "flow-settings";
         if (path.StartsWith("Calendar/", StringComparison.OrdinalIgnoreCase)) return "calendar";
         if (includePluginFiles && path.StartsWith("FlowData/Plugins/", StringComparison.OrdinalIgnoreCase)) return "flow-plugin-files";

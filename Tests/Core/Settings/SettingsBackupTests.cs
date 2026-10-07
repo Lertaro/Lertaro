@@ -1,3 +1,4 @@
+using Lertaro.Core.Settings.Migration;
 using System.IO.Compression;
 using System.Security.AccessControl;
 using System.Security.Cryptography;
@@ -19,7 +20,13 @@ public sealed class SettingsBackupTests
         File.WriteAllBytes(path, bytes);
         return path;
     }
-    private string Write(string folder, string relative, string text) => Write(folder, relative, Encoding.UTF8.GetBytes(text));
+    private string Write(string folder, string relative, string text)
+    {
+        var path = Write(folder, relative, Encoding.UTF8.GetBytes(text));
+        if (relative == "user-settings.json")
+            PluginSettingsStore.Save(path, UserSettings.TryParse(text)!.PluginSettings);
+        return path;
+    }
 
     [TestCleanup]
     public void Cleanup()
@@ -32,8 +39,10 @@ public sealed class SettingsBackupTests
     public void ExportAndImport_PreservesOpaqueDisabledAndOrphanData_WithoutCachesOrMachineSettings()
     {
         var source = Folder("source");
-        const string settings = """{"PluginSettings":{"Disabled_Native":{"Token":"private","future":{"x":1}}},"DisabledPluginComponents":["Bridge.dll::Provider::X"],"Future":{"nested":true}}""";
+        var settings = """{"PluginSettings":{"Disabled_Native":{"Token":"private","future":{"x":1}}},"DisabledPluginAssemblies":["Disabled_Native.dll"],"DisabledPluginComponents":["Bridge.dll::Provider::X"],"Future":{"nested":true}}""";
         Write(source, "user-settings.json", settings);
+        LegacyPluginSettingsMigration.Upgrade(Path.Combine(source, "user-settings.json"), UserSettings.TryParse(settings)!);
+        settings = File.ReadAllText(Path.Combine(source, "user-settings.json"));
         Write(source, "FlowData/Settings/Plugins.json", """{"中文_Name":{"Disabled":true,"ActionKeyword":"词","Future":123},"Uninstalled":{"Disabled":true}}""");
         Write(source, "FlowData/Settings/Plugins/中文_Name/Typed.json", """{"unknown":{"中文":true}}""");
         var bytes = new byte[] { 0, 255, 0x81, 0x40, 77 };
@@ -49,6 +58,7 @@ public sealed class SettingsBackupTests
         var zipPath = Path.Combine(_root, "设置.zip");
 
         var manifest = SettingsBackup.Export(source, zipPath, "5.8.5");
+        Assert.ContainsSingle(manifest.Plugins.Where(p => p.Name == "Disabled_Native" && p.Disabled == true));
         var stage = Folder("stage");
         SettingsBackup.Prepare(zipPath, stage);
         var target = Folder("different-user-root");
@@ -122,7 +132,10 @@ public sealed class SettingsBackupTests
         SettingsBackup.Apply(stage, target);
 
         Assert.AreEqual("legacy-json", manifest.ApplicationVersion);
-        Assert.AreEqual("""{"Theme":"中文主题","Future":{"嵌套":true}}""", File.ReadAllText(Path.Combine(target, "user-settings.json")));
+        using var migrated = JsonDocument.Parse(File.ReadAllText(Path.Combine(target, "user-settings.json")));
+        Assert.AreEqual("中文主题", migrated.RootElement.GetProperty("Theme").GetString());
+        Assert.IsTrue(migrated.RootElement.GetProperty("Future").GetProperty("嵌套").GetBoolean());
+        Assert.AreEqual(1, migrated.RootElement.GetProperty("PluginSettingsStorageVersion").GetInt32());
         CollectionAssert.AreEqual(new byte[] { 7, 8, 9 }, File.ReadAllBytes(plugin));
     }
 
@@ -276,6 +289,7 @@ public sealed class SettingsBackupTests
     {
         var source = Folder("source");
         Write(source, "user-settings.json", SettingsBackupFormat.Gbk.GetBytes("{\"Theme\":\"中文主题\"}"));
+        Write(source, "plugin-settings.json", "{}");
         var zip = Path.Combine(_root, "gbk.zip");
         SettingsBackup.Export(source, zip, "test");
         var stage = Folder("stage");
@@ -295,7 +309,7 @@ public sealed class SettingsBackupTests
         using (var zip = ZipFile.Open(zipPath, ZipArchiveMode.Update)) zip.CreateEntry("Calendar/");
         var stage = Folder("stage");
         var manifest = SettingsBackup.Prepare(zipPath, stage);
-        Assert.HasCount(2, manifest.Files);
+        Assert.HasCount(3, manifest.Files);
         CollectionAssert.AreEqual(new byte[] { 1 }, File.ReadAllBytes(Path.Combine(stage, "Calendar/中文.bin")));
     }
 

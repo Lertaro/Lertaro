@@ -12,10 +12,15 @@ internal static class SettingsBackupInventory
         using var settings = JsonDocument.Parse(SettingsBackupFormat.ReadJson(settingsStream));
         var disabledComponents = settings.RootElement.TryGetProperty("DisabledPluginComponents", out var components) && components.ValueKind == JsonValueKind.Array
             ? components.EnumerateArray().Where(c => c.ValueKind == JsonValueKind.String).Select(c => c.GetString()!).ToArray() : [];
+        var disabledAssemblies = settings.RootElement.TryGetProperty("DisabledPluginAssemblies", out var assemblies) && assemblies.ValueKind == JsonValueKind.Array
+            ? assemblies.EnumerateArray().Where(c => c.ValueKind == JsonValueKind.String).Select(c => c.GetString()!).ToHashSet(StringComparer.OrdinalIgnoreCase) : [];
         string[] Disabled(string key) => disabledComponents.Where(c => c.StartsWith(key + ".dll::", StringComparison.OrdinalIgnoreCase)).ToArray();
-        if (settings.RootElement.TryGetProperty("PluginSettings", out var native) && native.ValueKind == JsonValueKind.Object)
+        using var parameterStream = source.Read(PluginSettingsStore.FileName);
+        using var parameters = JsonDocument.Parse(SettingsBackupFormat.ReadJson(parameterStream));
+        var native = parameters.RootElement;
+        if (native.ValueKind == JsonValueKind.Object)
             foreach (var entry in native.EnumerateObject())
-                plugins.Add(new(null, entry.Name, "native", null, null, null, [entry.Name], null, null, DisabledComponents: Disabled(entry.Name)));
+                plugins.Add(new(null, entry.Name, "native", null, null, null, [entry.Name], null, disabledAssemblies.Contains(entry.Name + ".dll"), DisabledComponents: Disabled(entry.Name)));
 
         // This set is intentionally independent of loaded/enabled plugin instances.
         var states = new Dictionary<string, bool?>(StringComparer.OrdinalIgnoreCase);
@@ -67,7 +72,7 @@ internal static class SettingsBackupInventory
                 var key = Path.GetFileNameWithoutExtension(file);
                 plugins.RemoveAll(p => p.Kind == "native" && p.Name == key);
                 plugins.Add(new(assembly.Name, key, "native", assembly.Version?.ToString(), ".NET", file,
-                    [key, Path.GetFileName(file)], null, null, DisabledComponents: Disabled(key)));
+                    [key, Path.GetFileName(file)], null, disabledAssemblies.Contains(Path.GetFileName(file)), DisabledComponents: Disabled(key)));
             }
         }
         return plugins;

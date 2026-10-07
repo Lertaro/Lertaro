@@ -90,12 +90,29 @@ public static class PluginLoaderHelper
             var description = pluginInstance != null ? PluginComponentBuilder.GetDescriptionWithFallback(pluginInstance) : string.Empty;
             var websiteUrl = pluginInstance?.WebsiteUrl;
             var websiteLabel = pluginInstance?.WebsiteLabel;
-            result.Add(new PluginInfoViewModel(pluginName, pluginVersion, dllName, sdkVersion, components, configFields, description, schema?.OnSave, schema?.OnRollback, websiteUrl, websiteLabel));
+            result.Add(new PluginInfoViewModel(pluginName, pluginVersion, dllName, sdkVersion, components, configFields, description, schema?.OnSave, schema?.OnRollback, websiteUrl, websiteLabel,
+                !userSettings.DisabledPluginAssemblies.Contains(dllName, StringComparer.OrdinalIgnoreCase)));
         }
+
+        AddDisabledPlugins(result, pluginsDir, userSettings);
 
         // Sorted here rather than at the one list that displays it, so the settings search index, which
         // builds from this same call, offers plugins in the order the page will show them.
         return SortForDisplay(result);
+    }
+
+    internal static void AddDisabledPlugins(List<PluginInfoViewModel> result, string pluginsDir, UserSettings userSettings)
+    {
+        // A disabled plugin must remain manageable without executing constructors or config callbacks.
+        // ponytail: use DLL names offline; declarative manifests would be needed for localized metadata.
+        foreach (var file in Directory.EnumerateFiles(pluginsDir, "Lertaro.Plugins.*.dll", SearchOption.AllDirectories))
+        {
+            var dllName = Path.GetFileName(file);
+            if (!userSettings.DisabledPluginAssemblies.Contains(dllName, StringComparer.OrdinalIgnoreCase)
+                || result.Any(p => p.DllFileName.Equals(dllName, StringComparison.OrdinalIgnoreCase))) continue;
+            result.Add(new PluginInfoViewModel(Path.GetFileNameWithoutExtension(file), "", dllName, "", [], [],
+                description: TranslationManager.Instance["Plugins_DisabledUntilRestart"], isPluginEnabled: false));
+        }
     }
 
     /// <summary>Final display order of the plugin list: the core plugin first, then name, with the pinned
