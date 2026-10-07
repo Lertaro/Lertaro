@@ -24,4 +24,9 @@
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.12" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\portable-updater.ps1" Link="portable-updater.ps1"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
