@@ -12,7 +12,7 @@ namespace Lertaro.Core.Services.Search;
 /// Captures the caller token after reading its first request, then checks actual read/list access under
 /// impersonation for every returned path. This covers custom ACLs outside profile folders, deny ACEs and
 /// UAC-filtered administrators. Permissions are not cached across requests or index revisions.
-/// Space queries also apply this predicate to descendants before summing sizes.
+/// Space queries filter their listed paths; their totals come from the index, including hidden descendants.
 /// </remarks>
 internal sealed class CallerVisibility : IDisposable
 {

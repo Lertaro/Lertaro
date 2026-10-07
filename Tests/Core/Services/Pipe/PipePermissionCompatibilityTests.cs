@@ -46,7 +46,7 @@ public sealed class PipePermissionCompatibilityTests
     }
 
     [TestMethod]
-    public async Task SpaceTotals_ExcludeRealDeniedDescendantsAndReflectAclChanges()
+    public async Task SpaceTotals_UseIndexedSizesWhileListedPathsReflectAclChanges()
     {
         var folder = Directory.CreateTempSubdirectory("LertaroSpaceAccess_").FullName;
         var hidden = Directory.CreateDirectory(Path.Combine(folder, "private")).FullName;
@@ -76,15 +76,33 @@ public sealed class PipePermissionCompatibilityTests
             Assert.ThrowsExactly<UnauthorizedAccessException>(() => File.ReadAllBytes(Path.Combine(hidden, "private.bin")));
             using var visibility = CallerVisibility.ForClient(server);
             var request = new SearchRequestMessage { Id = SearchRequestId.GetSpaceEntries };
-            var response = UsnServicePipeRequestProcessor.Process(engine, request, timeout.Token, server, visibility);
-            Assert.AreEqual(100L, response.SpaceEntries!.Single().Size);
+            var response = await UsnServicePipeRequestProcessor.ProcessAsync(engine, request, timeout.Token, server, visibility);
+            Assert.AreEqual(1000L, response.SpaceEntries!.Single().Size,
+                "Home totals describe indexed content without opening every descendant.");
+            request.Drive = folder;
+            response = await UsnServicePipeRequestProcessor.ProcessAsync(engine, request, timeout.Token, server, visibility);
+            Assert.AreEqual("shared.bin", response.SpaceEntries!.Single().Name);
+            request.Drive = hidden;
+            response = await UsnServicePipeRequestProcessor.ProcessAsync(engine, request, timeout.Token, server, visibility);
+            Assert.IsEmpty(response.SpaceEntries!, "A denied directory cannot be browsed directly.");
+
             new DirectoryInfo(hidden).SetAccessControl(original);
-            response = UsnServicePipeRequestProcessor.Process(engine, request, timeout.Token, server, visibility);
-            Assert.AreEqual(1000L, response.SpaceEntries!.Single().Size);
+            request.Drive = folder;
+            response = await UsnServicePipeRequestProcessor.ProcessAsync(engine, request, timeout.Token, server, visibility);
+            Assert.HasCount(2, response.SpaceEntries!);
+            Assert.AreEqual(1000L, response.SpaceEntries!.Sum(entry => entry.Size));
+
+            denied.SetSecurityDescriptorBinaryForm(denied.GetSecurityDescriptorBinaryForm(), AccessControlSections.Access);
+            new DirectoryInfo(hidden).SetAccessControl(denied);
+            Assert.ThrowsExactly<UnauthorizedAccessException>(() => File.ReadAllBytes(Path.Combine(hidden, "private.bin")));
+            response = await UsnServicePipeRequestProcessor.ProcessAsync(engine, request, timeout.Token, server, visibility);
+            Assert.AreEqual("shared.bin", response.SpaceEntries!.Single().Name,
+                "A cached directory listing must apply current ACLs again after access is revoked.");
         }
         finally
         {
             indexer._recordIndexes.Remove(folder);
+            original.SetSecurityDescriptorBinaryForm(original.GetSecurityDescriptorBinaryForm(), AccessControlSections.Access);
             new DirectoryInfo(hidden).SetAccessControl(original);
             Directory.Delete(folder, true);
         }

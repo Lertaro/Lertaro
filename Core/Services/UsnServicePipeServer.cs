@@ -153,7 +153,7 @@ public sealed class UsnServicePipeServer : IDisposable
                         break;
                     }
 
-                    var response = UsnServicePipeRequestProcessor.Process(_engine, request, token, pipe, visibility);
+                    var response = await UsnServicePipeRequestProcessor.ProcessAsync(_engine, request, token, pipe, visibility).ConfigureAwait(false);
 
                     if (verboseLog)
                         Logger.Log($"[PipeServer] Sending response: {response.Kind}...", LogLevel.Debug);

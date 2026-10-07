@@ -38,6 +38,7 @@ Space Analyzer uses a dual-pane layout designed to provide immediate clarity on 
 
 - **Index-Backed Breakdown**: Summarizes items already indexed by Lertaro without initiating disk I/O crawls. Excluded files do not count toward totals.
 - **Logical File Sizes**: Shows actual logical file sizes; hard-linked data is counted once to prevent inflated sizes.
+- **Access & Totals**: The list shows only items accessible to the current account. Directory totals describe indexed content, including inaccessible descendants. Access checks cover the requested directory and listed items without opening every descendant to calculate its size.
 - **Hidden & System Items**: Hidden items are included normally; system files are merged into their parent folder's total size.
 
 ### Real-Time Change Tracking & Self-Healing

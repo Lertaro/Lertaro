@@ -167,7 +167,7 @@ public static class SearchStreamPump
     // Polls PeekNamedPipe on the raw pipe handle every 25ms and cancels `queryCts` the moment the OS
     // reports the connection is gone -- lets an abandoned scan (see the comment at the call site) abort
     // between chunks instead of always running to completion. No-ops for a non-pipe stream (e.g. tests).
-    private static async Task WatchForClientDisconnectAsync(Stream stream, CancellationTokenSource queryCts, CancellationToken stopToken)
+    internal static async Task WatchForClientDisconnectAsync(Stream stream, CancellationTokenSource queryCts, CancellationToken stopToken)
     {
         if (stream is not NamedPipeServerStream pipe)
             return;

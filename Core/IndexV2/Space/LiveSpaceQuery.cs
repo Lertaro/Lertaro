@@ -15,31 +15,33 @@ internal static class LiveSpaceQuery
     {
         var revision = live.Revision;
         var key = string.IsNullOrWhiteSpace(directory) ? RootCacheKey : NormalizePath(directory);
-        // ACLs change independently of the index revision. Shared cached totals contain private
-        // descendants; permission-filtered queries must walk the live tree and cannot use that cache.
-        if (isVisible != null)
-            return live.Read((snapshot, delta) => Query(snapshot, delta, key, isVisible));
+        // Totals describe the index, including descendants hidden from this caller. Check only the
+        // requested directory and returned rows: checking every descendant turned opening the home
+        // view into minutes of filesystem I/O. ACL results are never cached or evaluated under Read.
+        if (key != RootCacheKey && isVisible?.Invoke(key) == false)
+            return SpaceQueryResult.NotFound;
         var cache = Caches.GetValue(live, static _ => new SpaceQueryCache());
-        if (cache.TryGet(revision, key, out var cached))
-            return cached;
-
-        var result = live.Read((snapshot, delta) => Query(snapshot, delta, key));
-        if (live.Revision == revision)
-            cache.Store(revision, key, result);
-        return result;
+        if (!cache.TryGet(revision, key, out var result))
+        {
+            result = live.Read((snapshot, delta) => Query(snapshot, delta, key));
+            if (live.Revision == revision)
+                cache.Store(revision, key, result);
+        }
+        return isVisible == null ? result
+            : new SpaceQueryResult(result.Found, result.Entries.Where(entry => isVisible(entry.Path)).ToArray());
     }
 
-    private static SpaceQueryResult Query(Snapshot snapshot, DeltaOverlay delta, string key, Func<string, bool>? isVisible = null)
+    private static SpaceQueryResult Query(Snapshot snapshot, DeltaOverlay delta, string key)
     {
         var root = snapshot.FirstRowForId(snapshot.RootId);
-        if (root < 0 || isVisible?.Invoke(key == RootCacheKey ? snapshot.SourceRoot : key) == false)
+        if (root < 0)
             return SpaceQueryResult.NotFound;
 
         var lookup = DeltaChildLookup.Build(snapshot, delta);
         var affected = BuildAffectedEntries(snapshot, delta, out var canonicalAddedLinks);
         if (key == RootCacheKey)
         {
-            var rootEntry = CreateEntry(snapshot, delta, lookup, affected, canonicalAddedLinks, root, snapshot.SourceRoot, isVisible);
+            var rootEntry = CreateEntry(snapshot, delta, lookup, affected, canonicalAddedLinks, root, snapshot.SourceRoot);
             return new SpaceQueryResult(true, [rootEntry]);
         }
         if (!TryResolve(snapshot, delta, lookup, root, key, out var directory))
@@ -48,18 +50,18 @@ internal static class LiveSpaceQuery
         var entries = new List<SpaceIndexEntry>(children.Count);
         foreach (var child in children)
         {
-            if (IsSystem(snapshot, delta, child) || isVisible?.Invoke(GetPath(snapshot, delta, child)) == false)
+            if (IsSystem(snapshot, delta, child))
                 continue;
-            entries.Add(CreateEntry(snapshot, delta, lookup, affected, canonicalAddedLinks, child, GetName(snapshot, delta, child), isVisible));
+            entries.Add(CreateEntry(snapshot, delta, lookup, affected, canonicalAddedLinks, child, GetName(snapshot, delta, child)));
         }
         entries.Sort(CompareEntries);
         return new SpaceQueryResult(true, entries);
     }
 
     private static SpaceIndexEntry CreateEntry(Snapshot snapshot, DeltaOverlay delta, DeltaChildLookup? lookup,
-        HashSet<int> affected, Dictionary<UInt128, int> canonicalAddedLinks, int entry, string name, Func<string, bool>? isVisible)
+        HashSet<int> affected, Dictionary<UInt128, int> canonicalAddedLinks, int entry, string name)
     {
-        var size = GetRecursiveSize(snapshot, delta, lookup, affected, canonicalAddedLinks, entry, isVisible);
+        var size = GetRecursiveSize(snapshot, delta, lookup, affected, canonicalAddedLinks, entry);
         var isDirectory = IsDirectory(snapshot, delta, entry);
         var rawSize = isDirectory ? 0 : GetRawSize(snapshot, delta, entry);
         return new SpaceIndexEntry(
@@ -71,17 +73,17 @@ internal static class LiveSpaceQuery
     }
 
     private static long GetRecursiveSize(Snapshot snapshot, DeltaOverlay delta, DeltaChildLookup? lookup,
-        HashSet<int> affected, Dictionary<UInt128, int> canonicalAddedLinks, int entry, Func<string, bool>? isVisible, int depth = 0)
+        HashSet<int> affected, Dictionary<UInt128, int> canonicalAddedLinks, int entry, int depth = 0)
     {
-        if (depth >= 512 || isVisible?.Invoke(GetPath(snapshot, delta, entry)) == false)
+        if (depth >= 512)
             return 0;
         if (!IsDirectory(snapshot, delta, entry))
-            return IsCanonicalFileLink(snapshot, delta, canonicalAddedLinks, entry, isVisible) ? Math.Max(0, GetRawSize(snapshot, delta, entry)) : 0;
-        if (isVisible == null && entry < snapshot.Count && !affected.Contains(entry))
+            return IsCanonicalFileLink(snapshot, delta, canonicalAddedLinks, entry) ? Math.Max(0, GetRawSize(snapshot, delta, entry)) : 0;
+        if (entry < snapshot.Count && !affected.Contains(entry))
             return Math.Max(0, snapshot.RecursiveSizes[entry]);
         var total = 0L;
         foreach (var child in CollectChildren(snapshot, delta, lookup, entry))
-            total = SaturatingAdd(total, GetRecursiveSize(snapshot, delta, lookup, affected, canonicalAddedLinks, child, isVisible, depth + 1));
+            total = SaturatingAdd(total, GetRecursiveSize(snapshot, delta, lookup, affected, canonicalAddedLinks, child, depth + 1));
         return total;
     }
 
@@ -234,22 +236,15 @@ internal static class LiveSpaceQuery
     }
 
     private static bool IsCanonicalFileLink(Snapshot snapshot, DeltaOverlay delta,
-        Dictionary<UInt128, int> canonicalAddedLinks, int entry, Func<string, bool>? isVisible)
+        Dictionary<UInt128, int> canonicalAddedLinks, int entry)
     {
         var id = entry < snapshot.Count ? snapshot.Ids[entry] : delta.Added[entry - snapshot.Count].Id;
         var first = snapshot.FirstRowForId(id);
         if (first >= 0)
         {
             for (var row = first; row < snapshot.Count && snapshot.Ids[row] == id; row++)
-                if (!delta.IsVisiblyDeleted(row) && isVisible?.Invoke(GetPath(snapshot, delta, row)) != false)
+                if (!delta.IsVisiblyDeleted(row))
                     return entry == row;
-        }
-        if (isVisible != null)
-        {
-            for (var index = 0; index < delta.Added.Count; index++)
-                if (!delta.Added[index].Removed && delta.Added[index].Id == id && isVisible(GetPath(snapshot, delta, snapshot.Count + index)))
-                    return entry == snapshot.Count + index;
-            return false;
         }
         return canonicalAddedLinks.TryGetValue(id, out var canonical) && entry == canonical;
     }

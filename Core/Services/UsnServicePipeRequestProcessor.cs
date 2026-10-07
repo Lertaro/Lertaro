@@ -11,6 +11,25 @@ namespace Lertaro.Core.Services;
 // single response) -- extracted to keep UsnServicePipeServer.cs under the project's line limit.
 internal static class UsnServicePipeRequestProcessor
 {
+    internal static async Task<PipeResponse> ProcessAsync(SearchEngine? engine, SearchRequestMessage msg,
+        CancellationToken token, NamedPipeServerStream pipe, CallerVisibility visibility)
+    {
+        if (msg.Id != SearchRequestId.GetSpaceEntries)
+            return Process(engine, msg, token, pipe, visibility);
+
+        // Closing the blank window / typing a query closes its space pipe. Stop any remaining
+        // permission checks on the listed entries when that happens.
+        using var queryCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+        using var watcherCts = new CancellationTokenSource();
+        var watcher = SearchStreamPump.WatchForClientDisconnectAsync(pipe, queryCts, watcherCts.Token);
+        try { return Process(engine, msg, queryCts.Token, pipe, visibility); }
+        finally
+        {
+            watcherCts.Cancel();
+            await watcher.ConfigureAwait(false);
+        }
+    }
+
     public static PipeResponse Process(SearchEngine? engine, SearchRequestMessage msg, CancellationToken token, NamedPipeServerStream pipe,
         CallerVisibility visibility)
     {

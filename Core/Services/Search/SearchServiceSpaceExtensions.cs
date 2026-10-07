@@ -17,10 +17,11 @@ public static class SearchServiceSpaceExtensions
             Drive = directory ?? string.Empty
         }, token).ConfigureAwait(false);
 
-        var local = response.Kind == PipeResponseKind.SpaceEntries
-            ? response.SpaceEntries ?? Array.Empty<SpaceIndexEntry>()
-            : Array.Empty<SpaceIndexEntry>();
         var network = await networkTask.ConfigureAwait(false);
+        token.ThrowIfCancellationRequested();
+        if (response.Kind != PipeResponseKind.SpaceEntries && network.Count == 0)
+            throw new IOException(response.Message);
+        var local = response.SpaceEntries ?? Array.Empty<SpaceIndexEntry>();
 
         return local.Concat(network)
             .GroupBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
