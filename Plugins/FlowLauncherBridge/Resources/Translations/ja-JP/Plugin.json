@@ -30,6 +30,7 @@
   "FlowLauncherBridge_PluginActionKeywordLabel": "トリガーキーワード",
   "FlowLauncherBridge_PluginActionKeywordDesc": "このプラグインを起動するキーワードをカスタマイズします（デフォルト: \"{0}\"）。",
   "FlowLauncherBridge_PreviewProviderName": "Flow プラグインプレビュープロバイダー",
+  "FlowLauncherBridge_PreviewUnavailable": "このプレビューは利用できなくなりました。もう一度検索してください。",
   "Plugin_Comp_Desc_FlowPreviewProvider": "クイックルックウィンドウ内で Flow.Launcher プラグインのカスタムプレビューパネルを描画します。",
   "Plugin_Comp_Desc_FlowInstantResultProvider": "読み込まれた Flow.Launcher プラグインにキーワード クエリをディスパッチし、即時検索結果と設定管理を提供します。",
   "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Flow.Launcher ブリッジ プラグインの多言語翻訳とローカリゼーション マッピングを提供します。"

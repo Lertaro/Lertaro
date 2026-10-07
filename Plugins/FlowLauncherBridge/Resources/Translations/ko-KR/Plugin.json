@@ -30,6 +30,7 @@
   "FlowLauncherBridge_PluginActionKeywordLabel": "트리거 키워드",
   "FlowLauncherBridge_PluginActionKeywordDesc": "이 플러그인을 실행하는 키워드를 사용자 정의합니다(기본값: \"{0}\").",
   "FlowLauncherBridge_PreviewProviderName": "Flow 플러그인 미리보기 공급자",
+  "FlowLauncherBridge_PreviewUnavailable": "이 미리보기를 더 이상 사용할 수 없습니다. 다시 검색하세요.",
   "Plugin_Comp_Desc_FlowPreviewProvider": "QuickLook 창 내에서 Flow.Launcher 플러그인의 사용자 지정 미리보기 패널을 렌더링합니다.",
   "Plugin_Comp_Desc_FlowInstantResultProvider": "로드된 Flow.Launcher 플러그인에 키워드 쿼리를 전달하고 즉각적인 검색 결과 및 설정 관리를 제공합니다.",
   "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Flow.Launcher 브리지 플러그인에 대한 다국어 번역 및 현지화 매핑을 제공합니다."

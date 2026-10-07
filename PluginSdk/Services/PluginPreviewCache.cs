@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -43,22 +44,30 @@ public record PluginPreviewEntry(string Title, string PluginName, Lazy<UserContr
 public static class PluginPreviewCache
 {
     private const int MaxEntries = 100;
-    private static readonly ConcurrentDictionary<string, PluginPreviewEntry> Entries = new(StringComparer.OrdinalIgnoreCase);
-    private static readonly ConcurrentQueue<string> Keys = new();
+    private static readonly ConditionalWeakTable<PluginPreviewEntry, string> EntryKeys = new();
+    private static readonly ConcurrentDictionary<string, WeakReference<PluginPreviewEntry>> Entries = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentQueue<PluginPreviewEntry> RecentEntries = new();
+    private static int _registrations;
 
-    public static string Register(string title, string pluginName, Lazy<UserControl> factory, Func<object?>? iconProvider = null)
+    public static string Register(string title, string pluginName, Lazy<UserControl> factory, Func<object?>? iconProvider = null) =>
+        Register(new PluginPreviewEntry(title, pluginName, factory, iconProvider));
+
+    /// <summary>Reuses an entry's key. Keep the entry alive for as long as its result can be displayed.</summary>
+    public static string Register(PluginPreviewEntry entry)
     {
-        var encodedTitle = Uri.EscapeDataString(title);
-        var encodedPlugin = Uri.EscapeDataString(pluginName);
-        var id = $"flow-preview:{encodedTitle}:{encodedPlugin}:{Guid.NewGuid():N}";
-        var entry = new PluginPreviewEntry(title, pluginName, factory, iconProvider);
-        Entries[id] = entry;
-        Keys.Enqueue(id);
+        ArgumentNullException.ThrowIfNull(entry);
+        var id = EntryKeys.GetValue(entry, e => $"flow-preview:{Uri.EscapeDataString(e.Title)}:{Uri.EscapeDataString(e.PluginName)}:{Guid.NewGuid():N}");
+        if (!Entries.TryAdd(id, new WeakReference<PluginPreviewEntry>(entry)))
+            return id;
 
-        while (Keys.Count > MaxEntries && Keys.TryDequeue(out var oldKey))
-        {
-            Entries.TryRemove(oldKey, out _);
-        }
+        // Retain recent string-only registrations; live result owners retain older entries themselves.
+        RecentEntries.Enqueue(entry);
+        while (RecentEntries.Count > MaxEntries && RecentEntries.TryDequeue(out _)) { }
+
+        // ponytail: scan O(n) keys every 100 registrations; use incremental pruning if live result sets grow large.
+        if (Interlocked.Increment(ref _registrations) % MaxEntries == 0)
+            foreach (var (key, reference) in Entries)
+                if (!reference.TryGetTarget(out _)) Entries.TryRemove(key, out _);
 
         return id;
     }
@@ -66,23 +75,8 @@ public static class PluginPreviewCache
     public static PluginPreviewEntry? GetEntry(string key)
     {
         if (string.IsNullOrEmpty(key)) return null;
-        if (Entries.TryGetValue(key, out var entry))
+        if (Entries.TryGetValue(key, out var reference) && reference.TryGetTarget(out var entry))
             return entry;
-
-        var parts = key.Split(':');
-        if (parts.Length >= 4 && parts[0].Equals("flow-preview", StringComparison.OrdinalIgnoreCase))
-        {
-            try
-            {
-                var title = Uri.UnescapeDataString(parts[1]);
-                var plugin = Uri.UnescapeDataString(parts[2]);
-                return new PluginPreviewEntry(title, plugin, new Lazy<UserControl>(() => new UserControl()));
-            }
-            catch (UriFormatException)
-            {
-                return null;
-            }
-        }
 
         return null;
     }

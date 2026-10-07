@@ -129,8 +129,7 @@ internal sealed class SearchDispatchController
     // DispatchSearch (debounced) and PerformSearch (blocking) both resolve to the same set of
     // search parameters -- only which SearchExecutionEngine method runs them differs.
     //
-    // Its own delegate rather than Action<...>: the two engine methods take seventeen arguments between
-    // them, and Action stops at sixteen.
+    // The engine methods take more arguments than Action<...> supports.
     private delegate void EngineSearchCall(
         string query,
         string? searchScope,
@@ -148,7 +147,8 @@ internal sealed class SearchDispatchController
         FileFilterScopeDirective? scopeDirective,
         string? instantQuery,
         bool emitInstantResults,
-        Action? beforeSearch);
+        Action? beforeSearch,
+        Func<string?, List<AppSearchResult>>? collectInstantResults);
 
     private void RunEngineSearch(
         EngineSearchCall engineCall,
@@ -207,7 +207,8 @@ internal sealed class SearchDispatchController
             true,
             // Nothing to start alongside a quick-window search: the rows this window can show all come from
             // the one search already, and its instant providers are folded into the mapper above.
-            null
+            null,
+            contextDir => SearchResultMapper.CollectInstantPass(instantPass, originalValue, searchQuery, _getIsInlineSearchContext(), contextDir)
         );
     }
     public void PerformSearch(string query)

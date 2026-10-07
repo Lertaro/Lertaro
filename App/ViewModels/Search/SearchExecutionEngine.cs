@@ -53,7 +53,8 @@ internal sealed class SearchExecutionEngine : IDisposable
         // Invoked on the UI thread at the moment the search itself is issued -- so after the debounce,
         // once per settled query rather than once per keystroke. For work that must overlap the search
         // but must not be repeated for characters the user typed and then replaced.
-        Action? beforeSearch = null)
+        Action? beforeSearch = null,
+        Func<string?, List<AppSearchResult>>? collectInstantResults = null)
     {
         _debounceCts?.Cancel();
         _debounceCts?.Dispose();
@@ -63,7 +64,7 @@ internal sealed class SearchExecutionEngine : IDisposable
         var delay = string.IsNullOrEmpty(query) || query.Length <= 1 ? 0 : (fileLimit > 100 ? 150 : 30);
         if (delay == 0)
         {
-            PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective, instantQuery, emitInstantResults, beforeSearch);
+            PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective, instantQuery, emitInstantResults, beforeSearch, collectInstantResults);
             return;
         }
 
@@ -72,7 +73,7 @@ internal sealed class SearchExecutionEngine : IDisposable
             if (t.IsCanceled)
                 return;
             _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
-                PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective, instantQuery, emitInstantResults, beforeSearch)));
+                PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective, instantQuery, emitInstantResults, beforeSearch, collectInstantResults)));
         }, cts.Token);
     }
 
@@ -103,7 +104,8 @@ internal sealed class SearchExecutionEngine : IDisposable
         // whether it was issued directly or waited out QueueSearch's keystroke debounce, so a caller with
         // work that should overlap the search -- and must not be repeated for every character typed --
         // hangs it here rather than reimplementing the delay.
-        Action? beforeSearch = null)
+        Action? beforeSearch = null,
+        Func<string?, List<AppSearchResult>>? collectInstantResults = null)
     {
         Logger.Log($"[SearchExecutionEngine] Performing search: '{query}', scope: '{searchScope}'", LogLevel.Debug);
         CancelPendingSearch();
@@ -133,7 +135,7 @@ internal sealed class SearchExecutionEngine : IDisposable
         // them was matched with, with that word (and any :token suffix) already taken off. Same split
         // BuildQuickResults makes, so a row painted from either path highlights identically.
         if (emitInstantResults)
-            EmitInstantResults(instantQuery ?? query, query, isInlineSearchContext, searchVersion, token, onResultsUpdated, shouldEmitInstantResults, commandDirectory);
+            EmitInstantResults(instantQuery ?? query, query, isInlineSearchContext, searchVersion, token, onResultsUpdated, shouldEmitInstantResults, commandDirectory, collectInstantResults);
         _ = Task.Run(async () =>
         {
             try
@@ -282,10 +284,12 @@ internal sealed class SearchExecutionEngine : IDisposable
         int searchVersion,
         CancellationToken token,
         Action<List<AppSearchResult>, string, bool> onResultsUpdated,
-        Func<bool>? shouldEmitInstantResults, string? contextDirectory) => _ = Task.Run(() =>
+        Func<bool>? shouldEmitInstantResults, string? contextDirectory,
+        Func<string?, List<AppSearchResult>>? collectInstantResults) => _ = Task.Run(() =>
                                                       {
-                                                          var instantResults = new List<AppSearchResult>();
-                                                          PluginSearchResultMapper.AddInstantResults(instantResults, query, highlightQuery, isInlineSearchContext, contextDirectory);
+                                                          var instantResults = collectInstantResults?.Invoke(contextDirectory) ?? new List<AppSearchResult>();
+                                                          if (collectInstantResults == null)
+                                                              PluginSearchResultMapper.AddInstantResults(instantResults, query, highlightQuery, isInlineSearchContext, contextDirectory);
                                                           if (instantResults.Count == 0 || token.IsCancellationRequested)
                                                               return;
 

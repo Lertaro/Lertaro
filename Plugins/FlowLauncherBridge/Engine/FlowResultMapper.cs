@@ -1,6 +1,8 @@
 using System.IO;
+using System.Runtime.CompilerServices;
 using Flow.Launcher.Plugin;
 using Lertaro.PluginSdk.Abstractions.Plugins;
+using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.FlowLauncherBridge.Engine;
 
@@ -9,6 +11,9 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Engine;
 /// </summary>
 public static class FlowResultMapper
 {
+    // Result actions keep the Flow result alive while a row is displayed, including after query-cache expiry.
+    private static readonly ConditionalWeakTable<Result, PluginPreviewEntry> Previews = new();
+
     public static List<InstantResultItem> MapToInstantResults(IEnumerable<Result> flowResults, FlowPluginHost? host = null) =>
         flowResults.Select(r => MapToInstantResult(r, host)).ToList();
 
@@ -66,9 +71,9 @@ public static class FlowResultMapper
         {
             var pluginName = host?.GetAllPlugins().FirstOrDefault(p => p.Metadata.ID == flowResult.PluginID)?.Metadata.Name ?? "Flow Launcher Plugin";
             var previewFactory = flowResult.PreviewPanel;
-            var scopedPreviewFactory = new Lazy<System.Windows.Controls.UserControl>(
-                () => FlowPreviewEnvironment.CreatePreview(previewFactory));
-            actionArg = PluginSdk.Services.PluginPreviewCache.Register(title, pluginName, scopedPreviewFactory, iconProvider);
+            var entry = Previews.GetValue(flowResult, _ => new PluginPreviewEntry(title, pluginName,
+                new Lazy<System.Windows.Controls.UserControl>(() => FlowPreviewEnvironment.CreatePreview(previewFactory)), iconProvider));
+            actionArg = PluginPreviewCache.Register(entry);
         }
 
         var item = new InstantResultItem

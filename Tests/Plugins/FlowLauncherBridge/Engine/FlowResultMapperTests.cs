@@ -1,11 +1,55 @@
 using Flow.Launcher.Plugin;
+using System.Windows.Controls;
+using Lertaro.PluginSdk.Services;
 using Lertaro.Plugins.FlowLauncherBridge.Engine;
 
 namespace Lertaro.Plugins.FlowLauncherBridge.Tests.Engine;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class FlowResultMapperTests
 {
+    [StaTestMethod]
+    [DataRow(99)]
+    [DataRow(150)]
+    public void RepeatedMaps_KeepLiveDictionaryPreviewsAfterCacheChurn(int count)
+    {
+        var oldDirectory = UserDataService.GetUserDataDirectoryFunc;
+        var directory = Directory.CreateTempSubdirectory("FlowPreviewLifetime-");
+        UserDataService.GetUserDataDirectoryFunc = () => directory.FullName;
+        try
+        {
+            var results = Enumerable.Range(0, count).Select(i => new Result
+            {
+                Title = $"word-{i}",
+                PreviewPanel = new Lazy<UserControl>(() => new UserControl { Content = new TextBlock { Text = $"definition-{i}" } })
+            }).ToList();
+            var first = FlowResultMapper.MapToInstantResults(results);
+            for (var repeat = 0; repeat < 8; repeat++)
+            {
+                var next = FlowResultMapper.MapToInstantResults(results);
+                CollectionAssert.AreEqual(first.Select(r => r.ActionArgument).ToArray(), next.Select(r => r.ActionArgument).ToArray());
+            }
+            for (var i = 0; i < 200; i++)
+                PluginPreviewCache.Register("other", "other", new Lazy<UserControl>(() => new UserControl()));
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            foreach (var (item, i) in first.Select((item, i) => (item, i)))
+            {
+                var panel = Assert.IsInstanceOfType<UserControl>(PluginPreviewCache.GetPreview(item.ActionArgument));
+                Assert.AreEqual($"definition-{i}", Assert.IsInstanceOfType<TextBlock>(panel.Content).Text);
+            }
+            GC.KeepAlive(first);
+        }
+        finally
+        {
+            UserDataService.GetUserDataDirectoryFunc = oldDirectory;
+            directory.Delete(true);
+        }
+    }
+
     [TestMethod]
     public void MapToInstantResult_MapsBasicProperties()
     {

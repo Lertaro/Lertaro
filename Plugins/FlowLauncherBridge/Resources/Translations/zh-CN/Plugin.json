@@ -30,6 +30,7 @@
   "FlowLauncherBridge_PluginActionKeywordLabel": "触发词",
   "FlowLauncherBridge_PluginActionKeywordDesc": "自定义触发该插件的关键字（例如默认的 \"{0}\"）。",
   "FlowLauncherBridge_PreviewProviderName": "Flow 插件预览提供者",
+  "FlowLauncherBridge_PreviewUnavailable": "预览已失效，请重新搜索。",
   "Plugin_Comp_Desc_FlowPreviewProvider": "在快捷预览窗口中渲染 Flow.Launcher 插件的自定义预览面板。",
   "Plugin_Comp_Desc_FlowInstantResultProvider": "负责分发关键词查询至已加载的 Flow.Launcher 插件并提供即时搜索结果与配置管理。",
   "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "为 Flow.Launcher 桥接插件提供多语言翻译和本地化映射。"

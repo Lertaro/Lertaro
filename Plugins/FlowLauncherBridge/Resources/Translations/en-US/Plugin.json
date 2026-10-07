@@ -30,6 +30,7 @@
   "FlowLauncherBridge_PluginActionKeywordLabel": "Action Keyword",
   "FlowLauncherBridge_PluginActionKeywordDesc": "Custom trigger keyword for this plugin (e.g. default \"{0}\").",
   "FlowLauncherBridge_PreviewProviderName": "Flow Plugin Preview Provider",
+  "FlowLauncherBridge_PreviewUnavailable": "This preview is no longer available. Search again.",
   "Plugin_Comp_Desc_FlowPreviewProvider": "Renders custom preview panels for Flow.Launcher plugins inside the QuickLook window.",
   "Plugin_Comp_Desc_FlowInstantResultProvider": "Dispatches keyword queries to loaded Flow.Launcher plugins and manages instant results and settings.",
   "Plugin_Comp_Desc_FlowLauncherBridgeTranslationProvider": "Provides multilingual translations and localization mappings for Flow.Launcher bridge plugins."

@@ -31,7 +31,8 @@ public class FlowPreviewProvider : IFilePreviewProvider
 
         var tb = new System.Windows.Controls.TextBlock
         {
-            Text = path,
+            Text = TranslationService.Get("FlowLauncherBridge_PreviewUnavailable"),
+            TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(12)
         };
         return tb;

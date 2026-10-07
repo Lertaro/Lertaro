@@ -1,6 +1,8 @@
 using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 using Lertaro.App.ViewModels.Search.Dispatch;
+using Lertaro.App.Services.Plugin;
+using Lertaro.PluginSdk.Abstractions.Plugins;
 
 using SearchWindowType = Lertaro.PluginSdk.Abstractions.SearchWindowType;
 
@@ -32,27 +34,22 @@ public static class SearchResultMapper
         public bool HasPluginSearchActions;
     }
 
-    private static void CollectInstantPass(InstantPassCache pass, string rawQuery, string query, bool isInlineWindow, string? contextDirectory)
+    internal static List<AppSearchResult> CollectInstantPass(InstantPassCache pass, string rawQuery, string query, bool isInlineWindow, string? contextDirectory,
+        IEnumerable<IInstantResultProvider>? providers = null)
     {
-        if (pass.Collected)
-            return;
+        // The early result emission and the file render run on different workers for the same search.
+        lock (pass)
+        {
+            if (pass.Collected)
+                return pass.Rows;
 
-        // Instant-result plugins get the untouched raw text (keyword + any " :xxx" token suffix) rather
-        // than the stripped keyword everything else here uses -- a plugin like a calculator or unit
-        // converter may care about the suffix itself, and it has no other way to see it since the token
-        // is consumed before reaching here for every other purpose (file search, highlighting, ...).
-        PluginSearchResultMapper.AddInstantResults(pass.Rows, rawQuery, query, isInlineWindow, contextDirectory);
-
-        // Plugin actions keep their own grouped-by-GroupName display (unlike everything below, these
-        // are explicit keyword triggers the user deliberately typed, not fuzzy-guessed candidates, so
-        // "how well did this match the query text" isn't a meaningful way to rank them against files/
-        // apps/favorites) -- positioned right after instant results, before the weighted candidates.
-        // Raw text, for the same reason as the instant results above and now more strongly: a command word
-        // ("mkdir sub") is stripped out of `query` so it stops being matched and highlighted as file text,
-        // and matching the action against that stripped remainder would delete the very row the word asked
-        // for. ArgumentText is the action's own business, and KeywordMatcher reads it from here.
-        pass.HasPluginSearchActions = PluginSearchResultMapper.AddPluginSearchActionResults(pass.Rows, rawQuery, contextDirectory, isInlineWindow);
-        pass.Collected = true;
+            // Providers and command actions need the original trigger word; only highlighting uses the stripped query.
+            PluginSearchResultMapper.AddInstantResults(pass.Rows, rawQuery, query, isInlineWindow, contextDirectory,
+                providers ?? PluginManager.Instance.InstantResultProviders);
+            pass.HasPluginSearchActions = PluginSearchResultMapper.AddPluginSearchActionResults(pass.Rows, rawQuery, contextDirectory, isInlineWindow);
+            pass.Collected = true;
+            return pass.Rows;
+        }
     }
 
     // skipDisplayCap: token mode (SearchDispatchController.ComposeAndApplyAsync) still applies its own
