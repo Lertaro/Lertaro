@@ -109,4 +109,8 @@
     <Delete Files="@(CalendarPublishOutput)" />
   </Target>
 
+  <ItemGroup>
+    <AssemblyMetadata Include="Lertaro.Plugin.NameKey" Value="Calendar_PluginName" />
+    <AssemblyMetadata Include="Lertaro.Plugin.DescriptionKey" Value="Calendar_PluginDesc" />
+  </ItemGroup>
 </Project>

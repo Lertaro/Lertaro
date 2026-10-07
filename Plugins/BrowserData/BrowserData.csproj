@@ -108,4 +108,8 @@
     <Delete Files="@(BrowserDataPublishOutput)" />
   </Target>
 
+  <ItemGroup>
+    <AssemblyMetadata Include="Lertaro.Plugin.NameKey" Value="BrowserData_PluginName" />
+    <AssemblyMetadata Include="Lertaro.Plugin.DescriptionKey" Value="BrowserData_PluginDesc" />
+  </ItemGroup>
 </Project>

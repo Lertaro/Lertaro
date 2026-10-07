@@ -104,14 +104,14 @@ public static class PluginLoaderHelper
     internal static void AddDisabledPlugins(List<PluginInfoViewModel> result, string pluginsDir, UserSettings userSettings)
     {
         // A disabled plugin must remain manageable without executing constructors or config callbacks.
-        // ponytail: use DLL names offline; declarative manifests would be needed for localized metadata.
         foreach (var file in Directory.EnumerateFiles(pluginsDir, "Lertaro.Plugins.*.dll", SearchOption.AllDirectories))
         {
             var dllName = Path.GetFileName(file);
             if (!userSettings.DisabledPluginAssemblies.Contains(dllName, StringComparer.OrdinalIgnoreCase)
                 || result.Any(p => p.DllFileName.Equals(dllName, StringComparison.OrdinalIgnoreCase))) continue;
-            result.Add(new PluginInfoViewModel(Path.GetFileNameWithoutExtension(file), "", dllName, "", [], [],
-                description: TranslationManager.Instance["Plugins_DisabledUntilRestart"], isPluginEnabled: false));
+            var metadata = PluginMetadataReader.Read(file, TranslationManager.Instance.CurrentCulture);
+            result.Add(new PluginInfoViewModel(metadata.Name, metadata.Version, dllName, metadata.SdkVersion, [], [],
+                description: metadata.Description, isPluginEnabled: false));
         }
     }
 

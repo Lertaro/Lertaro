@@ -23,4 +23,8 @@
     <Copy SourceFiles="$(TargetDir)$(TargetName).dll" DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\" SkipUnchangedFiles="true" />
   </Target>
 
+  <ItemGroup>
+    <AssemblyMetadata Include="Lertaro.Plugin.NameKey" Value="SystemSettings_PluginName" />
+    <AssemblyMetadata Include="Lertaro.Plugin.DescriptionKey" Value="SystemSettings_PluginDesc" />
+  </ItemGroup>
 </Project>

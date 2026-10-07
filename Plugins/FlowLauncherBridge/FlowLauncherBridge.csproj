@@ -56,4 +56,8 @@
     <Delete Files="@(FlowBridgePublishOutput)" Condition="$([System.IO.Path]::IsPathRooted('$(PublishDir)'))" />
   </Target>
 
+  <ItemGroup>
+    <AssemblyMetadata Include="Lertaro.Plugin.NameKey" Value="FlowLauncherBridge_PluginName" />
+    <AssemblyMetadata Include="Lertaro.Plugin.DescriptionKey" Value="FlowLauncherBridge_PluginDesc" />
+  </ItemGroup>
 </Project>

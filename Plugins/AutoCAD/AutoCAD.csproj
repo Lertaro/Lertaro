@@ -25,4 +25,8 @@
     <Copy SourceFiles="$(TargetDir)$(TargetName).dll" DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\" SkipUnchangedFiles="true" />
     <Copy SourceFiles="$(TargetDir)$(TargetName).dll" DestinationFolder="..\..\Service\bin\$(Configuration)\net10.0-windows\Plugins\" SkipUnchangedFiles="true" />
   </Target>
+  <ItemGroup>
+    <AssemblyMetadata Include="Lertaro.Plugin.Name" Value="AutoCAD" />
+    <AssemblyMetadata Include="Lertaro.Plugin.DescriptionKey" Value="AutoCAD_PluginDescription" />
+  </ItemGroup>
 </Project>

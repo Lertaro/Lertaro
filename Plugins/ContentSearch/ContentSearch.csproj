@@ -86,4 +86,8 @@
     <Delete Files="@(ContentSearchPublishOutput)" />
   </Target>
 
+  <ItemGroup>
+    <AssemblyMetadata Include="Lertaro.Plugin.NameKey" Value="ContentSearch_PluginName" />
+    <AssemblyMetadata Include="Lertaro.Plugin.DescriptionKey" Value="ContentSearch_PluginDesc" />
+  </ItemGroup>
 </Project>

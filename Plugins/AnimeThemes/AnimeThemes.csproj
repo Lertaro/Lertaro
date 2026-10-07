@@ -21,4 +21,8 @@
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <Copy SourceFiles="$(TargetDir)$(TargetName).dll" DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\" SkipUnchangedFiles="true" />
   </Target>
+  <ItemGroup>
+    <AssemblyMetadata Include="Lertaro.Plugin.NameKey" Value="AnimeThemes_PluginName" />
+    <AssemblyMetadata Include="Lertaro.Plugin.DescriptionKey" Value="AnimeThemes_PluginDesc" />
+  </ItemGroup>
 </Project>

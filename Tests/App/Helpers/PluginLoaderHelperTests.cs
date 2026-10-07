@@ -9,6 +9,28 @@ namespace Lertaro.App.Tests.Helpers;
 public sealed class PluginLoaderHelperTests
 {
     [TestMethod]
+    public void DisabledPluginCard_DisplaysMetadataWithNoComponentsOrConfigCallbacks()
+    {
+        var directory = Directory.CreateTempSubdirectory("Lertaro-disabled-metadata-");
+        try
+        {
+            const string name = "Lertaro.Plugins.SystemSettings.dll";
+            File.Copy(Path.Combine(AppContext.BaseDirectory, name), Path.Combine(directory.FullName, name));
+            var plugins = new List<PluginInfoViewModel>();
+            PluginLoaderHelper.AddDisabledPlugins(plugins, directory.FullName, new UserSettings { DisabledPluginAssemblies = [name] });
+            var plugin = Assert.ContainsSingle(plugins);
+            Assert.AreNotEqual(Path.GetFileNameWithoutExtension(name), plugin.Name);
+            Assert.IsFalse(string.IsNullOrWhiteSpace(plugin.Version));
+            Assert.IsFalse(string.IsNullOrWhiteSpace(plugin.Description));
+            Assert.IsEmpty(plugin.RawComponents);
+            Assert.IsEmpty(plugin.ConfigFields);
+            Assert.IsNull(plugin.OnSave);
+            Assert.IsFalse(plugin.IsPluginEnabled);
+        }
+        finally { directory.Delete(true); }
+    }
+
+    [TestMethod]
     public void DisabledPluginCard_IsAvailableWithoutOpeningDllOrCreatingConfig()
     {
         var directory = Directory.CreateTempSubdirectory("Lertaro-disabled-card-");
