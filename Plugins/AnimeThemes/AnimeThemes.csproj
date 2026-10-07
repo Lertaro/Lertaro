@@ -6,7 +6,7 @@
     <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Lertaro.Plugins.AnimeThemes</AssemblyName>
-    <Version>1.1.1</Version>
+    <Version>1.2.0</Version>
       <GenerateDependencyFile>false</GenerateDependencyFile>
   </PropertyGroup>
 
