@@ -82,6 +82,33 @@ public sealed class RegexQueryParserTests
     }
 
     [TestMethod]
+    [DataRow(true)]
+    [DataRow(false)]
+    public void Match_RegexClausesUseAnd_AlternationStaysInsideAClause(bool andFirst)
+    {
+        var previous = SearchContext.AndFirstPrecedence;
+        try
+        {
+            SearchContext.AndFirstPrecedence = andFirst;
+            var separate = FzfPattern.Parse("/foo/ /bar/");
+            Assert.IsTrue(separate.TryMatch("foobar.txt", out _, FzfScoringScheme.Default));
+            Assert.IsFalse(separate.TryMatch("foo.txt", out _, FzfScoringScheme.Default));
+            Assert.IsFalse(separate.TryMatch("bar.txt", out _, FzfScoringScheme.Default));
+
+            var alternative = FzfPattern.Parse("/(foo|bar)/");
+            Assert.IsTrue(alternative.TryMatch("foo.txt", out _, FzfScoringScheme.Default));
+            Assert.IsTrue(alternative.TryMatch("bar.txt", out _, FzfScoringScheme.Default));
+
+            var mixed = FzfPattern.Parse(@"foo | bar /\.txt$/");
+            Assert.IsTrue(mixed.TryMatch("foo.txt", out _, FzfScoringScheme.Default));
+            Assert.IsTrue(mixed.TryMatch("bar.txt", out _, FzfScoringScheme.Default));
+            Assert.IsFalse(mixed.TryMatch("foo.md", out _, FzfScoringScheme.Default));
+            Assert.IsFalse(mixed.TryMatch("bar.md", out _, FzfScoringScheme.Default));
+        }
+        finally { SearchContext.AndFirstPrecedence = previous; }
+    }
+
+    [TestMethod]
     public void Split_TwoClauses_BothExtractedAndAnded()
     {
         var rest = RegexQueryParser.Split("/^a/ /\\.md$/ report", out var patterns);
