@@ -19,14 +19,23 @@ internal static partial class DirectoryLockNativeMethods
 
     // Backup reads need neither DELETE nor WRITE_DAC. Pin directories against rename while allowing
     // creation of children; pin files against writes until their contents have been copied.
-    internal static SafeFileHandle OpenForBackup(string path, SafeFileHandle? parent, bool directory)
+    // pathToRoot marks a component of the chain leading down to the tree's own root. That chain is the
+    // filesystem's own layout -- a portable copy installed by scoop is reached through `current`, linked
+    // to the version folder, and keeps `Data` behind a second link -- so such a component is resolved
+    // through whatever link is there instead of being refused: a handle to the link itself cannot serve
+    // as the parent of a relative open (Windows answers ERROR_INVALID_NAME), and the tree's root is
+    // opened exactly that way. Nothing at or below the root gets this, so entries inside the tree stay
+    // link-free. ponytail: resolving pins the link's target, not the link name; the chain is trusted
+    // because it is what the machine installed the app with, and the caller vouches for the root itself
+    // (UserDataAccess.Verify refuses a linked user data root before a session starts).
+    internal static SafeFileHandle OpenForBackup(string path, SafeFileHandle? parent, bool directory, bool pathToRoot = false)
     {
         const uint access = FileReadAttributes | 0x00100001u;
         var share = directory ? Win32Api.FILE_SHARE_READ | Win32Api.FILE_SHARE_WRITE : Win32Api.FILE_SHARE_READ;
         var error = 0;
-        var handle = parent != null ? OpenRelative(parent, path, access, share, out error)
+        var handle = parent != null ? OpenRelative(parent, path, access, share, out error, pathToRoot)
             : Win32Api.CreateFileW(path, access, share, IntPtr.Zero, Win32Api.OPEN_EXISTING,
-                Win32Api.FILE_FLAG_BACKUP_SEMANTICS | Win32Api.FILE_FLAG_OPEN_REPARSE_POINT, IntPtr.Zero);
+                Win32Api.FILE_FLAG_BACKUP_SEMANTICS | (pathToRoot ? 0u : Win32Api.FILE_FLAG_OPEN_REPARSE_POINT), IntPtr.Zero);
         if (handle.IsInvalid)
         {
             if (parent == null) error = Marshal.GetLastWin32Error();
@@ -37,7 +46,7 @@ internal static partial class DirectoryLockNativeMethods
         }
         var info = GetInfo(handle);
         var attributes = (FileAttributes)info.dwFileAttributes;
-        if (attributes.HasFlag(FileAttributes.ReparsePoint) || (!directory && info.nNumberOfLinks > 1) ||
+        if ((!pathToRoot && attributes.HasFlag(FileAttributes.ReparsePoint)) || (!directory && info.nNumberOfLinks > 1) ||
             attributes.HasFlag(FileAttributes.Directory) != directory)
         {
             handle.Dispose();
@@ -88,7 +97,10 @@ internal static partial class DirectoryLockNativeMethods
 
     // NtOpenFile's RootDirectory pins the actual parent object. A rename/junction swap after enumeration
     // cannot redirect this open. Layouts below follow the Windows SDK winternl.h declarations.
-    private static unsafe SafeFileHandle OpenRelative(SafeFileHandle parent, string name, uint access, uint share, out int error)
+    // followLink drops FILE_OPEN_REPARSE_POINT so a component of the path down to the tree's root opens
+    // what it points at; with the flag set, a link in the chain could not be used as a parent at all.
+    private static unsafe SafeFileHandle OpenRelative(SafeFileHandle parent, string name, uint access, uint share, out int error,
+        bool followLink = false)
     {
         if (name != Path.GetFileName(name) || name is "." or "..") throw new ArgumentException("Expected one file name.");
         fixed (char* chars = name)
@@ -100,11 +112,13 @@ internal static partial class DirectoryLockNativeMethods
                 parent.DangerousAddRef(ref added);
                 var attributes = new ObjectAttributes
                 {
-                    Length = (uint)sizeof(ObjectAttributes), RootDirectory = parent.DangerousGetHandle(),
-                    ObjectName = &unicode, Attributes = 0x40 // OBJ_CASE_INSENSITIVE
+                    Length = (uint)sizeof(ObjectAttributes),
+                    RootDirectory = parent.DangerousGetHandle(),
+                    ObjectName = &unicode,
+                    Attributes = 0x40 // OBJ_CASE_INSENSITIVE
                 };
-                // FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT | FILE_OPEN_REPARSE_POINT
-                var status = NtOpenFile(out var handle, access, &attributes, out _, share, 0x00204020);
+                // FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT [| FILE_OPEN_REPARSE_POINT]
+                var status = NtOpenFile(out var handle, access, &attributes, out _, share, followLink ? 0x00004020u : 0x00204020u);
                 error = status < 0 ? (int)RtlNtStatusToDosError(status) : 0;
                 return handle;
             }

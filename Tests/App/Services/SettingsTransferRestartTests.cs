@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using Lertaro.App.Services;
 using Lertaro.Core;
@@ -50,6 +51,40 @@ public sealed class SettingsTransferRestartTests
             Assert.AreEqual("previous backup", File.ReadAllText(destination));
         }
         finally { Directory.Delete(root, true); }
+    }
+
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public void StartSession_DataDirectoryBehindScoopJunctions_StartsWithoutATransferFailure(bool throughCurrent)
+    {
+        var root = Directory.CreateTempSubdirectory("LertaroScoopData-").FullName;
+        var links = new List<string>();
+        try
+        {
+            // scoop keeps Data in persist\<app>\Data and links it into the version folder, and links
+            // `current` to the version folder: launching either the shortcut (through `current`) or the
+            // version folder itself puts the whole data path behind links.
+            var version = Directory.CreateDirectory(Path.Combine(root, "apps", "lertaro", "5.9.1")).FullName;
+            var persist = Directory.CreateDirectory(Path.Combine(root, "persist", "lertaro", "Data")).FullName;
+            links.Add(CreateLink(Path.Combine(version, "Data"), persist));
+            var current = Path.Combine(root, "apps", "lertaro", "current");
+            links.Add(CreateLink(current, version));
+            var data = Directory.CreateDirectory(Path.Combine(throughCurrent ? current : version, "Data", "Users", "hash")).FullName;
+            File.WriteAllText(Path.Combine(data, "user-settings.json"), "{}");
+            File.WriteAllText(Path.Combine(data, "plugin-settings.json"), "{}");
+
+            using var session = SettingsTransferRestart.StartSession(data, [], out var message);
+
+            Assert.IsNull(message);
+            Assert.AreEqual("{}", File.ReadAllText(Path.Combine(data, "user-settings.json")));
+        }
+        finally
+        {
+            // Directory.Delete(root, recursive: true) gives up on a tree that still holds a junction.
+            foreach (var link in links) Directory.Delete(link);
+            Directory.Delete(root, true);
+        }
     }
 
     [TestMethod]
@@ -134,5 +169,16 @@ public sealed class SettingsTransferRestartTests
             Assert.AreEqual("{\"Theme\":\"last-save\"}", reader.ReadToEnd());
         }
         finally { Directory.Delete(root, true); }
+    }
+
+    private static string CreateLink(string link, string target)
+    {
+        var start = new ProcessStartInfo("cmd.exe") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+        foreach (var arg in new[] { "/c", "mklink", "/J", Path.GetFullPath(link), Path.GetFullPath(target) }) start.ArgumentList.Add(arg);
+        using var process = Process.Start(start)!;
+        var output = process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd();
+        process.WaitForExit();
+        Assert.AreEqual(0, process.ExitCode, output);
+        return link;
     }
 }

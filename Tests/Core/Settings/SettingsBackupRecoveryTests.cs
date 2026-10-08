@@ -20,7 +20,22 @@ public sealed class SettingsBackupRecoveryTests
     }
 
     [TestCleanup]
-    public void Cleanup() => Directory.Delete(_root, true);
+    public void Cleanup()
+    {
+        RemoveLinks(_root);
+        Directory.Delete(_root, true);
+    }
+
+    // Directory.Delete(root, recursive: true) gives up on a tree that still holds a junction, and plain
+    // enumeration would follow one; the links these tests plant are therefore cut first.
+    private static void RemoveLinks(string directory)
+    {
+        foreach (var entry in Directory.EnumerateDirectories(directory))
+        {
+            if (File.GetAttributes(entry).HasFlag(FileAttributes.ReparsePoint)) Directory.Delete(entry);
+            else RemoveLinks(entry);
+        }
+    }
 
     [TestMethod]
     public void Recover_InterruptedImport_RestoresOriginalsRemovesNewFilesAndIsIdempotent()
@@ -137,6 +152,52 @@ public sealed class SettingsBackupRecoveryTests
             Assert.AreEqual("existing backup", File.ReadAllText(backup));
         }
         finally { acl.RemoveAccessRuleSpecific(deny); file.SetAccessControl(acl); }
+    }
+
+    [TestMethod]
+    public void BackupPaths_PathToRootBehindJunctions_IsPinnedInsteadOfRefused()
+    {
+        // A portable copy installed by scoop keeps its data in persist\<app>\Data, linked into the
+        // version folder, and links `current` to that version folder. Its own data directory is then
+        // reached through links, which are the filesystem's layout rather than links inside the tree.
+        var version = Folder("apps/lertaro/5.9.1");
+        var persist = Folder("persist/lertaro/Data");
+        CreateLink("/J", Path.Combine(version, "Data"), persist);
+        var current = Path.Combine(_root, "apps", "lertaro", "current");
+        CreateLink("/J", current, version);
+        // Through the link, and through the version folder the link resolves to.
+        var data = Directory.CreateDirectory(Path.Combine(current, "Data", "Users", "hash")).FullName;
+        Write(data, "user-settings.json", "{\"Theme\":\"persisted\"}");
+        Write(data, "Calendar/reminders.json", "keep");
+
+        var zip = Path.Combine(_root, "backup.zip");
+        SettingsBackup.Export(data, zip, "test");
+        var stage = Folder("stage");
+        SettingsBackup.Prepare(zip, stage);
+        Write(data, "user-settings.json", "{\"Theme\":\"overwritten\"}");
+        SettingsBackup.Apply(stage, data);
+
+        // The importer rewrites the settings file (normalized JSON, storage version), so compare content.
+        using var imported = JsonDocument.Parse(File.ReadAllText(Path.Combine(data, "user-settings.json")));
+        Assert.AreEqual("persisted", imported.RootElement.GetProperty("Theme").GetString());
+        Assert.AreEqual("keep", File.ReadAllText(Path.Combine(data, "Calendar/reminders.json")));
+    }
+
+    [TestMethod]
+    public void BackupPaths_RootItselfIsAJunction_ReadsItWithoutTouchingLinksInside()
+    {
+        // The application folder is `current`, a junction, whenever the shortcut or the protocol
+        // handler launches the app: the plugin inventory is read from exactly that path.
+        var installed = Folder("apps/lertaro/5.9.1");
+        Write(installed, "Plugins/not-loadable/plugin.json", """{"ID":"stable-id"}""");
+        var current = Path.Combine(_root, "apps", "lertaro", "current");
+        CreateLink("/J", current, installed);
+
+        using var paths = new SettingsBackupPaths(current);
+        var files = paths.Files("Plugins").ToList();
+
+        Assert.HasCount(1, files);
+        Assert.AreEqual("Plugins/not-loadable/plugin.json", files[0]);
     }
 
     private static void CreateLink(string kind, string link, string target)

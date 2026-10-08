@@ -4,7 +4,11 @@ using Microsoft.Win32.SafeHandles;
 namespace Lertaro.Core;
 
 // Pins every ancestor, including those above UserData. A check-then-open of a full path alone would
-// reintroduce the junction/rename race repaired in 58e7ae14. Never changes an ACL or follows a link.
+// reintroduce the junction/rename race repaired in 58e7ae14. The chain down to Root may pass through
+// links -- a portable copy installed by scoop is reached through its `current` junction and keeps its
+// data in a persisted `Data` junction under it -- because every component is held open below and
+// FILE_SHARE_DELETE is not granted, so none of them can be renamed or retargeted afterwards. Entries
+// inside Root are still opened link-free: those are the ones another local user could plant.
 internal sealed class SettingsBackupPaths : IDisposable
 {
     private readonly Dictionary<string, SafeFileHandle> _directories = new(StringComparer.OrdinalIgnoreCase);
@@ -42,9 +46,19 @@ internal sealed class SettingsBackupPaths : IDisposable
         var parent = Directory.GetParent(path)?.FullName;
         var parentHandle = parent == null ? null : OpenDirectory(parent);
         if (create && parentHandle != null) Directory.CreateDirectory(path);
-        var handle = DirectoryLockNativeMethods.OpenForBackup(parent == null ? path : Path.GetFileName(path), parentHandle, true);
+        var handle = DirectoryLockNativeMethods.OpenForBackup(parent == null ? path : Path.GetFileName(path), parentHandle, true,
+            pathToRoot: IsPathToRoot(path));
         _directories.Add(path, handle);
         return handle;
+    }
+
+    // Root itself and every component above it: the filesystem's own layout, not content this tree
+    // validates. Everything below Root answers false, so a link there is still refused.
+    private bool IsPathToRoot(string path)
+    {
+        if (path.Equals(Root, StringComparison.OrdinalIgnoreCase)) return true;
+        var prefix = path.EndsWith(Path.DirectorySeparatorChar) ? path : path + Path.DirectorySeparatorChar;
+        return Root.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
     }
 
     public void CreateParents(string relative)
