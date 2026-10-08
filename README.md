@@ -1,6 +1,7 @@
 <p align="center">
-  <img src="App/logo.png" alt="Lertaro logo" width="120">
+  <img src="logo.webp" alt="Lertaro logo" width="120">
 </p>
+<!--This Webp Logo is lossless and could be used a backup of the origin version.-->
 
 # ⚡ Lertaro
 
