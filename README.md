@@ -1,7 +1,6 @@
 <p align="center">
   <img src="logo.webp" alt="Lertaro logo" width="120">
 </p>
-<!--This Webp Logo is lossless and could be used a backup of the origin version.-->
 
 # ⚡ Lertaro
 

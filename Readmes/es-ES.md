@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="../App/logo.png" alt="Lertaro logo" width="120">
+  <img src="../logo.webp" alt="Lertaro logo" width="120">
 </p>
 
 # ⚡ Lertaro

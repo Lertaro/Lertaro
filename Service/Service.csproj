@@ -8,6 +8,7 @@
     <ServerGarbageCollection>false</ServerGarbageCollection>
     <RetainVM>false</RetainVM>
     <AssemblyName>Lertaro.Service</AssemblyName>
+    <ApplicationIcon>..\App\logo.ico</ApplicationIcon>
     <RootNamespace>Lertaro.Service</RootNamespace>
     <Version>1.1.7</Version>
     <!-- The hook runs from this exe elevated. With startup hooks off, DOTNET_STARTUP_HOOKS set by the user

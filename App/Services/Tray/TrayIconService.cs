@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using System.Windows;
 using Lertaro.App.ViewModels.Search;
 using Lertaro.Core;
@@ -7,12 +6,8 @@ namespace Lertaro.App.Services.Tray;
 
 public class TrayIconService : IDisposable
 {
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    private static extern bool DestroyIcon(IntPtr handle);
-
     private readonly TrayMenuController _menu;
     private NotifyIcon? _notifyIcon;
-    private IntPtr _hIcon;
     private bool _trayIconVisibleSetting = true;
 
     public static TrayIconService? Instance { get; private set; }
@@ -65,13 +60,11 @@ public class TrayIconService : IDisposable
         if (_notifyIcon == null) return;
         try
         {
-            var icon = TrayIconRenderer.CreateIcon(out var newHIcon);
-            if (icon == null) return;
-            var oldHIcon = _hIcon;
-            _hIcon = newHIcon;
-            _notifyIcon.Icon = icon;
-            if (oldHIcon != IntPtr.Zero)
-                DestroyIcon(oldHIcon);
+            var icon = TrayIconRenderer.CreateIcon();
+            var previous = _notifyIcon.Icon;
+            try { _notifyIcon.Icon = icon; }
+            catch { icon.Dispose(); throw; }
+            previous?.Dispose();
         }
         catch (Exception ex)
         {
@@ -96,6 +89,7 @@ public class TrayIconService : IDisposable
         try
         {
             _notifyIcon.Visible = false;
+            UpdateTrayIcon();
             // Re-add through the one rule that owns tray visibility: setting Visible = true here ignored
             // the user's "hide tray icon" choice, so the icon came back every time explorer.exe restarted.
             ApplyTrayIconVisible();
@@ -110,8 +104,14 @@ public class TrayIconService : IDisposable
     {
         _menu.Dispose();
         App.CloseAllManagedWindows();
-        if (_notifyIcon != null) { _notifyIcon.Visible = false; _notifyIcon.Dispose(); _notifyIcon = null; }
-        if (_hIcon != IntPtr.Zero) { DestroyIcon(_hIcon); _hIcon = IntPtr.Zero; }
+        if (_notifyIcon != null)
+        {
+            _notifyIcon.Visible = false;
+            var icon = _notifyIcon.Icon;
+            _notifyIcon.Dispose();
+            icon?.Dispose();
+            _notifyIcon = null;
+        }
         if (Instance == this) Instance = null;
     }
 }

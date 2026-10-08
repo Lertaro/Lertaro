@@ -8,6 +8,7 @@
     <!-- The command name directly, since the installer now just adds {app} (where this sits alongside
          Lertaro.App.exe etc.) to PATH: no more copy-then-rename-the-apphost step at runtime. -->
     <AssemblyName>lff</AssemblyName>
+    <ApplicationIcon>..\App\logo.ico</ApplicationIcon>
     <RootNamespace>Lertaro.Cli</RootNamespace>
     <Version>1.0.9</Version>
     <GenerateDependencyFile>false</GenerateDependencyFile>

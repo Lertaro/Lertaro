@@ -2,7 +2,7 @@
 
 Lertaro está construido sobre un modelo de aislamiento multiproceso y una arquitectura modular por capas, garantizando búsquedas en submilisegundos y una integración de escritorio con seguridad y estabilidad.
 
-![Diagrama de arquitectura de Lertaro](/architecture.svg)
+<ArchitectureDiagram />
 
 ## 1. Modelo de aislamiento de tres procesos
 

@@ -5,10 +5,11 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:services="clr-namespace:Lertaro.App.Services"
+             xmlns:theme="clr-namespace:Lertaro.App.Services.Theme"
              mc:Ignorable="d" 
              d:DesignHeight="50" d:DesignWidth="600">
     
-    <Grid>
+    <Grid x:Name="SearchRow">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/><!-- Left Icon Column -->
                 <ColumnDefinition Width="Auto"/><!-- Actions Label Column -->
@@ -38,15 +39,17 @@
                         </Style.Triggers>
                     </Style>
                 </Grid.Style>
-                <!-- Monochrome logo icon: breathes opacity in place while searching (issue #132). -->
-                <Border Width="{Binding LeftIconSize, ElementName=root}" Height="{Binding LeftIconSize, ElementName=root}" SnapsToDevicePixels="True" UseLayoutRounding="True" RenderOptions.BitmapScalingMode="HighQuality">
+                <!-- Preserve the ICO colors; state belongs to the outline and search animation. -->
+                <Border Width="{Binding LeftIconSize, ElementName=root}" Height="{Binding LeftIconSize, ElementName=root}"
+                        MaxHeight="{Binding ActualHeight, ElementName=SearchRow}" VerticalAlignment="Center"
+                        BorderThickness="1" CornerRadius="3" SnapsToDevicePixels="True" UseLayoutRounding="True">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Background" Value="#0098D8"/>
+                            <Setter Property="BorderBrush" Value="Transparent"/>
                             <Setter Property="Opacity" Value="1"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsStayOpen, ElementName=root}" Value="True">
-                                    <Setter Property="Background" Value="#007DB2"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
                                     <Setter Property="Opacity" Value="1.0"/>
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSearching}" Value="True">
@@ -73,20 +76,20 @@
                                         <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Grid}}" Value="True"/>
                                         <Condition Binding="{Binding IsIconClickable, ElementName=root}" Value="True"/>
                                     </MultiDataTrigger.Conditions>
-                                    <Setter Property="Background" Value="#007DB2"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
                                     <Setter Property="Opacity" Value="1"/>
                                 </MultiDataTrigger>
                                 <!-- Service warnings take priority over hover and Stay Open. -->
                                 <DataTrigger Binding="{Binding IsServiceRunning, ElementName=root}" Value="False">
-                                    <Setter Property="Background" Value="{DynamicResource WarningBrush}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}"/>
                                     <Setter Property="Opacity" Value="0.8"/>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
-                    <Border.OpacityMask>
-                        <ImageBrush ImageSource="pack://application:,,,/Lertaro.App;component/tray.png" RenderOptions.BitmapScalingMode="HighQuality"/>
-                    </Border.OpacityMask>
+                    <Image x:Name="LeftBrandIcon" theme:ThemedWindowIconHelper.UseAppIcon="True"
+                           theme:ThemedWindowIconHelper.MinimumFrameSize="{Binding MinimumIconFrameSize, ElementName=root}"
+                           Stretch="Uniform" VerticalAlignment="Center"/>
                 </Border>
             </Grid>
 
@@ -104,7 +107,7 @@
                 </StackPanel.Style>
                 <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_ActionsTitle]}"
                            Foreground="{DynamicResource AccentBlue}" FontSize="{Binding FontSize, ElementName=root}" VerticalAlignment="Center"/>
-                <Border Width="1" Height="{Binding RightIconSize, ElementName=root}" Margin="11,0,0,0" Background="{DynamicResource SeparatorBrush}" SnapsToDevicePixels="True"/>
+                <Border Width="1" Height="{Binding RightIconSize, ElementName=root}" MaxHeight="{Binding ActualHeight, ElementName=SearchRow}" Margin="11,0,0,0" Background="{DynamicResource SeparatorBrush}" SnapsToDevicePixels="True"/>
             </StackPanel>
 
             <!-- TextBox -->
@@ -202,17 +205,18 @@
                         </Style.Triggers>
                     </Style>
                 </Grid.Style>
-                <!-- Monochrome logo icon: the ONE element, at all times: see the left-icon block's own
-                     comment for why (issue #132). -->
-                <Border Width="{Binding RightIconSize, ElementName=root}" Height="{Binding RightIconSize, ElementName=root}" SnapsToDevicePixels="True" UseLayoutRounding="True" RenderOptions.BitmapScalingMode="HighQuality">
+                <!-- Keep one image in place while searching (issue #132). -->
+                <Border Width="{Binding RightIconSize, ElementName=root}" Height="{Binding RightIconSize, ElementName=root}"
+                        MaxHeight="{Binding ActualHeight, ElementName=SearchRow}" VerticalAlignment="Center"
+                        BorderThickness="1" CornerRadius="3" SnapsToDevicePixels="True" UseLayoutRounding="True">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Background" Value="#0098D8"/>
+                            <Setter Property="BorderBrush" Value="Transparent"/>
                             <Setter Property="Opacity" Value="1"/>
                             <Style.Triggers>
-                                <!-- Stay Open uses the same darker brand blue as hover. -->
+                                <!-- Stay Open and hover share an outline without recoloring the icon. -->
                                 <DataTrigger Binding="{Binding IsStayOpen, ElementName=root}" Value="True">
-                                    <Setter Property="Background" Value="#007DB2"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
                                     <Setter Property="Opacity" Value="1.0"/>
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSearching}" Value="True">
@@ -247,21 +251,20 @@
                                         <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Grid}}" Value="True"/>
                                         <Condition Binding="{Binding IsIconClickable, ElementName=root}" Value="True"/>
                                     </MultiDataTrigger.Conditions>
-                                    <Setter Property="Background" Value="#007DB2"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
                                     <Setter Property="Opacity" Value="1"/>
                                 </MultiDataTrigger>
                                 <!-- Service warnings take priority over hover and Stay Open. -->
                                 <DataTrigger Binding="{Binding IsServiceRunning, ElementName=root}" Value="False">
-                                    <Setter Property="Background" Value="{DynamicResource WarningBrush}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}"/>
                                     <Setter Property="Opacity" Value="0.8"/>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
-                    <Border.OpacityMask>
-                        <ImageBrush ImageSource="pack://application:,,,/Lertaro.App;component/tray.png"
-                                    RenderOptions.BitmapScalingMode="HighQuality"/>
-                    </Border.OpacityMask>
+                    <Image x:Name="RightBrandIcon" theme:ThemedWindowIconHelper.UseAppIcon="True"
+                           theme:ThemedWindowIconHelper.MinimumFrameSize="{Binding MinimumIconFrameSize, ElementName=root}"
+                           Stretch="Uniform" VerticalAlignment="Center"/>
                 </Border>
             </Grid>
         </Grid>

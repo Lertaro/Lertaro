@@ -5,7 +5,7 @@ hero:
   text: 고성능 확장형 Windows 로컬 검색 시스템
   tagline: USN 저널과 컬럼형 인메모리 인덱스를 기반으로 수백만 개의 파일을 즉시 검색하고 실행하며, 네이티브 파일 대화상자 도킹과 플러그인을 지원합니다.
   image:
-    src: /logo.png
+    src: /logo.webp
     alt: Lertaro Logo
 securityWarning:
   title: "보안 경고: 공식 소스만 신뢰하세요"

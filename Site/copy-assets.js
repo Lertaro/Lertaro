@@ -1,14 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 
-const srcLogoPng = path.join(__dirname, '../App/logo.png');
-const srcLogoIco = path.join(__dirname, '../App/logo.ico');
+const srcLogo = path.join(__dirname, '../logo.webp');
 
 // VitePress only ever serves static assets from <root>/public (config.srcDir + 'public'), not
 // .vitepress/public -- but that directory is entirely gitignored (it's a build-time copy target),
-// so tracked assets like the architecture diagrams live under .vitepress/public/ as the checked-in
-// source of truth and get mirrored into public/ here, the same way logo.png/favicon.ico are
-// mirrored in from App/.
+// so tracked assets live under .vitepress/public/ and are mirrored into public/ here.
+// The root logo.webp is the sole source of website branding.
 const trackedPublicDir = path.join(__dirname, '.vitepress/public');
 const servedPublicDir = path.join(__dirname, 'public');
 
@@ -24,16 +22,18 @@ dests.forEach(dir => {
 // Copy assets
 try {
   dests.forEach(dir => {
-    fs.copyFileSync(srcLogoPng, path.join(dir, 'logo.png'));
-    fs.copyFileSync(srcLogoIco, path.join(dir, 'favicon.ico'));
+    fs.copyFileSync(srcLogo, path.join(dir, 'logo.webp'));
+    for (const retired of ['logo.png', 'favicon.ico', 'architecture.svg', 'architecture-zh-CN.svg']) {
+      fs.rmSync(path.join(dir, retired), { force: true });
+    }
   });
 
   for (const file of fs.readdirSync(trackedPublicDir)) {
-    if (file === 'logo.png' || file === 'favicon.ico') continue; // already handled above
+    if (file === 'logo.webp') continue; // already handled above
     fs.copyFileSync(path.join(trackedPublicDir, file), path.join(servedPublicDir, file));
   }
 
-  console.log('[copy-assets] Successfully synchronized logo.png, favicon.ico, and tracked public assets.');
+  console.log('[copy-assets] Synchronized logo.webp and public assets.');
 } catch (err) {
   console.error('[copy-assets] Failed to synchronize assets:', err.message);
   process.exit(1);

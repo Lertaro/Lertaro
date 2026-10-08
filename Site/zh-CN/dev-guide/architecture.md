@@ -2,7 +2,7 @@
 
 Lertaro 采用多进程隔离与模块化分层设计，在实现毫秒级检索与窗口集成的同时，保证运行安全与稳定。
 
-![Lertaro 架构图](/architecture-zh-CN.svg)
+<ArchitectureDiagram />
 
 ## 1. 三进程隔离模型
 

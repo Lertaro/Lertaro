@@ -49,7 +49,10 @@
             </Grid.RowDefinitions>
 
             <!-- ═══════════ 1. Search Bar ═══════════ -->
-            <local:SearchBoxControl x:Name="SearchBox" Grid.Row="0" SearchText="{Binding SearchQuery, Mode=TwoWay}" Height="{Binding SearchBarHeight}" IsDynamicScalingEnabled="True" HorizontalAlignment="Stretch" IsServiceRunning="{Binding IsServiceConnected}"/>
+            <local:SearchBoxControl x:Name="SearchBox" Grid.Row="0" SearchText="{Binding SearchQuery, Mode=TwoWay}"
+                                    Height="{Binding SearchBarHeight}" IsDynamicScalingEnabled="True"
+                                    LeftIconSize="34" RightIconSize="34" MinimumIconFrameSize="32"
+                                    HorizontalAlignment="Stretch" IsServiceRunning="{Binding IsServiceConnected}"/>
 
             <!-- ═══════════ 2. Separator ═══════════ -->
             <Rectangle x:Name="ResultsSeparator"

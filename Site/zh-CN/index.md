@@ -5,7 +5,7 @@ hero:
   text: 高性能、可扩展的 Windows 本地检索系统
   tagline: 基于 USN 日志与列式内存索引，毫秒级定位文件与启动应用，兼具文件对话框挂载与开放插件生态。
   image:
-    src: /logo.png
+    src: /logo.webp
     alt: Lertaro Logo
 securityWarning:
   title: "安全警告：仅信任官方来源"

@@ -5,7 +5,7 @@ hero:
   text: 高效能、可擴充的 Windows 本機檢索系統
   tagline: 基於 USN 記錄檔與欄式記憶體索引，毫秒級定位檔案與啟動應用，兼具檔案對話方塊掛載與開放外掛生態。
   image:
-    src: /logo.png
+    src: /logo.webp
     alt: Lertaro Logo
 securityWarning:
   title: "安全警告：僅信任官方來源"

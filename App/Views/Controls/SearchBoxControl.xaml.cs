@@ -157,15 +157,20 @@ public partial class SearchBoxControl : UserControl
         var verticalPadding = Math.Clamp(height * 0.1, 4.0, 20.0);
         Padding = new Thickness(21, verticalPadding, 21, verticalPadding);
 
-        // Scale Left and Right icon sizes (e.g. Left: 70px -> 18.2px, Right: 70px -> 39.9px). Right kept
-        // at the same size-to-FontSize ratio as before (~1.15x) so it grows in step with the bigger text
-        // from the FontSize coefficient bump above, instead of looking undersized next to it.
-        LeftIconSize = Math.Clamp(height * 0.26, 10.0, 30.0);
-        RightIconSize = Math.Clamp(height * 0.57, 15.0, 45.0);
+        // Each window chooses its icon size; XAML caps it to the available row height.
     }
 
     public TextBox SearchTextBox => TxtSearch;
     public TextBlock PlaceholderTextBlock => TxtPlaceholder;
+
+    public static readonly DependencyProperty MinimumIconFrameSizeProperty = DependencyProperty.Register(
+        nameof(MinimumIconFrameSize), typeof(double), typeof(SearchBoxControl), new PropertyMetadata(16.0));
+
+    public double MinimumIconFrameSize
+    {
+        get => (double)GetValue(MinimumIconFrameSizeProperty);
+        set => SetValue(MinimumIconFrameSizeProperty, value);
+    }
 
     // IsDynamicScalingEnabled DependencyProperty
     public static readonly DependencyProperty IsDynamicScalingEnabledProperty = DependencyProperty.Register(

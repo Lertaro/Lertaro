@@ -62,17 +62,15 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <!-- Search bar area. The vertical margin is what actually sets how tall the drag
-                             band is: a Margin lies outside the element, so these bands above and below the
-                             search bar belong to HeaderDragArea and are the part of the header that can be
-                             grabbed. Widened from 12 to 16 because 12 still asked for a careful aim, and
-                             because growing the grip alone would have changed nothing: the grip is not
-                             hit-testable, it only shows where the band already is. -->
-                        <Grid Grid.Column="0" Margin="12,16,8,16">
+                        <!-- Trade some vertical margin for a 24px icon plus its outline, keeping the
+                             overall header compact. The remaining margin still belongs to the drag area. -->
+                        <Grid Grid.Column="0" Margin="12,12,8,12">
                             <!-- No dedicated drag grip: the header itself is the grab area now, and the
                                  logo has its own click handler now, so it stays out of the drag gesture. -->
                             <!-- Shared SearchBoxControl component -->
-                            <app:SearchBoxControl x:Name="SearchBox" FontSize="15" Padding="0" IsIconOnLeft="True" IsIconClickable="True" IconClickHint="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[SearchWindow_LogoClickHint]}" SearchText="{Binding AdvancedQuery, Mode=TwoWay}" IsServiceRunning="{Binding IsServiceConnected}"/>
+                            <app:SearchBoxControl x:Name="SearchBox" FontSize="15" Padding="0" Height="26"
+                                                  LeftIconSize="26" RightIconSize="26" MinimumIconFrameSize="24"
+                                                  IsIconOnLeft="True" IsIconClickable="True" IconClickHint="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[SearchWindow_LogoClickHint]}" SearchText="{Binding AdvancedQuery, Mode=TwoWay}" IsServiceRunning="{Binding IsServiceConnected}"/>
                         </Grid>
                         <!-- Drag grip: the affordance for the drag region above, which is otherwise
                              invisible and so undiscoverable (issue #195 asked for a title bar precisely

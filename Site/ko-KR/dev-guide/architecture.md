@@ -2,7 +2,7 @@
 
 Lertaro는 밀리초 단위 검색과 데스크톱 통합을 달성하는 동시에 시스템 안정성과 보안을 보장하기 위해 다중 프로세스 격리 아키텍처를 채택하고 있습니다.
 
-![Lertaro 아키텍처 다이어그램](/architecture.svg)
+<ArchitectureDiagram />
 
 ## 1. 3 프로세스 격리 모델
 

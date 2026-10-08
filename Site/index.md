@@ -5,7 +5,7 @@ hero:
   text: High-Performance Extensible Search for Windows
   tagline: Index millions of local files in seconds with USN journals, deep file dialog docking, and an open plugin ecosystem.
   image:
-    src: /logo.png
+    src: /logo.webp
     alt: Lertaro Logo
 securityWarning:
   title: "Security Warning: Official Sources Only"

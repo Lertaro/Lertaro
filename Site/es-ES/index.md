@@ -5,7 +5,7 @@ hero:
   text: Sistema de Búsqueda Local de Alto Rendimiento para Windows
   tagline: Indexa millones de archivos en segundos con el diario USN e índices en memoria, integración en diálogos nativos y SDK de plugins.
   image:
-    src: /logo.png
+    src: /logo.webp
     alt: Lertaro Logo
 securityWarning:
   title: "Aviso de Seguridad: Solo Fuentes Oficiales"
