@@ -39,13 +39,8 @@
                         <TextBlock Text="{Binding ServiceVersion}"
                                    FontSize="14" Foreground="{Binding ServiceStatusBrush}"
                                    VerticalAlignment="Bottom" Margin="12,0,0,3"/>
-                        <!-- WarningBrush, not AccentBlue/AccentColor: several themes (Sakura,
-                             WeatheringBlue, SakuraBloom, etc) deliberately use a single accent hue for
-                             both, which made this badge match CoreVersion's exactly. WarningBrush is the
-                             one semantic color that stays visually distinct from the accent in every
-                             theme checked: read as "a different color", not literally as a warning. -->
                         <TextBlock Text="{Binding CliVersion}"
-                                   FontSize="14" Foreground="{DynamicResource WarningBrush}"
+                                   FontSize="14" Foreground="{DynamicResource TextSecondary2}"
                                    VerticalAlignment="Bottom" Margin="12,0,0,3"/>
                     </StackPanel>
                     <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[About_Desc2]}"

@@ -1,13 +1,11 @@
-using System.Drawing.Imaging;
 using Application = System.Windows.Application;
 
 namespace Lertaro.App.Services.Tray;
 
-// The GDI+ recolor pipeline behind the tray icon's theme-following color -- split out of
-// TrayIconService.cs to keep that file under the project's line limit.
+// Resize the fixed blue brand artwork to the taskbar's current icon size.
 internal static class TrayIconRenderer
 {
-    public static Icon? CreateThemedIcon(Color drawingColor, out IntPtr hIcon)
+    public static Icon? CreateIcon(out IntPtr hIcon)
     {
         hIcon = IntPtr.Zero;
 
@@ -30,20 +28,10 @@ internal static class TrayIconRenderer
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
             g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
 
-            using var attributes = new ImageAttributes();
-            var colorMatrix = new ColorMatrix(new float[][]
-            {
-                new float[] { 0, 0, 0, 0, 0 },
-                new float[] { 0, 0, 0, 0, 0 },
-                new float[] { 0, 0, 0, 0, 0 },
-                new float[] { 0, 0, 0, drawingColor.A / 255f, 0 },
-                new float[] { drawingColor.R / 255f, drawingColor.G / 255f, drawingColor.B / 255f, 0, 1 }
-            });
-            attributes.SetColorMatrix(colorMatrix);
             g.DrawImage(originalBitmap,
                 new Rectangle(0, 0, iconWidth, iconHeight),
                 0, 0, originalBitmap.Width, originalBitmap.Height,
-                GraphicsUnit.Pixel, attributes);
+                GraphicsUnit.Pixel);
         }
 
         hIcon = coloredBitmap.GetHicon();

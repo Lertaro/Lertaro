@@ -9,6 +9,24 @@ namespace Lertaro.App.Tests.Converters;
 [TestClass]
 public class TextHighlighterTests
 {
+    [STATestMethod]
+    public void MatchingRunsHaveAWeightCueThatClearsWithTheQuery()
+    {
+        var text = new System.Windows.Controls.TextBlock { FontWeight = System.Windows.FontWeights.Light };
+        TextHighlighter.SetText(text, "report.txt");
+        TextHighlighter.SetHighlightText(text, "report");
+        var runs = text.Inlines.OfType<System.Windows.Documents.Run>().ToArray();
+        Assert.HasCount(2, runs);
+        Assert.AreEqual("report", runs[0].Text);
+        Assert.AreEqual(System.Windows.FontWeights.SemiBold, runs[0].FontWeight);
+        Assert.AreEqual(text.FontWeight, runs[1].FontWeight);
+
+        TextHighlighter.SetHighlightText(text, string.Empty);
+        var plain = Assert.ContainsSingle(text.Inlines.OfType<System.Windows.Documents.Run>());
+        Assert.AreEqual("report.txt", plain.Text);
+        Assert.AreEqual(text.FontWeight, plain.FontWeight);
+    }
+
     // Renders the mask as the substrings it marks, which reads far better in a failure than a bool[].
     private static string Marked(string text, string query)
     {

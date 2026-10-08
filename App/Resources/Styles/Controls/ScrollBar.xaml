@@ -46,16 +46,13 @@
                                                     CornerRadius="2"
                                                     Background="{DynamicResource ScrollBarThumbBackground}"
                                                     Margin="0,0,1,0"
-                                                    Opacity="0.6"
                                                     SnapsToDevicePixels="True"/>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="true">
                                                     <Setter TargetName="border" Property="Background" Value="{DynamicResource ScrollBarThumbHover}"/>
-                                                    <Setter TargetName="border" Property="Opacity" Value="0.9"/>
                                                 </Trigger>
                                                 <Trigger Property="IsDragging" Value="true">
                                                     <Setter TargetName="border" Property="Background" Value="{DynamicResource ScrollBarThumbDragging}"/>
-                                                    <Setter TargetName="border" Property="Opacity" Value="1.0"/>
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
@@ -88,16 +85,13 @@
                                                 CornerRadius="2"
                                                 Background="{DynamicResource ScrollBarThumbBackground}"
                                                 Margin="0,0,0,1"
-                                                Opacity="0.6"
                                                 SnapsToDevicePixels="True"/>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="true">
                                                 <Setter TargetName="border" Property="Background" Value="{DynamicResource ScrollBarThumbHover}"/>
-                                                <Setter TargetName="border" Property="Opacity" Value="0.9"/>
                                             </Trigger>
                                             <Trigger Property="IsDragging" Value="true">
                                                 <Setter TargetName="border" Property="Background" Value="{DynamicResource ScrollBarThumbDragging}"/>
-                                                <Setter TargetName="border" Property="Opacity" Value="1.0"/>
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>

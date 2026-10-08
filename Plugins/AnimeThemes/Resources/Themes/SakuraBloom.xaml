@@ -5,7 +5,7 @@
     <!-- Theme Metadata -->
     <sys:String x:Key="ThemeId">SakuraBloom</sys:String>
     <sys:Boolean x:Key="IsDark">False</sys:Boolean>
-    <sys:Double x:Key="WindowOpacity">0.95</sys:Double>
+    <sys:Double x:Key="WindowOpacity">1.0</sys:Double>
 
     <!-- Animated Visual Brush for Sakura Bloom (Self-Contained Petal Triggers) -->
     <VisualBrush x:Key="ContentBg" TileMode="None" Stretch="Fill">
@@ -21,7 +21,7 @@
                 </Grid.Background>
 
                 <!-- Sakura Petals Canvas -->
-                <Canvas ClipToBounds="True">
+                <Canvas ClipToBounds="True" Opacity="0.3">
                     <!-- Petal 1 -->
                     <Path Data="M 0,0 C 5,-10 15,-10 20,-5 C 20,5 10,15 0,20 C -5,10 -5,5 0,0 Z" Fill="#80FFB7C5">
                         <Path.RenderTransform>
@@ -136,33 +136,28 @@
         <GradientStop Color="#FFE5EC" Offset="1.0"/>
     </LinearGradientBrush>
 
-    <!-- Alpha raised from CC (80%) to E6 (90%): keeps the soft translucent card feel while giving
-         body text a more reliably opaque backing against whatever's on the real desktop behind it
-         (this window is AllowsTransparency=True). -->
     <LinearGradientBrush x:Key="CardBackground" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#E6FFFDFE" Offset="0.0"/>
-        <GradientStop Color="#E6FFE5EC" Offset="1.0"/>
+        <GradientStop Color="#FFFDFE" Offset="0.0"/>
+        <GradientStop Color="#FFE5EC" Offset="1.0"/>
     </LinearGradientBrush>
 
     <SolidColorBrush x:Key="CardBorderBrush" Color="#80FFC2D1"/>
     <SolidColorBrush x:Key="TextPrimary" Color="#4C1E30"/>
-    <SolidColorBrush x:Key="TextSecondary" Color="#8C536B"/>
-    <SolidColorBrush x:Key="AccentBlue" Color="#FF6B8B"/>
+    <SolidColorBrush x:Key="TextSecondary" Color="#703D53"/>
+    <SolidColorBrush x:Key="AccentBlue" Color="#9B2048"/>
     <SolidColorBrush x:Key="HoverBackground" Color="#FFE5EC"/>
-    <!-- Dedicated accent-bar color: this theme's row-selection tint (#FFC2D1) is nearly identical to
-         its hover fill (#FFE5EC), so a thin bar in that color washes out. Reuses SidebarAccent instead. -->
-    <SolidColorBrush x:Key="AccentBarColor" Color="#FF6B8B"/>
+    <SolidColorBrush x:Key="AccentBarColor" Color="#9B2048"/>
     <SolidColorBrush x:Key="SeparatorBrush" Color="#FFD6E0"/>
-    <SolidColorBrush x:Key="FolderIconColor" Color="#FF6B8B"/>
-    <SolidColorBrush x:Key="FileIconColor" Color="#8C536B"/>
-    <SolidColorBrush x:Key="ShortcutColor" Color="#8C536B"/>
+    <SolidColorBrush x:Key="FolderIconColor" Color="#B84D64"/>
+    <SolidColorBrush x:Key="FileIconColor" Color="#703D53"/>
+    <SolidColorBrush x:Key="ShortcutColor" Color="#703D53"/>
 
     <LinearGradientBrush x:Key="ControlBackground" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#FFFDFE" Offset="0.0"/>
         <GradientStop Color="#FFF0F3" Offset="1.0"/>
     </LinearGradientBrush>
     
-    <SolidColorBrush x:Key="ControlBorderBrush" Color="#FFD6E0"/>
+    <SolidColorBrush x:Key="ControlBorderBrush" Color="#806B70"/>
     <SolidColorBrush x:Key="ControlHoverBackground" Color="#FFE5EC"/>
     <SolidColorBrush x:Key="ControlDisabledBackground" Color="#FFFDFE"/>
     <SolidColorBrush x:Key="ControlDisabledBorderBrush" Color="#FFF0F2"/>
@@ -177,69 +172,67 @@
     <SolidColorBrush x:Key="MenuBorderBrush" Color="#FFD6E0"/>
     <SolidColorBrush x:Key="MenuText" Color="#4C1E30"/>
     <SolidColorBrush x:Key="MenuDisabledText" Color="#D0B0BC"/>
-    <SolidColorBrush x:Key="WindowChromeText" Color="#FF6B8B"/>
+    <SolidColorBrush x:Key="WindowChromeText" Color="#89394B"/>
     <SolidColorBrush x:Key="WindowControlHover" Color="#FFE5EC"/>
     <SolidColorBrush x:Key="ActionsHeaderBg" Color="#FFE5EC"/>
     
     <LinearGradientBrush x:Key="SettingsCardBackground" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#D9FFFDFE" Offset="0.0"/>
-        <GradientStop Color="#D9FFF0F3" Offset="1.0"/>
+        <GradientStop Color="#FFFDFE" Offset="0.0"/>
+        <GradientStop Color="#FFF0F3" Offset="1.0"/>
     </LinearGradientBrush>
     
     <SolidColorBrush x:Key="SettingsCardBorderBrush" Color="#FFD6E0"/>
     <SolidColorBrush x:Key="SettingsRowBorderBrush" Color="#FFF5F7"/>
     <SolidColorBrush x:Key="HeaderColumnBg" Color="#FFE5EC"/>
-    <SolidColorBrush x:Key="HeaderColumnText" Color="#8C536B"/>
+    <SolidColorBrush x:Key="HeaderColumnText" Color="#703D53"/>
     <SolidColorBrush x:Key="WindowBorderBrush" Color="#FFFFB7C5"/>
     
     <SolidColorBrush x:Key="SidebarHover" Color="#FFE5EC"/>
     <SolidColorBrush x:Key="SidebarSelected" Color="#FFC2D1"/>
-    <SolidColorBrush x:Key="SidebarText" Color="#8C536B"/>
+    <SolidColorBrush x:Key="SidebarText" Color="#703D53"/>
     <SolidColorBrush x:Key="SidebarTextActive" Color="#4C1E30"/>
-    <SolidColorBrush x:Key="SidebarAccent" Color="#FF6B8B"/>
+    <SolidColorBrush x:Key="SidebarAccent" Color="#9B2048"/>
     <SolidColorBrush x:Key="ItemHover" Color="#FFE5EC"/>
     <SolidColorBrush x:Key="ItemSelected" Color="#FFC2D1"/>
     <SolidColorBrush x:Key="BorderColor" Color="#FFD6E0"/>
-    <SolidColorBrush x:Key="AccentColor" Color="#FF6B8B"/>
+    <SolidColorBrush x:Key="AccentColor" Color="#9B2048"/>
     <SolidColorBrush x:Key="TextPrimary2" Color="#4C1E30"/>
-    <SolidColorBrush x:Key="TextSecondary2" Color="#8C536B"/>
+    <SolidColorBrush x:Key="TextSecondary2" Color="#703D53"/>
     
     <LinearGradientBrush x:Key="StatusBarBg" StartPoint="0,0" EndPoint="1,0">
         <GradientStop Color="#FFE5EC" Offset="0.0"/>
         <GradientStop Color="#FFF0F3" Offset="1.0"/>
     </LinearGradientBrush>
     
-    <SolidColorBrush x:Key="IconMutedBrush" Color="#8C536B"/>
-    <SolidColorBrush x:Key="SuccessBrush" Color="#FF6B8B"/>
-    <!-- #FFA07A was nearly as light as WarningBackground below (#FFF5EE), making warning text
-         hard to read; darkened toward the theme's own coral while keeping the warm hue. -->
-    <SolidColorBrush x:Key="WarningBrush" Color="#D9754F"/>
+    <SolidColorBrush x:Key="IconMutedBrush" Color="#703D53"/>
+    <SolidColorBrush x:Key="SuccessBrush" Color="#156032"/>
+    <SolidColorBrush x:Key="WarningBrush" Color="#7F442E"/>
     <SolidColorBrush x:Key="WarningBackground" Color="#FFF5EE"/>
     <SolidColorBrush x:Key="WarningBorderBrush" Color="#FFE4E1"/>
     <SolidColorBrush x:Key="BadgeBackground" Color="#FFE5EC"/>
     <SolidColorBrush x:Key="BadgeBorderBrush" Color="#FFD6E0"/>
-    <SolidColorBrush x:Key="BadgeText" Color="#FF6B8B"/>
+    <SolidColorBrush x:Key="BadgeText" Color="#89394B"/>
     <SolidColorBrush x:Key="PrimaryButtonText" Color="#FFFFFF"/>
     
     <LinearGradientBrush x:Key="PrimaryButtonHoverBackground" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#FFFFC2D1" Offset="0.0"/>
-        <GradientStop Color="#FFFF6B8B" Offset="1.0"/>
+        <GradientStop Color="#8A6971" Offset="0.0"/>
+        <GradientStop Color="#BA4E65" Offset="1.0"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="PrimaryButtonPressedBackground" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#FFFF6B8B" Offset="0.0"/>
-        <GradientStop Color="#FFE05B77" Offset="1.0"/>
+        <GradientStop Color="#BA4E65" Offset="0.0"/>
+        <GradientStop Color="#BC4C64" Offset="1.0"/>
     </LinearGradientBrush>
     
-    <SolidColorBrush x:Key="SecondaryButtonText" Color="#8C536B"/>
+    <SolidColorBrush x:Key="SecondaryButtonText" Color="#703D53"/>
     <SolidColorBrush x:Key="SecondaryButtonHoverText" Color="#4C1E30"/>
 
     <SolidColorBrush x:Key="SuccessBadgeBackground" Color="#FFF5F7"/>
     <SolidColorBrush x:Key="SuccessBadgeBorderBrush" Color="#FFD6E0"/>
-    <SolidColorBrush x:Key="SuccessBadgeText" Color="#FF6B8B"/>
+    <SolidColorBrush x:Key="SuccessBadgeText" Color="#156032"/>
     
     <SolidColorBrush x:Key="ErrorBackground" Color="#FFF0F2"/>
     <SolidColorBrush x:Key="ErrorBorderBrush" Color="#FFE4E8"/>
-    <SolidColorBrush x:Key="ErrorBrush" Color="#FF4D6D"/>
+    <SolidColorBrush x:Key="ErrorBrush" Color="#962D40"/>
 
     <SolidColorBrush x:Key="EmptyPlaceholderBackground" Color="#FFFDFE"/>
     <SolidColorBrush x:Key="EmptyPlaceholderBorderBrush" Color="#FFD6E0"/>
@@ -252,23 +245,23 @@
     <SolidColorBrush x:Key="#3A3A3A" Color="#4C1E30"/>
     <SolidColorBrush x:Key="#333" Color="#4C1E30"/>
 
-    <SolidColorBrush x:Key="VideoIconColor" Color="#FF6B8B"/>
-    <SolidColorBrush x:Key="ArchiveIconColor" Color="#E58B88"/>
-    <SolidColorBrush x:Key="DefaultPluginIconColor" Color="#FF8DA1"/>
+    <SolidColorBrush x:Key="VideoIconColor" Color="#B84D64"/>
+    <SolidColorBrush x:Key="ArchiveIconColor" Color="#9E605E"/>
+    <SolidColorBrush x:Key="DefaultPluginIconColor" Color="#A55B68"/>
 
     <LinearGradientBrush x:Key="ScrollBarThumbBackground" StartPoint="0,0" EndPoint="1,0">
-        <GradientStop Color="#FFFFC0CC" Offset="0.0"/>
-        <GradientStop Color="#FFFFADBD" Offset="1.0"/>
+        <GradientStop Color="#89676E" Offset="0.0"/>
+        <GradientStop Color="#92636C" Offset="1.0"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="ScrollBarThumbHover" StartPoint="0,0" EndPoint="1,0">
-        <GradientStop Color="#FFFFADBD" Offset="0.0"/>
-        <GradientStop Color="#FFFF8399" Offset="1.0"/>
+        <GradientStop Color="#835961" Offset="0.0"/>
+        <GradientStop Color="#984E5B" Offset="1.0"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="ScrollBarThumbDragging" StartPoint="0,0" EndPoint="1,0">
-        <GradientStop Color="#FFFF8399" Offset="0.0"/>
-        <GradientStop Color="#FFFF5476" Offset="1.0"/>
+        <GradientStop Color="#8C4854" Offset="0.0"/>
+        <GradientStop Color="#A2354B" Offset="1.0"/>
     </LinearGradientBrush>
-    <SolidColorBrush x:Key="CloseButtonHoverBg" Color="#FF5E7E"/>
-    <SolidColorBrush x:Key="CalculatorIconColor" Color="#FF6B8B"/>
+    <SolidColorBrush x:Key="CloseButtonHoverBg" Color="#F85B7B"/>
+    <SolidColorBrush x:Key="CalculatorIconColor" Color="#B84D64"/>
 
 </ResourceDictionary>

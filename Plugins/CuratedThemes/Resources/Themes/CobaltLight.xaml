@@ -14,11 +14,11 @@
     <SolidColorBrush x:Key="AccentBlue" Color="#1D4ED8"/>
     <SolidColorBrush x:Key="HoverBackground" Color="#E4EDFC"/>
     <SolidColorBrush x:Key="SeparatorBrush" Color="#CAD7F2"/>
-    <SolidColorBrush x:Key="FolderIconColor" Color="#D97706"/>
+    <SolidColorBrush x:Key="FolderIconColor" Color="#C06905"/>
     <SolidColorBrush x:Key="FileIconColor" Color="#4A5F87"/>
     <SolidColorBrush x:Key="ShortcutColor" Color="#4A5F87"/>
     <SolidColorBrush x:Key="ControlBackground" Color="#FFFFFF"/>
-    <SolidColorBrush x:Key="ControlBorderBrush" Color="#CAD7F2"/>
+    <SolidColorBrush x:Key="ControlBorderBrush" Color="#788090"/>
     <SolidColorBrush x:Key="ControlHoverBackground" Color="#E4EDFC"/>
     <SolidColorBrush x:Key="ControlDisabledBackground" Color="#EFF4FD"/>
     <SolidColorBrush x:Key="ControlDisabledBorderBrush" Color="#CAD7F2"/>
@@ -54,8 +54,8 @@
     <SolidColorBrush x:Key="TextSecondary2" Color="#4A5F87"/>
     <SolidColorBrush x:Key="StatusBarBg" Color="#E9F0FC"/>
     <SolidColorBrush x:Key="IconMutedBrush" Color="#4A5F87"/>
-    <SolidColorBrush x:Key="SuccessBrush" Color="#16A34A"/>
-    <SolidColorBrush x:Key="WarningBrush" Color="#B8860B"/>
+    <SolidColorBrush x:Key="SuccessBrush" Color="#159C47"/>
+    <SolidColorBrush x:Key="WarningBrush" Color="#886308"/>
     <SolidColorBrush x:Key="WarningBackground" Color="#FBF0D9"/>
     <SolidColorBrush x:Key="WarningBorderBrush" Color="#EAD59C"/>
     <SolidColorBrush x:Key="BadgeBackground" Color="#CEE0FB"/>
@@ -70,11 +70,11 @@
 
     <SolidColorBrush x:Key="SuccessBadgeBackground" Color="#E3F5E9"/>
     <SolidColorBrush x:Key="SuccessBadgeBorderBrush" Color="#C3E6D0"/>
-    <SolidColorBrush x:Key="SuccessBadgeText" Color="#16A34A"/>
+    <SolidColorBrush x:Key="SuccessBadgeText" Color="#107937"/>
 
     <SolidColorBrush x:Key="ErrorBackground" Color="#FCE9E9"/>
     <SolidColorBrush x:Key="ErrorBorderBrush" Color="#F3C6C6"/>
-    <SolidColorBrush x:Key="ErrorBrush" Color="#DC2626"/>
+    <SolidColorBrush x:Key="ErrorBrush" Color="#C82323"/>
 
     <SolidColorBrush x:Key="EmptyPlaceholderBackground" Color="#E9F0FC"/>
     <SolidColorBrush x:Key="EmptyPlaceholderBorderBrush" Color="#CAD7F2"/>
@@ -91,10 +91,10 @@
     <SolidColorBrush x:Key="ArchiveIconColor" Color="#7C3AED"/>
     <SolidColorBrush x:Key="DefaultPluginIconColor" Color="#1D4ED8"/>
 
-    <SolidColorBrush x:Key="ScrollBarThumbBackground" Color="#A3BEEB"/>
-    <SolidColorBrush x:Key="ScrollBarThumbHover" Color="#8CAFE5"/>
-    <SolidColorBrush x:Key="ScrollBarThumbDragging" Color="#749DDC"/>
+    <SolidColorBrush x:Key="ScrollBarThumbBackground" Color="#6D7F9E"/>
+    <SolidColorBrush x:Key="ScrollBarThumbHover" Color="#5D7498"/>
+    <SolidColorBrush x:Key="ScrollBarThumbDragging" Color="#4F6B96"/>
     <SolidColorBrush x:Key="CloseButtonHoverBg" Color="#E81123"/>
-    <SolidColorBrush x:Key="CalculatorIconColor" Color="#059669"/>
+    <SolidColorBrush x:Key="CalculatorIconColor" Color="#059267"/>
 
 </ResourceDictionary>

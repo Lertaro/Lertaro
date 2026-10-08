@@ -10,15 +10,15 @@
     <SolidColorBrush x:Key="CardBackground" Color="#1A2217"/>
     <SolidColorBrush x:Key="CardBorderBrush" Color="#2C3A27"/>
     <SolidColorBrush x:Key="TextPrimary" Color="#E6EFE1"/>
-    <SolidColorBrush x:Key="TextSecondary" Color="#8F9F86"/>
+    <SolidColorBrush x:Key="TextSecondary" Color="#97A68F"/>
     <SolidColorBrush x:Key="AccentBlue" Color="#86B34A"/>
     <SolidColorBrush x:Key="HoverBackground" Color="#222D1F"/>
     <SolidColorBrush x:Key="SeparatorBrush" Color="#2C3A27"/>
     <SolidColorBrush x:Key="FolderIconColor" Color="#E5A93C"/>
-    <SolidColorBrush x:Key="FileIconColor" Color="#8F9F86"/>
-    <SolidColorBrush x:Key="ShortcutColor" Color="#8F9F86"/>
+    <SolidColorBrush x:Key="FileIconColor" Color="#97A68F"/>
+    <SolidColorBrush x:Key="ShortcutColor" Color="#97A68F"/>
     <SolidColorBrush x:Key="ControlBackground" Color="#222D1F"/>
-    <SolidColorBrush x:Key="ControlBorderBrush" Color="#2C3A27"/>
+    <SolidColorBrush x:Key="ControlBorderBrush" Color="#798276"/>
     <SolidColorBrush x:Key="ControlHoverBackground" Color="#2B3827"/>
     <SolidColorBrush x:Key="ControlDisabledBackground" Color="#1A2217"/>
     <SolidColorBrush x:Key="ControlDisabledBorderBrush" Color="#2C3A27"/>
@@ -28,14 +28,14 @@
     <SolidColorBrush x:Key="MenuBorderBrush" Color="#2C3A27"/>
     <SolidColorBrush x:Key="MenuText" Color="#E6EFE1"/>
     <SolidColorBrush x:Key="MenuDisabledText" Color="#586751"/>
-    <SolidColorBrush x:Key="WindowChromeText" Color="#8F9F86"/>
+    <SolidColorBrush x:Key="WindowChromeText" Color="#97A68F"/>
     <SolidColorBrush x:Key="WindowControlHover" Color="#2C3A27"/>
     <SolidColorBrush x:Key="ActionsHeaderBg" Color="#121710"/>
     <SolidColorBrush x:Key="SettingsCardBackground" Color="#1A2217"/>
     <SolidColorBrush x:Key="SettingsCardBorderBrush" Color="#2C3A27"/>
     <SolidColorBrush x:Key="SettingsRowBorderBrush" Color="#222E1E"/>
     <SolidColorBrush x:Key="HeaderColumnBg" Color="#1A2217"/>
-    <SolidColorBrush x:Key="HeaderColumnText" Color="#8F9F86"/>
+    <SolidColorBrush x:Key="HeaderColumnText" Color="#97A68F"/>
     <SolidColorBrush x:Key="WindowBorderBrush" Color="#2C3A27"/>
     <SolidColorBrush x:Key="SidebarBg" Color="#0E120D"/>
     <SolidColorBrush x:Key="SidebarHover" Color="#1B2418"/>
@@ -51,9 +51,9 @@
     <SolidColorBrush x:Key="BorderColor" Color="#2C3A27"/>
     <SolidColorBrush x:Key="AccentColor" Color="#86B34A"/>
     <SolidColorBrush x:Key="TextPrimary2" Color="#E6EFE1"/>
-    <SolidColorBrush x:Key="TextSecondary2" Color="#8F9F86"/>
+    <SolidColorBrush x:Key="TextSecondary2" Color="#97A68F"/>
     <SolidColorBrush x:Key="StatusBarBg" Color="#1A2217"/>
-    <SolidColorBrush x:Key="IconMutedBrush" Color="#8F9F86"/>
+    <SolidColorBrush x:Key="IconMutedBrush" Color="#97A68F"/>
     <SolidColorBrush x:Key="SuccessBrush" Color="#7FC463"/>
     <SolidColorBrush x:Key="WarningBrush" Color="#F0C24B"/>
     <SolidColorBrush x:Key="WarningBackground" Color="#3D3116"/>
@@ -65,7 +65,7 @@
     <SolidColorBrush x:Key="PrimaryButtonHoverBackground" Color="#97C55C"/>
     <SolidColorBrush x:Key="PrimaryButtonPressedBackground" Color="#A9D472"/>
 
-    <SolidColorBrush x:Key="SecondaryButtonText" Color="#8F9F86"/>
+    <SolidColorBrush x:Key="SecondaryButtonText" Color="#97A68F"/>
     <SolidColorBrush x:Key="SecondaryButtonHoverText" Color="#E6EFE1"/>
 
     <SolidColorBrush x:Key="SuccessBadgeBackground" Color="#142C17"/>
@@ -91,9 +91,9 @@
     <SolidColorBrush x:Key="ArchiveIconColor" Color="#A78BFA"/>
     <SolidColorBrush x:Key="DefaultPluginIconColor" Color="#86B34A"/>
 
-    <SolidColorBrush x:Key="ScrollBarThumbBackground" Color="#546F4B"/>
-    <SolidColorBrush x:Key="ScrollBarThumbHover" Color="#65855A"/>
-    <SolidColorBrush x:Key="ScrollBarThumbDragging" Color="#779C6B"/>
+    <SolidColorBrush x:Key="ScrollBarThumbBackground" Color="#708768"/>
+    <SolidColorBrush x:Key="ScrollBarThumbHover" Color="#78956E"/>
+    <SolidColorBrush x:Key="ScrollBarThumbDragging" Color="#7DA071"/>
     <SolidColorBrush x:Key="CloseButtonHoverBg" Color="#E81123"/>
     <SolidColorBrush x:Key="CalculatorIconColor" Color="#4ADE80"/>
 

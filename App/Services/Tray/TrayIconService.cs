@@ -1,9 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Windows;
-using Lertaro.App.Services.Theme;
 using Lertaro.App.ViewModels.Search;
 using Lertaro.Core;
-using Application = System.Windows.Application;
 
 namespace Lertaro.App.Services.Tray;
 
@@ -29,7 +27,6 @@ public class TrayIconService : IDisposable
         _ = viewModel;
         _menu = new TrayMenuController(ApplyTrayIconVisible);
         InitializeNotifyIcon();
-        ThemeManager.Instance.ThemeChanged += UpdateTrayIconThemeColor;
         Instance = this;
     }
 
@@ -37,7 +34,7 @@ public class TrayIconService : IDisposable
     {
         _trayIconVisibleSetting = !UserSettings.Load().HideTrayIcon;
         _notifyIcon = new NotifyIcon { Text = "Lertaro", Visible = _trayIconVisibleSetting };
-        UpdateTrayIconThemeColor();
+        UpdateTrayIcon();
         _notifyIcon.MouseClick += (_, e) =>
         {
             if (e.Button == MouseButtons.Left)
@@ -63,24 +60,12 @@ public class TrayIconService : IDisposable
         };
     }
 
-    private void UpdateTrayIconThemeColor()
+    private void UpdateTrayIcon()
     {
         if (_notifyIcon == null) return;
         try
         {
-            Color drawingColor;
-            if (ThemeManager.Instance.ActiveTheme?.IsDark == true)
-            {
-                drawingColor = Color.White;
-            }
-            else
-            {
-                var brush = Application.Current.Resources["AccentBlue"] as System.Windows.Media.SolidColorBrush;
-                var mediaColor = brush?.Color ?? System.Windows.Media.Colors.DodgerBlue;
-                drawingColor = Color.FromArgb(mediaColor.A, mediaColor.R, mediaColor.G, mediaColor.B);
-            }
-
-            var icon = TrayIconRenderer.CreateThemedIcon(drawingColor, out var newHIcon);
+            var icon = TrayIconRenderer.CreateIcon(out var newHIcon);
             if (icon == null) return;
             var oldHIcon = _hIcon;
             _hIcon = newHIcon;
@@ -90,7 +75,7 @@ public class TrayIconService : IDisposable
         }
         catch (Exception ex)
         {
-            Logger.Log($"[TrayIconService] Failed to update tray icon theme color: {ex.Message}", LogLevel.Error);
+            Logger.Log($"[TrayIconService] Failed to update tray icon: {ex.Message}", LogLevel.Error);
         }
     }
 
@@ -123,7 +108,6 @@ public class TrayIconService : IDisposable
 
     public void Dispose()
     {
-        ThemeManager.Instance.ThemeChanged -= UpdateTrayIconThemeColor;
         _menu.Dispose();
         App.CloseAllManagedWindows();
         if (_notifyIcon != null) { _notifyIcon.Visible = false; _notifyIcon.Dispose(); _notifyIcon = null; }

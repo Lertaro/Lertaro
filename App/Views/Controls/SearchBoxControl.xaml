@@ -42,16 +42,12 @@
                 <Border Width="{Binding LeftIconSize, ElementName=root}" Height="{Binding LeftIconSize, ElementName=root}" SnapsToDevicePixels="True" UseLayoutRounding="True" RenderOptions.BitmapScalingMode="HighQuality">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Background" Value="{DynamicResource TextSecondary}"/>
-                            <Setter Property="Opacity" Value="0.5"/>
+                            <Setter Property="Background" Value="#0098D8"/>
+                            <Setter Property="Opacity" Value="1"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsStayOpen, ElementName=root}" Value="True">
-                                    <Setter Property="Background" Value="{DynamicResource TextPrimary}"/>
+                                    <Setter Property="Background" Value="#007DB2"/>
                                     <Setter Property="Opacity" Value="1.0"/>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding IsServiceRunning, ElementName=root}" Value="False">
-                                    <Setter Property="Background" Value="{DynamicResource WarningBrush}"/>
-                                    <Setter Property="Opacity" Value="0.8"/>
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSearching}" Value="True">
                                     <DataTrigger.EnterActions>
@@ -67,7 +63,7 @@
                                         <StopStoryboard BeginStoryboardName="LeftLogoBreathe"/>
                                         <BeginStoryboard>
                                             <Storyboard>
-                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0.5" Duration="0:0:0.2" FillBehavior="Stop"/>
+                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.2" FillBehavior="Stop"/>
                                             </Storyboard>
                                         </BeginStoryboard>
                                     </DataTrigger.ExitActions>
@@ -77,8 +73,14 @@
                                         <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Grid}}" Value="True"/>
                                         <Condition Binding="{Binding IsIconClickable, ElementName=root}" Value="True"/>
                                     </MultiDataTrigger.Conditions>
+                                    <Setter Property="Background" Value="#007DB2"/>
                                     <Setter Property="Opacity" Value="1"/>
                                 </MultiDataTrigger>
+                                <!-- Service warnings take priority over hover and Stay Open. -->
+                                <DataTrigger Binding="{Binding IsServiceRunning, ElementName=root}" Value="False">
+                                    <Setter Property="Background" Value="{DynamicResource WarningBrush}"/>
+                                    <Setter Property="Opacity" Value="0.8"/>
+                                </DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
@@ -205,30 +207,13 @@
                 <Border Width="{Binding RightIconSize, ElementName=root}" Height="{Binding RightIconSize, ElementName=root}" SnapsToDevicePixels="True" UseLayoutRounding="True" RenderOptions.BitmapScalingMode="HighQuality">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Background" Value="{DynamicResource TextSecondary}"/>
-                            <Setter Property="Opacity" Value="0.6"/>
+                            <Setter Property="Background" Value="#0098D8"/>
+                            <Setter Property="Opacity" Value="1"/>
                             <Style.Triggers>
-                                <!-- Right icon only: Stay Open is a quick-window feature and the quick
-                                     window leaves IsIconOnLeft false, so this is the logo it shows.
-                                     Declared ahead of the service-down trigger on purpose: when two
-                                     DataTriggers both match the later one wins, and "the service is
-                                     unreachable" has to keep outranking "you asked this window to stay".
-                                     TextPrimary, one step up from the TextSecondary above rather than a
-                                     colour of its own, so this reads as the logo lit up instead of a
-                                     light coming on. SuccessBrush was tried and is wrong for it: the
-                                     semantic brushes are a fixed hue that ignores the palette (the
-                                     curated themes all carry the same three greens), which both looks
-                                     out of place in otherwise neutral chrome and makes every theme look
-                                     identical here. TextPrimary genuinely follows each theme, and cannot
-                                     be taken for the warning or for the accent the searching state
-                                     breathes in. -->
+                                <!-- Stay Open uses the same darker brand blue as hover. -->
                                 <DataTrigger Binding="{Binding IsStayOpen, ElementName=root}" Value="True">
-                                    <Setter Property="Background" Value="{DynamicResource TextPrimary}"/>
+                                    <Setter Property="Background" Value="#007DB2"/>
                                     <Setter Property="Opacity" Value="1.0"/>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding IsServiceRunning, ElementName=root}" Value="False">
-                                    <Setter Property="Background" Value="{DynamicResource WarningBrush}"/>
-                                    <Setter Property="Opacity" Value="0.8"/>
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSearching}" Value="True">
                                     <DataTrigger.EnterActions>
@@ -249,7 +234,7 @@
                                         <BeginStoryboard>
                                             <Storyboard>
                                                 <!-- FillBehavior="Stop": see the left-icon block's identical fix. -->
-                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0.6" Duration="0:0:0.2" FillBehavior="Stop"/>
+                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.2" FillBehavior="Stop"/>
                                             </Storyboard>
                                         </BeginStoryboard>
                                     </DataTrigger.ExitActions>
@@ -262,8 +247,14 @@
                                         <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Grid}}" Value="True"/>
                                         <Condition Binding="{Binding IsIconClickable, ElementName=root}" Value="True"/>
                                     </MultiDataTrigger.Conditions>
+                                    <Setter Property="Background" Value="#007DB2"/>
                                     <Setter Property="Opacity" Value="1"/>
                                 </MultiDataTrigger>
+                                <!-- Service warnings take priority over hover and Stay Open. -->
+                                <DataTrigger Binding="{Binding IsServiceRunning, ElementName=root}" Value="False">
+                                    <Setter Property="Background" Value="{DynamicResource WarningBrush}"/>
+                                    <Setter Property="Opacity" Value="0.8"/>
+                                </DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </Border.Style>

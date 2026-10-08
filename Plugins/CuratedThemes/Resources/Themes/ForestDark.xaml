@@ -18,7 +18,7 @@
     <SolidColorBrush x:Key="FileIconColor" Color="#92AA89"/>
     <SolidColorBrush x:Key="ShortcutColor" Color="#92AA89"/>
     <SolidColorBrush x:Key="ControlBackground" Color="#1F2A19"/>
-    <SolidColorBrush x:Key="ControlBorderBrush" Color="#2C3A26"/>
+    <SolidColorBrush x:Key="ControlBorderBrush" Color="#747E71"/>
     <SolidColorBrush x:Key="ControlHoverBackground" Color="#263420"/>
     <SolidColorBrush x:Key="ControlDisabledBackground" Color="#182014"/>
     <SolidColorBrush x:Key="ControlDisabledBorderBrush" Color="#2C3A26"/>
@@ -61,8 +61,8 @@
     <SolidColorBrush x:Key="BadgeBackground" Color="#33452C"/>
     <SolidColorBrush x:Key="BadgeBorderBrush" Color="#435A39"/>
     <SolidColorBrush x:Key="BadgeText" Color="#DCE9D6"/>
-    <SolidColorBrush x:Key="PrimaryButtonText" Color="#FFFFFF"/>
-    <SolidColorBrush x:Key="PrimaryButtonHoverBackground" Color="#3D8B41"/>
+    <SolidColorBrush x:Key="PrimaryButtonText" Color="#080808"/>
+    <SolidColorBrush x:Key="PrimaryButtonHoverBackground" Color="#3F8C42"/>
     <SolidColorBrush x:Key="PrimaryButtonPressedBackground" Color="#6ED072"/>
 
     <SolidColorBrush x:Key="SecondaryButtonText" Color="#92AA89"/>
@@ -91,9 +91,9 @@
     <SolidColorBrush x:Key="ArchiveIconColor" Color="#B78BE0"/>
     <SolidColorBrush x:Key="DefaultPluginIconColor" Color="#5FBF63"/>
 
-    <SolidColorBrush x:Key="ScrollBarThumbBackground" Color="#3C5134"/>
-    <SolidColorBrush x:Key="ScrollBarThumbHover" Color="#4C6641"/>
-    <SolidColorBrush x:Key="ScrollBarThumbDragging" Color="#647A5C"/>
+    <SolidColorBrush x:Key="ScrollBarThumbBackground" Color="#72816C"/>
+    <SolidColorBrush x:Key="ScrollBarThumbHover" Color="#7A8E72"/>
+    <SolidColorBrush x:Key="ScrollBarThumbDragging" Color="#85977F"/>
     <SolidColorBrush x:Key="CloseButtonHoverBg" Color="#E81123"/>
     <SolidColorBrush x:Key="CalculatorIconColor" Color="#8BE39A"/>
 

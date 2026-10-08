@@ -11,14 +11,14 @@
     <SolidColorBrush x:Key="CardBorderBrush" Color="#333333"/>
     <SolidColorBrush x:Key="TextPrimary" Color="#E4E4E4"/>
     <SolidColorBrush x:Key="TextSecondary" Color="#9A9A9A"/>
-    <SolidColorBrush x:Key="AccentBlue" Color="#7B93A8"/>
+    <SolidColorBrush x:Key="AccentBlue" Color="#8299AC"/>
     <SolidColorBrush x:Key="HoverBackground" Color="#232323"/>
     <SolidColorBrush x:Key="SeparatorBrush" Color="#333333"/>
     <SolidColorBrush x:Key="FolderIconColor" Color="#E0A73E"/>
     <SolidColorBrush x:Key="FileIconColor" Color="#9A9A9A"/>
     <SolidColorBrush x:Key="ShortcutColor" Color="#9A9A9A"/>
     <SolidColorBrush x:Key="ControlBackground" Color="#232323"/>
-    <SolidColorBrush x:Key="ControlBorderBrush" Color="#333333"/>
+    <SolidColorBrush x:Key="ControlBorderBrush" Color="#757575"/>
     <SolidColorBrush x:Key="ControlHoverBackground" Color="#2A2A2A"/>
     <SolidColorBrush x:Key="ControlDisabledBackground" Color="#1C1C1C"/>
     <SolidColorBrush x:Key="ControlDisabledBorderBrush" Color="#333333"/>
@@ -42,14 +42,14 @@
     <SolidColorBrush x:Key="SidebarSelected" Color="#2E3A45"/>
     <SolidColorBrush x:Key="SidebarText" Color="#E4E4E4"/>
     <SolidColorBrush x:Key="SidebarTextActive" Color="#FAFAFA"/>
-    <SolidColorBrush x:Key="SidebarAccent" Color="#7B93A8"/>
+    <SolidColorBrush x:Key="SidebarAccent" Color="#8299AC"/>
     <SolidColorBrush x:Key="ContentBg" Color="#121212"/>
     <SolidColorBrush x:Key="HeaderBg" Color="#1C1C1C"/>
     <SolidColorBrush x:Key="ItemHover" Color="#232323"/>
     <SolidColorBrush x:Key="ItemSelected" Color="#2E3A45"/>
-    <SolidColorBrush x:Key="AccentBarColor" Color="#7B93A8"/>
+    <SolidColorBrush x:Key="AccentBarColor" Color="#8299AC"/>
     <SolidColorBrush x:Key="BorderColor" Color="#333333"/>
-    <SolidColorBrush x:Key="AccentColor" Color="#7B93A8"/>
+    <SolidColorBrush x:Key="AccentColor" Color="#8299AC"/>
     <SolidColorBrush x:Key="TextPrimary2" Color="#E4E4E4"/>
     <SolidColorBrush x:Key="TextSecondary2" Color="#9A9A9A"/>
     <SolidColorBrush x:Key="StatusBarBg" Color="#1C1C1C"/>
@@ -64,7 +64,7 @@
     <!-- Accent is a light steel-blue (#7B93A8) rather than a mid-tone hue: white button text
          reads low-contrast on it, so this uses dark text like Nord's light-cyan accent does. -->
     <SolidColorBrush x:Key="PrimaryButtonText" Color="#10151A"/>
-    <SolidColorBrush x:Key="PrimaryButtonHoverBackground" Color="#6E8598"/>
+    <SolidColorBrush x:Key="PrimaryButtonHoverBackground" Color="#6F8699"/>
     <SolidColorBrush x:Key="PrimaryButtonPressedBackground" Color="#9CB1C2"/>
 
     <SolidColorBrush x:Key="SecondaryButtonText" Color="#9A9A9A"/>
@@ -91,11 +91,11 @@
 
     <SolidColorBrush x:Key="VideoIconColor" Color="#FB7185"/>
     <SolidColorBrush x:Key="ArchiveIconColor" Color="#A78BFA"/>
-    <SolidColorBrush x:Key="DefaultPluginIconColor" Color="#7B93A8"/>
+    <SolidColorBrush x:Key="DefaultPluginIconColor" Color="#8299AC"/>
 
-    <SolidColorBrush x:Key="ScrollBarThumbBackground" Color="#474747"/>
-    <SolidColorBrush x:Key="ScrollBarThumbHover" Color="#575757"/>
-    <SolidColorBrush x:Key="ScrollBarThumbDragging" Color="#696969"/>
+    <SolidColorBrush x:Key="ScrollBarThumbBackground" Color="#767676"/>
+    <SolidColorBrush x:Key="ScrollBarThumbHover" Color="#828282"/>
+    <SolidColorBrush x:Key="ScrollBarThumbDragging" Color="#8B8B8B"/>
     <SolidColorBrush x:Key="CloseButtonHoverBg" Color="#E81123"/>
     <SolidColorBrush x:Key="CalculatorIconColor" Color="#34D399"/>
 

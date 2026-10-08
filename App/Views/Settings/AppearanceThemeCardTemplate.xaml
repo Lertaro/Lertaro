@@ -39,8 +39,8 @@
                                 </Grid.ColumnDefinitions>
                                 <Rectangle Grid.Column="0" Height="5" Width="40" RadiusX="2.5" RadiusY="2.5" Opacity="0.4"
                                            Fill="{Binding TextSecondary}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                                <Border Grid.Column="1" Width="10" Height="10" Margin="6,0,0,0"
-                                        Background="{Binding TextSecondary}" VerticalAlignment="Center">
+                                <Border x:Name="BrandLogo" Grid.Column="1" Width="10" Height="10" Margin="6,0,0,0"
+                                        Background="#0098D8" VerticalAlignment="Center">
                                     <Border.OpacityMask>
                                         <ImageBrush ImageSource="pack://application:,,,/Lertaro.App;component/tray.png"/>
                                     </Border.OpacityMask>
@@ -87,7 +87,11 @@
             </Grid>
         </StackPanel>
         <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=IsMouseOver}" Value="True">
+                <Setter TargetName="BrandLogo" Property="Background" Value="#007DB2"/>
+            </DataTrigger>
             <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=IsSelected}" Value="True">
+                <Setter TargetName="BrandLogo" Property="Background" Value="#007DB2"/>
                 <Setter TargetName="CardBorder" Property="BorderBrush" Value="{Binding Accent}"/>
                 <Setter TargetName="SelectedBadge" Property="Visibility" Value="Visible"/>
             </DataTrigger>
