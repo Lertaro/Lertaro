@@ -1,6 +1,7 @@
 using System.IO;
 using Lertaro.Core;
 using Lertaro.App.ViewModels.Settings;
+using Lertaro.App.Services;
 
 namespace Lertaro.App.Tests.ViewModels.Settings;
 
@@ -247,4 +248,56 @@ public sealed class FavoritesSettingsViewModelTests
         Assert.AreEqual("Ctrl+Shift+D", new FavoritesSettingsViewModel(
             new UserSettings { Favorites = new List<FavoriteItemSetting> { new() { Path = @"C:\Docs", Hotkey = "Ctrl+Shift+D" } } })
             .Items[0].Hotkey);
+
+    [TestMethod]
+    [DataRow("Alt+D", "Favorites_HotkeyReserved")]
+    [DataRow("Ctrl+G", "Favorites_HotkeyApplicationConflict")]
+    [DataRow("Unknown+T", "Favorites_HotkeyInvalid")]
+    public void Hotkey_ConflictHint_SurvivesSaveAndReopen(string hotkey, string hintKey)
+    {
+        var settings = new UserSettings { Favorites = [new() { Hotkey = "Alt+T" }] };
+        var vm = new FavoritesSettingsViewModel(settings);
+
+        vm.Items[0].Hotkey = hotkey;
+        Assert.AreEqual(TranslationManager.Instance[hintKey], vm.Items[0].HotkeyHint);
+        vm.Save();
+        vm.ApplyHotkeys();
+        Assert.AreEqual(TranslationManager.Instance[hintKey], vm.Items[0].HotkeyHint);
+        Assert.AreEqual(TranslationManager.Instance[hintKey], new FavoritesSettingsViewModel(settings).Items[0].HotkeyHint);
+        Assert.AreEqual(hotkey, settings.Favorites[0].Hotkey);
+    }
+
+    [TestMethod]
+    public void Hotkey_DuplicateEditsAndRemoval_RefreshEveryAffectedRow()
+    {
+        var vm = new FavoritesSettingsViewModel(new UserSettings
+        {
+            Favorites = [new() { Hotkey = "Alt+T" }, new() { Hotkey = "Alt+T" }]
+        });
+        Assert.AreEqual(string.Empty, vm.Items[0].HotkeyHint);
+        Assert.AreEqual(TranslationManager.Instance["Favorites_HotkeyInUse"], vm.Items[1].HotkeyHint);
+
+        vm.Items[0].Hotkey = "Alt+Y";
+        Assert.AreEqual(string.Empty, vm.Items[1].HotkeyHint);
+        vm.Items[1].Hotkey = "Alt+Y";
+        Assert.AreEqual(TranslationManager.Instance["Favorites_HotkeyInUse"], vm.Items[1].HotkeyHint);
+        vm.RemoveCommand.Execute(vm.Items[0]);
+        Assert.AreEqual(string.Empty, vm.Items[0].HotkeyHint);
+    }
+
+    [TestMethod]
+    public void MoveUp_DuplicateHotkeys_FirstRowKeepsTheShortcut()
+    {
+        var vm = new FavoritesSettingsViewModel(new UserSettings
+        {
+            Favorites = [new() { Hotkey = "Alt+T" }, new() { Hotkey = "Alt+T" }]
+        });
+        var second = vm.Items[1];
+
+        vm.MoveUpCommand.Execute(second);
+
+        Assert.AreSame(second, vm.Items[0]);
+        Assert.AreEqual(string.Empty, second.HotkeyHint);
+        Assert.AreEqual(TranslationManager.Instance["Favorites_HotkeyInUse"], vm.Items[1].HotkeyHint);
+    }
 }

@@ -21,13 +21,41 @@ internal static class FileDialogCommandHandler
         {
             try
             {
-                ResolveAdapter(process, dialogHwnd)?.NavigateTo(dialogHwnd, navPath);
+                // Resolving a favorite on a disconnected drive can take time. Only hand focus back
+                // while the dialog (or its owned inline card) is still in front, never over another app.
+                if (ResolveAdapter(process, dialogHwnd) is { } adapter)
+                {
+                    if (msg.BoolVal && !IsForegroundDialogOrOwnedWindow(dialogHwnd)) return;
+                    Navigate(adapter, dialogHwnd, navPath, msg.BoolVal);
+                }
             }
             catch (Exception ex)
             {
                 Logger.Log($"[FileDialogCommandHandler] NavigateTo threw: {ex.Message}", LogLevel.Error);
             }
         });
+    }
+
+    private static bool IsForegroundDialogOrOwnedWindow(IntPtr dialogHwnd)
+    {
+        var foreground = ExplorerNativeHooks.GetForegroundWindow();
+        while (foreground != IntPtr.Zero)
+        {
+            if (foreground == dialogHwnd) return true;
+            foreground = ExplorerNativeHooks.GetParent(foreground);
+        }
+        return false;
+    }
+
+    // A favorite can be invoked while our inline card owns the foreground. Restore focus in the
+    // same work item, before filling the path: separate IPC requests would race on pool threads.
+    // The adapter's existing foreground check still decides whether its delayed Enter is safe.
+    internal static bool Navigate(IFileDialogAdapter adapter, IntPtr dialogHwnd, string path, bool restoreFocus,
+        Func<IntPtr>? foregroundWindow = null)
+    {
+        if (restoreFocus && (!adapter.RestoreFocus(dialogHwnd)
+            || (foregroundWindow ?? ExplorerNativeHooks.GetForegroundWindow)() != dialogHwnd)) return false;
+        return adapter.NavigateTo(dialogHwnd, path);
     }
 
     public static void HandleRestoreDialogFocus(HookProcess process, IpcMessage msg)

@@ -7,7 +7,7 @@ public enum IpcMessageId : byte
     SetAppProcessId = 2,
     SetQuickSearchVisible = 3,
     SetInlineSearchVisible = 4,
-    NavigateDialog = 5,
+    NavigateDialog = 5, // BoolVal: restore dialog focus before navigating (favorite hotkeys).
     RestoreDialogFocus = 6,
     ReloadSettings = 7,
     SetHotkeysDisabled = 8,

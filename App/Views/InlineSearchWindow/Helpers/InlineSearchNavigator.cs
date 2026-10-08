@@ -11,7 +11,7 @@ namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 public static class InlineSearchNavigator
 {
     [DllImport("user32.dll")]
-    private static extern bool AllowSetForegroundWindow(int dwProcessId);
+    internal static extern bool AllowSetForegroundWindow(int dwProcessId);
 
     public static void LocateInExplorerExternal(this Lertaro.App.InlineSearchWindow window, string path)
     {

@@ -18,7 +18,17 @@ public class FavoritesSettingsViewModel : ViewModelBase
         {
             Items.Add(new FavoriteItemViewModel { Name = fav.Name, Path = fav.Path, Hotkey = fav.Hotkey });
         }
-        Items.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasItems));
+        foreach (var item in Items) item.PropertyChanged += OnItemPropertyChanged;
+        Items.CollectionChanged += (_, e) =>
+        {
+            if (e.OldItems != null)
+                foreach (FavoriteItemViewModel item in e.OldItems) item.PropertyChanged -= OnItemPropertyChanged;
+            if (e.NewItems != null)
+                foreach (FavoriteItemViewModel item in e.NewItems) item.PropertyChanged += OnItemPropertyChanged;
+            OnPropertyChanged(nameof(HasItems));
+            FavoriteHotkeySettingsSupport.RefreshHints(this);
+        };
+        FavoriteHotkeySettingsSupport.RefreshHints(this);
 
         AddCommand = new RelayCommand(Add, CanAdd);
         ClearCommand = new RelayCommand(Clear);
@@ -59,6 +69,12 @@ public class FavoritesSettingsViewModel : ViewModelBase
     public ICommand AddPathPresetCommand { get; }
 
     public bool HasItems => Items.Count > 0;
+
+    private void OnItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(FavoriteItemViewModel.Hotkey))
+            FavoriteHotkeySettingsSupport.RefreshHints(this);
+    }
 
     public string NewName
     {
@@ -107,7 +123,11 @@ public class FavoritesSettingsViewModel : ViewModelBase
 
     private bool CanAdd() => FavoritePathResolver.IsPathAvailable(NewPath);
 
-    private void Clear() => Items.Clear();
+    private void Clear()
+    {
+        foreach (var item in Items) item.PropertyChanged -= OnItemPropertyChanged;
+        Items.Clear();
+    }
 
     private void Add()
     {

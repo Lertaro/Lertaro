@@ -69,6 +69,7 @@ public static class HotkeyStringFormat
 
     private static string NormalizeWindowsKey(string key) => key.Trim().ToUpperInvariant() switch
     {
+        var digit when digit.Length == 2 && digit[0] == 'D' && digit[1] is >= '0' and <= '9' => digit[1..],
         "ESCAPE" => "ESC",
         "RETURN" => "ENTER",
         "OEMCOMMA" => "COMMA",

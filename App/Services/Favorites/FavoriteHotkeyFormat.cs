@@ -35,8 +35,8 @@ public static class FavoriteHotkeyFormat
         modifiers = NoModifier;
         if (string.IsNullOrWhiteSpace(hotkey)) return false;
 
-        var parts = hotkey.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length == 0) return false;
+        var parts = hotkey.Split('+', StringSplitOptions.TrimEntries);
+        if (parts.Any(string.IsNullOrEmpty)) return false;
 
         var token = parts[^1];
 
@@ -48,8 +48,9 @@ public static class FavoriteHotkeyFormat
         var vk = VirtualKeyOf(token);
         if (vk is < MinVirtualKey or > MaxVirtualKey or ReservedF12) return false;
 
+        if (!TryGetModifiers(parts[..^1], out var parsedModifiers)) return false;
         virtualKey = vk;
-        modifiers = ToRegisterModifiers(ModifiersOf(parts[..^1]));
+        modifiers = ToRegisterModifiers(parsedModifiers);
         return true;
     }
 
@@ -75,6 +76,9 @@ public static class FavoriteHotkeyFormat
     private static uint VirtualKeyOf(string token)
     {
         var clean = token.Trim();
+        // WPF's recorder writes D0..D9 for the number row, not "0".."9".
+        if (clean.Length == 2 && (clean[0] is 'D' or 'd') && clean[1] is >= '0' and <= '9')
+            return clean[1];
         if (clean.Length == 1)
         {
             var c = char.ToUpperInvariant(clean[0]);
@@ -121,6 +125,10 @@ public static class FavoriteHotkeyFormat
             ["Down"] = 0x28,
             ["Insert"] = 0x2D,
             ["Delete"] = 0x2E,
+            ["Add"] = 0x6B,
+            ["Subtract"] = 0x6D,
+            ["Multiply"] = 0x6A,
+            ["Divide"] = 0x6F,
         };
 
         // The OEM keys: WPF's member name, the spelling the user sees, and the symbol itself. All three
@@ -147,27 +155,26 @@ public static class FavoriteHotkeyFormat
 
     /// <summary>
     /// The modifier flags named by the parts of a stored combination (everything before the key).
-    /// <see cref="HotkeyStringFormat.ParseCombo"/> is the authority on which tokens are modifiers, so
-    /// this asks it rather than re-listing the spellings.
+    /// Reject unknown tokens instead of silently registering a different combination.
     /// </summary>
-    private static ModifierKeys ModifiersOf(IEnumerable<string> modifierTokens)
+    private static bool TryGetModifiers(IEnumerable<string> modifierTokens, out ModifierKeys modifiers)
     {
-        var modifiers = ModifierKeys.None;
+        modifiers = ModifierKeys.None;
         foreach (var token in modifierTokens)
         {
-            if (!HotkeyStringFormat.IsBareModifier(token, out var canonical)) continue;
-
-            modifiers |= canonical switch
+            var modifier = token.ToUpperInvariant() switch
             {
-                "Control" => ModifierKeys.Control,
-                "Alt" => ModifierKeys.Alt,
-                "Shift" => ModifierKeys.Shift,
-                "Win" => ModifierKeys.Windows,
+                "CTRL" or "CONTROL" => ModifierKeys.Control,
+                "ALT" => ModifierKeys.Alt,
+                "SHIFT" => ModifierKeys.Shift,
+                "WIN" or "WINDOWS" => ModifierKeys.Windows,
                 _ => ModifierKeys.None
             };
+            if (modifier == ModifierKeys.None) return false;
+            modifiers |= modifier;
         }
 
-        return modifiers;
+        return true;
     }
 
     /// <summary>

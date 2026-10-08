@@ -1,5 +1,6 @@
 using Lertaro.App.Services.Favorites;
 using Lertaro.Core;
+using System.Text.Json;
 
 namespace Lertaro.App.Tests.Services.Favorites;
 
@@ -59,8 +60,8 @@ public sealed class FavoriteHotkeyRegistrationsTests
     {
         var favorites = new List<FavoriteItemSetting>
         {
-            new() { Name = "First", Path = @"C:\First", Hotkey = "Ctrl+D" },
-            new() { Name = "Second", Path = @"C:\Second", Hotkey = "Ctrl+D" }
+            new() { Name = "First", Path = @"C:\First", Hotkey = "Ctrl+Shift+D" },
+            new() { Name = "Second", Path = @"C:\Second", Hotkey = "Ctrl+Shift+D" }
         };
 
         var registrations = FavoriteHotkeyRegistrations.Build(favorites);
@@ -79,8 +80,8 @@ public sealed class FavoriteHotkeyRegistrationsTests
         // Windows sees these as the same combination, so a case difference must not register twice.
         var favorites = new List<FavoriteItemSetting>
         {
-            new() { Path = @"C:\First", Hotkey = "Ctrl+D" },
-            new() { Path = @"C:\Second", Hotkey = "ctrl+d" }
+            new() { Path = @"C:\First", Hotkey = "Ctrl+Shift+D" },
+            new() { Path = @"C:\Second", Hotkey = "ctrl+shift+d" }
         };
 
         var registrations = FavoriteHotkeyRegistrations.Build(favorites);
@@ -97,7 +98,7 @@ public sealed class FavoriteHotkeyRegistrationsTests
         var favorites = new List<FavoriteItemSetting>
         {
             new() { Path = @"C:\First", Hotkey = "Ctrl" },
-            new() { Path = @"C:\Second", Hotkey = "Ctrl+E" }
+            new() { Path = @"C:\Second", Hotkey = "Ctrl+Shift+G" }
         };
 
         var registrations = FavoriteHotkeyRegistrations.Build(favorites);
@@ -111,9 +112,9 @@ public sealed class FavoriteHotkeyRegistrationsTests
     {
         var favorites = new List<FavoriteItemSetting>
         {
-            new() { Path = @"C:\First", Hotkey = "Alt+P" },
-            new() { Path = @"C:\Second", Hotkey = "Alt+P" },
-            new() { Path = @"C:\Third", Hotkey = "Alt+P" }
+            new() { Path = @"C:\First", Hotkey = "Alt+T" },
+            new() { Path = @"C:\Second", Hotkey = "Alt+T" },
+            new() { Path = @"C:\Third", Hotkey = "Alt+T" }
         };
 
         var registrations = FavoriteHotkeyRegistrations.Build(favorites);
@@ -135,5 +136,122 @@ public sealed class FavoriteHotkeyRegistrationsTests
 
         Assert.AreEqual("Ctrl+G", registrations[0].Hotkey);
         Assert.AreEqual(FavoriteHotkeySkipReason.None, registrations[0].SkipReason);
+    }
+
+    [TestMethod]
+    [DataRow("Alt+D")]
+    [DataRow("Alt+P")]
+    [DataRow("Alt+Shift+P")]
+    [DataRow("Alt+Enter")]
+    [DataRow("Alt+Left")]
+    [DataRow("Alt+Up")]
+    [DataRow("Ctrl+T")]
+    [DataRow("Ctrl+W")]
+    [DataRow("Ctrl+L")]
+    [DataRow("Ctrl+F")]
+    [DataRow("Ctrl+E")]
+    [DataRow("Ctrl+D")]
+    [DataRow("Ctrl+C")]
+    [DataRow("Ctrl+V")]
+    [DataRow("Ctrl+Shift+N")]
+    [DataRow("Shift+Control+D8")]
+    [DataRow("Control+Shift+Tab")]
+    [DataRow("Control+Add")]
+    [DataRow("Shift+Delete")]
+    [DataRow("F2")]
+    [DataRow("F5")]
+    [DataRow("F11")]
+    [DataRow("Win+E")]
+    [DataRow("Windows+D1")]
+    [DataRow("Shift+Win+D0")]
+    public void Build_WindowsAndExplorerShortcuts_AreNeverRegistered(string hotkey)
+    {
+        var registration = FavoriteHotkeyRegistrations.Build([new() { Hotkey = hotkey }])[0];
+        Assert.AreEqual(FavoriteHotkeySkipReason.Reserved, registration.SkipReason);
+    }
+
+    [TestMethod]
+    [DataRow("Alt+T")]
+    [DataRow("Ctrl+Alt+T")]
+    [DataRow("Ctrl+Shift+D")]
+    [DataRow("Ctrl+Shift+Alt+1")]
+    public void Build_UnreservedCombinations_RemainAvailable(string hotkey)
+    {
+        var registration = FavoriteHotkeyRegistrations.Build([new() { Hotkey = hotkey }], new HotkeyPageSettings())[0];
+        Assert.AreEqual(FavoriteHotkeySkipReason.None, registration.SkipReason);
+    }
+
+    [TestMethod]
+    [DataRow("Ctrl+Alt+1", "Alt+Control+D1")]
+    [DataRow("Alt+OemComma", "Alt+,")]
+    [DataRow("Shift+Enter", "Shift+Return")]
+    public void Build_AliasesAndReorderedModifiers_OnlyRegisterTheFirstFavorite(string first, string second)
+    {
+        var registrations = FavoriteHotkeyRegistrations.Build([new() { Hotkey = first }, new() { Hotkey = second }]);
+        Assert.AreEqual(FavoriteHotkeySkipReason.None, registrations[0].SkipReason);
+        Assert.AreEqual(FavoriteHotkeySkipReason.Duplicate, registrations[1].SkipReason);
+    }
+
+    [TestMethod]
+    [DataRow(nameof(HotkeyPageSettings.ToggleWindowHotkey))]
+    [DataRow(nameof(HotkeyPageSettings.QuickSwitchHotkey))]
+    [DataRow(nameof(HotkeyPageSettings.QuickPanelHotkey))]
+    [DataRow(nameof(HotkeyPageSettings.QuickNavigationHotkey))]
+    [DataRow(nameof(HotkeyPageSettings.NextItemHotkey))]
+    [DataRow(nameof(HotkeyPageSettings.PreviousItemHotkey))]
+    [DataRow(nameof(HotkeyPageSettings.ActionsMenuHotkey))]
+    [DataRow(nameof(HotkeyPageSettings.CompleteFromSelectionHotkey))]
+    [DataRow(nameof(HotkeyPageSettings.QuickLookHotkey))]
+    [DataRow(nameof(HotkeyPageSettings.KeywordHistoryPreviousHotkey))]
+    [DataRow(nameof(HotkeyPageSettings.KeywordHistoryNextHotkey))]
+    [DataRow(nameof(HotkeyPageSettings.KeywordHistoryDeleteHotkey))]
+    [DataRow(nameof(HotkeyPageSettings.OpenFullWindowHotkey))]
+    [DataRow(nameof(HotkeyPageSettings.LocalSendSendWindowHotkey))]
+    [DataRow(nameof(HotkeyPageSettings.StayOpenHotkey))]
+    public void Build_ConflictingHostShortcut_IsNotRegistered(string property)
+    {
+        var settings = new HotkeyPageSettings();
+        typeof(HotkeyPageSettings).GetProperty(property)!.SetValue(settings, "Ctrl+Alt+T");
+        var registration = FavoriteHotkeyRegistrations.Build([new() { Hotkey = "Alt+Control+T" }], settings)[0];
+        Assert.AreEqual(FavoriteHotkeySkipReason.ApplicationConflict, registration.SkipReason);
+    }
+
+    [TestMethod]
+    [DataRow("Ctrl+D1")]
+    [DataRow("Ctrl+NumPad9")]
+    public void Build_SelectionNumberShortcut_IsNotRegistered(string hotkey)
+    {
+        var registration = FavoriteHotkeyRegistrations.Build([new() { Hotkey = hotkey }], new HotkeyPageSettings())[0];
+        Assert.AreEqual(FavoriteHotkeySkipReason.ApplicationConflict, registration.SkipReason);
+    }
+
+    [TestMethod]
+    public void Build_PluginActionShortcut_ConflictsByPhysicalCombination()
+    {
+        var registrations = FavoriteHotkeyRegistrations.Build([new() { Hotkey = "Alt+Control+D1" }],
+            pluginHotkeys: ["Ctrl+Alt+1"]);
+        Assert.AreEqual(FavoriteHotkeySkipReason.ApplicationConflict, registrations[0].SkipReason);
+    }
+
+    [TestMethod]
+    [DataRow(true, false, false, FavoriteHotkeySkipReason.ApplicationConflict)]
+    [DataRow(false, false, false, FavoriteHotkeySkipReason.None)]
+    [DataRow(true, true, false, FavoriteHotkeySkipReason.None)]
+    [DataRow(true, false, true, FavoriteHotkeySkipReason.None)]
+    public void BuildForSettings_CustomActions_OnlyEnabledShortcutsConflict(bool enabled, bool disabledPlugin,
+        bool disabledComponent, FavoriteHotkeySkipReason expected)
+    {
+        var settings = new UserSettings { Favorites = [new() { Hotkey = "Ctrl+Alt+Shift+F9" }] };
+        settings.PluginSettings["Lertaro.Plugins.CustomActions"] = new()
+        {
+            ["Actions"] = JsonSerializer.SerializeToElement(new[] { new { Enabled = enabled, Hotkey = "Shift+Alt+Control+F9" } })
+        };
+        if (disabledPlugin) settings.DisabledPluginAssemblies.Add("Lertaro.Plugins.CustomActions.dll");
+        if (disabledComponent) settings.DisabledPluginComponents.Add(
+            "Lertaro.Plugins.CustomActions.dll::DynamicActionProvider::DynamicActionProvider");
+
+        var registration = FavoriteHotkeyRegistrations.BuildForSettings(settings)[0];
+
+        Assert.AreEqual(expected, registration.SkipReason);
     }
 }

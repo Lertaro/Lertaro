@@ -44,9 +44,9 @@ public class FavoriteItemViewModel : ViewModelBase
         get => _hotkey;
         set
         {
-            if (!SetProperty(ref _hotkey, value)) return;
-
+            if (_hotkey == value) return;
             HotkeyHint = string.Empty;
+            SetProperty(ref _hotkey, value);
         }
     }
 

@@ -111,7 +111,7 @@ public static class HotkeyActionTrigger
         return false;
     }
 
-    private static string ResolveEffectiveHotkey(ISearchResultAction action, IPlugin plugin, Dictionary<string, Dictionary<string, string>> pluginActionHotkeys)
+    internal static string ResolveEffectiveHotkey(ISearchResultAction action, IPlugin plugin, Dictionary<string, Dictionary<string, string>> pluginActionHotkeys)
     {
         var effectiveHotkey = action.Hotkey;
         // Matches the plugin ID convention used by PluginSettings: the DLL file name without its extension.

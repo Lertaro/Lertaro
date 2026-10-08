@@ -58,7 +58,7 @@ public sealed class FavoriteHotkeyService : IDisposable
     {
         var service = new FavoriteHotkeyService();
         Instance = service;
-        service.Refresh(FavoriteHotkeyRegistrations.Build(UserSettings.Load().Favorites));
+        service.Refresh(FavoriteHotkeyRegistrations.BuildForSettings(UserSettings.Load()));
         return service;
     }
 
@@ -116,9 +116,7 @@ public sealed class FavoriteHotkeyService : IDisposable
 
     /// <summary>
     /// Whether the most recent <see cref="Refresh"/> failed to register this combination. The Settings
-    /// page uses "was unavailable before this apply, and still is" to decide whether showing the error is
-    /// news: a combination another application owns stays unavailable on every later apply, and
-    /// re-announcing it each time would make an unrelated, successful edit look like it failed.
+    /// page keeps the row's hint visible until a later registration succeeds or the value changes.
     /// </summary>
     public bool IsNewlyUnavailable(string? hotkey) =>
         !string.IsNullOrWhiteSpace(hotkey) && _unavailableCombos.Contains(hotkey.Trim());
