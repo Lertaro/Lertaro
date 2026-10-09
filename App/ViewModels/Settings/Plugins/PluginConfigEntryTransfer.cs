@@ -44,7 +44,7 @@ internal static class PluginConfigEntryTransfer
             }
         }
         var value = JsonSerializer.SerializeToElement(item);
-        var validated = ValidateItem(value, field, requireAll: true);
+        var validated = ValidateItem(ReadObject(value), field, requireAll: true);
         var bytes = JsonSerializer.SerializeToUtf8Bytes(new
         {
             format = Format,
@@ -74,20 +74,27 @@ internal static class PluginConfigEntryTransfer
             string[] envelope = ["format", "version", "pluginId", "pluginVersion", "settingKey", "fields", "item"];
             if (root.Count != envelope.Length || envelope.Any(key => !root.ContainsKey(key)))
                 throw Error("Invalid");
-            if (ReadString(root["format"]) != Format || !root["version"].TryGetInt32(out var version) || version != 1
-                || ReadString(root["pluginId"]) != pluginId || ReadString(root["settingKey"]) != field.Key)
-                throw Error("Incompatible");
+            if (ReadString(root["format"]) != Format) throw Error("UnsupportedFormat");
+            if (!root["version"].TryGetInt32(out var version)) throw Error("Invalid");
+            if (version != 1) throw Error("FormatVersion", version);
+            var sourcePlugin = ReadString(root["pluginId"]);
+            if (sourcePlugin != pluginId) throw Error("PluginMismatch", sourcePlugin, pluginId);
+            var sourceSetting = ReadString(root["settingKey"]);
+            if (sourceSetting != field.Key) throw Error("SettingMismatch", sourceSetting, field.Key);
             var sourceVersion = ReadString(root["pluginVersion"]);
             if (string.IsNullOrWhiteSpace(sourceVersion)) throw Error("Invalid");
 
             var fields = ReadObject(root["fields"]);
+            var item = ReadObject(root["item"]);
             if (fields.Count != field.SubFields!.Count || field.SubFields.Any(f =>
-                !fields.TryGetValue(f.Key, out var type) || ReadString(type) != f.FieldType.ToString()))
-                throw Error("Incompatible");
+                !fields.TryGetValue(f.Key, out var type) || ReadString(type) != f.FieldType.ToString())
+                || (sourceVersion != pluginVersion && field.SubFields.Any(f => !item.ContainsKey(f.Key))))
+                throw sourceVersion != pluginVersion
+                    ? Error("VersionIncompatible", sourceVersion, pluginVersion) : Error("Incompatible");
 
             // Same-version hand-written files may omit values and use current defaults. A different
             // version must supply every field; there is no migration or lossy best-effort import.
-            return ValidateItem(root["item"], field, requireAll: sourceVersion != pluginVersion);
+            return ValidateItem(item, field, requireAll: false);
         }
         catch (Exception ex) when (ex is JsonException or DecoderFallbackException or EncoderFallbackException or InvalidOperationException)
         {
@@ -95,16 +102,15 @@ internal static class PluginConfigEntryTransfer
         }
     }
 
-    private static Dictionary<string, object> ValidateItem(JsonElement item, PluginConfigField field, bool requireAll)
+    private static Dictionary<string, object> ValidateItem(Dictionary<string, JsonElement> properties, PluginConfigField field, bool requireAll)
     {
-        var properties = ReadObject(item);
-        if (properties.Keys.Any(key => !field.SubFields!.Any(f => f.Key == key))
-            || (requireAll && properties.Count != field.SubFields!.Count))
-            throw Error("Incompatible");
+        foreach (var key in properties.Keys)
+            if (!field.SubFields!.Any(f => f.Key == key)) throw Error("UnknownField", key);
 
         var result = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
         foreach (var child in field.SubFields!)
         {
+            if (requireAll && !properties.ContainsKey(child.Key)) throw Error("MissingField", child.Key);
             var value = properties.TryGetValue(child.Key, out var supplied)
                 ? supplied : JsonSerializer.SerializeToElement(child.DefaultValue);
             if (child.FieldType == ConfigFieldType.Boolean)
@@ -115,15 +121,15 @@ internal static class PluginConfigEntryTransfer
             }
             if (value.ValueKind != JsonValueKind.String) throw InvalidField(child);
             var text = ReadString(value);
-            if ((child.MaxLength > 0 && text.Length > child.MaxLength)
-                || (child.RequireNonEmpty && string.IsNullOrWhiteSpace(text))) throw InvalidField(child);
-            // Icon's Text representation is WPF/SVG geometry, i.e. an embedded resource, even when
-            // it is valid Path Data. Current icon editors do not support external icon references.
-            if ((child.Key.Equals("Icon", StringComparison.OrdinalIgnoreCase) && text.Length != 0)
-                || text.TrimStart().StartsWith("data:", StringComparison.OrdinalIgnoreCase))
-                throw Error("EmbeddedResource");
+            if (child.MaxLength > 0 && text.Length > child.MaxLength) throw Error("TooLong", child.Key, child.MaxLength);
+            if (child.RequireNonEmpty && string.IsNullOrWhiteSpace(text)) throw Error("Required", child.Key);
+            if (text.TrimStart().StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+                throw Error("EmbeddedResource", child.Key);
+            // The icon editor already stores SVG as Path Data; validate and preserve it verbatim.
+            if (child.Key.Equals("Icon", StringComparison.OrdinalIgnoreCase) && !SvgIconInputHelper.IsValidPathData(text))
+                throw Error("InvalidIcon", child.Key);
             if (child.FieldType == ConfigFieldType.Hotkey && text.Length != 0 && !IsValidHotkey(text, child.RequireModifier))
-                throw InvalidField(child);
+                throw Error("InvalidHotkey", child.Key);
             result.Add(child.Key, text);
         }
         return result;
@@ -175,7 +181,7 @@ internal static class PluginConfigEntryTransfer
     private static void CheckSchema(string pluginId, string pluginVersion, PluginConfigField field)
     {
         if (!IsSupported(field) || string.IsNullOrWhiteSpace(pluginId) || string.IsNullOrWhiteSpace(pluginVersion))
-            throw Error("Incompatible");
+            throw Error("Unavailable", string.Empty);
     }
 
     private static void CheckSize(long size)
@@ -183,9 +189,26 @@ internal static class PluginConfigEntryTransfer
         if (size > MaxFileBytes) throw Error("TooLarge");
     }
 
-    private static InvalidDataException Error(string reason) => new(TranslationService.Get("Plugins_Entry" + reason));
+    private static InvalidDataException Error(string reason, params object[] args) => new(TranslationService.Format("Plugins_Entry" + reason, args));
     private static InvalidDataException InvalidField(PluginConfigField field) =>
         new(string.Format(TranslationService.Get("Plugins_EntryInvalidField"), field.Key));
+
+    internal static string ErrorMessage(Exception error)
+    {
+        if (error is InvalidDataException) return error.Message;
+        var reason = error switch
+        {
+            FileNotFoundException => "FileNotFound",
+            DirectoryNotFoundException => "DirectoryNotFound",
+            PathTooLongException or ArgumentException or NotSupportedException => "InvalidPath",
+            UnauthorizedAccessException => "AccessDenied",
+            IOException when (error.HResult & 0xffff) is 32 or 33 => "FileInUse",
+            IOException when (error.HResult & 0xffff) is 39 or 112 => "DiskFull",
+            InvalidOperationException => "Unavailable",
+            _ => "IoError"
+        };
+        return TranslationService.Format("Plugins_Entry" + reason, error.Message);
+    }
 
     internal static byte[] ReadFile(string path)
     {
@@ -225,7 +248,7 @@ internal static class PluginConfigEntryTransfer
 
     internal static string SuggestedFileName(PluginConfigArrayItemViewModel item)
     {
-        var title = new[] { "Title", "Keyword" }.Select(key => item.Children
+        var title = new[] { "Title", "Name", "Keyword" }.Select(key => item.Children
             .FirstOrDefault(f => f.SchemaField.Key.Equals(key, StringComparison.OrdinalIgnoreCase))?.Value as string)
             .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? "entry";
         var name = string.Concat(title.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)).Trim().TrimEnd('.');

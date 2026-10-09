@@ -30,7 +30,7 @@ public partial class PluginConfigFieldRowTemplate : ResourceDictionary
             if (warning.Length != 0)
                 CustomMessageBox.Show(owner, warning, TranslationManager.Instance["Plugins_EntryImport"], MessageBoxButton.OK, MessageBoxImage.Warning);
         }
-        catch (Exception ex) when (ex is System.IO.InvalidDataException or System.IO.IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        catch (Exception ex) when (ex is System.IO.InvalidDataException or System.IO.IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or NotSupportedException)
         {
             ShowEntryError(owner, ex);
         }
@@ -51,14 +51,14 @@ public partial class PluginConfigFieldRowTemplate : ResourceDictionary
             };
             if (dialog.ShowDialog(owner) == true) PluginConfigEntryTransfer.WriteFile(dialog.FileName, bytes);
         }
-        catch (Exception ex) when (ex is System.IO.InvalidDataException or System.IO.IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        catch (Exception ex) when (ex is System.IO.InvalidDataException or System.IO.IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or NotSupportedException)
         {
             ShowEntryError(owner, ex);
         }
     }
 
     private static void ShowEntryError(Window? owner, Exception error) => CustomMessageBox.Show(owner,
-        error is System.IO.InvalidDataException ? error.Message : string.Format(TranslationManager.Instance["Plugins_EntryIoError"], error.Message),
+        PluginConfigEntryTransfer.ErrorMessage(error),
         TranslationManager.Instance["Plugins_EntryErrorTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
 
     private void InlineEditorHost_EditCompleted(object sender, RoutedEventArgs e)

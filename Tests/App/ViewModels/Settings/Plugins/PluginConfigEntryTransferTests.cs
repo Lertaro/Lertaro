@@ -8,6 +8,7 @@ using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Services;
 using Lertaro.Plugins.CustomActions;
 using Lertaro.Plugins.CustomCommands;
+using Lertaro.Plugins.WebSearch;
 
 namespace Lertaro.App.Tests.ViewModels.Settings.Plugins;
 
@@ -121,7 +122,8 @@ public sealed class PluginConfigEntryTransferTests
                 case "changedType": root["fields"]!["Path"] = "Text"; break;
             }
         });
-        Assert.ThrowsExactly<InvalidDataException>(() => field.ImportEntry(bytes));
+        var error = Assert.ThrowsExactly<InvalidDataException>(() => field.ImportEntry(bytes));
+        Assert.AreEqual(TranslationService.Format("Plugins_EntryVersionIncompatible", "999.0.0", field.PluginVersion), error.Message);
         Assert.IsEmpty(field.ArrayItems);
         Assert.IsFalse(field.IsDirty);
     }
@@ -159,7 +161,7 @@ public sealed class PluginConfigEntryTransferTests
     [DataRow("Title", "{\"$type\":\"System.Object\"}")]
     [DataRow("TITLE", "\"alias\"")]
     [DataRow("Unknown", "true")]
-    [DataRow("Icon", "\"M0 0 L10 10 Z\"")]
+    [DataRow("Icon", "\"not-a-path\"")]
     [DataRow("Icon", "\"<svg/>\"")]
     [DataRow("Icon", "\"data:image/png;base64,AAAA\"")]
     [DataRow("Path", "\"data:application/octet-stream;base64,AAAA\"")]
@@ -263,14 +265,145 @@ public sealed class PluginConfigEntryTransferTests
     }
 
     [TestMethod]
-    public void Export_EmbeddedIcon_RefusesWithoutClearingStagedIcon()
+    [DataRow(false)]
+    [DataRow(true)]
+    public void Export_EmbeddedIcon_PreservesStagedIconThroughImportAndCommit(bool actions)
+    {
+        var field = Field(actions);
+        field.ImportEntry(Entry(field));
+        var icon = field.SelectedArrayItem!.Children.Single(c => c.IsIconField);
+        const string path = "F1 M0,0 L10,0 10,10 Z M2,2 A1,1 0 0 1 3,3";
+        icon.Value = path;
+        var bytes = field.ExportEntry();
+        using var document = JsonDocument.Parse(bytes);
+        Assert.AreEqual(path, document.RootElement.GetProperty("item").GetProperty("Icon").GetString());
+        Assert.AreEqual(path, icon.Value);
+        var imported = Field(actions);
+        imported.ImportEntry(bytes);
+        imported.Commit();
+        var stored = JsonSerializer.SerializeToElement(imported.Settings.GetPluginSetting<object?>(imported.PluginId, imported.SchemaField.Key, null));
+        Assert.AreEqual(path, stored[0].GetProperty("Icon").GetString());
+    }
+
+    [TestMethod]
+    public void Export_InvalidIcon_ReportsReasonWithoutChangingStagedValue()
     {
         var field = Field();
         field.ImportEntry(Entry(field));
         var icon = field.SelectedArrayItem!.Children.Single(c => c.IsIconField);
-        icon.Value = "M0 0 L1 1";
-        Assert.ThrowsExactly<InvalidDataException>(() => field.ExportEntry());
-        Assert.AreEqual("M0 0 L1 1", icon.Value);
+        icon.Value = "invalid path";
+        var error = Assert.ThrowsExactly<InvalidDataException>(() => field.ExportEntry());
+        Assert.AreEqual(TranslationService.Format("Plugins_EntryInvalidIcon", "Icon"), error.Message);
+        Assert.AreEqual("invalid path", icon.Value);
+    }
+
+    [TestMethod]
+    public void RoundTrip_WebSearch_DefaultEnginesPreserveIconsAndUrls()
+    {
+        var plugin = new WebSearchPlugin();
+        var assembly = plugin.GetType().Assembly.GetName();
+        var field = new PluginConfigFieldViewModel(assembly.Name!, plugin.GetConfigSchema().Fields.Single(),
+            new UserSettings(), pluginVersion: assembly.Version!.ToString(3));
+        Assert.IsTrue(field.SupportsEntryTransfer);
+        var count = field.ArrayItems.Count;
+        var expected = new List<WebSearchInstantProvider.SearchSourceItem>();
+        foreach (var row in field.ArrayItems.ToArray())
+        {
+            field.SelectedArrayItem = row;
+            var source = JsonSerializer.Deserialize<WebSearchInstantProvider.SearchSourceItem>(JsonSerializer.Serialize(row.GetValue()))!;
+            expected.Add(source);
+            Assert.IsNotEmpty(source.Icon);
+            Assert.AreEqual(source.Name + ".json", PluginConfigEntryTransfer.SuggestedFileName(row));
+            Assert.IsNotEmpty(field.ImportEntry(field.ExportEntry())); // A duplicate keyword still warns.
+            Assert.AreEqual(source.Icon, field.SelectedArrayItem!.IconField!.Value);
+        }
+        Assert.HasCount(count * 2, field.ArrayItems);
+        field.Commit();
+        var stored = JsonSerializer.Deserialize<List<WebSearchInstantProvider.SearchSourceItem>>(JsonSerializer.Serialize(
+            field.Settings.GetPluginSetting<object?>(field.PluginId, field.SchemaField.Key, null)))!;
+        Assert.AreEqual(JsonSerializer.Serialize(expected), JsonSerializer.Serialize(stored.Skip(count)));
+    }
+
+    [TestMethod]
+    [DataRow("format", "\"other\"", "UnsupportedFormat")]
+    [DataRow("version", "2", "FormatVersion")]
+    [DataRow("version", "\"2\"", "Invalid")]
+    [DataRow("pluginId", "\"other.plugin\"", "PluginMismatch")]
+    [DataRow("settingKey", "\"OtherSettings\"", "SettingMismatch")]
+    [DataRow("fields", "{}", "Incompatible")]
+    [DataRow("item", "[]", "Invalid")]
+    public void Import_InvalidEnvelope_ReportsSpecificReason(string key, string value, string reason)
+    {
+        var field = Field();
+        var error = Assert.ThrowsExactly<InvalidDataException>(() => field.ImportEntry(Changed(field, root => root[key] = JsonNode.Parse(value))));
+        Assert.AreEqual(TranslationService.Format("Plugins_Entry" + reason, JsonNode.Parse(value)!.ToString(),
+            key == "pluginId" ? field.PluginId : field.SchemaField.Key), error.Message);
+        Assert.IsEmpty(field.ArrayItems);
+        Assert.IsFalse(field.IsDirty);
+    }
+
+    [TestMethod]
+    [DataRow("{")]
+    [DataRow("")]
+    [DataRow("{\"format\":1,\"format\":2}")]
+    public void Import_CorruptFile_ReportsInvalidContent(string json)
+    {
+        var error = Assert.ThrowsExactly<InvalidDataException>(() => Field().ImportEntry(Encoding.UTF8.GetBytes(json)));
+        Assert.AreEqual(TranslationService.Get("Plugins_EntryInvalid"), error.Message);
+    }
+
+    [TestMethod]
+    [DoNotParallelize]
+    public void Import_MismatchedPluginAndVersion_MessagesIncludeSourceAndTarget()
+    {
+        var original = TranslationService.LookupFunc;
+        TranslationService.LookupFunc = key => key + ": {0} -> {1}";
+        try
+        {
+            var field = Field();
+            var error = Assert.ThrowsExactly<InvalidDataException>(() => field.ImportEntry(Changed(field, root => root["pluginId"] = "other.plugin")));
+            Assert.AreEqual($"Plugins_EntryPluginMismatch: other.plugin -> {field.PluginId}", error.Message);
+            error = Assert.ThrowsExactly<InvalidDataException>(() => field.ImportEntry(Changed(field, root =>
+            {
+                root["pluginVersion"] = "999.0.0";
+                root["fields"]!.AsObject().Remove("Title");
+            })));
+            Assert.AreEqual($"Plugins_EntryVersionIncompatible: 999.0.0 -> {field.PluginVersion}", error.Message);
+        }
+        finally { TranslationService.LookupFunc = original; }
+    }
+
+    public static IEnumerable<(Exception error, string reason)> FileErrors =>
+    [
+        (new FileNotFoundException("missing.json"), "FileNotFound"),
+        (new DirectoryNotFoundException("missing directory"), "DirectoryNotFound"),
+        (new UnauthorizedAccessException("read-only"), "AccessDenied"),
+        (new IOException("locked", unchecked((int)0x80070020)), "FileInUse"),
+        (new IOException("locked region", unchecked((int)0x80070021)), "FileInUse"),
+        (new IOException("disk full", unchecked((int)0x80070070)), "DiskFull"),
+        (new IOException("disk full", unchecked((int)0x80070027)), "DiskFull"),
+        (new PathTooLongException("long path"), "InvalidPath"),
+        (new ArgumentException("invalid path"), "InvalidPath"),
+        (new NotSupportedException("unsupported path"), "InvalidPath"),
+        (new IOException("device disconnected"), "IoError"),
+        (new InvalidOperationException("no selection"), "Unavailable")
+    ];
+
+    [TestMethod]
+    [DynamicData(nameof(FileErrors))]
+    [DoNotParallelize]
+    public void ErrorMessage_FileFailures_ReportsCategoryAndSystemDetails(Exception error, string reason)
+    {
+        var original = TranslationService.LookupFunc;
+        TranslationService.LookupFunc = key => key + ": {0}";
+        try { Assert.AreEqual($"Plugins_Entry{reason}: {error.Message}", PluginConfigEntryTransfer.ErrorMessage(error)); }
+        finally { TranslationService.LookupFunc = original; }
+    }
+
+    [TestMethod]
+    public void ErrorMessage_ValidationFailure_PreservesSpecificReason()
+    {
+        Assert.AreEqual("invalid Icon", PluginConfigEntryTransfer.ErrorMessage(new InvalidDataException("invalid Icon")));
     }
 
     [TestMethod]

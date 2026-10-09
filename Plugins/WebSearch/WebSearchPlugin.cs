@@ -34,6 +34,7 @@ public class WebSearchPlugin : IPlugin, IConfigurable
                     LabelKey = "WebSearch_Config_SourcesLabel",
                     DescriptionKey = "WebSearch_Config_SourcesDesc",
                     FieldType = ConfigFieldType.Array,
+                    AllowEntryTransfer = true,
                     DefaultValue = GetDefaultSearchSources().Select(s => new Dictionary<string, object>
                     {
                         { "Name", s.Name },
