@@ -102,7 +102,7 @@ internal sealed class PluginConfigFieldLoadSupport
             {
                 // Group children carry no change callback: a group is a layout section, and each leaf
                 // writes itself to settings when Commit runs.
-                _children.Add(new PluginConfigFieldViewModel(_field.PluginId, sf, _field.Settings, null));
+                _children.Add(new PluginConfigFieldViewModel(_field.PluginId, sf, _field.Settings, null, _field.PluginVersion));
             }
         }
         else if (_field.IsObject && _field.SchemaField.SubFields != null)
@@ -139,6 +139,7 @@ internal sealed class PluginConfigFieldLoadSupport
     /// </summary>
     internal void Reset()
     {
+        _field.SelectedArrayItem = null;
         _children.Clear();
         _arrayItems.Clear();
         _childrenLoaded = false;

@@ -14,6 +14,53 @@ namespace Lertaro.App.Views.Settings.Plugins;
 // depend on PluginConfigWindow's own state.
 public partial class PluginConfigFieldRowTemplate : ResourceDictionary
 {
+    private void ImportEntry_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: PluginConfigFieldViewModel { SupportsEntryTransfer: true } field } element) return;
+        var owner = Window.GetWindow(element);
+        try
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "JSON (*.json)|*.json", CheckFileExists = true,
+                Title = TranslationManager.Instance["Plugins_EntryImport"]
+            };
+            if (dialog.ShowDialog(owner) != true) return;
+            var warning = field.ImportEntry(PluginConfigEntryTransfer.ReadFile(dialog.FileName));
+            if (warning.Length != 0)
+                CustomMessageBox.Show(owner, warning, TranslationManager.Instance["Plugins_EntryImport"], MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        catch (Exception ex) when (ex is System.IO.InvalidDataException or System.IO.IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        {
+            ShowEntryError(owner, ex);
+        }
+    }
+
+    private void ExportEntry_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: PluginConfigFieldViewModel { CanExportEntry: true } field } element) return;
+        var owner = Window.GetWindow(element);
+        try
+        {
+            var bytes = field.ExportEntry();
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = "JSON (*.json)|*.json", DefaultExt = ".json", AddExtension = true,
+                FileName = PluginConfigEntryTransfer.SuggestedFileName(field.SelectedArrayItem!),
+                Title = TranslationManager.Instance["Plugins_EntryExport"]
+            };
+            if (dialog.ShowDialog(owner) == true) PluginConfigEntryTransfer.WriteFile(dialog.FileName, bytes);
+        }
+        catch (Exception ex) when (ex is System.IO.InvalidDataException or System.IO.IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        {
+            ShowEntryError(owner, ex);
+        }
+    }
+
+    private static void ShowEntryError(Window? owner, Exception error) => CustomMessageBox.Show(owner,
+        error is System.IO.InvalidDataException ? error.Message : string.Format(TranslationManager.Instance["Plugins_EntryIoError"], error.Message),
+        TranslationManager.Instance["Plugins_EntryErrorTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
+
     private void InlineEditorHost_EditCompleted(object sender, RoutedEventArgs e)
     {
         if (sender is not InlineEditorHost { DataContext: PluginConfigFieldViewModel { IsIconField: true } field } host

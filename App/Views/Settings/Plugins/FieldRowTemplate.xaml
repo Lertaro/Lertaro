@@ -162,6 +162,15 @@
                                         ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Common_Add]}"/>
                                 <Button Style="{StaticResource ArrayHeaderDuplicateButton}"
                                         ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Common_Duplicate]}"/>
+                                <Button Style="{StaticResource ArrayHeaderAddButton}" Command="{x:Null}" Content="&#xE8B5;"
+                                        Click="ImportEntry_Click" Visibility="{Binding SupportsEntryTransfer, Converter={StaticResource BoolToVis}}"
+                                        ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_EntryImport]}"
+                                        AutomationProperties.Name="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_EntryImport]}"/>
+                                <Button Style="{StaticResource ArrayHeaderAddButton}" Command="{x:Null}" Content="&#xE8B6;"
+                                        Click="ExportEntry_Click" Visibility="{Binding SupportsEntryTransfer, Converter={StaticResource BoolToVis}}"
+                                        IsEnabled="{Binding CanExportEntry}"
+                                        ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_EntryExport]}"
+                                        AutomationProperties.Name="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Plugins_EntryExport]}"/>
                             </StackPanel>
                             <!-- No horizontal scrolling of its own. Left at the default it hands each
                                  row an unbounded width, the row's Star column resolves to however

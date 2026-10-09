@@ -29,6 +29,9 @@ public class PluginConfigField
     /// <summary>Choice values with separate persisted values and localized display labels.</summary>
     public List<PluginConfigChoice>? ChoiceOptions { get; set; }
     public List<PluginConfigField>? SubFields { get; set; }
+    /// <summary>Opt in to single-entry JSON import/export for host-managed Array fields with flat
+    /// Boolean/Text/Hotkey/FilePath/FolderPath children. Embedded resources are not transferable.</summary>
+    public bool AllowEntryTransfer { get; set; }
     /// <summary>For Hotkey fields: when true, single keys without modifier keys (Ctrl/Alt/Shift/Win) are rejected.</summary>
     public bool RequireModifier { get; set; }
     /// <summary>When true, saving this field with an empty/whitespace value falls back to <see cref="DefaultValue"/>

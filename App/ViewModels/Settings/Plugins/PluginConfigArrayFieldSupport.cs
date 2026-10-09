@@ -1,4 +1,7 @@
 using Lertaro.App.Helpers;
+using Lertaro.Core;
+using Lertaro.PluginSdk.Abstractions;
+using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.App.ViewModels.Settings.Plugins;
 
@@ -108,6 +111,36 @@ internal sealed class PluginConfigArrayFieldSupport
         AddArrayItemViewModel(value);
         _field.SelectedArrayItem = _field.ArrayItems[^1];
         SaveArrayFromChildren();
+    }
+
+    internal byte[] ExportEntry()
+    {
+        if (!_field.CanExportEntry) throw new InvalidOperationException("No transferable entry selected.");
+        return PluginConfigEntryTransfer.Export(_field.PluginId, _field.PluginVersion,
+            _field.SchemaField, _field.SelectedArrayItem!.GetValue());
+    }
+
+    internal string ImportEntry(ReadOnlyMemory<byte> json)
+    {
+        if (!_field.SupportsEntryTransfer) throw new InvalidOperationException("Entry transfer is unavailable.");
+        var value = PluginConfigEntryTransfer.Import(json, _field.PluginId, _field.PluginVersion, _field.SchemaField);
+        // All untrusted data is validated before loading or touching the existing rows.
+        var duplicate = _field.ArrayItems.Any(item => item.Children.Any(child =>
+        {
+            var imported = value[child.SchemaField.Key] as string;
+            var existing = child.Value as string;
+            if (string.IsNullOrWhiteSpace(imported) || string.IsNullOrWhiteSpace(existing)) return false;
+            if (child.SchemaField.IsTriggerWord)
+                return TriggerWord.Normalize(imported).Equals(TriggerWord.Normalize(existing), StringComparison.OrdinalIgnoreCase);
+            return child.FieldType == ConfigFieldType.Hotkey
+                && WpfUiHelper.TryParseHotkey(imported, out var key, out var modifiers)
+                && WpfUiHelper.MatchesHotkey(existing, modifiers, key);
+        }));
+        AddArrayItemViewModel(value);
+        _field.SelectedArrayItem = _field.ArrayItems[^1];
+        SaveArrayFromChildren();
+        return duplicate || _field.SelectedArrayItem.Children.Any(c => !string.IsNullOrEmpty(c.ConflictWarning))
+            ? TranslationService.Get("Plugins_EntryConflict") : string.Empty;
     }
 
     private void AddArrayItemViewModel(object? itemValue)

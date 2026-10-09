@@ -23,6 +23,7 @@ public class CustomActionsPlugin : IPlugin, IActionProvider, IConfigurable
                 LabelKey = "CustomActions_Config_ActionsLabel",
                 DescriptionKey = "CustomActions_Config_ActionsDesc",
                 FieldType = ConfigFieldType.Array,
+                AllowEntryTransfer = true,
                 DefaultValue = new List<object>(),
                 SubFields = new List<PluginConfigField>
                 {

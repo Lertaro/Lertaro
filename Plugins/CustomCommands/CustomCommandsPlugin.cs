@@ -19,6 +19,7 @@ public class CustomCommandsPlugin : IPlugin, IConfigurable
                 LabelKey = "CustomCommands_Config_CommandsLabel",
                 DescriptionKey = "CustomCommands_Config_CommandsDesc",
                 FieldType = ConfigFieldType.Array,
+                AllowEntryTransfer = true,
                 DefaultValue = new List<object>(),
                 SubFields = new List<PluginConfigField>
                 {

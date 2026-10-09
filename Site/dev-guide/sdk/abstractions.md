@@ -90,6 +90,18 @@ The remaining `PluginConfigField` members are what the host renders or persists 
 
 A text field whose schema key is `Icon` is rendered with an icon preview. It accepts WPF Path Data directly; when a complete SVG/XML document is pasted, the host extracts every `<path d>` value, combines them, and stores only the resulting WPF Path Data. Invalid icon content is cleared and reported with a themed error dialog. Empty values remain valid when no icon is desired.
 
+### Single-entry import and export
+
+Set `AllowEntryTransfer = true` on a host-managed `Array` field to enable single-entry JSON import/export. It defaults to false and supports only flat `Boolean`, `Text`, `Hotkey`, `FilePath`, and `FolderPath` children, without custom getter/setter delegates. Custom Actions (`Actions`) and Custom Commands (`Commands`) enable it.
+
+The file is a UTF-8 JSON object, limited to 1 MiB and depth 8. Export writes no BOM; import accepts an optional UTF-8 BOM and rejects malformed encoding. Its required properties are `format: "lertaro.plugin-config-entry"`, `version: 1`, stable `pluginId`, the host's assembly version `pluginVersion`, `settingKey`, `fields`, and `item`. `fields` maps every field name to its `ConfigFieldType` name (for example, `"Path": "FilePath"`); `item` maps field names to their current values. Use a JSON serializer for quoting, backslashes, newlines, and Unicode escapes.
+
+Export includes all fields and unapplied edits. Import requires identical field names and types. A different plugin version must also supply every value; otherwise the entire entry is rejected without changing the list. Same-version files may omit values to use current defaults. Wrong types, unknown or duplicate properties (including case aliases), mismatched plugin/setting identifiers, and unknown format versions are rejected. There is no automatic migration.
+
+Embedded resources and data URIs are forbidden. The current `Icon` field stores embedded WPF/SVG geometry and must be empty; export reports an error rather than silently stripping it. Ordinary file/directory paths remain references, including environment variables and paths on another machine. No files or scripts are bundled or executed.
+
+Import appends and selects an independent entry. Keyword/hotkey conflicts produce a warning and duplicates remain allowed. Edits survive page changes, commit through Apply/OK, and roll back on Cancel. Export writes a temporary file in the destination directory and replaces the target only after writing succeeds.
+
 `PluginConfigSchema` also supports `OnSave` and `OnRollback` lifecycle delegates: `OnSave` runs when the user clicks **OK/Apply** to commit changes, while `OnRollback` restores state when changes are cancelled or rolled back.
 
 ### Localized choice labels

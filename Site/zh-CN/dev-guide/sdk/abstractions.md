@@ -90,6 +90,18 @@ public interface IConfigurable
 
 将字段的 Schema 键设为 `Icon` 并使用 `Text` 类型时，宿主会显示图标预览并支持直接输入 WPF Path Data。粘贴完整 SVG/XML 文档时，宿主会提取并合并所有 `<path d>` 值，只保存转换后的 WPF Path Data；图标内容无效时会清空并通过主题化错误对话框提示。不需要图标时，空值仍然有效。
 
+### 列表单条导入导出
+
+在宿主管理的 `Array` 字段上设置 `AllowEntryTransfer = true`，即可显示单条 JSON 导入／导出按钮。默认关闭；首版只支持由 `Boolean`、`Text`、`Hotkey`、`FilePath`、`FolderPath` 构成的平面 `SubFields`，不支持自定义读写委托、嵌套集合或控件。自定义动作的 `Actions` 和自定义命令的 `Commands` 已启用。
+
+文件是 UTF-8 JSON（导出无 BOM，导入接受可选 BOM），最多 1 MiB、深度最多 8 层。根对象包含 `format: "lertaro.plugin-config-entry"`、`version: 1`、稳定的 `pluginId`、宿主显示的程序集版本 `pluginVersion`、`settingKey`、`fields` 和 `item`。`fields` 是完整的字段名到 `ConfigFieldType` 名称的映射，例如 `"Path": "FilePath"`；`item` 是字段名到当前编辑值的映射。JSON 编码、引号、反斜杠、换行和 Unicode 转义均由 `System.Text.Json` 处理，不拼接配置内容。
+
+导出始终包含全部字段和未应用的修改。导入要求字段名及字段类型与当前 schema 完全相同；插件版本不同时，还必须提供全部字段值，否则整条放弃。同版本文件缺少的值使用当前默认值。错误类型、未知／重复属性（包括大小写别名）、错误插件／设置键及未知格式版本都会拒绝，不进行自动迁移。
+
+不允许内嵌资源、data URI 或附件打包。现有 `Icon` 字段保存的是内嵌 WPF/SVG 路径，因此必须为空；含图标的条目会明确报错，不会静默清空后导出。普通文件／目录路径原样保留，可包含环境变量或另一台机器的路径，不读取目标文件。
+
+导入只追加并选中独立条目，不运行命令；关键词或快捷键重复会提示，但允许保留。导入后沿用设置的暂存流程：跨插件页面保留，应用／确定提交，取消撤销。导出通过同目录临时文件完成后替换目标，写入失败保留原文件。
+
 `PluginConfigSchema` 亦支持配置 `OnSave` 与 `OnRollback` 生命周期委托：用户点击**确定/应用**提交时触发 `OnSave` 执行自定义持久化，取消或回滚时触发 `OnRollback` 恢复状态。
 
 ### 本地化选择标签
