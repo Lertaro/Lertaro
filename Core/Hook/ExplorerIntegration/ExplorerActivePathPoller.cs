@@ -240,6 +240,20 @@ internal sealed class ExplorerActivePathPoller : IDisposable
             }
         }
 
+        // While a dialog is up, keep the remembered provider's folder current: Quick Switch navigates to
+        // it, and the two branches below cannot serve this case -- a dialog has no inline adapter, and no
+        // collector claims one. Gated by the same read floor as everything else, so this stays paced.
+        if (hostReadAllowed && tracker.IsActiveWindowDialog
+            && tracker.LastPathProviderAdapter != null && tracker.LastPathProviderHwnd != IntPtr.Zero
+            && ExplorerNativeHooks.IsWindow(tracker.LastPathProviderHwnd))
+        {
+            var providerAdapter = tracker.LastPathProviderAdapter;
+            var providerHwnd = tracker.LastPathProviderHwnd;
+            var providerScope = ExplorerStaInvoker.RunOnStaWithTimeout(
+                () => providerAdapter.GetSearchScope(providerHwnd), null, TimeSpan.FromSeconds(2));
+            tracker.UpdatePathProviderScope(providerScope);
+        }
+
         var polledByCollector = false;
         if (hostReadAllowed && tracker.ActiveHwnd != IntPtr.Zero && tracker.ActiveInlineAdapter == null)
         {
