@@ -30,28 +30,27 @@ public class ExplorerTracker : IDisposable
     public Func<string, string?>? PathNormalizer { get; set; }
     public IntPtr LastActiveHwnd { get; set; }
     public string? LastActiveExplorerPath => _dialogTracker.LastActiveExplorerPath;
-    // The last window that was really a path provider (a file manager, not a dialog). Deciding the
-    // browsed folder from "whatever window happened to be active just before the dialog" is not reliable:
-    // with two file managers open, or when focus passes through an unrelated window on the way to the
-    // dialog, that window is not a provider at all -- and then nothing ever reads the folder the user is
-    // actually browsing, which is what Quick Switch navigates to. Remembering the provider fixes both.
-    public PluginSdk.Abstractions.Plugins.WindowAdapters.IInlineSearchAdapter? LastPathProviderAdapter { get; private set; }
+    // The last window that was really a path provider (a file manager, not a dialog). Deciding the browsed
+    // folder from "whatever window happened to be active just before the dialog" is not reliable: with two
+    // file managers open, or when focus passes through an unrelated window on the way to the dialog, that
+    // window is not a provider at all -- and then nothing ever reads the folder the user is actually
+    // browsing, which is what Quick Switch navigates to. Adapter and handle travel as one value, because a
+    // provider read aimed at one window's handle through another window's adapter reads a window nobody
+    // asked about.
+    internal (IInlineSearchAdapter Adapter, IntPtr Hwnd)? LastPathProvider { get; private set; }
 
-    public IntPtr LastPathProviderHwnd { get; private set; }
-
-    // The provider's folder while a dialog is the active window: Quick Switch navigates to exactly this
-    // value, and nothing else refreshes it then -- the poller's dialog branch reads the dialog's own path,
-    // and the provider branches cannot run because a dialog has no inline adapter.
-    public void UpdatePathProviderScope(string? path)
-    {
-        if (!string.IsNullOrEmpty(path)) _dialogTracker.SetLastActiveExplorerPath(path);
-    }
-
-    public void RememberPathProvider(PluginSdk.Abstractions.Plugins.WindowAdapters.IInlineSearchAdapter? adapter, IntPtr hwnd)
+    internal void RememberPathProvider(IInlineSearchAdapter? adapter, IntPtr hwnd)
     {
         if (adapter == null || hwnd == IntPtr.Zero || !adapter.IsFileExplorer) return;
-        LastPathProviderAdapter = adapter;
-        LastPathProviderHwnd = hwnd;
+        LastPathProvider = (adapter, hwnd);
+    }
+
+    // Publishes the provider's folder as the last browsed path, which is what the App's mirror tracker turns
+    // into LastActiveExplorerPath. An unread provider must not erase a known folder: a mirror takes any
+    // non-dialog path at face value, and Quick Switch gives up on an empty one.
+    internal void RaisePathProviderScope(string? path)
+    {
+        if (!string.IsNullOrEmpty(path)) RaisePathCaptured(path, false, false);
     }
     public string? LastActiveExplorerClassName { get; set; }
     public string? LastActiveExplorerWindowTitle { get; set; }

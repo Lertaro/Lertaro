@@ -8,9 +8,10 @@ namespace Lertaro.Core.Tests.Hook;
 [TestClass]
 public sealed class ExplorerActivePathPollerTests
 {
-    private sealed class ScopeAdapter(Func<string?> read) : IInlineSearchAdapter
+    private sealed class ScopeAdapter(Func<string?> read, bool isFileExplorer = false) : IInlineSearchAdapter
     {
         public string Name => "Scope test";
+        public bool IsFileExplorer => isFileExplorer;
         public bool CanHandle(IntPtr hwnd, string className, string processName) => false;
         public bool CanTrigger(IntPtr hwnd, string className) => false;
         public string? GetSearchScope(IntPtr hwnd) => read();
@@ -240,6 +241,57 @@ public sealed class ExplorerActivePathPollerTests
 
         Assert.AreEqual(@"C:\Workspace", tracker.LastActiveExplorerPath);
         Assert.AreEqual(@"D:\Downloads", tracker.ActivePath);
+    }
+
+    [TestMethod]
+    public void RememberPathProvider_IgnoresWindowsThatAreNotPathProviders()
+    {
+        var hwnd = NextSentinel();
+        using var tracker = new ExplorerTracker();
+
+        // An adapter for a window that is not a file manager, and a handle that names no window at all, must
+        // not become the fallback Quick Switch navigates a dialog to.
+        tracker.RememberPathProvider(null, hwnd);
+        tracker.RememberPathProvider(new ScopeAdapter(() => @"D:\NotAFileManager"), hwnd);
+        tracker.RememberPathProvider(new ScopeAdapter(() => @"D:\NoWindow", isFileExplorer: true), IntPtr.Zero);
+
+        Assert.IsNull(tracker.LastPathProvider);
+    }
+
+    [TestMethod]
+    public void RememberPathProvider_KeepsTheLatestProviderTogetherWithItsOwnHandle()
+    {
+        var first = NextSentinel();
+        var second = NextSentinel();
+        using var tracker = new ExplorerTracker();
+        var firstProvider = new ScopeAdapter(() => @"C:\Same", isFileExplorer: true);
+        var secondProvider = new ScopeAdapter(() => @"C:\Same", isFileExplorer: true);
+
+        tracker.RememberPathProvider(firstProvider, first);
+        // The same folder on another window is still the window the user is browsing, so the memory moves with
+        // it: classifying a provider was never a reason to forget which window it was.
+        tracker.RememberPathProvider(secondProvider, second);
+
+        Assert.AreEqual(second, tracker.LastPathProvider?.Hwnd);
+        // Adapter and handle travel as one value, so a reader that takes them outside the tracker lock cannot
+        // pair one window's adapter with another window's handle and read a window nobody asked about.
+        Assert.AreSame(secondProvider, tracker.LastPathProvider?.Adapter);
+    }
+
+    [TestMethod]
+    public void RaisePathProviderScope_AFolderThatWasNotReadPublishesNothing()
+    {
+        using var tracker = new ExplorerTracker();
+        var published = new List<string>();
+        tracker.OnPathCaptured += (path, _, isDialog) => published.Add($"{(isDialog ? "dialog" : "provider")}:{path}");
+
+        // The App's mirror takes any non-dialog path at face value and Quick Switch gives up on an empty one,
+        // so a provider this process could not read has to leave the last browsed folder alone.
+        tracker.RaisePathProviderScope(null);
+        tracker.RaisePathProviderScope(string.Empty);
+        tracker.RaisePathProviderScope(@"D:\Browsed");
+
+        CollectionAssert.AreEqual(new[] { @"provider:D:\Browsed" }, published);
     }
 
     [TestMethod]
