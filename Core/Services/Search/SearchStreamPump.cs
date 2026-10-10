@@ -63,13 +63,10 @@ public static class SearchStreamPump
             // results cannot say the difference between "not indexed" and "that directory is empty",
             // and only the first of those is worth walking the disk over.
             var notIndexed = false;
-            // Dropped before the channel, so a hidden result costs neither buffer space nor a write. The
-            // engine's own limit still counts it: ponytail, a caller who cannot see much of what matches can
-            // get fewer results than the limit; filtering inside the scan is the upgrade.
+            // The consumer applies the caller's profile exclusions before anything reaches the pipe.
             void Emit(SearchResult result)
             {
-                if (visibility.IsVisible(result.Path))
-                    channel.Writer.WriteAsync(result, queryToken).AsTask().GetAwaiter().GetResult();
+                channel.Writer.WriteAsync(result, queryToken).AsTask().GetAwaiter().GetResult();
             }
 
             var producer = Task.Run(() =>
@@ -107,17 +104,7 @@ public static class SearchStreamPump
 
             try
             {
-                var count = 0;
-                await foreach (var item in channel.Reader.ReadAllAsync(queryToken).ConfigureAwait(false))
-                {
-                    await SearchResponseBinarySerializer.WriteFileResultAsync(bufferedStream, item, queryToken).ConfigureAwait(false);
-
-                    count++;
-                    if (count <= 10 || count % 50 == 0)
-                    {
-                        await bufferedStream.FlushAsync(queryToken).ConfigureAwait(false);
-                    }
-                }
+                await WriteResultsAsync(channel.Reader, bufferedStream, visibility, queryToken).ConfigureAwait(false);
 
                 await bufferedStream.FlushAsync(queryToken).ConfigureAwait(false);
                 await producer.ConfigureAwait(false);
@@ -161,6 +148,20 @@ public static class SearchStreamPump
             {
                 watchdogStopCts.Cancel();
             }
+        }
+    }
+
+    internal static async Task WriteResultsAsync(ChannelReader<SearchResult> reader, Stream stream,
+        CallerVisibility visibility, CancellationToken token)
+    {
+        var written = 0;
+        await foreach (var item in reader.ReadAllAsync(token).ConfigureAwait(false))
+        {
+            token.ThrowIfCancellationRequested();
+            if (!visibility.IsIndexedPathVisible(item.Path)) continue;
+            await SearchResponseBinarySerializer.WriteFileResultAsync(stream, item, token).ConfigureAwait(false);
+            if (++written <= 10 || written % 50 == 0)
+                await stream.FlushAsync(token).ConfigureAwait(false);
         }
     }
 

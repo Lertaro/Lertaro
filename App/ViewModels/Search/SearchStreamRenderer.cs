@@ -3,6 +3,7 @@ using Lertaro.App.ViewModels.Search.Mapping;
 using Lertaro.Core;
 using Lertaro.Core.Services.Plugin.DirectoryIndex;
 using Lertaro.Core.Services.Search;
+using System.Windows.Threading;
 
 namespace Lertaro.App.ViewModels.Search;
 
@@ -128,6 +129,7 @@ internal sealed class SearchStreamRenderer
                 ? SearchResultMapper.FormatSearchStatus(0, received)
                 : string.Empty;
 
+            // Let pending input invalidate this query before spending a UI turn on its rows.
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
             {
                 if (searchVersion != _getSearchVersion() || token.IsCancellationRequested)
@@ -135,7 +137,7 @@ internal sealed class SearchStreamRenderer
                 onResultsUpdated(uiResults, statusText, final);
                 if (!final)
                     onReceivedCountUpdated?.Invoke(received);
-            }).Task.ConfigureAwait(false);
+            }, DispatcherPriority.Background, token).Task.ConfigureAwait(false);
         }
 
         using var pumpCts = CancellationTokenSource.CreateLinkedTokenSource(token);
@@ -180,13 +182,13 @@ internal sealed class SearchStreamRenderer
 
                     if (take == 0 && !localChanged)
                     {
-                        if (!finished)
+                        if (!finished && onReceivedCountUpdated != null)
                         {
                             await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                             {
                                 if (searchVersion == _getSearchVersion() && !token.IsCancellationRequested)
                                     onReceivedCountUpdated?.Invoke(received);
-                            }).Task.ConfigureAwait(false);
+                            }, DispatcherPriority.Background, pumpToken).Task.ConfigureAwait(false);
                         }
                         if (finished)
                             return;

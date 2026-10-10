@@ -151,6 +151,39 @@ public sealed class StreamingResultAccumulatorTests
     }
 
     [TestMethod]
+    public void DirectoryResolution_WaitsForANonemptyIndexBatchAndRunsOnce()
+    {
+        var queries = new List<string>();
+        var accumulator = new StreamingResultAccumulator(@"D:\folder\", NoHistory,
+            resolveQueriedDirectory: query => { queries.Add(query); return @"D:\folder"; });
+
+        Assert.IsEmpty(queries, "Constructing on the input thread must not probe a directory.");
+        accumulator.QueueContentPrefix(ContentRows(@"D:\content.txt"));
+        accumulator.AbsorbBatch([]);
+        Assert.IsEmpty(queries, "A content-only UI paint must not trigger directory I/O either.");
+
+        accumulator.AbsorbBatch(Arrivals(@"D:\folder", @"D:\folder\a.txt"));
+        var rows = accumulator.AbsorbBatch(Arrivals(@"D:\folder", @"D:\folder\b.txt"));
+
+        CollectionAssert.AreEqual(new[] { @"D:\folder\" }, queries);
+        CollectionAssert.AreEqual(new[] { @"D:\content.txt", @"D:\folder\a.txt", @"D:\folder\b.txt" }, Paths(rows));
+    }
+
+    [TestMethod]
+    public void DirectoryResolution_ANullAnswerIsAlsoCached()
+    {
+        var calls = 0;
+        var accumulator = new StreamingResultAccumulator("folder", NoHistory,
+            resolveQueriedDirectory: _ => { calls++; return null; });
+
+        accumulator.AbsorbBatch(Arrivals(@"D:\folder"));
+        var rows = accumulator.AbsorbBatch(Arrivals(@"D:\folder\a.txt"));
+
+        Assert.AreEqual(1, calls);
+        CollectionAssert.AreEqual(new[] { @"D:\folder", @"D:\folder\a.txt" }, Paths(rows));
+    }
+
+    [TestMethod]
     public void Absorb_HistoryPriority_OutranksEverythingElse()
     {
         var history = new Dictionary<string, int> { [@"D:\zzzzzzzzzz"] = 0 };

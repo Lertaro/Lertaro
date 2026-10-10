@@ -9,10 +9,10 @@ namespace Lertaro.Core.Services.Search;
 /// LocalSystem; without this, any signed-in user could list the contents of every other user's profile.
 /// </summary>
 /// <remarks>
-/// Captures the caller token after reading its first request, then checks actual read/list access under
-/// impersonation for every returned path. This covers custom ACLs outside profile folders, deny ACEs and
-/// UAC-filtered administrators. Permissions are not cached across requests or index revisions.
-/// Space queries filter their listed paths; their totals come from the index, including hidden descendants.
+/// Search results use the caller's profile-directory exclusions, captured once per connection. Direct
+/// directory/metadata requests still check current read/list access under the caller's identity.
+/// ponytail: indexed search can list names with custom deny ACLs outside excluded profiles. Per-file
+/// opens cost seconds for broad queries; finer search visibility needs permissions in the index.
 /// </remarks>
 internal sealed class CallerVisibility : IDisposable
 {
@@ -35,38 +35,74 @@ internal sealed class CallerVisibility : IDisposable
     /// </summary>
     public bool IsVisible(string? path)
     {
+        if (_caller == null) return IsVisibleCore(path);
+        try
+        {
+            return WindowsIdentity.RunImpersonated(_caller.AccessToken, () => IsVisibleCore(path));
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException) { return false; }
+    }
+
+    // Only for canonical paths produced by the index, never caller-supplied request paths. No file I/O:
+    // even GetFullPath can probe the filesystem to expand '~' components on Windows.
+    internal bool IsIndexedPathVisible(string? path)
+    {
+        if (_denyAll || string.IsNullOrEmpty(path) || !Path.IsPathFullyQualified(path) ||
+            (path[0] is '\\' or '/') || path.Contains('\0'))
+            return false;
+
+        path = path.Replace('/', '\\');
+        // An index never emits dot segments. Reject them rather than allowing traversal around a
+        // profile prefix if a future caller accidentally passes an unnormalized path here.
+        if (path.Contains(@"\..\", StringComparison.Ordinal) || path.EndsWith(@"\..", StringComparison.Ordinal) ||
+            path.Contains(@"\.\", StringComparison.Ordinal) || path.EndsWith(@"\.", StringComparison.Ordinal))
+            return false;
+
+        return IsOutsideHiddenRoots(path);
+    }
+
+    // With a captured caller, IsVisible runs this under that caller's identity.
+    private bool IsVisibleCore(string? path)
+    {
         if (_denyAll) return false;
         if (string.IsNullOrEmpty(path))
             return true;
 
         try
         {
-            if (!Path.IsPathFullyQualified(path) || path.StartsWith(@"\\", StringComparison.Ordinal)) return false;
-            path = Path.GetFullPath(path);
+            if (!Path.IsPathFullyQualified(path) || (path[0] is '\\' or '/') || path.Contains('\0')) return false;
+            // Canonical spelling is needed for the lexical hidden-root check. The real caller check
+            // opens the path itself, so Windows resolves it and checks the actual target's ACL already.
+            // GetFullPath would additionally probe the filesystem to expand every '~' path component.
+            if (_hiddenRoots.Length > 0)
+                path = Path.GetFullPath(path);
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException) { return false; }
 
+        if (!IsOutsideHiddenRoots(path)) return false;
+
+        if (_caller == null) return true;
+        try
+        {
+            // Opening both files and directories for read/listing lets Windows evaluate the actual
+            // DACL, group membership and deny rules. No per-SID cache: ACL changes apply immediately.
+            using var handle = Win32Api.CreateFileW(path, Win32Api.GENERIC_READ,
+                Win32Api.FILE_SHARE_READ | Win32Api.FILE_SHARE_WRITE | Win32Api.FILE_SHARE_DELETE,
+                IntPtr.Zero, Win32Api.OPEN_EXISTING, Win32Api.FILE_FLAG_BACKUP_SEMANTICS, IntPtr.Zero);
+            return !handle.IsInvalid;
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException) { return false; }
+    }
+
+    private bool IsOutsideHiddenRoots(string path)
+    {
         foreach (var root in _hiddenRoots)
         {
             if (path.StartsWith(root, StringComparison.OrdinalIgnoreCase) &&
                 (path.Length == root.Length || path[root.Length] is '\\' or '/'))
                 return false;
         }
-
-        if (_caller == null) return true;
-        try
-        {
-            return WindowsIdentity.RunImpersonated(_caller.AccessToken, () =>
-            {
-                // Opening both files and directories for read/listing lets Windows evaluate the actual
-                // DACL, group membership and deny rules. No per-SID cache: ACL changes apply immediately.
-                using var handle = Win32Api.CreateFileW(path, Win32Api.GENERIC_READ,
-                    Win32Api.FILE_SHARE_READ | Win32Api.FILE_SHARE_WRITE | Win32Api.FILE_SHARE_DELETE,
-                    IntPtr.Zero, Win32Api.OPEN_EXISTING, Win32Api.FILE_FLAG_BACKUP_SEMANTICS, IntPtr.Zero);
-                return !handle.IsInvalid;
-            });
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException) { return false; }
+        return true;
     }
 
     /// <summary>
@@ -95,7 +131,10 @@ internal sealed class CallerVisibility : IDisposable
                 caller = WindowsIdentity.GetCurrent();
             });
             if (caller?.User == null) throw new UnauthorizedAccessException("The pipe client has no user SID.");
-            return new CallerVisibility([]) { _caller = caller };
+            var profileVisibility = For(caller.User,
+                new WindowsPrincipal(caller).IsInRole(WindowsBuiltInRole.Administrator), UserProfiles.Read());
+            // Everything is shared; keep the disposable caller token on a connection-owned instance.
+            return new CallerVisibility(profileVisibility._hiddenRoots) { _caller = caller };
         }
         catch (Exception ex)
         {

@@ -64,14 +64,6 @@ internal static class HighlightMask
     private static int Mark(ReadOnlySpan<char> fullText, FzfPattern pattern, Span<bool> highlights, ref string? materialized, FzfSlab slab)
     {
         var tier = MatchRank.TierFull;
-        // The mixed-alphabet tier is decided by the SHAPE OF THE WHOLE QUERY, not by any one word:
-        // TrySegmentPattern admits a bare single fuzzy term and refuses everything else, because nobody has
-        // decided how a mixed sub-match combines with an AND partner or an OR branch. Every MATCH site reads
-        // that one answer; the mask used to re-derive it per term with TrySegment instead, so a query like
-        // "甲tq | file" could light up "甲tq" through a tier the engine had already refused -- and
-        // RankFromMarks then scored and positioned the row from a match that never happened. Computing it
-        // once here, from the same pattern the matcher was handed, is what keeps mask and match agreeing.
-        var mixedTerm = MixedQueryMatcher.TrySegmentPattern(pattern);
         foreach (var set in pattern.EffectiveSets)
         {
             // Highlight EVERY non-inverse term in the set that actually matches this candidate, not
@@ -111,7 +103,7 @@ internal static class HighlightMask
                     continue;
                 }
 
-                tier = Math.Min(tier, MarkTerm(fullText, term.Text, term.CaseSensitive, term.Kind, highlights, ref materialized, slab, mixedTerm));
+                tier = Math.Min(tier, MarkTerm(fullText, term.Text, term.CaseSensitive, term.Kind, highlights, ref materialized, slab, pattern));
             }
         }
         return tier;
@@ -119,7 +111,7 @@ internal static class HighlightMask
 
     // Returns the tier of the strongest tier this term matched through: TierName for the candidate's own
     // text, otherwise the provider tier its alias supplied.
-    private static int MarkTerm(ReadOnlySpan<char> fullText, string term, bool caseSensitive, FzfTermKind kind, Span<bool> highlights, ref string? materialized, FzfSlab slab, MixedTerm? mixedTerm)
+    private static int MarkTerm(ReadOnlySpan<char> fullText, string term, bool caseSensitive, FzfTermKind kind, Span<bool> highlights, ref string? materialized, FzfSlab slab, FzfPattern pattern)
     {
         var comparison = caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         if (MarkLiteralSpan(fullText, term, comparison, highlights))
@@ -142,6 +134,10 @@ internal static class HighlightMask
         if (AliasHighlightMarker.MarkViaAliasProviders(materialized, term, caseSensitive, kind, highlights, out var aliasTier))
             return aliasTier;
 
+        // Keep the whole-query gate (a mixed term inside an AND/OR query is ineligible), but only
+        // segment after the cheaper tiers fail. Doing this before them allocated per ranked/displayed
+        // row even for a plain literal match, where no alias provider is needed at all.
+        var mixedTerm = MixedQueryMatcher.TrySegmentPattern(pattern);
         if (mixedTerm != null)
             AliasHighlightMarker.MarkViaMixedQuery(materialized, mixedTerm, highlights);
         return MatchRank.TierFull;

@@ -5,6 +5,7 @@ using Lertaro.Core.Services.Search;
 using Lertaro.App.ViewModels.Search.Dispatch;
 
 using Lertaro.App.ViewModels.Search.Mapping;
+using System.Windows.Threading;
 
 namespace Lertaro.App.ViewModels.Search;
 
@@ -56,10 +57,9 @@ internal sealed class SearchExecutionEngine : IDisposable
         Action? beforeSearch = null,
         Func<string?, List<AppSearchResult>>? collectInstantResults = null)
     {
-        _debounceCts?.Cancel();
-        _debounceCts?.Dispose();
-        var cts = new CancellationTokenSource();
-        _debounceCts = cts;
+        // The previous query is obsolete as soon as input changes, including while the new one
+        // debounces. Otherwise its rows keep repainting ahead of the next keystroke.
+        CancelPendingSearch();
 
         var delay = string.IsNullOrEmpty(query) || query.Length <= 1 ? 0 : (fileLimit > 100 ? 150 : 30);
         if (delay == 0)
@@ -68,13 +68,33 @@ internal sealed class SearchExecutionEngine : IDisposable
             return;
         }
 
-        _ = Task.Delay(delay, cts.Token).ContinueWith(t =>
+        var cts = new CancellationTokenSource();
+        _debounceCts = cts;
+        var token = cts.Token;
+        _ = RunDebouncedSearchAsync(Task.Delay(delay, token), System.Windows.Application.Current.Dispatcher,
+            () => PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective, instantQuery, emitInstantResults, beforeSearch, collectInstantResults), token);
+    }
+
+    internal static async Task RunDebouncedSearchAsync(Task delay, Dispatcher dispatcher, Action search, CancellationToken token)
+    {
+        try
         {
-            if (t.IsCanceled)
-                return;
-            _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
-                PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective, instantQuery, emitInstantResults, beforeSearch, collectInstantResults)));
-        }, cts.Token);
+            await delay.ConfigureAwait(false);
+            // Cancellation must cover the dispatcher queue as well as the delay: input can change
+            // after the delay completes but before this callback gets a turn on the UI thread.
+            await dispatcher.InvokeAsync(() =>
+            {
+                if (!token.IsCancellationRequested)
+                    search();
+            }, DispatcherPriority.Background, token).Task.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[SearchExecutionEngine] Debounced search failed: {ex}", LogLevel.Error);
+        }
     }
 
     public void PerformSearch(
@@ -299,6 +319,6 @@ internal sealed class SearchExecutionEngine : IDisposable
                                                                   return;
                                                               if (shouldEmitInstantResults?.Invoke() ?? true)
                                                                   onResultsUpdated(instantResults, string.Empty, false);
-                                                          }));
+                                                          }), DispatcherPriority.Background);
                                                       }, token);
 }

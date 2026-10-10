@@ -3,7 +3,6 @@ using System.Windows.Controls;
 using System.Windows.Threading;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services;
-using Lertaro.Core;
 
 namespace Lertaro.App.Views.QuickSearchWindow.Helpers;
 
@@ -59,37 +58,8 @@ internal sealed class QuickSearchWindowLayoutManager
         _window.Dispatcher.BeginInvoke(new Action(() =>
         {
             Interlocked.Exchange(ref _layoutUpdateQueued, 0);
-            ApplyResultsLayoutProtected();
+            ApplyResultsLayout();
         }), DispatcherPriority.Normal);
-    }
-
-    // ApplyResultsLayout runs a synchronous layout pass, and a layout pass ends by walking the UI
-    // Automation peer tree and raising property-changed events out of this process (every
-    // ContextLayoutManager.UpdateLayout() calls fireAutomationEvents()). Once an accessibility client --
-    // or any tool that attached to this window -- is listening, those outgoing calls can pump this
-    // thread's message queue, dispatch a re-entrant WM_GETOBJECT, and block inside a second UIA round
-    // trip; the window then sits there unresponsive while the user watches it. DisableProcessing is the
-    // framework's own answer to exactly this shape: it stops CLR locks pumping messages internally and
-    // refuses nested DispatcherFrames, which is what AutomationPeer's static constructor uses it for
-    // ("Disable message processing to avoid re-entrancy (WM_GETOBJECT)"). While it is in force here, a
-    // re-entrant WM_GETOBJECT cannot be dispatched, so it cannot nest inside the pass.
-    //
-    // Cost, accepted deliberately: if UIA does try to nest, that call throws instead of hanging, so this
-    // swallows it and keeps one dropped layout instead of a frozen window. The queued flag is cleared
-    // before this runs, so the next results update queues a fresh attempt and the geometry self-corrects.
-    private void ApplyResultsLayoutProtected()
-    {
-        try
-        {
-            using (_window.Dispatcher.DisableProcessing())
-            {
-                ApplyResultsLayout();
-            }
-        }
-        catch (InvalidOperationException ex)
-        {
-            Logger.Log($"[QuickSearchWindow] Deferred results layout was refused while dispatcher processing was disabled: {ex.Message}", LogLevel.Warn);
-        }
     }
 
     // Runs the actual height computation immediately instead of deferring -- needed by
@@ -159,6 +129,9 @@ internal sealed class QuickSearchWindowLayoutManager
     // QuickSearchWindow.xaml), so dropping the WidthAndHeight half of the round trip cannot change the
     // width either way. Left as one named place so the sizing behavior is re-measurable in one spot if
     // the window's sizing model ever changes.
+    // Do not wrap this in Dispatcher.DisableProcessing: layout raises UI Automation events whose
+    // cross-thread calls need the normal message pump. A live trace of the wrapped pass showed
+    // repeated ~750ms waits in AutomationPeer.UpdateSubtree, blocking both typing and result display.
     private void ForceLayoutSoTheWindowResizes() => _window.UpdateLayout();
 
     public void UpdateShortcutHints() =>

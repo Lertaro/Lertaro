@@ -27,7 +27,7 @@ internal sealed class StreamingResultAccumulator
     private readonly record struct Entry(SearchResult Raw, AppSearchResult Row);
 
     private readonly string _query;
-    private readonly string? _queriedDirectory;
+    private readonly Lazy<string?> _queriedDirectory;
     private readonly IComparer<SearchResult> _rankComparer;
 
     private int _consumed;
@@ -54,10 +54,13 @@ internal sealed class StreamingResultAccumulator
     public StreamingResultAccumulator(
         string query,
         IReadOnlyDictionary<string, int> historySnapshot,
-        IReadOnlyList<SearchResultMapper.RankedCandidate>? seedCandidates = null)
+        IReadOnlyList<SearchResultMapper.RankedCandidate>? seedCandidates = null,
+        Func<string, string?>? resolveQueriedDirectory = null)
     {
         _query = query;
-        _queriedDirectory = SearchResultMapper.GetQueriedDirectory(query);
+        // Constructed on input, consumed by the background mapper. Directory.Exists can block on a
+        // remote path; even an empty content-prefix paint on the UI thread must not resolve it.
+        _queriedDirectory = new Lazy<string?>(() => (resolveQueriedDirectory ?? SearchResultMapper.GetQueriedDirectory)(query));
         // Captured once for the whole query rather than re-read per paint: the ranking must not shift
         // underneath rows that are already on screen just because the user opened something mid-search.
         _rankComparer = new SearchResultRankComparer(historySnapshot);
@@ -186,6 +189,7 @@ internal sealed class StreamingResultAccumulator
 
         if (count > 0)
         {
+            var queriedDirectory = _queriedDirectory.Value;
             var chunk = new List<Entry>(count);
             var end = start + count;
             for (var i = start; i < end; i++)
@@ -193,7 +197,7 @@ internal sealed class StreamingResultAccumulator
                 var raw = arrivals[i];
                 // Typing an exact directory path is a request to look INSIDE it, so the directory's own
                 // index record is not one of its own results (see SearchResultMapper).
-                if (SearchResultMapper.IsQueriedDirectory(raw.Path, _queriedDirectory))
+                if (SearchResultMapper.IsQueriedDirectory(raw.Path, queriedDirectory))
                     continue;
                 if (_seedPaths.Contains(NormalizePath(raw.Path)))
                     continue;

@@ -35,7 +35,12 @@ public sealed class AliasHighlightTests
         };
 
         public string Name => "Fake";
-        public IReadOnlyList<(char Start, char End)> InputRanges { get; } = new[] { ('一', '鿿') };
+        private static readonly (char Start, char End)[] SourceRanges = [('一', '鿿')];
+        public static int RangeReads;
+        public IReadOnlyList<(char Start, char End)> InputRanges
+        {
+            get { RangeReads++; return SourceRanges; }
+        }
         public IReadOnlyList<(char Start, char End)> OutputRanges { get; } = new[] { ('a', 'z') };
 
         public bool CanHandle(string text) => text.Any(Readings.ContainsKey);
@@ -228,6 +233,25 @@ public sealed class AliasHighlightTests
     // term instead, so the same word could light characters in the highlight that the engine had already
     // refused to match on -- and ComputeRank then took a leftmost position and a coverage weight from them.
     private const string MixedAlphabetTerm = "甲tq";
+
+    [TestMethod]
+    [DataRow("readme.md", "readme", new[] { 0, 1, 2, 3, 4, 5 })]
+    [DataRow("china_white_x", "cwx", new[] { 0, 6, 12 })]
+    [DataRow("file1.txt", "1", new[] { 4 })]
+    public void DirectMatch_HighlightingAndRankingDoNotSegmentAliases(string text, string query, int[] expected)
+    {
+        SearchContext.DefaultFuzzyMatchEnabled = true;
+        var parsed = FuzzyQuery.Parse(query);
+        FakeAliasProvider.RangeReads = 0;
+
+        var mask = parsed.HighlightMask(text);
+        var rank = parsed.Rank(text);
+
+        CollectionAssert.AreEqual(expected, Enumerable.Range(0, mask.Length).Where(i => mask[i]).ToArray());
+        Assert.IsTrue(rank.IsMatch);
+        Assert.AreEqual(MatchRank.TierName, rank.Tier);
+        Assert.AreEqual(0, FakeAliasProvider.RangeReads, "A direct match must not consult mixed-alphabet ranges per result.");
+    }
 
     [TestMethod]
     public void AMixedTermInABiggerQuery_LightsNothingTheMatcherRefused()
