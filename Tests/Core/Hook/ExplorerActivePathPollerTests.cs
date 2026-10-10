@@ -273,8 +273,9 @@ public sealed class ExplorerActivePathPollerTests
         tracker.RememberPathProvider(secondProvider, second);
 
         Assert.AreEqual(second, tracker.LastPathProvider?.Hwnd);
-        // Adapter and handle travel as one value, so a reader that takes them outside the tracker lock cannot
-        // pair one window's adapter with another window's handle and read a window nobody asked about.
+        // One value, so no reader can pair one window's adapter with another window's handle and read a
+        // window nobody asked about. Asserting both halves is the point: either half alone would pass on a
+        // remembered provider whose adapter and handle had drifted apart.
         Assert.AreSame(secondProvider, tracker.LastPathProvider?.Adapter);
     }
 

@@ -234,22 +234,33 @@ internal sealed class ExplorerWindowClassifier
 
         if (previousWasPathProvider) _tracker.RememberPathProvider(providerAdapter, providerHwnd);
 
+        // A dialog that stays foreground keeps being classified: its title changes when the user navigates
+        // inside it, and focus moves inside it. So the provider read and the activation event below share one
+        // condition -- this is an activation the tracker has not announced yet. Deactivate clears the handle,
+        // which is what keeps a recycled one from looking like an activation already announced.
+        var isNewActivation = mainDialog != _tracker.LastActiveHwnd;
+
         // The folder the user is browsing belongs to the path provider, not to the dialog, and Quick Switch
         // reads it from the App's mirror tracker. While the window that just gave way to the dialog IS that
         // provider, its folder already reached the App through the ordinary path events. The case that reaches
         // nobody is the fallback -- two file managers open, or focus passing through an unrelated window on
-        // its way to the dialog -- so read the remembered provider once and publish what it shows now.
-        // IsWindow first: a handle the target released may belong to an unrelated window by then.
+        // its way to the dialog -- so read the remembered provider and publish what it shows now.
+        //
+        // Once per activation, because the read is a cross-process call under the tracker lock and a folder
+        // that did not move is not worth either: re-publishing it puts the file manager behind the dialog
+        // into the mirror's LastPath and the card's search scope, which belong to the dialog. IsWindow first,
+        // since a read aimed at a handle nobody owns any more answers for whatever holds it now -- and an
+        // adapter that reports nothing for it publishes nothing (see RaisePathProviderScope).
         var remembered = _tracker.LastPathProvider;
         string? providerScope = null;
-        if (!previousWasPathProvider && remembered is { } provider && ExplorerNativeHooks.IsWindow(provider.Hwnd))
+        if (isNewActivation && !previousWasPathProvider && remembered is { } provider
+            && ExplorerNativeHooks.IsWindow(provider.Hwnd))
             providerScope = ExplorerStaInvoker.RunOnStaWithTimeout(
                 () => provider.Adapter.GetSearchScope(provider.Hwnd), null, pluginReadTimeout);
 
         _ = _dialogTracker.HandleDialogSeenAsync(mainDialog, _tracker.ActiveAdapter, previousWasPathProvider,
             providerAdapter == null ? null : () => ExplorerStaInvoker.RunOnStaWithTimeout(
                 () => providerAdapter.GetSearchScope(providerHwnd), null, pluginReadTimeout));
-        _tracker.RaisePathProviderScope(providerScope);
 
         // Bounded dispatch (see the collector loop above). On timeout the null fallback flows into the
         // keep-last-known branch below, matching the empty-result handling.
@@ -270,11 +281,16 @@ internal sealed class ExplorerWindowClassifier
         var sbCls2 = new StringBuilder(256);
         ExplorerNativeHooks.GetClassName(mainDialog, sbCls2, sbCls2.Capacity);
 
-        if (mainDialog != _tracker.LastActiveHwnd)
+        if (isNewActivation)
         {
             _tracker.LastActiveHwnd = mainDialog;
             _tracker.RaiseExplorerActivated(mainDialog, windowTitle.ToString(), sbCls2.ToString(), false);
         }
+
+        // After the activation event, deliberately: for a dialog host the App closes the card and makes a
+        // fresh one with an empty box, so a provider folder that arrives before that is handed to a card about
+        // to be thrown away, and the search it triggers runs against the file manager instead of the dialog.
+        _tracker.RaisePathProviderScope(providerScope);
 
         // The dialog's own folder is what the inline list searches while the dialog is up, so it goes out
         // flagged as a dialog path: a mirror only replaces its last-browsed path for a non-dialog one, which

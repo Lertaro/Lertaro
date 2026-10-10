@@ -36,7 +36,11 @@ public class ExplorerTracker : IDisposable
     // window is not a provider at all -- and then nothing ever reads the folder the user is actually
     // browsing, which is what Quick Switch navigates to. Adapter and handle travel as one value, because a
     // provider read aimed at one window's handle through another window's adapter reads a window nobody
-    // asked about.
+    // asked about. That pairing is only worth something because every read and write is under StateLock:
+    // a nullable tuple of this size is not written atomically, so a reader outside the lock could still see
+    // one window's adapter beside another window's handle.
+    // Deliberately NOT cleared by Deactivate: the fallback exists for the focus that passed through an
+    // unrelated window, and Deactivate is exactly what such a window triggers.
     internal (IInlineSearchAdapter Adapter, IntPtr Hwnd)? LastPathProvider { get; private set; }
 
     internal void RememberPathProvider(IInlineSearchAdapter? adapter, IntPtr hwnd)
