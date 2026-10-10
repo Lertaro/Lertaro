@@ -1,0 +1,96 @@
+using Lertaro.App.Helpers;
+using Lertaro.PluginSdk.Abstractions;
+
+namespace Lertaro.App.ViewModels.Settings.Plugins;
+
+// Owns one field's trigger-collision reporting: whether the key it holds can actually fire, and the same
+// question for its loaded rows.
+//
+// Split out of PluginConfigFieldViewModel to keep that file within the repo's per-file line limit, and
+// because this is the half of the field that is asked from OUTSIDE its own page -- the Settings window
+// asks every built page for its errors before letting Apply save (see SettingsViewModel.ValidationErrors).
+internal sealed class PluginConfigFieldValidationSupport
+{
+    private readonly PluginConfigFieldViewModel _field;
+
+    internal PluginConfigFieldValidationSupport(PluginConfigFieldViewModel field) => _field = field;
+
+    internal IEnumerable<PluginConfigFieldViewModel> LoadedFields()
+    {
+        yield return _field;
+        if (_field.HasLoadedChildren)
+            foreach (var child in _field.Children.SelectMany(child => child.Validation.LoadedFields()))
+                yield return child;
+        if (_field.HasLoadedArrayItems)
+            foreach (var item in _field.ArrayItems)
+            {
+                foreach (var child in item.Children.SelectMany(child => child.Validation.LoadedFields()))
+                    yield return child;
+                if (item.SimpleValueViewModel != null)
+                    yield return item.SimpleValueViewModel;
+            }
+    }
+
+    /// <summary>
+    /// Why this instant-answer trigger keyword cannot be used, or null when it is fine. The keyword is a
+    /// prefix of the whole query, so one starting with a character the search syntax consumes is stripped
+    /// before the provider is ever asked and the trigger silently stops working. Only fields that declare
+    /// <see cref="ConfigFieldValidation.TriggerKeyword"/> are checked.
+    /// </summary>
+    /// <remarks>
+    /// A blank is reported as fine, because it is not an unusable keyword -- it is an unset one. Clearing the
+    /// box is the supported way to give a keyword back to the plugin's own schema default (see the
+    /// RequireNonEmpty branch in PluginConfigFieldCommitSupport), and ValidateLeadingCharacter answers blank
+    /// with "Enter a value", which combined with <see cref="BlocksSaving"/> used to mean that clearing a
+    /// trigger field refused to save EVERY other pending setting in the window and would not close on OK.
+    /// The app-wide prefix field already has exactly this exemption; the plugin field had not caught up.
+    /// </remarks>
+    internal string? TriggerKeywordError => _field.SchemaField.Validation == ConfigFieldValidation.TriggerKeyword
+        && !string.IsNullOrWhiteSpace(_field.Value as string)
+        ? QueryTokenPrefixRules.TriggerKeywordConflict(_field.Value as string, _field.TokenPrefix)
+        : null;
+
+    /// <summary>
+    /// Whether the field's own trigger error should STOP the settings window from saving, rather than only
+    /// being shown next to the field. True only once the user has staged a value on this field: an unusable
+    /// prefix or keyword that is merely the schema default, or what a carried-over settings file already
+    /// holds, is reported but must not refuse to save every other setting in the window (see
+    /// QueryTokenPrefixRules.BlocksSaving for the app-wide field's identical rule).
+    /// </summary>
+    internal bool BlocksSaving => _field.IsDirty;
+
+    /// <summary>
+    /// This field's own errors, then its loaded rows'. A container that was never shown holds no staged
+    /// edit and so cannot hold an error -- and materializing it here would make every Apply walk every
+    /// visited plugin's whole schema, the exact cost the lazy rows exist to avoid. Same rule, and the same
+    /// reason, as PluginConfigFieldLoadSupport.IsDirty.
+    ///
+    /// Each message is prefixed with the plugin id and field key rather than the label: this is read by
+    /// the Apply guard, which only logs it, and a translated label would make the log line depend on the
+    /// active language.
+    /// </summary>
+    internal IEnumerable<string> Errors
+    {
+        get
+        {
+            if (BlocksSaving && TriggerKeywordError is { Length: > 0 } keyword)
+                yield return Describe(keyword);
+
+            // Guarded before the getters, which load on demand: a tree that was never materialized cannot
+            // have been edited, and asking for it would build it just to find nothing.
+            if (_field.HasLoadedChildren)
+            {
+                foreach (var error in _field.Children.SelectMany(child => child.Validation.Errors))
+                    yield return error;
+            }
+
+            if (_field.HasLoadedArrayItems)
+            {
+                foreach (var error in _field.ArrayItems.SelectMany(item => item.ValidationErrors))
+                    yield return error;
+            }
+        }
+    }
+
+    private string Describe(string error) => $"{_field.PluginId}.{_field.SchemaField.Key}: {error}";
+}

@@ -3,7 +3,6 @@ using System.Windows.Input;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services;
 using Lertaro.App.ViewModels.Search;
-using Lertaro.App.ViewModels.Search.Dispatch;
 using Lertaro.Core;
 
 using Lertaro.App.Services.Plugin;
@@ -22,10 +21,12 @@ public class ResultTypeOrderViewModel : ViewModelBase
     private readonly System.ComponentModel.PropertyChangedEventHandler _translationHandler;
 
     private readonly UserSettings _userSettings;
+    private readonly Func<char> _getTokenPrefix;
 
-    public ResultTypeOrderViewModel(UserSettings userSettings)
+    public ResultTypeOrderViewModel(UserSettings userSettings, Func<char>? getTokenPrefix = null)
     {
         _userSettings = userSettings;
+        _getTokenPrefix = getTokenPrefix ?? (() => QueryTokenPrefixRules.PrefixFor(userSettings));
 
         var order = userSettings.ResultTypeOrder;
         var triggers = userSettings.ResultTypeTriggers;
@@ -35,14 +36,13 @@ public class ResultTypeOrderViewModel : ViewModelBase
                 SearchResultTypePriority.FilesTypeId,
                 () => TranslationManager.Instance["General_ResultTypeFiles"],
                 triggers.GetValueOrDefault(SearchResultTypePriority.FilesTypeId, string.Empty),
-                _ => RefreshTriggerWarnings())
+                OnTriggerCharChanged)
         };
 
         foreach (var provider in PluginManager.Instance.SearchableItemProviders)
         {
             var id = SearchResultTypePriority.GetProviderTypeId(provider);
-            candidates.Add(new ResultTypeOrderItem(id, () => provider.Name, triggers.GetValueOrDefault(id, string.Empty),
-                _ => RefreshTriggerWarnings()));
+            candidates.Add(new ResultTypeOrderItem(id, () => provider.Name, triggers.GetValueOrDefault(id, string.Empty), OnTriggerCharChanged));
         }
 
         foreach (var item in candidates.OrderBy(c => SearchResultTypePriority.Rank(c.Id, order)))
@@ -50,9 +50,9 @@ public class ResultTypeOrderViewModel : ViewModelBase
             Items.Add(item);
         }
 
-        // A saved table can already hold a duplicate (nothing stopped it before this warned): name it on
-        // the rows it affects rather than waiting for the user to touch one of them again.
-        RefreshTriggerWarnings();
+        // A value saved by an older build may already collide with the syntax or with another type; that
+        // has to be visible as soon as the page opens, not only after the user happens to retype it.
+        ValidateTriggers();
 
         MoveUpCommand = new RelayCommand<ResultTypeOrderItem>(MoveUp);
         MoveDownCommand = new RelayCommand<ResultTypeOrderItem>(MoveDown);
@@ -61,56 +61,12 @@ public class ResultTypeOrderViewModel : ViewModelBase
         {
             foreach (var item in Items)
                 item.NotifyLanguageChanged();
-            // The warning names the other row/feature, so it has to follow the language too.
-            RefreshTriggerWarnings();
+            // The per-row message names a reserved rule, and is localized: re-validate so it follows the
+            // language like the rest of the page.
+            ValidateTriggers();
         };
         TranslationManager.Instance.PropertyChanged += _translationHandler;
 
-    }
-
-    /// <summary>
-    /// The type whose trigger character the given row duplicates, ignoring case -- the rule the runtime
-    /// applies after <see cref="SearchResultTypePriority.ResolveTrigger"/>, which returns whichever entry
-    /// the table happens to enumerate first and leaves the other type's character silently dead. Pure, so
-    /// the collision rule is testable without the settings graph or the plugin registry.
-    /// </summary>
-    internal static ResultTypeOrderItem? FindDuplicateTrigger(IReadOnlyList<ResultTypeOrderItem> items, ResultTypeOrderItem item)
-    {
-        if (item.TriggerChar.Length != 1)
-            return null;
-
-        foreach (var other in items)
-        {
-            if (ReferenceEquals(other, item) || other.TriggerChar.Length != 1)
-                continue;
-
-            if (char.ToUpperInvariant(other.TriggerChar[0]) == char.ToUpperInvariant(item.TriggerChar[0]))
-                return other;
-        }
-
-        return null;
-    }
-
-    // Recomputed for every row whenever one of them changes: which row owns a character is only knowable
-    // by looking at the whole table. A plugin's trigger word counts too -- a single-character word and a
-    // type trigger on the same character is a real clash (the character wins the file search while the
-    // plugin still answers), and PluginTriggerQuery already knows about every word.
-    private void RefreshTriggerWarnings()
-    {
-        foreach (var item in Items)
-        {
-            if (item.TriggerChar.Length == 0)
-            {
-                item.ConflictWarning = string.Empty;
-                continue;
-            }
-
-            var other = FindDuplicateTrigger(Items, item)?.DisplayName
-                ?? PluginTriggerCollisionReport.FindOtherOwnerForHostTrigger(item.TriggerChar);
-            item.ConflictWarning = other == null
-                ? string.Empty
-                : string.Format(TranslationManager.Instance["General_ResultTypeTriggerTaken"], other);
-        }
     }
 
     public ObservableCollection<ResultTypeOrderItem> Items { get; } = new();
@@ -168,6 +124,15 @@ public class ResultTypeOrderViewModel : ViewModelBase
     // A row this dialog shows owns its trigger outright: clearing it must really remove the entry, which is
     // why the visible ids are rewritten rather than merged over. Only a hidden id's stored value survives
     // untouched.
+    //
+    // Keyed by type id, NOT by trigger character: that is the shape UserSettings.ResultTypeTriggers
+    // already had and the shape SearchResultTypePriority.ResolveTrigger reads.
+    //
+    // A trigger character is a dictionary VALUE here, so two types claiming the same character cannot
+    // both survive -- ToDictionary used to throw outright on the duplicate and take Save/Apply down
+    // with it, and a duplicate is entirely legal to type. The collision is reported per row instead
+    // (see ValidateTriggers), and the first claimant keeps the character. Compared case-insensitively,
+    // because that is how ResolveTrigger reads the character back.
     internal static Dictionary<string, string> MergeTriggers(
         IReadOnlyList<(string Id, string TriggerChar)> visible,
         IReadOnlyDictionary<string, string> stored,
@@ -175,13 +140,87 @@ public class ResultTypeOrderViewModel : ViewModelBase
     {
         var merged = stored.Where(entry => hidden.Contains(entry.Key))
             .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.Ordinal);
+        var claimed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (id, triggerChar) in visible)
         {
-            if (triggerChar.Length > 0)
+            if (triggerChar.Length > 0 && claimed.Add(triggerChar))
                 merged[id] = triggerChar;
         }
 
         return merged;
+    }
+
+    // Reports, per row, whether its trigger character can actually work:
+    //   * a reserved character is consumed by the search syntax before any trigger is read, so the
+    //     trigger would silently never fire (see SearchSyntaxReserved);
+    //   * a duplicate would be discarded by the dictionary in Save.
+    // Called on every keystroke in the trigger box and once on load, so a value saved by an older build
+    // is flagged rather than silently kept -- the value itself is deliberately NOT rewritten, so the
+    // user's setting keeps working until they change it.
+    //
+    // Case-insensitive counting on purpose: SearchResultTypePriority.ResolveTrigger compares the typed
+    // first character ignoring case, so "F" and "f" are one trigger and the second claimant is just as
+    // dead as an exact duplicate would be.
+    //
+    // Internal rather than private so the rule can be pinned directly: the view model's own constructor
+    // enumerates PluginManager (no seam in a test), and the rows it seeds there carry the change callback
+    // only after this method has already run.
+    internal void ValidateTriggers()
+    {
+        var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in Items)
+        {
+            if (string.IsNullOrEmpty(item.TriggerChar))
+                continue;
+            counts[item.TriggerChar] = counts.GetValueOrDefault(item.TriggerChar) + 1;
+        }
+
+        foreach (var item in Items)
+        {
+            item.Error = string.IsNullOrEmpty(item.TriggerChar)
+                ? null
+                : SearchSyntaxReserved.ValidateLeadingCharacter(item.TriggerChar, _getTokenPrefix())
+                    ?? (counts.GetValueOrDefault(item.TriggerChar) > 1
+                        ? TranslationManager.Instance["General_ResultTypeTriggerDuplicate"]
+                        : null);
+        }
+    }
+
+    // Any row's trigger change re-validates every row, because a duplicate is a property of the set and
+    // not of the row that was just typed in.
+    internal event Action? TriggersChanged;
+    private void OnTriggerCharChanged()
+    {
+        ValidateTriggers();
+        TriggersChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// The trigger errors that must block saving, each row named. Read by the Settings window's Apply gate
+    /// -- see GeneralSettingsViewModel.ValidationErrors.
+    /// </summary>
+    /// <remarks>
+    /// Only a character the user staged in THIS session blocks. A build before this one validated nothing,
+    /// so a carried-over settings file can already hold a reserved character or two types on the same
+    /// character; refusing to save on those showed an error on the Layout page that locked the user out of
+    /// saving every other setting anywhere in the window, until they found the row and retyped it. The
+    /// row still shows its error either way, which is the same split QueryTokenPrefixRules.BlocksSaving
+    /// applies to the app-wide prefix field -- reported always, blocking only on a staged edit.
+    /// </remarks>
+    internal IEnumerable<string> ValidationErrors
+    {
+        get
+        {
+            var stored = _userSettings.ResultTypeTriggers;
+            foreach (var item in Items)
+            {
+                if (item.Error is not { Length: > 0 } error)
+                    continue;
+                if (string.Equals(stored.GetValueOrDefault(item.Id, string.Empty), item.TriggerChar, StringComparison.Ordinal))
+                    continue; // untouched since load: carried over, not staged
+                yield return $"{item.DisplayName}: {error}";
+            }
+        }
     }
 
     public void Cleanup() => TranslationManager.Instance.PropertyChanged -= _translationHandler;
@@ -189,16 +228,14 @@ public class ResultTypeOrderViewModel : ViewModelBase
 
 public class ResultTypeOrderItem : OrderItemBase
 {
-    private readonly Action<ResultTypeOrderItem>? _onTriggerCharChanged;
+    private readonly Action? _onTriggerChanged;
     private string _triggerChar = string.Empty;
-    private string _conflictWarning = string.Empty;
 
-    public ResultTypeOrderItem(string id, Func<string> resolveDisplayName, string triggerChar,
-        Action<ResultTypeOrderItem>? onTriggerCharChanged = null)
+    public ResultTypeOrderItem(string id, Func<string> resolveDisplayName, string triggerChar, Action? onTriggerChanged = null)
         : base(id, resolveDisplayName)
     {
-        _onTriggerCharChanged = onTriggerCharChanged;
         _triggerChar = Normalize(triggerChar);
+        _onTriggerChanged = onTriggerChanged;
     }
 
     // Empty = no trigger configured. When this is the first character typed in the quick window,
@@ -214,29 +251,29 @@ public class ResultTypeOrderItem : OrderItemBase
 
             _triggerChar = normalized;
             OnPropertyChanged(nameof(TriggerChar));
-            // Every other row's warning is about THIS character, so the owner recomputes them all -- a
+            // Every other row's error is about THIS character, so the owner revalidates them all -- a
             // duplicate the user just created (or just removed) has to show up without a page reload.
-            _onTriggerCharChanged?.Invoke(this);
+            _onTriggerChanged?.Invoke();
         }
     }
+
+    private string? _error;
 
     /// <summary>
-    /// Shown in amber under the row when another type -- or another feature's trigger word -- already
-    /// answers to this character. Assigned by <see cref="ResultTypeOrderViewModel"/>, the only thing that
-    /// can see the other rows.
+    /// Why this trigger character cannot work, or null. Shown under the box: a trigger the search syntax
+    /// consumes, or one a second type also claims, would otherwise just silently never fire.
     /// </summary>
-    public string ConflictWarning
+    public string? Error
     {
-        get => _conflictWarning;
-        internal set
+        get => _error;
+        set
         {
-            if (string.Equals(_conflictWarning, value, StringComparison.Ordinal))
-                return;
-
-            _conflictWarning = value;
-            OnPropertyChanged(nameof(ConflictWarning));
+            SetProperty(ref _error, value);
+            OnPropertyChanged(nameof(HasError));
         }
     }
+
+    public bool HasError => !string.IsNullOrEmpty(_error);
 
     // One character IS the rule at the runtime end (SearchResultTypePriority.ResolveTrigger only ever
     // looks at a length-1 value), so anything longer the editor lets through is trimmed here instead of

@@ -111,4 +111,18 @@ public sealed class FzfPatternPrecedenceTests
             SearchContext.DefaultAndFirstPrecedence = previousDefault;
         }
     }
+
+    [TestMethod]
+    public void Parse_PipeWithoutItsOwnSpaces_IsLiteralTextNotOr()
+    {
+        // The documentation says this twice ("a|b is ordinary text"), so pin it: only a spaced '|' binds.
+        var joined = FzfPattern.Parse("a|b");
+        var halfSpaced = FzfPattern.Parse("a |b");
+
+        Assert.HasCount(1, joined.TermSets);
+        Assert.AreEqual("a|b", joined.TermSets[0].Terms[0].Text);
+        Assert.HasCount(2, halfSpaced.TermSets);
+        Assert.AreEqual("a", halfSpaced.TermSets[0].Terms[0].Text);
+        Assert.AreEqual("|b", halfSpaced.TermSets[1].Terms[0].Text);
+    }
 }

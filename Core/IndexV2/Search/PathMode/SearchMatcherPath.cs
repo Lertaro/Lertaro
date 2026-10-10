@@ -24,18 +24,21 @@ internal static class SearchMatcherPath
         if (pattern == null)
         {
             var worker = SearchMatcher.RentWorker();
-            for (var uid = 0; uid < snapshot.UniqueCount; uid++)
+            try
             {
-                // The dir-only query takes the serial branch, so it needs the check itself rather than
-                // getting it from ParallelOptions. Cheap on an already-cancelled token, and this loop is
-                // over every unique name on the drive.
-                token.ThrowIfCancellationRequested();
-                var utf8 = snapshot.UniqueNameUtf8(uid);
-                if (utf8.Length == 0)
-                    continue;
-                merged.Add(new PathUniqueMatch(uid, default, 0xFFFFFFFFu, NameCharLength(snapshot, uid, worker, utf8)));
+                for (var uid = 0; uid < snapshot.UniqueCount; uid++)
+                {
+                    token.ThrowIfCancellationRequested();
+                    var utf8 = snapshot.UniqueNameUtf8(uid);
+                    if (utf8.Length == 0)
+                        continue;
+                    merged.Add(new PathUniqueMatch(uid, default, 0xFFFFFFFFu, NameCharLength(snapshot, uid, worker, utf8)));
+                }
             }
-            SearchMatcher.ReturnWorker(worker);
+            finally
+            {
+                SearchMatcher.ReturnWorker(worker);
+            }
             return merged;
         }
 
@@ -58,6 +61,7 @@ internal static class SearchMatcherPath
                 {
                     if (ctx.CanFilter && ((masks[uid] & ctx.RequiredMask) != ctx.RequiredMask || !SearchMatcher.PassesOrSets(masks[uid], ctx.OrSetMasks)))
                         continue;
+                    token.ThrowIfCancellationRequested();
                     PathMatchOne(snapshot, ctx, uid, worker, hits);
                 }
                 perChunk[chunk] = hits;
@@ -79,30 +83,32 @@ internal static class SearchMatcherPath
         if (utf8.Length == 0)
             return;
 
-        if (snapshot.IsUniqueAscii(uid))
+        // Pure-ASCII name: bytes ARE the chars (same values, same offsets) -- match with zero decode.
+        // Only when the query has no regex clause: the byte matcher cannot apply one, so for a regex-only
+        // pattern every ASCII name would be rejected (the byte pattern has no positive term to match on)
+        // and for a term+regex pattern the clause would be silently skipped. Regex queries decode instead.
+        // This mirrors SearchMatcher.MatchOne, the name-mode twin of this method.
+        if (snapshot.IsUniqueAscii(uid) && !ctx.BytePattern.HasRegexClauses)
         {
             if (ctx.BytePattern.TryMatch(utf8, out var byteMatch, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers))
             {
                 hits.Add(new PathUniqueMatch(uid, byteMatch, FzfBytePattern.RankLow32(utf8, byteMatch), utf8.Length));
                 return;
             }
-            if (snapshot.HasAliases(uid) && SearchMatcher.TryMatchAliases(snapshot, ctx, uid, worker, out var aliasBest))
+            if (snapshot.HasAliases(uid) && SearchMatcher.TryMatchAliases(snapshot, ctx, uid, worker, SearchMatcher.DecodeName(worker, utf8), out var aliasBest))
                 hits.Add(new PathUniqueMatch(uid, aliasBest, FzfBytePattern.RankLow32(utf8, aliasBest), utf8.Length));
             return;
         }
 
-        if (worker.Scratch.Length < utf8.Length)
-            worker.Scratch = new char[Math.Max(utf8.Length, worker.Scratch.Length * 2)];
-        var written = Encoding.UTF8.GetChars(utf8, worker.Scratch);
-        var name = worker.Scratch.AsSpan(0, written);
+        var name = SearchMatcher.DecodeName(worker, utf8);
 
         if (ctx.Pattern.TryMatch(name, out var match, FzfScoringScheme.Default, worker.Slab))
         {
-            hits.Add(new PathUniqueMatch(uid, match, FzfResultRank.RankLow32(name, match), written));
+            hits.Add(new PathUniqueMatch(uid, match, FzfResultRank.RankLow32(name, match), name.Length));
         }
-        else if (snapshot.HasAliases(uid) && SearchMatcher.TryMatchAliases(snapshot, ctx, uid, worker, out var best))
+        else if (snapshot.HasAliases(uid) && SearchMatcher.TryMatchAliases(snapshot, ctx, uid, worker, name, out var best))
         {
-            hits.Add(new PathUniqueMatch(uid, best, FzfResultRank.RankLow32(name, best), written));
+            hits.Add(new PathUniqueMatch(uid, best, FzfResultRank.RankLow32(name, best), name.Length));
         }
     }
 

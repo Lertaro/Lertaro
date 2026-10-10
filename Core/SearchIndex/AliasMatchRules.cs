@@ -26,6 +26,15 @@ internal static class AliasMatchRules
     /// none of its adjacencies is a syllable boundary. Only the START is constrained, so a match may still
     /// stop part-way through its last syllable -- which is what keeps "zhengsh" reaching 证书 mid-typing.
     ///
+    /// A boundary is the alias's own literal punctuation as well as the provider's separator. An alias keeps
+    /// the name's non-transliterated characters verbatim -- "wo\u0002yuan\u0002yi - wang\u0002fei.mp3" -- so
+    /// the syllables of a later word begin right after a space, '-' or '.', exactly where a user typing that
+    /// word's pinyin starts. Accepting only the separator there rejected every precise pinyin query aimed at
+    /// a word that is not the name's first ("?wangfei" found 王菲.txt but not 我愿意 - 王菲.mp3, while fuzzy
+    /// matching found both: a fuzzy term is not gated by this rule at all). Nothing is weakened by admitting
+    /// them: a splice needs the match to start INSIDE a syllable, where the preceding character is a letter,
+    /// and that is still rejected.
+    ///
     /// ponytail: the caller checks the start of the first occurrence it found. Rejecting a misaligned first
     /// occurrence while a later aligned one exists needs the same fragment to appear both mid-syllable and
     /// at a syllable start in one alias; the flat initials alias still covers any query the user actually
@@ -44,16 +53,21 @@ internal static class AliasMatchRules
         // The character before the match must be a syllable boundary. '|' also counts: a polyphonic
         // provider emits several readings as one '|'-joined string, and the matcher scores each segment
         // independently with offsets rebased onto the whole string -- so a match opening a later reading
-        // sits right after that '|' and is a boundary in exactly the sense that matters.
+        // sits right after that '|' and is a boundary in exactly the sense that matters. Anything that is
+        // not a letter counts too: a syllable is made of letters, so no syllable can span one, and those are
+        // precisely the characters the alias keeps from the original name (space, '-', '.', brackets).
         var previous = alias[matchStart - 1];
-        return previous == separator || previous == '|';
+        return previous == separator || previous == '|' || !IsLetter(previous);
     }
 
     /// <summary>Byte twin of <see cref="IsBoundaryAligned(char, ReadOnlySpan{char}, int)"/>.</summary>
     /// <remarks>
     /// For the hot path that matches a baked alias straight from its UTF-8 without decoding. Every
     /// separator a provider declares is ASCII (pinyin's is U+0002), so it is a single byte equal to the
-    /// char; a non-ASCII alias takes the decoded char path instead.
+    /// char; a non-ASCII alias takes the decoded char path instead. Any byte at or above 0x80 is part of a
+    /// multi-byte character, never an ASCII letter, so it counts as punctuation here -- and the char
+    /// overload agrees, because a non-ASCII character is not a letter of the alias's own writing system
+    /// either.
     /// </remarks>
     public static bool IsBoundaryAligned(char separator, ReadOnlySpan<byte> aliasUtf8, int matchStart)
     {
@@ -64,10 +78,17 @@ internal static class AliasMatchRules
         if (aliasUtf8.IndexOf(separatorByte) < 0)
             return true;
 
-        // '|' as well as the separator: see the char overload.
+        // '|' and non-letters as well as the separator: see the char overload.
         var previous = aliasUtf8[matchStart - 1];
-        return previous == separatorByte || previous == (byte)'|';
+        return previous == separatorByte || previous == (byte)'|' || !IsAsciiLetter(previous);
     }
+
+    // IsAsciiLetter rather than char.IsAsciiLetter / char.IsLetter: the char and byte overloads have to agree
+    // for every position, and only ASCII letters are single bytes. A non-ASCII character is therefore
+    // punctuation on both sides -- it cannot be part of a syllable, which is all this rule is about.
+    private static bool IsLetter(char value) => IsAsciiLetter((byte)(value <= 0x7F ? value : ' '));
+
+    private static bool IsAsciiLetter(byte value) => value is >= (byte)'a' and <= (byte)'z' or >= (byte)'A' and <= (byte)'Z';
 
     /// <summary>
     /// Whether a PRECISE alias match starting at <paramref name="matchStart"/> may stand.

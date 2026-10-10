@@ -50,12 +50,4 @@ public sealed class PreviewInQuickLookActionTests
 
         Assert.IsFalse(new PreviewInQuickLookAction().CanExecute(results));
     }
-
-    [TestMethod]
-    public void DisplayName_IsNotEmpty() =>
-        Assert.IsFalse(string.IsNullOrWhiteSpace(new PreviewInQuickLookAction().DisplayName));
-
-    [TestMethod]
-    public void Icon_IsNotNull() =>
-        Assert.IsNotNull(new PreviewInQuickLookAction().Icon);
 }

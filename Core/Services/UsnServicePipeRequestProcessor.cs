@@ -39,9 +39,12 @@ internal static class UsnServicePipeRequestProcessor
             var administrative = msg.Id is SearchRequestId.Rebuild or SearchRequestId.RebuildDrive or
                 SearchRequestId.DeleteDriveIndex or SearchRequestId.CancelDriveIndex or
                 SearchRequestId.SetMachineSettings or SearchRequestId.ClearServiceLog or SearchRequestId.GetServiceLog;
-            if ((administrative || msg.Id is SearchRequestId.Initialize or SearchRequestId.ClearPathCaches) &&
+            if (RequiresAuthorizedCaller(msg.Id) &&
                 !PipeClientIdentity.IsAuthorizedApp(pipe, administrative))
+            {
+                Logger.Log($"[UsnService] Refused {msg.Id}: the caller lacks the required App identity or administrator access.", LogLevel.Warn);
                 return new PipeResponse { Kind = PipeResponseKind.Error, Message = "Unauthorized caller." };
+            }
             switch (msg.Id)
             {
                 case SearchRequestId.Ping:
@@ -153,4 +156,10 @@ internal static class UsnServicePipeRequestProcessor
         }
     }
 
+    // State changes require this installation's App. Machine changes and service logs also require
+    // an administrator account; read-only file queries retain their per-caller visibility checks.
+    internal static bool RequiresAuthorizedCaller(SearchRequestId id) => id is
+        SearchRequestId.Rebuild or SearchRequestId.Initialize or SearchRequestId.RebuildDrive or
+        SearchRequestId.DeleteDriveIndex or SearchRequestId.CancelDriveIndex or SearchRequestId.SetMachineSettings or
+        SearchRequestId.ClearServiceLog or SearchRequestId.GetServiceLog or SearchRequestId.ClearPathCaches;
 }

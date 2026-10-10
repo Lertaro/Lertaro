@@ -29,6 +29,9 @@ public partial class NotificationCardWindow : Window
     /// <summary>Set once the user drags the card: from then on the stack's re-layout leaves it alone,
     /// because taking back a position the user just chose would fight them for it.</summary>
     public bool IsUserMoved { get; private set; }
+    internal bool IsDragging { get; private set; }
+    internal event Action? DragStarted;
+    internal event Action? DragFinished;
 
     public NotificationCardWindow()
     {
@@ -88,15 +91,34 @@ public partial class NotificationCardWindow : Window
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ButtonState != MouseButtonState.Pressed || e.ClickCount != 1) return;
+        var wasMoved = IsUserMoved;
+        BeginUserDrag();
         try
         {
             DragMove();
-            IsUserMoved = true;
         }
         catch (InvalidOperationException)
         {
             // DragMove only works from a mouse-down message; anything else that gets here is not a drag.
+            IsUserMoved = wasMoved;
         }
+        finally
+        {
+            EndUserDrag();
+        }
+    }
+
+    internal void BeginUserDrag()
+    {
+        IsDragging = true;
+        IsUserMoved = true;
+        DragStarted?.Invoke();
+    }
+
+    internal void EndUserDrag()
+    {
+        IsDragging = false;
+        DragFinished?.Invoke();
     }
 
     private void BtnClose_Click(object sender, RoutedEventArgs e) => DismissRequested?.Invoke();

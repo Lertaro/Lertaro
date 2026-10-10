@@ -1,3 +1,4 @@
+using Lertaro.App.Helpers;
 using System.Windows;
 using Lertaro.Core;
 using Lertaro.App.Services.Plugin;
@@ -28,6 +29,7 @@ internal sealed class SearchQueryDispatchController
     private readonly Action<Visibility> _setLoadingPanelVisibility;
     private readonly Action<bool> _setIsSearchBoxEnabled;
     private readonly Action<int> _setReceivedCount;
+    private readonly Action<bool> _setRegexLimitExceeded;
     private readonly Action<IReadOnlyList<AppSearchResult>, bool> _updateSidebarCounts;
     private readonly Action<IReadOnlyList<AppSearchResult>> _replaceSidebarCounts;
     private readonly Func<bool> _isTypeFilterSelected;
@@ -68,7 +70,8 @@ internal sealed class SearchQueryDispatchController
         Action<IReadOnlyList<AppSearchResult>, bool> updateSidebarCounts,
         Action<IReadOnlyList<AppSearchResult>> replaceSidebarCounts,
         Action<bool, int> applyFiltersAndRender,
-        Func<bool> isTypeFilterSelected)
+        Func<bool> isTypeFilterSelected,
+        Action<bool>? setRegexLimitExceeded = null)
     {
         _searchEngine = searchEngine;
         _serviceStatus = serviceStatus;
@@ -82,14 +85,16 @@ internal sealed class SearchQueryDispatchController
         _replaceSidebarCounts = replaceSidebarCounts;
         _applyFiltersAndRender = applyFiltersAndRender;
         _isTypeFilterSelected = isTypeFilterSelected;
+        _setRegexLimitExceeded = setRegexLimitExceeded ?? (_ => { });
     }
 
     public void OnAdvancedQueryChanged(string query)
     {
-        var globalPrefixChar = GetGlobalTokenPrefixChar();
-        var strippedTrailing = SearchQuerySortParser.Strip(query, out var tokens, globalPrefixChar);
-        _queryTokens = tokens;
-        var cleanQuery = SearchQuerySortParser.StripExclusionBypass(strippedTrailing, out var bypassExclusions);
+        // The bypass marker is stripped before the scan: the scanner reads a trigger from a word's first
+        // character only, so "*\audio" would otherwise stay ordinary text (see StripExclusionBypass).
+        var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(query, out var bypassExclusions), GlobalTokenPrefix.Current);
+        _queryTokens = scan.Tokens;
+        var cleanQuery = scan.Text;
         // A file-filter scope keyword ("tf report" -> search "report" only inside the tf filter's folders)
         // resolves first, in the same order SearchDispatchController applies it: the scope is the more
         // specific prefix and its own resolver owns stripping its word, so the trigger-word strip below is
@@ -144,7 +149,7 @@ internal sealed class SearchQueryDispatchController
         // never merges them either. Whether a TYPE filter is active is deliberately NOT checked here: that is
         // UI-thread state, and waiting to read it is exactly what blocked the render above. It is checked
         // where the rows land instead.
-        var wantsContentRows = scopeDirective == null && _queryTokens.Count == 0;
+        var wantsContentRows = scopeDirective == null && _queryTokens.Count == 0 && !accumulator.IsRegexPath;
         var queryGeneration = Interlocked.Increment(ref _contentAppendGeneration);
         void StartContentRowAppend()
         {
@@ -159,7 +164,8 @@ internal sealed class SearchQueryDispatchController
             cleanQuery,
             searchScope: null,
             isInlineSearchContext: false,
-            fileLimit: SearchViewModel.FullSearchFileLimit,
+            // One extra match proves overflow; the accumulator discards it before creating a UI row.
+            fileLimit: accumulator.IsRegexPath ? StreamingResultAccumulator.RegexPathResultLimit + 1 : SearchViewModel.FullSearchFileLimit,
             appLimit: SearchViewModel.FullSearchAppLimit,
             // Local (USN-indexed) and network-drive results stream in from separate, independently-timed
             // sources (see Core.Services.SearchService.SearchStreamingAsync's localTask/networkTask) and
@@ -181,6 +187,7 @@ internal sealed class SearchQueryDispatchController
                 _serviceStatus.ClearReconnectState();
                 _setLoadingPanelVisibility(Visibility.Collapsed);
                 _setIsSearchBoxEnabled(true);
+                _setRegexLimitExceeded(accumulator.RegexLimitExceeded);
                 // This window has its own "no results" hint (ShowNoResultsHint, keyed off an empty
                 // FilteredResults) -- the shared engine's synthetic "Empty" placeholder row is meant
                 // for the quick/inline windows, which have no such hint and render it inline instead.
@@ -261,7 +268,7 @@ internal sealed class SearchQueryDispatchController
             onReceivedCountUpdated: count =>
             {
                 if (_queryTokens.Count == 0)
-                    _setReceivedCount(count);
+                    _setReceivedCount(accumulator.IsRegexPath ? Math.Min(count, StreamingResultAccumulator.RegexPathResultLimit) : count);
             },
             beforeSearch: StartContentRowAppend
         );
@@ -436,11 +443,5 @@ internal sealed class SearchQueryDispatchController
         _getAllResults().Clear();
         _applyFiltersAndRender(false, 0);
         _setLoadingPanelVisibility(Visibility.Collapsed);
-    }
-
-    private static char GetGlobalTokenPrefixChar()
-    {
-        var prefix = UserSettings.Load().GlobalTokenPrefix;
-        return !string.IsNullOrEmpty(prefix) ? prefix[0] : ':';
     }
 }

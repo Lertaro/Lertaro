@@ -34,7 +34,9 @@ internal static class SearchMatcherRow
         {
             if (disabledIds != null && disabledIds.Contains(providerId))
                 continue;
-            if (!pattern.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default, slab))
+            // The alias stands in for the name only for the positive terms: an exclusion still reads
+            // `name`, or it would be answered by the alias's own silence (see FzfPattern.TryMatchAlias).
+            if (!pattern.TryMatchAlias(alias, name, out var aliasMatch, FzfScoringScheme.Default, slab))
                 continue;
 
             // A precise query must not match a full transliteration mid-syllable -- see AliasMatchRules.
@@ -96,7 +98,8 @@ internal static class SearchMatcherRow
         {
             if (disabledIds != null && providerIds != null && j < providerIds.Length && disabledIds.Contains(providerIds[j]))
                 continue;
-            if (!pattern.TryMatch(aliases[j], out var aliasMatch, FzfScoringScheme.Default, slab))
+            // Same alias-vs-name split as MatchRow above: positives read the alias, exclusions read `name`.
+            if (!pattern.TryMatchAlias(aliases[j], name, out var aliasMatch, FzfScoringScheme.Default, slab))
                 continue;
 
             // A precise query must not match a full transliteration mid-syllable -- see AliasMatchRules.

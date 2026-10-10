@@ -24,6 +24,7 @@ public class SettingsViewModel : ViewModelBase
     private bool _isServiceReady = true;
     private bool _isApplying;
     private bool _retryAfterFailure;
+    private int _bindingErrorCount;
 
     public SettingsViewModel()
     {
@@ -34,6 +35,11 @@ public class SettingsViewModel : ViewModelBase
         LocalDrive = new LocalDriveSettingsViewModel(_searchService, RefreshLists);
         NetworkDrive = new NetworkDriveSettingsViewModel(_searchService, RefreshLists);
         General = new GeneralSettingsViewModel(_userSettings);
+        General.PendingTriggerKeywords = () => _plugins?.LoadedFields
+            .Where(field => field.SchemaField.Validation == PluginSdk.Abstractions.ConfigFieldValidation.TriggerKeyword)
+            .Select(field => field.Value as string ?? string.Empty) ?? [];
+        General.PropertyChanged += OnGeneralValidationChanged;
+        Validation = new SettingsValidationGate(General, () => _plugins);
         Exclusions = new ExclusionSettingsViewModel(_userSettings);
         Blacklist = new BlacklistSettingsViewModel(_userSettings);
         Hotkeys = new HotkeySettingsViewModel(_userSettings, Blacklist);
@@ -42,7 +48,7 @@ public class SettingsViewModel : ViewModelBase
         QuickPanel = new QuickPanel.QuickPanelSettingsViewModel(_userSettings);
         LocalSend = new LocalSend.LocalSendSettingsViewModel(_userSettings);
         RefreshCommand = new RelayCommand(Refresh);
-        ApplyCommand = new RelayCommand(Apply, () => CanApply);
+        ApplyCommand = new RelayCommand(() => Apply(), () => CanApply);
         _deferred = new DeferredSettingsViewModels(_userSettings, _searchService);
         _statusMonitor = new SettingsStatusMonitor(_searchService, ApplyUiState);
         TranslationManager.Instance.PropertyChanged += OnLanguageChanged;
@@ -81,7 +87,7 @@ public class SettingsViewModel : ViewModelBase
     // which forces it via the property access in SettingsWindowSearchExtensions.BuildAllEntries) never
     // pays that scan at all.
     private PluginManagementViewModel? _plugins;
-    public PluginManagementViewModel Plugins => _plugins ??= new PluginManagementViewModel(_userSettings);
+    public PluginManagementViewModel Plugins => _plugins ??= new PluginManagementViewModel(_userSettings, () => General.DraftTokenPrefix);
 
     public HotkeySettingsViewModel Hotkeys { get; }
     public BlacklistSettingsViewModel Blacklist { get; }
@@ -120,16 +126,63 @@ public class SettingsViewModel : ViewModelBase
     public bool CanApply
     {
         get => _canApply && !_isApplying;
-        set { if (SetProperty(ref _canApply, value)) CommandManager.InvalidateRequerySuggested(); }
+        private set { if (SetProperty(ref _canApply, value)) CommandManager.InvalidateRequerySuggested(); }
     }
 
+    /// <summary>
+    /// Reports WPF binding errors without overriding the guard for an in-flight save.
+    /// </summary>
+    public void SetBindingErrorCount(int count)
+    {
+        if (_bindingErrorCount == count)
+            return;
+        _bindingErrorCount = count;
+        RefreshCanApply();
+    }
+
+    // Deliberately not including ValidationErrors: this is the BUTTON's state, and re-reading the pages'
+    // errors here would put that walk on the status-push path (ApplyUiState runs up to ~10x/s while a
+    // drive indexes) to keep a cosmetic flag fresh. Apply() refuses on those errors itself, and the page
+    // that raised one is already showing it next to the field.
+    private void RefreshCanApply() => CanApply = _bindingErrorCount == 0;
+
+    /// <summary>
+    /// Every validation error the settings pages are currently showing.
+    ///
+    /// WPF's Validation.Error only fires for rules expressed in a binding -- IDataErrorInfo, exception
+    /// validation, converters -- so a rule a page works out for itself (a trigger character the search
+    /// syntax would consume, two plugins claiming the same prefix) never reached Apply, which would then
+    /// save a value the page was visibly reporting as broken.
+    ///
+    /// Only pages already constructed are asked. An unvisited page holds no staged edit and so can report
+    /// no error, and going through a lazy property to ask would construct it (see Plugins) purely to be
+    /// told so.
+    /// </summary>
+    public SettingsValidationGate Validation { get; }
+
+    /// <summary>The gate's own list, kept as the name callers and tests already read.</summary>
+    public IReadOnlyList<string> ValidationErrors => Validation.Errors;
+
     public bool IsBusy { get => _isBusy; set => SetProperty(ref _isBusy, value); }
-    public bool IsServiceReady { get => _isServiceReady; set => SetProperty(ref _isServiceReady, value); }
+
+    public bool IsServiceReady
+    {
+        get => _isServiceReady;
+        set => SetProperty(ref _isServiceReady, value);
+    }
 
     private bool _isSaved;
 
+    private void OnGeneralValidationChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(General.GlobalTokenPrefix) || _plugins == null) return;
+        foreach (var field in _plugins.LoadedFields)
+            field.RefreshTriggerValidation();
+    }
+
     public void Cleanup()
     {
+        General.PropertyChanged -= OnGeneralValidationChanged;
         _statusMonitor.Dispose();
         TranslationManager.Instance.PropertyChanged -= OnLanguageChanged;
         // Null-conditional: a window closed without visiting these tabs must not construct them to dispose.
@@ -171,6 +224,16 @@ public class SettingsViewModel : ViewModelBase
     {
         if (!CanApply)
             return false;
+
+        var errors = ValidationErrors;
+        if (errors.Count > 0)
+        {
+            Logger.Log($"[SettingsViewModel] Apply refused: {errors.Count} setting error(s): {string.Join(" | ", errors)}", LogLevel.Warn);
+            Validation.Refuse(errors.Count);
+            return false;
+        }
+        Validation.Clear();
+
         _isApplying = true;
         OnPropertyChanged(nameof(CanApply));
         try
@@ -342,11 +405,6 @@ public class SettingsViewModel : ViewModelBase
         // If it was the active tab, fall back to Network so the page never lands on a hidden tab.
         if (LocalDrive.SelectedTab == "Wsl" && !NetworkDrive.IsWslPanelVisible)
             LocalDrive.SelectedTab = "Network";
-        // The shared Apply/OK button only needs the service to be reachable: MachineSettings is loaded
-        // synchronously at SearchEngine construction, before the indexer's own loading-cache/indexing/
-        // pending lifecycle even starts, so an active scan or cache load never means the data Apply()
-        // would read and save is stale or empty -- only an unreachable service does (RefreshLists()
-        // falls back to an empty MachineSettings() in that case).
         IsServiceReady = isServiceReady;
         _deferred.ExistingLog?.IsServiceReady = isServiceReady;
         IsBusy = !isServiceReady;

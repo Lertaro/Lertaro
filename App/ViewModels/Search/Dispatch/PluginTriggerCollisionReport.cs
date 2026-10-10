@@ -15,7 +15,10 @@ namespace Lertaro.App.ViewModels.Search.Dispatch;
 /// </remarks>
 internal static class PluginTriggerCollisionReport
 {
-    // The host's own per-type trigger characters are one "component" as far as a clash is concerned.
+    // The host's own per-type trigger characters are one "component" as far as a clash is concerned. The
+    // collision is reported from the OTHER side: a plugin field whose word equals a result-type trigger
+    // asks FindOtherOwner with its own plugin id, so this id differs from it and the host's character comes
+    // back as the other owner. The result-type rows themselves do not warn about plugin words.
     internal const string HostTriggerOwnerId = "Lertaro.Settings.ResultTypeTriggers";
 
     /// <summary>
@@ -26,16 +29,6 @@ internal static class PluginTriggerCollisionReport
     /// </summary>
     public static string? FindOtherOwner(string word, string selfOwnerId) =>
         FirstOtherOwner(PluginTriggerQuery.Collect(), word, selfOwnerId);
-
-    /// <summary>
-    /// The other feature that already answers to <paramref name="word"/>, for the host's own per-type
-    /// trigger characters. Those live in one settings table and are therefore one "component" as far as
-    /// <see cref="FirstOtherOwner"/> is concerned, so the id it compares against is supplied here: a
-    /// character that collides with a plugin's trigger word is still worth naming, and a caller outside this
-    /// class must not have to know the host's own id to ask.
-    /// </summary>
-    public static string? FindOtherOwnerForHostTrigger(string word) =>
-        FirstOtherOwner(PluginTriggerQuery.Collect(), word, HostTriggerOwnerId);
 
     /// <summary>
     /// Who else already owns this word, or null when it is free. Pure, so a Settings field can warn on the

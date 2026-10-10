@@ -23,7 +23,10 @@ namespace Lertaro.App.Services.Notifications;
 /// </remarks>
 internal sealed class NotificationWindowManager(
     Action<NotificationItem> onGone,
-    Action<IReadOnlyList<NotificationItem>> onGoneBatch)
+    Action<IReadOnlyList<NotificationItem>> onGoneBatch,
+    Action<NotificationItem, double, double>? onDeferred = null,
+    Action<double, double>? onCapacityChanged = null,
+    Func<Rect>? workArea = null)
 {
     internal const double CardWidthDip = 360;
     internal const double CardMaxHeightDip = 260;
@@ -46,12 +49,13 @@ internal sealed class NotificationWindowManager(
     private const double EntryDropDip = 40;
 
     private readonly Dictionary<NotificationItem, NotificationRunner> _runners = [];
+    private bool _sessionHidden;
 
     internal int Count => _runners.Count;
 
     internal bool IsStackMoving => _runners.Values.Any(r => r.Moving != null);
 
-    internal IEnumerable<NotificationRunner> Countdown() => _runners.Values.ToArray();
+    internal IEnumerable<NotificationRunner> Countdown() => _runners.Values.Where(r => !r.Item.IsSettled).ToArray();
 
     /// <summary>Builds and shows the window for an accepted notification.</summary>
     internal void Present(NotificationItem item)
@@ -60,12 +64,40 @@ internal sealed class NotificationWindowManager(
         // Painting it then would leave a window that is in no list, nobody times out, and nobody ever closes.
         if (item.IsSettled) return;
 
-        var area = NotificationPlacement.Resolve().WorkAreaDip;
+        var existing = FindSlot(item);
+        if (existing?.Window is NotificationCardWindow existingCard)
+        {
+            _runners.Remove(existing.Item);
+            existing.Replace(item);
+            _runners[item] = existing;
+            existingCard.SetContent(item.Request, item.SourceName);
+            existingCard.FlashArrival();
+            existingCard.UpdateLayout();
+            Restack(animated: true);
+            return;
+        }
+
+        var area = workArea?.Invoke() ?? NotificationPlacement.Resolve().WorkAreaDip;
         var isCard = item.EffectivePosition == NotificationPosition.CardStack;
         var window = isCard ? CreateCard(item) : (Window)CreateNotice(item, area);
 
         var runner = new NotificationRunner(item, window) { Arriving = isCard };
         _runners[item] = runner;
+        if (window is NotificationCardWindow card)
+        {
+            card.DismissRequested += () => CloseByUser(runner.Item);
+            card.ReadAllRequested += DismissAllCards;
+            card.DragStarted += () => StopMoving(runner);
+            card.DragFinished += () => Restack(animated: true);
+        }
+        window.Closed += (_, _) =>
+        {
+            // Alt+F4 and other system closes bypass TakeWindow. Claim the runner once; our own closes
+            // already removed it, so a batch still produces only its single notification to the queue.
+            if (!_runners.Remove(runner.Item)) return;
+            StopMoving(runner);
+            onGone(runner.Item);
+        };
         // ShowActivated=False on both kinds: a notification that takes the foreground is worse than one that
         // never arrived, for anyone typing. Which kind of window this is was decided by the window itself from
         // the active theme's opacity, before it had a handle to commit that with.
@@ -82,6 +114,7 @@ internal sealed class NotificationWindowManager(
         // first pass; re-laying out when the first frame is up is left as the correction it now is, not as the
         // visible jump the window would otherwise make from the bottom edge of the screen.
         window.UpdateLayout();
+        if (_sessionHidden) window.Hide();
         Restack(animated: false);
         // Re-laid out when the first frame is up, and animated this time. A card's height is not final until it
         // has actually been arranged: the body text re-wraps against the pixel-rounded content width and can come
@@ -96,6 +129,7 @@ internal sealed class NotificationWindowManager(
     private bool TakeWindow(NotificationRunner runner)
     {
         if (!_runners.Remove(runner.Item)) return false;
+        StopMoving(runner);
         runner.Window.Close();
         return true;
     }
@@ -104,8 +138,16 @@ internal sealed class NotificationWindowManager(
     /// window here is one that was still queued, and the queue has already dropped it.</summary>
     internal void TakeDown(NotificationItem item)
     {
-        if (_runners.TryGetValue(item, out var runner)) Close(runner);
+        // A replacement can be cancelled before its queued presentation runs. The old window still owns the
+        // same slot then, possibly across several replacements, and must not be left behind.
+        var runner = FindSlot(item);
+        if (runner != null) Close(runner);
     }
+
+    private NotificationRunner? FindSlot(NotificationItem item) =>
+        _runners.GetValueOrDefault(item) ?? (item.EffectivePosition == NotificationPosition.CardStack
+            ? _runners.Values.FirstOrDefault(r => r.Item.Sequence == item.Sequence)
+            : null);
 
     /// <summary>Closes a runner and tells the owner its slot is free.</summary>
     internal void Close(NotificationRunner runner)
@@ -145,6 +187,7 @@ internal sealed class NotificationWindowManager(
     /// the service's business, so nothing here touches it.</summary>
     internal void HideForSession(bool hidden)
     {
+        _sessionHidden = hidden;
         foreach (var runner in _runners.Values)
             runner.Window.Visibility = hidden ? Visibility.Hidden : Visibility.Visible;
     }
@@ -155,8 +198,9 @@ internal sealed class NotificationWindowManager(
     /// taken rather than sliding under it.</summary>
     internal void Restack(bool animated)
     {
-        if (_runners.Count == 0) return;
-        var area = NotificationPlacement.Resolve().WorkAreaDip;
+        var area = workArea?.Invoke() ?? NotificationPlacement.Resolve().WorkAreaDip;
+        var cap = Math.Min(CardMaxHeightDip, area.Height * 0.5);
+        var minimumTop = area.Top + EdgeMarginDip;
 
         foreach (var runner in _runners.Values.Where(r => r.Item.EffectivePosition == NotificationPosition.BottomNotice))
         {
@@ -168,15 +212,14 @@ internal sealed class NotificationWindowManager(
         var bottom = area.Bottom - EdgeMarginDip;
         foreach (var runner in _runners.Values
                      .Where(r => r.Item.EffectivePosition == NotificationPosition.CardStack)
-                     .OrderBy(r => r.Item.Sequence))
+                     .OrderBy(r => r.Item.Sequence).ToArray())
         {
             var card = runner.Window;
             // The card's own XAML holds it to CardMaxHeightDip, which is why this pass normally measures nothing.
             // What is left here is the rarer half-the-screen guard for a work area so short that a card could not
             // be read at all, and that changes only when the display does -- so the layout is flushed just then,
             // rather than once per card per restack, which is forced synchronous layout on the UI thread's clock.
-            var cap = Math.Min(CardMaxHeightDip, area.Height * 0.5);
-            if (cap < CardMaxHeightDip && card.MaxHeight != cap)
+            if (card.MaxHeight != cap)
             {
                 card.MaxHeight = cap;
                 card.UpdateLayout();
@@ -192,14 +235,23 @@ internal sealed class NotificationWindowManager(
 
             card.Left = area.Right - CardWidthDip - EdgeMarginDip;
             var top = bottom - card.ActualHeight;
+            if (top < minimumTop)
+            {
+                // This is a deferral, not a dismissal: no completion and no refill from Closed.
+                var height = card.ActualHeight;
+                if (TakeWindow(runner)) onDeferred?.Invoke(runner.Item, height, runner.RemainingMs);
+                continue;
+            }
             // A card that has never been on screen drops into its slot from above rather than blinking there.
             // Consumed here, on the first pass that places it, so the flag says "this one is arriving" to exactly
             // one restack and never to the ones that follow.
             var entering = runner.Arriving;
             runner.Arriving = false;
-            MoveTo(runner, card.Left, top, animated: animated || entering, entering: entering);
+            MoveTo(runner, card.Left, top, animated: animated || entering, entering: entering,
+                minimumTop: minimumTop);
             bottom = top - CardGapDip;
         }
+        onCapacityChanged?.Invoke(Math.Max(0, bottom - minimumTop), cap);
     }
 
     /// <summary>Drops the drag mark and re-anchors, for when the screen a notification sat on is gone. Remaining
@@ -210,8 +262,18 @@ internal sealed class NotificationWindowManager(
         Restack(animated: false);
     }
 
-    private void MoveTo(NotificationRunner runner, double left, double top, bool animated, bool entering = false)
+    private static void StopMoving(NotificationRunner runner)
     {
+        var top = runner.Window.Top;
+        runner.Moving = null;
+        runner.Window.BeginAnimation(Window.TopProperty, null);
+        runner.Window.Top = top;
+    }
+
+    private void MoveTo(NotificationRunner runner, double left, double top, bool animated, bool entering = false,
+        double minimumTop = double.NegativeInfinity)
+    {
+        if (runner.IsPinnedByDrag) return;
         var card = runner.Window;
         card.Left = left;
 
@@ -225,7 +287,7 @@ internal sealed class NotificationWindowManager(
         // Read before releasing: while a slide is in charge the window reports where it has got to, and clearing
         // the animation first would drop the card back to where that slide started. An arriving card has no slide
         // yet, so it is simply given one to start from -- forty DIP above the slot it drops into.
-        var from = entering ? top - EntryDropDip : card.Top;
+        var from = entering ? Math.Max(minimumTop, top - EntryDropDip) : card.Top;
         card.BeginAnimation(Window.TopProperty, null);
         runner.Moving = null;
         if (!animated || Math.Abs(from - top) < 1)
@@ -245,7 +307,7 @@ internal sealed class NotificationWindowManager(
         // moved past.
         move.Completed += (_, _) =>
         {
-            if (!ReferenceEquals(runner.Moving?.Animation, move)) return;
+            if (runner.IsPinnedByDrag || !ReferenceEquals(runner.Moving?.Animation, move)) return;
             runner.Moving = null;
             card.BeginAnimation(Window.TopProperty, null);
             card.Top = top;
@@ -261,8 +323,6 @@ internal sealed class NotificationWindowManager(
         // Every card that is built here is being built because it is about to be shown for the first time, so the
         // rim marks exactly the arrivals and nothing else.
         window.FlashArrival();
-        window.DismissRequested += () => CloseByUser(item);
-        window.ReadAllRequested += DismissAllCards;
         return window;
     }
 
