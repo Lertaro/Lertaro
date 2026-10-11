@@ -5,8 +5,7 @@ using Lertaro.Core;
 
 namespace Lertaro.App.ViewModels.Settings.General;
 
-// Edits stage locally and only commit to _userSettings/UiMetrics when Save() runs (called from
-// GeneralSettingsViewModel.Apply()) -- see GeneralSettingsViewModel's class-level comment.
+// The preview window's size. Save() commits _userSettings.PreviewWindow.
 public class PreviewWindowSettingsViewModel : ViewModelBase
 {
     private readonly UserSettings _userSettings;

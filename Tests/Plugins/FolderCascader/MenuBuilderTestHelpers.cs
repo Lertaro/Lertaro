@@ -4,7 +4,10 @@ using Lertaro.Plugins.FolderCascader.Navigation;
 namespace Lertaro.Plugins.FolderCascader.Tests;
 
 // Shared across the MenuBuilder*Tests classes (split out of one originally-433-line MenuBuilderTests.cs
-// to keep each under the project's line limit).
+// to keep each under the project's line limit). Canonical note for those classes: they wire
+// PluginSettingsService.GetSettingFunc/SetSettingFunc/PluginPromptService.PromptFunc, which are shared
+// static delegates, hence [DoNotParallelize] on each class so it can't race against another test
+// touching the same statics.
 internal static class MenuBuilderTestHelpers
 {
     internal sealed class FakeResult : ISearchResult

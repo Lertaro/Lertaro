@@ -10,8 +10,7 @@ namespace Lertaro.App.ViewModels.Settings.General;
 // Lets the user reorder the full SearchWindow's results grid columns (built-in Name/Path/DateModified
 // plus any third-party IResultColumnProvider's own columns) -- purely which columns show in which
 // left-to-right position, NOT which column the rows are sorted by (that's runtime-only, see
-// SearchResultSortMemory). Edits stage in Items and only commit to _userSettings.ColumnOrder when
-// Save() runs (called from GeneralSettingsViewModel.Apply()).
+// SearchResultSortMemory). Save() commits _userSettings.ColumnOrder.
 public class ColumnOrderViewModel : ViewModelBase
 {
     private readonly System.ComponentModel.PropertyChangedEventHandler _translationHandler;

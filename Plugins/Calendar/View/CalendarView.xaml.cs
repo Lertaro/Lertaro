@@ -302,8 +302,7 @@ public partial class CalendarView : UserControl
     }
 
     /// <summary>
-    /// Reads the two halves as a time of day. Deliberately not the culture's own time pattern: the fields are
-    /// plain 0-23 and 0-59 numbers, and a single digit is accepted rather than rejected for its shape.
+    /// Pass-through to <see cref="ReminderTimeFieldSupport.TryGetTime"/>, which documents the parsing rules.
     /// </summary>
     private bool TryParseTime(out DateTime time) => _timeField.TryGetTime(out time);
 

@@ -29,10 +29,7 @@ namespace Lertaro.Plugins.Files.Automation;
 /// </summary>
 internal static class UiaPathAccessor
 {
-    // ConcurrentDictionary, not Dictionary: RefreshFocusAnchor writes from the Hook's tracker thread
-    // (WinEvent-driven focus tracking) while GetCurrentPath/SetCurrentPath can now read from whatever
-    // thread is running an IInlineSearchAdapter call -- each ExecuteItem/etc. gets its own dedicated STA
-    // thread (see InlineAdapterCommandHandler.RunOnSta), so a read here can genuinely race a write.
+    // ConcurrentDictionary, not Dictionary: same cross-thread focus-anchor race as Plugins/OneCommander/Automation/UiaPathAccessor.cs (its internals aren't referenceable from this plugin).
     private static readonly ConcurrentDictionary<IntPtr, AutomationElement> _focusAnchors = new();
     // Keep this cache across focus refreshes: the active-path poller can refresh the anchor concurrently
     // with ExecuteItem, and clearing it there would put the slow UIA tree search back on the click path.
@@ -51,10 +48,7 @@ internal static class UiaPathAccessor
     {
         try
         {
-            // Sweep entries whose window is gone: only the per-hwnd lookup in
-            // FindNearestPaneElement removed them before, so a window that closed and was never
-            // queried again kept its AutomationElement (a UIA COM RCW) alive in this static
-            // dictionary for the process lifetime.
+            // Sweep entries whose window is gone so a closed window's UIA COM RCW isn't held for the process lifetime -- same leak fix as Plugins/OneCommander/Automation/UiaPathAccessor.cs.
             foreach (var cached in _focusAnchors)
             {
                 if (!IsWindow(cached.Key))
@@ -73,9 +67,8 @@ internal static class UiaPathAccessor
 
     public static string? GetCurrentPath(IntPtr hwnd)
     {
-        // Locate both controls while the host still has focus. ExecuteItem runs after focus has moved to
-        // Lertaro, so retaining the exact write control avoids repeating the expensive cross-process UIA
-        // ancestor/subtree search on every selected result.
+        // Locate both controls while the host still has focus and retain the write control so ExecuteItem's
+        // cross-process UIA search isn't repeated per result -- same reason as Plugins/OneCommander/Automation/UiaPathAccessor.cs.
         var elements = FindNearestPaneElements(hwnd);
         if (elements.SetElement != null)
             _currentPathSetElements[hwnd] = elements.SetElement;

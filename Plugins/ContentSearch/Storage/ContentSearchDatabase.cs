@@ -143,8 +143,8 @@ public sealed class ContentSearchDatabase : IDisposable
     }
 
     /// <summary>
-    /// Runs VACUUM when a large share of the database is free pages left over from
-    /// deleted rows, reclaiming the file space. Cheap no-op on a compact database.
+    /// Opens a connection and delegates to <see cref="DatabaseMaintenanceHelper.VacuumIfBloat"/>,
+    /// which documents the vacuum-when-bloated behaviour.
     /// </summary>
     public void VacuumIfBloat(double maxFreeRatio = 0.3)
     {

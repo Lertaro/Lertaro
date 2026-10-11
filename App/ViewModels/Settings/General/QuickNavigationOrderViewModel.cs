@@ -12,8 +12,7 @@ namespace Lertaro.App.ViewModels.Settings.General;
 
 // Lets the user reorder which IQuickNavigationProvider's entries appear first/last in the quick
 // navigation menu's root level -- a global preference, not per-plugin config, so it lives here rather
-// than in any plugin's own PluginConfigSchema. Edits stage in Items and only commit to
-// _userSettings.QuickNavigationProviderOrder when Save() runs (called from GeneralSettingsViewModel.Apply()).
+// than in any plugin's own PluginConfigSchema. Save() commits _userSettings.QuickNavigationProviderOrder.
 public class QuickNavigationOrderViewModel : ViewModelBase
 {
     private readonly System.ComponentModel.PropertyChangedEventHandler _translationHandler;

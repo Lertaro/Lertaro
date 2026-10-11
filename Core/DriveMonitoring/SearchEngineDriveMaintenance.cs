@@ -217,10 +217,7 @@ internal sealed class SearchEngineDriveMaintenance
         }
 
         EnsureDriveMonitor(drive, metadata[0].JournalId, metadata[0].NextUsn);
-        // The drive's own monitor stayed alive throughout the rebuild (see
-        // UsnIndexerExtensions.ApplyFolderChange); if it detected a change it couldn't persist against
-        // the doomed old LiveIndex, queue one follow-up refresh so the next walk observes it. A journal
-        // drive (monitor already stopped above) never sets this flag in the first place.
+        // Same missed-folder-change check as DriveRecovery.RestoreOrRebuild -- queue a rebuild for it.
         if (_indexer.ConsumeMissedFolderChangeDuringRebuild(drive))
             QueueDriveRebuild(drive);
     }

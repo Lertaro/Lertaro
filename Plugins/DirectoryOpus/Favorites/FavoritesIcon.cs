@@ -36,12 +36,10 @@ internal static class FavoritesIcon
     private static IntPtr _rootCached = IntPtr.Zero;
     private static IntPtr _menuGroupCached = IntPtr.Zero;
 
-    // Cache-and-reuse, never delete-on-replace: the provider builds every submenu row in ONE pass,
-    // and the host converts each row's HBITMAP only later, when the popup actually materializes.
-    // Deleting the previous handle on every GetMenuGroupHBitmap call invalidated all earlier rows'
-    // handles, leaving only the last-built row with a surviving icon (the same bug QuickNavIcon
-    // already fixed for CustomCommands). Invalidate() frees the handles once per popup session,
-    // which still lets a re-render track theme/accent changes between opens.
+    // Cache-and-reuse, never delete-on-replace: deleting the previous handle here invalidated all earlier
+    // favorites rows' handles, leaving only the last-built row with a surviving icon. The full reason (the
+    // one-pass row build, the host's late HBITMAP conversion, and Invalidate()'s once-per-session free) is
+    // written out at Plugins/TotalCommander/DirMenu/DirMenuIcon.cs -- a separate assembly, hence the pointer.
     public static IntPtr GetRootHBitmap()
     {
         lock (Sync)

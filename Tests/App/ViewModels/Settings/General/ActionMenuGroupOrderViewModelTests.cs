@@ -6,10 +6,9 @@ namespace Lertaro.App.Tests.ViewModels.Settings.General;
 [TestClass]
 public sealed class ActionMenuGroupOrderViewModelTests
 {
-    // The constructor's own enumeration of PluginManager.Instance.Actions/DynamicActionProviders isn't
-    // exercised here (no seam, matching this codebase's existing PluginManager-registry-untested
-    // convention -- see SidebarGroupOrderViewModelTests) -- these tests instead seed Items directly to
-    // cover MoveUp/MoveDown/Save in isolation.
+    // Constructor's own enumeration of PluginManager.Instance.Actions/DynamicActionProviders is left
+    // untested for the convention stated at SidebarGroupOrderViewModelTests' MakeViewModel comment --
+    // Items are seeded directly here, covering MoveUp/MoveDown/Save in isolation.
     private static ActionMenuGroupOrderViewModel MakeViewModel(UserSettings settings, params (string Id, string Name)[] items)
     {
         var vm = new ActionMenuGroupOrderViewModel(settings);

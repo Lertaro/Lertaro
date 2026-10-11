@@ -52,9 +52,8 @@ public sealed class BandizipPathHelpersTests
     [TestMethod]
     public void NormalizeIfWellFormed_DriveRoot_KeepsTrailingBackslash()
     {
-        // "D:" alone is a different path than "D:\" (current directory on that drive vs. its root) --
-        // trimming the drive root's trailing separator must not produce the former. Confirmed live via
-        // app.log showing a bare "D:" SearchScope breaking Path.GetRelativePath downstream.
+        // "D:" alone is a different path than "D:\" (current dir on that drive vs. its root) -- the
+        // confirmed-live reason for keeping the separator is in NormalizeIfWellFormed's own comment.
         var result = BandizipPathHelpers.NormalizeIfWellFormed(@"D:\");
 
         Assert.AreEqual(@"D:\", result);
@@ -65,8 +64,7 @@ public sealed class BandizipPathHelpersTests
     {
         // The whole point of dropping the Directory.Exists check: a mapped network drive the interactive
         // user can see is invisible to the elevated Hook process this runs in, so verifying it here would
-        // wrongly reject a perfectly real path. Confirmed live: this used to silently freeze SearchScope at
-        // its last value once the dialog's target moved onto a network drive.
+        // wrongly reject a perfectly real path -- full reason in NormalizeIfWellFormed's own comment.
         var result = BandizipPathHelpers.NormalizeIfWellFormed(@"Z:\share\projects\build");
 
         Assert.AreEqual(@"Z:\share\projects\build", result);

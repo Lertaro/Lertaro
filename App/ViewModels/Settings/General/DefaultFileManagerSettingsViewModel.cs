@@ -9,8 +9,7 @@ namespace Lertaro.App.ViewModels.Settings.General;
 // full-window geometry, log-level and language concerns stay there, while this owns the one cohesive
 // "redirect folder opening to a third-party file manager" feature (GitHub issue #180).
 //
-// Same staging convention as its former host: edits land locally and only reach _userSettings when
-// Save() runs (from GeneralSettingsViewModel.Apply(), i.e. the Settings window's Apply/OK button).
+// Save() commits _userSettings.DefaultFileManager.
 public class DefaultFileManagerSettingsViewModel : ViewModelBase
 {
     private readonly UserSettings _userSettings;

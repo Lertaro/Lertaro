@@ -208,10 +208,7 @@ public static class SearchHistoryStore
 
     internal static Dictionary<string, List<StoredEntry>> LoadFromFiles(string mainPath, string backupPath)
     {
-        // A missing main file is a fresh store: backups must not resurrect history after the file was
-        // deliberately deleted. An existing file that cannot be read or parsed falls back to the
-        // backup the atomic writer left behind, because an empty store would let the next save wipe
-        // the user's history permanently.
+        // Missing main file = fresh store; a corrupt existing file falls back to backup -- see KeywordHistoryStore.LoadFromFiles.
         if (!File.Exists(mainPath))
             return new Dictionary<string, List<StoredEntry>>(StringComparer.OrdinalIgnoreCase);
 
@@ -246,11 +243,7 @@ public static class SearchHistoryStore
         }
     }
 
-    // Rebuilds a clean bucket set from a most-recent-first sequence: a path lands in whichever keyword
-    // bucket its first (i.e. most recent) occurrence names, and each bucket stops accepting entries
-    // once it reaches the per-keyword cap. Never creates a bucket entry until it actually accepts one --
-    // a keyword whose only candidate loses to an earlier duplicate under a different keyword must not
-    // linger as an empty bucket.
+    // Thin forwarder -- see SearchHistoryBucketSupport.BuildBuckets for the bucket-rebuild rules.
     private static Dictionary<string, List<StoredEntry>> BuildBuckets(IEnumerable<(string Keyword, StoredEntry Entry)> mostRecentFirst)
         => SearchHistoryBucketSupport.BuildBuckets(mostRecentFirst);
 

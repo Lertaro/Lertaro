@@ -12,9 +12,8 @@ namespace Lertaro.App.ViewModels.Settings.General;
 
 // Lets the user reorder which IFilePreviewProvider gets first refusal when previewing a selected
 // result (built-in image/text/media/PE previewers plus any third-party plugin's own, e.g. QuickLook
-// Bridge) -- previously a fixed, compile-time Priority with no user-facing override at all. Edits
-// stage in Items and only commit to _userSettings.FilePreviewProviderOrder when Save() runs (called
-// from GeneralSettingsViewModel.Apply()).
+// Bridge) -- previously a fixed, compile-time Priority with no user-facing override at all. Save()
+// commits _userSettings.FilePreviewProviderOrder.
 public class FilePreviewProviderOrderViewModel : ViewModelBase
 {
     private readonly System.ComponentModel.PropertyChangedEventHandler _translationHandler;
@@ -25,11 +24,8 @@ public class FilePreviewProviderOrderViewModel : ViewModelBase
     {
         _userSettings = userSettings;
 
-        // PluginManager.Instance.FilePreviewProviders already applies both the enabled-components
-        // filter and the persisted order (falling back to each provider's own Priority for anything
-        // unlisted), so this list starts out showing exactly what preview dispatch would try, in the
-        // same order -- disabled providers never appear here, per the "reordering them would be
-        // meaningless" call every other Order view model in this file already makes.
+        // Same as ThumbnailProviderOrderViewModel's ctor comment -- identical filter/order behaviour and
+        // Priority fallback, for preview dispatch instead of thumbnail dispatch.
         foreach (var provider in PluginManager.Instance.FilePreviewProviders)
         {
             Items.Add(new FilePreviewProviderOrderItem(BuildId(provider), () => provider.Name));

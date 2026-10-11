@@ -2,8 +2,9 @@ using System.IO;
 
 namespace Lertaro.Plugins.Bandizip;
 
-// Shared by BandizipExtractDialogAdapter and BandizipAddFilesDialogAdapter -- both need the identical
-// normalize-and-check logic, so it lives here once instead of copied per adapter.
+// Shared WITHIN Bandizip by BandizipExtractDialogAdapter and BandizipAddFilesDialogAdapter, which call this
+// one helper. WinRAR is a separate assembly and keeps its own copy of the identical logic
+// (WinRARExtractDialogAdapter.NormalizeIfWellFormed); the full rationale for both is written out here.
 internal static class BandizipPathHelpers
 {
     // Pure normalize-and-check, pulled out so it's unit-testable without a live Bandizip window --

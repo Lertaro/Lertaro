@@ -52,9 +52,8 @@ public sealed class ReFsScannerCheckpointExtensionsTests
             state.MaybeCheckpoint(EmptyItems);
         Assert.AreEqual(1, checkpointCalls);
 
-        // The gap doubles after every checkpoint (see the next test), so the SECOND one needs
-        // CheckpointBatchSize * 2 calls, not another CheckpointBatchSize -- one short of that still
-        // shouldn't fire.
+        // Gap doubles after every checkpoint, so the SECOND one needs 2x CheckpointBatchSize calls -- the
+        // full reason is in TreeBuilderCheckpointExtensionsTests' identical test.
         for (var i = 0; i < TreeBuilder.CheckpointBatchSize * 2 - 1; i++)
             state.MaybeCheckpoint(EmptyItems);
         Assert.AreEqual(1, checkpointCalls);
