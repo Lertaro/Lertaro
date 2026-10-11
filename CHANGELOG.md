@@ -1,3 +1,22 @@
+## v5.9.1.4
+
+## 更新内容
+
+```
+# 修复 Quick Switch（Ctrl+G）在应用刚启动、以及开着多个文件管理器窗口时切不过去
++ 内联搜索的已打开文件夹按最近激活排序（Ctrl+1 是最新激活的那个窗口）
++ 自动更新只检查本仓库的发行
++ 保留鼠标平滑滚动
+```
+
+## What's changed
+
+```
+# Quick Switch (Ctrl+G) works right after the app starts and with several file-manager windows open
++ Opened folders in inline search are ordered by most recently activated (Ctrl+1 is the latest window)
++ Auto-update only checks this repository's releases
++ Keeps the smooth wheel scrolling
+```
 # 更新日志
 
 <!--
