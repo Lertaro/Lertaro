@@ -158,12 +158,15 @@ public static class SearchResultMapper
         {
             if (instantPass.HistoryCandidates == null)
             {
-            var historyCandidates = HistorySearchCandidateMapper.Collect(fuzzy, scope);
-            if (normalizedScopeFolders != null)
-                historyCandidates = historyCandidates.Where(c => InFileFilterScope(c.NormalizedPath)).ToList();
-            candidates.AddRange(historyCandidates);
+                var historyCandidates = HistorySearchCandidateMapper.Collect(fuzzy, scope);
+                if (normalizedScopeFolders != null)
+                    historyCandidates = historyCandidates.Where(c => InFileFilterScope(c.NormalizedPath)).ToList();
                 instantPass.HistoryCandidates = historyCandidates;
             }
+
+            // Added on every paint, not only when the cache was filled: the candidate list is rebuilt per
+            // paint, so adding inside the cache check dropped these rows from every paint after the first.
+            candidates.AddRange(instantPass.HistoryCandidates);
         }
 
         if (!string.IsNullOrWhiteSpace(query))
@@ -171,33 +174,36 @@ public static class SearchResultMapper
             if (instantPass.FavoriteCandidates == null)
             {
                 var favoriteCandidates = new List<RankedCandidate>();
-            var favorites = UserSettings.Load().Favorites;
-            for (var i = 0; i < favorites.Count; i++)
-            {
-                var fav = favorites[i];
-                var match = FavoriteSearchHelper.ComputeMatch(fav, fuzzy);
-                if (!match.IsMatch || !Helpers.FavoritePathResolver.IsPathAvailable(fav.Path))
-                    continue;
+                var favorites = UserSettings.Load().Favorites;
+                for (var i = 0; i < favorites.Count; i++)
+                {
+                    var fav = favorites[i];
+                    var match = FavoriteSearchHelper.ComputeMatch(fav, fuzzy);
+                    if (!match.IsMatch || !Helpers.FavoritePathResolver.IsPathAvailable(fav.Path))
+                        continue;
 
-                // A favorite is curated by the user regardless of whether it also has USAGE history --
-                // that's a stronger signal than "matched the query text well" or "happens to be an
-                // application", so it stays ahead of both. TypeRank never actually differentiates a
-                // favorite from anything else (IsCurated already does), so it's given the Files id here
-                // simply as the closest match to what a favorited path actually is.
-                var normalizedFavPath = Helpers.FavoritePathResolver.NormalizeForComparison(fav.Path);
-                if (normalizedScopeFolders != null && !InFileFilterScope(normalizedFavPath))
-                    continue;
-                var priority = historySnapshot.TryGetValue(normalizedFavPath, out var hp) ? hp : int.MaxValue;
-                favoriteCandidates.Add(new RankedCandidate(
-                    FavoriteSearchHelper.CreateFavoriteUiResult(fav, query, 0),
-                    IsCurated: true,
-                    priority,
-                    SearchResultTypePriority.Rank(SearchResultTypePriority.FilesTypeId, typeOrder),
-                    match,
-                    normalizedFavPath));
-            }
+                    // A favorite is curated by the user regardless of whether it also has USAGE history --
+                    // that's a stronger signal than "matched the query text well" or "happens to be an
+                    // application", so it stays ahead of both. TypeRank never actually differentiates a
+                    // favorite from anything else (IsCurated already does), so it's given the Files id here
+                    // simply as the closest match to what a favorited path actually is.
+                    var normalizedFavPath = Helpers.FavoritePathResolver.NormalizeForComparison(fav.Path);
+                    if (normalizedScopeFolders != null && !InFileFilterScope(normalizedFavPath))
+                        continue;
+                    var priority = historySnapshot.TryGetValue(normalizedFavPath, out var hp) ? hp : int.MaxValue;
+                    favoriteCandidates.Add(new RankedCandidate(
+                        FavoriteSearchHelper.CreateFavoriteUiResult(fav, query, 0),
+                        IsCurated: true,
+                        priority,
+                        SearchResultTypePriority.Rank(SearchResultTypePriority.FilesTypeId, typeOrder),
+                        match,
+                        normalizedFavPath));
+                }
+
                 instantPass.FavoriteCandidates = favoriteCandidates;
             }
+
+            candidates.AddRange(instantPass.FavoriteCandidates);
         }
 
         // Searchable items (Start Menu apps, settings, ...) take part in ordinary searches only -- a
@@ -208,30 +214,33 @@ public static class SearchResultMapper
             if (instantPass.SearchableItemCandidates == null)
             {
                 var itemCandidates = new List<RankedCandidate>();
-            foreach (var (result, match) in SearchableItemMapper.CollectSearchableItemResults(query, isInlineWindow))
-            {
-                var typeId = result.SourceProvider is PluginSdk.Abstractions.Plugins.ISearchableItemProvider provider
-                    ? SearchResultTypePriority.GetProviderTypeId(provider)
-                    : SearchResultTypePriority.FilesTypeId;
-                if (triggeredTypeId != null && typeId != triggeredTypeId)
-                    continue;
+                foreach (var (result, match) in SearchableItemMapper.CollectSearchableItemResults(query, isInlineWindow))
+                {
+                    var typeId = result.SourceProvider is PluginSdk.Abstractions.Plugins.ISearchableItemProvider provider
+                        ? SearchResultTypePriority.GetProviderTypeId(provider)
+                        : SearchResultTypePriority.FilesTypeId;
+                    if (triggeredTypeId != null && typeId != triggeredTypeId)
+                        continue;
 
-                // An application's FullPath can be a virtual shell:AppsFolder\{AUMID} id (packaged apps) --
-                // Path.GetFullPath (inside NormalizePath) would mangle that, and SearchHistoryStore itself
-                // never runs it through NormalizePath either (see SearchHistoryStore.RecordCore), so the
-                // lookup key has to skip it here too or an app's history priority would never resolve.
-                var lookupPath = result.IsApplication ? result.FullPath.Trim() : SearchResultHelper.NormalizePath(result.FullPath);
-                var hasHistory = historySnapshot.TryGetValue(lookupPath, out var priority);
-                itemCandidates.Add(new RankedCandidate(
-                    result,
-                    IsCurated: hasHistory,
-                    hasHistory ? priority : int.MaxValue,
-                    SearchResultTypePriority.Rank(typeId, typeOrder),
-                    match,
-                    SearchResultHelper.NormalizePath(result.FullPath)));
-            }
+                    // An application's FullPath can be a virtual shell:AppsFolder\{AUMID} id (packaged apps) --
+                    // Path.GetFullPath (inside NormalizePath) would mangle that, and SearchHistoryStore itself
+                    // never runs it through NormalizePath either (see SearchHistoryStore.RecordCore), so the
+                    // lookup key has to skip it here too or an app's history priority would never resolve.
+                    var lookupPath = result.IsApplication ? result.FullPath.Trim() : SearchResultHelper.NormalizePath(result.FullPath);
+                    var hasHistory = historySnapshot.TryGetValue(lookupPath, out var priority);
+                    itemCandidates.Add(new RankedCandidate(
+                        result,
+                        IsCurated: hasHistory,
+                        hasHistory ? priority : int.MaxValue,
+                        SearchResultTypePriority.Rank(typeId, typeOrder),
+                        match,
+                        SearchResultHelper.NormalizePath(result.FullPath)));
+                }
+
                 instantPass.SearchableItemCandidates = itemCandidates;
             }
+
+            candidates.AddRange(instantPass.SearchableItemCandidates);
         }
 
         // Only entered when nothing is triggered, or "Files" itself is the triggered type -- fileResults
