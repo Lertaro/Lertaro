@@ -1,3 +1,22 @@
+## v5.9.1.5
+
+## 更新内容
+
+```
+# 修复 Quick Switch（Ctrl+G）在应用刚启动、以及开着多个文件管理器窗口时切不过去
++ 内联窗口不再重复显示「上次目录」（Ctrl+G 已经负责跳回上次目录）
++ 自动更新只检查本仓库的发行
++ 保留鼠标平滑滚动
+```
+
+## What's changed
+
+```
+# Quick Switch (Ctrl+G) works right after the app starts and with several file-manager windows open
++ Inline search no longer repeats a "last directory" row (Ctrl+G already jumps back there)
++ Auto-update only checks this repository's releases
++ Keeps the smooth wheel scrolling
+```
 ## v5.9.1.4
 
 ## 更新内容

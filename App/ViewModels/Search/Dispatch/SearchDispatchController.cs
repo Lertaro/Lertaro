@@ -217,12 +217,15 @@ internal sealed class SearchDispatchController
         {
             _engine.CancelPendingSearch();
             _setIsSearching(false);
-            var suggestion = ExplorerJumpSuggestionHelper.TryBuildSuggestion(_getIsInlineSearchContext(), _getSearchScope());
             var openedFolderPaths = _getIsInlineSearchContext() && UserSettings.Load().ShowOpenedFoldersInInlineSearch && InlineSearchManager.Instance.ExplorerTracker.IsActiveWindowDialog
                 ? ExplorerPathService.GetOpenedFolderPaths()
                 : Array.Empty<string>();
+            // No "last directory" row is built any more: Ctrl+G already jumps to the last activated
+            // file-manager folder, so showing that same folder again as a numbered candidate only duplicated
+            // the hotkey and made the list look like it had no logic. What is left is the real set of
+            // alternatives -- the folders that are open right now -- under their own header.
             var emptyStateResults = InlineEmptyStateResultHelper.Build(
-                suggestion,
+                null,
                 openedFolderPaths,
                 TranslationManager.Instance["Search_LastDirectoryHeader"],
                 TranslationManager.Instance["Search_OpenedFoldersHeader"]);
