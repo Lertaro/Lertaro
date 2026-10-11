@@ -132,9 +132,9 @@ public class QuickSearchWindowInputHandler
                 _window.LstResults.SelectedIndex = 0;
                 result = _window.LstResults.SelectedItem as AppSearchResult;
             }
-            // File/folder results are handled earlier by HotkeyActionTrigger (Ctrl+Enter locate,
-            // Ctrl+Shift+Enter open-as-admin) and never reach here. What reaches here on those chords
-            // is a result with no matching file action — notably an application — so honor
+            // File/folder results were already answered by HotkeyActionTrigger (see its header), so what
+            // reaches here on those chords is a result with no matching file action -- notably an
+            // application. Honor
             // Ctrl+Shift+Enter as "launch as admin" so apps can still be elevated.
             if (result != null)
             {
@@ -193,8 +193,8 @@ public class QuickSearchWindowInputHandler
             if (num >= 0)
             {
                 var scrollViewer = WpfUiHelper.GetScrollViewer(_window.LstResults);
-                // Mode-aware (see QuickSearchShortcutHelper's own comment) -- this is the separate
-                // execution-side lookup that maps the pressed digit back to an actual result.
+                // Same scrolling-mode-tolerant helper the hints use (see QuickSearchShortcutHelper) -- this
+                // is the separate execution-side lookup that maps the pressed digit back to an actual result.
                 var firstVisible = WpfUiHelper.GetFirstVisibleIndex(scrollViewer, UiMetrics.ScaledNormalRowHeight);
                 var shortcutIndex = 0;
                 for (var i = firstVisible; i < _window.LstResults.Items.Count; i++)

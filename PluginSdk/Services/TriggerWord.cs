@@ -13,7 +13,7 @@ namespace Lertaro.PluginSdk.Services;
 /// Separators are any Unicode whitespace (<see cref="char.IsWhiteSpace(char)"/>), which covers the
 /// ideographic space U+3000 a Chinese IME emits in full-width mode and a pasted non-breaking space --
 /// neither of which any copy handled before. Consecutive separators count as one and the argument comes
-/// back trimmed, so <c>cs&nbsp;&nbsp;report</c> and <c>cs　report</c> both mean <c>cs report</c>.
+/// back trimmed, so <c>cs&#160;&#160;report</c> and <c>cs　report</c> both mean <c>cs report</c>.
 ///
 /// What is deliberately NOT decided here is whether a word with nothing after it activates. The host must
 /// not strip one (that word is all the user has asked to find so far); a window list or a command does

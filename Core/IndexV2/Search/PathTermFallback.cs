@@ -144,7 +144,7 @@ internal static class PathTermFallback
         var membership = directoryContext.FilterLower != null ? new Dictionary<int, bool>() : null;
         var worker = SearchMatcher.RentWorker();
         // Bounded by the index rather than by the caller's limit, which is no longer capped: the
-        // multiply overflows int for a large enough limit, and FzfTopN reserves twice its capacity.
+        // multiply overflows int for a large enough limit, and FzfTopN buffers up to twice its capacity.
         var keep = (int)Math.Min((long)Math.Max(limit, 8) * 8, snapshot.Count + delta.Added.Count);
         var topN = new FzfTopN(keep);
         try

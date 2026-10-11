@@ -6,7 +6,8 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Engine;
 
 /// <summary>
 /// Isolated assembly load context for third-party Flow.Launcher .NET plugins.
-/// Loads assemblies via memory streams to avoid locking DLL files on Windows, allowing instant uninstallation and updates.
+/// Loads assemblies into a collectible context that can be unloaded again, which is what stops Windows
+/// keeping the plugin's DLL files locked and allows instant uninstallation and updates.
 /// </summary>
 public class FlowAssemblyLoader : AssemblyLoadContext
 {

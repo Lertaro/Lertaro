@@ -251,7 +251,8 @@ public class ServiceMonitorViewModel : ViewModelBase, IDisposable
         StatusBarVisibility = Visibility.Collapsed;
     }
 
-    // Called by ServiceMonitorStatusHandler when index reaches ready state
+    // Called by ServiceMonitorStatusHandler, and by TriggerIndexBuild's own fast path, when the index
+    // reaches ready state
 
     internal void ApplyReadyStatus(UsnIndexer.IndexerStatus status)
     {

@@ -17,7 +17,8 @@ namespace Lertaro.PluginSdk.Abstractions.Plugins;
 /// first, or by name, at most so many), so it cannot show half of one without re-sorting on every
 /// arrival. That costs nothing in latency -- every tab loads on its
 /// own task and the panel opens on the first one to arrive, so a provider that has to go and look delays
-/// only its own tab. Honour the token all the same: it is cancelled when the panel closes.
+/// only its own tab. Accept the token and watch it anyway: today the host passes an uncancelled one,
+/// because dismissing the panel only hides it, so nothing will tell a provider to stop early.
 ///
 /// Fill in <see cref="ISearchResult.Metadata"/>'s Modified where the source knows one and the default
 /// newest-first order uses it; leave it at its default and the entries keep the order they were returned

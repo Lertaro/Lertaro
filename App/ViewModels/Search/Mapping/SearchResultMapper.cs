@@ -109,7 +109,7 @@ public static class SearchResultMapper
         // probed since it's the one guaranteed to still have whatever the user actually typed first,
         // including a literal space -- see PluginSearchResultMapper.AddInstantResults' own use of it
         // above for the same reason. query itself already arrives with the trigger character stripped
-        // (SearchDispatchController.StripResultTypeTrigger removes it before the file-index engine ever
+        // (ResultTypeTriggerHandler.StripTrigger removes it before the file-index engine ever
         // sees it), so it's used as-is below for matching/highlighting -- the trigger character never
         // shows up highlighted and never pollutes the fuzzy match, with no second stripping needed here.
         string? triggeredTypeId = null;
@@ -330,7 +330,7 @@ public static class SearchResultMapper
 
     // Same rule again, but resolved ONCE for a caller that then tests many results against it.
     // IsQueriedDirectoryItself re-derives this per call, and deriving it can hit the disk
-    // (Directory.Exists) -- fine for the handful of results a streaming pipe callback sees, ruinous for
+    // (Directory.Exists) -- tolerable one row at a time, ruinous for
     // a caller filtering hundreds of thousands. Returns null when the query isn't a directory path at
     // all, which is the common case and means there is nothing to strip.
     internal static string? GetQueriedDirectory(string query) => SearchResultDirectoryHelper.GetQueriedDirectory(query);

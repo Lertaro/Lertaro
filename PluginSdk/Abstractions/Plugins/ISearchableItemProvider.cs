@@ -58,7 +58,10 @@ public class SearchableItem
     public string? TabCompletion { get; set; }
 
     /// <summary>
-    /// Optional pre-loaded icon as a GDI HBITMAP (Win32 handle).
+    /// Optional pre-loaded icon as a GDI HBITMAP (Win32 handle). The host takes ownership and calls
+    /// DeleteObject once it has materialized the bitmap -- do not reuse or free this handle yourself
+    /// after handing it over.
+    /// </summary>
     public IntPtr HBitmapIcon { get; set; }
 
     /// <summary>

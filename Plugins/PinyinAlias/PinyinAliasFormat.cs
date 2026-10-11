@@ -7,8 +7,9 @@ internal static class PinyinAliasFormat
 {
     // Syllable delimiter for the full-pinyin alias. A control character for the same reason
     // PinyinAliasCombinationGenerator's PipePlaceholder is one: it cannot occur in a real name, so it
-    // never collides with source text that already passes through verbatim (a name like "第01集.mp4"
-    // becomes "di01<SEP>ji.mp4", dots and digits intact), and it cannot occur in anything a user types,
+    // never collides with source text that already passes through verbatim (adjacent transliterated
+    // characters are split -- "的士" becomes "di<SEP>shi" -- while digits and dots pass through intact),
+    // and it cannot occur in anything a user types,
     // so no query can straddle it the way "n.z" could straddle a printable '.' separator.
     //
     // It also costs nothing on the hot path: being below 128 it keeps the alias pure ASCII, so the

@@ -20,6 +20,9 @@ internal static class ShellContextMenuNativeMethods
         int GetCommandString(UIntPtr idCmd, uint uFlags, IntPtr pwzReserved, StringBuilder pszName, uint cchMax);
     }
 
+    // IContextMenu's three methods are re-declared here rather than inherited on purpose: an
+    // InterfaceIsIUnknown import binds by declaration order, so every inherited slot must be present or
+    // HandleMenuMsg lands on the wrong vtable entry.
     [ComImport]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     [Guid("000214F4-0000-0000-C000-000000000046")]

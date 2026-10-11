@@ -118,7 +118,8 @@ public class XyplorerInlineSearchAdapter : IInlineSearchAdapter
         // goto is a real navigation command, not a pure "select" verb -- calling it unconditionally on
         // every arrow-key move while browsing global search results (which can span many unrelated
         // folders) would make XYplorer's pane jump around constantly. Scoped to the folder XYplorer's pane
-        // already has open, same as Directory Opus's and Total Commander's own OnSelectionChanged.
+        // already has open, same as Directory Opus's own OnSelectionChanged. Total Commander cannot do the
+        // equivalent: it only learns the selection at ExecuteItem time.
         var scope = GetSearchScope(hwnd);
         var parent = Path.GetDirectoryName(cleanPath);
         var isInCurrentFolder = !string.IsNullOrEmpty(scope) && string.Equals(parent?.TrimEnd('\\'), scope.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);

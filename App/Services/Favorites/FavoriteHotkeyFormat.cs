@@ -190,8 +190,9 @@ public static class FavoriteHotkeyFormat
         if (modifiers.HasFlag(ModifierKeys.Windows)) result |= FavoriteHotkeyNativeMethods.ModWin;
 
         // MOD_NOREPEAT: holding the combination down must not navigate the foreground window over and
-        // over. Windows only honours this bit from Windows 7 on, and only when a modifier is present,
-        // which every accepted value here has (see TryBuild).
+        // over. Windows only honours this bit from Windows 7 on, and only when a modifier is present, so
+        // the guard below leaves a bare key (TryBuild accepts "F5") without it rather than setting a bit
+        // that would be ignored.
         return result == NoModifier ? NoModifier : result | FavoriteHotkeyNativeMethods.ModNoRepeat;
     }
 }

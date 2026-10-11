@@ -52,7 +52,7 @@ public static class DeltaLinkOps
     // marked renamed-away and path walks forward through the FRN once the new-name AddLink arrives
     // (mirrors HardLinkDelta.RemoveLinkForRename + ReorphanChildren). Counted as removed immediately,
     // like the old engine's MarkRowDeleted -- AddLink re-counts it when the new-name row lands, so a
-    // mid-rename status poll sees a brief -1/+1 dip, matching RuntimeIndex's own behavior exactly.
+    // mid-rename status poll sees a brief -1/+1 dip.
     // Returns whether anything matched, same contract as RemoveLink.
     public static bool RemoveLinkForRename(DeltaOverlay delta, UInt128 frn, UInt128 parentFrn, string name)
     {

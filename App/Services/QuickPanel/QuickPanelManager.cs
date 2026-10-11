@@ -246,8 +246,9 @@ public sealed partial class QuickPanelManager : IDisposable
 
     /// <summary>Closes the panel. There is nothing to tidy up afterwards -- the window IS the state.</summary>
     /// <remarks>
-    /// Closing raises Deactivated, which is wired to this same method, so without the guard the first
-    /// close re-enters. The Closed handler is what drops the reference, so nothing here has to.
+    /// The guard covers re-entrancy while Close() runs this window's own handlers synchronously.
+    /// Deactivated now only arms QuickPanelManagerDismissal's timer rather than calling Hide, so the old
+    /// direct re-entry path is gone. The Closed handler is what drops the reference, so nothing here has to.
     /// </remarks>
     public void Hide()
     {

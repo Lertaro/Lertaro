@@ -108,7 +108,7 @@ public static class QuickPanelSourceLoader
             {
                 var provider = PluginManager.Instance.QueryTokenProviders.FirstOrDefault(p => PluginPerformanceMonitor.Measure(p, () => p.CanHandle(token)));
                 if (provider == null)
-                    continue; // entry did not fully match search syntax -- ignore it
+                    continue; // no loaded IQueryTokenProvider claims this token -- ignore it
 
                 var filtered = await PluginPerformanceMonitor.MeasureAsync(provider, () => provider.ApplyAsync(token, results));
                 foreach (var item in filtered)

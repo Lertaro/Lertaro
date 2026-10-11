@@ -32,8 +32,8 @@ public class SearchService : IDisposable
         => _pipeClient.RequestApplyUpdateAsync(sourceDir, token);
 
     // Fire-and-forget, called whenever a search window closes/hides (mirrors ShellIconHelper.ClearCache()'s
-    // existing trigger points) -- gives back the local drives' per-row full-path memo, which otherwise
-    // only self-clears once it crosses its own high backstop threshold (see PathQueryExtensions).
+    // existing trigger points). The local-drive leg is a no-op since IndexV2: Snapshot.GetFullPath rebuilds
+    // each path from mmap reads, so there is no per-row memo left to reclaim (see UsnIndexer.ClearAllPathCaches).
     public Task ClearPathCachesAsync(CancellationToken token = default) => _pipeClient.ClearPathCachesAsync(token);
 
     // bypassExclusions: opts this one search out of ExcludedPaths/IgnoredPathGlobs/IgnoredPathRegexes

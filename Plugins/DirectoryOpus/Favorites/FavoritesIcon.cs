@@ -13,7 +13,7 @@ namespace Lertaro.Plugins.DirectoryOpus.Favorites;
 
 // Icons for the entries that are not a real filesystem path -- the root "Favorites" entry and the
 // submenus inside it. Real files and folders need none of this: FavoritesNode.Path being a real property
-// lets the host's generic path-based shell-icon loader (App/Services/ShellMenu/QuickNavigationMenu.cs)
+// lets the host's generic path-based shell-icon loader (App/Services/ShellMenu/QuickNav/QuickNavigationMenu.cs)
 // resolve their actual file-type icon for free.
 //
 // Same technique as TotalCommander's DirMenuIcon and FolderCascader's Helper: a WPF vector Geometry

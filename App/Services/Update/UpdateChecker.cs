@@ -6,8 +6,9 @@ using System.Text.Json.Serialization;
 namespace Lertaro.App.Services.Update;
 
 // Polls GitHub for the latest release. Kept separate from UpdateInstaller: checking for an update has a
-// different trigger (periodic/startup) and failure domain (network/JSON parsing) than installing one
-// (user-consented, crypto/filesystem/process elevation) -- a caller wanting just the version check has no
+// different trigger (startup or a manual request from the About page) and failure domain (network/JSON
+// parsing) than installing one (crypto/filesystem/service IPC) -- a caller wanting just the version check
+// has no
 // reason to pull in signature verification or elevated-process launching, and vice versa.
 public class UpdateChecker
 {

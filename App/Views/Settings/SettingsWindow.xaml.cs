@@ -54,7 +54,8 @@ public partial class SettingsWindow : Window
     internal IndexSettingsPage PageIndex => _pageIndex ??= AddPage(new IndexSettingsPage());
     internal GeneralSettingsPage PageGeneral => _pageGeneral ??= AddPage(new GeneralSettingsPage());
     internal AppearanceSettingsPage PageAppearance => _pageAppearance ??= AddPage(new AppearanceSettingsPage());
-    // Hotkeys/Plugins/History/Favorites set their own DataContext explicitly (previously done
+    // Hotkeys/Plugins/History/Favorites/QuickLaunch/QuickPanel/LocalSend set their own DataContext
+    // explicitly (previously done
     // via SettingsWindow.xaml's DataContext="{Binding Xxx}") -- the rest inherit it from this Window like
     // before, since inherited DataContext still flows correctly through a subtree added via
     // Children.Add rather than markup.

@@ -30,8 +30,8 @@ internal static class NotificationService
     // Guards the queue and the window manager together, so one thread cannot be presenting a card while another
     // closes its neighbour. The queue is handed the same object rather than keeping its own: a plugin holds a
     // handle, and dismissing through it has to take the lock that submitting took. One lock, not two, because
-    // the queue's show and hide callbacks re-enter this monitor on the submitting thread, and a second lock
-    // would be taken in the opposite order by whichever thread queued the work.
+    // would be taken in the opposite order by whichever thread queued the work: TakeDown runs inline on the
+    // thread already holding _gate, while Present always defers to a dispatcher first.
     private static readonly object _gate = new();
 
     private static readonly NotificationQueue Queue = new(

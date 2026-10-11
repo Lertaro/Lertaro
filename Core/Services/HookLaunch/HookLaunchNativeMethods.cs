@@ -2,8 +2,8 @@ using System.Runtime.InteropServices;
 
 namespace Lertaro.Core.Services.HookLaunch;
 
-// Win32 interop for HookProcessBroker. Kept in its own file (mirrors PipeSecurityFactory) rather than
-// inline, since HookProcessBroker already needs the full 300-line budget for the actual token/process logic.
+// Win32 interop shared by HookProcessBroker and SessionProcessLauncher, kept in its own file (mirrors
+// PipeSecurityFactory) rather than inlined into either consumer.
 internal static class HookLaunchNativeMethods
 {
     public const uint MAXIMUM_ALLOWED = 0x02000000;

@@ -79,9 +79,9 @@ public class InlineSearchWindowInputHandler
                 _window.LstResults.Items.OfType<AppSearchResult>().ToList(),
                 _window.LstResults.SelectedIndex);
 
-            // File/folder results are handled earlier by HotkeyActionTrigger (Ctrl+Enter locate,
-            // Ctrl+Shift+Enter open-as-admin) and never reach here. What reaches here on those chords
-            // is a result with no matching file action — notably an application — so honor
+            // File/folder results were already answered by HotkeyActionTrigger (see its header), so what
+            // reaches here on those chords is a result with no matching file action -- notably an
+            // application. Honor
             // Ctrl+Shift+Enter as "launch as admin" so apps can still be elevated.
             if (result != null)
             {
@@ -198,10 +198,10 @@ public class InlineSearchWindowInputHandler
         if (_userNavigatedSinceLastQuery)
             return;
 
-        // What to land on is decided by InlineResultTargetResolver: a real file/folder is preferred even
-        // when a shortcut command or instant result also matched, because this row is the one Enter acts on
-        // -- landing on a command made Enter run the command instead of opening the file the user searched
-        // for. (Arrow keys still reach every row.)
+        // What to land on is decided by InlineResultTargetResolver: the first selectable row, which is a
+        // shortcut command or instant result whenever one matched -- those are inserted ahead of every
+        // real result, and deliberately so, since this row is the one Enter acts on and a query that IS a
+        // command keyword should run it. (Arrow keys still reach every row.)
         var rows = _window.LstResults.Items.OfType<AppSearchResult>().ToList();
         var index = InlineResultTargetResolver.ResolveAutoSelectIndex(rows);
 

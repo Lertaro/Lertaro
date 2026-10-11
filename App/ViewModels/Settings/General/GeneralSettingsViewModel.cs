@@ -29,7 +29,8 @@ public class GeneralSettingsViewModel : ViewModelBase
     private bool _openFoldersInNewExplorerTabs;
     private string _globalTokenPrefix;
 
-    // Tab navigation for the System/Layout/Preview Window split of this page.
+    // Tab navigation across this page's six tabs (System/Layout/SearchWindow/PreviewWindow/
+    // QuickNavigation/PreviewProviders).
     private string _selectedTab = "System";
     public string SelectedTab
     {

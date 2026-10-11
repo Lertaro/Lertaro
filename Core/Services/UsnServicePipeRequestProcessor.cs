@@ -6,9 +6,10 @@ using Lertaro.Core.Wire;
 
 namespace Lertaro.Core.Services;
 
-// Request dispatch for UsnServicePipeServer's non-streaming commands (everything except Search/SearchDir,
-// SubscribeStatus, and LaunchHook, which stay in the server itself since they stream rather than return a
-// single response) -- extracted to keep UsnServicePipeServer.cs under the project's line limit.
+// Request dispatch for UsnServicePipeServer's non-streaming commands -- everything the server can answer
+// with a single PipeResponse. The commands that stream (search, directory enumeration, status
+// subscription, hook launch) stay in the server itself, so this switch has no case for them --
+// extracted to keep UsnServicePipeServer.cs under the project's line limit.
 internal static class UsnServicePipeRequestProcessor
 {
     internal static async Task<PipeResponse> ProcessAsync(SearchEngine? engine, SearchRequestMessage msg,

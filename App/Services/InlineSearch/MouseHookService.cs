@@ -18,6 +18,10 @@ public class MouseHookService : IDisposable
             };
     }
 
+    // No-ops by design: the real low-level mouse hook is Core/Hook/InlineSearch/MouseHookService.cs, which
+    // lives in the elevated Hook process and stays installed for its whole lifetime, reaching this window
+    // only through App.HookClient.OnMouseClick. Start/Stop exist so callers read as if they scoped the
+    // hook to a window.
     public void Start()
     {
     }

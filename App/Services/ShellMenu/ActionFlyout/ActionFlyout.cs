@@ -134,7 +134,8 @@ public static class ActionFlyout
         // anchor must be an element that outlives the flyout. A Popup goes away with its PlacementTarget,
         // so anchoring to something WPF can recycle -- a virtualized list's row container being the trap
         // here -- makes the flyout close by itself the moment that happens, with nothing about the
-        // selection or the window having changed. See SearchWindowInputHandler.ShowActionFlyout.
+        // selection or the window having changed. Its callers pick a lasting anchor for this reason -- the
+        // quick panel's list, or the treemap canvas.
         _popup = new Popup
         {
             PlacementTarget = anchor,

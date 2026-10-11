@@ -69,12 +69,10 @@ public class OneCommanderInlineSearchAdapter : IInlineSearchAdapter
     {
         try
         {
-            // The Hook (which runs this) doesn't check Directory.Exists/File.Exists itself -- when it runs
-            // elevated (admin auto-elevate), UAC's split token puts it in a different logon session than
-            // the one that mapped any network drive letters, so a perfectly valid mapped-drive path would
-            // otherwise silently resolve to "doesn't exist". The caller already knows and encodes it as a
-            // trailing separator (see InlineAdapterIpcCoordinator.ExecuteItem); stripped back off here so
-            // the path handed to UIA is unchanged from before.
+            // Why the caller marks a directory with a trailing separator and this strips it back off --
+            // including the elevation/logon-session reason the Hook cannot test that itself -- is written
+            // out once in CoreExtensions' ExplorerInlineSearchAdapter.ExecuteItem. Same rule here, so the
+            // path handed to UIA is unchanged from before.
             if (Path.EndsInDirectorySeparator(path))
             {
                 return UiaPathAccessor.SetCurrentPath(hwnd, Path.TrimEndingDirectorySeparator(path));

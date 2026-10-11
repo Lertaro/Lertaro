@@ -21,7 +21,8 @@ public static class ShellPasteHelper
     // folder has to be told, since nothing else will tell it. Raised on the shell worker's own thread
     // once PerformOperations returns, whether it copied anything or the user cancelled the dialog: the
     // only honest signal available is "the operation is over", and a view's answer to both is the same,
-    // which is to go and look again.
+    // which is to go and look again. The two early returns below are the only paths that never raise it,
+    // because there is no operation to finish on them.
     public static void PasteAsync(
         IReadOnlyList<string> sourcePaths, string destinationFolder, bool move, Action? onCompleted = null)
     {

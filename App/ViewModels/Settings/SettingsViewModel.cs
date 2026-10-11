@@ -224,7 +224,8 @@ public class SettingsViewModel : ViewModelBase
             _plugins?.Save();
             Hotkeys.Apply();
             Blacklist.Save();
-            // _history, not History: an untouched History tab was never constructed, so there is nothing
+            // _deferred.ExistingHistory, not the History property: an untouched History tab was never
+            // constructed, so there is nothing
             // staged to save -- going through the property would construct it (loading both history files)
             // purely to write back what it already read.
             _deferred.ExistingHistory?.Save();

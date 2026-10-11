@@ -217,7 +217,8 @@ internal static class ShellImageListInterop
         if (source is not BitmapSource bitmap) return source;
         try
         {
-            // CreateBitmapSourceFromHIcon (the only caller) typically already yields Bgra32 or
+            // Both callers -- CreateBitmapSourceFromHIcon here and the CreateBitmapSourceFromHBitmap path
+            // above -- typically already yield Bgra32 or
             // Pbgra32 for an icon's alpha-having bitmap -- alpha lives at the same byte offset in
             // both regardless of premultiplication, so only convert for some other, unlikely format.
             var isAlreadyAlphaFormat = bitmap.Format == PixelFormats.Bgra32 || bitmap.Format == PixelFormats.Pbgra32;

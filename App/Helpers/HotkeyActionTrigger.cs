@@ -8,6 +8,12 @@ using Lertaro.App.Services.AppWindow;
 using Lertaro.App.Services.Plugin;
 namespace Lertaro.App.Helpers;
 
+/// <summary>
+/// Answers the Ctrl / Ctrl+Shift chords on a selected result before any window's own Enter path runs:
+/// file and folder results are handled here (Ctrl+Enter locate, Ctrl+Shift+Enter open as admin), so what
+/// reaches a window's handler on those chords is a result with no matching file action. All three search
+/// windows rely on that split, which is why each of them only points back here.
+/// </summary>
 public static class HotkeyActionTrigger
 {
     public static bool TryExecute(System.Windows.Input.KeyEventArgs e, AppSearchResult result, ISearchWindow window)

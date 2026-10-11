@@ -41,7 +41,8 @@ public class QuickSearchWindowController
     // regardless of which trigger got there.
     private bool _suppressNextRestore;
     public void SuppressNextRestore() => _suppressNextRestore = true;
-    // useAltTapBypass is used by callers backed by recent input on the Hook thread.
+    // Callers whose request rests on input the Hook thread just saw pass useAltTapBypass: false (see
+    // QuickNavigationMenu); the default is for every other caller.
     public static void ForceForeground(IntPtr hwnd, bool useAltTapBypass = true) => QuickSearchWindowNative.ForceForeground(hwnd, useAltTapBypass);
 
     public QuickSearchWindowController(Lertaro.App.QuickSearchWindow window)

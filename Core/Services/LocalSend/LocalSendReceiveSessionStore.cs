@@ -5,7 +5,7 @@ namespace Lertaro.Core.Services.LocalSend;
 
 /// <summary>
 /// Owns the single receive-session slot and its upload authorization state.
-/// Split out to keep LocalSendServer under the repository's per-file line limit.
+/// Split out of LocalSendServer.cs (see LocalSendServerHandler's header for why).
 /// </summary>
 internal sealed class LocalSendReceiveSessionStore
 {

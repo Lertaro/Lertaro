@@ -252,7 +252,7 @@ public sealed class HookIpcClient : IDisposable
                     _writeGate.Release();
                 }
 
-                // Send initial process ID of the App so the Service can ignore it.
+                // Send initial process ID of the App so the Hook can ignore it.
                 SendMessage(new IpcMessage { Id = IpcMessageId.SetAppProcessId, ProcessId = (uint)Environment.ProcessId });
                 SendMessage(new IpcMessage { Id = IpcMessageId.SetHotkeysDisabled, BoolVal = _isHotkeysDisabled });
                 // Listen for events from Hook Service.

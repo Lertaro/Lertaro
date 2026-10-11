@@ -120,6 +120,8 @@ public class Result
         set
         {
             _pluginDirectory = value;
+            // Assigning to itself on purpose: re-runs the setters' relative-path conversion, which was
+            // skipped earlier because PluginDirectory was still empty when the icon path first arrived.
             if (!string.IsNullOrEmpty(IcoPath))
                 IcoPath = IcoPath;
             if (!string.IsNullOrEmpty(BadgeIcoPath))

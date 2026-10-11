@@ -28,7 +28,7 @@ public class ThumbnailProviderOrderViewModel : ViewModelBase
         // filter and the persisted order (falling back to each provider's own Priority for anything
         // unlisted), so this list starts out showing exactly what thumbnail dispatch would try, in
         // the same order -- disabled providers never appear here, same "reordering them would be
-        // meaningless" call every other Order view model in this file already makes.
+        // meaningless" call every other Order view model in this folder already makes.
         foreach (var provider in PluginManager.Instance.ThumbnailProviders)
         {
             Items.Add(new ThumbnailProviderOrderItem(BuildId(provider), () => provider.Name));

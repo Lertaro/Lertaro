@@ -32,9 +32,9 @@ internal static class NameSearch
             return;
 
         // Nothing is truncated on the way through: the only ceiling is the index itself, since a search
-        // cannot return more rows than exist. That bound matters for more than tidiness -- FzfTopN
-        // pre-allocates twice its capacity, so deriving it from the caller's limit (which is now
-        // effectively unbounded) would reserve arrays for a number of results nobody can reach.
+        // cannot return more rows than exist. That bound matters for more than tidiness -- FzfTopN's
+        // buffer ceiling is twice its capacity, so deriving it from the caller's limit (which is now
+        // effectively unbounded) would let that ceiling grow to a number of results nobody can reach.
         //
         // The arithmetic is widened deliberately. keep * RefinementHeadroomFactor overflows int once the
         // limit passes about 53 million, and a negative capacity used to reach FzfTopN.Finish and throw
@@ -129,7 +129,7 @@ internal static class NameSearch
     private static string GetNameForEntry(Snapshot snapshot, DeltaOverlay delta, int entryIndex)
         => entryIndex >= snapshot.Count ? delta.Added[entryIndex - snapshot.Count].Name : delta.NameOf(entryIndex);
 
-    // Mirrors Searcher's drive gate: a foreign-drive query returns nothing; a bare drive prefix with
+    // Drive gate: a foreign-drive query returns nothing; a bare drive prefix with
     // no terms ("t:") matches everything (TryMatch trivially succeeds on an empty pattern).
     private static bool DriveAdmits(Snapshot snapshot, FzfPattern pattern, out bool matchAll)
     {

@@ -5,7 +5,7 @@ namespace Lertaro.Core.Services.LocalSend;
 
 /// <summary>
 /// Minimal HTTP request parser and router for the LocalSend TCP server.
-/// Split out purely to keep LocalSendServer.cs under the repo's per-file line limit.
+/// Split out of LocalSendServer.cs so the socket loop stays separate from parsing and routing.
 /// Has no state of its own; all routing delegates back to the LocalSendServer that owns it.
 /// </summary>
 internal static class LocalSendServerHandler

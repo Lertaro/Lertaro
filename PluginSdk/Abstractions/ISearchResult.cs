@@ -35,10 +35,13 @@ public interface ISearchResult
 
     /// <summary>
     /// The host-side instant result's <c>ActionArgument</c>, exactly as the instant provider emitted it
-    /// (e.g. <c>activatewindow:12345</c>, <c>kill:4321</c>, <c>cc_exec:{...}</c>). Null for every other
-    /// kind of result -- ordinary file/folder rows, plugin search actions, history entries -- whose
-    /// action is driven by <see cref="FullPath"/> and friends instead. Providers that act on what an
-    /// instant result points at (rather than on a path) read this to identify that target.
+    /// (e.g. <c>activatewindow:12345</c>, <c>kill:4321</c>, <c>cc_exec:{...}</c>). This default is null;
+    /// what the host's own result type reports depends on the row: application-kind history and favorite
+    /// rows carry their launch path here, other non-instant rows come back as an empty string rather than
+    /// null, and only ordinary file/folder rows and plugin search actions leave it alone -- their action
+    /// is driven by <see cref="FullPath"/> and friends instead. Providers that act on what an
+    /// instant result points at (rather than on a path) read this to identify that target, so test the
+    /// kind rather than assuming null.
     /// </summary>
     string? InstantActionArgument => null;
 }

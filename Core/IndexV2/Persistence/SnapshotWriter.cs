@@ -11,7 +11,7 @@ namespace Lertaro.Core.IndexV2.Persistence;
 // Soft-deleted records are folded away, survivors are re-sorted by id (stable by input order for
 // hard-link ties), names dedupe into a UTF-8 arena with per-unique masks/aliases, and parent links
 // resolve against the sorted id column; unresolved parents keep their true FRN in the orphan section
-// so later updates can heal them, exactly like RuntimeIndex's orphan stash.
+// so later updates can heal them.
 public static class SnapshotWriter
 {
     // Every distinct per-drive cache path gets its own lock object, shared by every caller of Write

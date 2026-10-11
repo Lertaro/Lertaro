@@ -3,7 +3,7 @@ using Lertaro.Core.SearchIndex.Fzf;
 namespace Lertaro.Core.SearchIndex;
 
 // A standalone, public entry point for the exact "name, falling back to alias" matching rule the core
-// index scan already applies per record (see RecordSearch/CacheExtensions.cs and its siblings), for
+// index scan already applies per record (see IndexV2/Search/SearchMatcherRow.cs and its siblings), for
 // callers that need identical matching semantics without running an actual index scan -- e.g. a query
 // token provider filtering already-fetched results by fzf pattern against something other than a
 // record's own name (a path segment, in PathExclusionQueryTokenProvider's case). FzfPattern itself stays

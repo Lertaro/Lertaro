@@ -22,8 +22,8 @@ internal static class InlineResultTargetResolver
     /// The first selectable row, which is normally a shortcut command or instant result -- those are
     /// inserted ahead of every real result (see PluginSearchResultMapper). That is deliberate: this row is
     /// the one Enter acts on, so a query which IS a command keyword runs the command on Enter without the
-    /// user having to arrow down to it. To search files alone, turn shortcut commands off in
-    /// Settings → General → System (UserSettings.EnableSearchActions).
+    /// user having to arrow down to it. To search files alone, turn shortcut commands off in the Core
+    /// Extensions plugin's own settings (the InlineSearchEnableSearchActions field).
     /// </remarks>
     public static int ResolveAutoSelectIndex(IReadOnlyList<AppSearchResult> rows)
     {

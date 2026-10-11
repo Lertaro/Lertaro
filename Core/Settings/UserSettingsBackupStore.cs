@@ -23,7 +23,8 @@ internal static class UserSettingsBackupStore
 
     /// <summary>
     /// Returns the settings parsed from the newest intact .bak.N backup (oldest index last), or null
-    /// when none parses. Called after the main file failed to read or parse.
+    /// when none parses. The live load path inlines its own scan (see UserSettingsPersistence), so today
+    /// only the tests call this.
     /// </summary>
     internal static UserSettings? TryLoadNewest(string filePath, int maxBackups, Func<string, UserSettings?> tryParse)
     {

@@ -36,7 +36,7 @@ public static class SearchableItemMapper
     }
 
     // Providers load on a background thread and a query issued before a given provider finishes is
-    // silently missing its items (see AddSearchableItemResults' cache-miss "continue" below) -- there is
+    // silently missing its items (see CollectSearchableItemResults' cache-miss "continue" below) -- there is
     // no synchronous "wait for everything" alternative without blocking the UI. Instead, a live search
     // re-runs itself once more providers become available, so results stream in rather than staying
     // incomplete for the rest of the session. Raised on a background thread; subscribers must marshal

@@ -44,8 +44,9 @@ public static class InstallDirectoryLock
     ]);
 
     /// <summary>
-    /// SYSTEM and Administrators only. For the drive indexes: they list every file on the disk, including
-    /// other users' profiles, which the service filters before answering a caller.
+    /// SYSTEM and Administrators only. For the drive indexes and the service's own log directory: the
+    /// indexes list every file on the disk, including other users' profiles, which the service filters
+    /// before answering a caller.
     /// </summary>
     internal static Zone PrivateToService { get; } = new(Administrators,
     [
@@ -63,7 +64,9 @@ public static class InstallDirectoryLock
 
     /// <summary>
     /// Locks the machine-wide data directory the service writes as LocalSystem (logs, the relaunch note,
-    /// machine settings, indexes). Users keep read access to all of it but the indexes. The report is for
+    /// machine settings, indexes). Users keep read access to all of it but the indexes and the service's
+    /// own log directory -- which is why the App reads the service log over a pipe rather than from disk.
+    /// The report is for
     /// the caller to log: this runs before the service's log is opened, because opening it is one of the
     /// writes a planted link would redirect.
     /// </summary>

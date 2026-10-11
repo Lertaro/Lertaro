@@ -40,7 +40,7 @@ internal static class HighlightMask
         => ComputeRank(fullText, pattern).Weight;
 
     // Match tier + start position + quality weight from ONE mask pass. Both ranking windows need the trio
-    // (tier first, then start position, then weight -- see SearchResultRelevance), and computing them
+    // (start position first, then weight, then tier -- see MatchRank and SearchResultRelevance), and computing them
     // separately would build the same mask up to three times, the alias path being the expensive one.
     public static MatchRank ComputeRank(ReadOnlySpan<char> fullText, FzfPattern pattern)
     {

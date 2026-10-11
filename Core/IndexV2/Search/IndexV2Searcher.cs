@@ -5,9 +5,9 @@ using Lertaro.Core.SearchIndex.Query;
 using Lertaro.Core.Services.Plugin.DirectoryIndex;
 namespace Lertaro.Core.IndexV2.Search;
 
-// Top-level search entry point for a single drive's LiveIndex, mirroring Searcher.SearchStreaming's
-// dispatch: parse the query, route path-mode queries to PathSearch and everything else to NameSearch,
-// normalize/gate the directory filter the same way. Runs entirely inside one LiveIndex.Read call so
+// Top-level search entry point for a single drive's LiveIndex: parse the query, route path-mode queries
+// to PathSearch and everything else to NameSearch, normalize/gate the directory filter. Runs entirely
+// inside one LiveIndex.Read call so
 // the whole search sees one consistent (Snapshot, DeltaOverlay) pair.
 public static class IndexV2Searcher
 {

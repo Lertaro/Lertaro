@@ -30,7 +30,8 @@ public enum NotificationPosition
 /// <summary>Why a notification never reached the user, or was cut short before its time was up.</summary>
 public enum NotificationFailure
 {
-    /// <summary>No host to serve the request, which only happens outside the running launcher.</summary>
+    /// <summary>No host served the request: it was raised outside the running launcher, or the host
+    /// refused/failed while accepting it.</summary>
     Unavailable,
 
     /// <summary>Replaced by a newer request carrying the same <see cref="NotificationRequest.Id"/>.</summary>

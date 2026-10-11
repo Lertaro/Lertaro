@@ -234,7 +234,7 @@ public sealed class ContentSearchDatabase : IDisposable
     /// A failure partway is logged and ends the enumeration rather than throwing at the caller, exactly as
     /// <see cref="SearchFts"/> collected the partial answer: hits already yielded are real matches and stay
     /// with whoever took them.
-    /// </summary>
+    /// </remarks>
     public IEnumerable<SearchHitItem> SearchFtsStreamed(string rawQuery, int limit)
     {
         if (string.IsNullOrWhiteSpace(rawQuery) || limit <= 0 || !File.Exists(_dbPath))

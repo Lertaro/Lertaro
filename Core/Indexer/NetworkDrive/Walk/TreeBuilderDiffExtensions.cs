@@ -1,10 +1,10 @@
 namespace Lertaro.Core.Indexer.NetworkDrive.Walk;
 
-// Diff-aware half of TreeBuilder, as extension methods (matching RuntimeIndex's BucketExtensions/
-// QueryExtensions split) instead of a partial class, to keep TreeBuilder.cs under the project's line
-// limit: reusing a directory's cached children instead of re-listing it over the network when
-// TreeDiffBaseline confirms nothing changed, and tracking which directories in THIS store have been
-// fully enumerated (FileRecordFlags.Listed) so a future resume can trust them the same way.
+// Diff-aware half of TreeBuilder, as extension methods instead of a partial class, to keep
+// TreeBuilder.cs under the project's line limit: re-committing a directory's cached records wholesale
+// once TreeDiffBaseline confirms nothing changed, rather than rebuilding every record from the listing,
+// and tracking which directories in THIS store have been fully enumerated (FileRecordFlags.Listed) so a
+// future resume can trust them the same way.
 internal static class TreeBuilderDiffExtensions
 {
     // Must be called with builder._recordsGate already held (both call sites -- the constructor seeding
@@ -35,11 +35,12 @@ internal static class TreeBuilderDiffExtensions
         }
     }
 
-    // Reuses current's previously-recorded children wholesale instead of listing the directory again, when
-    // TreeDiffBaseline confirms it was fully captured last time and hasn't changed since. Still recurses
-    // into every cached child directory individually -- a directory's own LastWriteTime only reflects its
-    // direct children, never anything deeper -- so this only ever skips ONE level of listing per call, not
-    // an entire subtree at once.
+    // Re-commits current's previously-recorded children wholesale instead of rebuilding a record per
+    // entry, when TreeDiffBaseline confirms it was fully captured last time and hasn't changed since.
+    // The directory is still listed once to run that comparison -- what reuse saves is record
+    // reconstruction, not the network enumeration -- and it still recurses into every cached child
+    // directory individually, since a directory's own LastWriteTime only reflects its direct children,
+    // never anything deeper. So this covers one level per call, never a whole subtree at once.
     public static bool TryReuseUnchangedDirectory(this TreeBuilder builder, WorkItem current) =>
         builder.TryReuseUnchangedDirectory(current, out _);
 

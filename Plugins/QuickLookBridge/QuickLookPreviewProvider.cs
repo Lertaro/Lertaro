@@ -7,9 +7,11 @@ using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.QuickLookBridge;
 
-// Highest priority of any registered provider on purpose: whenever QuickLook is reachable, it wins for
-// every file/folder, ahead of every built-in (image/text/media/shell-preview-handler/folder/PE) -- not
-// just the ones nothing else covers. RendersExternally tells the host (QuickLookManager) to hide its own
+// Ahead of every built-in provider on purpose (image/text/media/shell-preview-handler/folder/PE, the
+// strongest of which sits at 20): whenever QuickLook is reachable it wins for
+// every file/folder -- not
+// just the ones nothing else covers. FlowPreviewProvider (1000) is the one that still outranks this, and
+// it only claims rows a Flow plugin produced. RendersExternally tells the host (QuickLookManager) to hide its own
 // preview panel instead of showing CreatePreview's content -- the real preview is QuickLook's own floating
 // window. IReceivesPreviewPanelBounds gets the exact screen rectangle that panel would have occupied, so
 // QuickLookWindowPositioner can dock QuickLook's window there via plain SetWindowPos (a re-parenting/

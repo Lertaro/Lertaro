@@ -123,7 +123,7 @@ public sealed class HookIpcServer : IDisposable
         if (pipeSecurity == null)
         {
             // No unrestricted-pipe fallback here (unlike an earlier version of this method) -- the same
-            // rule AppSearchPipeService's own pipe follows (App\Services\AppSearchPipeService.cs): every
+            // rule AppSearchPipeService's own pipe follows (App\Services\Pipe\AppSearchPipeService.cs): every
             // one of App/Hook/CLI's IPC surfaces is meant to be scoped to its own user in a multi-user
             // environment, so silently widening the ACL the one time SID resolution itself fails isn't an
             // acceptable substitute -- refusing to start is the honest failure mode here too.

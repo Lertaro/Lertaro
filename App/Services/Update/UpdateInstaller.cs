@@ -12,8 +12,9 @@ using Lertaro.Core.Services.Update;
 namespace Lertaro.App.Services.Update;
 
 // Downloads and signature-verifies a portable-zip update, then hands it to the background service to
-// install. Kept separate from UpdateChecker: installing is user-consented and has a different failure
-// domain (crypto/filesystem/service IPC) than the periodic GitHub version check.
+// install. Kept separate from UpdateChecker: the two have different failure domains
+// (crypto/filesystem/service IPC vs network/JSON parsing), and a silent update runs this half without
+// any prompt at all (see UpdateCheckService's consent-by-setting path).
 //
 // This process no longer performs the installation itself, and that is the whole point. It runs as the
 // invoker, so writing into Program Files had to be paid for with a runas verb -- a UAC prompt on an update

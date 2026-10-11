@@ -6,7 +6,7 @@ using System.Text;
 
 // An fzf-style CLI: instead of replicating the App's own search initialization (plugin loading,
 // UserNetworkDriveSearch.Configure()), this connects to a pipe the App itself hosts
-// (AppSearchPipeService, App\Services\AppSearchPipeService.cs) and asks the already-running,
+// (AppSearchPipeService, App\Services\Pipe\AppSearchPipeService.cs) and asks the already-running,
 // already-initialized App to do the search. Type to fuzzy-filter, Up/Down or PageUp/PageDown to scroll,
 // Tab to multi-select, Enter prints the selected path(s) to stdout and exits. No preview pane --
 // deliberately out of scope. Requires the real Lertaro App to be running.

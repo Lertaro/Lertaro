@@ -255,8 +255,10 @@ internal sealed class SearchQueryDispatchController
             // A resolved file-filter scope: the engine runs one query per configured folder and keeps only
             // file names matching the filter's pattern, exactly as the quick window's scoped search does.
             scopeDirective: scopeDirective,
-            // The untouched box text: this window's providers still have to recognise a trigger word that
-            // cleanQuery above has already had stripped.
+            // The instant-result text described on SearchExecutionEngine's own parameter: the untouched
+            // box text, since cleanQuery above has already had the trigger word stripped. Inert on this
+            // call -- emitInstantResults is false, so the engine never reaches the provider pass that
+            // would read it.
             instantQuery: query,
             onReceivedCountUpdated: count =>
             {

@@ -6,7 +6,8 @@ namespace Lertaro.Plugins.CoreExtensions.Shell.ContextMenu;
 
 public static class ShellContextMenu
 {
-    // Keep public structures and constants used by other parts of the solution (like ShellMenuPresenter.cs) to avoid breaking compatibility
+    // Public, though nothing outside this plugin references these shapes -- the old "kept for
+    // ShellMenuPresenter's compatibility" rationale no longer holds and was checked against the solution.
     public struct POINT
     {
         public int X;

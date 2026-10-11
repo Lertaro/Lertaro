@@ -42,9 +42,8 @@ public sealed class XlsxExtractor : ITextExtractor
             {
                 timeoutCts.Token.ThrowIfCancellationRequested();
                 using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                // Disposing the stream from the timeout callback unblocks ZipArchive/XDocument
-                // reads that are stuck on a hung network share: the abandoned extraction then
-                // throws and exits instead of running forever.
+                // Registering fileStream.Dispose as the timeout callback is what unblocks a read stuck on
+                // a hung share -- DocxExtractor explains why that works.
                 using var timeoutRegistration = timeoutCts.Token.Register(fileStream.Dispose);
                 using var archive = new ZipArchive(fileStream, ZipArchiveMode.Read, leaveOpen: false);
                 return ExtractWorkbookText(archive, timeoutCts.Token);

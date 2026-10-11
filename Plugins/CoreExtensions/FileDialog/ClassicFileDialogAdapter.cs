@@ -37,8 +37,10 @@ public class ClassicFileDialogAdapter : IFileDialogAdapter
         // message, not on that list. Passing a pointer that's only valid in *our* address space
         // crashed the dialog's process outright. The buffer has to actually live in the target
         // process: allocate it there with VirtualAllocEx, let the dialog write into it, then copy
-        // it back out with ReadProcessMemory -- the same cross-process shape NavigateTo already
-        // uses (write-only) and QuickNavigationTriggerGate.IsPointOnDesktopIcon uses (round-trip).
+        // it back out with ReadProcessMemory -- the same cross-process shape FolderBrowserDialogAdapter's
+        // NavigateTo uses in the write-only direction, and QuickNavigationTriggerGate.IsPointOnDesktopIcon
+        // uses (round-trip). This file's own NavigateTo needs none of that: WM_SETTEXT is on the small list
+        // of messages the OS marshals for you.
         const int maxChars = 1024;
         var hProcess = IntPtr.Zero;
         var remoteBuffer = IntPtr.Zero;

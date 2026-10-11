@@ -9,9 +9,9 @@ using Lertaro.App.Views.Controls.Dialogs;
 namespace Lertaro.App.Views.Settings.Plugins;
 
 // Code-behind for FieldRowTemplate.xaml's array master/detail event handlers -- split out of
-// PluginConfigWindow.xaml.cs purely to let the recursive field-row template live in this separate
-// ResourceDictionary and keep PluginConfigWindow.xaml under the file-length limit; none of these
-// depend on PluginConfigWindow's own state.
+// PluginConfigSection.xaml.cs purely to let the recursive field-row template live in this separate
+// ResourceDictionary and keep PluginConfigSection.xaml under the file-length limit; none of these
+// depend on PluginConfigSection's own state.
 public partial class PluginConfigFieldRowTemplate : ResourceDictionary
 {
     private void ImportEntry_Click(object sender, RoutedEventArgs e)

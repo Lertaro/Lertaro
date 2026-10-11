@@ -19,8 +19,8 @@ internal interface IQuickPanelTabSource
     /// <summary>The groups this tab shows, each filed as it lands rather than all at the end.</summary>
     /// <remarks>
     /// A workspace's groups arrive independently -- that is the whole point of the streaming load -- so
-    /// the tab hands each one over as it has it instead of returning a finished list. A plugin tab has
-    /// exactly one and calls this once.
+    /// the tab hands each one over as it has it instead of returning a finished list. A plugin tab files
+    /// its entries into one group per parent directory and calls this once per group.
     /// </remarks>
     Task LoadAsync(Action<QuickPanelGroupViewModel, int> place, CancellationToken token);
 

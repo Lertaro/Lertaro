@@ -1,8 +1,7 @@
 namespace Lertaro.Core.Indexer.NetworkDrive.Walk;
 
-// Per-entry record creation and error counting for TreeBuilder, as extension methods (matching
-// RuntimeIndex's BucketExtensions/QueryExtensions split) instead of a partial class, to keep
-// TreeBuilder.cs under the project's line limit.
+// Per-entry record creation and error counting for TreeBuilder, as extension methods instead of a
+// partial class, to keep TreeBuilder.cs under the project's line limit.
 internal static class TreeBuilderRecordExtensions
 {
     public static WalkRecordResult TryCreateRecord(this TreeBuilder builder, NativeFileEntry entry, string logicalParentPath, UInt128 parentId, out NetworkWalkRecord record, out bool isDirectory, out string fullPath)

@@ -2,8 +2,8 @@ using Lertaro.Core.SearchIndex;
 namespace Lertaro.Core.IndexV2.Alias;
 
 // Alias generation for snapshot building and delta rows -- same providers, same lowercasing, same
-// null-for-ASCII fast path as UpdateExtensions.GenerateAliases, without needing a RuntimeIndex
-// receiver. Aliases derive from the name alone, so they bake per unique name at build time and are
+// null-for-ASCII fast path as the name search that reads them. Aliases derive from the name alone, so
+// they bake per unique name at build time and are
 // filtered per provider id at QUERY time (SearchContext.DisabledAliasIds) -- toggling a provider in
 // settings never requires a rebuild.
 //
