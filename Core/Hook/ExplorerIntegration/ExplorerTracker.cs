@@ -26,7 +26,26 @@ public class ExplorerTracker : IDisposable
     private readonly ExplorerWindowClassifier _classifier;
     private readonly ExplorerActivePathPoller _pathPoller;
     // Internal state exposed to ExplorerWindowClassifier
-    public string? LastPath { get; set; }
+    private string? _lastPath;
+
+    public string? LastPath
+    {
+        get => _lastPath;
+        set
+        {
+            _lastPath = value;
+            // Remember the folder of the last real file-manager window. Quick Switch's dialog route needs a
+            // "folder I came from", and it normally reads that from the dialog-time memory
+            // (_dialogTracker.LastActiveExplorerPath) -- which, when the App was started AFTER the file
+            // manager window was already open, is never written, because no dialog has appeared yet in this
+            // process's lifetime. This memory is what that first Ctrl+G falls back to.
+            if (!IsActiveWindowDialog && !string.IsNullOrEmpty(value))
+                LastFileManagerPath = value;
+        }
+    }
+
+    /// <summary>The last folder seen in a file-manager window (never a dialog), or null when none has been seen.</summary>
+    public string? LastFileManagerPath { get; private set; }
     public Func<string, string?>? PathNormalizer { get; set; }
     public IntPtr LastActiveHwnd { get; set; }
     public string? LastActiveExplorerPath => _dialogTracker.LastActiveExplorerPath;

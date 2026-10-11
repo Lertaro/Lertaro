@@ -18,6 +18,33 @@ public static class ExplorerNativeHooks
     [DllImport("user32.dll")]
     public static extern IntPtr GetForegroundWindow();
 
+    // Z-order walk (GetTopWindow + GW_HWNDNEXT): the same top-level ordering the shell and Alt+Tab use, which
+    // is how "the file manager that was last activated" is answered without keeping an activation history.
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetTopWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetWindow(IntPtr hWnd, uint uCmd);
+
+    public const uint GW_HWNDNEXT = 2;
+
+    /// <summary>
+    /// Rank of a window in the top-level z-order, or <see cref="int.MaxValue"/> for one that is gone or sits
+    /// past the cap. The topmost window is the one the shell would offer first, which is how "the file manager
+    /// that was last activated" is answered without keeping an activation history.
+    /// </summary>
+    public static int ZOrderRank(IntPtr hwnd)
+    {
+        var current = GetTopWindow(IntPtr.Zero);
+        for (var rank = 0; current != IntPtr.Zero && rank < 500; rank++)
+        {
+            if (current == hwnd) return rank;
+            current = GetWindow(current, GW_HWNDNEXT);
+        }
+
+        return int.MaxValue;
+    }
+
     [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
     public static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
 
