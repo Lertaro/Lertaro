@@ -10,7 +10,7 @@
     <AssemblyName>lff</AssemblyName>
     <ApplicationIcon>..\App\logo.ico</ApplicationIcon>
     <RootNamespace>Lertaro.Cli</RootNamespace>
-    <Version>1.0.9</Version>
+    <Version>1.1.0</Version>
     <GenerateDependencyFile>false</GenerateDependencyFile>
   </PropertyGroup>
 

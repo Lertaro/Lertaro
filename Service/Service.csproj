@@ -10,7 +10,7 @@
     <AssemblyName>Lertaro.Service</AssemblyName>
     <ApplicationIcon>..\App\logo.ico</ApplicationIcon>
     <RootNamespace>Lertaro.Service</RootNamespace>
-    <Version>1.1.7</Version>
+    <Version>1.2.0</Version>
     <!-- The hook runs from this exe elevated. With startup hooks off, DOTNET_STARTUP_HOOKS set by the user
          cannot load code into it even if the variable reaches it. -->
     <StartupHookSupport>false</StartupHookSupport>
