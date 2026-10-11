@@ -3,8 +3,7 @@ using Lertaro.Plugins.ContentSearch.Tests.TestSupport;
 
 namespace Lertaro.Plugins.ContentSearch.Tests.Extraction;
 
-// Captures the process-wide PluginSdk.Logger.LogAction hook, so it must not run
-// concurrently with anything that reads or resets it.
+// Captures the process-wide PluginSdk.Logger.LogAction hook; canonical note at IndexBatchProcessorTests.
 [TestClass]
 [DoNotParallelize]
 public sealed class PdfExtractorTests

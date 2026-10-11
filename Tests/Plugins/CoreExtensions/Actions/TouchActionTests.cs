@@ -4,8 +4,7 @@ using Lertaro.Plugins.CoreExtensions.Actions;
 
 namespace Lertaro.Plugins.CoreExtensions.Tests.Actions;
 
-// [DoNotParallelize]: the prompt tests wire PluginPromptService.PromptFunc, a shared static delegate, and
-// reset it in finally -- without this another test class touching that same static could race them.
+// [DoNotParallelize]: wires the shared static PluginPromptService.PromptFunc; canonical note at MkdirActionTests.
 [TestClass]
 [DoNotParallelize]
 public sealed class TouchActionTests

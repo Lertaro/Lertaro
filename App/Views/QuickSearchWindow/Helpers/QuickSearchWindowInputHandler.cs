@@ -267,8 +267,7 @@ public class QuickSearchWindowInputHandler
     }
     private void MoveResultSelection(int direction)
     {
-        // Wraps like the actions list's NavigateActionsList (ShellMenuPresenter.cs) -- past the last
-        // item goes back to the first, and vice versa.
+        // Wraps past either end -- see ListSelectionNavigator.NextSelectable for the rule.
         var count = _window.LstResults.Items.Count;
         if (count == 0) return;
         var next = ListSelectionNavigator.NextSelectable(_window.LstResults.SelectedIndex, direction, count,

@@ -12,8 +12,7 @@ public static class AppSearchPipeClient
 {
     public const int ConnectTimeoutMs = 1500;
 
-    // Response buffer for the streaming read below. Large enough that one read covers several hundred
-    // results, small enough to stay off the large object heap.
+    // Same size and reasoning as Core's SearchPipeClient.ResponseReadBufferSize -- see that field's comment.
     private const int ResponseReadBufferSize = 64 * 1024;
 
     // Must match AppSearchPipeService's own naming exactly (per-user-session suffix + ACL) -- see that file's

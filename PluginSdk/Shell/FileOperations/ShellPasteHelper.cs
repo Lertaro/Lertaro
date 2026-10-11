@@ -97,9 +97,7 @@ public static class ShellPasteHelper
         }
         catch (Exception ex)
         {
-            // Includes the user cancelling the native confirmation -- IFileOperation surfaces that as
-            // a COMException too, not a distinct "cancelled" signal, so this stays a log rather than
-            // something surfaced to the user as an error.
+            // See ShellDeleteHelper.DeleteCore -- a user cancel surfaces here as a COMException too, so this stays a log.
             Logger.Log($"[ShellPasteHelper] Paste operation failed or was cancelled: {ex.Message}", LogLevel.Debug);
         }
         finally

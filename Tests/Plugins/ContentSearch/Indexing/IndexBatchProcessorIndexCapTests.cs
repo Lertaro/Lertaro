@@ -6,8 +6,7 @@ namespace Lertaro.Plugins.ContentSearch.Tests.Indexing;
 // The index-size cap pauses extraction and writes. These cover what the pause must still do
 // (apply the batch's deletions), what it must not do (log the same warning per batch forever) and
 // what it must not cost (the skipped files stay discoverable once the cap is raised).
-// Captures the process-wide PluginSdk.Logger.LogAction hook, so it must not run concurrently with
-// anything that reads or resets it.
+// [DoNotParallelize]: the process-wide PluginSdk.Logger.LogAction hook -- see IndexBatchProcessorTests' header.
 [TestClass]
 [DoNotParallelize]
 public sealed class IndexBatchProcessorIndexCapTests

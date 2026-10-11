@@ -42,8 +42,7 @@ public sealed class WinRARExtractDialogAdapterTests
     [TestMethod]
     public void NormalizeIfWellFormed_NotRootedText_ReturnsNull()
     {
-        // A placeholder/hint string (or any non-path text) isn't a rooted path -- must still be rejected
-        // even without an existence check.
+        // A placeholder/hint string isn't a rooted path; canonical note at BandizipPathHelpersTests.
         var result = WinRARExtractDialogAdapter.NormalizeIfWellFormed("choose a folder...");
 
         Assert.IsNull(result);

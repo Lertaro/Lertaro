@@ -6,8 +6,7 @@ using Lertaro.Plugins.ContentSearch.Tests.TestSupport;
 
 namespace Lertaro.Plugins.ContentSearch.Tests.Indexing;
 
-// Shares the process-wide PluginSdk.Logger.LogAction hook and a temp database, so it
-// must not run concurrently with anything that reads or resets them.
+// Shares the process-wide LogAction hook and a temp database; canonical note at ContentIndexSchedulerTests.
 [TestClass]
 [DoNotParallelize]
 public sealed class ContentIndexSchedulerMissingObservationTests

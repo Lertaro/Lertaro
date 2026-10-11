@@ -263,8 +263,7 @@ public static class SearchHistoryStore
     private static List<HistoryEntry> Flatten(Dictionary<string, List<StoredEntry>> buckets)
         => SearchHistoryBucketSupport.Flatten(buckets);
 
-    // Global rank per distinct path (lowest = most recently relevant). Paths no longer span multiple
-    // buckets, but this stays dedup-safe regardless.
+    // Thin forwarder -- see SearchHistoryBucketSupport.BuildPriorityCache for the ranking rules.
     private static Dictionary<string, int> BuildPriorityCache(Dictionary<string, List<StoredEntry>> buckets)
         => SearchHistoryBucketSupport.BuildPriorityCache(buckets);
 

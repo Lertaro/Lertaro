@@ -6,8 +6,7 @@ namespace Lertaro.Plugins.ContentSearch.Tests.Storage;
 // Covers the batch write phase: intra-batch duplicate resolution, and the failure isolation that
 // keeps one item the database refuses (in production, a document whose text trips
 // SQLITE_TOOBIG) from discarding the healthy files written in the same batch.
-// Captures the process-wide PluginSdk.Logger.LogAction hook, so it must not run concurrently with
-// anything that reads or resets it.
+// [DoNotParallelize]: the process-wide PluginSdk.Logger.LogAction hook -- see IndexBatchProcessorTests' header.
 [TestClass]
 [DoNotParallelize]
 public sealed class DatabaseBatchWriteHelperTests

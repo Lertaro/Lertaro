@@ -200,8 +200,7 @@ internal sealed class SearchEngineDriveMaintenance
             _indexer.Status.ActiveDrives = new List<string> { drive };
         }
         _indexer.SetDriveState(drive, "indexing");
-        // Stop only the live watcher before rebuilding. Keep the device notification registered so a
-        // physical removal during this rebuild can cancel its scan and schedule recovery.
+        // Watcher stopped, device notification kept -- same reasoning as DriveRecovery.RestoreOrRebuild.
         if (VolumeHelper.SupportsUsnJournal(drive))
             _indexer.ReleaseDriveMonitor(drive);
         var wasCancelled = false;
@@ -209,8 +208,7 @@ internal sealed class SearchEngineDriveMaintenance
             getToken: _ => token, onDriveCancelled: _ => wasCancelled = true, forceFullScan: true);
         if (metadata.Count == 0)
         {
-            // A Stop request reverts to "cached" (mirrors NetworkIndexer's own CancelDrive), not "failed"
-            // -- the user asked for this, it isn't an error.
+            // A Stop request reverts to "cached", not "failed" -- see DriveRecovery.RestoreOrRebuild.
             var present = VolumeHelper.DetectIndexableLocalDrives().Contains(drive, StringComparer.OrdinalIgnoreCase);
             _indexer.SetDriveState(drive, wasCancelled ? (present ? "cached" : "unavailable") : "failed");
             return;
