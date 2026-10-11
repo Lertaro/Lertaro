@@ -4,6 +4,7 @@
 
 ```
 # 修复 Quick Switch（Ctrl+G）在应用刚启动、以及开着多个文件管理器窗口时切不过去
+# 目录跳转与内联搜索统一按"最后激活的文件管理器目录"判定（桌面不再被当作文件管理器）
 + 内联窗口不再重复显示「上次目录」（Ctrl+G 已经负责跳回上次目录）
 + 自动更新只检查本仓库的发行
 + 保留鼠标平滑滚动
@@ -13,6 +14,7 @@
 
 ```
 # Quick Switch (Ctrl+G) works right after the app starts and with several file-manager windows open
+# Folder switching and inline search share one "last activated file manager folder" resolution (the desktop is not one)
 + Inline search no longer repeats a "last directory" row (Ctrl+G already jumps back there)
 + Auto-update only checks this repository's releases
 + Keeps the smooth wheel scrolling
@@ -23,6 +25,7 @@
 
 ```
 # 修复 Quick Switch（Ctrl+G）在应用刚启动、以及开着多个文件管理器窗口时切不过去
+# 目录跳转与内联搜索统一按"最后激活的文件管理器目录"判定（桌面不再被当作文件管理器）
 + 内联搜索的已打开文件夹按最近激活排序（Ctrl+1 是最新激活的那个窗口）
 + 自动更新只检查本仓库的发行
 + 保留鼠标平滑滚动
@@ -32,6 +35,7 @@
 
 ```
 # Quick Switch (Ctrl+G) works right after the app starts and with several file-manager windows open
+# Folder switching and inline search share one "last activated file manager folder" resolution (the desktop is not one)
 + Opened folders in inline search are ordered by most recently activated (Ctrl+1 is the latest window)
 + Auto-update only checks this repository's releases
 + Keeps the smooth wheel scrolling

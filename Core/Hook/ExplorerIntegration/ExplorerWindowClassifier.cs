@@ -140,17 +140,28 @@ internal sealed class ExplorerWindowClassifier
                         if (!collectorTimedOut)
                         {
                             if (!string.IsNullOrEmpty(activePath))
-                            {
-                                if (_dialogTracker.LastActiveExplorerPath != activePath)
-                                    _dialogTracker.SetLastActiveExplorerPath(activePath);
+                        {
+                            // The desktop reports a path like any Explorer window, but it is not a file manager, so
+                            // it must not become "the folder the user was working in". Recorded here it leaked into
+                            // every consumer of that memory: Ctrl+G, the inline card's baseline, the quick panel.
+                            // Gated on the classifier's own isDesktop, so this holds for every route into the memory
+                            // rather than only for the hotkey. LastPath is still updated below: that is "the active
+                            // window's path" and other features depend on it, desktop included.
+                            if (!isDesktop && _dialogTracker.LastActiveExplorerPath != activePath)
+                                _dialogTracker.SetLastActiveExplorerPath(activePath);
 
-                                if (activePath != _tracker.LastPath)
+                            if (activePath != _tracker.LastPath)
+                            {
+                                if (!isDesktop)
                                 {
-        // Remember the provider while it is the active window: that is when its scope is still readable.
-        _tracker.RememberPathProvider(_tracker.ActiveInlineAdapter, _tracker.ActiveHwnd);
-                                    _tracker.UpdatePath(activePath, isDesktop);
+                                    // Remember the provider while it is the active window: that is when its scope is
+                                    // still readable.
+                                    _tracker.RememberPathProvider(_tracker.ActiveInlineAdapter, _tracker.ActiveHwnd);
                                 }
+
+                                _tracker.UpdatePath(activePath, isDesktop);
                             }
+                        }
                             else if (!string.IsNullOrEmpty(_tracker.LastPath))
                             {
                                 _tracker.UpdatePath(string.Empty, isDesktop);

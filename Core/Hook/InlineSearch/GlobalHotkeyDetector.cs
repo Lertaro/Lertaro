@@ -172,18 +172,6 @@ public sealed class GlobalHotkeyDetector
     // the active (dialog) Explorer-like window back to the last folder that was active outside it. Kept as
     // its own method so the gesture-detection above (shared via ModifierDoubleTapDetector) and this
     // navigation policy read as two separate steps, even though they still live in the same class.
-    // The desktop is not a destination the user chose: Explorer and every file dialog land there by default,
-    // so "switch to the desktop" is the doing-nothing case, and the desktop already has its own shortcut.
-    // Same rule as LastDirectoryTabProvider.IsWorthShowing, which cannot be referenced from here (plugin).
-    private static bool IsWorthSwitchingTo(string? path)
-    {
-        if (string.IsNullOrEmpty(path) || !Path.IsPathRooted(path) || !Directory.Exists(path))
-            return false;
-
-        var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-        return !string.Equals(path.TrimEnd('\\'), desktop.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
-    }
-
     private bool TryHandleQuickSwitchNavigation(bool triggered, out bool consumeKey)
     {
         consumeKey = false;
@@ -209,13 +197,9 @@ public sealed class GlobalHotkeyDetector
                 return false;
             }
 
-            // Only the dialog-time memory here: it is the folder the user came from, which is what this feature
-            // means. A folder remembered from an earlier session is deliberately not used -- it goes stale
-            // often enough to send the dialog where the user is not, which made Ctrl+G read as "open the last
-            // directory" rather than "go to the file manager window I have open".
-            var lastExplorerPath = _explorerTracker.LastActiveExplorerPath;
-            if (!IsWorthSwitchingTo(lastExplorerPath))
-                lastExplorerPath = null;
+            // One resolver decides the destination, so the priority order and the desktop rule live in exactly one
+            // place (see QuickSwitchTargetResolver) -- this used to be re-derived here and in the App separately.
+            var rememberedPath = QuickSwitchTargetResolver.RememberedPath(_explorerTracker);
 
             var adapter = _explorerTracker.ActiveAdapter;
             var hwnd = _explorerTracker.ActiveHwnd;
@@ -226,18 +210,11 @@ public sealed class GlobalHotkeyDetector
                 // in front of it). Ask the collector registry for the open folder windows instead -- off
                 // this thread, because that enumeration is COM (ShellWindows) and the keyboard hook callback
                 // may not spend that time: Windows silently drops a hook that overruns LowLevelHooksTimeout.
-                var navPath = lastExplorerPath;
+                var navPath = rememberedPath;
                 if (string.IsNullOrEmpty(navPath))
                 {
-                    // "The file manager that was last activated", without an activation history: the topmost
-                    // window in z-order is the one the shell would offer first. Results intentionally keep
-                    // duplicates (two panes on one path), so this also collapses those by taking the first
-                    // ranked entry worth going to.
-                    navPath = PluginSdk.Registries.OpenedFolderCollectorRegistry.GetOpenedFolders()
-                        .Where(folder => IsWorthSwitchingTo(folder.Path))
-                        .OrderBy(folder => ExplorerNativeHooks.ZOrderRank(folder.WindowHandle))
-                        .Select(folder => folder.Path)
-                        .FirstOrDefault();
+                    // Nothing remembered: ask for the file manager that was last activated.
+                    navPath = QuickSwitchTargetResolver.FromOpenFolders();
                     if (string.IsNullOrEmpty(navPath))
                     {
                         Logger.Log("[GlobalHotkeyDetector] Quick Switch declined: no remembered path and no open folder window.", LogLevel.Info);
