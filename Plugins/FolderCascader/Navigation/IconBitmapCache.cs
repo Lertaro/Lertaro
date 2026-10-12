@@ -21,6 +21,28 @@ public static class IconBitmapCache
 
     public static void EnsureIcons()
     {
+        // Every Freezable this builds is thread-affine -- the accent brush out of the resource dictionary, the
+        // Pen around it, the geometry, the RenderTargetBitmap -- and they are used together while rendering.
+        // Marshalling only the resource LOOKUP (which is what this used to do) left the brush and its Pen owned
+        // by the caller's thread while the render ran on another one, so WPF threw "the DependencyObject
+        // belongs to a different thread than its parent Freezable" from the render -- the same message the
+        // lookup itself used to throw, which is why moving the violation looked like no change at all in the
+        // log (issue #350).
+        //
+        // The caller is off the UI thread by design: QuickNavigationSubMenuLoader runs the whole menu build
+        // inside Task.Run so that a slow provider cannot freeze the app. So the whole build moves to the one
+        // thread that renders it -- and that later hands these handles to the menu.
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null) RunOnSta(BuildIcons);
+        else if (dispatcher.CheckAccess()) BuildIcons();
+        else dispatcher.Invoke(BuildIcons);
+    }
+
+    // The lock is taken here, on the rendering thread, and never across a Dispatcher.Invoke: a caller holding
+    // it while waiting for the UI thread would deadlock against the UI thread taking it, which is exactly what
+    // the previous shape (lock in EnsureIcons, Invoke inside) could do.
+    private static void BuildIcons()
+    {
         lock (_iconLock)
         {
             try
@@ -61,18 +83,11 @@ public static class IconBitmapCache
     // scale defaults to 4.0 (a 64px bitmap over the star/clock paths' own ~16-unit viewBox); the
     // category hamburger path below is authored in a 24-unit viewBox (matching QuickNavIcon's own
     // copy of it) and needs a correspondingly smaller scale, or it renders oversized/clipped.
+    //
+    // No marshalling here on purpose: EnsureIcons already put this on the rendering thread, and a second hop
+    // would split the Freezable graph again -- the geometry, the brush and the Pen it was given are all used
+    // through a DrawingContext, which is itself affine to the thread that renders.
     private static IntPtr CreateHBitmapFromWpfPath(string pathData, System.Windows.Media.Brush? fill, System.Windows.Media.Pen? stroke, double scale = 4.0)
-    {
-        Func<IntPtr> render = () => CreateHBitmapFromWpfPathCore(pathData, fill, stroke, scale);
-        var dispatcher = System.Windows.Application.Current?.Dispatcher;
-        if (dispatcher != null && dispatcher.CheckAccess())
-            return render();
-        if (dispatcher != null)
-            return dispatcher.Invoke(render);
-        return RunOnSta(render);
-    }
-
-    private static IntPtr CreateHBitmapFromWpfPathCore(string pathData, System.Windows.Media.Brush? fill, System.Windows.Media.Pen? stroke, double scale)
     {
         var geometry = System.Windows.Media.Geometry.Parse(pathData);
         var visual = new System.Windows.Media.DrawingVisual();
@@ -99,14 +114,15 @@ public static class IconBitmapCache
         return bmp.GetHbitmap();
     }
 
-    private static IntPtr RunOnSta(Func<IntPtr> render)
+    // Used when there is no WPF Application at all (no dispatcher to marshal onto), so the build still happens
+    // on one STA thread rather than on whatever thread the caller happens to be.
+    private static void RunOnSta(Action render)
     {
         using var done = new ManualResetEventSlim(false);
         Exception? error = null;
-        var result = IntPtr.Zero;
         var thread = new Thread(() =>
         {
-            try { result = render(); }
+            try { render(); }
             catch (Exception ex) { error = ex; }
             finally { done.Set(); }
         })
@@ -118,7 +134,6 @@ public static class IconBitmapCache
         thread.Start();
         done.Wait();
         if (error != null) throw error;
-        return result;
     }
 
     private static IntPtr CreateStarHBitmap()
@@ -158,33 +173,17 @@ public static class IconBitmapCache
     private static readonly System.Windows.Media.Color FallbackAccent = System.Windows.Media.Color.FromRgb(33, 150, 243);
 
     /// <summary>
-    /// The theme's accent brush, resolved on the UI thread.
+    /// The theme's accent brush, read on the thread that renders it (see <see cref="EnsureIcons"/>).
     /// </summary>
     /// <remarks>
-    /// The lookup has to happen on the UI thread even though the brush is only USED for rendering: a
-    /// resource brush comes out of the application's own resource dictionary, and WPF Freezables are
-    /// thread-affine, so reading one from a worker thread throws "the DependencyObject belongs to a
-    /// different thread than its parent Freezable" -- which is exactly what filled the log before this.
-    /// The geometry rendering below was already marshalled; the resource lookup was not.
-    /// When there is no application (the STA fallback path below) a local brush is used instead, which is
-    /// safe precisely because it belongs to nobody else.
+    /// Reading this from a worker thread is what throws "the DependencyObject belongs to a different thread
+    /// than its parent Freezable": a resource brush comes out of the application's own resource dictionary and
+    /// WPF Freezables are thread-affine. Marshalling just this lookup used to keep the throw from happening
+    /// HERE and move it to the render, where the brush and its Pen were used by a different thread -- issue
+    /// #350's log is that message, once per menu build. One thread for the whole build is the actual fix, so
+    /// this now reads the resource directly and needs no marshalling of its own.
     /// </remarks>
-    private static System.Windows.Media.Brush AccentBrush()
-    {
-        var dispatcher = System.Windows.Application.Current?.Dispatcher;
-        System.Windows.Media.Brush? Resolve() =>
-            System.Windows.Application.Current?.TryFindResource("AccentBlue") as System.Windows.Media.Brush;
-
-        try
-        {
-            var found = dispatcher == null || dispatcher.CheckAccess() ? Resolve() : dispatcher.Invoke(Resolve);
-            if (found != null) return found;
-        }
-        catch (Exception)
-        {
-            // A missing or unreadable resource is not fatal: the fallback below keeps the icons visible.
-        }
-
-        return new System.Windows.Media.SolidColorBrush(FallbackAccent);
-    }
+    private static System.Windows.Media.Brush AccentBrush() =>
+        System.Windows.Application.Current?.TryFindResource("AccentBlue") as System.Windows.Media.Brush
+        ?? new System.Windows.Media.SolidColorBrush(FallbackAccent);
 }
