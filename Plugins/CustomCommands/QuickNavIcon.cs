@@ -49,21 +49,31 @@ internal static class QuickNavIcon
         lock (Sync)
         {
             if (CommandCache.TryGetValue(normalized, out var cached)) return cached;
+        }
 
-            IntPtr rendered;
-            try
+        // Rendered OUTSIDE the lock, deliberately. RenderOnUiThread marshals onto the UI thread, and a caller
+        // holding Sync while waiting for the UI thread deadlocks against the UI thread taking Sync -- which is
+        // reachable because this is called both from the quick-navigation submenu loader's Task.Run and from
+        // the UI thread's own action-menu build. The same shape was fixed in FolderCascader's IconBitmapCache.
+        IntPtr rendered;
+        try
+        {
+            rendered = RenderOnUiThread(normalized);
+        }
+        catch
+        {
+            rendered = RenderOnUiThread(CommandPath);
+            normalized = CommandPath;
+        }
+
+        lock (Sync)
+        {
+            // Another thread may have rendered the same glyph (or the fallback did just now) while this one
+            // was rendering: the cache's rule is one handle per glyph, so the earlier winner is kept.
+            if (CommandCache.TryGetValue(normalized, out var existing))
             {
-                rendered = RenderOnUiThread(normalized);
-            }
-            catch
-            {
-                rendered = RenderOnUiThread(CommandPath);
-                normalized = CommandPath;
-                if (CommandCache.TryGetValue(normalized, out cached))
-                {
-                    DeleteObject(rendered);
-                    return cached;
-                }
+                DeleteObject(rendered);
+                return existing;
             }
 
             CommandCache[normalized] = rendered;
