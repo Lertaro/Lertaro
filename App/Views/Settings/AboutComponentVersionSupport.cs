@@ -9,6 +9,20 @@ namespace Lertaro.App.Views.Settings;
 /// </summary>
 internal static class AboutComponentVersionSupport
 {
+    /// <summary>
+    /// Prints an assembly version with every part that is actually used.
+    /// </summary>
+    /// <remarks>
+    /// Fork releases carry a fourth part (5.9.1.5) while upstream's are three (5.9.3). <c>ToString(3)</c> silently
+    /// dropped the fork's fourth part -- the one that changes between fork releases -- so the About page showed
+    /// "5.9.1" for a 5.9.1.5 build. Keeping three parts when the fourth is zero leaves upstream's own display
+    /// exactly as it was.
+    /// </remarks>
+    internal static string FormatVersion(Version? version)
+        => version == null ? string.Empty
+            : version.Revision > 0 ? version.ToString(4)
+            : version.ToString(3);
+
     internal static string GetServiceVersion() => GetVersion("Lertaro.Service.dll", "About_ServiceVersion");
 
     internal static string GetCliVersion() => GetVersion("lff.dll", "About_CliVersion");
@@ -22,7 +36,7 @@ internal static class AboutComponentVersionSupport
             {
                 var version = System.Reflection.AssemblyName.GetAssemblyName(dllPath).Version;
                 if (version != null)
-                    return string.Format(TranslationManager.Instance[translationKey], version.ToString(3));
+                    return string.Format(TranslationManager.Instance[translationKey], FormatVersion(version));
             }
             catch
             {

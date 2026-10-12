@@ -1,4 +1,28 @@
 ## v5.9.1.5
+```
+## v5.9.1.6
+
+## 更新内容
+
+```
+# 关于页按四段显示版本号（不再把 5.9.1.5 显示成 5.9.1）
++ 启动后空闲时预热搜索，首次搜索不再卡一下
++ 同步上游三条优化（热路径日志不再拼字符串、快速导航与级联菜单的图标渲染改进）
++ 自动更新只检查本仓库的发行
++ 保留鼠标平滑滚动
+```
+
+## What's changed
+
+```
+# About shows every version part the build actually uses (5.9.1.5 no longer reads as 5.9.1)
++ Search is warmed up while the app sits idle after startup, so the first search no longer stalls
++ Three upstream optimizations (hot-path log lines are no longer built, quick-nav and cascade-menu icon rendering)
++ Auto-update only checks this repository's releases
++ Keeps the smooth wheel scrolling
+```
+
+## v5.9.1.5
 
 ## 更新内容
 

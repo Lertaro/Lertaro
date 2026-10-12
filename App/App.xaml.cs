@@ -314,6 +314,11 @@ public partial class App : Application
             {
                 InlineSearchManager.Instance.Start();
                 Logger.Log("[App] InlineSearchManager started.");
+
+                // The first search of a session otherwise pays the JIT and the one-time catalog/history reads on
+                // the user's first keystroke (measured ~60 ms against 4-9 ms for every later paint). Done here,
+                // idle-timed, on a pool thread -- see SearchWarmup for why it is not lazy.
+                SearchWarmup.Schedule();
             }
 
             if (e.Args.Length > 0 && UriRouter.IsLertaroUri(e.Args[0]))

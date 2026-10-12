@@ -46,7 +46,7 @@ public partial class AboutSettingsPage : System.Windows.Controls.UserControl, IN
         get
         {
             var version = typeof(AboutSettingsPage).Assembly.GetName().Version;
-            return string.Format(TranslationManager.Instance["About_Version"], version?.ToString(3));
+            return string.Format(TranslationManager.Instance["About_Version"], AboutComponentVersionSupport.FormatVersion(version));
         }
     }
 
@@ -55,7 +55,7 @@ public partial class AboutSettingsPage : System.Windows.Controls.UserControl, IN
         get
         {
             var version = typeof(Logger).Assembly.GetName().Version;
-            return string.Format(TranslationManager.Instance["About_CoreVersion"], version?.ToString(3));
+            return string.Format(TranslationManager.Instance["About_CoreVersion"], AboutComponentVersionSupport.FormatVersion(version));
         }
     }
 
