@@ -18,27 +18,32 @@ internal static class SearchWarmup
 {
     /// <summary>Schedules the warm-up on a pool thread; returns immediately.</summary>
     /// <remarks>
-    /// Deliberately idle-timed rather than lazy: warming on the first summon (double Ctrl) would move the cost
-    /// from the first keystroke to the first summon, which is the same stall one gesture later. If the user does
-    /// start typing first, this simply runs alongside the real search -- it holds no lock and shares no state
-    /// beyond the read-only caches the mapper already uses, so the worst case is a little extra parallel work.
+    /// Deliberately not lazy: warming on the first summon (double Ctrl) would move the cost from the first
+    /// keystroke to the first summon, which is the same stall one gesture later. If the user does start typing
+    /// first, this simply runs alongside the real search -- it holds no lock and shares no state beyond the
+    /// read-only caches the mapper already uses, so the worst case is a little extra parallel work.
     /// </remarks>
     public static void Schedule()
     {
         _ = Task.Run(async () =>
         {
+            var started = Environment.TickCount64;
             try
             {
-                await Task.Delay(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+                await Task.Yield();
 
                 // Two shapes: one query nothing can match (catalog + history + favorites, and the JIT of the
                 // whole mapping path), then a common letter so the fuzzy/highlight paths are compiled too.
                 ViewModels.Search.Mapping.SearchResultMapper.BuildQuickResults(null, "\u0001warmup", null, null, false);
                 ViewModels.Search.Mapping.SearchResultMapper.BuildQuickResults(null, "a", null, null, false);
+
+                // Info, not Debug: whether this ran is the first thing to check when the first search still
+                // stalls, and a silent warm-up made that unknowable.
+                Logger.Log($"[SearchWarmup] Warm-up finished in {Environment.TickCount64 - started} ms.", LogLevel.Info);
             }
             catch (Exception ex)
             {
-                Logger.Log($"[SearchWarmup] Warm-up skipped: {ex.Message}", LogLevel.Debug);
+                Logger.Log($"[SearchWarmup] Warm-up failed after {Environment.TickCount64 - started} ms: {ex.Message}", LogLevel.Info);
             }
         });
     }

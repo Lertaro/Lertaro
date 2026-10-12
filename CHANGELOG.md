@@ -5,6 +5,26 @@
 符号：* 核心功能　+ 小功能添加　# 修复。只写"改了什么"。
 -->
 
+## v5.9.1.7
+
+## 更新内容
+
+```
++ 启动后空闲时预热搜索
++ 连续搜索复用历史与收藏候选（一秒内不重算）
++ 自动更新只检查本仓库的发行
++ 保留鼠标平滑滚动
+```
+
+## What's changed
+
+```
++ Search is warmed up while the app is idle after startup
++ Consecutive searches reuse the history and favorite candidates for a second
++ Auto-update only checks this repository's releases
++ Keeps the smooth wheel scrolling
+```
+
 ## v5.9.1.6
 
 ## 更新内容

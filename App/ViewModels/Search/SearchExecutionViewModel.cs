@@ -155,10 +155,31 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
             _dispatcher.PerformSearch(_searchQuery);
     }
 
-    public void PerformSearch(string query) => _dispatcher.PerformSearch(query);
+    // Set when the session's FIRST search starts, cleared when its results arrive: the mapper is warmed at
+    // startup, so whatever is left of the first search's wait is on the service side (pipe + index) or in the
+    // UI, and only an end-to-end number can tell those apart. Information only; changes no behaviour.
+    private long _firstSearchStarted;
 
-    private void ReplaceResults(IEnumerable<AppSearchResult> results) =>
+    public void PerformSearch(string query)
+    {
+        if (_firstSearchStarted == 0)
+            _firstSearchStarted = Environment.TickCount64;
+
+        _dispatcher.PerformSearch(query);
+    }
+
+    private void ReplaceResults(IEnumerable<AppSearchResult> results)
+    {
+        if (_firstSearchStarted != 0)
+        {
+            Lertaro.Core.Logger.Log(
+                $"[SearchTiming] First search of the session produced results in {Environment.TickCount64 - _firstSearchStarted} ms.",
+                Lertaro.Core.LogLevel.Info);
+            _firstSearchStarted = 0;
+        }
+
         SearchResultsReconciler.Replace(Results, results, SelectedResult, v => SelectedResult = v);
+    }
 
     public void CancelPendingSearch() => _engine.CancelPendingSearch();
 

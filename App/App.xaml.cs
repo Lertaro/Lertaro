@@ -314,12 +314,13 @@ public partial class App : Application
             {
                 InlineSearchManager.Instance.Start();
                 Logger.Log("[App] InlineSearchManager started.");
-
-                // The first search of a session otherwise pays the JIT and the one-time catalog/history reads on
-                // the user's first keystroke (measured ~60 ms against 4-9 ms for every later paint). Done here,
-                // idle-timed, on a pool thread -- see SearchWarmup for why it is not lazy.
-                SearchWarmup.Schedule();
             }
+
+            // Outside the branch above on purpose: when the warm-up was nested in it, a main window of any other
+            // type meant it never ran at all -- and nothing said so, because it only logged on failure.
+            // The first search of a session otherwise pays the JIT and the one-time catalog/history reads on the
+            // user's first keystroke (measured ~60 ms against 4-9 ms for every later paint). See SearchWarmup.
+            SearchWarmup.Schedule();
 
             if (e.Args.Length > 0 && UriRouter.IsLertaroUri(e.Args[0]))
                 UriRouter.Route(e.Args[0]);

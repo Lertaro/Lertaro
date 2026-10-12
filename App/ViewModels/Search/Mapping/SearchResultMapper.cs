@@ -42,6 +42,43 @@ public static class SearchResultMapper
         public List<RankedCandidate>? SearchableItemCandidates;
     }
 
+    // The history snapshot and the three blocks above move only when the user opens something, edits a favorite
+    // or installs an app -- but they were rebuilt for EVERY search, and that rebuild is the one-time cost that
+    // made a repeated search feel like it "hitches" rather than opening instantly (the inline card, where every
+    // summon starts a fresh search, is where that is felt most). Held across searches for a short window instead.
+    // ponytail: a 1 s lifetime, not invalidation hooks. Ceiling: a just-opened item can be a second late in
+    // gaining its history priority. Upgrade path: bump a version counter in SearchHistoryStore and compare it
+    // here when that ever shows up in use.
+    private static InstantPassCache? _recentPass;
+    private static long _recentPassAt;
+    private static IReadOnlyDictionary<string, int>? _recentHistory;
+    private static long _recentHistoryAt;
+    private const long RecentPassLifetimeMs = 1000;
+
+    private static InstantPassCache RecentPass()
+    {
+        var now = Environment.TickCount64;
+        if (_recentPass == null || now - _recentPassAt > RecentPassLifetimeMs)
+        {
+            _recentPass = new InstantPassCache();
+            _recentPassAt = now;
+        }
+
+        return _recentPass;
+    }
+
+    private static IReadOnlyDictionary<string, int> RecentHistory()
+    {
+        var now = Environment.TickCount64;
+        if (_recentHistory == null || now - _recentHistoryAt > RecentPassLifetimeMs)
+        {
+            _recentHistory = SearchHistoryStore.Snapshot();
+            _recentHistoryAt = now;
+        }
+
+        return _recentHistory;
+    }
+
     internal static List<AppSearchResult> CollectInstantPass(InstantPassCache pass, string rawQuery, string query, bool isInlineWindow, string? contextDirectory,
         IEnumerable<IInstantResultProvider>? providers = null)
     {
@@ -72,7 +109,7 @@ public static class SearchResultMapper
         // One pass over the plugin providers per search, not per paint. This method IS a paint callback --
         // the quick and inline windows re-run it on every intermediate paint of a streaming search, and a
         // paint cannot reach the screen until the pass below finishes. See InstantPassCache.
-        instantPass ??= new InstantPassCache();
+        instantPass ??= RecentPass();
         CollectInstantPass(instantPass, rawQuery ?? query, query, isInlineWindow, contextDirectory);
         uiResults.AddRange(instantPass.Rows);
         var hasPluginSearchActions = instantPass.HasPluginSearchActions;
@@ -101,7 +138,7 @@ public static class SearchResultMapper
             SearchResultHelper.IsPathInsideScope(normalizedPath, f)
             && !string.Equals(normalizedPath, f, StringComparison.OrdinalIgnoreCase));
 
-        var historySnapshot = SearchHistoryStore.Snapshot();
+        var historySnapshot = RecentHistory();
 
         // Quick-window-only: a user-orderable hard tier between history priority and match-quality
         // weight (RankedCandidate.TypeRank) -- lets e.g. Applications always outrank Files regardless

@@ -183,13 +183,26 @@ internal sealed class SearchDispatchController
         // Per search, not per paint: the mapper below is the render callback, and it asks every instant
         // provider and search-action plugin on each call. See SearchResultMapper.InstantPassCache.
         var instantPass = new SearchResultMapper.InstantPassCache();
+        // The session's first search is the one that hitches even after the mapper is warmed at startup, so its
+        // arrival time is the number that says whether the wait is before this callback (pipe + service index) or
+        // after it (row realization in the list). Info level: whether the line appears at all is itself a result.
+        // Removed once the first search is known to be immediate. See SearchWarmup.
+        if (Interlocked.CompareExchange(ref _firstSearchAt, Environment.TickCount64, 0) == 0)
+        {
+            // First search of this process: arm the clock. Nothing else here changes behaviour.
+        }
         engineCall(
             searchQuery,
             hasScope ? null : _getSearchScope(),
             _getIsInlineSearchContext(),
             fileLimit,
             appLimit,
-            (resp, contextDir) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass),
+            (resp, contextDir) =>
+            {
+                var built = SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass);
+                LogFirstSearchArrival(built.Count);
+                return built;
+            },
             state => _setIsSearching(state),
             (results, status, final) => ApplySearchResults(originalValue, searchQuery, results, status, final),
             HandleLocalServiceUnavailable,
@@ -211,6 +224,17 @@ internal sealed class SearchDispatchController
             contextDir => SearchResultMapper.CollectInstantPass(instantPass, originalValue, searchQuery, _getIsInlineSearchContext(), contextDir)
         );
     }
+    private static long _firstSearchAt;
+    private static int _firstSearchArrivalLogged;
+
+    private static void LogFirstSearchArrival(int rows)
+    {
+        if (_firstSearchAt == 0 || Interlocked.Exchange(ref _firstSearchArrivalLogged, 1) != 0) return;
+        Lertaro.Core.Logger.Log(
+            $"[SearchTiming] First search of the session: results built after {Environment.TickCount64 - _firstSearchAt} ms ({rows} rows).",
+            Lertaro.Core.LogLevel.Info);
+    }
+
     public void PerformSearch(string query)
     {
         if (string.IsNullOrWhiteSpace(query))
