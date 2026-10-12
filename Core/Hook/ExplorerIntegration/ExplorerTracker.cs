@@ -104,10 +104,13 @@ public class ExplorerTracker : IDisposable
         // of, and nothing else said it out loud. Three reports about where the card landed, and the two
         // adapters that divide the common dialogs on a child window built after the dialog appeared, were
         // both invisible from outside the process.
-        Logger.Log(
-            $"[ExplorerTracker] Adapters for 0x{hwnd:x}: dialog={ActiveAdapter?.GetType().Name ?? "none"}, "
-            + $"inline={ActiveInlineAdapter?.GetType().Name ?? "none"} (class={className}, process={processName})",
-            LogLevel.Debug);
+        // Asked before the message is built: this runs on every activation, and the active window changes
+        // constantly. Logger.Log would discard the line either way, but only after the interpolation ran.
+        if (Logger.IsEnabled(LogLevel.Debug))
+            Logger.Log(
+                $"[ExplorerTracker] Adapters for 0x{hwnd:x}: dialog={ActiveAdapter?.GetType().Name ?? "none"}, "
+                + $"inline={ActiveInlineAdapter?.GetType().Name ?? "none"} (class={className}, process={processName})",
+                LogLevel.Debug);
     }
 
     // Bounded, like every other plugin read in this file's callers. An adapter's CanHandle is a
@@ -322,7 +325,7 @@ public class ExplorerTracker : IDisposable
         lock (StateLock)
         {
             LastPath = path;
-            Logger.Log($"[ExplorerTracker] UpdatePath captured path: {path} (isDesktop={isDesktop})", LogLevel.Debug);
+            if (Logger.IsEnabled(LogLevel.Debug)) Logger.Log($"[ExplorerTracker] UpdatePath captured path: {path} (isDesktop={isDesktop})", LogLevel.Debug);
             var pathIsDialog = isDialog ?? IsActiveWindowDialog;
             if (isDialog == true && !_isActiveWindowDialog && _activeHwnd != IntPtr.Zero)
             {

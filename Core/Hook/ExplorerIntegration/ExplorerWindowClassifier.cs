@@ -73,7 +73,8 @@ internal sealed class ExplorerWindowClassifier
             if (rootHwnd == IntPtr.Zero) rootHwnd = hwnd;
 
             var isDesktop = ExplorerNativeHooks.IsDesktopWindow(rootHwnd, out var windowClassName);
-            Logger.Log($"[ExplorerTracker] Active window: HWND=0x{hwnd:X}, Root=0x{rootHwnd:X}, Class={windowClassName}, isDesktop={isDesktop}", LogLevel.Debug);
+            if (Logger.IsEnabled(LogLevel.Debug))
+                Logger.Log($"[ExplorerTracker] Active window: HWND=0x{hwnd:X}, Root=0x{rootHwnd:X}, Class={windowClassName}, isDesktop={isDesktop}", LogLevel.Debug);
 
             // Resolve the actual focused control handle inside the active window's thread
             var focusedHwnd = IntPtr.Zero;
