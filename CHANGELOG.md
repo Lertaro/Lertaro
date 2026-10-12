@@ -5,15 +5,34 @@
 符号：* 核心功能　+ 小功能添加　# 修复。只写"改了什么"。
 -->
 
+## v5.9.1.6
+
+## 更新内容
+
+```
+# 关于页按四段显示版本号（不再把 5.9.1.5 显示成 5.9.1）
++ 启动后空闲时预热搜索，首次搜索不再卡一下
++ 同步上游三条优化（热路径日志不再拼字符串、快速导航与级联菜单的图标渲染改进）
++ 自动更新只检查本仓库的发行
++ 保留鼠标平滑滚动
+```
+
+## What's changed
+
+```
+# About shows every version part the build actually uses (5.9.1.5 no longer reads as 5.9.1)
++ Search is warmed up while the app sits idle after startup, so the first search no longer stalls
++ Three upstream optimizations (hot-path log lines are no longer built, quick-nav and cascade-menu icon rendering)
++ Auto-update only checks this repository's releases
++ Keeps the smooth wheel scrolling
+```
+
 ## v5.9.1.5
 
 ## 更新内容
 
 ```
 # 修复 Quick Switch（Ctrl+G）在应用刚启动、以及开着多个文件管理器窗口时切不过去
-# 关于页按四段显示版本号（不再把 5.9.1.5 显示成 5.9.1）
-+ 启动后空闲时预热搜索，首次搜索不再卡一下
-+ 同步上游三条优化（热路径日志不再拼字符串、快速导航与级联菜单的图标渲染改进）
 # 目录跳转与内联搜索统一按"最后激活的文件管理器目录"判定（桌面不再被当作文件管理器）
 + 内联窗口不再重复显示「上次目录」（Ctrl+G 已经负责跳回上次目录）
 + 自动更新只检查本仓库的发行
@@ -24,9 +43,6 @@
 
 ```
 # Quick Switch (Ctrl+G) works right after the app starts and with several file-manager windows open
-# About shows every version part the build actually uses (5.9.1.5 no longer reads as 5.9.1)
-+ Search is warmed up while the app sits idle after startup, so the first search no longer stalls
-+ Three upstream optimizations (hot-path log lines are no longer built, quick-nav and cascade-menu icon rendering)
 # Folder switching and inline search share one "last activated file manager folder" resolution (the desktop is not one)
 + Inline search no longer repeats a "last directory" row (Ctrl+G already jumps back there)
 + Auto-update only checks this repository's releases
