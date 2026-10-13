@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Lertaro.PluginSdk.Services;
 using Lertaro.Plugins.FolderCascader.Navigation;
 using static Lertaro.Plugins.FolderCascader.Tests.MenuBuilderTestHelpers;
@@ -121,6 +122,73 @@ public sealed class MenuBuilderGetMenuItemsTests
         {
             PluginSettingsService.GetSettingFunc = null;
         }
+    }
+
+    [TestMethod]
+    public async Task GetMenuItems_ThisPcOnABackgroundThread_ReturnsItsDrives()
+    {
+        const string thisPc = "shell:::{20d04fe0-3aea-1069-a2d8-08002b30309d}";
+        PluginSettingsService.GetSettingFunc = (pluginId, key, defaultValue) =>
+            pluginId == "Lertaro.Plugins.FolderCascader" && key == "Folders"
+                ? new List<FolderCascaderPlugin.FolderConfigItem> { Folder("This PC", thisPc) }
+                : defaultValue;
+        try
+        {
+            var provider = new Provider();
+            var result = new FakeResult { FullPath = Path.GetTempPath() };
+
+            var root = await Task.Run(() => MenuBuilder.GetMenuItems(result, IntPtr.Zero, provider).ToList());
+            var thisPcItem = root.Single(item => item.Text == "This PC");
+
+            var children = await Task.Run(() => MenuBuilder.GetMenuItems(result, thisPcItem.SubMenuHandle, provider).ToList());
+
+            // A real Windows host always has at least the system drive in This PC. Asserting one child
+            // resolves to a drive root (locale-independent: "C:\", never the localized "Windows (C:)")
+            // proves the enumeration actually descended into This PC: a bare HasSubMenu check would also
+            // pass on the fallback root menu, whose lone "This PC" row is a submenu too.
+            Assert.IsTrue(children.Count > 0, "This PC should enumerate at least its drives.");
+            Assert.IsTrue(children.All(child => child.HasSubMenu), "Every This PC child should be a folder submenu.");
+            Assert.IsTrue(
+                children.Any(child =>
+                {
+                    if (!child.HasSubMenu || child.SubMenuHandle == IntPtr.Zero) return false;
+                    var childPath = GetPath(provider, child.SubMenuHandle);
+                    return Path.GetPathRoot(childPath) is { Length: > 0 } root
+                           && string.Equals(root, childPath, StringComparison.OrdinalIgnoreCase);
+                }),
+                "This PC should enumerate at least one drive root.");
+        }
+        finally
+        {
+            PluginSettingsService.GetSettingFunc = null;
+        }
+    }
+
+    [TestMethod]
+    public void RunOnSta_ConcurrentCalls_ShareOneStaApartment()
+    {
+        // Two apartments holding the same agile shell folder object is what let one enumeration release the
+        // other's RCW mid-Items(), which is how the first open of This PC came back as the empty-folder
+        // placeholder. Every call has to land on the one single-threaded apartment.
+        var seen = new ConcurrentQueue<string>();
+        using var go = new ManualResetEventSlim(false);
+
+        void Call() => ShellEnumerator.RunOnSta(() =>
+        {
+            seen.Enqueue($"t{Environment.CurrentManagedThreadId}:{Thread.CurrentThread.GetApartmentState()}");
+            Thread.Sleep(30);
+        });
+
+        var first = Task.Run(() => { go.Wait(); Call(); });
+        var second = Task.Run(() => { go.Wait(); Call(); });
+        go.Set();
+        first.Wait();
+        second.Wait();
+
+        var entries = seen.ToArray();
+        Assert.HasCount(2, entries, "one of the concurrent calls never ran");
+        Assert.HasCount(1, entries.Select(entry => entry.Split(':')[0]).Distinct(), "shell work ran on more than one apartment");
+        Assert.IsTrue(entries.All(entry => entry.EndsWith(":STA")), "shell work needs a single-threaded apartment");
     }
 
     [TestMethod]
