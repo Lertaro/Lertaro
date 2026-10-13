@@ -53,6 +53,22 @@ public sealed class SettingsTransferRestartTests
     }
 
     [TestMethod]
+    public void StartSession_TransferHoldingTheLease_IsReportedAsALeaseConflict()
+    {
+        var root = Directory.CreateTempSubdirectory("LertaroLeaseHeld-").FullName;
+        try
+        {
+            using var transfer = SettingsBackup.OpenSession(root, exclusive: true);
+
+            // Both the exclusive and the shared session are refused here, and that is the only situation in
+            // which "close the other Lertaro instances" is true rather than a misdiagnosis.
+            Assert.ThrowsExactly<SettingsLeaseConflictException>(
+                () => SettingsTransferRestart.StartSession(root, [], out _));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [TestMethod]
     public void ParseRequestId_MissingRequest_DoesNotScheduleTransfer() =>
         Assert.IsNull(SettingsTransferRestart.ParseRequestId(["--ordinary-launch"]));
 

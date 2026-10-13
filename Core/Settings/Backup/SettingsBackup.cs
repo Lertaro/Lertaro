@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
+using Lertaro.Core.Services.Installation;
 using Lertaro.Core.Settings.Migration;
 
 namespace Lertaro.Core;
@@ -18,14 +19,23 @@ public static class SettingsBackup
         if (fullDestination.StartsWith(source.Root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
             throw new IOException("Choose a backup destination outside the live user data directory.");
         using (var settings = source.Read("user-settings.json")) SettingsBackupFormat.ValidateSettings(settings);
-        using (var parameters = source.Read(PluginSettingsStore.FileName)) PluginSettingsStore.Parse(SettingsBackupFormat.ReadJson(parameters));
+        // Written the first time any plugin setting is saved, so a profile that has never saved one does not
+        // have it -- and reading it unconditionally failed the whole export with FileNotFoundException.
+        var hasPluginSettings = source.Exists(PluginSettingsStore.FileName);
+        if (hasPluginSettings)
+        {
+            using var parameters = source.Read(PluginSettingsStore.FileName);
+            PluginSettingsStore.Parse(SettingsBackupFormat.ReadJson(parameters));
+        }
         var manifest = new SettingsBackupManifest
         {
-            ApplicationVersion = applicationVersion, IncludesPluginFiles = includePluginFiles,
+            ApplicationVersion = applicationVersion,
+            IncludesPluginFiles = includePluginFiles,
             Plugins = SettingsBackupInventory.Read(source, applicationDirectory)
         };
         manifest.BridgeVersion = manifest.Plugins.FirstOrDefault(p => p.Name == "Lertaro.Plugins.FlowLauncherBridge")?.Version;
-        var paths = new List<string> { "user-settings.json", PluginSettingsStore.FileName };
+        var paths = new List<string> { "user-settings.json" };
+        if (hasPluginSettings) paths.Add(PluginSettingsStore.FileName);
         paths.AddRange(source.Files("FlowData/Settings"));
         paths.AddRange(source.Files("Calendar"));
         if (includePluginFiles) paths.AddRange(source.Files("FlowData/Plugins"));
@@ -204,7 +214,11 @@ public static class SettingsBackup
     {
         // Coordination is local to this machine, not portable user data. Sync clients must never
         // copy or contend for a live process lease beside the settings they are synchronizing.
-        var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro", "RuntimeLocks");
+        // Resolved like the data roots are: a profile folder the user relocated to another drive puts a link
+        // in this path too, and an unresolved one is refused by SettingsBackupPaths below -- which is how a
+        // start-up ended in the "another instance is transferring settings" message for a link, not a lease.
+        var directory = DataDirectoryResolver.ResolveFinalTarget(
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lertaro", "RuntimeLocks"));
         Directory.CreateDirectory(directory);
         using var root = new SettingsBackupPaths(directory);
         var name = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(
