@@ -6,12 +6,51 @@ namespace Lertaro.App.Services;
 
 internal static class AppStartupServiceBootstrapper
 {
+    // A settings file another instance is still saving, or a folder an indexer has open, is a lock -- and
+    // elevation cannot fix a lock. Waiting it out first is the difference between a start that would have
+    // succeeded and one that showed a UAC prompt and re-ACLed the whole tree underneath it.
+    private const int VerifyAttempts = 6;
+    private static readonly TimeSpan VerifyRetryDelay = TimeSpan.FromMilliseconds(250);
+
+    /// <summary>
+    /// True when <paramref name="directory"/> is usable, waiting out a lock instead of escalating it.
+    /// </summary>
+    /// <remarks>
+    /// Only an <see cref="IOException"/> is worth another look: a link, or an owner that is not this account,
+    /// is what the elevated repair exists for and waiting cannot change either of those. Anything that is
+    /// still unusable after the last attempt falls through to the repair exactly as one failure used to.
+    /// </remarks>
+    internal static async Task<bool> VerifyUserDataAsync(string directory, int attempts, TimeSpan delay)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try { Core.Services.Installation.UserDataAccess.Verify(directory); return true; }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Never block the start: a check that keeps failing is the repair's cue, not a verdict.
+                if (ex is UnauthorizedAccessException || attempt >= attempts) return false;
+                await Task.Delay(delay).ConfigureAwait(false);
+            }
+        }
+    }
+
     public static async Task<bool> PrepareUserSettingsAsync()
     {
         try
         {
-            try { Core.Services.Installation.UserDataAccess.Verify(Logger.UserDataDir); return true; }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            // Before anything opens the folder: a relocation this build cannot support is refused with its own
+            // reason, instead of reaching the layer that refuses links and being reported as a settings transfer
+            // (see DataDirectoryResolver.DescribeRelocationRefusal).
+            if (Core.Services.Installation.DataDirectoryResolver.DescribeRelocationRefusal(Logger.UserDataDir) is { } refusal)
+                throw new SettingsDataRootUnsupportedException(
+                    SettingsStartupFailure.DescribeUnsupportedDataRoot(Logger.UserDataDir, refusal));
+
+            if (await VerifyUserDataAsync(Logger.UserDataDir, VerifyAttempts, VerifyRetryDelay)) return true;
+
+            // A failed check never refuses the start on its own. It buys the repair below, and the start is
+            // decided by whether the folder works afterwards -- not by what this process's token looked like
+            // before it. Refusing a reduced or sandboxed launcher here would block a start that this same
+            // folder can still serve, so the level is reported by the failure message and nowhere else.
 
             // 5.8.2–5.8.4 could lock the user's own directory. Give the current service a chance to
             // repair it before asking for elevation, and finish this before loading settings or plugins.

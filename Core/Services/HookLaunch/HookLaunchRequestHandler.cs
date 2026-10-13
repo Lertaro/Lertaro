@@ -13,9 +13,9 @@ namespace Lertaro.Core.Services.HookLaunch;
 // elevated only if requestElevation is set AND that session's user is genuinely an administrator.
 internal static class HookLaunchRequestHandler
 {
-    // The App-side HookIpcClient retries LaunchHook every 5 seconds, so one mispaired App install
-    // (a debug or portable copy connecting to this installed service) would otherwise write an
-    // identical rejection line every 5 seconds for as long as it runs. Warn once per caller PID,
+    // The App-side HookIpcClient retries LaunchHook on a loop that backs off from 5 seconds to a minute, so
+    // one mispaired App install (a debug or portable copy connecting to this installed service) would
+    // otherwise write an identical rejection line for as long as it runs. Warn once per caller PID,
     // and re-warn only after this interval so a lingering offender stays visible without spam.
     internal const long RejectionReLogIntervalMs = 10 * 60_000;
     private static readonly RejectionLogThrottle RejectionThrottle = new(RejectionReLogIntervalMs);

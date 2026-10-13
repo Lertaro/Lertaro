@@ -18,6 +18,7 @@ using Lertaro.Core.Services.Installation;
 using Lertaro.Core.Services;
 using Application = System.Windows.Application;
 namespace Lertaro.App;
+
 public partial class App : Application
 {
     // Set before InitializeComponent creates controls, including plugin content and popup controls.
@@ -94,7 +95,11 @@ public partial class App : Application
         try { _settingsSession = SettingsTransferRestart.StartSession(e.Args, out transferMessage); }
         catch (Exception ex)
         {
-            System.Windows.MessageBox.Show($"Settings transfer could not complete. No plugins were started.\n配置传输未完成，插件尚未启动。请关闭其他 Lertaro 实例后重试。\n\n{ex.Message}", "Lertaro",
+            // Logged before the box. This catch used to say nothing at all and show one hardcoded sentence
+            // about other instances, so a data folder that had merely been relocated to another drive was
+            // reported as a settings transfer in progress -- and left no trace to contradict it.
+            Logger.Log($"[App] The settings session could not be started (data={Logger.UserDataDir}): {ex}", LogLevel.Error);
+            System.Windows.MessageBox.Show(SettingsStartupFailure.Describe(ex), "Lertaro",
                 MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
             return;
@@ -323,6 +328,9 @@ public partial class App : Application
         Helpers.LocalSend.LocalSendAppEventHandler.Initialize(settings);
         if (transferMessage != null)
             _ = Dispatcher.BeginInvoke(new Action(() => Views.Controls.Dialogs.CustomMessageBox.Show(transferMessage, "Lertaro", MessageBoxButton.OK, MessageBoxImage.Information)));
+        // Nothing before this line may fail quietly, and the window alone was not enough to say the start
+        // worked: LocalSend's identity is built after Show() and it is exactly where a reduced token dies.
+        _dispatcherExceptionHandler.StartupCompleted = true;
     }
 
     public static void HideInlineSearch() => InlineSearchManager.Instance.CloseInlineSearch();

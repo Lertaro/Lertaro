@@ -11,6 +11,12 @@ internal sealed class DispatcherExceptionHandler
     private readonly Action<string, Exception?, bool> _report;
 
     /// <summary>
+    /// Set by the App at the end of <c>OnStartup</c>. Until then there is nothing for a handled exception to
+    /// recover into, so <see cref="Handle"/> ends the process after reporting.
+    /// </summary>
+    internal bool StartupCompleted;
+
+    /// <summary>
     /// Test seam for the reporting itself: the dialog half of
     /// <see cref="AppCrashHandler.LogException"/> needs a live <see cref="System.Windows.Application"/>.
     /// </summary>
@@ -20,6 +26,9 @@ internal sealed class DispatcherExceptionHandler
     public void Handle(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs args)
     {
         OnUnhandledException(args.Exception);
+        // Handled=true used to keep a pre-window crash alive: the user saw a process that would not restart and
+        // no window to read the error in. The report above is the only thing they get, so exit with it.
+        if (!StartupCompleted) System.Windows.Application.Current?.Shutdown(1);
         args.Handled = true;
     }
 
