@@ -90,6 +90,27 @@ public sealed class HistoryTabProviderTests
         => Assert.IsEmpty(HistoryTabProvider.Build(
             new[] { Entry("  ") }, maxItems: 10, exists: _ => true));
 
+    // The window is what keeps a history of hundreds of entries from being probed in full: past it, nothing
+    // is checked at all, so an entry sitting beyond one item's worth loses to the deadline it is buying.
+    [TestMethod]
+    public void Build_StopsAtTheCandidateWindow()
+    {
+        var checkedPaths = new List<string>();
+
+        var entries = HistoryTabProvider.Build(
+            new[] { Entry(@"C:\1"), Entry(@"C:\2"), Entry(@"C:\3"), Entry(@"C:\4") },
+            maxItems: 1,
+            exists: entry =>
+            {
+                lock (checkedPaths) checkedPaths.Add(entry.Path);
+                return entry.Path == @"C:\4";
+            });
+
+        Assert.IsEmpty(entries, "the only live entry sits past one item's own window");
+        Assert.HasCount(3, checkedPaths, "one item's window is three candidates");
+        CollectionAssert.AreEquivalent(new[] { @"C:\1", @"C:\2", @"C:\3" }, checkedPaths);
+    }
+
     [TestMethod]
     public void Build_EmptyHistory_IsEmpty()
         => Assert.IsEmpty(HistoryTabProvider.Build(

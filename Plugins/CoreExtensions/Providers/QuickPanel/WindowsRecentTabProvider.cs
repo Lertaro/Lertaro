@@ -25,6 +25,11 @@ public class WindowsRecentTabProvider : IQuickPanelTabProvider
     // startup panel's History tab is: there is no settings page of its own to put the number on.
     private const int MaxItems = 30;
 
+    // Enough candidates to survive a long run of entries whose targets are gone, and few enough that a
+    // Recent folder which has accumulated thousands of stale shortcuts is not resolved in full to produce
+    // the same handful of rows. See BudgetedProbeBatch for the other half of the budget.
+    private const int CandidateWindowPerItem = 3;
+
     public string Name => TranslationService.Get("QuickPanel_TabWindowsRecent");
 
     public Task<IReadOnlyList<ISearchResult>> GetEntriesAsync(CancellationToken cancellationToken = default)
@@ -43,7 +48,7 @@ public class WindowsRecentTabProvider : IQuickPanelTabProvider
         string recentFolder, int maxItems, Func<string, string?> resolve, CancellationToken cancellationToken = default)
     {
         var entries = new List<ISearchResult>();
-        if (string.IsNullOrWhiteSpace(recentFolder) || !Directory.Exists(recentFolder)) return entries;
+        if (maxItems <= 0 || string.IsNullOrWhiteSpace(recentFolder) || !Directory.Exists(recentFolder)) return entries;
 
         FileInfo[] shortcuts;
         try
@@ -60,37 +65,61 @@ public class WindowsRecentTabProvider : IQuickPanelTabProvider
         // the directory hands them over in whatever order it likes.
         Array.Sort(shortcuts, (left, right) => right.LastWriteTime.CompareTo(left.LastWriteTime));
 
+        var window = Math.Min(shortcuts.Length, maxItems * CandidateWindowPerItem);
+
+        // Resolving reads the shortcut itself, which is local and cheap; whether what it points at is still
+        // there is the part that can block. The two are separated so only the second half needs a budget.
+        var targets = new string?[window];
+        var probes = new List<Func<TargetKind>>(window);
+        for (var i = 0; i < window && !cancellationToken.IsCancellationRequested; i++)
+        {
+            try
+            {
+                targets[i] = resolve(shortcuts[i].FullName);
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[WindowsRecentTabProvider] Cannot resolve {shortcuts[i].Name}: {ex.Message}", LogLevel.Warn);
+            }
+
+            var target = targets[i];
+            probes.Add(() => Probe(target));
+        }
+
+        var kinds = BudgetedProbeBatch.Run(probes, TargetKind.Missing, BudgetedProbeBatch.DefaultBudget);
+
         // Two shortcuts can resolve to the same file: opening it from two apps, or the shell rewriting an
         // entry rather than replacing it. Only the newest of them is worth a tile.
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var shortcut in shortcuts)
+        for (var i = 0; i < probes.Count && entries.Count < maxItems; i++)
         {
-            if (cancellationToken.IsCancellationRequested || entries.Count >= maxItems) break;
-
-            string? target;
-            try
-            {
-                target = resolve(shortcut.FullName);
-            }
-            catch (Exception ex)
-            {
-                Logger.Log($"[WindowsRecentTabProvider] Cannot resolve {shortcut.Name}: {ex.Message}", LogLevel.Warn);
-                continue;
-            }
-
+            var target = targets[i];
             // A shortcut to something deleted, renamed or on a drive that is not plugged in. The shell
             // leaves those behind for weeks, and a tile that opens nothing is worse than one fewer tile.
-            if (string.IsNullOrWhiteSpace(target)) continue;
-            if (!File.Exists(target) && !Directory.Exists(target)) continue;
-            if (!seen.Add(target)) continue;
+            if (kinds[i] == TargetKind.Missing || string.IsNullOrWhiteSpace(target)) continue;
+            if (!seen.Add(target!)) continue;
 
             // The shortcut's own write time, not the file's: this list is ordered by when things were
             // last opened, which is exactly what the shell records here, and a document read but not
             // changed has a modified time from long before.
-            entries.Add(new PanelResultItem(target, modified: shortcut.LastWriteTime));
+            //
+            // isDirectory is handed over rather than left for PanelResultItem to probe again: the kind just
+            // came back from the probe above, and re-asking would be a second blocking call per entry.
+            entries.Add(new PanelResultItem(target!, modified: shortcuts[i].LastWriteTime,
+                isDirectory: kinds[i] == TargetKind.Directory));
         }
 
         return entries;
+    }
+
+    /// <summary>What a shortcut's target turned out to be. None of these three checks is cancellable.</summary>
+    private enum TargetKind { Missing, File, Directory }
+
+    private static TargetKind Probe(string? target)
+    {
+        if (string.IsNullOrWhiteSpace(target)) return TargetKind.Missing;
+        if (Directory.Exists(target)) return TargetKind.Directory;
+        return File.Exists(target) ? TargetKind.File : TargetKind.Missing;
     }
 }

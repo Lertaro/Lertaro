@@ -99,6 +99,47 @@ public sealed class WindowsRecentTabProviderTests
         Assert.IsEmpty(WindowsRecentTabProvider.Build(recent.Path, maxItems: 10, ResolveInto(files)));
     }
 
+    // Recent holds folders as well as documents, and the tile needs to know which it is. The kind comes back
+    // from the existence check the list already ran, rather than from a second probe inside the item.
+    [TestMethod]
+    public void Build_TargetThatIsADirectory_CarriesThatKind()
+    {
+        using var recent = new TempDirectory();
+        using var folders = new TempDirectory();
+
+        var folder = Path.Combine(folders.Path, "project");
+        Directory.CreateDirectory(folder);
+        Write(recent, "project.lnk", DateTime.Now);
+
+        var entries = WindowsRecentTabProvider.Build(recent.Path, maxItems: 10, _ => folder);
+
+        Assert.HasCount(1, entries);
+        Assert.IsTrue(entries[0].IsDir);
+        Assert.AreEqual(folder, entries[0].ContextDirectory);
+    }
+
+    // The other half of the budget: a Recent folder that has accumulated stale shortcuts must not be
+    // resolved and probed in full to produce the same handful of rows.
+    [TestMethod]
+    public void Build_StopsAtTheCandidateWindowInsteadOfWalkingTheWholeFolder()
+    {
+        using var recent = new TempDirectory();
+        using var files = new TempDirectory();
+
+        for (var index = 0; index < 10; index++)
+            Write(recent, $"shortcut-{index}.lnk", DateTime.Now.AddMinutes(-index));
+
+        var resolved = 0;
+        var entries = WindowsRecentTabProvider.Build(recent.Path, maxItems: 2, shortcut =>
+        {
+            Interlocked.Increment(ref resolved);
+            return Path.Combine(files.Path, "gone");
+        });
+
+        Assert.IsEmpty(entries);
+        Assert.AreEqual(6, resolved, "two items' window is six candidates, and the rest are never asked about");
+    }
+
     // A shortcut named "<name>.lnk" in the Recent folder, standing for a real file of that name, with a
     // write time saying when it was opened. ResolveInto is the stand-in resolver that undoes it.
     private static string Shortcut(TempDirectory recent, TempDirectory files, string name, DateTime openedAt)
