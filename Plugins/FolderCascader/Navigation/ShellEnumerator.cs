@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+using System.Windows.Threading;
 using Lertaro.PluginSdk;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.PluginSdk.Helpers;
@@ -64,28 +66,82 @@ public static class ShellEnumerator
         catch (Exception ex) { Logger.Log($"[ShellEnumerator] enumeration failed for {scanPath}: {ex.Message}", LogLevel.Error); }
     }
 
-    private static void RunOnSta(Action action)
+    // One long-lived STA apartment serves every Shell.Application call in this plugin, and work reaches it
+    // by posting, so calls run one at a time. The shell hands the SAME agile folder object to whichever
+    // apartment asks for it, so two enumerations in flight (the popup's own keyboard-focus prefetch of the
+    // first row, plus the row the pointer actually reached) used to end with the one that finished first
+    // releasing the shared RCW while the other was still walking Items() -- InvalidComObjectException, zero
+    // children, and a submenu that renders as the empty-folder placeholder until the shell is warm enough
+    // that the two calls stop overlapping.
+    //
+    // Same apartment shape as PluginSdk's ShellOperationStaWorker and CoreExtensions' ShellMenuStaWorker
+    // (see those for why: OLE-initialized so shell extensions load completely, a real message pump so a COM
+    // callback can re-enter this apartment while it would otherwise be idle, and a thread built once rather
+    // than started per action). Deliberately its own worker, not a shared one: a stalled cascader read must
+    // not take a file operation's or a context menu's apartment down with it.
+    // ponytail: one apartment serializes all cascader shell work, so a hung enumeration blocks the ones
+    // queued behind it. The old per-call thread blocked only its own caller. Upgrade path is a bounded wait
+    // plus a cancellation-aware enumeration loop, not more apartments.
+    private static readonly object _startLock = new();
+    private static Dispatcher? _dispatcher;
+    private static bool _startupFailed;
+
+    [DllImport("ole32.dll")]
+    private static extern int OleInitialize(IntPtr pvReserved);
+
+    internal static void RunOnSta(Action action)
     {
-        using var done = new ManualResetEventSlim(false);
-        Exception? error = null;
-        var thread = new Thread(() =>
+        var dispatcher = GetWorker();
+        if (dispatcher == null)
         {
-            try { action(); }
-            catch (Exception ex) { error = ex; }
-            finally { done.Set(); }
-        })
-        {
-            IsBackground = true,
-            Name = "ShellEnumeratorSta"
-        };
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-        done.Wait();
-        if (error != null)
-            Logger.Log($"[ShellEnumerator] STA enumeration failed: {error.Message}", LogLevel.Error);
+            Logger.Log("[ShellEnumerator] No STA worker available; skipped enumeration", LogLevel.Error);
+            return;
+        }
+
+        // Invoke, not BeginInvoke: the caller is already a background submenu fetch that has to wait for
+        // these items, and Invoke rethrows on the calling thread the way the old per-call thread did.
+        try { dispatcher.Invoke(action); }
+        catch (Exception ex) { Logger.Log($"[ShellEnumerator] STA enumeration failed: {ex.Message}", LogLevel.Error); }
     }
 
+    private static Dispatcher? GetWorker()
+    {
+        if (_dispatcher != null || _startupFailed) return _dispatcher;
+        lock (_startLock)
+        {
+            if (_dispatcher != null || _startupFailed) return _dispatcher;
+            using var ready = new ManualResetEventSlim(false);
+            var thread = new Thread(() =>
+            {
+                OleInitialize(IntPtr.Zero);
+                _dispatcher = Dispatcher.CurrentDispatcher;
+                ready.Set();
+                Dispatcher.Run();
+            })
+            {
+                IsBackground = true,
+                Name = "FolderCascaderShellSta"
+            };
+            thread.SetApartmentState(ApartmentState.STA);
+            thread.Start();
+
+            if (!ready.Wait(TimeSpan.FromSeconds(5)))
+            {
+                Logger.Log("[ShellEnumerator] STA worker failed to start within 5s", LogLevel.Error);
+                _startupFailed = true;
+            }
+
+            return _dispatcher;
+        }
+    }
+
+    // Same apartment as the enumeration: this re-opens the parent folder and matches the item by path, so it
+    // touches the very objects the enumeration is sharing, and running it on the click thread's own
+    // apartment was the second half of the same race.
     private static void InvokeShellItem(string parentPath, string itemPath)
+        => RunOnSta(() => InvokeShellItemCore(parentPath, itemPath));
+
+    private static void InvokeShellItemCore(string parentPath, string itemPath)
     {
         try
         {

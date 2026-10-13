@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Lertaro.PluginSdk.Services;
 using Lertaro.Plugins.FolderCascader.Navigation;
 using static Lertaro.Plugins.FolderCascader.Tests.MenuBuilderTestHelpers;
@@ -160,6 +161,33 @@ public sealed class MenuBuilderGetMenuItemsTests
         {
             PluginSettingsService.GetSettingFunc = null;
         }
+    }
+
+    [TestMethod]
+    public void RunOnSta_ConcurrentCalls_ShareOneStaApartment()
+    {
+        // Two apartments holding the same agile shell folder object is what let one enumeration release the
+        // other's RCW mid-Items(), which is how the first open of This PC came back as the empty-folder
+        // placeholder. Every call has to land on the one single-threaded apartment.
+        var seen = new ConcurrentQueue<string>();
+        using var go = new ManualResetEventSlim(false);
+
+        void Call() => ShellEnumerator.RunOnSta(() =>
+        {
+            seen.Enqueue($"t{Environment.CurrentManagedThreadId}:{Thread.CurrentThread.GetApartmentState()}");
+            Thread.Sleep(30);
+        });
+
+        var first = Task.Run(() => { go.Wait(); Call(); });
+        var second = Task.Run(() => { go.Wait(); Call(); });
+        go.Set();
+        first.Wait();
+        second.Wait();
+
+        var entries = seen.ToArray();
+        Assert.HasCount(2, entries, "one of the concurrent calls never ran");
+        Assert.HasCount(1, entries.Select(entry => entry.Split(':')[0]).Distinct(), "shell work ran on more than one apartment");
+        Assert.IsTrue(entries.All(entry => entry.EndsWith(":STA")), "shell work needs a single-threaded apartment");
     }
 
     [TestMethod]
