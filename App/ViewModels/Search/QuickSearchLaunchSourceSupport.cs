@@ -1,10 +1,9 @@
 using System.IO;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services;
-using Lertaro.App.Services.Plugin;
 using Lertaro.Core;
-using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Abstractions.Plugins;
+using Lertaro.PluginSdk.Helpers;
 
 namespace Lertaro.App.ViewModels.Search;
 
@@ -31,8 +30,20 @@ internal sealed class QuickSearchLaunchSourceSupport
         _loadCancellation = new CancellationTokenSource();
         var token = _loadCancellation.Token;
         var selectedId = Selected?.Id;
-        Sources.ReplaceRange(Array.Empty<LaunchPanelSourceViewModel>());
-        Selected = null;
+
+        // Deliberately NOT emptied first. The panel used to be blanked for the whole load, so the last
+        // summon's tiles disappeared and nothing replaced them until every source had answered -- which is
+        // the wait the summon showed. What is on screen stays on screen until the new answer is in.
+        var loaded = await ReadSourcesAsync(token);
+        if (loaded == null) return;
+
+        var settings = UserSettings.Load().QuickLaunch;
+        var ordered = QuickLaunchSourceCatalog.OrderSources(loaded, settings.SourceOrder);
+        Sources.ReplaceRange(ordered);
+        Selected = ordered.FirstOrDefault(source => source.Id.Equals(selectedId, StringComparison.OrdinalIgnoreCase))
+            ?? ordered.FirstOrDefault();
+        UpdateSelection();
+        // Every row is rebuilt, so the remembered one is no longer an instance any source holds.
         SelectedItem = null;
         _notify(nameof(QuickSearchViewModel.LaunchPanelVisibility));
         _notify(nameof(QuickSearchViewModel.LaunchPanelItems));
@@ -41,13 +52,33 @@ internal sealed class QuickSearchLaunchSourceSupport
         _notify(nameof(QuickSearchViewModel.LaunchPanelItemScale));
         _notify(nameof(QuickSearchViewModel.HasMultipleLaunchSources));
         _notify(nameof(QuickSearchViewModel.CanAcceptLaunchPanelDrops));
+        _notify(nameof(QuickSearchViewModel.IsManualLaunchSourceSelected));
+    }
+
+    /// <summary>Everything the strip is about to show, or null when a newer refresh superseded this one.</summary>
+    /// <remarks>
+    /// Starts and finishes on the UI thread on purpose, and awaits back onto it: what it builds are bound
+    /// rows, translation lookups and (for a web-address entry) an ImageSource. Only the part that can block
+    /// for seconds -- asking whether a configured path still exists -- is handed to another thread.
+    /// </remarks>
+    private async Task<List<LaunchPanelSourceViewModel>?> ReadSourcesAsync(CancellationToken token)
+    {
         var settings = UserSettings.Load().QuickLaunch;
         var loaded = new List<LaunchPanelSourceViewModel>();
 
         if (settings.Enabled && settings.Items.Count > 0)
         {
+            // Every configured path is asked whether it is still there, and one on a disconnected share
+            // answers by timing out. Budgeted and off this thread for exactly that reason: this used to run
+            // on the UI thread and every dead path in turn held the summon behind its own timeout.
+            var probes = settings.Items
+                .Select(item => (Func<bool>)(() => FavoritePathResolver.IsPathAvailable(item.Path)))
+                .ToList();
+            var available = await Task.Run(
+                () => BudgetedProbeBatch.Run(probes, false, BudgetedProbeBatch.DefaultBudget), token);
+
             var items = settings.Items
-                .Where(item => FavoritePathResolver.IsPathAvailable(item.Path))
+                .Where((_, index) => available[index])
                 .Select((item, index) => LaunchItemMapper.ToUiResult(item, index))
                 .ToList();
             if (items.Count > 0)
@@ -59,37 +90,28 @@ internal sealed class QuickSearchLaunchSourceSupport
             }
         }
 
-        if (settings.Enabled)
+        if (!settings.Enabled) return token.IsCancellationRequested ? null : loaded;
+
+        var providers = QuickLaunchSourceCatalog.GetEnabledSourceIds(settings)
+            .Select(QuickLaunchSourceCatalog.Find)
+            .Where(provider => provider != null)
+            .Cast<IQuickPanelTabProvider>()
+            .ToList();
+        var providerResults = await Task.WhenAll(
+            providers.Select(provider =>
+                QuickLaunchSourceReader.LoadProviderAsync(QuickLaunchSourceCatalog.GetId(provider), provider, token)));
+        if (token.IsCancellationRequested) return null;
+
+        for (var i = 0; i < providers.Count; i++)
         {
-            var providers = QuickLaunchSourceCatalog.GetEnabledSourceIds(settings)
-                .Select(QuickLaunchSourceCatalog.Find)
-                .Where(provider => provider != null)
-                .Cast<IQuickPanelTabProvider>()
+            if (providerResults[i].Count == 0) continue;
+            var items = providerResults[i]
+                .Select((item, index) => PluginResultMapper.ToUiResult(item, index))
                 .ToList();
-            var providerResults = await Task.WhenAll(providers.Select(provider => LoadProviderAsync(provider, token)));
-            for (var i = 0; i < providers.Count; i++)
-            {
-                if (providerResults[i].Count == 0) continue;
-                var items = providerResults[i]
-                    .Select((item, index) => PluginResultMapper.ToUiResult(item, index))
-                    .ToList();
-                loaded.Add(new LaunchPanelSourceViewModel(QuickLaunchSourceCatalog.GetId(providers[i]), providers[i].Name, items));
-            }
+            loaded.Add(new LaunchPanelSourceViewModel(QuickLaunchSourceCatalog.GetId(providers[i]), providers[i].Name, items));
         }
 
-        if (token.IsCancellationRequested) return;
-        var ordered = QuickLaunchSourceCatalog.OrderSources(loaded, settings.SourceOrder);
-        Sources.ReplaceRange(ordered);
-        Selected = ordered.FirstOrDefault(source => source.Id.Equals(selectedId, StringComparison.OrdinalIgnoreCase))
-            ?? ordered.FirstOrDefault();
-        UpdateSelection();
-        _notify(nameof(QuickSearchViewModel.LaunchPanelVisibility));
-        _notify(nameof(QuickSearchViewModel.LaunchPanelItems));
-        _notify(nameof(QuickSearchViewModel.LaunchPanelHeight));
-        _notify(nameof(QuickSearchViewModel.LaunchPanelItemScale));
-        _notify(nameof(QuickSearchViewModel.HasMultipleLaunchSources));
-        _notify(nameof(QuickSearchViewModel.CanAcceptLaunchPanelDrops));
-        _notify(nameof(QuickSearchViewModel.IsManualLaunchSourceSelected));
+        return loaded;
     }
 
     public void Select(LaunchPanelSourceViewModel? source)
@@ -231,7 +253,9 @@ internal sealed class QuickSearchLaunchSourceSupport
             source.IsSelected = ReferenceEquals(source, Selected);
     }
 
-    private static void SaveManualItemOrder(IReadOnlyList<AppSearchResult> displayedItems)
+    // internal rather than private: the manual source the reader builds is the one this subscribes to, so
+    // the handler has to be reachable from there.
+    internal static void SaveManualItemOrder(IReadOnlyList<AppSearchResult> displayedItems)
     {
         var userSettings = UserSettings.Load();
         var settings = userSettings.QuickLaunch;
@@ -271,22 +295,4 @@ internal sealed class QuickSearchLaunchSourceSupport
             FavoritePathResolver.NormalizeForComparison(FavoritePathResolver.Resolve(configuredPath)),
             FavoritePathResolver.NormalizeForComparison(displayedPath),
             StringComparison.OrdinalIgnoreCase);
-
-    private static async Task<IReadOnlyList<ISearchResult>> LoadProviderAsync(
-        IQuickPanelTabProvider provider, CancellationToken token)
-    {
-        try
-        {
-            return await PluginPerformanceMonitor.MeasureAsync(provider, () => provider.GetEntriesAsync(token));
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested)
-        {
-            return Array.Empty<ISearchResult>();
-        }
-        catch (Exception ex)
-        {
-            Logger.Log($"[QuickLaunch] Failed to load source '{provider.GetType().Name}': {ex.Message}", LogLevel.Warn);
-            return Array.Empty<ISearchResult>();
-        }
-    }
 }

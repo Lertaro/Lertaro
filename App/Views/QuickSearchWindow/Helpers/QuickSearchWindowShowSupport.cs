@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Media.Animation;
+using System.Windows.Threading;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services;
 using Lertaro.App.Services.Theme;
@@ -36,7 +37,6 @@ internal sealed class QuickSearchWindowShowSupport
         window.ViewModel.IsInlineSearchContext = false;
         App.HideInlineSearch();
         QuickLookManager.Instance.Reset();
-        window.ViewModel.RefreshLaunchItems();
         InlineSearchManager.Instance.KeyboardHook.IsQuickSearchWindowVisible = true;
         InlineSearchManager.Instance.KeyboardHook.Stop();
         window.ViewModel.EnsureServiceMonitoringActive();
@@ -88,6 +88,13 @@ internal sealed class QuickSearchWindowShowSupport
         // Selecting the kept text is what makes it usable instead of in the way: the next keystroke
         // overwrites it, so the window still reads as a fresh search box.
         _controller.ActivateAndFocus(useClipboardText || keepSearchText, caretAtEnd);
+
+        // The launch panel's sources are read here rather than earlier in this sequence, where they used to
+        // be: reading them probes the disk and asks every plugin provider, and on the show path that work
+        // was the summon's own latency. Background priority puts it behind the first frame and the focus
+        // grab, so the window is up and usable first and the tiles replace the last summon's own.
+        window.Dispatcher.BeginInvoke(
+            DispatcherPriority.Background, new Action(window.ViewModel.RefreshLaunchItems));
     }
 
     /// <summary>

@@ -16,6 +16,11 @@ internal static class OpenSearchWindowRefresher
     // Must run on the UI thread (SettingsViewModel.Apply's caller): it walks Application.Current.Windows.
     public static void AfterSettingsSaved()
     {
+        // Which quick-launch items exist, which sources are enabled and what a source's own config says all
+        // live in settings, so a save is exactly the point at which the sources' cached answers stop being
+        // answers. Dropped before the windows below re-read them.
+        QuickLaunchSourceCache.Invalidate();
+
         foreach (Window window in System.Windows.Application.Current.Windows)
         {
             if (window.DataContext is not QuickSearchViewModel quickVm)
