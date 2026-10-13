@@ -85,7 +85,17 @@ public static class LiveDirectorySearcher
                 }
 
                 if (onLiveMatch != null && TryMatchEntry(result, livePattern, liveSlab, onlyDirectChildren, normalizedParent))
-                    onLiveMatch(result);
+                {
+                    try
+                    {
+                        onLiveMatch(result);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // A superseded query can cancel its own live-result callback. Keep the shared
+                        // directory walk alive so later queries can still reuse the completed scan.
+                    }
+                }
 
                 // Checked after the result is delivered, not before it is built: `maxProcessed` is a cap on
                 // what the caller gets, so stopping here yields exactly that many rows. Stopping at the top

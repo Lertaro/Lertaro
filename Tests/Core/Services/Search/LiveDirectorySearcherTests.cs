@@ -134,6 +134,20 @@ public sealed class LiveDirectorySearcherTests
     }
 
     [TestMethod]
+    public void ScanDirectory_OnLiveMatchCancellation_DoesNotAbortSharedScan()
+    {
+        using var dir = new TempDirectory();
+        File.WriteAllText(Path.Combine(dir.Path, "a.txt"), "x");
+        File.WriteAllText(Path.Combine(dir.Path, "b.txt"), "x");
+
+        var results = LiveDirectorySearcher.ScanDirectory(dir.Path, 100, CancellationToken.None,
+            liveQuery: "",
+            onLiveMatch: _ => throw new OperationCanceledException());
+
+        Assert.HasCount(2, results);
+    }
+
+    [TestMethod]
     public void ScanDirectory_LiveQueryWithOnlyDirectChildren_ExcludesGrandchildrenFromLiveStream()
     {
         using var dir = new TempDirectory();
