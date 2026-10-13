@@ -9,10 +9,21 @@ public sealed class GlobalHotkeyDetector
     private readonly ModifierDoubleTapDetector _quickSwitchTapDetector = new();
     private readonly ModifierKeyState _modifierKeyState = new();
 
-    public GlobalHotkeyDetector(UserSettings settings, ExplorerTracker explorerTracker)
+    /// <summary>
+    /// Where a recognized Quick Switch is handed off. The hook cannot do the work itself: deciding needs the
+    /// tracker lock, which the WinEvent thread holds across cross-process reads, and the navigation calls into
+    /// another process. Production posts a thread message to the tracker thread (see HookProcess).
+    /// </summary>
+    private readonly Action<IntPtr> _requestQuickSwitch;
+
+    public GlobalHotkeyDetector(UserSettings settings, ExplorerTracker explorerTracker, Action<IntPtr>? requestQuickSwitch = null)
     {
         _settings = settings;
         _explorerTracker = explorerTracker;
+        // Without a tracker thread to post to, the same policy runs here: that is what tests get, and what any
+        // caller that only needs the gesture answered gets.
+        _requestQuickSwitch = requestQuickSwitch
+            ?? (hwnd => QuickSwitchNavigator.Execute(_explorerTracker, hwnd));
     }
 
     public void OnKeyDown(int vkCode) => _modifierKeyState.OnKeyDown(vkCode);
@@ -175,42 +186,29 @@ public sealed class GlobalHotkeyDetector
     private bool TryHandleQuickSwitchNavigation(bool triggered, out bool consumeKey)
     {
         consumeKey = false;
-        // Bounded exactly like ExplorerTracker.ReclassifyActiveWindowBounded: this runs inside the
-        // low-level keyboard hook callback, while the WinEvent tracker thread holds StateLock across
-        // plugin reads budgeted at ExplorerWindowClassifier.DefaultPluginTimeoutMs (2s). Blocking on it
-        // here stalls keyboard input for that long, and a hook that overruns LowLevelHooksTimeout is
-        // silently dropped by Windows. On contention there is nothing to skip past: the tracker's own
-        // state is authoritative and keeps updating, so this keystroke simply does not navigate.
-        if (!Monitor.TryEnter(_explorerTracker.StateLock, 50))
+        if (!triggered) return false;
+
+        // Read without the lock, deliberately. These fields are written under StateLock, but waiting for it
+        // here used to drop the keystroke -- the WinEvent thread holds it across cross-process reads, and a
+        // low-level hook that overruns LowLevelHooksTimeout is removed by Windows. A stale answer costs one
+        // skipped or one futile hand-off, never a wrong window: the tracker thread re-reads the state before
+        // it navigates (see QuickSwitchNavigator.Execute).
+        if (!_explorerTracker.IsActiveWindowDialog || _explorerTracker.ActiveAdapter == null)
         {
-            Logger.Log("[GlobalHotkeyDetector] Tracker state contended; skipping Quick Switch this keystroke.", LogLevel.Debug);
+            Logger.Log("[GlobalHotkeyDetector] Quick Switch ignored: no file dialog is tracked.", LogLevel.Info);
             return false;
         }
 
-        try
+        // Nothing to switch to, so the keystroke is left to the host window: a dialog that swallows Ctrl+G
+        // without navigating is a keystroke the user cannot get back.
+        if (string.IsNullOrEmpty(_explorerTracker.LastActiveExplorerPath) && _explorerTracker.LastPathProvider == null)
         {
-            if (!_explorerTracker.IsActiveWindowDialog || !triggered || _explorerTracker.ActiveAdapter == null)
-                return false;
-
-            var lastExplorerPath = _explorerTracker.LastActiveExplorerPath;
-            if (string.IsNullOrEmpty(lastExplorerPath) || !Path.IsPathRooted(lastExplorerPath))
-                return false;
-
-            var navPath = lastExplorerPath.EndsWith("\\") ? lastExplorerPath : lastExplorerPath + "\\";
-            var adapter = _explorerTracker.ActiveAdapter;
-            var hwnd = _explorerTracker.ActiveHwnd;
-            ThreadPool.QueueUserWorkItem(_ =>
-            {
-                // The HWND can be recycled after the snapshot; do not navigate a dead window.
-                if (ExplorerNativeHooks.IsWindow(hwnd))
-                    adapter.NavigateTo(hwnd, navPath);
-            });
-            consumeKey = true;
-            return true;
+            Logger.Log("[GlobalHotkeyDetector] Quick Switch ignored: no browsed folder is known yet.", LogLevel.Info);
+            return false;
         }
-        finally
-        {
-            Monitor.Exit(_explorerTracker.StateLock);
-        }
+
+        _requestQuickSwitch(_explorerTracker.ActiveHwnd);
+        consumeKey = true;
+        return true;
     }
 }

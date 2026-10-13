@@ -67,6 +67,33 @@ public static class ExplorerNativeHooks
     [DllImport("kernel32.dll")]
     public static extern uint GetCurrentThreadId();
 
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool IsWindowVisible(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool IsIconic(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+    private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+    /// <summary>
+    /// Top-level windows in Z order, topmost first. Windows keeps the window the user most recently used
+    /// highest among those that are still open, which is the closest thing to "the file manager I was just
+    /// in" that exists without having watched the user switch windows.
+    /// </summary>
+    /// <remarks>Enumerates only; callers filter, and the delegate stays alive for the synchronous call.</remarks>
+    public static IReadOnlyList<IntPtr> TopLevelWindowsInZOrder()
+    {
+        var windows = new List<IntPtr>();
+        EnumWindows((hwnd, _) => { windows.Add(hwnd); return true; }, IntPtr.Zero);
+        return windows;
+    }
+
     public const uint EM_SETSEL = 0x00B1;
     public const uint WM_LBUTTONDOWN = 0x0201;
     public const uint WM_LBUTTONUP = 0x0202;

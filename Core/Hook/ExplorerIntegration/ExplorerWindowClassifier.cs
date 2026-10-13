@@ -73,7 +73,8 @@ internal sealed class ExplorerWindowClassifier
             if (rootHwnd == IntPtr.Zero) rootHwnd = hwnd;
 
             var isDesktop = ExplorerNativeHooks.IsDesktopWindow(rootHwnd, out var windowClassName);
-            Logger.Log($"[ExplorerTracker] Active window: HWND=0x{hwnd:X}, Root=0x{rootHwnd:X}, Class={windowClassName}, isDesktop={isDesktop}", LogLevel.Debug);
+            if (Logger.IsEnabled(LogLevel.Debug))
+                Logger.Log($"[ExplorerTracker] Active window: HWND=0x{hwnd:X}, Root=0x{rootHwnd:X}, Class={windowClassName}, isDesktop={isDesktop}", LogLevel.Debug);
 
             // Resolve the actual focused control handle inside the active window's thread
             var focusedHwnd = IntPtr.Zero;
@@ -146,7 +147,9 @@ internal sealed class ExplorerWindowClassifier
 
                                 // Remember the provider while it is the active window: that is when its scope
                                 // is still readable, and a folder that did not move is no reason to forget it.
-                                _tracker.RememberPathProvider(_tracker.ActiveInlineAdapter, rootHwnd);
+                                // The path travels with it: Quick Switch picks among these windows by which one
+                                // shares the dialog's process, and an entry without a folder cannot be chosen.
+                                _tracker.RememberPathProvider(_tracker.ActiveInlineAdapter, rootHwnd, activePath);
 
                                 if (activePath != _tracker.LastPath)
                                 {
