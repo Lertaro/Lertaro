@@ -48,17 +48,42 @@ internal static class DirMenuIcon
     {
         lock (Sync)
         {
-            if (_rootCached == IntPtr.Zero) _rootCached = Render(FloppyDiskPath, viewBoxSize: 24);
-            return _rootCached;
+            if (_rootCached != IntPtr.Zero) return _rootCached;
         }
+
+        return Publish(Render(FloppyDiskPath, viewBoxSize: 24), ref _rootCached);
     }
 
     public static IntPtr GetMenuGroupHBitmap()
     {
         lock (Sync)
         {
-            if (_menuGroupCached == IntPtr.Zero) _menuGroupCached = Render(MenuGroupPath, viewBoxSize: 24);
-            return _menuGroupCached;
+            if (_menuGroupCached != IntPtr.Zero) return _menuGroupCached;
+        }
+
+        return Publish(Render(MenuGroupPath, viewBoxSize: 24), ref _menuGroupCached);
+    }
+
+    /// <summary>
+    /// Takes the render that was just made, unless another thread made one first.
+    /// </summary>
+    /// <remarks>
+    /// The render happens OUTSIDE the lock on purpose: it marshals onto the UI thread, and a caller holding
+    /// <c>Sync</c> while waiting for the UI thread deadlocks against a UI caller taking <c>Sync</c> -- which is
+    /// reachable, since the quick-navigation submenu loader builds rows in a <c>Task.Run</c> while the action
+    /// menu builds them on the UI thread. FolderCascader's IconBitmapCache was fixed the same way.
+    /// </remarks>
+    private static IntPtr Publish(IntPtr rendered, ref IntPtr slot)
+    {
+        lock (Sync)
+        {
+            if (slot != IntPtr.Zero)
+            {
+                DeleteObject(rendered);
+                return slot;
+            }
+
+            return slot = rendered;
         }
     }
 

@@ -49,21 +49,31 @@ internal static class QuickNavIcon
         lock (Sync)
         {
             if (CommandCache.TryGetValue(normalized, out var cached)) return cached;
+        }
 
-            IntPtr rendered;
-            try
+        // Rendered OUTSIDE the lock, deliberately. RenderOnUiThread marshals onto the UI thread, and a caller
+        // holding Sync while waiting for the UI thread deadlocks against the UI thread taking Sync -- which is
+        // reachable because this is called both from the quick-navigation submenu loader's Task.Run and from
+        // the UI thread's own action-menu build. The same shape was fixed in FolderCascader's IconBitmapCache.
+        IntPtr rendered;
+        try
+        {
+            rendered = RenderOnUiThread(normalized);
+        }
+        catch
+        {
+            rendered = RenderOnUiThread(CommandPath);
+            normalized = CommandPath;
+        }
+
+        lock (Sync)
+        {
+            // Another thread may have rendered the same glyph (or the fallback did just now) while this one
+            // was rendering: the cache's rule is one handle per glyph, so the earlier winner is kept.
+            if (CommandCache.TryGetValue(normalized, out var existing))
             {
-                rendered = RenderOnUiThread(normalized);
-            }
-            catch
-            {
-                rendered = RenderOnUiThread(CommandPath);
-                normalized = CommandPath;
-                if (CommandCache.TryGetValue(normalized, out cached))
-                {
-                    DeleteObject(rendered);
-                    return cached;
-                }
+                DeleteObject(rendered);
+                return existing;
             }
 
             CommandCache[normalized] = rendered;
@@ -73,8 +83,25 @@ internal static class QuickNavIcon
 
     public static IntPtr GetCategoryHBitmap()
     {
-        if (_categoryCached == IntPtr.Zero) _categoryCached = RenderOnUiThread(CategoryPath);
-        return _categoryCached;
+        lock (Sync)
+        {
+            if (_categoryCached != IntPtr.Zero) return _categoryCached;
+        }
+
+        // Same shape as GetCommandHBitmap above, and for the same reason: the render marshals onto the UI
+        // thread, so it happens outside the lock, and two threads racing on a cold cache each used to make a
+        // bitmap and then overwrite the other's -- leaving the loser's GDI handle with nothing pointing at it.
+        var rendered = RenderOnUiThread(CategoryPath);
+        lock (Sync)
+        {
+            if (_categoryCached != IntPtr.Zero)
+            {
+                DeleteObject(rendered);
+                return _categoryCached;
+            }
+
+            return _categoryCached = rendered;
+        }
     }
 
     // Called once per quick-nav popup session (CustomCommandsQuickNavProvider.ClearSession), a point at
