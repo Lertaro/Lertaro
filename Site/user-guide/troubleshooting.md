@@ -33,7 +33,32 @@ Encountering issues while using Lertaro? Follow these systematic steps to diagno
   1. **Direct Pinyin Typing**: Lertaro features an embedded pinyin alias engine; type pinyin letters directly to fuzzy-match Chinese filenames without opening an IME popup (see [**Search Syntax**](./search-syntax#_7-multilingual-aliases)).
   2. **Switch to Quick Window**: Double-tap `Ctrl` to open the fully focused Quick Window, where all input methods work normally.
 
-## 6. Inspecting Logs & Submitting Issues
+## 6. Data Directory, Permissions & Failed Updates
+
+- **Relocating the data directory**: Moving `%LocalAppData%\Lertaro` (installer version) or the portable `Data\Users` folder to another partition with a symlink or junction is supported — the link target must be a **local fixed volume**. A link that points at a network location or a removable volume is refused at startup with the reason shown (see [**Settings → About**](./settings/about)).
+- **Startup refused: the data folder belongs to another identity**: If the owner of the user data directory is not your account, Lertaro refuses to start and first attempts an elevated repair. The message names the **actual owner and the expected SID**, which is the whole diagnosis. Every step of that repair — including the step it was still on when it timed out — is written to `%TEMP%\Lertaro\repair.log`; attach that file when reporting the problem.
+
+If the folder's owner is `BUILTIN\Administrators` while its permissions already grant *you* FullControl, reset the owner only. The script below changes ownership inside `%LOCALAPPDATA%\Lertaro` and nothing else: it does not touch permissions, and it does not touch file contents.
+
+```powershell
+$sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+$root = Join-Path $env:LOCALAPPDATA 'Lertaro'
+Get-Item -LiteralPath $root | ForEach-Object {
+    $acl = $_.GetAccessControl('Owner')
+    $acl.SetOwner($sid)
+    $_.SetAccessControl($acl)
+}
+Get-ChildItem -LiteralPath $root -Recurse -Force | ForEach-Object {
+    $acl = $_.GetAccessControl('Owner')
+    $acl.SetOwner($sid)
+    $_.SetAccessControl($acl)
+}
+```
+
+- **The last silent update failed**: The updater writes its verdict — status, reason and rollback directory — to `update-result.json` next to the installation. Lertaro shows that reason once on the next start and does not repeat the same verdict; if the notice keeps appearing, delete that file or install the new version manually over the current installation.
+- **Links below the data root are always refused**: Only the data directory's own chain may be resolved as a link; subdirectories inside it may not be links.
+
+## 7. Inspecting Logs & Submitting Issues
 
 If the problem persists, visit [**Settings → Service Status**](./settings/service-status) to inspect live logs:
 

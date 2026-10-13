@@ -33,7 +33,32 @@
   1. **直接打拼音**：Lertaro 内置了拼音别名引擎，直接输入拼音字母即可跳跃命中中文文件名（详见[**搜索语法**](./search-syntax#_7-多语言智能别名)），无需调用输入法候选框。
   2. **切换为快速窗口**：按下双击 `Ctrl` 唤出拥有完整焦点的快速窗口，即可正常使用任何输入法。
 
-## 6. 日志查看与提交 Issue
+## 6. 数据目录、权限与更新失败
+
+- **数据目录搬迁**：把安装版的 `%LocalAppData%\Lertaro` 或便携版的 `Data\Users` 用符号链接或 Junction 迁到其它分区是受支持的，但链接目标必须是**本地固定卷**。若链接指向网络位置或可移动卷，程序会在启动时拒绝并说明原因（详见[**设置 → 关于**](./settings/about)）。
+- **启动被拒绝：数据目录属于另一个身份**：若用户数据目录的 owner 不是你的账户，Lertaro 会拒绝启动，并先尝试以提权方式修复。提示中会同时给出**实际 owner 与期望 SID**，这就是完整的诊断信息。该修复的每一步（包括超时被终止时仍停留在的那一步）都会写进 `%TEMP%\Lertaro\repair.log`，反馈问题时请附上该文件。
+
+若该目录的 owner 是 `BUILTIN\Administrators`，而权限其实已经授予**你** FullControl，只需把 owner 改回自己即可。下面脚本只修改 `%LOCALAPPDATA%\Lertaro` 范围内的所有者，不改权限、也不改任何文件内容：
+
+```powershell
+$sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+$root = Join-Path $env:LOCALAPPDATA 'Lertaro'
+Get-Item -LiteralPath $root | ForEach-Object {
+    $acl = $_.GetAccessControl('Owner')
+    $acl.SetOwner($sid)
+    $_.SetAccessControl($acl)
+}
+Get-ChildItem -LiteralPath $root -Recurse -Force | ForEach-Object {
+    $acl = $_.GetAccessControl('Owner')
+    $acl.SetOwner($sid)
+    $_.SetAccessControl($acl)
+}
+```
+
+- **上次静默更新失败**：更新程序会把结论（状态、失败原因与回滚目录）写到安装目录旁的 `update-result.json`。Lertaro 会在下次启动时把这个原因提示一次，同一份结论不会重复提示；若提示反复出现，可以删除该文件，或手动覆盖安装新版本。
+- **数据目录以下的链接一律拒绝**：只有数据目录自身这条链路允许是链接，它内部的子目录不允许（详见[**设置 → 关于**](./settings/about)）。
+
+## 7. 日志查看与提交 Issue
 
 若上述步骤均未能解决你的问题，请进入[**设置 → 运行状态**](./settings/service-status)查看详细的运行日志：
 

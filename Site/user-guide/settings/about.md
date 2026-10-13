@@ -31,6 +31,12 @@ Clickable links directly open storage directories in File Explorer (folders are 
 - **Installer Version**: User data is placed in `%LocalAppData%\Lertaro`, and machine data in `%ProgramData%\Lertaro`.
 - **Portable Version**: User data is placed in `Data\Users\<SID hash>`, and machine data in `Data\Machine` next to the executable (see [**Portable Data Isolation**](../getting-started)).
 
+### Moving the Data Directory (Symlinks & Junctions)
+
+- **Supported**: The user data directory (`%LocalAppData%\Lertaro` for the installer version, `<installation>\Data\Users` for the portable one) can be relocated to another partition or another local disk with a symlink or a junction. At startup Lertaro resolves that link chain to the real directory and works on it.
+- **Local fixed volumes only**: The link target must be a local fixed drive. A link that points at a network location or a removable volume is refused at startup with the reason shown, instead of writing somewhere else without saying so.
+- **Links below the data root are still refused**: No subdirectory *inside* the data directory may be a link — a link swapped in while the app runs would redirect its writes. That is a security boundary, not a configuration option.
+
 ## 3. Update Checks & In-Place Upgrades
 
 - **Check for Updates**: Manually queries online repositories for newer releases with dynamic button state feedback ("Checking for updates..." → "Up to date" or release version details).
