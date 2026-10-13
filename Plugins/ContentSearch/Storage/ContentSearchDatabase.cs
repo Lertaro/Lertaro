@@ -54,10 +54,20 @@ public sealed class ContentSearchDatabase : IDisposable
         _connectionString = builder.ToString();
     }
 
-    private SqliteConnection OpenConnection()
+    internal SqliteConnection OpenConnection()
     {
         var conn = new SqliteConnection(_connectionString);
         conn.Open();
+        // Per-connection, so it belongs here and not in InitializeSchema: the full-scan retention pass creates
+        // a TEMP TABLE, and SQLite files that under %TEMP% -- a directory a reduced-integrity process cannot
+        // write, which surfaced as "unable to open database file" with nothing pointing at the temp dir.
+        // ponytail: costs RAM equal to the deletion candidate list; if a scan ever needs more than that,
+        // the fix is a keyed table in the main db rather than a larger temp_store.
+        using (var tempStoreCmd = conn.CreateCommand())
+        {
+            tempStoreCmd.CommandText = "PRAGMA temp_store = MEMORY;";
+            tempStoreCmd.ExecuteNonQuery();
+        }
         return conn;
     }
 
