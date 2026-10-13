@@ -1,4 +1,5 @@
 using System.IO;
+using Lertaro.PluginSdk;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.PluginSdk.Helpers;
 using Lertaro.PluginSdk.Services;
@@ -27,8 +28,9 @@ internal static class FolderBrowseMenuBuilder
             if (items.Count == 0)
                 items.Add(new DynamicMenuItem { Text = TranslationService.Get("FolderCascader_EmptyFolder"), IsDisabled = true });
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.Log($"[FolderCascader] folder browse failed for '{path}': {ex.Message}", LogLevel.Error);
             items.Add(new DynamicMenuItem { Text = TranslationService.Get("FolderCascader_EmptyFolder"), IsDisabled = true });
         }
         return items;

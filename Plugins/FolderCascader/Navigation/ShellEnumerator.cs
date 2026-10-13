@@ -61,7 +61,7 @@ public static class ShellEnumerator
                 }
             }
         }
-        catch { }
+        catch (Exception ex) { Logger.Log($"[ShellEnumerator] enumeration failed for {scanPath}: {ex.Message}", LogLevel.Error); }
     }
 
     private static void RunOnSta(Action action)

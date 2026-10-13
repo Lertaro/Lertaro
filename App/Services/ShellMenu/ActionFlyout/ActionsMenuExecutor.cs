@@ -53,12 +53,20 @@ internal sealed class ActionsMenuExecutor
             if (activeResult != null)
             {
                 RecordQuickSearchKeyword();
-                if (!_view.GetType().Name.Equals("SearchWindow", StringComparison.Ordinal))
-                {
-                    _view.HideWindow();
-                }
 
-                PluginPerformanceMonitor.Measure(registration.Action, () => registration.Action.Execute(activeResults, _view));
+                try
+                {
+                    // A plugin action can open a modal prompt owned by this window. Let it finish
+                    // before hiding the owner, otherwise Win32 hides the prompt along with it.
+                    PluginPerformanceMonitor.Measure(registration.Action, () => registration.Action.Execute(activeResults, _view));
+                }
+                finally
+                {
+                    if (!_view.GetType().Name.Equals("SearchWindow", StringComparison.Ordinal))
+                    {
+                        _view.HideWindow();
+                    }
+                }
             }
 
             _exitActionsMode();

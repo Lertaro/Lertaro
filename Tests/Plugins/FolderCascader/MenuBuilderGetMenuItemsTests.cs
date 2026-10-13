@@ -123,6 +123,46 @@ public sealed class MenuBuilderGetMenuItemsTests
     }
 
     [TestMethod]
+    public async Task GetMenuItems_ThisPcOnABackgroundThread_ReturnsItsDrives()
+    {
+        const string thisPc = "shell:::{20d04fe0-3aea-1069-a2d8-08002b30309d}";
+        PluginSettingsService.GetSettingFunc = (pluginId, key, defaultValue) =>
+            pluginId == "Lertaro.Plugins.FolderCascader" && key == "Folders"
+                ? new List<FolderCascaderPlugin.FolderConfigItem> { Folder("This PC", thisPc) }
+                : defaultValue;
+        try
+        {
+            var provider = new Provider();
+            var result = new FakeResult { FullPath = Path.GetTempPath() };
+
+            var root = await Task.Run(() => MenuBuilder.GetMenuItems(result, IntPtr.Zero, provider).ToList());
+            var thisPcItem = root.Single(item => item.Text == "This PC");
+
+            var children = await Task.Run(() => MenuBuilder.GetMenuItems(result, thisPcItem.SubMenuHandle, provider).ToList());
+
+            // A real Windows host always has at least the system drive in This PC. Asserting one child
+            // resolves to a drive root (locale-independent: "C:\", never the localized "Windows (C:)")
+            // proves the enumeration actually descended into This PC: a bare HasSubMenu check would also
+            // pass on the fallback root menu, whose lone "This PC" row is a submenu too.
+            Assert.IsTrue(children.Count > 0, "This PC should enumerate at least its drives.");
+            Assert.IsTrue(children.All(child => child.HasSubMenu), "Every This PC child should be a folder submenu.");
+            Assert.IsTrue(
+                children.Any(child =>
+                {
+                    if (!child.HasSubMenu || child.SubMenuHandle == IntPtr.Zero) return false;
+                    var childPath = GetPath(provider, child.SubMenuHandle);
+                    return Path.GetPathRoot(childPath) is { Length: > 0 } root
+                           && string.Equals(root, childPath, StringComparison.OrdinalIgnoreCase);
+                }),
+                "This PC should enumerate at least one drive root.");
+        }
+        finally
+        {
+            PluginSettingsService.GetSettingFunc = null;
+        }
+    }
+
+    [TestMethod]
     public void GetMenuItems_CategoryLevel_HeaderOnExecute_PromptsThenSavesAtThatSubMenu()
     {
         PluginSettingsService.GetSettingFunc = (pluginId, key, defaultValue) =>

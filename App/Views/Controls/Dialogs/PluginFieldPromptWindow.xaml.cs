@@ -244,12 +244,6 @@ public partial class PluginFieldPromptWindow : Window
         var win = new PluginFieldPromptWindow(title, fieldViewModels);
 
         win.Owner = OwnedDialog.ResolveOwner(win);
-        // QuickSearchWindow starts a deferred hide before running a plugin action. When that action
-        // opens this prompt, the hide's delayed focus restoration would otherwise move keyboard input
-        // back to the window behind the prompt. The prompt remains the active owner while the quick
-        // window is hidden, so only suppress that stale restoration.
-        if (win.Owner is Lertaro.App.QuickSearchWindow quickOwner)
-            quickOwner.SuppressNextForegroundRestore();
         win.WindowStartupLocation = win.Owner != null ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen;
 
         // Not win.ShowDialog(): see OwnedDialog.ShowModal for what an owner closing underneath a modal
