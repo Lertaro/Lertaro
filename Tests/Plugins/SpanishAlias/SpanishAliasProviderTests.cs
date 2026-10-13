@@ -1,5 +1,4 @@
 using Lertaro.PluginSdk.Abstractions.Plugins;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Lertaro.Plugins.SpanishAlias.Tests;
 

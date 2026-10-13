@@ -117,7 +117,8 @@ public sealed class SnapshotWriterTests
     }
 
     [TestMethod]
-    public void ComputeSectionOffsets_NegativeMetadata_ThrowsInvalidDataException()    {
+    public void ComputeSectionOffsets_NegativeMetadata_ThrowsInvalidDataException()
+    {
         var meta = new SnapshotFormat.Meta { SectionsOffset = 0, RowCount = -1 };
 
         Assert.ThrowsExactly<InvalidDataException>(() => SnapshotFormat.ComputeSectionOffsets(meta, out _));

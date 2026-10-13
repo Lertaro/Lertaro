@@ -118,7 +118,7 @@ public sealed class AliasRankingTests
     }
 
     [TestMethod]
-    public void BothNames_MatchThePinyinQuery() 
+    public void BothNames_MatchThePinyinQuery()
     {
         Assert.IsTrue(FuzzyMatcher.IsMatch("hao", "好爱哦耶.mp3"));
         Assert.IsTrue(FuzzyMatcher.IsMatch("hao", "毫宅.psd"));

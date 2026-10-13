@@ -210,7 +210,8 @@ internal sealed class SearchExecutionEngine : IDisposable
     public void PrewarmDirectoryListing(string? directory) => _directChildrenListing.Prewarm(directory);
 
     public void CancelPendingSearch()
-    {        try
+    {
+        try
         {
             _debounceCts?.Cancel();
             _debounceCts?.Dispose();

@@ -133,7 +133,7 @@ public static class FlowResultMapper
                 }
                 if (!string.IsNullOrEmpty(flowResult.AutoCompleteText))
                 {
-                    PluginSdk.Services.SearchQueryService.ChangeQuery(flowResult.AutoCompleteText, requery: true);
+                    SearchQueryService.ChangeQuery(flowResult.AutoCompleteText, requery: true);
                     return false;
                 }
                 if (!string.IsNullOrEmpty(flowResult.CopyText))

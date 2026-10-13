@@ -4,15 +4,9 @@ namespace Flow.Launcher.Plugin.SharedCommands;
 
 public static class SearchWeb
 {
-    public static void OpenInBrowserWindow(this string url, string browserPath = "", bool inPrivate = false, string privateArg = "")
-    {
-        OpenInBrowser(url, browserPath, inPrivate, privateArg);
-    }
+    public static void OpenInBrowserWindow(this string url, string browserPath = "", bool inPrivate = false, string privateArg = "") => OpenInBrowser(url, browserPath, inPrivate, privateArg);
 
-    public static void OpenInBrowserTab(this string url, string browserPath = "", bool inPrivate = false, string privateArg = "")
-    {
-        OpenInBrowser(url, browserPath, inPrivate, privateArg);
-    }
+    public static void OpenInBrowserTab(this string url, string browserPath = "", bool inPrivate = false, string privateArg = "") => OpenInBrowser(url, browserPath, inPrivate, privateArg);
 
     public static void OpenInBrowser(this string url, string browserPath = "", bool inPrivate = false, string privateArg = "")
     {

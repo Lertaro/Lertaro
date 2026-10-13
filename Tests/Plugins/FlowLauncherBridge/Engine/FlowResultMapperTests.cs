@@ -112,7 +112,7 @@ public sealed class FlowResultMapperTests
     {
         string? changedQuery = null;
         bool? requeryFlag = null;
-        PluginSdk.Services.SearchQueryService.ChangeQueryFunc = (q, r) =>
+        SearchQueryService.ChangeQueryFunc = (q, r) =>
         {
             changedQuery = q;
             requeryFlag = r;
@@ -135,7 +135,7 @@ public sealed class FlowResultMapperTests
         }
         finally
         {
-            PluginSdk.Services.SearchQueryService.ChangeQueryFunc = null;
+            SearchQueryService.ChangeQueryFunc = null;
         }
     }
 

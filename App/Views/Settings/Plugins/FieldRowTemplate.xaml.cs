@@ -22,7 +22,8 @@ public partial class PluginConfigFieldRowTemplate : ResourceDictionary
         {
             var dialog = new Microsoft.Win32.OpenFileDialog
             {
-                Filter = "JSON (*.json)|*.json", CheckFileExists = true,
+                Filter = "JSON (*.json)|*.json",
+                CheckFileExists = true,
                 Title = TranslationManager.Instance["Plugins_EntryImport"]
             };
             if (dialog.ShowDialog(owner) != true) return;
@@ -45,7 +46,9 @@ public partial class PluginConfigFieldRowTemplate : ResourceDictionary
             var bytes = field.ExportEntry();
             var dialog = new Microsoft.Win32.SaveFileDialog
             {
-                Filter = "JSON (*.json)|*.json", DefaultExt = ".json", AddExtension = true,
+                Filter = "JSON (*.json)|*.json",
+                DefaultExt = ".json",
+                AddExtension = true,
                 FileName = PluginConfigEntryTransfer.SuggestedFileName(field.SelectedArrayItem!),
                 Title = TranslationManager.Instance["Plugins_EntryExport"]
             };

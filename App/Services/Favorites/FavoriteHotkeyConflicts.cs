@@ -62,9 +62,8 @@ internal static class FavoriteHotkeyConflicts
             || settings.DisabledPluginComponents.Contains(
                 "Lertaro.Plugins.CustomActions.dll::DynamicActionProvider::DynamicActionProvider", StringComparer.OrdinalIgnoreCase))
             yield break;
-        var actions = ConfigValueHelper.UnpackValue(settings.GetPluginSetting<object?>(
-            "Lertaro.Plugins.CustomActions", "Actions", null)) as System.Collections.IEnumerable;
-        if (actions == null) yield break;
+        if (ConfigValueHelper.UnpackValue(settings.GetPluginSetting<object?>(
+            "Lertaro.Plugins.CustomActions", "Actions", null)) is not System.Collections.IEnumerable actions) yield break;
         foreach (var action in actions)
             if (ConfigValueHelper.UnpackValue(action) is IDictionary<string, object> fields
                 && (!fields.TryGetValue("Enabled", out var enabled) || enabled is not false)

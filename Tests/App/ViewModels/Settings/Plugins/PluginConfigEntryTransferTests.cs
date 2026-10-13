@@ -401,10 +401,7 @@ public sealed class PluginConfigEntryTransferTests
     }
 
     [TestMethod]
-    public void ErrorMessage_ValidationFailure_PreservesSpecificReason()
-    {
-        Assert.AreEqual("invalid Icon", PluginConfigEntryTransfer.ErrorMessage(new InvalidDataException("invalid Icon")));
-    }
+    public void ErrorMessage_ValidationFailure_PreservesSpecificReason() => Assert.AreEqual("invalid Icon", PluginConfigEntryTransfer.ErrorMessage(new InvalidDataException("invalid Icon")));
 
     [TestMethod]
     public void Export_InvalidUtf16AndOversizedEntry_RejectsWithoutReplacingCharacters()

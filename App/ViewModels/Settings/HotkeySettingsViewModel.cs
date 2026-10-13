@@ -4,7 +4,6 @@ using Lertaro.App.Services;
 using Lertaro.App.Services.Favorites;
 using Lertaro.App.Services.Notifications;
 using Lertaro.Core;
-using Lertaro.Core.Wire;
 using Lertaro.PluginSdk.Abstractions;
 namespace Lertaro.App.ViewModels.Settings;
 

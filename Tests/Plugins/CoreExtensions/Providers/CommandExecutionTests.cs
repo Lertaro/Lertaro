@@ -28,7 +28,9 @@ public sealed class CommandExecutionTests
     {
         PluginPromptService.PromptFunc = (_, _, _) => new Dictionary<string, object?>
         {
-            ["Command"] = input, ["Admin"] = checkbox, ["CommandShell"] = "pwsh"
+            ["Command"] = input,
+            ["Admin"] = checkbox,
+            ["CommandShell"] = "pwsh"
         };
         var calls = 0;
         CommandQuickNavigationProvider.Prompt(@"D:\source", (command, shell, admin, current, directory) =>
@@ -57,7 +59,9 @@ public sealed class CommandExecutionTests
     {
         PluginSettingsService.GetSettingFunc = (_, key, fallback) => key switch
         {
-            "CommandShell" => "pwsh", "CommandUseCurrentDirectory" => true, _ => fallback
+            "CommandShell" => "pwsh",
+            "CommandUseCurrentDirectory" => true,
+            _ => fallback
         };
         (string Command, string Shell, bool Admin, bool Current, string? Directory)? called = null;
         IInstantResultProvider provider = new CommandInstantProvider((command, shell, admin, current, directory) =>

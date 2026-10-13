@@ -305,7 +305,7 @@ public sealed class StreamingResultAccumulatorTests
         Assert.AreEqual(2, accumulator.FirstChangedIndex);
     }
 
-        [TestMethod]
+    [TestMethod]
     public void FirstChangedIndex_NeverUnderstatesWhatMoved()
     {
         // The promise the view acts on: every row before FirstChangedIndex must already be correct on

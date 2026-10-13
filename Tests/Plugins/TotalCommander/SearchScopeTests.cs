@@ -117,8 +117,5 @@ public class SearchScopeTests
     [DataRow("Button", false)]    // appears alongside the editor during a rename
     [DataRow("LCLListBox1", false)]
     [DataRow("", false)]
-    public void RecognisesTheEditorByClassName(string className, bool expected)
-    {
-        Assert.AreEqual(expected, TotalCommanderInlineSearchAdapter.IsEditorClass(className));
-    }
+    public void RecognisesTheEditorByClassName(string className, bool expected) => Assert.AreEqual(expected, TotalCommanderInlineSearchAdapter.IsEditorClass(className));
 }

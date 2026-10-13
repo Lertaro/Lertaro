@@ -3,6 +3,7 @@ using Lertaro.Core.IndexV2.Delta;
 using Lertaro.Core.DriveMonitoring;
 using Lertaro.Core.Indexer.NetworkDrive.Walk;
 namespace Lertaro.Core.Indexer.Usn;
+
 public static class UsnIndexerExtensions
 {
     // Reasons that mean the file's data/attributes changed in a way that can affect Size or the three

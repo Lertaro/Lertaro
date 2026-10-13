@@ -6,6 +6,7 @@ using Lertaro.App.Services;
 using Lertaro.Core.Services.LocalSend;
 using Lertaro.Core.Services.LocalSend.Models;
 namespace Lertaro.App.ViewModels.LocalSend;
+
 public sealed class LocalSendSendViewModel : ViewModelBase, IDisposable
 {
     private readonly ObservableCollection<LocalSendSendDeviceItem> _discoveredDevices = new();

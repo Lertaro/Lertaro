@@ -10,6 +10,7 @@ using Lertaro.Core.Services.LocalSend.Models;
 using Lertaro.PluginSdk.Helpers;
 using System.Windows.Threading;
 namespace Lertaro.App.Views.LocalSend;
+
 public partial class LocalSendReceiveWindow : Window
 {
     private readonly LocalSendUploadRequestArgs _requestArgs;
@@ -84,7 +85,8 @@ public partial class LocalSendReceiveWindow : Window
             _isCompleted = true;
             return;
         }
-        _fileItems = dto.Files.Select(kv => new LocalSendReceiveFileItem {
+        _fileItems = dto.Files.Select(kv => new LocalSendReceiveFileItem
+        {
             FileId = kv.Key,
             FileName = kv.Value.FileName,
             DisplayName = kv.Value.FileName,

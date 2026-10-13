@@ -6,6 +6,7 @@ using System.Windows.Media;
 using Lertaro.PluginSdk.Services;
 using Lertaro.PluginSdk.Abstractions.Plugins.Preview;
 namespace Lertaro.Plugins.CoreExtensions.Preview.Providers;
+
 public class PePreviewProvider : IFilePreviewProvider
 {
     public string Name => TranslationService.Get("QuickLook_PeProviderName");

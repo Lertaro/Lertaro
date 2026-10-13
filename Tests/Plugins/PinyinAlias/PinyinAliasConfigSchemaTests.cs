@@ -29,12 +29,10 @@ public sealed class PinyinAliasConfigSchemaTests
     }
 
     [TestMethod]
-    public void PluginId_MatchesTheDllNameTheHostDerivesItFrom()
-    {
+    public void PluginId_MatchesTheDllNameTheHostDerivesItFrom() =>
         // The settings UI persists the field under this id, so a rename here without renaming the
         // assembly (or the other way round) would silently disconnect the toggle from the provider.
         Assert.AreEqual(
             PinyinAliasConfigSchema.PluginId,
-            System.IO.Path.GetFileNameWithoutExtension(typeof(PinyinAliasProvider).Assembly.Location));
-    }
+            Path.GetFileNameWithoutExtension(typeof(PinyinAliasProvider).Assembly.Location));
 }

@@ -190,7 +190,7 @@ public static class SearchResultMapper
         {
             foreach (var (result, match) in SearchableItemMapper.CollectSearchableItemResults(query, isInlineWindow))
             {
-                var typeId = result.SourceProvider is PluginSdk.Abstractions.Plugins.ISearchableItemProvider provider
+                var typeId = result.SourceProvider is ISearchableItemProvider provider
                     ? SearchResultTypePriority.GetProviderTypeId(provider)
                     : SearchResultTypePriority.FilesTypeId;
                 if (triggeredTypeId != null && typeId != triggeredTypeId)

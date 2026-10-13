@@ -16,15 +16,9 @@ public static class ShellCommand
         catch { }
     }
 
-    public static void Execute(ProcessStartInfo info)
-    {
-        Execute(Process.Start!, info);
-    }
+    public static void Execute(ProcessStartInfo info) => Execute(Process.Start!, info);
 
-    public static void Execute(Func<ProcessStartInfo, Process> startProcess, ProcessStartInfo info)
-    {
-        startProcess?.Invoke(info);
-    }
+    public static void Execute(Func<ProcessStartInfo, Process> startProcess, ProcessStartInfo info) => startProcess?.Invoke(info);
 
     public static Process? RunAsDifferentUser(ProcessStartInfo processStartInfo)
     {
@@ -32,15 +26,12 @@ public static class ShellCommand
         return Process.Start(processStartInfo);
     }
 
-    public static ProcessStartInfo SetProcessStartInfo(this string fileName, string workingDirectory = "", string arguments = "", string verb = "", bool createNoWindow = false)
+    public static ProcessStartInfo SetProcessStartInfo(this string fileName, string workingDirectory = "", string arguments = "", string verb = "", bool createNoWindow = false) => new ProcessStartInfo
     {
-        return new ProcessStartInfo
-        {
-            FileName = fileName,
-            WorkingDirectory = workingDirectory,
-            Arguments = arguments,
-            Verb = verb,
-            CreateNoWindow = createNoWindow
-        };
-    }
+        FileName = fileName,
+        WorkingDirectory = workingDirectory,
+        Arguments = arguments,
+        Verb = verb,
+        CreateNoWindow = createNoWindow
+    };
 }

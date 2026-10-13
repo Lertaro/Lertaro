@@ -15,7 +15,10 @@ internal static class CommandSettings
 
     internal static PluginConfigField ShellField() => new()
     {
-        Key = "CommandShell", LabelKey = "Command_Config_Shell", FieldType = ConfigFieldType.Choice, DefaultValue = "cmd",
+        Key = "CommandShell",
+        LabelKey = "Command_Config_Shell",
+        FieldType = ConfigFieldType.Choice,
+        DefaultValue = "cmd",
         ChoiceOptions = new()
         {
             new() { Value = "cmd", LabelKey = "Command_Shell_Cmd" },
@@ -26,7 +29,9 @@ internal static class CommandSettings
 
     internal static PluginConfigField Config() => new()
     {
-        Key = "CommandGroup", LabelKey = "Command_Name", FieldType = ConfigFieldType.Group,
+        Key = "CommandGroup",
+        LabelKey = "Command_Name",
+        FieldType = ConfigFieldType.Group,
         SubFields = new()
         {
             ShellField(),

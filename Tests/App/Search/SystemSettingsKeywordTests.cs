@@ -10,18 +10,12 @@ namespace Lertaro.App.Tests.Search;
 public sealed class SystemSettingsKeywordTests
 {
     [TestMethod]
-    public void ParseKeywords_ShellString_TrimsAndDeduplicatesWithoutSplittingPhrases()
-    {
-        CollectionAssert.AreEqual(new[] { "环境变量", "environment variables", "envvar" },
+    public void ParseKeywords_ShellString_TrimsAndDeduplicatesWithoutSplittingPhrases() => CollectionAssert.AreEqual(new[] { "环境变量", "environment variables", "envvar" },
             SystemSettingsItemProvider.ParseKeywords(" 环境变量 ;environment variables;envvar;ENVVAR;; "));
-    }
 
     [TestMethod]
-    public void ParseKeywords_SafeArray_CombinesStringValues()
-    {
-        CollectionAssert.AreEqual(new[] { "cpu", "running processes", "threads" },
+    public void ParseKeywords_SafeArray_CombinesStringValues() => CollectionAssert.AreEqual(new[] { "cpu", "running processes", "threads" },
             SystemSettingsItemProvider.ParseKeywords(new object[] { "cpu;running processes", "threads", 42 }));
-    }
 
     [TestMethod]
     public void ParseKeywords_MissingProperty_LeavesItemSearchableByTitle()

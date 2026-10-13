@@ -27,31 +27,21 @@ public sealed class CalendarTextServiceTests
     }
 
     [TestMethod]
-    public void Describe_NoProviderLeft_ReturnsEmpty()
-    {
+    public void Describe_NoProviderLeft_ReturnsEmpty() =>
         // What a plugin the user disabled produces: the projection drops it, so the clock line falls back to
         // the host's own date and time with nothing appended.
         Assert.AreEqual(string.Empty, CalendarTextService.Describe([], Day));
-    }
 
     [TestMethod]
-    public void Describe_FirstProviderThatAnswersWins()
-    {
+    public void Describe_FirstProviderThatAnswersWins() =>
         // Silence first, so this also pins that an empty answer does not stop the search.
         Assert.AreEqual("八月廿四",
             CalendarTextService.Describe([new Provider(string.Empty), new Provider("   "), new Provider("八月廿四")], Day));
-    }
 
     [TestMethod]
-    public void Describe_BrokenProvider_DoesNotTakeTheLineDown()
-    {
-        Assert.AreEqual("八月廿四",
+    public void Describe_BrokenProvider_DoesNotTakeTheLineDown() => Assert.AreEqual("八月廿四",
             CalendarTextService.Describe([new BrokenProvider(), new Provider("八月廿四")], Day));
-    }
 
     [TestMethod]
-    public void Describe_BrokenProviderAlone_ReturnsEmpty()
-    {
-        Assert.AreEqual(string.Empty, CalendarTextService.Describe([new BrokenProvider()], Day));
-    }
+    public void Describe_BrokenProviderAlone_ReturnsEmpty() => Assert.AreEqual(string.Empty, CalendarTextService.Describe([new BrokenProvider()], Day));
 }

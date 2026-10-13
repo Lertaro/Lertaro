@@ -155,7 +155,8 @@ public class LocalSendServerHelperTests
     }
 
     [TestMethod]
-    public void ResolveTargetPath_PathWithMatchingPrefixOutsideTheDestination_IsRejected()    {
+    public void ResolveTargetPath_PathWithMatchingPrefixOutsideTheDestination_IsRejected()
+    {
         var tempDir = Path.Combine(Path.GetTempPath(), "LocalSendTest_" + Guid.NewGuid().ToString("N"));
         try
         {

@@ -383,7 +383,7 @@ internal sealed class SearchQueryDispatchController
 
             // The file search is done, so nothing else will take the prefix up: absorb an empty batch,
             // which is how the accumulator applies a queued prefix and hands the same list back.
-            _setAllResults(accumulator.AbsorbBatch(Array.Empty<Core.SearchResult>()), true);
+            _setAllResults(accumulator.AbsorbBatch(Array.Empty<SearchResult>()), true);
             // Prepending moves every row that was already there, so no scroll anchor survives this one.
             _applyFiltersAndRender(false, accumulator.FirstChangedIndex);
         }, System.Windows.Threading.DispatcherPriority.Background);

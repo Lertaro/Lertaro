@@ -88,16 +88,16 @@ public sealed class BrandIconTests
         using var bitmap = icon.ToBitmap();
         var expected = Pixels(ReadFrame(size));
         for (var y = 0; y < size; y++)
-        for (var x = 0; x < size; x++)
-        {
-            var color = bitmap.GetPixel(x, y);
-            var offset = (y * size + x) * 4;
-            Assert.AreEqual(expected[offset + 3], color.A, $"Alpha at ({x}, {y}).");
-            if (color.A == 0) continue;
-            Assert.AreEqual(expected[offset], color.B, $"Blue at ({x}, {y}).");
-            Assert.AreEqual(expected[offset + 1], color.G, $"Green at ({x}, {y}).");
-            Assert.AreEqual(expected[offset + 2], color.R, $"Red at ({x}, {y}).");
-        }
+            for (var x = 0; x < size; x++)
+            {
+                var color = bitmap.GetPixel(x, y);
+                var offset = (y * size + x) * 4;
+                Assert.AreEqual(expected[offset + 3], color.A, $"Alpha at ({x}, {y}).");
+                if (color.A == 0) continue;
+                Assert.AreEqual(expected[offset], color.B, $"Blue at ({x}, {y}).");
+                Assert.AreEqual(expected[offset + 1], color.G, $"Green at ({x}, {y}).");
+                Assert.AreEqual(expected[offset + 2], color.R, $"Red at ({x}, {y}).");
+            }
     }
 
     private static BitmapFrame ReadFrame(int size)
@@ -119,8 +119,13 @@ public sealed class BrandIconTests
     {
         var control = new SearchBoxControl
         {
-            Width = 600, Height = height, IsDynamicScalingEnabled = true, IsIconOnLeft = onLeft,
-            LeftIconSize = 34, RightIconSize = 34, MinimumIconFrameSize = 32
+            Width = 600,
+            Height = height,
+            IsDynamicScalingEnabled = true,
+            IsIconOnLeft = onLeft,
+            LeftIconSize = 34,
+            RightIconSize = 34,
+            MinimumIconFrameSize = 32
         };
         VerifySearchIconLayout(control, onLeft, 32);
     }
@@ -130,8 +135,14 @@ public sealed class BrandIconTests
     {
         var control = new SearchBoxControl
         {
-            Width = 600, Height = 26, FontSize = 15, Padding = new Thickness(0), IsIconOnLeft = true,
-            LeftIconSize = 26, RightIconSize = 26, MinimumIconFrameSize = 24
+            Width = 600,
+            Height = 26,
+            FontSize = 15,
+            Padding = new Thickness(0),
+            IsIconOnLeft = true,
+            LeftIconSize = 26,
+            RightIconSize = 26,
+            MinimumIconFrameSize = 24
         };
         var image = VerifySearchIconLayout(control, true, 24);
         Assert.AreEqual(24.0, image.ActualHeight, 0.5);

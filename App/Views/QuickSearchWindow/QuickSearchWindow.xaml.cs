@@ -18,6 +18,7 @@ using Lertaro.App.Services.Theme;
 using Lertaro.App.Services.ShellMenu.Presenter;
 using Lertaro.App.Helpers.Visuals;
 namespace Lertaro.App;
+
 public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleContentInset
 {
     private readonly QuickSearchViewModel _viewModel;

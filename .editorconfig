@@ -4,7 +4,10 @@ root = true
 [*]
 indent_style = space
 indent_size = 4
-end_of_line = crlf
+# LF, which is what this repository actually stores: every tracked text file is `i/lf w/lf`, the machine's
+# global git has core.autocrlf=input, and there is no .gitattributes. Asking for CRLF here made the formatter
+# want to rewrite all 2,736 text files, a change git reports as "modified" but cannot commit.
+end_of_line = lf
 trim_trailing_whitespace = true
 insert_final_newline = true
 

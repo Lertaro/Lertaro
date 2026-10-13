@@ -143,8 +143,11 @@ internal static class PluginConfigEntryTransfer
         {
             var modifier = part.Trim().ToUpperInvariant() switch
             {
-                "CTRL" or "CONTROL" => "Ctrl", "ALT" => "Alt", "SHIFT" => "Shift",
-                "WIN" or "WINDOWS" => "Win", _ => ""
+                "CTRL" or "CONTROL" => "Ctrl",
+                "ALT" => "Alt",
+                "SHIFT" => "Shift",
+                "WIN" or "WINDOWS" => "Win",
+                _ => ""
             };
             if (modifier.Length == 0 || !modifiers.Add(modifier)) return false;
         }

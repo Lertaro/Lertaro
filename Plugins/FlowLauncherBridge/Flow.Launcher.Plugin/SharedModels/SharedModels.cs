@@ -92,25 +92,13 @@ public class MonitorInfo
         Name = name;
     }
 
-    public static IList<MonitorInfo> GetDisplayMonitors()
-    {
-        return [new MonitorInfo(SystemParameters.WorkArea, SystemParameters.WorkArea, true, "Primary")];
-    }
+    public static IList<MonitorInfo> GetDisplayMonitors() => [new MonitorInfo(SystemParameters.WorkArea, SystemParameters.WorkArea, true, "Primary")];
 
-    public static MonitorInfo GetNearestDisplayMonitor(nint hwnd)
-    {
-        return new MonitorInfo(SystemParameters.WorkArea, SystemParameters.WorkArea, true, "Primary");
-    }
+    public static MonitorInfo GetNearestDisplayMonitor(nint hwnd) => new MonitorInfo(SystemParameters.WorkArea, SystemParameters.WorkArea, true, "Primary");
 
-    public static MonitorInfo GetPrimaryDisplayMonitor()
-    {
-        return new MonitorInfo(SystemParameters.WorkArea, SystemParameters.WorkArea, true, "Primary");
-    }
+    public static MonitorInfo GetPrimaryDisplayMonitor() => new MonitorInfo(SystemParameters.WorkArea, SystemParameters.WorkArea, true, "Primary");
 
-    public static MonitorInfo GetCursorDisplayMonitor()
-    {
-        return new MonitorInfo(SystemParameters.WorkArea, SystemParameters.WorkArea, true, "Primary");
-    }
+    public static MonitorInfo GetCursorDisplayMonitor() => new MonitorInfo(SystemParameters.WorkArea, SystemParameters.WorkArea, true, "Primary");
 
     public override string ToString() => Name;
 }

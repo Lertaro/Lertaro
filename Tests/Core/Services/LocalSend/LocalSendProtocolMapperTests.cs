@@ -12,7 +12,11 @@ public sealed class LocalSendProtocolMapperTests
     {
         var device = new LocalSendDeviceInfo
         {
-            Alias = "Test device", Fingerprint = "fingerprint", Port = 54321, Protocol = "https", IsBusy = true
+            Alias = "Test device",
+            Fingerprint = "fingerprint",
+            Port = 54321,
+            Protocol = "https",
+            IsBusy = true
         };
 
         var json = JsonSerializer.Serialize(LocalSendProtocolMapper.CreateInfo(device));

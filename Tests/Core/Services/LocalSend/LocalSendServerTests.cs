@@ -91,7 +91,10 @@ public sealed class LocalSendServerTests
                 {
                     ["file"] = new()
                     {
-                        Id = "file", FileName = "payload.bin", Size = 4, Sha256 = new string('0', 64)
+                        Id = "file",
+                        FileName = "payload.bin",
+                        Size = 4,
+                        Sha256 = new string('0', 64)
                     }
                 }
             };

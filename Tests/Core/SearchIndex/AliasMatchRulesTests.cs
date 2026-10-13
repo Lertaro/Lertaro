@@ -19,52 +19,35 @@ public sealed class AliasMatchRulesTests
     private const char Sep = (char)2;
 
     [TestMethod]
-    public void Alignment_AllowsTheStartOfTheAlias()
-    {
-        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, $"zheng{Sep}shu", 0));
-    }
+    public void Alignment_AllowsTheStartOfTheAlias() => Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, $"zheng{Sep}shu", 0));
 
     [TestMethod]
-    public void Alignment_AllowsAPositionRightAfterASeparator()
-    {
-        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, $"zheng{Sep}shu", 6));
-    }
+    public void Alignment_AllowsAPositionRightAfterASeparator() => Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, $"zheng{Sep}shu", 6));
 
     [TestMethod]
-    public void Alignment_RejectsAMidSyllableStart()
-    {
+    public void Alignment_RejectsAMidSyllableStart() =>
         // Index 3 is inside "zheng" -- matching there is what spliced xue+xi into "ex".
         Assert.IsFalse(AliasMatchRules.IsBoundaryAligned(Sep, $"zheng{Sep}shu", 3));
-    }
 
     [TestMethod]
-    public void Alignment_RejectsAMidSyllableStartInTheLastSyllable()
-    {
+    public void Alignment_RejectsAMidSyllableStartInTheLastSyllable() =>
         // Only the START of a match is constrained; a match may still run to the end (that is what keeps a
         // half-typed trailing syllable working), but it may not START inside a syllable.
         Assert.IsFalse(AliasMatchRules.IsBoundaryAligned(Sep, $"zheng{Sep}shu", 8));
-    }
 
     [TestMethod]
-    public void Alignment_FlatAliasIsAlignedEverywhere()
-    {
+    public void Alignment_FlatAliasIsAlignedEverywhere() =>
         // An alias with no separator is the per-character initials shape, where every position is a real
         // boundary -- "x" must be allowed to match the second character of "ex".
         Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, "ex", 1));
-    }
 
     [TestMethod]
-    public void Alignment_PolyphonicSegmentBoundaryCounts()
-    {
+    public void Alignment_PolyphonicSegmentBoundaryCounts() =>
         // A '|'-joined reading opens a fresh segment, so a match right after that character is aligned.
         Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, $"zhong{Sep}guo|zhong{Sep}hua|zhong", 10));
-    }
 
     [TestMethod]
-    public void Alignment_ProviderWithoutASeparatorIsNeverConstrained()
-    {
-        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned('\0', "anything", 3));
-    }
+    public void Alignment_ProviderWithoutASeparatorIsNeverConstrained() => Assert.IsTrue(AliasMatchRules.IsBoundaryAligned('\0', "anything", 3));
 
     [TestMethod]
     public void Alignment_Utf8TwinAgreesWithTheCharVersion()
@@ -87,18 +70,13 @@ public sealed class AliasMatchRulesTests
     }
 
     [TestMethod]
-    public void AllowsMatch_FuzzyTermIsExempt()
-    {
+    public void AllowsMatch_FuzzyTermIsExempt() =>
         // A fuzzy term asked for a loose match, so the operator the user typed would be contradicted by
         // applying the boundary rule.
         Assert.IsTrue(AliasMatchRules.AllowsMatch(precise: false, Sep, $"zheng{Sep}shu", 3));
-    }
 
     [TestMethod]
-    public void Tier_LiteralNameBeatsEveryAliasShape()
-    {
-        Assert.AreEqual(MatchRank.TierName, AliasMatchRules.TierFor(Sep, matchedName: true, $"zheng{Sep}shu"));
-    }
+    public void Tier_LiteralNameBeatsEveryAliasShape() => Assert.AreEqual(MatchRank.TierName, AliasMatchRules.TierFor(Sep, matchedName: true, $"zheng{Sep}shu"));
 
     [TestMethod]
     public void Tier_InitialsBeatFullReading()
@@ -109,11 +87,9 @@ public sealed class AliasMatchRulesTests
     }
 
     [TestMethod]
-    public void Tier_ProviderWithoutASeparatorIsScoredAsInitials()
-    {
+    public void Tier_ProviderWithoutASeparatorIsScoredAsInitials() =>
         // Nothing distinguishes its two shapes, so it cannot be ranked as a full reading.
         Assert.AreEqual(MatchRank.TierInitials, AliasMatchRules.TierFor('\0', matchedName: false, "whatever"));
-    }
 
     [TestMethod]
     public void Tier_LiteralBeatsInitialsBeatsFull()

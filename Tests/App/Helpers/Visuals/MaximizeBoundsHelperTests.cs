@@ -1,4 +1,3 @@
-using System.Windows;
 using Lertaro.App.Helpers.Visuals;
 
 namespace Lertaro.App.Tests.Helpers.Visuals;

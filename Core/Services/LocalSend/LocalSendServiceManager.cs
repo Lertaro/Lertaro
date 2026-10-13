@@ -1,4 +1,5 @@
 namespace Lertaro.Core.Services.LocalSend;
+
 using Lertaro.Core.Services.LocalSend.Models;
 
 public sealed class LocalSendServiceManager : IDisposable

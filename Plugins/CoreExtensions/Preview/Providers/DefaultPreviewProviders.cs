@@ -8,6 +8,7 @@ using System.Windows.Input;
 using Lertaro.PluginSdk.Services;
 using Lertaro.PluginSdk.Abstractions.Plugins.Preview;
 namespace Lertaro.Plugins.CoreExtensions.Preview.Providers;
+
 public class ImagePreviewProvider : IFilePreviewProvider
 {
     public string Name => TranslationService.Get("QuickLook_ImageProviderName");

@@ -1,5 +1,4 @@
 using Microsoft.Data.Sqlite;
-using System.Text;
 
 namespace Lertaro.Plugins.ContentSearch.Storage;
 

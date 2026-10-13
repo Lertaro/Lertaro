@@ -20,7 +20,9 @@ public sealed class PluginCustomPanelTests
         var panel = new UserControl { Content = editor };
         var container = new PluginConfigField
         {
-            Key = "MDict", LabelKey = "MDict", FieldType = containerType,
+            Key = "MDict",
+            LabelKey = "MDict",
+            FieldType = containerType,
             SubFields = [new PluginConfigField
             {
                 Key = "MDict.CustomPanel", LabelKey = "MDict", FieldType = ConfigFieldType.CustomControl,

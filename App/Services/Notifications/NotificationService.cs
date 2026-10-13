@@ -315,16 +315,13 @@ internal static class NotificationService
         }));
     }
 
-    private static void OnDisplaySettingsChanged(object? sender, EventArgs e)
-    {
-        Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
-        {
-            lock (_gate)
-            {
-                // A screen that goes away takes the card's chosen corner with it, so the drag is dropped and
-                // everything is re-anchored to what is left. Countdowns are untouched.
-                Windows.Reanchor();
-            }
-        }));
-    }
+    private static void OnDisplaySettingsChanged(object? sender, EventArgs e) => Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                                                                                      {
+                                                                                          lock (_gate)
+                                                                                          {
+                                                                                              // A screen that goes away takes the card's chosen corner with it, so the drag is dropped and
+                                                                                              // everything is re-anchored to what is left. Countdowns are untouched.
+                                                                                              Windows.Reanchor();
+                                                                                          }
+                                                                                      }));
 }

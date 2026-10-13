@@ -3,7 +3,6 @@ using Lertaro.Core.SearchIndex;
 using Lertaro.Core.Services.Plugin.DirectoryIndex;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services.AppWindow;
-using Lertaro.App.Services.Tray;
 using Lertaro.App.ViewModels.Settings.Plugins;
 namespace Lertaro.App.Services.Plugin;
 

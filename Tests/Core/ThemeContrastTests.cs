@@ -123,17 +123,17 @@ public sealed class ThemeContrastTests
         {
             var worst = double.MaxValue;
             foreach (var foreground in samples[foregroundKey])
-            foreach (var background in samples[backgroundKey])
-            foreach (var desktop in Desktops)
-            // A quick-search outer card can sit directly on the desktop; settings cards sit on ContentBg.
-            foreach (var behind in baseColors.Append(desktop))
-            {
-                var backdrop = background.Over(behind.Over(desktop));
-                var text = foreground.Over(backdrop);
-                var displayedText = (text with { A = opacity }).Over(desktop);
-                var displayedBackground = (backdrop with { A = opacity }).Over(desktop);
-                worst = Math.Min(worst, Contrast(displayedText, displayedBackground));
-            }
+                foreach (var background in samples[backgroundKey])
+                    foreach (var desktop in Desktops)
+                        // A quick-search outer card can sit directly on the desktop; settings cards sit on ContentBg.
+                        foreach (var behind in baseColors.Append(desktop))
+                        {
+                            var backdrop = background.Over(behind.Over(desktop));
+                            var text = foreground.Over(backdrop);
+                            var displayedText = (text with { A = opacity }).Over(desktop);
+                            var displayedBackground = (backdrop with { A = opacity }).Over(desktop);
+                            worst = Math.Min(worst, Contrast(displayedText, displayedBackground));
+                        }
             if (worst < minimum)
                 failures.Add($"{foregroundKey} on {backgroundKey}: {worst:F2}:1 (needs {minimum}:1)");
         }
@@ -165,11 +165,11 @@ public sealed class ThemeContrastTests
         if (stops.Length == 1)
             yield return stops[0] with { A = stops[0].A * opacity };
         for (var i = 1; i < stops.Length; i++)
-        for (var step = 0; step <= 32; step++)
-        {
-            var sample = stops[i - 1].Mix(stops[i], step / 32.0);
-            yield return sample with { A = sample.A * opacity };
-        }
+            for (var step = 0; step <= 32; step++)
+            {
+                var sample = stops[i - 1].Mix(stops[i], step / 32.0);
+                yield return sample with { A = sample.A * opacity };
+            }
     }
 
     private static Rgba Parse(string hex)

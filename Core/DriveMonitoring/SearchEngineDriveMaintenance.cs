@@ -1,6 +1,7 @@
 using Lertaro.Core.Indexer.Usn;
 using Lertaro.Core.IndexV2.Persistence;
 namespace Lertaro.Core.DriveMonitoring;
+
 internal sealed class SearchEngineDriveMaintenance
 {
     private static readonly string IndexCacheDir = LocalDriveCacheLocator.DefaultCacheDir;

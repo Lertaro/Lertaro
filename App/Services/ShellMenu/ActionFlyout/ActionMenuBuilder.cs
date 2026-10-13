@@ -6,6 +6,7 @@ using Lertaro.App.Helpers;
 using Lertaro.App.Services.PluginManagerCore;
 using Lertaro.App.ViewModels.Settings.Plugins;
 namespace Lertaro.App.Services.ShellMenu.ActionFlyout;
+
 internal static class ActionMenuBuilder
 {
     // Windows shell menu text carries an access-key mnemonic Lertaro's own hotkey system never wires

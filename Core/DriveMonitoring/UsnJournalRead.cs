@@ -38,7 +38,9 @@ internal static class UsnJournalRead
 
     internal static RequestV0 CreateV0(long startUsn, ulong journalId) => new()
     {
-        StartUsn = startUsn, ReasonMask = uint.MaxValue, UsnJournalId = journalId,
+        StartUsn = startUsn,
+        ReasonMask = uint.MaxValue,
+        UsnJournalId = journalId,
     };
 
     internal static bool Read(SafeFileHandle handle, long startUsn, ulong journalId, ushort version, byte[] output, out uint returned)
@@ -52,9 +54,12 @@ internal static class UsnJournalRead
 
         var v1 = new RequestV1
         {
-            StartUsn = startUsn, ReasonMask = uint.MaxValue, UsnJournalId = journalId,
+            StartUsn = startUsn,
+            ReasonMask = uint.MaxValue,
+            UsnJournalId = journalId,
             // V1 requests expose the 128-bit IDs required by ReFS records.
-            MinMajorVersion = version, MaxMajorVersion = version
+            MinMajorVersion = version,
+            MaxMajorVersion = version
         };
         return DeviceIoControl(handle, Win32Api.FSCTL_READ_USN_JOURNAL, ref v1, (uint)Marshal.SizeOf<RequestV1>(),
             output, (uint)output.Length, out returned, IntPtr.Zero);

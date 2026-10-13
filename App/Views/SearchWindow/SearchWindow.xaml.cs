@@ -19,6 +19,7 @@ using Lertaro.App.Services.Theme;
 using Lertaro.App.Services.ShellMenu.Presenter;
 using Lertaro.App.Helpers.Visuals;
 namespace Lertaro.App;
+
 public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentInset
 {
     private readonly SearchViewModel _viewModel;

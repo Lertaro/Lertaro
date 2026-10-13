@@ -22,10 +22,7 @@ public static class FlowSettingsTemplateStorage
             : JsonNode.Parse(text) as JsonObject ?? throw new InvalidDataException($"Invalid settings: {path}");
     }
 
-    public static void SaveSettings(string path, JsonObject obj)
-    {
-        FlowSettingsStorage.WriteJsonFile(path, obj.ToJsonString(JsonOptions));
-    }
+    public static void SaveSettings(string path, JsonObject obj) => FlowSettingsStorage.WriteJsonFile(path, obj.ToJsonString(JsonOptions));
 
     public static void EnsureDefaultSettings(string templateFilePath, string settingsJsonPath)
     {

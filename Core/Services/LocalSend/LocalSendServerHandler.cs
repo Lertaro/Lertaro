@@ -270,11 +270,11 @@ internal static class LocalSendServerHandler
             var ch = (char)buf[0];
             if (ch == '\n') break;
             if (ch != '\r')
-                {
-                    if (sb.Length >= MaxRequestLineBytes)
-                        throw new InvalidDataException("Request line exceeds the maximum allowed length.");
-                    sb.Append(ch);
-                }
+            {
+                if (sb.Length >= MaxRequestLineBytes)
+                    throw new InvalidDataException("Request line exceeds the maximum allowed length.");
+                sb.Append(ch);
+            }
         }
 
         return sb.ToString();

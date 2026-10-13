@@ -1,5 +1,4 @@
 using System.IO.Pipes;
-using Lertaro.Core.Services.HookLaunch;
 using Lertaro.Core.Services.Pipe;
 using Lertaro.Core.Services.Search;
 using Lertaro.Core.Wire;
@@ -133,8 +132,11 @@ internal static class UsnServicePipeRequestProcessor
                         : new PipeResponse { Kind = PipeResponseKind.Error, Message = "The service could not truncate its own log file" };
 
                 case SearchRequestId.GetServiceLog:
-                    return new PipeResponse { Kind = PipeResponseKind.ServiceLog,
-                        Message = string.Join('\n', Logger.ReadLogLines(Path.Combine(Logger.SharedDataDir, "logs", "service.log")).TakeLast(500)) };
+                    return new PipeResponse
+                    {
+                        Kind = PipeResponseKind.ServiceLog,
+                        Message = string.Join('\n', Logger.ReadLogLines(Path.Combine(Logger.SharedDataDir, "logs", "service.log")).TakeLast(500))
+                    };
 
                 case SearchRequestId.ClearPathCaches:
                     engine?.ClearPathCaches();
