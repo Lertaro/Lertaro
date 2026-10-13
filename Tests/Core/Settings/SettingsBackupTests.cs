@@ -333,6 +333,40 @@ public sealed class SettingsBackupTests
         Assert.AreEqual("{\"Theme\":\"previous\"}", File.ReadAllText(Path.Combine(target, "user-settings.json.bak.2")));
     }
 
+    // plugin-settings.json is a sidecar written alongside user-settings.json, so a profile predating it -- a
+    // 5.8.x user data folder, or one an external tool copied only the main file into -- has no such file.
+    // Reading it unconditionally failed the ENTIRE export with FileNotFoundException: the backup button and
+    // the settings-transfer restart both went through here.
+    [TestMethod]
+    public void Export_ProfileWithoutPluginSettings_OmitsThatEntryInsteadOfFailing()
+    {
+        var source = Folder("source");
+        File.WriteAllText(Path.Combine(source, "user-settings.json"), """{"Theme":"Dark"}""");
+        var zipPath = Path.Combine(_root, "export.zip");
+
+        var manifest = SettingsBackup.Export(source, zipPath, "1.0.0");
+
+        Assert.IsFalse(manifest.Files.Any(file => file.Path == PluginSettingsStore.FileName));
+        using var zip = ZipFile.OpenRead(zipPath);
+        Assert.IsNotNull(zip.GetEntry("user-settings.json"));
+        Assert.IsNull(zip.GetEntry(PluginSettingsStore.FileName));
+    }
+
+    [TestMethod]
+    public void Export_ProfileWithPluginSettings_StillCarriesThem()
+    {
+        var source = Folder("source");
+        Write(source, "user-settings.json", """{"PluginSettings":{"Bridge":{"Token":"keep"}}}""");
+        var zipPath = Path.Combine(_root, "export.zip");
+
+        var manifest = SettingsBackup.Export(source, zipPath, "1.0.0");
+
+        Assert.IsTrue(File.Exists(Path.Combine(source, PluginSettingsStore.FileName)));
+        Assert.IsTrue(manifest.Files.Any(file => file.Path == PluginSettingsStore.FileName));
+        using var zip = ZipFile.OpenRead(zipPath);
+        Assert.IsNotNull(zip.GetEntry(PluginSettingsStore.FileName));
+    }
+
     private string CreateArchive(Encoding encoding, string path, byte[] content)
     {
         var destination = Path.Combine(_root, Guid.NewGuid().ToString("N") + ".zip");

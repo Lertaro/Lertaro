@@ -65,6 +65,28 @@ internal sealed class SettingsBackupPaths : IDisposable
         return new FileStream(handle, FileAccess.Read);
     }
 
+    /// <summary>
+    /// Whether an entry exists, without turning "absent" into an exception.
+    /// </summary>
+    /// <remarks>
+    /// For callers whose file is genuinely optional: <c>plugin-settings.json</c> is written the first time any
+    /// plugin setting is saved, so a profile that has never saved one does not have it. Reading that
+    /// unconditionally turned every export of such a profile into a <see cref="FileNotFoundException"/> --
+    /// from the backup UI and from the settings-transfer restart alike.
+    /// </remarks>
+    public bool Exists(string relative)
+    {
+        try
+        {
+            using var input = Read(relative);
+            return true;
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+    }
+
     public IEnumerable<string> Files(string relativeDirectory)
     {
         var path = Resolve(relativeDirectory);
