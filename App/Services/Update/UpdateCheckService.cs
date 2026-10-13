@@ -1,5 +1,6 @@
 using System.Windows;
 using Lertaro.Core;
+using Lertaro.Core.Services.Update;
 using Application = System.Windows.Application;
 using MessageBox = Lertaro.App.Views.Controls.Dialogs.CustomMessageBox;
 
@@ -30,6 +31,9 @@ public static class UpdateCheckService
             // Delay slightly to ensure app is fully initialized and main window is up
             await Task.Delay(3000);
             var settings = UserSettings.Load();
+            // Before the check and outside its gate: a silent update that failed on the PREVIOUS run has to be
+            // reported whether or not this user wants release checks, and whether or not one is due.
+            ReportLastSilentUpdateAttempt(settings);
             if (!settings.AutoCheckUpdates)
                 return;
 
@@ -104,6 +108,53 @@ public static class UpdateCheckService
         {
             Logger.Log($"[App] Background startup update check failed: {ex.Message}", LogLevel.Warn);
         }
+    }
+
+    /// <summary>
+    /// Shows what the previous silent update said about itself, once.
+    /// </summary>
+    /// <remarks>
+    /// The updater script writes its verdict beside the installation and nothing read it, so an update that
+    /// died between the App exiting and the files being replaced looked exactly like nothing having happened
+    /// (issue #354: the App quit, waited, and was still the old version, with a lock file and a payload left
+    /// behind). Shown once per verdict rather than per launch, because the file cannot be deleted from here --
+    /// an installation directory is closed to Users for writing -- so the marker lives in user settings. The
+    /// marker is advanced before the dialog, so a crash while showing it does not repeat it forever.
+    /// </remarks>
+    private static void ReportLastSilentUpdateAttempt(UserSettings settings)
+    {
+        var result = UpdateResult.ReadIfPresent(AppContext.BaseDirectory);
+        if (result == null) return;
+
+        var shouldReport = ShouldReportFailure(result, settings.LastReportedUpdateResultUtcTicks, DateTimeOffset.UtcNow);
+        settings.LastReportedUpdateResultUtcTicks = Math.Max(settings.LastReportedUpdateResultUtcTicks, result.Time.UtcTicks);
+        _ = settings.Save();
+
+        if (!shouldReport) return;
+        Logger.Log($"[App] The last silent update reported '{result.Status}': {result.Message}", LogLevel.Warn);
+
+        var text = TranslationManager.Instance["About_Failed"] + "\n\n" + (result.Message ?? result.Status);
+        if (!string.IsNullOrWhiteSpace(result.RecoveryDirectory)) text += "\n" + result.RecoveryDirectory;
+        _ = Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+            MessageBox.Show(text, TranslationManager.Instance["About_CheckUpdate"], MessageBoxButton.OK, MessageBoxImage.Warning)));
+    }
+
+    /// <summary>
+    /// Whether a verdict is news for this user: a failure, not one already shown, and not so old that saying
+    /// it now would describe a different installation.
+    /// </summary>
+    /// <remarks>
+    /// A verdict dated in the future is skipped rather than treated as the newest thing ever seen, for the
+    /// same reason <see cref="UpdateRelaunchMarker"/> gives: a clock that moved backwards must not turn an old
+    /// note into a fresh one.
+    /// </remarks>
+    internal static bool ShouldReportFailure(UpdateResult? result, long lastReportedUtcTicks, DateTimeOffset now)
+    {
+        if (result == null || result.Succeeded) return false;
+        if (result.Time.UtcTicks <= lastReportedUtcTicks) return false;
+
+        var age = now - result.Time;
+        return age >= TimeSpan.Zero && age <= UpdateResult.FreshFor;
     }
 
     // A release tag ("v1.2.3") counts as newer only if it parses as a version strictly greater than
