@@ -82,7 +82,7 @@ public static class UpdateCheckService
                 if (await UpdateInstaller.Instance.StartSilentUpdateAsync(zipAsset.BrowserDownloadUrl, progress))
                 {
                     SilentUpdateState.Report(TranslationManager.Instance["About_Success"]);
-                    TrayCleanExitHelper.CleanExit();
+                    TrayCleanExitHelper.CleanExit(stopService: false);
                 }
                 else
                 {
