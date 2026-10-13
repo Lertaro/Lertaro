@@ -189,10 +189,15 @@ public class SearchService : IDisposable
                     // "current folder" case that used to sit with zero results until the entire subtree
                     // walk finished; streaming matches out as each directory is walked keeps the first,
                     // cold keystroke from looking frozen even though the underlying walk cost is unchanged.
+                    // KeepObserved because this task outlives whoever started it: a superseded query abandons
+                    // the WaitAsync below, and GetOrAdd may discard a factory result outright, so a walk that
+                    // faults afterwards -- the dead query's accumulator throwing its cancellation into
+                    // onLiveMatch, or the service's own token cancelling at Dispose -- can be left with no
+                    // waiter at all. Its finalizer then reports a routine superseded search as a crash.
                     var scanTask = _sessionDirectoryCache.GetOrAdd(liveScanDir,
                         dir => Task.Run(() => LiveDirectorySearcher.ScanDirectory(dir, 10000, cacheFillToken,
                             liveQuery: liveScanFilter, onLiveMatch: uniqueOnResult,
-                            onlyDirectChildren: onlyDirectChildren, parentPath: liveScanDir)));
+                            onlyDirectChildren: onlyDirectChildren, parentPath: liveScanDir)).KeepObserved());
                     List<SearchResult> entries;
                     try
                     {
