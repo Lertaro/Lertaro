@@ -106,16 +106,18 @@
 
                         <Popup x:Name="PART_Popup"
                                Placement="Bottom"
-                               AllowsTransparency="True"
                                Focusable="False"
-                               IsOpen="{TemplateBinding IsDropDownOpen}"
-                               PopupAnimation="Fade">
+                               IsOpen="{TemplateBinding IsDropDownOpen}">
+                            <!-- Opaque so the dropdown's own rows render ClearType like the rest of the
+                                 window (a layered popup cannot). Three things go with that, all of them
+                                 consequences of an opaque popup painting its uncovered client area black:
+                                 the painted corner (a radius leaves black wedges), the 4 DIP top margin that
+                                 made the list float below the box, and PopupAnimation, which WPF coerces to
+                                 None once the popup is not transparent. -->
                             <Border MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
-                                    Margin="0,4,0,0"
                                     Background="{DynamicResource MenuBackground}"
                                     BorderBrush="{DynamicResource MenuBorderBrush}"
                                     BorderThickness="1"
-                                    CornerRadius="7"
                                     SnapsToDevicePixels="True">
                                 <ScrollViewer MaxHeight="180" Padding="4">
                                     <ItemsPresenter/>

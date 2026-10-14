@@ -86,6 +86,9 @@ public partial class SettingsWindow : Window
         // to the whole monitor rather than its work area, so without this it covers the taskbar.
         MaximizeBoundsHelper.Attach(this);
         ThemedWindowIconHelper.Apply(this);
+        // The corners are the window's own shape now rather than a painting inside a transparent one.
+        // Windows 11 rounds the real window; older Windows keeps the painted radius above.
+        DwmWindowCorners.ApplyRound(this);
         ThemedWindowIconHelper.Apply(TitleBarLogo);
         var vm = new SettingsViewModel();
         DataContext = vm;
@@ -231,10 +234,9 @@ public partial class SettingsWindow : Window
     private void ToggleMaximize() =>
         WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
 
-    // Custom chrome draws its own rounded frame with a margin for the drop shadow. Maximized, both are
-    // wrong: the rounding leaves cut corners against the screen edge and the margin leaves a gap round
-    // the whole window, so they are flattened while maximized and restored afterwards. Mirrors the full
-    // search window's SearchWindowChromeHandler.HandleStateChanged.
+    // Custom chrome paints its own rounded frame. Maximized, that is wrong: the rounding leaves cut corners
+    // against the screen edge and the 1 DIP border is a line along it, so both are flattened while maximized
+    // and restored afterwards. Mirrors the full search window's SearchWindowChromeHandler.HandleStateChanged.
     private void Window_StateChanged(object sender, EventArgs e)
     {
         var maximized = WindowState == WindowState.Maximized;
@@ -242,7 +244,6 @@ public partial class SettingsWindow : Window
         BtnMaximize.Content = maximized ? "" : "";
 
         MainBorder.CornerRadius = maximized ? new CornerRadius(0) : new CornerRadius(10);
-        MainBorder.Margin = maximized ? new Thickness(0) : new Thickness(8);
         MainBorder.BorderThickness = new Thickness(maximized ? 0 : 1);
         ClippingBorder.CornerRadius = maximized ? new CornerRadius(0) : new CornerRadius(10);
     }
