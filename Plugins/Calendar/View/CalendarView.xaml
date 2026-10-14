@@ -137,7 +137,7 @@
                                         </Border>
 
                                         <TextBlock x:Name="SubLabel" Grid.Row="1" Text="{Binding SubLabel}"
-                                                   FontSize="12.5" Margin="0,1,0,0"
+                                                   FontSize="13" Margin="0,1,0,0"
                                                    HorizontalAlignment="Center"
                                                    Foreground="{DynamicResource TextSecondary}"/>
                                     </Grid>

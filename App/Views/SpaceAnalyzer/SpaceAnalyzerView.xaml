@@ -127,7 +127,7 @@
                         <StackPanel Orientation="Horizontal" Margin="10,0">
                             <TextBlock Text="&#xE74A;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="11" VerticalAlignment="Center" Margin="0,0,9,0"/>
                             <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Space_Parent]}"
-                                       FontSize="12.5" VerticalAlignment="Center"/>
+                                       FontSize="13" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                     <ListBox x:Name="ItemsList" Grid.Row="2" Background="Transparent" BorderThickness="0"
@@ -155,12 +155,12 @@
                                     </TextBlock>
                                     <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
                                                   Focusable="False" Background="Transparent">
-                                        <TextBlock Text="{Binding Name}" FontSize="12.5" VerticalAlignment="Center"
+                                        <TextBlock Text="{Binding Name}" FontSize="13" VerticalAlignment="Center"
                                                    Foreground="{DynamicResource TextPrimary}"
                                                    helpers:MarqueeBehavior.EnableMarquee="True"/>
                                     </ScrollViewer>
                                     <TextBlock Grid.Column="2" Text="{Binding DisplaySize}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                               Foreground="{DynamicResource TextSecondary}" FontSize="11.5" Margin="10,0,0,0"/>
+                                               Foreground="{DynamicResource TextSecondary}" FontSize="12" Margin="10,0,0,0"/>
                                     <ProgressBar Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Value="{Binding RelativePercentage}"
                                                  Minimum="0" Maximum="100" Height="3" Margin="0,6,0,0" BorderThickness="0"
                                                  Background="{DynamicResource ControlBorderBrush}" IsHitTestVisible="False"/>
@@ -175,9 +175,9 @@
         <Border Grid.Row="3" Background="{DynamicResource HeaderBg}" BorderBrush="{DynamicResource BorderColor}"
                 BorderThickness="0,1,0,0" Padding="20,9">
             <Grid>
-                <TextBlock x:Name="SummaryText" Foreground="{DynamicResource TextSecondary}" FontSize="11.5"/>
+                <TextBlock x:Name="SummaryText" Foreground="{DynamicResource TextSecondary}" FontSize="12"/>
                 <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Space_LogicalSize]}"
-                           HorizontalAlignment="Right" Foreground="{DynamicResource TextSecondary}" FontSize="11.5"/>
+                           HorizontalAlignment="Right" Foreground="{DynamicResource TextSecondary}" FontSize="12"/>
             </Grid>
         </Border>
     </Grid>

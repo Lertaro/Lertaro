@@ -14,7 +14,7 @@
     <Grid>
         <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="54"/></Grid.RowDefinitions>
         <Grid Grid.Row="0" Margin="16,14,16,12"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-            <Grid Margin="0,0,0,8"><TextBlock Text="{Binding SpeedText}" FontSize="11.5" Foreground="{DynamicResource AccentBlue}" FontWeight="SemiBold"/><TextBlock Text="{Binding ConfirmedCounterText}" FontSize="11.5" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Right"/></Grid>
+            <Grid Margin="0,0,0,8"><TextBlock Text="{Binding SpeedText}" FontSize="12" Foreground="{DynamicResource AccentBlue}" FontWeight="SemiBold"/><TextBlock Text="{Binding ConfirmedCounterText}" FontSize="12" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Right"/></Grid>
             <Border Grid.Row="1" Background="{DynamicResource FieldBackground}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="8">
                 <ListBox ItemsSource="{Binding TransferItems}" Background="Transparent" BorderThickness="0" Margin="4" Focusable="False" HorizontalContentAlignment="Stretch" ItemContainerStyle="{StaticResource LocalSendProgressListBoxItemStyle}" ItemTemplate="{StaticResource LocalSendProgressFileItemTemplate}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.CanContentScroll="True" converters:ScrollViewerHelper.AlwaysShowScrollBarWhenNeeded="True"/>
             </Border>

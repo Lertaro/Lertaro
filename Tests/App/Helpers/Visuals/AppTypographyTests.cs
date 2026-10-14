@@ -207,4 +207,26 @@ public sealed class AppTypographyTests
             root.Close();
         }
     }
+
+    // Section 四's font-size ladder. The cases that matter are the three ends of it: a computed size
+    // between two rungs (rounded up, because the computed size is the smallest the text stays legible at),
+    // a size below the first rung (a deliberate floor, only made whole -- rounding it up to 12 would
+    // enlarge the path text of a scaled-down row), and a size past the top (nothing to round up to).
+    [TestMethod]
+    [DataRow(12.0, 12.0, DisplayName = "on a rung stays there")]
+    [DataRow(12.8, 14.0, DisplayName = "just over the first rung rounds up")]
+    [DataRow(13.2, 14.0, DisplayName = "between two rungs rounds up")]
+    [DataRow(17.6, 18.0, DisplayName = "seventeen and a half is eighteen")]
+    [DataRow(24.0, 24.0, DisplayName = "a mid rung is kept")]
+    [DataRow(28.1, 32.0, DisplayName = "past the second to last rung")]
+    [DataRow(36.0, 36.0, DisplayName = "the top rung is kept")]
+    [DataRow(9.0, 9.0, DisplayName = "the scaled path text floor is untouched")]
+    [DataRow(11.5, 12.0, DisplayName = "below the ladder is only made whole")]
+    [DataRow(37.4, 37.0, DisplayName = "past the top there is only a whole number")]
+    public void SnapFontSizePutsAComputedSizeOnTheLadder(double computed, double expected) =>
+        Assert.AreEqual(expected, AppTypography.SnapFontSize(computed), 0.001);
+
+    [TestMethod]
+    public void SnapFontSizeLeavesAnUnsetSizeAlone() =>
+        Assert.IsTrue(double.IsNaN(AppTypography.SnapFontSize(double.NaN)), "a NaN size (an unset FontSize) must stay NaN rather than become a number");
 }

@@ -82,9 +82,11 @@ public class ActionMenuItem : INotifyPropertyChanged
     // UiMetrics.BaseResultIconSize, so using Scale here left action text/icons visibly smaller than
     // the result row text sitting right next to them once the two diverged.
     public double ScaledIconSize => Math.Round(BaseIconSize * Services.UiMetrics.IconRelativeFontScale);
-    public double ScaledTextFontSize => Math.Round(BaseTextFontSize * Services.UiMetrics.IconRelativeFontScale);
-    public double ScaledSectionFontSize => Math.Round(BaseSectionFontSize * Services.UiMetrics.IconRelativeFontScale);
-    public double ScaledShortcutFontSize => Math.Round(BaseShortcutFontSize * Services.UiMetrics.IconRelativeFontScale);
+    // Onto the font-size ladder where the icon scale pushes a size past its base: these ride the same
+    // scaling factor as the result rows, so they can land on a fractional size for the same reason.
+    public double ScaledTextFontSize => Services.AppTypography.SnapFontSize(BaseTextFontSize * Services.UiMetrics.IconRelativeFontScale);
+    public double ScaledSectionFontSize => Services.AppTypography.SnapFontSize(BaseSectionFontSize * Services.UiMetrics.IconRelativeFontScale);
+    public double ScaledShortcutFontSize => Services.AppTypography.SnapFontSize(BaseShortcutFontSize * Services.UiMetrics.IconRelativeFontScale);
 
     public bool IsNormalItem => !IsSeparator && !IsSectionHeader;
 

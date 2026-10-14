@@ -150,7 +150,11 @@ public partial class SearchBoxControl : UserControl
         // below the single line of text -- raising the ratio (and shrinking vertical padding below to
         // match, so the bigger text still fits) is what actually closes that gap; padding alone can't,
         // since content is vertically centered and just absorbs whatever padding leaves behind.
-        FontSize = Math.Clamp(height * 0.4, 12.0, 36.0);
+        //
+        // Snapped onto the font-size ladder (section 四): 0.4 of an arbitrary bar height lands on a
+        // fractional size more often than not, and the app renders with Display metrics, which snap glyph
+        // advances to whole pixels -- a fractional size turns that into visibly uneven letter spacing.
+        FontSize = Services.AppTypography.SnapFontSize(Math.Clamp(height * 0.4, 12.0, 36.0));
 
         // Vertical Padding:
         // Keep horizontal padding fixed at 21, scale vertical padding dynamically (e.g. 70px -> 7px, 50px -> 5px)
