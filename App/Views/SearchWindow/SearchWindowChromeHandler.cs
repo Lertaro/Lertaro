@@ -46,8 +46,11 @@ public class SearchWindowChromeHandler
             }
             else
             {
+                // No halo in the normal state either: the window is opaque and IS the card, so a margin
+                // here would only inset the visible card inside its own window rectangle (which is what
+                // the transparent window used it for).
                 _window.MainBorder.CornerRadius = new CornerRadius(10);
-                _window.MainBorder.Margin = new Thickness(8);
+                _window.MainBorder.Margin = new Thickness(0);
                 _window.MainBorder.BorderThickness = new Thickness(1);
                 _window.ClippingBorder.CornerRadius = new CornerRadius(10);
             }

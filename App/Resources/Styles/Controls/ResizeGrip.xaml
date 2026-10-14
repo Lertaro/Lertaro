@@ -1,13 +1,13 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- How far the drawing sits from the window's bottom-right corner. The default clears the 8 DIP
-         transparent margin that most of these windows leave around their visible card by 2 DIP, which is
-         what puts the lines just inside the card; a window whose corner is further in overrides this in its
-         own resources (see QuickLookWindow and the two LocalSend windows). A DynamicResource rather than a
-         StaticResource, so that per-window override wins: a template's own dictionary would resolve a
-         static lookup to this value before the window ever got a say. -->
-    <Thickness x:Key="ResizeGripInset">4,4,10,10</Thickness>
+    <!-- How far the drawing sits from the window's bottom-right corner. These windows are opaque and their
+         window rectangle IS the visible card, so the lines belong a couple of DIP inside the real corner;
+         the inset used to clear an 8 DIP transparent halo that no longer exists. A window whose corner is
+         further in overrides this in its own resources (see QuickLookWindow and the two LocalSend windows).
+         A DynamicResource rather than a StaticResource, so that per-window override wins: a template's own
+         dictionary would resolve a static lookup to this value before the window ever got a say. -->
+    <Thickness x:Key="ResizeGripInset">2,2,4,4</Thickness>
 
     <!-- The resize grip WPF draws for ResizeMode="CanResizeWithGrip", restyled.
 
