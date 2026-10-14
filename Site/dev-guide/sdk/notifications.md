@@ -81,7 +81,7 @@ The name printed on the card comes from `Assembly.GetCallingAssembly()`, read in
 - **Stack order**: bottom-right, ordered by arrival sequence; cards above a removed one re-slide (the only animation, ~200 ms with a 40 DIP entry drop).
 - **Size**: a card is at most half the work area tall (`min(260 DIP, 50 %)`), so a long message cannot eat a small monitor.
 - **Drag**: a card is draggable by its title bar only, and a dragged card keeps its own corner. A display-settings change re-anchors the stack, which drops a user's drag — the cheaper trade than keeping a card off-screen.
-- **Surface kind**: decided once, at construction, from the active theme's `WindowOpacity`. A fully opaque theme gets a plain window whose corners are rounded by the window manager, which keeps ClearType; a translucent theme gets a layered window whose corner has to be painted and clipped instead. A card shown across a theme switch therefore keeps whichever kind it started as until it goes away.
+- **Surface kind**: opaque, always. A card is its own window, so the window manager rounds its corners and the text renders with ClearType. The theme's `WindowOpacity` no longer selects the window kind, and no code applies it.
 - **Topmost** is always on, and the windows are excluded from Alt+Tab (`WS_EX_TOOLWINDOW`). Notifications do not fade: nothing animates `Window.Opacity`, because that would cost ClearType and a per-pixel composite on every frame. The arrival marker is a rim flash inside an already-opaque window (~750 ms).
 
 ## 9. Threading and Lifecycle

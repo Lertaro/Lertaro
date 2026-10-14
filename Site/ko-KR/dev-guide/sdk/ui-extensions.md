@@ -203,11 +203,10 @@ public interface ITheme
     bool IsDark { get; }
     ResourceDictionary GetResources();
 
-    // 1.0 미만에서는 호스트의 레이어드 서피스 헬퍼로 만들어진 창이 모서리를 직접 그리고
-    // 클리핑해야 하는 레이어드 반투명 창이 되고, 1.0에서는 불투명으로 남아 창 관리자가
-    // 모서리를 둥글게 처리하며 ClearType이 유지된다. 이 선택은 생성자에서 한 번 이루어지는데,
-    // 핸들이 만들어진 뒤에는 AllowsTransparency를 바꿀 수 없기 때문이다. 현재는 알림 창에
-    // 적용되며, 창이 화면에 떠 있는 동안 테마가 바뀌어도 창은 다시 만들어지지 않는다.
+    // 어떤 창에도 적용되지 않는다. AllowsTransparency가 설정된 창은 레이어드 창이고,
+    // 레이어드 창은 ClearType을 그릴 수 없으므로 이 앱의 창은 모두 불투명하며 어떤 테마의
+    // 불투명도도 읽지 않는다. 테마가 구현하고 있으므로 멤버는 남겨 두지만 값은 무시된다.
+    [Obsolete("Window transparency is no longer supported; this value is ignored.")]
     double WindowOpacity => 1.0;
 }
 ```
