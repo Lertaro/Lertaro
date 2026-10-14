@@ -193,6 +193,8 @@ Four things are worth knowing:
 - **Slashes delimit clauses and backslashes escape characters.** Write a literal dot as `\.` and a literal slash as `\/`. A clause must be a complete word ending in an unescaped `/`. An unescaped slash inside it makes the entire word path text. Thus `C:/Users/me`, `/mnt/c/Users`, and `/usr/local/` remain paths. An unclosed clause also remains ordinary text.
 - **Regex prefiltering extracts only literals proven necessary.** `/\.exe$/` provides `.exe`; `/^(ogg|mp3)$/` has no required literal. Complex escapes, extended whitespace mode, comments, class subtraction, and long expressions skip this optimization to avoid losing valid results. Add an ordinary term to narrow candidates. The engine prefers non-backtracking matching; expressions needing backtracking have a 250 ms budget per candidate, and timed-out candidates are skipped.
 
+Clauses ignore case by default. To match case exactly, write `(?-i)` at the start of the expression. `/(?-i)Report/` matches `Report` and leaves `report` and `REPORT` out. An inline option applies from the position where it is written, and `(?i)` resumes case folding.
+
 In the full search window, path queries containing regex clauses retain at most 8,000 matches and discard later results. The count shows “Regex result limit exceeded” only after an 8,001st match is found. Sorting and subsequent filters apply to the retained results. Ordinary fuzzy searches and regex searches without a path do not use this limit. A regex match timeout still skips that candidate without terminating the whole query; users can cancel the search.
 
 ## 4. Path Mode & Drive Scoping
