@@ -15,8 +15,12 @@ namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 // is given.
 internal sealed class InlineCardSizingSupport
 {
-    // The window's own transparent margin around the card (MainBorder's Margin in the XAML).
-    private const double CardMargin = 12;
+    // The window's own margin around the card, which used to be the transparent room it reserved for a
+    // shadow (MainBorder's Margin in the XAML). The window is opaque now, so there is no room to reserve:
+    // the card IS the window. Kept as a named zero rather than deleted because the shell height, the full
+    // card height and the card's content width are all derived from it in both directions, and this is the
+    // one place that says how much of the window is not card.
+    private const double CardMargin = 0;
 
     private readonly Lertaro.App.InlineSearchWindow _window;
     private int? _searchAreaRows;

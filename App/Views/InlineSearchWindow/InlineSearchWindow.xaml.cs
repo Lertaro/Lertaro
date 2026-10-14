@@ -53,6 +53,10 @@ public partial class InlineSearchWindow : Window, ISearchWindow
         InitializeComponent();
         ThemedWindowIconHelper.Apply(this);
         SystemMenuBlocker.Attach(this);
+        // The card is the window, so its corners are the window's own shape rather than a painting inside
+        // a transparent one. Windows 11 rounds the real window; older Windows keeps the painted radius
+        // ApplyLayoutMode maintains.
+        DwmWindowCorners.ApplyRound(this);
         _viewModel = viewModel;
         _manager = manager;
         this.DataContext = _viewModel;

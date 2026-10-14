@@ -39,6 +39,13 @@ internal sealed class InlineSearchWindowCreationSupport
         _manager.MouseHook.Start();
 
         new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
+        // Sized before it is shown, not from its Loaded handler like every later pass: the window is opaque
+        // now, so the card's height has to be the window's height before the first frame or the frame that
+        // goes up is the XAML's own 550 DIP with a small card pinned inside one edge of it -- a slab where
+        // the transparent window used to show nothing. ApplyCardHeight is safe this early by its own
+        // measurement comment (it charges the search bar and banner at their natural sizes until WPF has
+        // arranged them).
+        window.CardSizing.ApplyCardHeight();
         window.Positioner.PositionWindowImmediate();
         window.Show();
         window.ViewModel.EnsureServiceMonitoringActive();
