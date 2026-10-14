@@ -13,7 +13,7 @@ public partial class NotificationNoticeWindow : Window
     public NotificationNoticeWindow()
     {
         InitializeComponent();
-        LayeredSurface.Apply(this, Surface);
+        WindowSurface.Apply(this, Surface);
     }
 
     /// <summary>The widest the line may get, in DIP: a third of the work area, past which the text ellipsizes.</summary>

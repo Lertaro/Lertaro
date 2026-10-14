@@ -33,8 +33,9 @@ public partial class NotificationCardWindow : Window
     public NotificationCardWindow()
     {
         InitializeComponent();
-        // Chosen here because the theme decides the window kind and that choice is frozen with the handle.
-        LayeredSurface.Apply(this, Surface);
+        // The window kind is fixed for the life of the handle, so it is declared opaque in XAML and the
+        // surface only supplies the corners.
+        WindowSurface.Apply(this, Surface);
     }
 
     public void SetContent(NotificationRequest request, string sourceName)
