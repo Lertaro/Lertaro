@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Lertaro.Core.IndexV2.Space;
 using Lertaro.Core.Services.Search;
 
 namespace Lertaro.Core.Services.Everything;
@@ -37,7 +38,10 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
         string folderPath, EverythingQueryRequest request, CancellationToken token)
     {
         var normalizedPath = NormalizeDirectory(folderPath);
-        var spaceEntries = await _searchService.GetSpaceEntriesAsync(normalizedPath, token).ConfigureAwait(false);
+        // IncludeSystemItems: hiding System-flagged children is the space view's disk-browser convenience,
+        // but here it silently shrinks the reported total of every system folder.
+        var spaceEntries = await _searchService.GetSpaceEntriesAsync(normalizedPath, token,
+            SpaceEntryFilters.IncludeSystemItems).ConfigureAwait(false);
         if (spaceEntries.Count == 0)
         {
             return new EverythingQueryResult(Array.Empty<EverythingResultItem>(), 0, 0, 0);
@@ -100,14 +104,17 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
         EverythingSearchCriteria criteria, EverythingQueryRequest request, CancellationToken token)
     {
         var parentDir = NormalizeDirectory(criteria.ParentDirectoryFilter ?? string.Empty);
-        var spaceEntries = await _searchService.GetSpaceEntriesAsync(parentDir, token).ConfigureAwait(false);
+        // Pushed into the index walk rather than filtered here: a System32 panel asks for a few hundred
+        // directories out of a directory that holds thousands of rows, and every row that survives costs
+        // a path rebuild, a recursive size and a caller-permission open.
+        var filters = SpaceEntryFilters.IncludeSystemItems
+            | (criteria.MatchFoldersOnly ? SpaceEntryFilters.DirectoriesOnly : SpaceEntryFilters.None)
+            | (criteria.MatchFilesOnly ? SpaceEntryFilters.FilesOnly : SpaceEntryFilters.None);
+        var spaceEntries = await _searchService.GetSpaceEntriesAsync(parentDir, token, filters).ConfigureAwait(false);
 
         var items = new List<EverythingResultItem>(spaceEntries.Count);
         foreach (var entry in spaceEntries)
         {
-            if (criteria.MatchFoldersOnly && !entry.IsDirectory) continue;
-            if (criteria.MatchFilesOnly && entry.IsDirectory) continue;
-
             if (!string.IsNullOrEmpty(criteria.KeywordQuery) &&
                 !entry.Name.Contains(criteria.KeywordQuery, StringComparison.OrdinalIgnoreCase))
                 continue;

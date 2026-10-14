@@ -1,3 +1,5 @@
+using Lertaro.Core.IndexV2.Space;
+
 namespace Lertaro.Core.Wire;
 
 public enum SearchRequestId : byte
@@ -55,6 +57,10 @@ public struct SearchRequestMessage
     public string? DirectoryFilter { get; set; }
     // Drive maintenance: drive key. GetSpaceEntries: null/empty for roots, otherwise a directory path.
     public string? Drive { get; set; }
+    // GetSpaceEntries: which children the caller wants, applied inside the index walk so rows that are
+    // not wanted never pay a path rebuild, a recursive size or a permission open. Default (None) is the
+    // historical unfiltered space view.
+    public SpaceEntryFilters SpaceOptions { get; set; }
     public MachineSettings? MachineSettings { get; set; }
     public List<string>? DisabledAliasComponents { get; set; }
     public List<string>? FilePaths { get; set; }

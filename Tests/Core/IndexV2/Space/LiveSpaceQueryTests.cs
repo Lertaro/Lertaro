@@ -244,6 +244,57 @@ public sealed class LiveSpaceQueryTests
         }
     }
 
+    [TestMethod]
+    public void GetEntries_DirectoriesOnlyAndFilesOnly_NeverBuildRejectedRows()
+    {
+        using var fixture = BuildSample();
+        var checkedPaths = new List<string>();
+        bool Visible(string path) { checkedPaths.Add(path); return true; }
+
+        var directories = LiveSpaceQuery.GetEntries(fixture.Index, @"C:\Projects", Visible, SpaceEntryFilters.DirectoriesOnly).Entries;
+        CollectionAssert.AreEqual(new[] { @"C:\Projects\", @"C:\Projects\App" }, checkedPaths);
+        CollectionAssert.AreEqual(new[] { "App" }, directories.Select(entry => entry.Name).ToArray());
+        Assert.AreEqual(300, directories[0].Size);
+
+        checkedPaths.Clear();
+        var files = LiveSpaceQuery.GetEntries(fixture.Index, @"C:\Projects", Visible, SpaceEntryFilters.FilesOnly).Entries;
+        CollectionAssert.AreEqual(new[] { @"C:\Projects\", @"C:\Projects\readme.md" }, checkedPaths);
+        CollectionAssert.AreEqual(new[] { "readme.md" }, files.Select(entry => entry.Name).ToArray());
+    }
+
+    [TestMethod]
+    public void GetEntries_IncludeSystemItems_ReturnsTheSystemChildrenTheSpaceViewHides()
+    {
+        using var fixture = LiveIndexFixture.Build("C", new[]
+        {
+            LiveIndexFixture.Root(),
+            new FileRecord(2, 1, "visible.txt", FileRecordFlags.None, 100),
+            new FileRecord(5, 1, "system.txt", FileRecordFlags.System, 300),
+            new FileRecord(6, 1, "system-folder", FileRecordFlags.Directory | FileRecordFlags.System),
+        });
+
+        var hidden = LiveSpaceQuery.GetEntries(fixture.Index, @"C:\").Entries.Select(entry => entry.Name).ToArray();
+        CollectionAssert.AreEqual(new[] { "visible.txt" }, hidden);
+
+        var all = LiveSpaceQuery.GetEntries(fixture.Index, @"C:\", null, SpaceEntryFilters.IncludeSystemItems).Entries
+            .Select(entry => entry.Name).ToArray();
+        CollectionAssert.AreEquivalent(new[] { "visible.txt", "system.txt", "system-folder" }, all);
+    }
+
+    [TestMethod]
+    public void GetEntries_KeepsOneCachedRowSetPerFilterSet()
+    {
+        using var fixture = BuildSample();
+
+        var directories = LiveSpaceQuery.GetEntries(fixture.Index, @"C:\Projects", null, SpaceEntryFilters.DirectoriesOnly).Entries;
+        var everything = LiveSpaceQuery.GetEntries(fixture.Index, @"C:\Projects").Entries;
+        var directoriesAgain = LiveSpaceQuery.GetEntries(fixture.Index, @"C:\Projects", null, SpaceEntryFilters.DirectoriesOnly).Entries;
+
+        CollectionAssert.AreEqual(new[] { "App" }, directories.Select(entry => entry.Name).ToArray());
+        CollectionAssert.AreEqual(new[] { "App", "readme.md" }, everything.Select(entry => entry.Name).ToArray());
+        CollectionAssert.AreEqual(new[] { "App" }, directoriesAgain.Select(entry => entry.Name).ToArray());
+    }
+
     private static LiveIndexFixture BuildSample() => LiveIndexFixture.Build("C", new[]
     {
         LiveIndexFixture.Root(),

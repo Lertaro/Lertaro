@@ -208,13 +208,13 @@ internal sealed class NetworkIndex : IDisposable
         }
     }
 
-    internal SpaceQueryResult GetSpaceEntries(string? directory)
+    internal SpaceQueryResult GetSpaceEntries(string? directory, SpaceEntryFilters filters = SpaceEntryFilters.None)
     {
         if (_live == null)
             return SpaceQueryResult.NotFound;
         try
         {
-            return LiveSpaceQuery.GetEntries(_live, directory);
+            return LiveSpaceQuery.GetEntries(_live, directory, null, filters);
         }
         catch (ObjectDisposedException)
         {

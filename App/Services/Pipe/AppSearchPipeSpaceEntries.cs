@@ -1,5 +1,6 @@
 using System.IO;
 using Lertaro.Core;
+using Lertaro.Core.IndexV2.Space;
 using Lertaro.Core.Services.Search;
 using Lertaro.Core.Wire;
 
@@ -8,11 +9,12 @@ namespace Lertaro.App.Services.Pipe;
 // Split from AppSearchPipeService solely to keep it within the repository's per-file line limit.
 internal static class AppSearchPipeSpaceEntries
 {
-    public static async Task WriteAsync(SearchService searchService, string? directory, Stream pipe)
+    public static async Task WriteAsync(SearchService searchService, string? directory, Stream pipe,
+        SpaceEntryFilters filters = SpaceEntryFilters.None)
     {
         try
         {
-            var entries = await searchService.GetSpaceEntriesAsync(directory).ConfigureAwait(false);
+            var entries = await searchService.GetSpaceEntriesAsync(directory, default, filters).ConfigureAwait(false);
             await PipeResponseBinarySerializer.WriteSpaceEntriesAsync(pipe, entries).ConfigureAwait(false);
         }
         catch (Exception ex)

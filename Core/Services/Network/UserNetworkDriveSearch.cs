@@ -48,5 +48,6 @@ public static class UserNetworkDriveSearch
         => NetworkIndexer.EnumerateDirectory(path, recursive, Plugin.DirectoryIndex.FilterPatternHelper.SplitOrNullIfMatchAll(filterPattern), limit, onResult, token);
 
     public static List<SearchResult> GetRecentFiles(IReadOnlyList<string> directories, int limit, int maxAgeMinutes) => NetworkIndexer.GetRecentFiles(directories, limit, maxAgeMinutes);
-    internal static List<SpaceIndexEntry> GetSpaceEntries(string? directory) => NetworkIndexer.GetSpaceEntries(directory);
+    internal static List<SpaceIndexEntry> GetSpaceEntries(string? directory, SpaceEntryFilters filters = SpaceEntryFilters.None)
+        => NetworkIndexer.GetSpaceEntries(directory, filters);
 }

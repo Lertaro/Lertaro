@@ -8,13 +8,15 @@ namespace Lertaro.Core.Services.Search;
 public static class SearchServiceSpaceExtensions
 {
     public static async Task<IReadOnlyList<SpaceIndexEntry>> GetSpaceEntriesAsync(
-        this SearchService service, string? directory, CancellationToken token = default)
+        this SearchService service, string? directory, CancellationToken token = default,
+        SpaceEntryFilters filters = SpaceEntryFilters.None)
     {
-        var networkTask = Task.Run(() => GetNetworkSpaceEntries(directory), token);
+        var networkTask = Task.Run(() => GetNetworkSpaceEntries(directory, filters), token);
         var response = await service.SendPipeCommandAsync(new SearchRequestMessage
         {
             Id = SearchRequestId.GetSpaceEntries,
-            Drive = directory ?? string.Empty
+            Drive = directory ?? string.Empty,
+            SpaceOptions = filters
         }, token).ConfigureAwait(false);
 
         var network = await networkTask.ConfigureAwait(false);
@@ -32,16 +34,16 @@ public static class SearchServiceSpaceExtensions
             .ToList();
     }
 
-    private static IReadOnlyList<SpaceIndexEntry> GetNetworkSpaceEntries(string? directory)
+    private static IReadOnlyList<SpaceIndexEntry> GetNetworkSpaceEntries(string? directory, SpaceEntryFilters filters)
     {
         if (string.IsNullOrWhiteSpace(directory))
-            return UserNetworkDriveSearch.GetSpaceEntries(directory);
+            return UserNetworkDriveSearch.GetSpaceEntries(directory, filters);
 
         // Directory Opus can report a mapped share as either its drive-letter spelling or its UNC
         // spelling. Network indexes retain the spelling used when they were configured, so try both
         // forms against the in-memory indexes before declaring the directory empty.
         return IndexedPathSpelling.IndexSpellings(directory)
-            .SelectMany(UserNetworkDriveSearch.GetSpaceEntries)
+            .SelectMany(spelling => UserNetworkDriveSearch.GetSpaceEntries(spelling, filters))
             .GroupBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .ToList();

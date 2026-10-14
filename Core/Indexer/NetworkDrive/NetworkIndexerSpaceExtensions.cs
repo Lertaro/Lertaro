@@ -5,7 +5,8 @@ namespace Lertaro.Core.Indexer.NetworkDrive;
 /// <summary>Queries network/WSL/folder indexes already loaded in the App process.</summary>
 internal static class NetworkIndexerSpaceExtensions
 {
-    public static List<SpaceIndexEntry> GetSpaceEntries(this NetworkIndexer indexer, string? directory)
+    public static List<SpaceIndexEntry> GetSpaceEntries(this NetworkIndexer indexer, string? directory,
+        SpaceEntryFilters filters = SpaceEntryFilters.None)
     {
         indexer.EnsureConfigured();
 
@@ -16,7 +17,7 @@ internal static class NetworkIndexerSpaceExtensions
         var result = new List<SpaceIndexEntry>();
         foreach (var index in indexes)
         {
-            var query = index.GetSpaceEntries(directory);
+            var query = index.GetSpaceEntries(directory, filters);
             if (!query.Found)
                 continue;
             result.AddRange(query.Entries);
