@@ -94,25 +94,10 @@ public class ThemeManager
                 var appResources = System.Windows.Application.Current.Resources;
                 appResources.MergedDictionaries.Add(newDict);
                 _activeThemeDictionary = newDict;
-
-                foreach (Window window in System.Windows.Application.Current.Windows)
-                {
-                    WindowEffectHelper.ApplyThemeEffects(window, theme);
-                }
                 ThemeChanged?.Invoke();
             }
             else
             {
-                // Fade-out transition
-                foreach (Window window in System.Windows.Application.Current.Windows)
-                {
-                    if (window.Content is UIElement content)
-                    {
-                        var fadeOut = new System.Windows.Media.Animation.DoubleAnimation(0.1, TimeSpan.FromMilliseconds(120));
-                        content.BeginAnimation(UIElement.OpacityProperty, fadeOut);
-                    }
-                }
-
                 // Swap dictionaries and Fade-in transition
                 Task.Run(async () =>
                 {
@@ -127,17 +112,6 @@ public class ThemeManager
 
                         appResources.MergedDictionaries.Add(newDict);
                         _activeThemeDictionary = newDict;
-
-                        foreach (Window window in System.Windows.Application.Current.Windows)
-                        {
-                            WindowEffectHelper.ApplyThemeEffects(window, theme);
-                            if (window.Content is UIElement content)
-                            {
-                                var targetOpacity = theme.WindowOpacity;
-                                var fadeIn = new System.Windows.Media.Animation.DoubleAnimation(targetOpacity, TimeSpan.FromMilliseconds(180));
-                                content.BeginAnimation(UIElement.OpacityProperty, fadeIn);
-                            }
-                        }
                         ThemeChanged?.Invoke();
                     });
                 });
