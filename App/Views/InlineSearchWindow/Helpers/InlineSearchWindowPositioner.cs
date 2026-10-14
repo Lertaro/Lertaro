@@ -176,9 +176,12 @@ public class InlineSearchWindowPositioner
             return;
         }
 
-        // The window's own transparent margin, paid back wherever the card's VISIBLE edge is meant to meet
-        // an edge. There is no second inset: the card is its own visible boundary.
-        const double xamlMargin = 12;
+        // The window's own margin, paid back wherever the card's VISIBLE edge is meant to meet an edge. It
+        // is zero now: the window is opaque and the card is the whole of it (InlineCardSizingSupport sizes
+        // the window to the card), so the window's own edge already is the visible one. The parameter is
+        // still threaded through the two placement functions below because they are pure geometry with
+        // their own tests, and the margin is genuinely a property of the window rather than of the math.
+        const double xamlMargin = 0;
 
         // Whether the space under the anchored window can hold the WHOLE card. Asked of the tallest the card
         // can ever be (InlineCardSizingSupport.FullCardHeight), never of the height it happens to have: the
@@ -305,9 +308,13 @@ public class InlineSearchWindowPositioner
             // Windows both at once removes the frame where they disagree. SWP_NOZORDER/NOACTIVATE keep the
             // rest of the window's state untouched, and this only ever runs from the layout path that has
             // just set Height/Left/Top, so the values are the ones WPF is about to render anyway.
+            //
+            // The two sizes are the locals above rather than _window.Width/Height: a card whose height has
+            // not been applied yet reports NaN there, and NaN in a SetWindowPos height is a zero-height
+            // window.
             InlineSearchWindowNativeMethods.SetWindowPos(hwnd, IntPtr.Zero,
                 (int)Math.Round(targetPhysLeft), (int)Math.Round(targetPhysTop),
-                (int)Math.Round(_window.Width * targetDpiScaleX), (int)Math.Round(_window.Height * targetDpiScaleY),
+                (int)Math.Round(windowWidth * targetDpiScaleX), (int)Math.Round(windowHeight * targetDpiScaleY),
                 InlineSearchWindowNativeMethods.SWP_NOZORDER | InlineSearchWindowNativeMethods.SWP_NOACTIVATE);
         }
 

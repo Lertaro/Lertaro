@@ -8,18 +8,21 @@
         Width="465" Height="550" SizeToContent="Manual"
         WindowStyle="None"
         ResizeMode="NoResize"
-        AllowsTransparency="True"
-        Background="Transparent"
+        Background="{DynamicResource CardBackground}"
         TextElement.Foreground="{DynamicResource TextPrimary}"
         ShowInTaskbar="False"
         Topmost="True"
         WindowStartupLocation="Manual"
         Focusable="True"
         ShowActivated="False">
-    <!-- Outer Grid to support bottom/top alignment of the visible panel inside the transparent window -->
+    <!-- The card IS the window: an opaque surface whose corners the window manager rounds (see the
+         code-behind). It used to be a transparent window with the card aligned to one edge inside it, and
+         the empty rest of it was simply invisible: with no per-pixel alpha to spend, nothing around the
+         card may be shown at all, so the window is sized to the card exactly (InlineCardSizingSupport) and
+         the alignment below only orders the rows. -->
     <Grid x:Name="RootGrid" VerticalAlignment="Bottom">
         <!-- Main card - inverted layout: results on top, search box at bottom -->
-        <Border x:Name="MainBorder" Margin="12" CornerRadius="8"
+        <Border x:Name="MainBorder" CornerRadius="8"
                 Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
                 VerticalAlignment="Bottom">
             <!-- ClipToBounds lives on this separate inner Border, not MainBorder itself: putting it on
