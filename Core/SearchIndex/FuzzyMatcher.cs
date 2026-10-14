@@ -134,9 +134,9 @@ public static class FuzzyMatcher
         return HighlightMask.ComputeWeight(text, FzfPattern.Parse(query));
     }
 
-    // The same "does it match, where does it start, how well" measure the two windows rank by -- start
-    // position first, then weight (see MatchRank). Exposed alongside ComputeMatchWeight so callers that
-    // only need the weight are not forced to pay for the extra field.
+    // The same "does it match, how and where, how well" measure the windows rank by (see MatchRank).
+    // Exposed alongside ComputeMatchWeight so callers that only need the weight are not forced to pay for
+    // the extra fields.
     public static MatchRank ComputeMatchRank(string text, string query)
     {
         if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(query))
@@ -194,10 +194,10 @@ public static class FuzzyMatcher
         return best;
     }
 
-    // Stronger match wins, in the same order the windows rank by (see SearchResultRelevance): start
-    // position first, then quality weight, then tier last. Tier being weakest means 英文 > 简拼 > 全拼 only
-    // separates texts that already agree on where and how tightly they matched -- a tighter full-pinyin hit
-    // beats a looser literal one, which is the requested global weighting.
+    // Stronger match wins, in the same order the windows rank by (see SearchResultRelevance): shape
+    // first, then start position, then quality weight, then tier last. Tier being weakest means
+    // 英文 > 简拼 > 全拼 only separates texts that already agree on how, where and how tightly they matched
+    // -- a tighter full-pinyin hit beats a looser literal one, which is the requested global weighting.
     internal static bool IsStronger(MatchRank candidate, MatchRank incumbent)
     {
         if (!candidate.IsMatch)
@@ -205,6 +205,8 @@ public static class FuzzyMatcher
         if (!incumbent.IsMatch)
             return true;
 
+        if (candidate.Shape != incumbent.Shape)
+            return candidate.Shape < incumbent.Shape;
         if (candidate.Start != incumbent.Start)
             return candidate.Start < incumbent.Start;
         if (candidate.Weight != incumbent.Weight)

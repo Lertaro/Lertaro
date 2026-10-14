@@ -93,10 +93,11 @@ public static class SearchableItemMapper
         }
 
         // Generous safety cap only -- the real top-N selection happens after this merges with the
-        // other candidate categories in BuildQuickResults. Same primary key as the final ranking (match
-        // start, then weight) so the cap cannot drop a candidate the merge would have ranked higher.
+        // other candidate categories in BuildQuickResults. Same primary keys as the final ranking (match
+        // shape, start, then weight) so the cap cannot drop a candidate the merge would have ranked higher.
         var matches = matched
-            .OrderBy(m => m.Match.Start)
+            .OrderBy(m => m.Match.Shape)
+            .ThenBy(m => m.Match.Start)
             .ThenByDescending(m => m.Match.Weight)
             .Take(50);
         foreach (var (entry, match, provider, activeQuery) in matches)

@@ -36,6 +36,50 @@ public sealed class HistorySearchCandidateMapperTests
             results.Select(result => result.Result.FullPath).ToList());
     }
 
+    // Picking a lower result for a query makes it the top one next time, even over one opened more often.
+    [TestMethod]
+    public void Collect_MostRecentPickBeatsMoreFrequentOlderOne()
+    {
+        var entries = new[]
+        {
+            Entry("atlas", @"C:\Games\Atlas", HistoryEntryKind.Folder, count: 5, time: 100),
+            Entry("atlas", @"D:\Projects\code-atlas", HistoryEntryKind.Folder, count: 1, time: 200)
+        };
+
+        var results = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("atlas"), null, entries, _ => false, _ => true);
+
+        CollectionAssert.AreEqual(
+            new[] { @"D:\Projects\code-atlas", @"C:\Games\Atlas" },
+            results.Select(result => result.Result.FullPath).ToList());
+    }
+
+    // The full window's ladder, as a path -> priority map: this query's picks, then other history, then
+    // Windows Recent Items. Paths are not probed, so these test paths need not exist.
+    [TestMethod]
+    public void RankingPriorities_LearnedPickThenOtherHistoryThenRecentItems()
+    {
+        var entries = new[]
+        {
+            Entry("atlas", @"D:\Projects\code-atlas", HistoryEntryKind.Folder),
+            Entry("budget", @"C:\Docs\atlas-budget.xlsx", HistoryEntryKind.File),
+        };
+        var history = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            [@"C:\Docs\atlas-budget.xlsx"] = 0,
+            [@"D:\Projects\code-atlas"] = 1,
+        };
+        var recent = WindowsRecentCandidateMapper.Collect(
+            FuzzyQuery.Parse("atlas"), null,
+            [new WindowsRecentCandidateMapper.Shortcut(@"C:\Recent\atlas.png.lnk", "atlas.png", DateTime.UtcNow)],
+            _ => @"C:\Pictures\atlas.png", _ => true, _ => false);
+
+        var priorities = HistorySearchCandidateMapper.RankingPriorities(FuzzyQuery.Parse("atlas"), entries, history, recent);
+
+        Assert.IsLessThan(priorities[@"C:\Docs\atlas-budget.xlsx"], priorities[@"D:\Projects\code-atlas"]);
+        Assert.IsLessThan(priorities[@"C:\Pictures\atlas.png"], priorities[@"C:\Docs\atlas-budget.xlsx"]);
+        Assert.IsLessThan(int.MaxValue, priorities[@"C:\Pictures\atlas.png"]);
+    }
+
     [TestMethod]
     public void Collect_HistoryMatchesPreferCountBeforeMatchWeight()
     {
@@ -192,6 +236,6 @@ public sealed class HistorySearchCandidateMapperTests
         Assert.AreEqual(@"\\remote-server\share\report.docx", results[0].Result.FullPath);
     }
 
-    private static HistoryEntry Entry(string keyword, string path, HistoryEntryKind kind, int count = 1) =>
-        new(keyword, path, kind, 100, count);
+    private static HistoryEntry Entry(string keyword, string path, HistoryEntryKind kind, int count = 1, long time = 100) =>
+        new(keyword, path, kind, time, count);
 }

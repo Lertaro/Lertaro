@@ -32,6 +32,32 @@ public sealed class StreamingResultAccumulatorTests
         CollectionAssert.AreEqual(new[] { @"D:\a", @"D:\aaa", @"D:\aaaaaa" }, Paths(rows));
     }
 
+    // The full window's history and Recent Items ranking: a prioritised path leads however it would
+    // otherwise rank.
+    [TestMethod]
+    public void UsePriorities_BeforeTheFirstBatch_RanksThePrioritisedRowFirst()
+    {
+        var accumulator = new StreamingResultAccumulator("a", NoHistory);
+        accumulator.UsePriorities(new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { [@"d:\AAAAAA"] = 0 });
+
+        var rows = accumulator.AbsorbBatch(Arrivals(@"D:\a", @"D:\aaa", @"D:\aaaaaa"));
+
+        Assert.AreEqual(@"D:\aaaaaa", rows[0].FullPath);
+    }
+
+    // Rows already on screen must not shift under the user.
+    [TestMethod]
+    public void UsePriorities_AfterABatch_IsIgnored()
+    {
+        var accumulator = new StreamingResultAccumulator("a", NoHistory);
+        accumulator.AbsorbBatch(Arrivals(@"D:\a"));
+        accumulator.UsePriorities(new Dictionary<string, int> { [@"D:\aaaaaa"] = 0 });
+
+        var rows = accumulator.AbsorbBatch(Arrivals(@"D:\aaaaaa"));
+
+        CollectionAssert.AreEqual(new[] { @"D:\a", @"D:\aaaaaa" }, Paths(rows));
+    }
+
     [TestMethod]
     public void Absorb_InChunks_MatchesAbsorbingEverythingAtOnce()
     {

@@ -152,6 +152,12 @@ public static class SearchResultMapper
             if (normalizedScopeFolders != null)
                 historyCandidates = historyCandidates.Where(c => InFileFilterScope(c.NormalizedPath)).ToList();
             candidates.AddRange(historyCandidates);
+
+            // Windows' Recent Items: what was opened in any app, ranked right below the user's own picks.
+            var recentCandidates = WindowsRecentCandidateMapper.Collect(fuzzy, scope);
+            if (normalizedScopeFolders != null)
+                recentCandidates = recentCandidates.Where(c => InFileFilterScope(c.NormalizedPath)).ToList();
+            candidates.AddRange(recentCandidates);
         }
 
         if (!string.IsNullOrWhiteSpace(query))
@@ -218,17 +224,21 @@ public static class SearchResultMapper
         // other type gets, not just whatever a trigger-polluted query happened to match.
         if (fileResults != null && (triggeredTypeId == null || triggeredTypeId == SearchResultTypePriority.FilesTypeId))
         {
+            var nowUtc = DateTime.UtcNow;
             foreach (var result in fileResults)
             {
                 var lookupPath = result.Path.Length > 3 && result.Path[^1] == '\\' ? result.Path.TrimEnd('\\') : result.Path;
                 var hasHistory = historySnapshot.TryGetValue(lookupPath, out var priority);
+                var (band, depth) = RankedCandidateOrdering.SignalsOf(result.Metadata, result.Path, nowUtc);
                 candidates.Add(new RankedCandidate(
                     SearchResultHelper.CreateUiResult(result, query, 0, isApplication: false, scope),
                     IsCurated: hasHistory,
                     hasHistory ? priority : int.MaxValue,
                     SearchResultTypePriority.Rank(SearchResultTypePriority.FilesTypeId, typeOrder),
                     fuzzy.Rank(result.Name),
-                    SearchResultHelper.NormalizePath(result.Path)));
+                    SearchResultHelper.NormalizePath(result.Path),
+                    band,
+                    depth));
             }
         }
 
@@ -283,8 +293,10 @@ public static class SearchResultMapper
     }
 
     // TypeRank: this candidate's position in UserSettings.ResultTypeOrder -- see RankedCandidateOrdering,
-    // which owns the ordering ladder these candidates are fed through.
-    internal readonly record struct RankedCandidate(AppSearchResult Result, bool IsCurated, int Priority, int TypeRank, MatchRank Match, string NormalizedPath);
+    // which owns the ordering ladder these candidates are fed through. RecencyBand and Depth are only
+    // filled for index rows (RankedCandidateOrdering.SignalsOf); every other candidate keeps the best
+    // value of each, so an app or setting is never demoted for having no file times or folder depth.
+    internal readonly record struct RankedCandidate(AppSearchResult Result, bool IsCurated, int Priority, int TypeRank, MatchRank Match, string NormalizedPath, int RecencyBand = 0, int Depth = 0);
 
     // Shared by both search groups the inline window shows (its own "Current Folder" matches via
     // ExplorerSearchHelper, and this "Global Search" tier below) so a file scores the same way regardless

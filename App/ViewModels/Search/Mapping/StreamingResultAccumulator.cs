@@ -28,7 +28,7 @@ internal sealed class StreamingResultAccumulator
 
     private readonly string _query;
     private readonly Lazy<string?> _queriedDirectory;
-    private readonly IComparer<SearchResult> _rankComparer;
+    private IComparer<SearchResult> _rankComparer;
 
     private int _consumed;
     private List<Entry> _ranked = new();
@@ -87,6 +87,22 @@ internal sealed class StreamingResultAccumulator
             _ranked[index].Row.Index = index;
             _rows.Add(_ranked[index].Row);
         }
+    }
+
+    /// <summary>
+    /// Ranks this query's rows by <paramref name="priorities"/> (path to rank, smaller first) ahead of
+    /// match quality. Only takes effect before the first file batch: once rows are on screen, re-ranking
+    /// them would shift them under the user.
+    /// </summary>
+    /// <remarks>
+    /// Separate from the constructor because the full window builds its accumulator on the UI thread, and
+    /// working the priorities out reads the history store and resolves Recent Items shortcuts -- work that
+    /// belongs on the render callback's background thread, ahead of its first batch.
+    /// </remarks>
+    public void UsePriorities(IReadOnlyDictionary<string, int> priorities)
+    {
+        if (_consumed == 0 && _ranked.Count == 0)
+            _rankComparer = new SearchResultRankComparer(priorities);
     }
 
     /// <summary>How many of the arrivals handed in so far have been mapped.</summary>
