@@ -11,11 +11,18 @@
         Title="{Binding WindowTitle}" Height="600" Width="1024"
         MinHeight="480" MinWidth="800"
         WindowStartupLocation="CenterScreen"
-        Background="Transparent"
-        AllowsTransparency="True"
+        Background="{DynamicResource ContentBg}"
         WindowStyle="None"
         TextElement.Foreground="{DynamicResource TextPrimary}"
         ResizeMode="CanResizeWithGrip">
+    <!-- The window is opaque, which is what lets its text be antialiased sub-pixel; the chrome is what
+         makes an opaque borderless window behave: an invisible resize border instead of the OS's chunky
+         frame, and maximize that respects the work area. CaptionHeight is 0 deliberately: this window
+         drags from its own header handler (SearchWindowChromeHandler), so the chrome must not claim a
+         caption area of its own. -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -23,9 +30,12 @@
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Window.Resources>
-    <!-- Main border with shadow -->
+    <!-- The card IS the window: opaque, with its corners rounded by the window manager (see
+         SearchWindow.xaml.cs) and by this Border's own radius where that is unavailable (Windows 10).
+         The 8 DIP margin this used to carry was a transparent halo for a shadow the window could paint
+         while it was layered; an opaque window has no such pixels, so there is nothing left to reserve. -->
     <Border x:Name="MainBorder" CornerRadius="{StaticResource CornerRadiusWindow}" Background="{DynamicResource ContentBg}"
-            BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1" Margin="8">
+            BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1">
         <!-- ClipToBounds ignores CornerRadius (a WPF limitation, not a bug here): helpers:RoundedClip
              builds a real rounded-rect Clip instead: child content flush to the edge would otherwise show
              square corners poking past this Border's own rounded paint. -->

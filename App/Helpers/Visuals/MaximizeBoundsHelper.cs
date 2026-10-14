@@ -5,12 +5,15 @@ using System.Windows.Interop;
 namespace Lertaro.App.Helpers.Visuals;
 
 // Shared by the settings window and the full search window, both of which have custom chrome.
-// A WindowStyle=None + AllowsTransparency window doesn't get the OS's normal maximize-to-work-area
-// behavior -- Windows falls back to maximizing it over the full monitor bounds, taskbar included.
-// The previous fix reacted to that after the fact (shrinking Width/Height and repositioning once
-// WindowState was already Maximized), which left a gap on whichever edge the taskbar occupies since
-// the maximize had already happened by the time the correction ran. Intercepting WM_GETMINMAXINFO
-// instead tells Windows the correct bounds *before* it maximizes, so it never gets it wrong.
+// A WindowStyle=None window doesn't get the OS's normal maximize-to-work-area behavior -- Windows falls
+// back to maximizing it over the full monitor bounds, taskbar included. WindowChrome supplies that for the
+// opaque windows this app has now, but this hook is what the two windows were written against and it also
+// claims WM_GETMINMAXINFO to set the minimum track size from MinWidth/MinHeight, which is the part that
+// stops the OS letting the window shrink far past its own minimum and clip the title bar's buttons (#153).
+// The previous fix reacted to a wrong maximize after the fact (shrinking Width/Height and repositioning
+// once WindowState was already Maximized), which left a gap on whichever edge the taskbar occupies since
+// the maximize had already happened by the time the correction ran. Intercepting WM_GETMINMAXINFO instead
+// tells Windows the correct bounds *before* it maximizes, so it never gets it wrong.
 internal static class MaximizeBoundsHelper
 {
     private const int WM_GETMINMAXINFO = 0x0024;
