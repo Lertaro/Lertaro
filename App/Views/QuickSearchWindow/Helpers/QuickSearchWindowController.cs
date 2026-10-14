@@ -17,9 +17,6 @@ public class QuickSearchWindowController
     private readonly QuickSearchWindowForegroundWatcher _foregroundWatcher;
     private readonly QuickSearchWindowFocusHelper _focusHelper;
 
-    // Where the window is sent when it hides; see the assignment in FinishHide for why.
-    private const double ParkedOffScreen = -32000;
-
     internal Lertaro.App.QuickSearchWindow Window => _window;
     internal QuickSearchWindowForegroundWatcher ForegroundWatcher => _foregroundWatcher;
     internal IntPtr LastActiveHwnd { get => _lastActiveHwnd; set => _lastActiveHwnd = value; }
@@ -265,8 +262,8 @@ public class QuickSearchWindowController
             // exactly where the previous summon had been. -32000 is where Windows itself parks windows it
             // has disabled, and the value such enumerators recognise as "not a candidate". ShowWindow runs
             // PositionWindow twice around the Show, so nothing has to undo this.
-            _window.Left = ParkedOffScreen;
-            _window.Top = ParkedOffScreen;
+            _window.Left = Lertaro.App.QuickSearchWindow.ParkedOffScreen;
+            _window.Top = Lertaro.App.QuickSearchWindow.ParkedOffScreen;
             PowerThrottlingHelper.WindowHidden("quick");
 
             InlineSearchManager.Instance.KeyboardHook.IsQuickSearchWindowVisible = false;
@@ -291,30 +288,10 @@ public class QuickSearchWindowController
             IdleWorkingSetTrimmer.WindowHidden();
         }
 
-        if (_window.Content is UIElement fadeContent)
-        {
-            var fadeOutDuration = (Duration)System.Windows.Application.Current.FindResource("DurationFast");
-            var fadeOut = new DoubleAnimation(0.0, fadeOutDuration)
-            {
-                EasingFunction = System.Windows.Application.Current.TryFindResource("EaseOutCubic") as IEasingFunction
-            };
-            fadeContent.BeginAnimation(UIElement.OpacityProperty, fadeOut);
-
-            // A one-shot dispatcher timer, not a pool thread sleeping to a blocking Invoke: the thread was
-            // occupied purely to wait out an animation, supersession is already handled by the search
-            // version guard inside FinishHide, and if the app began shutting down just after a hide the
-            // Invoke threw inside a fire-and-forget task -- an unobserved exception with no context.
-            var fadeTimer = new DispatcherTimer { Interval = fadeOutDuration.TimeSpan };
-            fadeTimer.Tick += (_, _) =>
-            {
-                fadeTimer.Stop();
-                FinishHide();
-            };
-            fadeTimer.Start();
-        }
-        else
-        {
-            FinishHide();
-        }
+        // No fade-out: the window is opaque, and fading the content to zero opacity is exactly "nothing
+        // painted" for the length of the animation, which an opaque window shows as a black rectangle (see
+        // NotificationWindowManager's note on the same symptom). It hides instantly, the way a notification
+        // does.
+        FinishHide();
     }
 }

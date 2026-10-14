@@ -33,12 +33,30 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     private bool _isInActionsMode;
     private Action? _scaleChangedHandler;
     internal QuickSearchKeywordHistoryController KeywordHistoryController { get; }
-    // Must match QuickSearchWindow.xaml's root Border Margin ("24,40,24,24").
-    public Thickness VisibleContentInset => new(24, 40, 24, 24);
+
+    // Nothing may place this window anywhere until a summon does. The XAML declares it opaque and the
+    // constructor parks it off screen, but "off screen" is only worth anything while it stays there: the
+    // warm-up show leaves the window shown for an instant before its Hide is processed, and anything that
+    // moves it in that window of time -- measured, and it was the DpiChanged handler in this same
+    // constructor, which fires because creating the window off every monitor makes WPF report a DPI change
+    // -- puts an unpainted opaque window on screen, which is a black rectangle until something repaints
+    // that area. Guarding the one caller would have left the next one free, so the guard sits on
+    // PositionWindow itself; ShowSupport.ShowWindow clears it once a summon owns the window.
+    private bool _suppressPositioning = true;
+
+    // The window is the card: no transparent halo around it, so nothing sits between the window's own edge
+    // and its content, and code that docks another window against this one targets the real edge.
+    public Thickness VisibleContentInset => new(0);
+
     public QuickSearchWindow()
     {
         InitializeComponent();
-        System.Windows.Media.TextOptions.SetTextFormattingMode(SearchBox.SearchTextBox, System.Windows.Media.TextFormattingMode.Ideal);
+        // Nothing between the XAML's declaration of the handle and the surface this window needs it for.
+        ApplySurface();
+        // No text-formatting override here any more: this window used to put its search box on Ideal, on
+        // its own, to "smooth" the input (d7f6cd49) -- which took the one element the user actually reads
+        // off the Display metrics every other element in the process renders with. Section 五 of the plan
+        // is what settled that: Display is the app's own default (App.xaml.cs), so the box follows it.
         ThemedWindowIconHelper.Apply(this);
         SystemMenuBlocker.Attach(this);
         _viewModel = new QuickSearchViewModel();
@@ -56,6 +74,39 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         _launchActions = new QuickSearchLaunchActionsCoordinator(this);
         this.DpiChanged += (_, _) => { if (IsVisible) PositionWindow(); };
     }
+
+    // The opaque surface this window is. ClearType needs it: a layered window (AllowsTransparency) cannot
+    // render sub-pixel antialiasing, so while this window was layered every theme's WindowOpacity -- and
+    // every font tweak made to compensate -- was being paid for by the text in it. The XAML declares the
+    // opaque background; this only takes the halo out of the layout and parks the window until a summon
+    // places it.
+    private void ApplySurface()
+    {
+        CardBorder.Margin = new Thickness(0);
+        // Parked off screen right away, because startup shows this window to create its handle and does not
+        // hide it until Loaded -- and an opaque window WPF has not painted yet is a black rectangle. Every
+        // later show places it first, so nothing has to undo this.
+        //
+        // BOTH values, never Top alone: a window whose Left is still unset is created with CW_USEDEFAULT
+        // for x, and Windows then ignores y as well -- which puts the window at the cascade position near
+        // the top of the screen, visibly and unpainted. NotificationWindowManager's own park has both for
+        // the same reason, and its comment records an outside sampler catching a card at that position.
+        Left = ParkedOffScreen;
+        Top = ParkedOffScreen;
+    }
+
+    // Where this app puts a window it never wants looked at. -32000 rather than merely off the edge of a
+    // screen: it is where Windows itself parks windows it has disabled, and the value enumerators treat as
+    // "not a candidate" -- the controller's own park after a hide has the full account of why.
+    internal const double ParkedOffScreen = -32000;
+
+    // What section 五 asked for, and why there is nothing here to set: Display metrics are the app's own
+    // default for every element (App.xaml.cs overrides TextFormattingModeProperty's metadata, with a test
+    // guarding it), layout rounding and pixel snapping likewise (AppTypography.OnRootLoaded), and
+    // TextRenderingMode stays Auto because Auto on a surface that can carry sub-pixel antialiasing *is*
+    // ClearType. The one thing that had to change for all of that to reach the text the user reads was
+    // this window's own override, which is gone -- see the constructor.
+
     public ShellMenuPresenter? MenuPresenter => _menuPresenter;
     public QuickSearchViewModel ViewModel => _viewModel;
     public string SearchText => TxtSearch.Text;
@@ -186,7 +237,13 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     public void ApplyTrayIconVisibility(bool hideTrayIcon) => _trayService?.SetTrayIconVisible(!hideTrayIcon);
     public void ShowWindow() => _controller.ShowWindow(null);
     public void ShowWindow(string? initialQuery, bool caretAtEnd = false) => _controller.ShowWindow(initialQuery, caretAtEnd);
-    public void PositionWindow() => _controller.PositionWindow();
+    // See _suppressPositioning: the warm-up is over once a summon has taken the window over.
+    internal void AllowPositioning() => _suppressPositioning = false;
+    public void PositionWindow()
+    {
+        if (_suppressPositioning) return;
+        _controller.PositionWindow();
+    }
     public void HideWindow() => _controller.HideWindow(true);
     public void HideWindowNoRestore() => _controller.HideWindow(false);
     public void SuppressNextForegroundRestore() => _controller.SuppressNextRestore();
