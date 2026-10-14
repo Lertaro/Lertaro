@@ -56,7 +56,17 @@ public class QuickSearchWindowPositioner
         var (targetDpiScaleX, targetDpiScaleY) = GetMonitorDpiScale(targetMonitor);
         var wa = screen.WorkingArea;
         var settings = UserSettings.Load();
-        var windowWidth = settings.SearchWindow.SearchBarWidth + 48;
+        // The window is the card plus whatever the surface reserves around it: A's transparent halo (see
+        // QuickSearchWindow.VisibleContentInset) and the card's own 1 DIP border per side. Reading the
+        // inset instead of keeping the hardcoded 48 is what keeps the CARD horizontally centered in both
+        // surfaces, since A's window is exactly that much wider than B's.
+        //
+        // Vertically nothing compensates, because the placement below puts the WINDOW's top edge at its
+        // fraction of the work area: with no halo above the card in B, the same settings place the card
+        // 40 DIP higher than they do in A. A hand-saved position shifts by the same amount once and then
+        // stays put -- saving and restoring are both window-relative, so B round trips against itself.
+        var inset = _window.VisibleContentInset;
+        var windowWidth = settings.SearchWindow.SearchBarWidth + inset.Left + inset.Right + 2;
 
         var (targetPhysX, targetPhysY) = CalculatePhysicalPosition(
             wa.Left, wa.Top, wa.Width, wa.Height,

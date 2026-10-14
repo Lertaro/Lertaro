@@ -34,6 +34,9 @@ internal sealed class QuickSearchWindowShowSupport
         }
 
         var window = _controller.Window;
+        // (B) The warm-up is over: from here the window is only ever on screen because a summon put it
+        // there, so positioning is allowed again (see QuickSearchWindow._suppressPositioning).
+        window.AllowPositioning();
         window.ViewModel.IsInlineSearchContext = false;
         App.HideInlineSearch();
         QuickLookManager.Instance.Reset();
@@ -67,22 +70,13 @@ internal sealed class QuickSearchWindowShowSupport
         window.Topmost = true;
         _controller.PositionWindow();
 
-        var fadeContent = window.Content as UIElement;
-        fadeContent?.BeginAnimation(UIElement.OpacityProperty, null);
-        fadeContent?.Opacity = 0;
+        // No fade-in, deliberately: the whole window is opaque now, and fading means showing the content at
+        // zero opacity for the length of the animation, which on an opaque window is a black rectangle
+        // rather than a see-through one (NotificationWindowManager reached the same conclusion for cards).
+        // What is left of this window's motion is everything that never touches the Window's own opacity.
         window.Show();
         window.WindowState = WindowState.Normal;
         _controller.PositionWindow();
-
-        if (fadeContent != null)
-        {
-            var targetOpacity = ThemeManager.Instance.ActiveTheme?.WindowOpacity ?? 1.0;
-            var fadeIn = new DoubleAnimation(targetOpacity, (Duration)System.Windows.Application.Current.FindResource("DurationWindowFadeIn"))
-            {
-                EasingFunction = System.Windows.Application.Current.TryFindResource("EaseOutCubic") as IEasingFunction
-            };
-            fadeContent.BeginAnimation(UIElement.OpacityProperty, fadeIn);
-        }
 
         _controller.ForegroundWatcher.Start();
         // Selecting the kept text is what makes it usable instead of in the way: the next keystroke

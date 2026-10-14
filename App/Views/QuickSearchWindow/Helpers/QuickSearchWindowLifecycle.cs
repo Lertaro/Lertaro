@@ -36,6 +36,12 @@ public class QuickSearchWindowLifecycle
     // acceleration.
     public void HandleSourceInitialized()
     {
+        // The window is the card itself, so its rounded corners are the window's real shape rather than a
+        // painting inside it -- the same call the notification windows make through WindowSurface. On
+        // Windows 10 the attribute does not exist, the call fails, and the corners stay square, which is
+        // this project's accepted fallback.
+        DwmWindowCorners.ApplyRound(_window);
+
         if (!UserSettings.Load().EnableHardwareAcceleration
             && PresentationSource.FromVisual(_window) is HwndSource hwndSource
             && hwndSource.CompositionTarget is HwndTarget hwndTarget)
@@ -70,13 +76,11 @@ public class QuickSearchWindowLifecycle
             });
         }
 
-        if (ThemeManager.Instance.ActiveTheme != null)
-        {
-            WindowEffectHelper.ApplyThemeEffects(_window, ThemeManager.Instance.ActiveTheme);
-        }
-
         // Position the window
 
+        // A no-op here: the warm-up window is guarded against being positioned at all until a summon takes
+        // it over (see QuickSearchWindow._suppressPositioning, which records what went wrong when it was
+        // not). The summon positions the window twice around its own Show.
         _window.PositionWindow();
 
         // Focus search box or hide on first launch
