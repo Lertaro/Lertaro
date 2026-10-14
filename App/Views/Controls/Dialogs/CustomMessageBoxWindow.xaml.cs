@@ -13,6 +13,10 @@ public partial class CustomMessageBoxWindow : Window
     public CustomMessageBoxWindow(string messageBoxText, string caption, MessageBoxButton button, MessageBoxImage icon)
     {
         InitializeComponent();
+        // The window kind is fixed for the life of the handle, so it is declared opaque in XAML. Rounding
+        // the real window is the whole of it: this dialog declares its own painted radius, and the nested
+        // RoundedClip that keeps content inside it must keep agreeing with it.
+        DwmWindowCorners.ApplyRound(this);
 
         SystemMenuBlocker.Attach(this);
         AltTabExcluder.Attach(this);
