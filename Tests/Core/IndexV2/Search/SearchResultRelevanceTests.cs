@@ -141,6 +141,19 @@ public sealed class SearchResultRelevanceTests
         Assert.IsLessThan(Key(start: 0, weight: 1, tier: 0, shape: MatchRank.ShapeWordStart), Key(start: 0, weight: 1, tier: 0, depth: 400));
     }
 
+    // Every other field is clamped the same way: past its own cap a row ties with the capped value and
+    // never reaches the field above it, which would silently reorder whole groups of results.
+    [TestMethod]
+    public void KeyLayout_EveryOtherFieldSaturatesInsteadOfOverflowing()
+    {
+        Assert.AreEqual(Key(start: 127, weight: 1, tier: 0), Key(start: 400, weight: 1, tier: 0));
+        Assert.AreEqual(Key(start: 0, weight: 1, tier: 0), Key(start: 0, weight: 9, tier: 0));
+        Assert.AreEqual(Key(start: 0, weight: 0, tier: 0), Key(start: 0, weight: -9, tier: 0));
+        Assert.AreEqual(Key(start: 0, weight: 1, tier: 0xF), Key(start: 0, weight: 1, tier: 40));
+        Assert.AreEqual(Key(start: 0, weight: 1, tier: 0, shape: MatchRank.ShapeNoName), Key(start: 0, weight: 1, tier: 0, shape: 99));
+        Assert.AreEqual(Key(start: 0, weight: 1, tier: 0, band: RankSignals.BandOlder), Key(start: 0, weight: 1, tier: 0, band: 99));
+    }
+
     [TestMethod]
     public void KeyLayout_StartOutranksTier()
     {

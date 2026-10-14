@@ -147,6 +147,13 @@ internal static class NameSearch
     // The same recency band and depth Apply derives from the built result. Depth is worked out once per
     // parent folder, since a headroom set is mostly siblings; a row with no resolved parent (an orphan,
     // or an added delta row) pays for its own path.
+    //
+    // ponytail: depth costs one built path per distinct parent in the headroom set (measured 30 to ~5100
+    // per bounded search on a 20k-name drive, together with the band work about 2 ms of a ~22 ms search).
+    // Counting the parent chain instead is NOT the same thing: DeltaPathBuilder forwards a renamed-away row
+    // to the FRN's live identity, which can sit at a different depth, so the count would disagree with the
+    // key Apply writes on the emitted result. Upgrade path: count only while no ancestor is renamed away,
+    // and fall back to the built path for the rest.
     private static (int Band, int Depth) RowSignals(Snapshot snapshot, DeltaOverlay delta, int entryIndex, uint nowUnix, Dictionary<int, int> depthByParent)
     {
         if (entryIndex >= snapshot.Count)

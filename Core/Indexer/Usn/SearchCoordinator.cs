@@ -21,10 +21,10 @@ internal static class SearchCoordinator
         string? directoryFilter,
         string? fileNameFilter = null)
     {
-        LiveIndex[] drives;
+        KeyValuePair<string, LiveIndex>[] drives;
         lock (lockObj)
         {
-            drives = recordIndexes.Values.ToArray();
+            drives = recordIndexes.ToArray();
         }
 
         if (drives.Length == 0 || limit <= 0)
@@ -32,7 +32,7 @@ internal static class SearchCoordinator
 
         if (drives.Length == 1)
         {
-            IndexV2Searcher.SearchStreaming(drives[0], query, limit, onResult, token, directoryFilter, fileNameFilter);
+            IndexV2Searcher.SearchStreaming(drives[0].Value, query, limit, onResult, token, directoryFilter, fileNameFilter);
             return;
         }
 
@@ -41,15 +41,29 @@ internal static class SearchCoordinator
         // arrived. Each drive returns its own best `limit`, and the global best `limit` is among their union.
         //
         // ponytail: buffers up to drives * limit rows and gives up streaming for bounded queries (the quick
-        // and inline windows, a few hundred rows). The unbounded full window keeps the streaming path below,
+        // and inline windows, a few hundred rows). The latency price is on a multi-drive machine: the first
+        // row reaches the window only after the slowest drive's search returns, where the streaming path
+        // below shows each drive's rows as they arrive. The unbounded full window keeps that streaming path,
         // where nothing is cut and arrival order does not matter.
+        //
+        // One drive's search failing (a plugin alias provider throwing, an index whose compaction just
+        // failed) must not cost the other drives their rows -- here the whole fan-out's rows are still
+        // buffered when the exception surfaces, where the streaming path below has already handed its own
+        // rows over. Cancelling stays fatal: that is how the caller stops a search, not a drive failing.
         if (limit < int.MaxValue)
         {
             var buffered = new List<SearchResult>[drives.Length];
             Parallel.For(0, drives.Length, ParallelOptionsFor(drives.Length, token), i =>
             {
                 var rows = buffered[i] = new List<SearchResult>();
-                IndexV2Searcher.SearchStreaming(drives[i], query, limit, rows.Add, token, directoryFilter, fileNameFilter);
+                try
+                {
+                    IndexV2Searcher.SearchStreaming(drives[i].Value, query, limit, rows.Add, token, directoryFilter, fileNameFilter);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    Logger.Log($"[SearchCoordinator] Search of drive {drives[i].Key} failed; its rows are left out: {ex.Message}", LogLevel.Error);
+                }
             });
             foreach (var row in buffered.SelectMany(rows => rows).OrderBy(row => row, SearchResultRankComparer.Instance).Take(limit))
             {
@@ -60,15 +74,13 @@ internal static class SearchCoordinator
         }
 
         Parallel.For(0, drives.Length, ParallelOptionsFor(drives.Length, token), i =>
-        {
             // Emits with no lock held. Wrapping onResult in a lock serialised every drive's emission behind
             // whichever pipe write is currently parked on the pump's backpressure, so one slow client
             // stalled every other drive as well. The wire itself stays serialised -- the pump has one
             // consumer task writing the response -- but the callback is reachable concurrently, which is
             // why SearchStreamPump.CreateResultChannel sets SingleWriter = false. Cross-drive arrival order
             // is not meaningful: consumers merge by the shared RankSortKey.
-            IndexV2Searcher.SearchStreaming(drives[i], query, limit, onResult, token, directoryFilter, fileNameFilter);
-        });
+            IndexV2Searcher.SearchStreaming(drives[i].Value, query, limit, onResult, token, directoryFilter, fileNameFilter));
     }
 
     private static ParallelOptions ParallelOptionsFor(int driveCount, CancellationToken token) => new()

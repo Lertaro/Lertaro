@@ -24,6 +24,10 @@ internal static class WindowsRecentCandidateMapper
 
     private static readonly object Gate = new();
     private static (DateTime FolderWriteUtc, DateTime LoadedUtc, Shortcut[] Items)? _listing;
+    // ponytail: one entry per shortcut path resolved, never evicted -- bounded by the Recent folder's own
+    // churn over this process's lifetime (a few thousand short strings at worst, since only shortcuts a
+    // query actually matched are ever resolved). Upgrade path: drop entries whose .lnk is gone when the
+    // listing is refreshed.
     private static readonly Dictionary<string, (DateTime WriteUtc, string? Target)> Targets = new(StringComparer.OrdinalIgnoreCase);
 
     internal readonly record struct Shortcut(string Path, string TargetName, DateTime LastWriteUtc);

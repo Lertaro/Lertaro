@@ -150,6 +150,26 @@ public sealed class SearchCoordinatorTests
         Assert.AreEqual("code-atlas", hits[0].Name);
     }
 
+    [TestMethod]
+    public void ABrokenDrive_DoesNotTakeTheOtherDrivesRowsWithIt()
+    {
+        // The bounded fan-out holds every drive's rows until the whole fan-out returns, so one drive's
+        // search throwing used to discard the rows the other drives had already produced -- one bad index
+        // cost the user the entire result page. A disposed index stands in for any drive-level fault (an
+        // index whose compaction failed, a plugin alias provider throwing); the healthy drive's rows must
+        // still arrive.
+        using var dir = new TempDirectory();
+        using var c = Load(dir, "C", "report.txt");
+        var broken = Load(dir, "D", "report.md");
+        var drives = new Dictionary<string, LiveIndex> { ["C"] = c, ["D"] = broken };
+        broken.Dispose();
+
+        var hits = Search(drives, "report", limit: 10);
+
+        Assert.HasCount(1, hits);
+        Assert.AreEqual("report.txt", hits[0].Name);
+    }
+
     private static List<SearchResult> Search(Dictionary<string, LiveIndex> drives, string query, int limit = 100)
     {
         var hits = new List<SearchResult>();
