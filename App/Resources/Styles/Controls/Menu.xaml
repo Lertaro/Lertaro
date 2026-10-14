@@ -89,21 +89,21 @@
                                            Foreground="{DynamicResource TextSecondary}"
                                            Margin="16,0,12,0"
                                            VerticalAlignment="Center"
-                                           FontSize="11.5"/>
+                                           FontSize="12"/>
                             </Grid>
                         </Border>
 
-                        <!-- Submenu Popup -->
+                        <!-- Submenu Popup. Opaque, so its rows render ClearType like the menu they hang off
+                             (a layered popup cannot). The painted corner and the fade go with it: an opaque
+                             popup paints its uncovered client area black, which a radius turns into four
+                             black wedges, and WPF coerces PopupAnimation to None once it is not transparent. -->
                         <Popup x:Name="PART_Popup"
                                Placement="Right"
-                               AllowsTransparency="True"
                                Focusable="False"
-                               IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
-                               PopupAnimation="Fade">
+                               IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}">
                             <Border Background="{DynamicResource MenuBackground}"
                                     BorderBrush="{DynamicResource MenuBorderBrush}"
                                     BorderThickness="1"
-                                    CornerRadius="{StaticResource CornerRadiusPopover}"
                                     Padding="4"
                                     SnapsToDevicePixels="True">
                                 <ScrollViewer x:Name="SubMenuScrollViewer" Focusable="false"

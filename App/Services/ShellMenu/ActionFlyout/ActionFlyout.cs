@@ -129,20 +129,24 @@ public static class ActionFlyout
         };
         border.SetResourceReference(Border.BackgroundProperty, "MenuBackground");
         border.SetResourceReference(Border.BorderBrushProperty, "MenuBorderBrush");
-        border.SetResourceReference(Border.CornerRadiusProperty, "CornerRadiusPopover");
+        // Square, deliberately: nothing rounds a Popup's own HWND (WindowSurface and DWM round a Window), so
+        // an opaque flyout cannot carry painted corners -- the popup's uncovered corner pixels would paint
+        // as black, not as desktop. These menus lose the rounding Windows 11 gives the app's real windows.
 
         // anchor must be an element that outlives the flyout. A Popup goes away with its PlacementTarget,
         // so anchoring to something WPF can recycle -- a virtualized list's row container being the trap
         // here -- makes the flyout close by itself the moment that happens, with nothing about the
         // selection or the window having changed. Its callers pick a lasting anchor for this reason -- the
         // quick panel's list, or the treemap canvas.
+        // A Popup is its own top-level HWND, and AllowsTransparency is what makes that HWND layered -- which
+        // is what cost every row in this menu its ClearType. It is opaque instead. PopupAnimation went with
+        // it: Fade animates that same window's opacity, which on an opaque window dims the menu rather than
+        // fading it in.
         _popup = new Popup
         {
             PlacementTarget = anchor,
             Placement = placement,
-            AllowsTransparency = true,
             StaysOpen = true,
-            PopupAnimation = PopupAnimation.Fade,
             Child = border
         };
         _owner = ownerWindow;

@@ -6,7 +6,6 @@ using Lertaro.Core;
 using Lertaro.App.Services.ShellMenu.QuickNav;
 using ContextMenu = System.Windows.Controls.ContextMenu;
 using MenuItem = System.Windows.Controls.MenuItem;
-using Brushes = System.Windows.Media.Brushes;
 using HorizontalAlignment = System.Windows.HorizontalAlignment;
 
 namespace Lertaro.App.Services.Tray;
@@ -40,16 +39,19 @@ internal sealed class TrayMenuController : IDisposable
         _showWindowOverride = null;
         _showWindow!.Visibility = Visibility.Visible;
         CloseAnchor();
+        // The anchor is a 1x1 window nothing is ever drawn in: it exists only so the menu has a placement
+        // target and an owner to lose activation through. It cannot stay layered, and it has no card to be
+        // opaque with — a transparent background would paint black, so it takes the menu's own brush and its
+        // one pixel sits under the menu it anchors.
         _anchor = new Window
         {
             Width = 1,
             Height = 1,
             WindowStyle = WindowStyle.None,
-            AllowsTransparency = true,
-            Background = Brushes.Transparent,
             ShowInTaskbar = false,
             Topmost = true
         };
+        _anchor.SetResourceReference(Window.BackgroundProperty, "MenuBackground");
         _anchor.Show();
         _anchor.Activate();
         _menu!.PlacementTarget = _anchor;
