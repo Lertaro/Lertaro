@@ -10,8 +10,7 @@
         Width="330" Height="300" MinWidth="280" MinHeight="200" SizeToContent="Manual"
         WindowStyle="None"
         ResizeMode="CanResizeWithGrip"
-        AllowsTransparency="True"
-        Background="Transparent"
+        Background="{DynamicResource CardBackground}"
         TextElement.Foreground="{DynamicResource TextPrimary}"
         ShowInTaskbar="False"
         Topmost="True"
@@ -19,6 +18,13 @@
         Focusable="True"
         PreviewKeyDown="Window_PreviewKeyDown"
         ShowActivated="False">
+    <!-- The panel is opaque, which is what lets its text be antialiased sub-pixel; the chrome is what makes
+         an opaque borderless window behave: an invisible resize border instead of the OS's chunky frame.
+         CaptionHeight is 0 because this window drags itself (see QuickPanelWindow) rather than through a
+         caption area. -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -41,7 +47,7 @@
     </Window.Resources>
 
     <Border CornerRadius="10" Background="{DynamicResource CardBackground}"
-            BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1" Margin="8">
+            BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1">
         <Border CornerRadius="10" helpers:RoundedClip.IsEnabled="True">
             <Grid>
                 <Grid.RowDefinitions>
