@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using Lertaro.Core.Indexer.Usn;
+using Lertaro.Core.IndexV2.Space;
 using Lertaro.Core.Services;
 using Lertaro.Core.Services.Search;
 using Lertaro.Core.Wire;
@@ -98,6 +99,21 @@ public sealed class PipePermissionCompatibilityTests
             response = await UsnServicePipeRequestProcessor.ProcessAsync(engine, request, timeout.Token, server, visibility);
             Assert.AreEqual("shared.bin", response.SpaceEntries!.Single().Name,
                 "A cached directory listing must apply current ACLs again after access is revoked.");
+
+            request.SpaceOptions = SpaceEntryFilters.SkipCallerRowAccessChecks;
+            response = await UsnServicePipeRequestProcessor.ProcessAsync(engine, request, timeout.Token, server, visibility);
+            CollectionAssert.AreEqual(new[] { "private", "shared.bin" }, response.SpaceEntries!.Select(entry => entry.Name).ToArray(),
+                "A size answer reports a child the caller cannot open, whose total was always indexed.");
+
+            request.Drive = hidden;
+            response = await UsnServicePipeRequestProcessor.ProcessAsync(engine, request, timeout.Token, server, visibility);
+            Assert.IsEmpty(response.SpaceEntries!, "Skipping row opens must not skip the queried directory's own check.");
+
+            request.Drive = folder;
+            using var profileGuard = new CallerVisibility([hidden]);
+            response = await UsnServicePipeRequestProcessor.ProcessAsync(engine, request, timeout.Token, server, profileGuard);
+            CollectionAssert.AreEqual(new[] { "shared.bin" }, response.SpaceEntries!.Select(entry => entry.Name).ToArray(),
+                "Skipping row opens must not re-expose a profile root that is hidden from this caller.");
         }
         finally
         {

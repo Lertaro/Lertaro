@@ -1,4 +1,5 @@
 using System.IO.Pipes;
+using Lertaro.Core.IndexV2.Space;
 using Lertaro.Core.Services.HookLaunch;
 using Lertaro.Core.Services.Pipe;
 using Lertaro.Core.Services.Search;
@@ -117,12 +118,21 @@ internal static class UsnServicePipeRequestProcessor
                     return new PipeResponse { Kind = PipeResponseKind.RecentFiles, RecentFiles = recentFiles };
 
                 case SearchRequestId.GetSpaceEntries:
-                    var spaceEntries = visibility.IsVisible(msg.Drive)
-                        ? engine?.GetSpaceEntries(string.IsNullOrEmpty(msg.Drive) ? null : Path.GetFullPath(msg.Drive), path =>
+                    // Gate 1 (the queried directory) is always really opened. Each returned row is opened
+                    // too unless the caller asked not to: that per-row open is what makes a system folder's
+                    // children expensive AND silently drops the ones a normal user cannot open, and a
+                    // folder-size client needs their sizes regardless -- see SpaceEntryFilters.
+                    Func<string, bool> rowIsVisible =
+                        (msg.SpaceOptions & SpaceEntryFilters.SkipCallerRowAccessChecks) != 0
+                        ? path => visibility.IsIndexedPathVisible(path)
+                        : path =>
                         {
                             token.ThrowIfCancellationRequested();
                             return visibility.IsVisible(path);
-                        }, msg.SpaceOptions) ?? [] : [];
+                        };
+                    var spaceEntries = visibility.IsVisible(msg.Drive)
+                        ? engine?.GetSpaceEntries(string.IsNullOrEmpty(msg.Drive) ? null : Path.GetFullPath(msg.Drive),
+                            rowIsVisible, msg.SpaceOptions) ?? [] : [];
                     return new PipeResponse { Kind = PipeResponseKind.SpaceEntries, SpaceEntries = spaceEntries };
 
                 case SearchRequestId.ClearServiceLog:
