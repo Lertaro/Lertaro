@@ -56,31 +56,18 @@ internal static class PinyinAliasUtf8PinyinEncoder
 
         if (totalCombinations == 1)
         {
-            var initialsStart = dest.BeginSegment();
-            for (var i = 0; i < text.Length; i++)
-                AppendInitial(dest, text, i, ids[i]);
-            dest.EndSegment(initialsStart);
-
-            var fullStart = dest.BeginSegment();
-            for (var i = 0; i < text.Length; i++)
-                AppendFull(dest, text, i, ids[i]);
-
-            // Same "full == initials -> yield once" rule as the string path.
-            if (dest.Pending(fullStart).SequenceEqual(dest.Segment(dest.SegmentCount - 1)))
-                dest.AbandonSegment(fullStart);
-            else
-                dest.EndSegment(fullStart);
+            EncodeSingleReading(text, ids, dest);
             return;
         }
 
-        // Combination (polyphonic) path -- byte-native mirror of GenerateCombinations, same steps
-        // budget, same fixed 256-byte full-pinyin cap.
+        // Combination (polyphonic path) -- byte-native mirror of GenerateCombinations, same steps
+        // budget, same per-variant full-pinyin cap.
         var fulls = _fullCombosScratch ??= new AliasByteSink();
         var initials = _initialCombosScratch ??= new AliasByteSink();
         fulls.Reset();
         initials.Reset();
 
-        var fullBuffer = _comboFullBytesScratch ??= new byte[256];
+        var fullBuffer = _comboFullBytesScratch ??= new byte[PinyinAliasCombinationGenerator.MaxComboFullPinyinLength];
         var initialBuffer = _comboInitialCharsScratch;
         if (initialBuffer == null || initialBuffer.Length < text.Length)
             _comboInitialCharsScratch = initialBuffer = new char[Math.Max(text.Length, 64)];
@@ -88,6 +75,16 @@ internal static class PinyinAliasUtf8PinyinEncoder
         var count = 0;
         var steps = 0;
         RecurseBytes(text, ids, 0, 0, fulls, initials, fullBuffer, initialBuffer, ref count, ref steps);
+
+        // Mirror of the string path's fallback: both aliases are written only at a completed leaf, so a
+        // walk that completes nothing -- the name's full pinyin overruns the cap, or the steps budget cut
+        // the enumeration off -- used to bake NO alias, leaving the name unreachable by every pinyin
+        // query while its literal text still matched. Answer it with the single-reading spelling instead.
+        if (count == 0)
+        {
+            EncodeSingleReading(text, ids, dest);
+            return;
+        }
 
         var initialsGroupStart = dest.BeginSegment();
         JoinUniqueSegments(initials, dest);
@@ -108,6 +105,26 @@ internal static class PinyinAliasUtf8PinyinEncoder
         {
             dest.EndSegment(fullsGroupStart);
         }
+    }
+
+    // The one-reading expansion (the monophonic case, and every name the capped walk cannot complete):
+    // initials plus the full spelling built from each position's first candidate syllable. Mirror of the
+    // string path's GenerateSingleReading, including its "full == initials -> yield once" rule.
+    private static void EncodeSingleReading(string text, ushort[]?[] ids, AliasByteSink dest)
+    {
+        var initialsStart = dest.BeginSegment();
+        for (var i = 0; i < text.Length; i++)
+            AppendInitial(dest, text, i, ids[i]);
+        dest.EndSegment(initialsStart);
+
+        var fullStart = dest.BeginSegment();
+        for (var i = 0; i < text.Length; i++)
+            AppendFull(dest, text, i, ids[i]);
+
+        if (dest.Pending(fullStart).SequenceEqual(dest.Segment(dest.SegmentCount - 1)))
+            dest.AbandonSegment(fullStart);
+        else
+            dest.EndSegment(fullStart);
     }
 
     private static void AppendInitial(AliasByteSink dest, string text, int i, ushort[]? charIds)

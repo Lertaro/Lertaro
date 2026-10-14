@@ -9,9 +9,11 @@ internal static class PinyinAliasCombinationGenerator
     private static readonly string[][] AsciiSyllableCache;
 
     // Generation scratch, reused per thread: only the returned alias strings themselves are
-    // allocated per call. _comboFullScratch is deliberately FIXED at 256 chars -- the combination
-    // path's max-full-pinyin cap is part of the output contract (longer branches are pruned), and a
+    // allocated per call. _comboFullScratch is deliberately FIXED at MaxComboFullPinyinLength -- the
+    // combination path's per-variant cap is what bounds the cost of enumerating readings, and a
     // growable buffer here would make results depend on what a previous call happened to grow it to.
+    // Names that overrun it are not dropped: GenerateAliases falls back to the single-reading path,
+    // whose _fullBufferScratch does grow.
     [ThreadStatic] private static string[][]? _syllableScratch;
     [ThreadStatic] private static char[]? _fullBufferScratch;
     [ThreadStatic] private static char[]? _comboFullScratch;
@@ -33,6 +35,13 @@ internal static class PinyinAliasCombinationGenerator
     // ambiguity entirely: it can never coincide with the genuine outer-join '|', so every consumer's
     // existing split-on-'|' logic keeps working exactly as intended for real alternative readings.
     private const char PipePlaceholder = (char)1; // U+0001 (SOH) -- a control character that can never occur in real generated aliases
+
+    // The combination path's per-variant full-pinyin ceiling. It bounds the alias blob one polyphonic
+    // name can bake (up to 32 variants of it); it was never meant to bound how long a name may be, and
+    // no longer does -- see the fallback in GenerateAliases. Shared with the byte path, which counts
+    // the same thing in bytes: aliases are ASCII by construction, so the only gap is names carrying
+    // multi-byte literal punctuation, where the byte cap bites slightly earlier.
+    internal const int MaxComboFullPinyinLength = 256;
 
     static PinyinAliasCombinationGenerator()
     {
@@ -68,42 +77,7 @@ internal static class PinyinAliasCombinationGenerator
         }
 
         if (totalCombinations == 1)
-        {
-            var initialsArr = _initialsScratch;
-            if (initialsArr == null || initialsArr.Length < text.Length)
-                _initialsScratch = initialsArr = new char[Math.Max(text.Length, 64)];
-
-            var fullLen = 0;
-            for (var i = 0; i < text.Length; i++)
-            {
-                var s = lists[i][0];
-                initialsArr[i] = s.Length > 0 ? s[0] : '\0';
-                if (PinyinAliasFormat.NeedsSeparatorBefore(text, i))
-                    fullLen++;
-                fullLen += s.Length;
-            }
-
-            var initialAlias = new string(initialsArr, 0, text.Length);
-            result.Add(initialAlias);
-
-            var fullBuffer = _fullBufferScratch;
-            if (fullBuffer == null || fullBuffer.Length < fullLen)
-                _fullBufferScratch = fullBuffer = new char[Math.Max(fullLen, 256)];
-
-            var offset = 0;
-            for (var i = 0; i < text.Length; i++)
-            {
-                var s = lists[i][0];
-                if (PinyinAliasFormat.NeedsSeparatorBefore(text, i))
-                    fullBuffer[offset++] = PinyinAliasFormat.SyllableSeparator;
-                s.CopyTo(0, fullBuffer, offset, s.Length);
-                offset += s.Length;
-            }
-            var fullAlias = new string(fullBuffer, 0, fullLen);
-            if (fullAlias != initialAlias)
-                result.Add(fullAlias);
-            return result.ToArray();
-        }
+            return GenerateSingleReading(text, lists, result);
 
         var fullPinyins = _fullsListScratch ??= new List<string>(32);
         var initials = _initialsListScratch ??= new List<string>(32);
@@ -112,7 +86,7 @@ internal static class PinyinAliasCombinationGenerator
         var count = 0;
         var steps = 0;
 
-        var fullBufferTemp = _comboFullScratch ??= new char[256];
+        var fullBufferTemp = _comboFullScratch ??= new char[MaxComboFullPinyinLength];
         var initialsBuffer = _initialsScratch;
         if (initialsBuffer == null || initialsBuffer.Length < text.Length)
             _initialsScratch = initialsBuffer = new char[Math.Max(text.Length, 64)];
@@ -120,6 +94,16 @@ internal static class PinyinAliasCombinationGenerator
         // Generate combinations. Since we concatenate them, we can safely allow up to 32 combinations
         // to support longer polyphonic names without database explosion.
         GenerateCombinations(text, lists, text.Length, 0, 0, fullPinyins, initials, fullBufferTemp, initialsBuffer, ref count, ref steps);
+
+        // Both aliases are written only at a completed leaf, so when the fixed-cap walk completes
+        // nothing -- the name's full pinyin overruns MaxComboFullPinyinLength, or the steps budget cut
+        // the enumeration off -- it used to emit NO alias at all. The name then stayed findable by its
+        // literal text but was unreachable by every pinyin query, including a 5-letter one over its own
+        // first five characters. Fall back to the single-reading spelling, whose buffer grows.
+        // ponytail: over-long polyphonic names lose their alternative readings; the ceiling is the
+        // enumeration itself. Upgrade path is per-position reading sets, which need no enumeration.
+        if (count == 0)
+            return GenerateSingleReading(text, lists, result);
 
         var joinedInitials = JoinUnique(initials);
         if (joinedInitials != null)
@@ -129,6 +113,46 @@ internal static class PinyinAliasCombinationGenerator
         if (joinedFulls != null && !joinedFulls.Equals(joinedInitials, StringComparison.OrdinalIgnoreCase))
             result.Add(joinedFulls);
 
+        return result.ToArray();
+    }
+
+    // The one-reading expansion: initials plus the full spelling built from every character's first
+    // candidate syllable. Shared by the monophonic case and by the over-long fallback above.
+    private static string[] GenerateSingleReading(string text, string[][] lists, List<string> result)
+    {
+        var initialsArr = _initialsScratch;
+        if (initialsArr == null || initialsArr.Length < text.Length)
+            _initialsScratch = initialsArr = new char[Math.Max(text.Length, 64)];
+
+        var fullLen = 0;
+        for (var i = 0; i < text.Length; i++)
+        {
+            var s = lists[i][0];
+            initialsArr[i] = s.Length > 0 ? s[0] : '\0';
+            if (PinyinAliasFormat.NeedsSeparatorBefore(text, i))
+                fullLen++;
+            fullLen += s.Length;
+        }
+
+        var initialAlias = new string(initialsArr, 0, text.Length);
+        result.Add(initialAlias);
+
+        var fullBuffer = _fullBufferScratch;
+        if (fullBuffer == null || fullBuffer.Length < fullLen)
+            _fullBufferScratch = fullBuffer = new char[Math.Max(fullLen, 256)];
+
+        var offset = 0;
+        for (var i = 0; i < text.Length; i++)
+        {
+            var s = lists[i][0];
+            if (PinyinAliasFormat.NeedsSeparatorBefore(text, i))
+                fullBuffer[offset++] = PinyinAliasFormat.SyllableSeparator;
+            s.CopyTo(0, fullBuffer, offset, s.Length);
+            offset += s.Length;
+        }
+        var fullAlias = new string(fullBuffer, 0, fullLen);
+        if (fullAlias != initialAlias)
+            result.Add(fullAlias);
         return result.ToArray();
     }
 
@@ -206,7 +230,8 @@ internal static class PinyinAliasCombinationGenerator
         // longer than the buffer) dense with polyphonic characters means no branch ever completes,
         // the cap never fires, and the recursion explores the whole combinatorial tree (a 240-char
         // all-polyphonic name explored ~2^55 paths and hung the process). The budget covers every
-        // legitimate enumeration and turns the pathological case into an immediate bounded bail-out.
+        // legitimate enumeration and turns the pathological case into an immediate bounded bail-out,
+        // which GenerateAliases then answers with the single-reading spelling rather than no alias.
         if (++steps > listCount * 32 + 256) return;
         if (count >= 32) return; // Limit to 32 combinations to prevent combinatorial explosion
 

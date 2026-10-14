@@ -14,7 +14,10 @@ public class PinyinAliasProvider : IAliasProvider, ITranslationProvider, IConfig
     // every already-built index regenerate its baked aliases -- see AliasProvidersReconciler -- which a
     // snapshot baked before this ran has none of. (Turning the setting off again does not re-bake on its
     // own: the fingerprint only tracks provider versions, so that change lands on the next rebuild.)
-    public int Version => 4;
+    // 5: a name whose full pinyin overran the combination path's per-variant cap baked NO alias at all,
+    // leaving it unreachable by every pinyin query; it now falls back to the single-reading spelling, so
+    // snapshots baked before this are missing aliases for exactly those names.
+    public int Version => 5;
 
     public IReadOnlyList<string> SupportedCultures => TranslationService.GetSupportedCultures(System.Reflection.Assembly.GetExecutingAssembly());
 
