@@ -35,7 +35,8 @@ public sealed class PathTermFallbackRandomTreeTests
 
     // Operators change what a term means, and the mask is built from whatever each term decides. An
     // inverse term is the interesting one: it is satisfied by segments that do NOT contain its text,
-    // so it fills the mask from the opposite direction to everything else here.
+    // so it fills the mask from the opposite direction to everything else here -- and, unlike the rest,
+    // it is also a veto on the row's own name, which no folder above can hand it (see Excludes).
     private static readonly Func<Random, string, string>[] TermShapes =
     {
         (_, word) => word,
@@ -151,8 +152,9 @@ public sealed class PathTermFallbackRandomTreeTests
 
     /// <summary>
     /// What the pass promises, stated directly: a row is returned when its own name satisfies at least
-    /// one term, and its name together with the folders above it (and the drive root's own segments)
-    /// satisfies all of them. Order does not matter -- unlike path mode, these terms carry no position.
+    /// one term, its name together with the folders above it (and the drive root's own segments)
+    /// satisfies all of them, and none of its <c>!terms</c> occurs in its own name. Order does not matter
+    /// -- unlike path mode, these terms carry no position.
     /// </summary>
     private static HashSet<string> Expected(List<Row> rows, string[] terms, out int viaAncestor)
     {
@@ -166,6 +168,13 @@ public sealed class PathTermFallbackRandomTreeTests
                 continue;
 
             var nameMask = MaskOf(row.Name, terms);
+
+            // `!term` is not a term a segment can satisfy the way the others are: it drops any row whose
+            // OWN NAME carries the excluded text, and says nothing about the folders above. Reading it as
+            // an ordinary term -- any text without it passes, so some ancestor fills its bit -- is exactly
+            // what let `文档 !文档` list the 文档 rows the user had just excluded, through the folder above.
+            if (Excludes(row.Name, terms))
+                continue;
 
             // A row renamed since the snapshot was written lives only in delta state. The ancestor pass
             // walks base rows and skips it, so the sole way back is the name search's own delta pass --
@@ -206,6 +215,12 @@ public sealed class PathTermFallbackRandomTreeTests
         }
         return mask;
     }
+
+    // The exclusion veto, stated the way the engine applies it: only the row's own name can carry the
+    // excluded text, and only the name is checked for it. Every generated exclusion is a bare `!word`,
+    // so a plain case-insensitive contains is the whole rule here.
+    private static bool Excludes(string name, string[] terms) =>
+        terms.Any(t => t.Length > 1 && t[0] == '!' && name.Contains(t[1..], StringComparison.OrdinalIgnoreCase));
 
     private static HashSet<string> Search(LiveIndexFixture fixture, string query)
     {

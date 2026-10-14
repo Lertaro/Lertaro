@@ -24,6 +24,11 @@ internal static class SearchMatcherRow
         if (pattern.TryMatch(name, out match, FzfScoringScheme.Default, slab))
             return true;
 
+        // A `!term` has nothing to compare against in a transliteration, so the alias tiers below have to
+        // be vetoed on the name -- see FzfPatternExclusionExtensions.ExclusionsPass.
+        if (pattern.HasExclusions && !pattern.ExclusionsPass(name))
+            return false;
+
         var uid = (int)snapshot.NameIds[row];
         if (!snapshot.HasAliases(uid) || snapshot.GetAliases(uid, aliasScratch) == 0)
             return false;
@@ -87,6 +92,8 @@ internal static class SearchMatcherRow
     {
         if (pattern.TryMatch(name, out result, FzfScoringScheme.Default, slab))
             return true;
+        if (pattern.HasExclusions && !pattern.ExclusionsPass(name))
+            return false;
         if (aliases == null)
             return false;
 

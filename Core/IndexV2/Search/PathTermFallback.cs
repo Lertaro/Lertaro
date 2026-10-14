@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Text;
 using Lertaro.Core.SearchIndex.Fzf;
 
 using Lertaro.Core.IndexV2.Delta;
@@ -160,6 +161,12 @@ internal static class PathTermFallback
                 if (nameMask == fullMask)
                     continue;
 
+                // An `!term` is satisfied by any segment that lacks it, so the mask above can be filled by
+                // an ANCESTOR while this candidate's own name carries the very text the user excluded. The
+                // veto belongs on the name -- see FzfPatternExclusionExtensions.ExclusionsPass.
+                if (pattern.HasExclusions && !NamePassesExclusions(snapshot, uid, pattern, worker))
+                    continue;
+
                 foreach (var row in snapshot.RowsForUid(uid))
                 {
                     if (snapshot.IsDeleted(row) || delta.IsSuperseded(row))
@@ -222,4 +229,14 @@ internal static class PathTermFallback
         }
     }
 
+    // Decodes one unique name into the worker's scratch and applies the query's exclusions to it. Only
+    // the verdict survives: the same scratch is reused by the ancestor walk this is called from.
+    private static bool NamePassesExclusions(Snapshot snapshot, int uid, FzfPattern pattern, SearchMatcher.Worker worker)
+    {
+        var utf8 = snapshot.UniqueNameUtf8(uid);
+        if (worker.Scratch.Length < utf8.Length)
+            worker.Scratch = new char[Math.Max(utf8.Length, worker.Scratch.Length * 2)];
+        var written = Encoding.UTF8.GetChars(utf8, worker.Scratch);
+        return pattern.ExclusionsPass(worker.Scratch.AsSpan(0, written));
+    }
 }

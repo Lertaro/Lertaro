@@ -248,8 +248,16 @@ internal static class SearchMatcher
         if (ctx.Pattern.TryMatch(name, out var match, FzfScoringScheme.Default, worker.Slab))
         {
             worker.Hits.Add(new UniqueMatch(uid, match, FzfResultRank.ForDefaultScheme(uid, name, match).SortKey));
+            return;
         }
-        else if (snapshot.HasAliases(uid) && TryMatchAliases(snapshot, ctx, uid, worker, out var best))
+
+        // An alias can never contain the text a `!term` excluded, so the tiers below have to be vetoed on
+        // the name themselves -- otherwise the candidate TryMatch just rejected is revived through its
+        // pinyin (see FzfPatternExclusionExtensions.ExclusionsPass).
+        if (ctx.Pattern.HasExclusions && !ctx.Pattern.ExclusionsPass(name))
+            return;
+
+        if (snapshot.HasAliases(uid) && TryMatchAliases(snapshot, ctx, uid, worker, out var best))
         {
             worker.Hits.Add(new UniqueMatch(uid, best, FzfResultRank.ForDefaultScheme(uid, name, best).SortKey));
         }

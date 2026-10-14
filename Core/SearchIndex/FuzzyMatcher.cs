@@ -41,6 +41,10 @@ public static class FuzzyMatcher
             return false;
         if (fzf.TryMatch(text, out _, FzfScoringScheme.Default))
             return true;
+        // Same veto as the index scan: the alias tiers below match a transliteration, which can never
+        // contain the text a `!term` excluded -- see FzfPatternExclusionExtensions.ExclusionsPass.
+        if (fzf.HasExclusions && !fzf.ExclusionsPass(text))
+            return false;
 
         if (!AliasProviderRegistry.HasNonAscii(text))
             return false;

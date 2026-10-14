@@ -23,10 +23,16 @@ internal sealed class FzfPattern
         TermSets = termSets;
         OrGroups = orGroups;
         EffectiveSets = orGroups == null ? termSets : Flatten(orGroups);
+        HasExclusions = EffectiveSets.Any(set => set.Terms.Any(term => term.Inverse));
     }
 
     public string? TargetDrive { get; }
     public FzfTermSet[] TermSets { get; }
+
+    // Whether the query holds a `!term`. Exclusions only ever have something to compare against in a
+    // candidate's own name (see ExclusionsPass), so the alias tiers test this before they run and skip
+    // the check entirely for the far more common query that has none.
+    public bool HasExclusions { get; }
 
     // Non-null only for an AND-first query that actually mixes '|' with spaces. When set, this is the
     // authoritative shape and TryMatch/TryMatchSingle evaluate it instead of TermSets.

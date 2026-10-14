@@ -99,8 +99,15 @@ internal static class SearchMatcherPath
         if (ctx.Pattern.TryMatch(name, out var match, FzfScoringScheme.Default, worker.Slab))
         {
             hits.Add(new PathUniqueMatch(uid, match, FzfResultRank.RankLow32(name, match), written));
+            return;
         }
-        else if (snapshot.HasAliases(uid) && SearchMatcher.TryMatchAliases(snapshot, ctx, uid, worker, out var best))
+
+        // Same veto as SearchMatcher.MatchOne: a `!term` can only be checked against the name, and the
+        // alias tier below would otherwise revive the candidate the name match rejected.
+        if (ctx.Pattern.HasExclusions && !ctx.Pattern.ExclusionsPass(name))
+            return;
+
+        if (snapshot.HasAliases(uid) && SearchMatcher.TryMatchAliases(snapshot, ctx, uid, worker, out var best))
         {
             hits.Add(new PathUniqueMatch(uid, best, FzfResultRank.RankLow32(name, best), written));
         }
