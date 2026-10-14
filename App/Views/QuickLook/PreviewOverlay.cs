@@ -5,9 +5,11 @@ using Point = System.Windows.Point;
 
 namespace Lertaro.App.Views.QuickLook;
 
-// Airspace workaround: the QuickLook window is layered (AllowsTransparency=true), so a native preview
-// HwndHost can't render inside it. Host it in a separate non-layered window laid exactly over the content
-// area and kept in sync with the owner window's moves/resizes.
+// Airspace workaround: a native preview is an HwndHost, i.e. a real child window that WPF cannot draw
+// over or clip, so it gets a window of its own laid exactly over the content area and kept in sync with
+// the owner's moves/resizes. It used to be required because the QuickLook window was layered, which an
+// HwndHost refuses outright; it is still what keeps a native preview from painting square corners over
+// the card's rounded ones and from covering anything the window means to draw above it.
 internal sealed class PreviewOverlay
 {
     private readonly Window _owner;

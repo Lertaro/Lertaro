@@ -32,6 +32,9 @@ public partial class LocalSendReceiveWindow : Window
         _currentSessionId = requestArgs.SessionId;
         SystemMenuBlocker.Attach(this);
         ThemedWindowIconHelper.Apply(this);
+        // The corners are the window's own shape now rather than a painting inside a transparent one.
+        // Windows 11 rounds the real window; older Windows keeps the painted radius above.
+        DwmWindowCorners.ApplyRound(this);
         ThemedWindowIconHelper.Apply(TitleBarLogo, this);
         StateChanged += (_, _) => { if (WindowState == WindowState.Maximized) WindowState = WindowState.Normal; };
         TranslationManager.Instance.PropertyChanged += OnLanguageChanged;

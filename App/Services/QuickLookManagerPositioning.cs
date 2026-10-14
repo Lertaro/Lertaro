@@ -54,10 +54,9 @@ public partial class QuickLookManager
         catch { }
     }
 
-    // A real top-level window (no invisible shadow-margin border like our own _window has) sits a bit
-    // further out/wider than where our own panel's outer bounds would land -- these are on top of
-    // whatever gap TryComputeTargetRect already used, tuned by eye against an actual docked QuickLook
-    // window rather than derived from anything measurable.
+    // A real top-level window sits a bit further out/wider than where our own panel's bounds would land --
+    // these are on top of whatever gap TryComputeTargetRect already used, tuned by eye against an actual
+    // docked QuickLook window rather than derived from anything measurable.
     private const double ExternalDockExtraGap = 0;
     private const double ExternalDockExtraWidth = 80;
 
@@ -75,8 +74,8 @@ public partial class QuickLookManager
         var rect = computed.Value;
 
         // DIP = physical * dpiScale (see TryComputeTargetRect), so invert it back to physical pixels. No
-        // outer/visible distinction here -- an externally-managed window has no invisible margin to
-        // compensate for, so it's positioned at the true visible rectangle directly.
+        // outer/visible distinction here -- an externally-managed window has no margin of its own to
+        // compensate for, so it's positioned at the card rectangle directly.
         var left = (int)Math.Round(rect.VisibleLeft / rect.DpiScale);
         var top = (int)Math.Round(rect.VisibleTop / rect.DpiScale);
         var width = (int)Math.Round(rect.VisibleWidth / rect.DpiScale);
@@ -86,11 +85,11 @@ public partial class QuickLookManager
         catch { }
     }
 
-    // "Visible" = the actual rounded-corner card a user sees. Our own _window pads an extra
-    // ContentMargin on every side around that for its invisible drop-shadow border, so its outer WPF
-    // Window bounds (Outer*) differ from the visible rectangle -- Outer* exists so PositionWindow can
-    // recover exactly the same outer bounds the pre-refactor code computed directly, while
-    // NotifyExternalBounds uses Visible* as-is, since an external window has no such margin to add back.
+    // "Visible" = the actual card a user sees; "Outer" = the same rectangle plus whatever margin the
+    // preview window reserves around it. That margin used to be a transparent halo holding a drop shadow,
+    // and it is zero now (QuickLookWindow.ContentMargin): the window is opaque and the card is the whole of
+    // it, so the two agree, while the split stays because the callers genuinely want different things --
+    // PositionWindow places the WINDOW, NotifyExternalBounds describes the CARD.
     private readonly struct TargetRect
     {
         public double VisibleLeft { get; init; }
@@ -146,6 +145,8 @@ public partial class QuickLookManager
             var screenRight = workingArea.Right * dpiScale;
             var screenBottom = workingArea.Bottom * dpiScale;
 
+            // The preview window's own margin, which is what used to make the card smaller than the
+            // configured size. It is zero now (an opaque window has no halo), so the setting is the card.
             var previewInset = Views.QuickLook.QuickLookWindow.ContentMargin;
 
             // Fixed, user-configurable size (General settings page) rather than mirroring the owner's
