@@ -74,8 +74,9 @@ public class SearchEngine : IDisposable
     public void ClearPathCaches() => _indexer.ClearAllPathCaches();
 
     public List<SearchResult> GetRecentFiles(IReadOnlyList<string> directories, int limit, int maxAgeMinutes) => _indexer.GetRecentFiles(directories, limit, maxAgeMinutes);
-    public List<SpaceIndexEntry> GetSpaceEntries(string? directory) => _indexer.GetSpaceEntries(directory);
-    internal List<SpaceIndexEntry> GetSpaceEntries(string? directory, Func<string, bool> isVisible) => _indexer.GetSpaceEntries(directory, isVisible);
+    public List<SpaceIndexEntry> GetSpaceEntries(string? directory, SpaceEntryFilters filters = SpaceEntryFilters.None) => _indexer.GetSpaceEntries(directory, null, filters);
+    internal List<SpaceIndexEntry> GetSpaceEntries(string? directory, Func<string, bool> isVisible, SpaceEntryFilters filters = SpaceEntryFilters.None)
+        => _indexer.GetSpaceEntries(directory, isVisible, filters);
 
     /// <summary>
     /// The status snapshot, composed in one place: <see cref="SearchEngineDriveMaintenance.BuildStatusSnapshot"/>

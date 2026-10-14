@@ -122,7 +122,7 @@ internal static class UsnServicePipeRequestProcessor
                         {
                             token.ThrowIfCancellationRequested();
                             return visibility.IsVisible(path);
-                        }) ?? [] : [];
+                        }, msg.SpaceOptions) ?? [] : [];
                     return new PipeResponse { Kind = PipeResponseKind.SpaceEntries, SpaceEntries = spaceEntries };
 
                 case SearchRequestId.ClearServiceLog:

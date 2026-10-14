@@ -1,3 +1,4 @@
+using Lertaro.Core.IndexV2.Space;
 using Lertaro.Core.Wire;
 
 namespace Lertaro.Core.Tests.Wire;
@@ -239,16 +240,35 @@ public sealed class SearchRequestBinarySerializerTests
     }
 
     [TestMethod]
-    public async Task RoundTrip_GetSpaceEntries_PreservesDirectory()
+    [DataRow(SpaceEntryFilters.None)]
+    [DataRow(SpaceEntryFilters.DirectoriesOnly)]
+    [DataRow(SpaceEntryFilters.IncludeSystemItems)]
+    [DataRow(SpaceEntryFilters.DirectoriesOnly | SpaceEntryFilters.FilesOnly | SpaceEntryFilters.IncludeSystemItems)]
+    public async Task RoundTrip_GetSpaceEntries_PreservesDirectoryAndFilters(SpaceEntryFilters filters)
     {
         var result = await RoundTripAsync(new SearchRequestMessage
         {
             Id = SearchRequestId.GetSpaceEntries,
-            Drive = @"C:\Projects"
+            Drive = @"C:\Projects",
+            SpaceOptions = filters
         });
 
         Assert.AreEqual(SearchRequestId.GetSpaceEntries, result.Id);
         Assert.AreEqual(@"C:\Projects", result.Drive);
+        Assert.AreEqual(filters, result.SpaceOptions);
+    }
+
+    [TestMethod]
+    [DataRow(SearchRequestId.RebuildDrive)]
+    [DataRow(SearchRequestId.DeleteDriveIndex)]
+    [DataRow(SearchRequestId.CancelDriveIndex)]
+    public async Task RoundTrip_DriveMaintenance_PreservesDirectory(SearchRequestId id)
+    {
+        var result = await RoundTripAsync(new SearchRequestMessage { Id = id, Drive = @"C:\" });
+
+        Assert.AreEqual(id, result.Id);
+        Assert.AreEqual(@"C:\", result.Drive);
+        Assert.AreEqual(SpaceEntryFilters.None, result.SpaceOptions);
     }
 
     [TestMethod]
