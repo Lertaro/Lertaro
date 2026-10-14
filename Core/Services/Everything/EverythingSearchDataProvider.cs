@@ -7,6 +7,11 @@ namespace Lertaro.Core.Services.Everything;
 /// <summary>Implements IEverythingDataProvider by querying Lertaro's SearchService and space indexers.</summary>
 public sealed class EverythingSearchDataProvider : IEverythingDataProvider
 {
+    // An Everything-compatible answer describes the index: System-flagged children are not hidden (a
+    // disk-browser convenience that shrinks every system folder's total) and rows are not opened under
+    // the caller's ACL (which silently dropped the SYSTEM-only folders TC then scanned itself).
+    private const SpaceEntryFilters IpcSpaceFilters =
+        SpaceEntryFilters.IncludeSystemItems | SpaceEntryFilters.SkipCallerRowAccessChecks;
     private readonly SearchService _searchService;
     private readonly ConcurrentDictionary<string, uint> _runHistory = new(StringComparer.OrdinalIgnoreCase);
 
@@ -38,10 +43,8 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
         string folderPath, EverythingQueryRequest request, CancellationToken token)
     {
         var normalizedPath = NormalizeDirectory(folderPath);
-        // IncludeSystemItems: hiding System-flagged children is the space view's disk-browser convenience,
-        // but here it silently shrinks the reported total of every system folder.
         var spaceEntries = await _searchService.GetSpaceEntriesAsync(normalizedPath, token,
-            SpaceEntryFilters.IncludeSystemItems).ConfigureAwait(false);
+            IpcSpaceFilters).ConfigureAwait(false);
         if (spaceEntries.Count == 0)
         {
             return new EverythingQueryResult(Array.Empty<EverythingResultItem>(), 0, 0, 0);
@@ -106,8 +109,8 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
         var parentDir = NormalizeDirectory(criteria.ParentDirectoryFilter ?? string.Empty);
         // Pushed into the index walk rather than filtered here: a System32 panel asks for a few hundred
         // directories out of a directory that holds thousands of rows, and every row that survives costs
-        // a path rebuild, a recursive size and a caller-permission open.
-        var filters = SpaceEntryFilters.IncludeSystemItems
+        // a path rebuild and a recursive size.
+        var filters = IpcSpaceFilters
             | (criteria.MatchFoldersOnly ? SpaceEntryFilters.DirectoriesOnly : SpaceEntryFilters.None)
             | (criteria.MatchFilesOnly ? SpaceEntryFilters.FilesOnly : SpaceEntryFilters.None);
         var spaceEntries = await _searchService.GetSpaceEntriesAsync(parentDir, token, filters).ConfigureAwait(false);
