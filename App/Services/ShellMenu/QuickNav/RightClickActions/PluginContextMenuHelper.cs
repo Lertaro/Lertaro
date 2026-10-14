@@ -139,15 +139,19 @@ public static class PluginContextMenuHelper
             };
             border.SetResourceReference(Border.BackgroundProperty, "MenuBackground");
             border.SetResourceReference(Border.BorderBrushProperty, "MenuBorderBrush");
-            border.SetResourceReference(Border.CornerRadiusProperty, "CornerRadiusPopover");
+            // Square, deliberately: nothing rounds a Popup's own HWND (WindowSurface and DWM round a Window),
+            // so an opaque flyout cannot carry painted corners -- the popup's uncovered corner pixels would
+            // paint as black, not as desktop. These menus lose the rounding Windows 11 gives real windows.
 
+            // A Popup is its own top-level HWND, and AllowsTransparency is what makes that HWND layered --
+            // which is what cost every row in this menu its ClearType. It is opaque instead. PopupAnimation
+            // went with it: Fade animates that same window's opacity, which on an opaque window dims the
+            // menu rather than fading it in.
             _currentRightClickPopup = new Popup
             {
                 PlacementTarget = menuItem,
                 Placement = PlacementMode.MousePoint,
-                AllowsTransparency = true,
                 StaysOpen = true,
-                PopupAnimation = PopupAnimation.Fade,
                 Child = border
             };
 

@@ -207,19 +207,19 @@
 						</Border>
 						<Popup x:Name="PART_Popup"
 						       Placement="Right"
-						       AllowsTransparency="True"
 						       Focusable="False"
-						       IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
-						       PopupAnimation="Fade">
+						       IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}">
+							<!-- Opaque, so this popup is not a layered window: a layered one cannot render
+							     ClearType, which is the whole point of the migration. That costs the painted
+							     corner: an opaque popup paints the client area it does not cover black, so a
+							     radius would leave four black wedges: and the shadow, which a popup cannot get
+							     from DWM either. PopupAnimation goes with them: WPF coerces it to None once the
+							     popup is not transparent. -->
 							<Border Background="{DynamicResource MenuBackground}"
 							        BorderBrush="{DynamicResource MenuBorderBrush}"
 							        BorderThickness="1"
-							        CornerRadius="8"
 							        Padding="6"
 							        SnapsToDevicePixels="True">
-								<Border.Effect>
-									<DropShadowEffect BlurRadius="12" ShadowDepth="2" Direction="270" Color="{DynamicResource ShadowColor}" Opacity="0.08"/>
-								</Border.Effect>
 								<ScrollViewer Focusable="false">
 									<ItemsPresenter KeyboardNavigation.TabNavigation="Cycle"/>
 								</ScrollViewer>
