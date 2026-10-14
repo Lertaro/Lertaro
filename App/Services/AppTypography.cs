@@ -64,10 +64,40 @@ internal static class AppTypography
         }
     }
 
+    // The font sizes this app renders at, rounded up to the next rung. Whole numbers matter now for a
+    // reason that has nothing to do with tidiness: the app renders with Display metrics, which snap every
+    // glyph advance to a whole pixel, so a fractional size puts that snapping on screen as uneven spacing
+    // between letters -- soft text's other half, and the half a window kind cannot fix. Rounded UP rather
+    // than to nearest because the computed size is the smallest the text was designed to stay legible at.
+    internal static readonly double[] FontSizeLadder = [12, 14, 16, 18, 20, 24, 28, 32, 36];
+
+    /// <summary>Quantises a computed font size onto <see cref="FontSizeLadder"/>.</summary>
+    /// <remarks>
+    /// Below the ladder's first rung the sizes are floors rather than choices -- the 9 DIP path text of a
+    /// scaled-down result row is deliberately small -- so those are only made whole, never enlarged. Past
+    /// the top rung there is nothing left to round up to and a whole number is all that is asked.
+    /// </remarks>
+    internal static double SnapFontSize(double size)
+    {
+        if (!double.IsFinite(size)) return size;
+        if (size < FontSizeLadder[0]) return Math.Round(size, MidpointRounding.AwayFromZero);
+        foreach (var rung in FontSizeLadder)
+        {
+            if (size <= rung) return rung;
+        }
+        return Math.Round(size, MidpointRounding.AwayFromZero);
+    }
+
     private static void OnRootLoaded(object sender, RoutedEventArgs e)
     {
         var root = (FrameworkElement)sender;
         if (!ReferenceEquals(root, e.OriginalSource)) return;
+        // exam/UI-improve.md section 四's rendering defaults, set on the root for the same reason the fonts
+        // below are: both properties inherit, so a root is all that has to be told, and popups -- which are
+        // separate visual roots -- get their own. Without this a line of text can be arranged on half a
+        // pixel and every glyph in it is resampled, which looks exactly like a font problem and is not one.
+        root.UseLayoutRounding = true;
+        root.SnapsToDevicePixels = true;
         // Preserve an explicit content language or font supplied by a plugin. Descendant icon and
         // code fonts likewise take precedence over the inherited UI font.
         if (root.ReadLocalValue(TextElement.FontFamilyProperty) == DependencyProperty.UnsetValue)

@@ -51,7 +51,9 @@ public static class UiMetrics
     // when both lines show, tilting more toward the name than an even split while keeping the path line
     // (the smaller of the two) comfortably legible.
     public const double BaseResultNameFontSize = 16;
-    public const double BaseResultPathFontSize = 12.8;
+    // 12.8 until section 四's ladder: a fractional size is what Display metrics snap unevenly, and the
+    // difference between 12.8 and 13 is invisible next to that.
+    public const double BaseResultPathFontSize = 13;
     public const double BaseResultIconSize = 42; // fixed size for the main window
 
     // Flow Launcher's own literal result-row metrics (32px icon, 16px title, 13px subtitle, 58px row) --
@@ -240,7 +242,10 @@ public static class UiMetrics
     // share one formula instead of ActionMenuItem needing its own separate scaling logic.
     public static double IconRelativeFontScale => ScaledResultIconSize / IconFontRatioReferenceSize;
 
-    public static double ScaledResultNameFontSize => Math.Max(MinScaledResultNameFontSize, FlowResultNameFontSize * _flowRowScale);
+    // Rounded onto the font-size ladder (AppTypography.SnapFontSize): the row grows with the search bar, so
+    // these are the computed sizes the app actually renders, and a fractional one shows Display metrics'
+    // whole-pixel glyph snapping as uneven letter spacing.
+    public static double ScaledResultNameFontSize => AppTypography.SnapFontSize(Math.Max(MinScaledResultNameFontSize, FlowResultNameFontSize * _flowRowScale));
     public static double ScaledResultNameFontSizeSingleLine => ScaledResultNameFontSize;
-    public static double ScaledResultPathFontSize => Math.Max(MinScaledResultPathFontSize, FlowResultPathFontSize * _flowRowScale);
+    public static double ScaledResultPathFontSize => AppTypography.SnapFontSize(Math.Max(MinScaledResultPathFontSize, FlowResultPathFontSize * _flowRowScale));
 }

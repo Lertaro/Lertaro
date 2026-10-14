@@ -44,8 +44,8 @@
                                 <Viewbox Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,4,0"><Path Fill="{DynamicResource TextSecondary}" Data="{Binding DeviceTypeIcon}" Stretch="Uniform"/></Viewbox>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="{Binding Alias}" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary2}" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Margin="5,0,0,0" VerticalAlignment="Center" FontSize="10.5"
+                                        <TextBlock Text="{Binding Alias}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary2}" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Margin="5,0,0,0" VerticalAlignment="Center" FontSize="11"
                                                    Foreground="{DynamicResource WarningBrush}"
                                                    Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_Insecure]}">
                                             <TextBlock.Style>
@@ -62,7 +62,7 @@
                                             </TextBlock.Style>
                                         </TextBlock>
                                     </StackPanel>
-                                    <TextBlock FontSize="10.5" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"><Run Text="#"/><Run Text="{Binding FingerprintTag, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding DeviceModel, Mode=OneWay}"/></TextBlock>
+                                    <TextBlock FontSize="11" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"><Run Text="#"/><Run Text="{Binding FingerprintTag, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding DeviceModel, Mode=OneWay}"/></TextBlock>
                                 </StackPanel>
                                 <TextBlock Grid.Column="2" Text="{Binding IpAddress}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,12,0"/>
                                 <TextBox Grid.Column="3" Text="{Binding Pin, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ThemeTextBoxStyle}" Height="26" VerticalAlignment="Center"
