@@ -202,10 +202,10 @@ public interface ITheme
     bool IsDark { get; }
     ResourceDictionary GetResources();
 
-    // 低於 1.0 時，經宿主分層載體輔助方法建立的視窗會成為分層、半透明的視窗，其圓角必須
-    // 自行繪製並裁剪；為 1.0 時視窗保持不透明、由視窗管理員負責圓角，並保留 ClearType。
-    // 這個選擇在視窗的建構函式中一次決定，因為 AllowsTransparency 在控制代碼存在之後
-    // 就無法變更。目前它作用的是那兩個通知視窗；視窗仍在畫面上時切換主題並不會重建它。
+    // 不再作用於任何視窗。設定了 AllowsTransparency 的視窗就是分層視窗，而分層視窗無法繪製
+    // ClearType，所以本應用的視窗一律不透明，也不再讀取任何主題的不透明度。成員保留是因為
+    // 第三方主題實作了它，其取值會被忽略。
+    [Obsolete("Window transparency is no longer supported; this value is ignored.")]
     double WindowOpacity => 1.0;
 }
 ```

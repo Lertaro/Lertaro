@@ -209,12 +209,11 @@ public interface ITheme
     bool IsDark { get; }
     ResourceDictionary GetResources();
 
-    // Por debajo de 1,0 una ventana construida con el ayudante de superficies con capa del anfitrión
-    // pasa a ser una ventana en capa translúcida cuyo rincón hay que pintar y recortar; con 1,0 sigue
-    // opaca, la redondea el gestor de ventanas y conserva ClearType. La elección se hace una sola vez,
-    // en el constructor de la ventana, porque AllowsTransparency no puede cambiar una vez existe el
-    // manejador. Hoy se aplica a las ventanas de notificación; cambiar de tema con una ventana en
-    // pantalla no la reconstruye.
+    // No se aplica a ninguna ventana. Una ventana con AllowsTransparency es una ventana por capas, y
+    // una ventana por capas no puede representar ClearType, así que todas las ventanas de esta
+    // aplicación son opacas y no leen la opacidad de ningún tema. El miembro se mantiene porque los
+    // temas lo implementan; su valor se ignora.
+    [Obsolete("Window transparency is no longer supported; this value is ignored.")]
     double WindowOpacity => 1.0;
 }
 ```

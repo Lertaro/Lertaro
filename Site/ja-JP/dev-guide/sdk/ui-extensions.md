@@ -206,13 +206,11 @@ public interface ITheme
     bool IsDark { get; }
     ResourceDictionary GetResources();
 
-    // 1.0 未満では、ホストのレイヤード サーフェス用ヘルパー経由で構築されたウィンドウが
-    // レイヤード型の半透明ウィンドウになり、角は自分で描画してクリップする必要があります。
-    // 1.0 なら不透明のまま、ウィンドウマネージャーによって角が丸められ、ClearType を保ちます。
-    // 判定はウィンドウのコンストラクターで 1 度だけ行われます。AllowsTransparency は
-    // ハンドル生成後に変更できないためです。
-    // 現時点で適用されるのは通知ウィンドウだけです。テーマ切り替えが画面に出ている
-    // ウィンドウがあっても、そのウィンドウは再構築されません。
+    // どのウィンドウにも適用されません。AllowsTransparency を設定したウィンドウはレイヤード
+    // ウィンドウであり、レイヤード ウィンドウは ClearType を描画できないため、このアプリの
+    // ウィンドウはすべて不透明で、テーマの不透明度を読みません。テーマが実装しているため
+    // メンバーは残しますが、値は無視されます。
+    [Obsolete("Window transparency is no longer supported; this value is ignored.")]
     double WindowOpacity => 1.0;
 }
 ```
