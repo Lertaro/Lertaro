@@ -58,7 +58,7 @@ public sealed class MatchShapeTests
     // A negated word describes nothing about how the name matched, so it must not demote the row.
     [TestMethod]
     public void InverseTerm_DoesNotAffectShape() =>
-        Assert.AreEqual(MatchRank.ShapeWholeWord, ShapeOf("code-atlas", "atlas !zzz"));
+        Assert.AreEqual(MatchRank.ShapeWholeWord, ShapeOf("code-atlas", "atlas :zzz"));
 
     [TestMethod]
     public void NoMatch_HasNoNameShape() =>

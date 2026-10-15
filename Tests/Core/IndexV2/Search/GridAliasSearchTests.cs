@@ -149,6 +149,44 @@ public sealed class GridAliasSearchTests
         CollectionAssert.Contains(results.Select(result => result.Name).ToList(), GridMarker + "笔记法X");
     }
 
+    // The grid tier decides a candidate from the query's POSITIVE terms alone -- it skips the inverse ones
+    // and never sees the name -- so the clauses that read the name must be applied by whoever consults it,
+    // which is what the string-alias tier gets from FzfPattern.TryMatchAlias for free.
+    [TestMethod]
+    public void GridEntry_StillRequiresTheClausesThatReadTheName()
+    {
+        using var fixture = LiveIndexFixture.Build("Z", new[]
+        {
+            LiveIndexFixture.Root(),
+            new FileRecord(2, 1, GridMarker + "笔记法X", FileRecordFlags.None),
+        });
+
+        CollectionAssert.Contains(KindsOf(fixture), AliasEntryKind.Grid);
+
+        List<string> Search(string query)
+        {
+            var results = new List<SearchResult>();
+            IndexV2Searcher.SearchStreaming(fixture.Index, query, 10, results.Add, CancellationToken.None);
+            return results.Select(r => r.Name).ToList();
+        }
+
+        // The control: the initials only exist in the grid, so this hit is the grid tier answering.
+        CollectionAssert.Contains(Search("fdbjf"), GridMarker + "笔记法X");
+
+        // No text of this name -- and no reading of it -- contains "zz", and a regex clause describes the
+        // NAME. The class form is deliberate: with no literal for the character prefilter to reject on,
+        // only a matcher that consulted a text can answer it. The tier consults the materialized reading,
+        // so a name the clause rejects stays rejected here either way.
+        Assert.IsEmpty(Search(@"fdbjf /[z]{2}/"), "a grid hit does not answer a regex clause");
+
+        // Same for an exclusion: it is the name that must not carry the text, not the reading.
+        Assert.IsEmpty(Search("fdbjf :笔记"), "a grid hit does not answer an exclusion");
+
+        // Known gap, other direction: `fdbjf /X/` finds nothing, because the tier reads the clause off the
+        // materialized reading and no pinyin reading carries the "X" the name does. Repro, mechanism and
+        // the two ways out are written up in exam/grid-alias-clauses.md.
+    }
+
     // The delta overlay generates aliases in memory, so a grid-worthy row reaches search through the
     // GridAlias path rather than a snapshot section. This is the invariant that matters: the same row
     // must answer the same queries before compaction (delta) and after it (baked grid).
