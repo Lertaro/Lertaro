@@ -232,25 +232,25 @@ internal static class AliasGridFormat
         {
             if (_firstReading.Length >= count)
                 return;
-            var size = Math.Max(count, _firstReading.Length * 2);
-            _firstReading = new int[size];
-            _readingCount = new byte[size];
+            // Array.Resize, not a fresh array: this runs per position DURING a bind, so replacing the
+            // array would discard the offsets already written for the positions before it.
+            Array.Resize(ref _firstReading, Math.Max(count, _firstReading.Length * 2));
+            Array.Resize(ref _readingCount, _firstReading.Length);
         }
 
         private void EnsureReadings(int count)
         {
             if (_readingCharStart.Length >= count)
                 return;
-            var size = Math.Max(count, _readingCharStart.Length * 2);
-            _readingCharStart = new int[size];
-            _readingCharLength = new int[size];
+            Array.Resize(ref _readingCharStart, Math.Max(count, _readingCharStart.Length * 2));
+            Array.Resize(ref _readingCharLength, _readingCharStart.Length);
         }
 
         private void EnsureChars(int count)
         {
             if (_chars.Length >= count)
                 return;
-            _chars = new char[Math.Max(count, _chars.Length * 2)];
+            Array.Resize(ref _chars, Math.Max(count, _chars.Length * 2));
         }
     }
 }

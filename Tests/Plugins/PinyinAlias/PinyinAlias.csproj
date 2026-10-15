@@ -20,6 +20,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\Plugins\PinyinAlias\PinyinAlias.csproj" />
+    <!-- Host side, for the one integration test that bakes this plugin's real provider through the real
+         SnapshotWriter and searches the result. Everywhere else these tests exercise the plugin alone. -->
+    <ProjectReference Include="..\..\..\Core\Core.csproj" />
   </ItemGroup>
 
 </Project>

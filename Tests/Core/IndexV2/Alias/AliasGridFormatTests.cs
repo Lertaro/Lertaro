@@ -76,6 +76,28 @@ public sealed class AliasGridFormatTests
     }
 
     [TestMethod]
+    public void TryBind_LongPayload_KeepsEveryReadingIntact()
+    {
+        var sets = new string[44][];
+        var boundaries = new bool[44];
+        for (var i = 0; i < sets.Length; i++)
+        {
+            sets[i] = new[] { "zhong", "chong" };
+            boundaries[i] = i > 0;
+        }
+
+        Encode(new FakeGridProvider(sets, boundaries), new string('a', 44), out var index);
+
+        Assert.AreEqual(44, index.PositionCount);
+        for (var p = 0; p < index.PositionCount; p++)
+        {
+            Assert.AreEqual(2, index.ReadingCount(p));
+            Assert.AreEqual("zhong", index.Reading(p, 0).ToString(), $"position {p} reading 0");
+            Assert.AreEqual("chong", index.Reading(p, 1).ToString(), $"position {p} reading 1");
+        }
+    }
+
+    [TestMethod]
     public void TryBind_WrongFormatTag_Refuses()
     {
         var payload = Encode(new FakeGridProvider(new[] { new[] { "a" } }), "a", out _);

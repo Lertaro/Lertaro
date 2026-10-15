@@ -34,10 +34,11 @@ public sealed class AliasGridMatcherTests
 
     private static string Materialize(AliasGridFormat.Index grid, AliasGridTier tier, byte[] choice)
     {
-        var buffer = new char[AliasGridMatcher.Measure(grid, tier, choice)];
+        var measure = AliasGridMatcher.Measure(grid, tier, choice);
+        var buffer = new char[measure];
         var length = AliasGridMatcher.Materialize(grid, tier, FakeGridProvider.Separator, choice, buffer);
-        Assert.AreEqual(buffer.Length, length);
-        return new string(buffer);
+        Assert.AreEqual(measure, length, $"positions={grid.PositionCount} measure={measure}");
+        return new string(buffer, 0, length);
     }
 
     [TestMethod]
@@ -155,6 +156,27 @@ public sealed class AliasGridMatcherTests
         // 'f','a' both come from position 0, which the initials tier cannot do: that is the full tier's job.
         Assert.IsFalse(TryMatch(grid, "fa", FzfTermKind.Exact, AliasGridTier.Initials, out _));
         Assert.IsTrue(TryMatch(grid, "fa", FzfTermKind.Exact, AliasGridTier.Full, out _));
+    }
+
+    [TestMethod]
+    public void FuzzyInitials_OverALongPolyphonicName_MaterializesEveryPosition()
+    {
+        var sets = new string[44][];
+        var boundaries = new bool[44];
+        for (var i = 0; i < sets.Length; i++)
+        {
+            sets[i] = new[] { "zhong", "chong" };
+            boundaries[i] = i > 0;
+        }
+
+        var grid = Build(sets, boundaries);
+
+        Assert.IsTrue(TryMatch(grid, "cz", FzfTermKind.Fuzzy, AliasGridTier.Initials, out var choice));
+        Assert.AreEqual("c" + new string('z', 43), Materialize(grid, AliasGridTier.Initials, choice));
+
+        Assert.IsTrue(TryMatch(grid, "zhong" + FakeGridProvider.Separator + "zhong", FzfTermKind.Fuzzy, AliasGridTier.Full, out var full));
+        Assert.AreEqual(44 * 5 + 43, AliasGridMatcher.Measure(grid, AliasGridTier.Full, full));
+        Assert.AreEqual(44 * 5 + 43, Materialize(grid, AliasGridTier.Full, full).Length);
     }
 
     [TestMethod]
