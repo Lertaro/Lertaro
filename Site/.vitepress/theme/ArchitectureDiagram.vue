@@ -56,7 +56,7 @@ const text = computed(() => copy[lang.value === 'zh-HK' ? 'zh-TW' : lang.value] 
       <span>{{ text.cliPipe }}</span>
     </div>
     <div class="process app">
-      <div class="process-title"><img src="/logo.webp" width="28" height="28" alt=""/><strong>{{ text.app }}</strong></div>
+      <div class="process-title"><img src="/logo.svg" width="28" height="28" alt=""/><strong>{{ text.app }}</strong></div>
       <code>Lertaro.App.exe</code>
       <span class="identity">{{ text.user }}</span>
       <p>{{ text.appWork }}</p>
