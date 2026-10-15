@@ -194,6 +194,12 @@ public sealed class HookCommandHandler
                         _process.RefreshActiveWindowAdapters();
                     }
                     break;
+                case IpcMessageId.RearmHooks:
+                    // Handled on the hook process's own message thread: a low-level hook is dispatched to
+                    // the thread that installed it, so re-installing here on the pipe reader would put the
+                    // callback on a thread with no message pump and drop it all over again.
+                    _process.RearmHooks();
+                    break;
                 case IpcMessageId.SetHotkeysDisabled:
                     _process.IsHotkeysDisabledTemporarily = msg.BoolVal;
                     _process.KeyboardHook?.IsHotkeysDisabledTemporarily = msg.BoolVal;

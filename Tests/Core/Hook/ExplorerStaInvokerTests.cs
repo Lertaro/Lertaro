@@ -1,3 +1,4 @@
+using System.Reflection;
 using Lertaro.Core.Hook;
 
 namespace Lertaro.Core.Tests.Hook;
@@ -77,6 +78,34 @@ public sealed class ExplorerStaInvokerTests
         {
             workerGate.TrySetResult(true);
             await finished.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        }
+    }
+
+    [TestMethod]
+    public void ResetAbandonedReads_ReopensReadsThatTheExhaustedBudgetRefused()
+    {
+        // The budget is a latch: it only counts down when a wedged read finally returns, so a read left
+        // hanging across a sleep would refuse every shell read for the rest of the process's life. Set
+        // rather than wedged here, because what is under test is the latch and its one unlock.
+        var budget = typeof(ExplorerStaInvoker)
+            .GetField("_abandonedReads", BindingFlags.Static | BindingFlags.NonPublic)!;
+        try
+        {
+            budget.SetValue(null, int.MaxValue);
+
+            var refused = ExplorerStaInvoker.RunOnStaWithTimeout(() => "ok", "refused", TimeSpan.FromSeconds(5), out var refusedTimedOut);
+            Assert.AreEqual("refused", refused, "an exhausted budget still dispatched the read");
+            Assert.IsTrue(refusedTimedOut, "a read the budget refuses has to look like a timeout to its caller");
+
+            ExplorerStaInvoker.ResetAbandonedReads();
+
+            var after = ExplorerStaInvoker.RunOnStaWithTimeout(() => "ok", "refused", TimeSpan.FromSeconds(5), out var afterTimedOut);
+            Assert.AreEqual("ok", after);
+            Assert.IsFalse(afterTimedOut);
+        }
+        finally
+        {
+            budget.SetValue(null, 0);
         }
     }
 }

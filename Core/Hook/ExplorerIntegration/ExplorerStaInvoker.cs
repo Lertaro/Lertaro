@@ -42,6 +42,13 @@ internal static class ExplorerStaInvoker
     /// Creates the workers. Called when the tracker starts, so the first foreground change of the session
     /// never asks the loader for four threads from the thread that exists to be dispatched to.
     /// </summary>
+    /// <summary>
+    /// Clears the abandoned-read budget. It only ever counts down when a wedged read finally comes back, so
+    /// a read left hanging across a sleep would otherwise refuse every shell read for the rest of the
+    /// process's life -- against a shell that resumed and is answering fine now.
+    /// </summary>
+    internal static void ResetAbandonedReads() => Interlocked.Exchange(ref _abandonedReads, 0);
+
     public static void Start() => EnsureWorkers();
 
     public static T RunOnStaWithTimeout<T>(Func<T> func, T fallback, TimeSpan timeout)

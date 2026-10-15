@@ -38,6 +38,11 @@ public sealed class HookIpcClient : IDisposable
         }
     }
 
+    /// <summary>Asks the hook to put its low-level hooks back up. Windows drops them silently once a
+    /// callback overruns the hook timeout -- which resume is prone to -- and the handle it returned stays
+    /// valid, so only a caller outside that process can notice. See <see cref="IpcMessageId.RearmHooks"/>.</summary>
+    public void RearmHooks() => SendMessage(new IpcMessage { Id = IpcMessageId.RearmHooks });
+
     private async Task ClosePipesAsync()
     {
         try

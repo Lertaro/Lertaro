@@ -37,6 +37,9 @@ public sealed class HookProcess : IDisposable
     // Quick Switch on the tracker thread: the gesture is recognized in the low-level keyboard hook, which may
     // not take the tracker lock (see GlobalHotkeyDetector) and may not block on another process.
     private const uint WM_QUICK_SWITCH = 0x8002;
+    // Re-installing a hook has to happen on the thread that installed it (the callback is dispatched
+    // there), and this is that thread's only pump, so the resume notice arrives as a message.
+    private const uint WM_REARM_HOOKS = 0x8003;
 
     private readonly HookIpcServer _ipcServer;
     private readonly HookCommandHandler _commandHandler;
@@ -70,6 +73,30 @@ public sealed class HookProcess : IDisposable
     {
         if (_trackerThreadId != 0)
             PostThreadMessage(_trackerThreadId, WM_REFRESH_ACTIVE_ADAPTERS, IntPtr.Zero, IntPtr.Zero);
+    }
+
+    /// <summary>
+    /// Asks this thread to put its low-level hooks back up. Windows removes such a hook as soon as one
+    /// callback overruns the hook timeout, and still reports the handle it gave back as installed -- so
+    /// <see cref="KeyboardHookService.Start"/>, which keeps that handle, can never re-arm anything by
+    /// itself. The App notices the resume and sends this (see IpcMessageId.RearmHooks).
+    /// </summary>
+    internal void RearmHooks()
+    {
+        if (_nativeThreadId != 0)
+            PostThreadMessage(_nativeThreadId, WM_REARM_HOOKS, IntPtr.Zero, IntPtr.Zero);
+    }
+
+    private void RearmHooksNow()
+    {
+        // Stop first: the handle a dropped hook leaves behind still unhooks cleanly, and Start() is a
+        // no-op while one is set.
+        _keyboardHook?.Stop(); _keyboardHook?.Start();
+        _mouseHook?.Stop(); _mouseHook?.Start();
+        // A plugin read abandoned before the sleep says nothing about the shell running after it, and
+        // without this the budget counting them is a latch that nothing ever unlocks.
+        ExplorerStaInvoker.ResetAbandonedReads();
+        Logger.Log("[HookProcess] Low-level hooks re-armed.", LogLevel.Info);
     }
 
     /// <summary>
@@ -273,14 +300,11 @@ public sealed class HookProcess : IDisposable
                         StringVal2 = className,
                         IsDesktop = isDesktop
                     });
+                    // No working-set trim here, unlike the App: this process holds the system-wide input
+                    // hooks, and emptying its pages puts a hard fault into every keystroke callback --
+                    // which is exactly the stall that gets a hook removed for good.
                     _explorerTracker.OnExplorerDeactivated += () =>
-                    {
                         _ipcServer.SendMessage(new IpcMessage { Id = IpcMessageId.ExplorerDeactivated });
-                        Task.Run(() =>
-                        {
-                            try { Win32Api.TrimWorkingSet(); } catch { }
-                        });
-                    };
                     _explorerTracker.OnPathCaptured += (path, isDesktop, isDialog) => _ipcServer.SendMessage(new IpcMessage
                     {
                         Id = IpcMessageId.PathCaptured,
@@ -418,6 +442,11 @@ public sealed class HookProcess : IDisposable
             {
                 var result = GetMessage(out var msg, IntPtr.Zero, 0, 0);
                 if (result <= 0) break;
+                if (msg.message == WM_REARM_HOOKS)
+                {
+                    RearmHooksNow();
+                    continue;
+                }
                 TranslateMessage(ref msg);
                 DispatchMessage(ref msg);
             }
@@ -460,7 +489,6 @@ public sealed class HookProcess : IDisposable
         {
             Logger.Log("[HookProcess] Tracker thread did not stop in time; skipping tracker dispose to avoid a race.", LogLevel.Warn);
         }
-        try { Win32Api.TrimWorkingSet(); } catch { }
     }
 
     public void Stop()

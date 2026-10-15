@@ -177,6 +177,9 @@ public partial class App : Application
         HookClient.OnQuickNavigationHotkey += () => Dispatcher.BeginInvoke(
             new Action(QuickNavigationMenu.ShowFromKeyboard));
         HookClient.Start();
+        // Subscribed here rather than at first use: a hook dropped during a sleep has to be noticed by the
+        // very next resume, and the launcher spends its life hidden.
+        Services.HookResumeWatcher.EnsureWatching();
         // Set up the quick panel. Built here rather than lazily on the first hotkey so the handler above always
         // has something to call; it creates no window of its own until it is first opened.
         _quickPanelManager = new Services.QuickPanel.QuickPanelManager();
@@ -354,6 +357,7 @@ public partial class App : Application
         Services.Notifications.NotificationService.Shutdown();
         _favoriteHotkeys?.Dispose(); _favoriteHotkeys = null;
         foreach (var provider in PluginManager.Instance.AllSearchScopeProviders.OfType<IDisposable>()) provider.Dispose();
+        Services.HookResumeWatcher.StopWatching();
         HookClient?.Stop(); HookClient?.Dispose(); HookClient = null;
         AppPipeService.StopServer(); AppSearchPipeService.StopServer(); Services.Everything.EverythingServiceBootstrapper.Stop(); InlineSearchManager.Instance.Dispose(); CloseAllManagedWindows();
         if (_appMutex != null) { try { _appMutex.ReleaseMutex(); } catch { } _appMutex.Dispose(); }

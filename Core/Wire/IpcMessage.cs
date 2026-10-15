@@ -66,7 +66,11 @@ public enum IpcMessageId : byte
     // file -- it has to ask. Carries nothing, and like every other command here is only reachable by the
     // App the hook actually launched (see HookPipePeer).
     ClearHookLog = 46,
-    LocateInlineItem = 47
+    LocateInlineItem = 47,
+    // App -> Hook: tear the low-level hooks down and put them back up. Windows drops such a hook silently
+    // once its callback overruns the hook timeout, and the returned handle stays valid, so nothing on the
+    // hook side can tell a dropped hook from an installed one. Carries nothing.
+    RearmHooks = 48
 }
 
 public struct IpcMessage
