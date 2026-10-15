@@ -101,9 +101,9 @@ export default defineConfig({
     },
   },
   head: [
-    ['link', { rel: 'icon', type: 'image/webp', href: '/logo.webp' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
     ['meta', { property: 'og:type', content: 'website' }],
-    ['meta', { property: 'og:image', content: 'https://lertaro.github.io/logo.webp' }],
+    ['meta', { property: 'og:image', content: 'https://lertaro.github.io/logo.svg' }],
     ['meta', { name: 'twitter:card', content: 'summary' }],
     [
       'script',
