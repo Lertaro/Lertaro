@@ -60,6 +60,7 @@ public static class SnapshotWriter
         var aliasStarts = new List<int>();
         var aliasEntryOffsets = new List<uint> { 0 };
         var aliasProviderIds = new List<byte>();
+        var aliasEntryKinds = new List<byte>();
         var aliasBlob = new MemoryStream();
         var totalFiles = 0;
         var totalDirs = 0;
@@ -119,6 +120,7 @@ public static class SnapshotWriter
                     offset += res.SegmentLengths[s];
                     aliasEntryOffsets.Add(checked((uint)aliasBlob.Length));
                     aliasProviderIds.Add(res.ProviderIds[s]);
+                    aliasEntryKinds.Add(res.Kinds[s]);
                 }
             }
             masks.Add(uniqueMasks[uid]);
@@ -251,6 +253,7 @@ public static class SnapshotWriter
                 SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.AliasStarts, MemoryMarshal.AsBytes(CollectionsMarshal.AsSpan(aliasStarts)));
                 SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.AliasEntryOffsets, MemoryMarshal.AsBytes(CollectionsMarshal.AsSpan(aliasEntryOffsets)));
                 SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.AliasProviderIds, CollectionsMarshal.AsSpan(aliasProviderIds));
+                SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.AliasEntryKinds, CollectionsMarshal.AsSpan(aliasEntryKinds));
                 SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.AliasBlob, aliasBlob.GetBuffer().AsSpan(0, (int)aliasBlob.Length));
                 SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.OrphanRows, MemoryMarshal.AsBytes(CollectionsMarshal.AsSpan(orphanRows)));
                 SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.OrphanFrns, MemoryMarshal.AsBytes(CollectionsMarshal.AsSpan(orphanFrns)));

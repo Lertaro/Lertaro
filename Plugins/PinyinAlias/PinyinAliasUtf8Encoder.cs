@@ -8,6 +8,11 @@ namespace Lertaro.Plugins.PinyinAlias;
 // combination generator) plus the Simplified spelling of a Traditional name, which is what makes a
 // Simplified query reach it. The host's bulk indexing path calls this instead of the string API, so
 // anything GetAliases yields has to be emitted here too or it never reaches the index.
+//
+// The two halves are separately reachable through IAliasGridProvider (reading aliases vs standalone
+// aliases), because the host may store the readings as a grid instead of spelling them out -- and the
+// Simplified spelling has to survive that swap, being no spelling of any reading. Encode stays the
+// concatenation of both, which is the identity the split is held to.
 internal static class PinyinAliasUtf8Encoder
 {
     public static void Encode(string text, AliasByteSink dest, bool convertEnabled, Func<string, string> simplify)
@@ -23,8 +28,9 @@ internal static class PinyinAliasUtf8Encoder
     }
 
     // The Simplified spelling of a Traditional name, as one plain segment. Shared by both provider
-    // paths, hence the injected converter rather than a direct HanConversion call.
-    private static void AppendSimplified(string text, AliasByteSink dest, bool convertEnabled, Func<string, string> simplify)
+    // paths (and by IAliasGridProvider.GetStandaloneAliasesUtf8), hence the injected converter rather
+    // than a direct HanConversion call.
+    internal static void AppendSimplified(string text, AliasByteSink dest, bool convertEnabled, Func<string, string> simplify)
     {
         if (!convertEnabled)
             return;

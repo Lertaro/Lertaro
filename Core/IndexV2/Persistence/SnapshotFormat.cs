@@ -7,7 +7,7 @@ internal enum SnapshotSection
     NameIds, Flags, ParentIndexes, UniqueMasks, NameOffsets, NameBlob,
     Ids, Sizes, RecursiveSizes, CreationTimes, LastWriteTimes, LastAccessTimes,
     ChildStarts, Children, UidStarts, UidRows,
-    AliasStarts, AliasEntryOffsets, AliasProviderIds, AliasBlob,
+    AliasStarts, AliasEntryOffsets, AliasProviderIds, AliasEntryKinds, AliasBlob,
     OrphanRows, OrphanFrns,
     // One bit per unique name: 1 = pure ASCII, so its raw UTF-8 bytes ARE its chars and the search
     // hot path can match them with zero decode (FzfBytePattern). Baked at write time instead of
@@ -23,7 +23,11 @@ internal static class SnapshotFormat
 {
     public const ulong Magic = 0x0000005844494C53; // "SLIDX\0\0\0" little-endian
     // Bumped 9 -> 10: recursive logical sizes support instant, index-only space analysis.
-    public const int Version = 10;
+    // Bumped 10 -> 11: alias entries carry a kind column (alias string vs reading grid). A v10 file has
+    // no room to say which shape each payload is, and the two are not interchangeable -- one is text to
+    // match, the other is AliasGridFormat's encoding -- so the old files are rejected at open and
+    // rebuilt rather than guessed at.
+    public const int Version = 11;
     public const int SectionAlignment = 16;
 
     internal sealed class Meta
@@ -169,6 +173,7 @@ internal static class SnapshotFormat
             4L * ((long)meta.UniqueCount + 1),   // AliasStarts
             4L * ((long)meta.AliasEntryCount + 1), // AliasEntryOffsets
             meta.AliasEntryCount,          // AliasProviderIds
+            meta.AliasEntryCount,          // AliasEntryKinds
             meta.AliasBlobLength,          // AliasBlob
             4L * meta.OrphanCount,         // OrphanRows
             16L * meta.OrphanCount,        // OrphanFrns

@@ -31,6 +31,11 @@ internal static class SearchMatcherAliasExtensions
             if (snapshot.AliasProviderId(e) != mixedTerm.ProviderId)
                 continue;
 
+            // A reading grid is not an alias string, and this tier decodes one to text before matching
+            // it; grid entries are decided by SearchMatcherGridAliases instead.
+            if (snapshot.AliasKind(e) != AliasEntryKind.String)
+                continue;
+
             var aliasUtf8 = snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)
                 continue;
@@ -68,6 +73,17 @@ internal static class SearchMatcherAliasExtensions
         {
             if (disabledIds != null && disabledIds.Contains(snapshot.AliasProviderId(e)))
                 continue;
+
+            if (snapshot.AliasKind(e) == AliasEntryKind.Grid)
+            {
+                var gridMatch = SearchMatcherGridAliases.TryMatchEntry(snapshot, ctx, e, worker);
+                if (gridMatch != null && (!matched || gridMatch.Value.Score > best.Score))
+                {
+                    matched = true;
+                    best = gridMatch.Value;
+                }
+                continue;
+            }
 
             var aliasUtf8 = snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)

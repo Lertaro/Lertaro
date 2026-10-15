@@ -160,15 +160,20 @@ public sealed unsafe class Snapshot : IDisposable
     }
 
     // Precomputed alias strings for a unique name, decoded on demand (only when the name itself
-    // failed to match, and only for the CJK subset that has aliases at all).
+    // failed to match, and only for the CJK subset that has aliases at all). Reading-grid entries are
+    // skipped: they are not strings, and AliasGridFormat is the only thing that may decode one.
     public int GetAliases(int uid, List<(string Alias, byte ProviderId)> into)
     {
         into.Clear();
         var starts = new ReadOnlySpan<int>(Section(SnapshotSection.AliasStarts), UniqueCount + 1);
         var entryOffsets = new ReadOnlySpan<uint>(Section(SnapshotSection.AliasEntryOffsets), Meta.AliasEntryCount + 1);
         var providerIds = new ReadOnlySpan<byte>(Section(SnapshotSection.AliasProviderIds), Meta.AliasEntryCount);
+        var kinds = new ReadOnlySpan<byte>(Section(SnapshotSection.AliasEntryKinds), Meta.AliasEntryCount);
         for (var e = starts[uid]; e < starts[uid + 1]; e++)
         {
+            if (kinds[e] != (byte)AliasEntryKind.String)
+                continue;
+
             var alias = SnapshotFormat.NameEncoding.GetString(
                 new ReadOnlySpan<byte>(Section(SnapshotSection.AliasBlob) + entryOffsets[e], (int)(entryOffsets[e + 1] - entryOffsets[e])));
             into.Add((alias, providerIds[e]));
@@ -194,6 +199,12 @@ public sealed unsafe class Snapshot : IDisposable
 
     internal byte AliasProviderId(int entry)
         => new ReadOnlySpan<byte>(Section(SnapshotSection.AliasProviderIds), Meta.AliasEntryCount)[entry];
+
+    // Whether this entry's payload is an alias string or a reading grid. Every string-tier consumer of
+    // AliasUtf8 has to skip grids; the grid tier (AliasGridMatcher) is the only thing that may decode
+    // one.
+    internal AliasEntryKind AliasKind(int entry)
+        => (AliasEntryKind)new ReadOnlySpan<byte>(Section(SnapshotSection.AliasEntryKinds), Meta.AliasEntryCount)[entry];
 
     // First (lowest) row holding this id, or -1; hard-link duplicates sit adjacent.
     public int FirstRowForId(UInt128 id)

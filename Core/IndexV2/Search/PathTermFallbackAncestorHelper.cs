@@ -112,6 +112,10 @@ internal static class PathTermFallbackAncestorHelper
         {
             if (disabledIds != null && disabledIds.Contains(snapshot.AliasProviderId(e)))
                 continue;
+            // Only string aliases can answer "which query characters does this row's alias text carry";
+            // a grid entry's payload is not text.
+            if (snapshot.AliasKind(e) != AliasEntryKind.String)
+                continue;
             var aliasUtf8 = snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)
                 continue;

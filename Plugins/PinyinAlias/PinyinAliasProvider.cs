@@ -4,7 +4,7 @@ using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.PinyinAlias;
 
-public class PinyinAliasProvider : IAliasProvider, ITranslationProvider, IConfigurable
+public class PinyinAliasProvider : IAliasGridProvider, ITranslationProvider, IConfigurable
 {
     public string Name => TranslationService.Get("Plugins_PinyinAliasPluginName");
 
@@ -296,6 +296,23 @@ public class PinyinAliasProvider : IAliasProvider, ITranslationProvider, IConfig
     // repo's per-file line limit.
     public void GetAliasesUtf8(string text, AliasByteSink dest) =>
         PinyinAliasUtf8Encoder.Encode(text, dest, ConvertEnabled, HanConversion.ToSimplified);
+
+    // IAliasGridProvider. Deliberately delegates to the very same per-position readings the string and
+    // byte generation paths already build their aliases from, so the grid cannot disagree with either
+    // about what a character reads as: the two encodings are the same alias space, and the host picks
+    // between them per name. GetSyllableLists' returned array is thread-static scratch -- the host
+    // copies what it needs before calling back in, which is the lifetime the interface documents.
+    public string[][] GetReadingSets(string text) => PinyinAliasCombinationGenerator.GetSyllableLists(text);
+
+    public bool NeedsSeparatorBefore(string text, int index) => PinyinAliasFormat.NeedsSeparatorBefore(text, index);
+
+    // The pinyin half of GetAliasesUtf8, separated so the host can weigh it against the grid and keep
+    // whichever is smaller for a given name. The Simplified spelling is not a spelling of the readings,
+    // so it goes out through GetStandaloneAliasesUtf8 and survives either way.
+    public void GetReadingAliasesUtf8(string text, AliasByteSink dest) => PinyinAliasUtf8PinyinEncoder.Encode(text, dest);
+
+    public void GetStandaloneAliasesUtf8(string text, AliasByteSink dest) =>
+        PinyinAliasUtf8Encoder.AppendSimplified(text, dest, ConvertEnabled, HanConversion.ToSimplified);
 
     // The one configurable surface this assembly has -- see PinyinAliasConfigSchema.
     public PluginConfigSchema GetConfigSchema() => PinyinAliasConfigSchema.Create();

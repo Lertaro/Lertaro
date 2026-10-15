@@ -156,6 +156,10 @@ internal sealed class PathGate
         {
             if (disabledIds != null && disabledIds.Contains(_snapshot.AliasProviderId(e)))
                 continue;
+            // Reading grids are not alias strings; the path gate's segment fallback has no grid tier
+            // yet, so the entry is inert here rather than decoded as text.
+            if (_snapshot.AliasKind(e) != AliasEntryKind.String)
+                continue;
             var aliasUtf8 = _snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)
                 continue;

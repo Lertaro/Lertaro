@@ -1,3 +1,4 @@
+using Lertaro.Core.IndexV2.Persistence;
 using Lertaro.Core.SearchIndex.Fzf;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 
@@ -11,6 +12,14 @@ namespace Lertaro.Core.IndexV2.Alias;
 // Same GetAllProviders/CanHandle/per-provider-try semantics as AliasGeneration.Generate; results
 // are materialized into plain arrays so a parallel generation pass can hand them across threads
 // to the strictly-serial snapshot blob writer.
+//
+// Providers that implement IAliasGridProvider get one extra choice here: their reading-derived aliases
+// can be stored as a per-position reading grid instead of spelled out. The grid costs space linear in
+// the name's length, the spelled-out form costs the enumeration of the readings' cross product, so this
+// keeps whichever is SMALLER for that exact name. Names with one reading per position keep the string
+// encoding they have today, byte for byte; the polyphonic names that used to bake 6-8 KB of variants get
+// the grid. Aliases that are not spellings of the readings (the pinyin provider's Simplified form) are
+// emitted through GetStandaloneAliasesUtf8 and survive either way.
 internal static class AliasGenerationUtf8
 {
     internal readonly struct Result
@@ -18,16 +27,20 @@ internal static class AliasGenerationUtf8
         public readonly byte[] Bytes;
         public readonly int[] SegmentLengths;
         public readonly byte[] ProviderIds;
+        public readonly byte[] Kinds;
 
-        public Result(byte[] bytes, int[] segmentLengths, byte[] providerIds)
+        public Result(byte[] bytes, int[] segmentLengths, byte[] providerIds, byte[] kinds)
         {
             Bytes = bytes;
             SegmentLengths = segmentLengths;
             ProviderIds = providerIds;
+            Kinds = kinds;
         }
     }
 
     [ThreadStatic] private static AliasByteSink? _sink;
+    [ThreadStatic] private static AliasByteSink? _readingSink;
+    [ThreadStatic] private static AliasByteSink? _gridSink;
 
     // Generates aliases for one name, OR-ing each alias's char mask into `mask`. Returns null when
     // the name yields no aliases (the common pure-ASCII case exits on the vectorized gate).
@@ -40,6 +53,7 @@ internal static class AliasGenerationUtf8
         sink.Reset();
 
         List<byte>? providerIds = null;
+        List<byte>? kinds = null;
         foreach (var provider in AliasProviderRegistry.GetAllProviders())
         {
             try
@@ -47,10 +61,7 @@ internal static class AliasGenerationUtf8
                 if (!provider.CanHandle(name))
                     continue;
                 var providerId = AliasProviderRegistry.GetProviderId(provider);
-                var before = sink.SegmentCount;
-                provider.GetAliasesUtf8(name, sink);
-                for (var s = before; s < sink.SegmentCount; s++)
-                    (providerIds ??= new List<byte>()).Add(providerId);
+                AppendProvider(name, provider, providerId, sink, providerIds ??= new List<byte>(), kinds ??= new List<byte>(), ref mask);
             }
             catch (Exception ex)
             {
@@ -58,7 +69,7 @@ internal static class AliasGenerationUtf8
             }
         }
 
-        if (providerIds == null || sink.SegmentCount == 0)
+        if (providerIds == null || providerIds.Count == 0 || sink.SegmentCount == 0)
             return null;
 
         var segmentLengths = new int[sink.SegmentCount];
@@ -76,9 +87,106 @@ internal static class AliasGenerationUtf8
             var segment = sink.Segment(s);
             segment.CopyTo(bytes.AsSpan(offset));
             offset += segment.Length;
-            mask |= FzfAlgorithm.GetCharMaskUtf8(segment);
         }
 
-        return new Result(bytes, segmentLengths, providerIds.ToArray());
+        return new Result(bytes, segmentLengths, providerIds.ToArray(), kinds!.ToArray());
+    }
+
+    // Appends one provider's chosen output: either its string aliases, or -- when it can express its
+    // readings as a grid and that comes out smaller -- the grid plus the standalone aliases it wrote.
+    private static void AppendProvider(
+        string name,
+        IAliasProvider provider,
+        byte providerId,
+        AliasByteSink dest,
+        List<byte> providerIds,
+        List<byte> kinds,
+        ref ulong mask)
+    {
+        if (provider is not IAliasGridProvider gridProvider)
+        {
+            var before = dest.SegmentCount;
+            provider.GetAliasesUtf8(name, dest);
+            RecordSegments(dest, before, providerId, AliasEntryKind.String, providerIds, kinds, ref mask);
+            return;
+        }
+
+        // Spell the readings out first: their size is what the grid has to beat, and it is the encoding
+        // this name would have had without the grid capability.
+        var readings = _readingSink ??= new AliasByteSink();
+        readings.Reset();
+        gridProvider.GetReadingAliasesUtf8(name, readings);
+        var readingBytes = 0;
+        for (var s = 0; s < readings.SegmentCount; s++)
+            readingBytes += readings.Segment(s).Length;
+
+        var grids = _gridSink ??= new AliasByteSink();
+        grids.Reset();
+        var gridLength = AliasGridFormat.Encode(name, gridProvider, grids);
+
+        if (gridLength > 0 && gridLength < readingBytes)
+        {
+            var start = dest.BeginSegment();
+            dest.Append(grids.Segment(0));
+            dest.EndSegment(start);
+            providerIds.Add(providerId);
+            kinds.Add((byte)AliasEntryKind.Grid);
+            mask |= GridCharMask(name, gridProvider);
+        }
+        else
+        {
+            for (var s = 0; s < readings.SegmentCount; s++)
+            {
+                var start = dest.BeginSegment();
+                dest.Append(readings.Segment(s));
+                dest.EndSegment(start);
+                providerIds.Add(providerId);
+                kinds.Add((byte)AliasEntryKind.String);
+                mask |= FzfAlgorithm.GetCharMaskUtf8(readings.Segment(s));
+            }
+        }
+
+        var standaloneStart = dest.SegmentCount;
+        gridProvider.GetStandaloneAliasesUtf8(name, dest);
+        RecordSegments(dest, standaloneStart, providerId, AliasEntryKind.String, providerIds, kinds, ref mask);
+    }
+
+    private static void RecordSegments(
+        AliasByteSink dest,
+        int from,
+        byte providerId,
+        AliasEntryKind kind,
+        List<byte> providerIds,
+        List<byte> kinds,
+        ref ulong mask)
+    {
+        for (var s = from; s < dest.SegmentCount; s++)
+        {
+            providerIds.Add(providerId);
+            kinds.Add((byte)kind);
+            mask |= FzfAlgorithm.GetCharMaskUtf8(dest.Segment(s));
+        }
+    }
+
+    // The union of every character a grid can emit, which is what the query pre-gate needs: the grid
+    // payload itself holds UTF-16 code units, so its raw bytes say nothing about which queries a name
+    // can answer. Covers every reading at every position plus the separator when a boundary exists.
+    private static ulong GridCharMask(string name, IAliasGridProvider provider)
+    {
+        var mask = 0UL;
+        var separator = AliasProviderRegistry.GetSyllableSeparator(AliasProviderRegistry.GetProviderId(provider));
+        var sets = provider.GetReadingSets(name);
+        for (var i = 0; i < name.Length && i < sets.Length; i++)
+        {
+            var readings = sets[i];
+            if (readings == null)
+                continue;
+            foreach (var reading in readings)
+                mask |= FzfAlgorithm.GetCharMask(reading);
+
+            if (separator != '\0' && provider.NeedsSeparatorBefore(name, i))
+                mask |= FzfAlgorithm.GetCharMask(separator.ToString());
+        }
+        return mask;
     }
 }

@@ -126,6 +126,9 @@ internal sealed class PathGateWeighting
         {
             if (disabledIds != null && disabledIds.Contains(_snapshot.AliasProviderId(e)))
                 continue;
+            // Mirrors PathGate.TryMatchSegmentRow: grid entries are not strings and have no tier here.
+            if (_snapshot.AliasKind(e) != AliasEntryKind.String)
+                continue;
             var aliasUtf8 = _snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)
                 continue;
