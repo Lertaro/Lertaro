@@ -79,7 +79,18 @@ internal static class PathTermFallback
             return;
         }
 
-        var termCount = pattern.TermSets.Length;
+        // Only a set with something positive in it can be a mask bit: an exclusion matches no text, so a
+        // set of nothing but `:terms` has no phase that could ever fill its bit, and requiring one dropped
+        // every row this pass exists to recover -- `ome bench :beta` found nothing at all, because the
+        // third bit belonged to no segment. The name veto below is where exclusions speak.
+        var maskableSets = new List<int>(pattern.TermSets.Length);
+        for (var i = 0; i < pattern.TermSets.Length; i++)
+        {
+            if (pattern.TermSets[i].Terms.Any(term => !term.Inverse))
+                maskableSets.Add(i);
+        }
+
+        var termCount = maskableSets.Count;
         // One term has nowhere to split: the "at least one term matches the name" rule would make this
         // identical to the name search that just came up empty.
         if (termCount < 2 || termCount > MaxTerms)
@@ -98,7 +109,7 @@ internal static class PathTermFallback
         var termAliasBytePatterns = new FzfBytePattern[termCount];
         for (var i = 0; i < termCount; i++)
         {
-            termPatterns[i] = FzfPattern.ForTermSet(pattern, i);
+            termPatterns[i] = FzfPattern.ForTermSet(pattern, maskableSets[i]);
             termBytePatterns[i] = FzfBytePattern.From(termPatterns[i]);
             termAliasPatterns[i] = termPatterns[i].AliasReading;
             termAliasBytePatterns[i] = FzfBytePattern.From(termAliasPatterns[i]);
@@ -177,10 +188,12 @@ internal static class PathTermFallback
                 if (nameMask == fullMask && (reportedUids == null || reportedUids.Contains(uid)))
                     continue;
 
-                // An `!term` is satisfied by any segment that lacks it, so the mask above can be filled by
-                // an ANCESTOR while this candidate's own name carries the very text the user excluded. The
-                // veto belongs on the name -- see FzfPatternExclusionExtensions.ExclusionsPass.
-                if (pattern.HasExclusions && !NamePassesExclusions(snapshot, uid, pattern, worker))
+                // A `:term` is a statement about this row's own name, which no folder above can make true
+                // for it. The mask above stopped consulting exclusions so an ancestor could not hand one
+                // back; the veto is what enforces it here -- see FzfPatternExclusionExtensions.ExclusionsPass.
+                // A regex clause reads the name just as literally, for the same reason.
+                if ((pattern.HasExclusions || pattern.Regexes is { Length: > 0 })
+                    && !NamePassesClauses(snapshot, uid, pattern, worker))
                     continue;
 
                 foreach (var row in snapshot.RowsForUid(uid))
@@ -245,14 +258,18 @@ internal static class PathTermFallback
         }
     }
 
-    // Decodes one unique name into the worker's scratch and applies the query's exclusions to it. Only
-    // the verdict survives: the same scratch is reused by the ancestor walk this is called from.
-    private static bool NamePassesExclusions(Snapshot snapshot, int uid, FzfPattern pattern, SearchMatcher.Worker worker)
+    // Decodes one unique name into the worker's scratch and applies the query's name-level clauses to it --
+    // its exclusions and its regex clauses, which are the two things a folder above cannot answer for the
+    // row. Only the verdict survives: the same scratch is reused by the ancestor walk this is called from.
+    private static bool NamePassesClauses(Snapshot snapshot, int uid, FzfPattern pattern, SearchMatcher.Worker worker)
     {
         var utf8 = snapshot.UniqueNameUtf8(uid);
         if (worker.Scratch.Length < utf8.Length)
             worker.Scratch = new char[Math.Max(utf8.Length, worker.Scratch.Length * 2)];
         var written = Encoding.UTF8.GetChars(utf8, worker.Scratch);
-        return pattern.ExclusionsPass(worker.Scratch.AsSpan(0, written));
+        var name = worker.Scratch.AsSpan(0, written);
+        if (pattern.HasExclusions && !pattern.ExclusionsPass(name))
+            return false;
+        return pattern.Regexes is not { Length: > 0 } regexes || RegexClauses.AllMatch(regexes, name);
     }
 }
