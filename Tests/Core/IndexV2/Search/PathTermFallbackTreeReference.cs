@@ -24,12 +24,12 @@ internal static class PathTermFallbackTreeReference
     internal static readonly string[] Extensions = { ".txt", ".log", ".dat", ".cfg" };
 
     // Operators change what a term means, and the mask is built from whatever each term decides. The
-    // exclusion is the interesting one: it is satisfied by segments that do NOT contain its text, so it
-    // fills the mask from the opposite direction to everything else here -- and, unlike the rest, it is
-    // also a veto on the row's own name, which no folder above can hand it (see Excludes).
+    // exclusion is the interesting one: it takes no bit at all and acts only as a veto on the row's own
+    // name, which no folder above can hand it (see PositiveTerms and Excludes).
     //
-    // ':' and '?' are the only triggers the grammar has left; the historical '! "'" '^' '$' shapes became
-    // ordinary characters when the query grammar moved to trigger characters (see TermTriggers).
+    // Colon and question mark are the only triggers the grammar has left; the historical exclamation,
+    // apostrophe, caret and dollar shapes became ordinary characters when the query grammar moved to
+    // trigger characters (see TermTriggers).
     internal static readonly Func<Random, string, string>[] TermShapes =
     {
         (_, word) => word,
@@ -43,33 +43,35 @@ internal static class PathTermFallbackTreeReference
 
     /// <summary>
     /// What the pass promises, stated directly: a row is returned when its own name satisfies at least
-    /// one term, its name together with the folders above it (and the drive root's own segments)
+    /// one positive term, its name together with the folders above it (and the drive root's own segments)
     /// satisfies all of them, and none of its <c>:terms</c> occurs in its own name. Order does not matter
     /// -- unlike path mode, these terms carry no position.
     /// </summary>
     internal static HashSet<string> Expected(List<Row> rows, string[] terms, out int viaAncestor)
     {
         var expected = new HashSet<string>(StringComparer.Ordinal);
-        var fullMask = (1 << terms.Length) - 1;
         viaAncestor = 0;
 
-        // A query that is nothing but exclusions has no positive term left to match ON, so it answers with
-        // nothing rather than with everything (see FzfPattern.HasPositiveTerm) -- and no folder above can
-        // supply the missing positive either.
-        if (terms.All(t => t.Length > 0 && t[0] == ':'))
+        // A `:term` is not one of the terms the mask is built from -- see PositiveTerms. With none left,
+        // the query has nothing to match ON, so it answers with nothing rather than with everything
+        // (FzfPattern.HasPositiveTerm), and no folder above can supply the missing positive either.
+        var positives = PositiveTerms(terms);
+        if (positives.Length == 0)
             return expected;
+
+        var fullMask = (1 << positives.Length) - 1;
 
         foreach (var row in rows)
         {
             if (row.Deleted)
                 continue;
 
-            var nameMask = MaskOf(row.Name, terms);
+            var nameMask = MaskOf(row.Name, positives);
 
-            // `:term` is not a term a segment can satisfy the way the others are: it drops any row whose
-            // OWN NAME carries the excluded text, and says nothing about the folders above. Reading it as
-            // an ordinary term -- any text without it passes, so some ancestor fills its bit -- is exactly
-            // what let `文档 :文档` list the 文档 rows the user had just excluded, through the folder above.
+            // A `:term` drops any row whose OWN NAME carries the excluded text, and says nothing about the
+            // folders above. Counting it as an ordinary term -- any text without it passes, so some ancestor
+            // fills its bit -- is exactly what let `文档 :文档` list the 文档 rows the user had just
+            // excluded, through the folder above.
             if (Excludes(row.Name, terms))
                 continue;
 
@@ -90,7 +92,7 @@ internal static class PathTermFallbackTreeReference
             // Every segment above this row, plus "T:" -- the drive root is a segment the pass offers too.
             var segments = row.FullPath.Split('\\', StringSplitOptions.RemoveEmptyEntries);
             for (var i = 0; i < segments.Length - 1; i++)
-                mask |= MaskOf(segments[i], terms);
+                mask |= MaskOf(segments[i], positives);
 
             if (mask != fullMask)
                 continue;
@@ -107,20 +109,19 @@ internal static class PathTermFallbackTreeReference
         var mask = 0;
         for (var i = 0; i < terms.Length; i++)
         {
-            if (SatisfiedBy(terms[i], text))
+            if (FuzzyMatcher.IsMatch(terms[i], text))
                 mask |= 1 << i;
         }
         return mask;
     }
 
-    // One term's bit. An exclusion reads for ABSENCE, and the matcher seam cannot answer that here: a
-    // pattern made of nothing but a `:term` has no positive term to match on, so it matches nothing at all
-    // (see FzfPattern.HasPositiveTerm), while this pass fills the bit from any segment that does not carry
-    // the excluded text.
-    private static bool SatisfiedBy(string term, string text) =>
-        term.Length > 1 && term[0] == ':'
-            ? !text.Contains(term[1..], StringComparison.OrdinalIgnoreCase)
-            : FuzzyMatcher.IsMatch(term, text);
+    // The terms the mask is built from: everything except the exclusions. A `:term` matches no text -- the
+    // engine's per-term phases hand back nothing for it, because a pattern of nothing but an exclusion has
+    // no positive term to match on (see FzfPattern.HasPositiveTerm) -- and letting any segment that merely
+    // lacks the text fill that bit is exactly what let an ancestor folder re-admit a row the name had just
+    // excluded. The veto is the only place an exclusion is allowed to speak.
+    internal static string[] PositiveTerms(string[] terms) =>
+        [.. terms.Where(t => t.Length == 0 || t[0] != ':')];
 
     // The exclusion veto, stated the way the engine applies it: only the row's own name can carry the
     // excluded text, and only the name is checked for it. Every generated exclusion is a bare `:word`,
