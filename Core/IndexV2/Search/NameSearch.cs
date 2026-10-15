@@ -341,7 +341,7 @@ internal static class NameSearch
             if (!MatchesFileScope(record.Name, record.Flags, fileNamePatterns))
                 continue;
             var match = EmptyPatternMatch;
-            if (!matchAll && !SearchMatcherRow.TryMatchNameOrAliases(pattern, record.Name, record.Aliases, record.ProviderIds, queryLen, slab, out match))
+            if (!matchAll && !SearchMatcherRow.TryMatchNameOrAliases(pattern, record.Name, record.Aliases, record.ProviderIds, record.Grids, queryLen, slab, out match))
                 continue;
             if (ctx.FilterLower != null && !delta.GetFullPath(row).StartsWith(ctx.FilterLower, StringComparison.OrdinalIgnoreCase))
                 continue;
@@ -355,7 +355,7 @@ internal static class NameSearch
             if (!MatchesFileScope(record.Name, record.Flags, fileNamePatterns))
                 continue;
             var match = EmptyPatternMatch;
-            if (!matchAll && !SearchMatcherRow.TryMatchNameOrAliases(pattern, record.Name, record.Aliases, record.ProviderIds, queryLen, slab, out match))
+            if (!matchAll && !SearchMatcherRow.TryMatchNameOrAliases(pattern, record.Name, record.Aliases, record.ProviderIds, record.Grids, queryLen, slab, out match))
                 continue;
             if (ctx.FilterLower != null && !delta.GetFullPath(record).StartsWith(ctx.FilterLower, StringComparison.OrdinalIgnoreCase))
                 continue;

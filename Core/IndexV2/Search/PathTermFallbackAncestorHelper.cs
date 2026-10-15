@@ -112,10 +112,21 @@ internal static class PathTermFallbackAncestorHelper
         {
             if (disabledIds != null && disabledIds.Contains(snapshot.AliasProviderId(e)))
                 continue;
-            // Only string aliases can answer "which query characters does this row's alias text carry";
-            // a grid entry's payload is not text.
-            if (snapshot.AliasKind(e) != AliasEntryKind.String)
+            // A grid entry answers the same "can this row carry that term" question, but through the
+            // grid tier rather than by matching text: its payload is UTF-16 code units, not a string.
+            if (snapshot.AliasKind(e) == AliasEntryKind.Grid)
+            {
+                for (var i = 0; i < termPatterns.Length; i++)
+                {
+                    var bit = 1 << i;
+                    if ((unresolved & bit) == 0 || (mask & bit) != 0)
+                        continue;
+                    if (SearchMatcherGridAliases.TryMatchEntry(
+                            snapshot, termPatterns[i], termPatterns[i].GetTotalTermLength(), e, worker.Slab, gate: false, out _))
+                        mask |= bit;
+                }
                 continue;
+            }
             var aliasUtf8 = snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)
                 continue;

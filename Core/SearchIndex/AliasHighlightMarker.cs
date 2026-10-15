@@ -1,3 +1,4 @@
+using Lertaro.Core.IndexV2.Alias;
 using Lertaro.Core.SearchIndex.Fzf;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 
@@ -33,6 +34,15 @@ internal static class AliasHighlightMarker
     // thousands of candidates in the refinement set, which was most of what that refinement cost.
     [ThreadStatic]
     private static Dictionary<(IAliasProvider Provider, string Term, bool CaseSensitive), string[]>? _probeCache;
+
+    // Scratch for the grid tier below: the encoded grid, its bound index, one reading choice per position
+    // and the materialized alias.
+    [ThreadStatic] private static AliasByteSink? _gridSink;
+    [ThreadStatic] private static AliasGridFormat.Index? _gridIndex;
+    [ThreadStatic] private static byte[]? _gridChoice;
+    [ThreadStatic] private static char[]? _gridAlias;
+
+    private static readonly AliasGridTier[] GridTiers = { AliasGridTier.Initials, AliasGridTier.Full };
 
     private static string[] ProbesFor(IAliasProvider provider, string termLower, bool caseSensitive)
     {
@@ -86,8 +96,7 @@ internal static class AliasHighlightMarker
                 var probes = ProbesFor(provider, termLower, caseSensitive);
 
                 foreach (var aliasGroup in provider.GetAliases(text))
-                {
-                    if (string.IsNullOrEmpty(aliasGroup))
+                {                    if (string.IsNullOrEmpty(aliasGroup))
                         continue;
 
                     foreach (var alias in aliasGroup.Split('|'))
@@ -135,6 +144,13 @@ internal static class AliasHighlightMarker
                         tier = Math.Min(tier, AliasMatchRules.TierFor(separator, matchedName: false, aliasLower.AsSpan()));
                     }
                 }
+
+                // One more tier for a grid-capable provider, run after the string aliases so an
+                // enumerated spelling still wins when it can paint. Without it, a name whose aliases are
+                // stored as a grid would be found by the engine and then render as no match at all,
+                // because the caller's final mask is what its item gate reads.
+                if (provider is IAliasGridProvider gridProvider)
+                    matchedAny |= MarkViaGrid(gridProvider, text, probes, kind, highlights, ref tier);
             }
             catch
             {
@@ -174,6 +190,84 @@ internal static class AliasHighlightMarker
                     return;
             }
         }
+    }
+
+    // The reading-grid tier of the same alias fallback. A grid-capable provider's alias space is not
+    // enumerable as strings, so the positions come from its readings instead -- the same witness the
+    // search decides with, materialized into one alias string and then mapped back onto the source text.
+    //
+    // This tier is what keeps a grid-only hit from rendering as nothing: HighlightMask's final mask is
+    // what the App's item gate reads, and an empty mask is NoMatch there. It needs no snapshot because it
+    // encodes the grid from the provider for this one candidate, exactly like the string tier above
+    // regenerates that provider's aliases live.
+    private static bool MarkViaGrid(
+        IAliasGridProvider provider,
+        string text,
+        string[] probes,
+        FzfTermKind kind,
+        Span<bool> highlights,
+        ref int tier)
+    {
+        var sink = _gridSink ??= new AliasByteSink();
+        sink.Reset();
+        if (AliasGridFormat.Encode(text, provider, sink) <= 0)
+            return false;
+
+        var grid = _gridIndex ??= new AliasGridFormat.Index();
+        if (!grid.TryBind(sink.Segment(0)))
+            return false;
+
+        var separator = provider.SyllableSeparator;
+        var positions = grid.PositionCount;
+        if (positions == 0)
+            return false;
+        if (_gridChoice == null || _gridChoice.Length < positions)
+            _gridChoice = new byte[Math.Max(positions, 64)];
+
+        var matched = false;
+        foreach (var probe in probes)
+        {
+            foreach (var readingTier in GridTiers)
+            {
+                Array.Clear(_gridChoice, 0, positions);
+                if (!AliasGridMatcher.TryMatchTerm(grid, probe, kind, readingTier, separator, _gridChoice))
+                    continue;
+
+                var length = AliasGridMatcher.Measure(grid, readingTier, _gridChoice);
+                if (length == 0)
+                    continue;
+                if (_gridAlias == null || _gridAlias.Length < length)
+                    _gridAlias = new char[Math.Max(length, 64)];
+
+                var written = AliasGridMatcher.Materialize(grid, readingTier, separator, _gridChoice, _gridAlias);
+                var alias = new string(_gridAlias, 0, written);
+                var aliasLower = alias.ToLowerInvariant();
+
+                var found = kind == FzfTermKind.Fuzzy
+                    ? FindSubsequencePositions(aliasLower, probe)
+                    : FindContiguousPositions(aliasLower, probe, separator);
+                if (found == null)
+                    continue;
+
+                var map = provider.MapAliasToSourceIndices(text, alias);
+                if (map == null || map.Length != alias.Length)
+                    continue;
+
+                foreach (var aliasPos in found)
+                {
+                    if (aliasPos < 0 || aliasPos >= map.Length)
+                        continue;
+                    var sourceIndex = map[aliasPos];
+                    if (sourceIndex >= 0 && sourceIndex < highlights.Length)
+                        highlights[sourceIndex] = true;
+                }
+
+                matched = true;
+                tier = Math.Min(tier, AliasMatchRules.TierFor(separator, matchedName: false, aliasLower.AsSpan()));
+            }
+        }
+
+        return matched;
     }
 
     // Finds ANY valid subsequence alignment of `term` within `text`, returning the matched positions in

@@ -126,9 +126,18 @@ internal sealed class PathGateWeighting
         {
             if (disabledIds != null && disabledIds.Contains(_snapshot.AliasProviderId(e)))
                 continue;
-            // Mirrors PathGate.TryMatchSegmentRow: grid entries are not strings and have no tier here.
-            if (_snapshot.AliasKind(e) != AliasEntryKind.String)
+            // Mirrors PathGate.TryMatchSegmentRow's grid branch: the grid tier decides the entry, ungated,
+            // and this only needs whether it matched at all.
+            if (_snapshot.AliasKind(e) == AliasEntryKind.Grid)
+            {
+                if (SearchMatcherGridAliases.TryMatchEntry(
+                        _snapshot, pattern, pattern.GetTotalTermLength(), e, worker.Slab, gate: false, out _))
+                {
+                    weight = ComputeSegmentNameWeight(uid, nameUtf8, worker, pattern);
+                    return true;
+                }
                 continue;
+            }
             var aliasUtf8 = _snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)
                 continue;

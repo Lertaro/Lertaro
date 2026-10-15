@@ -156,10 +156,19 @@ internal sealed class PathGate
         {
             if (disabledIds != null && disabledIds.Contains(_snapshot.AliasProviderId(e)))
                 continue;
-            // Reading grids are not alias strings; the path gate's segment fallback has no grid tier
-            // yet, so the entry is inert here rather than decoded as text.
-            if (_snapshot.AliasKind(e) != AliasEntryKind.String)
+            // A reading grid is not an alias string; it is decided by the grid tier, which materializes
+            // the one reading the query's terms need and reports that match's raw score -- the same
+            // ungated, first-match-wins contract the string branch below keeps.
+            if (_snapshot.AliasKind(e) == AliasEntryKind.Grid)
+            {
+                if (SearchMatcherGridAliases.TryMatchEntry(
+                        _snapshot, _segmentPatterns[q], _segmentPatterns[q].GetTotalTermLength(), e, worker.Slab, gate: false, out var gridMatch))
+                {
+                    score = gridMatch.Score;
+                    return true;
+                }
                 continue;
+            }
             var aliasUtf8 = _snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)
                 continue;

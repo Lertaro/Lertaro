@@ -212,7 +212,7 @@ internal static class PathSearchFuzzy
             if (record.Name.Length == 0)
                 continue;
             FzfPatternResult fileMatch = default;
-            if (filePattern != null && !SearchMatcherRow.TryMatchNameOrAliases(filePattern, record.Name, record.Aliases, record.ProviderIds, fileQueryLen, slab, out fileMatch))
+            if (filePattern != null && !SearchMatcherRow.TryMatchNameOrAliases(filePattern, record.Name, record.Aliases, record.ProviderIds, record.Grids, fileQueryLen, slab, out fileMatch))
                 continue;
 
             var parentPath = delta.GetParentPath(record);
@@ -270,7 +270,7 @@ internal static class PathSearchFuzzy
         {
             if (record.Name.Length == 0)
                 continue;
-            if (!SearchMatcherRow.TryMatchNameOrAliases(pattern, record.Name, record.Aliases, record.ProviderIds, queryLen, slab, out var match))
+            if (!SearchMatcherRow.TryMatchNameOrAliases(pattern, record.Name, record.Aliases, record.ProviderIds, record.Grids, queryLen, slab, out var match))
                 continue;
             if (directoryContext.FilterLower != null && !delta.GetFullPath(record).StartsWith(directoryContext.FilterLower, StringComparison.OrdinalIgnoreCase))
                 continue;

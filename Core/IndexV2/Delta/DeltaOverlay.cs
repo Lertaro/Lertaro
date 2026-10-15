@@ -25,6 +25,9 @@ public sealed class DeltaOverlay
         public UInt128 ParentFrn;
         public string[]? Aliases;
         public byte[] ProviderIds = Array.Empty<byte>();
+        // Reading-grid entries, stored beside the string aliases rather than inside them: a grid payload
+        // is not text, and every string consumer would have to learn to skip it.
+        public GridAlias[] Grids = Array.Empty<GridAlias>();
         public bool Removed;
     }
 
@@ -80,8 +83,9 @@ public sealed class DeltaOverlay
             ParentBaseRow = ResolveParentRow(id, parentId),
             ParentFrn = parentId,
         };
-        record.Aliases = AliasGeneration.Generate(name, out var providerIds);
+        record.Aliases = AliasGeneration.Generate(name, out var providerIds, out var grids);
         record.ProviderIds = providerIds;
+        record.Grids = grids;
 
         if (_addedById.TryGetValue(id, out var deltaIdx))
         {

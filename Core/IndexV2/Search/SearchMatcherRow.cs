@@ -1,6 +1,7 @@
 using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Fzf;
 
+using Lertaro.Core.IndexV2.Alias;
 using Lertaro.Core.IndexV2.Persistence;
 namespace Lertaro.Core.IndexV2.Search;
 
@@ -89,16 +90,23 @@ internal static class SearchMatcherRow
 
     // For delta rows (renamed/added), which carry their own precomputed alias array.
     internal static bool TryMatchNameOrAliases(FzfPattern pattern, string name, string[]? aliases, byte[]? providerIds, int queryLen, FzfSlab slab, out FzfPatternResult result)
+        => TryMatchNameOrAliases(pattern, name, aliases, providerIds, Array.Empty<GridAlias>(), queryLen, slab, out result);
+
+    // Overload for the delta/live rows, whose aliases may include reading grids (see
+    // AliasGeneration.Generate). Grid entries are decided by the same code the snapshot's baked grids go
+    // through, which is what keeps a row's answer the same before and after it is compacted.
+    internal static bool TryMatchNameOrAliases(FzfPattern pattern, string name, string[]? aliases, byte[]? providerIds, GridAlias[] grids, int queryLen, FzfSlab slab, out FzfPatternResult result)
     {
         if (pattern.TryMatch(name, out result, FzfScoringScheme.Default, slab))
             return true;
         if (pattern.HasExclusions && !pattern.ExclusionsPass(name))
             return false;
-        if (aliases == null)
+        if (aliases == null && grids.Length == 0)
             return false;
 
         var disabledIds = SearchContext.DisabledAliasIds;
         var matched = false;
+        aliases ??= Array.Empty<string>();
         for (var j = 0; j < aliases.Length; j++)
         {
             if (disabledIds != null && providerIds != null && j < providerIds.Length && disabledIds.Contains(providerIds[j]))
@@ -118,6 +126,22 @@ internal static class SearchMatcherRow
                     matched = true;
                     result = weighted;
                 }
+            }
+        }
+
+        foreach (var grid in grids)
+        {
+            if (disabledIds != null && disabledIds.Contains(grid.ProviderId))
+                continue;
+            if (!SearchMatcherGridAliases.TryMatchPayload(
+                    pattern, queryLen, grid.Payload, AliasProviderRegistry.GetSyllableSeparator(grid.ProviderId), slab, gate: true, out var gridMatch))
+                continue;
+
+            var weightedGrid = pattern.WeightAliasMatch(gridMatch, queryLen);
+            if (!matched || weightedGrid.Score > result.Score)
+            {
+                matched = true;
+                result = weightedGrid;
             }
         }
 

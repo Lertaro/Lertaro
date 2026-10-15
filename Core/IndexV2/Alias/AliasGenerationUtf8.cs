@@ -112,19 +112,11 @@ internal static class AliasGenerationUtf8
         }
 
         // Spell the readings out first: their size is what the grid has to beat, and it is the encoding
-        // this name would have had without the grid capability.
+        // this name would have had without the grid capability. The comparison itself lives in
+        // AliasGeneration.PreferGrid so this path and the delta path decide identically.
         var readings = _readingSink ??= new AliasByteSink();
-        readings.Reset();
-        gridProvider.GetReadingAliasesUtf8(name, readings);
-        var readingBytes = 0;
-        for (var s = 0; s < readings.SegmentCount; s++)
-            readingBytes += readings.Segment(s).Length;
-
         var grids = _gridSink ??= new AliasByteSink();
-        grids.Reset();
-        var gridLength = AliasGridFormat.Encode(name, gridProvider, grids);
-
-        if (gridLength > 0 && gridLength < readingBytes)
+        if (AliasGeneration.PreferGrid(name, gridProvider, readings, grids, out _))
         {
             var start = dest.BeginSegment();
             dest.Append(grids.Segment(0));
