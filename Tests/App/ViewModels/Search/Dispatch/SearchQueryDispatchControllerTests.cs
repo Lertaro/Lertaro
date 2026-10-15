@@ -1,3 +1,4 @@
+using System.IO;
 using Lertaro.App.ViewModels.Search.Dispatch;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 
@@ -6,6 +7,38 @@ namespace Lertaro.App.Tests.ViewModels.Search.Dispatch;
 [TestClass]
 public sealed class SearchQueryDispatchControllerTests
 {
+    // Wiring guard. OnAdvancedQueryChanged cannot be executed here -- it builds a streaming accumulator, reads
+    // UserSettings and hands the query to a live SearchExecutionEngine -- but what it searches with is exactly
+    // the part that has to stay true: the quick window's per-type trigger CHARACTER comes off the text (the
+    // type it names is this window's sidebar's job), and it comes off BEFORE the file-filter scope resolver,
+    // so a character trigger that fired is not then re-read as a scope keyword. Same pattern as
+    // InlineFolderScopeTests' guards.
+    [TestMethod]
+    public void TheFullWindowStripsThePerTypeTriggerCharacterBeforeTheScopeResolver()
+    {
+        var source = Source("App/ViewModels/Search/Dispatch/SearchQueryDispatchController.cs");
+
+        var triggerStrip = source.IndexOf("ResultTypeTriggerHandler.Match(", StringComparison.Ordinal);
+        var scopeResolve = source.IndexOf("FileFilterScopeResolver.Resolve(", StringComparison.Ordinal);
+
+        Assert.IsGreaterThan(-1, triggerStrip, "the full window must strip the per-type trigger character");
+        Assert.Contains("isInlineSearchContext: false", source[triggerStrip..scopeResolve],
+            "and must strip it as a NON-inline window: the inline window has no per-type trigger at all");
+        Assert.IsGreaterThan(triggerStrip, scopeResolve, "the scope resolver must run after the strip, so a fired trigger wins");
+        Assert.Contains("triggeredTypeId == null", source,
+            "the scope keyword is skipped when a per-type trigger fired, exactly as the quick window skips it");
+    }
+
+    private static string Source(string relativePath)
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !File.Exists(Path.Combine(dir.FullName, "AGENTS.md")))
+            dir = dir.Parent;
+        Assert.IsNotNull(dir, "could not locate the repository root");
+        return File.ReadAllText(Path.Combine(dir!.FullName, relativePath.Replace('/', Path.DirectorySeparatorChar)))
+            .Replace("\r\n", "\n");
+    }
+
     [TestMethod]
     public void StreamFullSearchFileRows_CurrentQuery_PreservesBatchesAndProviderIdentity()
     {

@@ -64,6 +64,12 @@ internal sealed class ResultTypeTriggerHandler
     /// text and which type it selects. Kept free of UserSettings and PluginManager so a test can pin every
     /// branch -- the precedence between a configured character and a configured word is the part that used
     /// to be wrong and the part a running window cannot show.
+    ///
+    /// The FULL search window calls this too (with isInlineSearchContext: false and Main's word inventory),
+    /// using only the stripped text: it re-runs what the user typed there or carried over from the quick
+    /// window, so the trigger character must not be searched as literal text there either -- that is what made
+    /// one visible query ("，环境") answer differently in the two windows. The type the character names is
+    /// deliberately dropped: that window selects types through its sidebar.
     /// </summary>
     internal static (string CleanQuery, string? TriggeredTypeId) Match(
         string raw,

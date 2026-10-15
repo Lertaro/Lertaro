@@ -91,13 +91,29 @@ internal sealed class SearchQueryDispatchController
         var strippedTrailing = SearchQuerySortParser.Strip(query, out var tokens, globalPrefixChar);
         _queryTokens = tokens;
         var cleanQuery = SearchQuerySortParser.StripExclusionBypass(strippedTrailing, out var bypassExclusions);
+        // The quick window's per-type trigger CHARACTER comes off here too, before the scope keyword is
+        // resolved: this window re-runs text typed into it or carried over from that window, and searching
+        // the character as literal text is why one visible query answered differently in the two windows
+        // (see ResultTypeTriggerHandler.Match, which documents the full window's side of this). Only the
+        // character -- the type it names is this window's sidebar's job -- and its precedence over a
+        // file-filter scope keyword is the quick window's, so the scope below is skipped when one fired.
+        var (triggerStripped, triggeredTypeId) = ResultTypeTriggerHandler.Match(
+            query,
+            cleanQuery,
+            isInlineSearchContext: false,
+            UserSettings.Load().ResultTypeTriggers ?? new Dictionary<string, string>(),
+            word => PluginTriggerQuery.ClaimsLeadingWord(word, SearchWindowType.Main));
+        cleanQuery = triggerStripped;
         // A file-filter scope keyword ("tf report" -> search "report" only inside the tf filter's folders)
-        // resolves first, in the same order SearchDispatchController applies it: the scope is the more
-        // specific prefix and its own resolver owns stripping its word, so the trigger-word strip below is
-        // skipped when it claimed the leading token. Without this, "Show more"/Ctrl+F carrying a scoped
-        // quick-window query landed here as literal text and this window searched for "tf report".
+        // resolves next, in the same order SearchDispatchController applies it: the scope owns stripping its
+        // own word, so the trigger-word strip below is skipped when it claimed the leading token. Without
+        // this, "Show more"/Ctrl+F carrying a scoped quick-window query landed here as literal text and this
+        // window searched for "tf report". A per-type trigger outranks the scope keyword, exactly as it does
+        // in the quick window -- the scope is skipped for it above.
         var scopedQuery = cleanQuery;
-        var scopeDirective = FileFilterScopeResolver.Resolve(cleanQuery, out scopedQuery);
+        var scopeDirective = triggeredTypeId == null
+            ? FileFilterScopeResolver.Resolve(cleanQuery, out scopedQuery)
+            : null;
         // Same rule as the quick/inline windows: a leading trigger word ("cs report" ->
         // search "report") must not be fuzzy-matched against file names or highlighted. Overwritten in
         // place so the streaming accumulator below ranks by the very term being searched. This window is

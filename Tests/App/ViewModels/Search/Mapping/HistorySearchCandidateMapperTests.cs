@@ -1,3 +1,4 @@
+using System.IO;
 using Lertaro.App.ViewModels.Search.Mapping;
 using Lertaro.Core.SearchIndex;
 using Lertaro.PluginSdk.Services;
@@ -234,6 +235,73 @@ public sealed class HistorySearchCandidateMapperTests
 
         Assert.HasCount(1, results);
         Assert.AreEqual(@"\\remote-server\share\report.docx", results[0].Result.FullPath);
+    }
+
+    // ---- The bar the index side holds its own rows to, applied to the rows only this window can build ----
+
+    [TestMethod]
+    public void IsExcludedFromSearch_SourceThisSessionFoundUnreachable_IsExcluded()
+    {
+        var row = new AppSearchResult { FullPath = @"Z:\Docs\report.docx" };
+        var unreachable = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Z" };
+
+        Assert.IsTrue(HistorySearchCandidateMapper.IsExcludedFromSearch(row, unreachable, _ => false));
+        Assert.IsFalse(HistorySearchCandidateMapper.IsExcludedFromSearch(row, new HashSet<string>(), _ => false),
+            "a drive nobody reported unreachable is not excluded for being unreachable");
+    }
+
+    [TestMethod]
+    public void IsExcludedFromSearch_HiddenOrSystemLocalPath_IsExcluded()
+    {
+        var row = new AppSearchResult { FullPath = @"C:\Docs\report.docx" };
+
+        Assert.IsTrue(HistorySearchCandidateMapper.IsExcludedFromSearch(row, new HashSet<string>(), _ => true));
+        Assert.IsFalse(HistorySearchCandidateMapper.IsExcludedFromSearch(row, new HashSet<string>(), _ => false));
+    }
+
+    // The attribute probe is never asked of a network path: File.GetAttributes has no timeout, and this runs
+    // while a search paints -- the same multi-second stall the mappers' own SafeFileExists guards against.
+    [TestMethod]
+    public void IsExcludedFromSearch_NeverProbesAttributesOfANetworkPath()
+    {
+        var probed = new List<string>();
+        var row = new AppSearchResult { FullPath = @"\\remote-server\share\report.docx" };
+
+        Assert.IsFalse(HistorySearchCandidateMapper.IsExcludedFromSearch(row, new HashSet<string>(), path =>
+        {
+            probed.Add(path);
+            return true;
+        }));
+        Assert.IsEmpty(probed, "a hidden network share must not cost a synchronously-blocking attribute read here");
+    }
+
+    // The wiring, end to end on a real file: the row is built, the existence probe passes (it is real), and
+    // the only reason it is then dropped is the attribute -- which is what keeps a hidden file from being
+    // listed here and never in the full window.
+    [TestMethod]
+    public void Collect_HiddenLocalFile_DoesNotAddPath()
+    {
+        var directory = Directory.CreateTempSubdirectory("lertaro-hidden-").FullName;
+        var path = Path.Combine(directory, "bcompare.exe");
+        File.WriteAllText(path, "x");
+        try
+        {
+            var entries = new[] { Entry("bcomp", path, HistoryEntryKind.File) };
+
+            var visible = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bc"), null, entries,
+                File.Exists, Directory.Exists);
+            Assert.HasCount(1, visible, "the control: the same row while the file is not hidden");
+
+            File.SetAttributes(path, FileAttributes.Hidden);
+
+            Assert.IsEmpty(HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bc"), null, entries,
+                File.Exists, Directory.Exists));
+        }
+        finally
+        {
+            File.SetAttributes(path, FileAttributes.Normal);
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     private static HistoryEntry Entry(string keyword, string path, HistoryEntryKind kind, int count = 1, long time = 100) =>

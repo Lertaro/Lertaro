@@ -42,6 +42,15 @@ public readonly struct FuzzyQuery
     public MatchRank Rank(string? text)
         => _pattern is null || string.IsNullOrEmpty(text) ? MatchRank.NoMatch : FuzzyMatcher.ComputeMatchRank(text, _pattern);
 
+    // The rank for a candidate whose own name did NOT match the query at all -- it was reached through a
+    // transliteration of that name, or by an ancestor folder completing the query. See
+    // MatchRank.NoNameFallback: the full window's row key has always used this rank, and the quick window
+    // calls it for the same rows so the two windows cannot order them differently.
+    public MatchRank FallbackRank(string? path)
+        => _pattern is null || string.IsNullOrEmpty(path)
+            ? MatchRank.NoMatch
+            : MatchRank.NoNameFallback(FuzzyMatcher.ComputeMatchWeight(path, _pattern));
+
     // Best match across the item's several text representations -- see FuzzyMatcher.ComputeBestMatch.
     public MatchRank BestMatch(string? primaryText, IEnumerable<string>? alternateTexts = null)
         => _pattern is null ? MatchRank.NoMatch : FuzzyMatcher.ComputeBestMatch(_pattern, primaryText, alternateTexts);

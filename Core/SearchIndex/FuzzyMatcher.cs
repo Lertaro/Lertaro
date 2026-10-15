@@ -161,6 +161,11 @@ public static class FuzzyMatcher
     internal static MatchRank ComputeMatchRank(string? text, FzfPattern pattern)
         => string.IsNullOrEmpty(text) ? MatchRank.NoMatch : HighlightMask.ComputeRank(text, pattern);
 
+    // The percentage*consecutiveness measure alone, for the one rank that needs the weight of a text the
+    // query did NOT match -- see FuzzyQuery.FallbackRank and MatchRank.NoNameFallback.
+    internal static double ComputeMatchWeight(string? text, FzfPattern pattern)
+        => string.IsNullOrEmpty(text) ? 0 : HighlightMask.ComputeWeight(text, pattern);
+
     // The standard "does this match, and how well" contract for App-side candidate sources that judge
     // a match against more than one text representation of the same item -- a favorite's display name
     // and its path, a searchable item's title and its curated aliases, and so on. Checks `primaryText`

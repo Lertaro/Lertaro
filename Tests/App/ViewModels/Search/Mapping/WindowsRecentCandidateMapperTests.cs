@@ -108,6 +108,35 @@ public sealed class WindowsRecentCandidateMapperTests
             ranked.Select(r => r.FullPath).ToList());
     }
 
+    // The bar the index side holds its own rows to, applied to a row only this window can build: a shortcut to
+    // something hidden is not a row the full window could ever list either, so it must not be listed here
+    // alone (see HistorySearchCandidateMapper.IsExcludedFromSearch).
+    [TestMethod]
+    public void Collect_HiddenLocalFile_IsSkipped()
+    {
+        var directory = Directory.CreateTempSubdirectory("lertaro-hidden-recent-").FullName;
+        var path = Path.Combine(directory, "atlas.png");
+        File.WriteAllText(path, "x");
+        try
+        {
+            var shortcut = Lnk("atlas.png", Now);
+
+            var visible = WindowsRecentCandidateMapper.Collect(FuzzyQuery.Parse("atlas"), null, [shortcut],
+                _ => path, File.Exists, Directory.Exists);
+            Assert.HasCount(1, visible, "the control: the same row while the file is not hidden");
+
+            File.SetAttributes(path, FileAttributes.Hidden);
+
+            Assert.IsEmpty(WindowsRecentCandidateMapper.Collect(FuzzyQuery.Parse("atlas"), null, [shortcut],
+                _ => path, File.Exists, Directory.Exists));
+        }
+        finally
+        {
+            File.SetAttributes(path, FileAttributes.Normal);
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     private static List<SearchResultMapper.RankedCandidate> Collect(string query, Shortcut[] shortcuts, Func<Shortcut, string?>? resolve = null) =>
         WindowsRecentCandidateMapper.Collect(
             FuzzyQuery.Parse(query), null, shortcuts, resolve ?? Target,

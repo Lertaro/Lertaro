@@ -178,9 +178,15 @@ public static class SearchResultMapper
                 var normalizedFavPath = Helpers.FavoritePathResolver.NormalizeForComparison(fav.Path);
                 if (normalizedScopeFolders != null && !InFileFilterScope(normalizedFavPath))
                     continue;
+                var favoriteRow = FavoriteSearchHelper.CreateFavoriteUiResult(fav, query, 0);
+                // A favorite clears the same bar the index side's rows do (see
+                // HistorySearchCandidateMapper.IsExcludedFromSearch): a hidden target, or one on a source
+                // this session found unreachable, is not a row the full window could list either.
+                if (HistorySearchCandidateMapper.IsExcludedFromSearch(favoriteRow))
+                    continue;
                 var priority = historySnapshot.TryGetValue(normalizedFavPath, out var hp) ? hp : int.MaxValue;
                 candidates.Add(new RankedCandidate(
-                    FavoriteSearchHelper.CreateFavoriteUiResult(fav, query, 0),
+                    favoriteRow,
                     IsCurated: true,
                     priority,
                     SearchResultTypePriority.Rank(SearchResultTypePriority.FilesTypeId, typeOrder),
@@ -230,12 +236,21 @@ public static class SearchResultMapper
                 var lookupPath = result.Path.Length > 3 && result.Path[^1] == '\\' ? result.Path.TrimEnd('\\') : result.Path;
                 var hasHistory = historySnapshot.TryGetValue(lookupPath, out var priority);
                 var (band, depth) = RankedCandidateOrdering.SignalsOf(result.Metadata, result.Path, nowUtc);
+                // A row the index returned whose own NAME does not match the query at all -- it was reached
+                // through a transliteration of that name -- ranks by how much of its whole path the query
+                // explains, which is the rank the full window's row key has always given it
+                // (SearchResultRelevance.Apply). Leaving it at NoMatch instead made this window order those
+                // rows by path length and name where the full window ordered the same rows by coverage: one
+                // query, two file orders, and exactly the many-CJK-files case pinyin search produces.
+                var match = fuzzy.Rank(result.Name);
+                if (!match.IsMatch)
+                    match = fuzzy.FallbackRank(result.Path);
                 candidates.Add(new RankedCandidate(
                     SearchResultHelper.CreateUiResult(result, query, 0, isApplication: false, scope),
                     IsCurated: hasHistory,
                     hasHistory ? priority : int.MaxValue,
                     SearchResultTypePriority.Rank(SearchResultTypePriority.FilesTypeId, typeOrder),
-                    fuzzy.Rank(result.Name),
+                    match,
                     SearchResultHelper.NormalizePath(result.Path),
                     band,
                     depth));

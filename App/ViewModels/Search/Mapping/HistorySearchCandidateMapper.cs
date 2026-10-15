@@ -62,6 +62,8 @@ internal static class HistorySearchCandidateMapper
             if (!TryCreateResult(entry, query, normalizedScope, fileExists, directoryExists, out var result, out var normalizedPath) ||
                 !candidatePaths.Add(normalizedPath))
                 continue;
+            if (IsExcludedFromSearch(result))
+                continue;
 
             // Negative priorities put a learned keyword match ahead of ordinary global history, whose
             // priorities start at zero. Match position, recency, usage count, and match quality determine
@@ -77,6 +79,32 @@ internal static class HistorySearchCandidateMapper
 
         return candidates;
     }
+
+    // The two exclusions the index side applies to every row IT returns, applied here to the rows this
+    // window can produce on its own (history, Windows' Recent Items, favorites):
+    //
+    //   * hidden/system entries -- SearchService drops them from index results (FileSystemItemFilter);
+    //   * a source this session found unreachable -- SearchStreamRenderer drops those rows (SearchReachabilityGate).
+    //
+    // Without this, a hidden file or one on a disabled drive was listed by the quick window and could never
+    // appear in the full window, which reads as "the same query works in one window and not the other". Being
+    // reachable-by-this-window-only is not supposed to mean "found only here": the row still has to clear the
+    // bar the index side holds its rows to.
+    //
+    // Split from the convenience overload below so the policy itself is testable without a session probe or a
+    // real hidden file.
+    internal static bool IsExcludedFromSearch(AppSearchResult row, IReadOnlySet<string> unreachable, Func<string, bool> isHiddenOrSystem)
+        => !SearchReachabilityGate.IsPathReachable(row.FullPath, unreachable) || IsHiddenSystemLocalPath(row.FullPath, isHiddenOrSystem);
+
+    internal static bool IsExcludedFromSearch(AppSearchResult row)
+        => IsExcludedFromSearch(row, SearchReachabilityGate.UnreachableSources, FileSystemItemFilter.IsHiddenOrSystem);
+
+    // The attribute half is only ever asked of a LOCAL path. File.GetAttributes has no timeout, and this runs
+    // while a search paints -- on a share that is gone it is the same multi-second stall SafeFileExists above
+    // exists to avoid, and for a path this machine has no attributes for the index side would not have had a
+    // row either way. The drive-letter test is SearchReachabilityGate's own.
+    private static bool IsHiddenSystemLocalPath(string path, Func<string, bool> isHiddenOrSystem)
+        => path.Length > 2 && path[1] == ':' && isHiddenOrSystem(path);
 
     // Also builds WindowsRecentCandidateMapper's rows: a Recent Items hit is presented exactly like a
     // history entry for the same path.

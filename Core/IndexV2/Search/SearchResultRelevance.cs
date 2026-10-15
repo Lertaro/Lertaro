@@ -34,7 +34,6 @@ internal static class SearchResultRelevance
     // below. The weight keeps 1/1023 resolution, which separates every name length a real path holds
     // apart except near-identical long ones.
     private const int DepthCap = 0x1F;
-    private const int StartCap = 0x7F;
     private const int WeightMax = 0x3FF;
 
     public static void Apply(SearchResult result, FzfPattern pattern)
@@ -47,9 +46,11 @@ internal static class SearchResultRelevance
             : MatchRank.NoMatch;
 
         // An ancestor-completed row has no name to rank by; whole-path coverage is the only relevance
-        // signal it has, and its NoName shape keeps it below every genuine name match.
+        // signal it has, and its NoName shape keeps it below every genuine name match. The rank itself is
+        // MatchRank.NoNameFallback's, shared with the quick window's own ladder so both windows order these
+        // rows identically.
         if (!rank.IsMatch)
-            rank = new MatchRank(MatchRank.TierFull, StartCap, HighlightMask.ComputeWeight(result.Path, pattern), MatchRank.ShapeNoName);
+            rank = MatchRank.NoNameFallback(HighlightMask.ComputeWeight(result.Path, pattern));
 
         var band = RankSignals.RecencyBand(result.Metadata.Created, result.Metadata.Modified, DateTime.UtcNow);
 
@@ -63,7 +64,7 @@ internal static class SearchResultRelevance
         var shape = (uint)Math.Clamp(rank.Shape, 0, MatchRank.ShapeNoName);
         var recency = (uint)Math.Clamp(band, 0, RankSignals.BandOlder);
         var folders = (uint)Math.Clamp(depth, 0, DepthCap);
-        var start = (uint)Math.Clamp(rank.Start, 0, StartCap);
+        var start = (uint)Math.Clamp(rank.Start, 0, MatchRank.StartCap);
         var weightPoint = (uint)Math.Round((1 - Math.Clamp(rank.Weight, 0, 1)) * WeightMax);
         var tier = (uint)Math.Clamp(rank.Tier, 0, 0xF);
         return (shape << 29) | (recency << 27) | (folders << 22) | (start << 15) | (weightPoint << 5) | (tier << 1) | (isDir ? 1u : 0u);

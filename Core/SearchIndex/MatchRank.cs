@@ -38,4 +38,24 @@ public readonly record struct MatchRank(int Tier, int Start, double Weight, int 
     public static MatchRank NoMatch => new(int.MaxValue, int.MaxValue, 0, ShapeNoName);
 
     public bool IsMatch => Start != int.MaxValue;
+
+    // The full window's row key packs Start into 7 bits, so 127 is its ceiling. Shared here because the
+    // quick window's own ladder has to use the same value for the one rank it does NOT derive itself (see
+    // NoNameFallback): past the cap the packed key can no longer tell two starts apart, and a ladder that
+    // kept the exact positions would order the same two rows the other way round.
+    internal const int StartCap = 0x7F;
+
+    /// <summary>
+    /// The rank of a row whose own NAME did not match the whole query: it was reached through a
+    /// transliteration of that name, or (in the full window) by an ancestor folder completing the query.
+    /// Ranked by how much of the whole path the query explains, with the shape that marks "no name match".
+    /// </summary>
+    /// <remarks>
+    /// Both windows must land on this same rank. The engine's row key already did (SearchResultRelevance
+    /// .Apply), while the quick window used to leave such a row at NoMatch -- identical in shape but with
+    /// Start/Weight/Tier left at their no-match values, so it fell back to ordering them by path length and
+    /// name where the full window ordered the same rows by coverage. One query, two file orders. The App
+    /// reaches this through FuzzyQuery.FallbackRank, which is the seam it is meant to use.
+    /// </remarks>
+    internal static MatchRank NoNameFallback(double pathWeight) => new(TierFull, StartCap, pathWeight, ShapeNoName);
 }

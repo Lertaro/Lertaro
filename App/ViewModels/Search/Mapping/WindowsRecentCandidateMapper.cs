@@ -78,7 +78,11 @@ internal static class WindowsRecentCandidateMapper
             if (!HistorySearchCandidateMapper.TryCreateResult(
                     new HistoryEntry(string.Empty, target, kind, 0), fuzzy.Text, normalizedScope,
                     fileExists, directoryExists, out var result, out var normalizedPath) ||
-                !paths.Add(normalizedPath))
+                !paths.Add(normalizedPath) ||
+                // Same bar the history rows clear, and the same one the index side holds its rows to: a
+                // Recent Items shortcut to something hidden or on this session's unreachable drive is not a
+                // row the full window could ever list either (see HistorySearchCandidateMapper).
+                HistorySearchCandidateMapper.IsExcludedFromSearch(result))
                 continue;
 
             // Not curated, so every history entry and favorite stays above; a priority below int.MaxValue,
