@@ -52,10 +52,13 @@ internal static class FzfPatternAliasMatchExtensions
         if (pattern.IsAcceptableAliasMatch(aliasMatch, queryLen))
             return true;
 
-        if (pattern.OrGroups == null && (pattern.TermSets.Length < 2 || !pattern.HasAliasFallbackAnchorTerm()))
+        // A query whose terms all have to be findable somewhere: one anchored term (3+ characters) is
+        // required, so a bare crowd of 2-letter fragments -- cheap to match by coincidence anywhere in a
+        // long alias -- stays excluded and keeps the combined-span check's protection.
+        if (!pattern.HasAliasFallbackAnchorTerm())
             return false;
-        if (pattern.OrGroups != null && !pattern.HasAliasFallbackAnchorTerm())
-            return false;
+
+        var tightSumLimit = Math.Max(queryLen * AliasFallbackTightSumMultiplier, AliasFallbackTightSumFloor);
 
         // Mirror TryMatch's own '|' segment-splitting (polyphonic alias variants, e.g. 和's he/hu/huo
         // readings): every term set must land its own tight match within the SAME segment, not
@@ -67,7 +70,10 @@ internal static class FzfPatternAliasMatchExtensions
             var len = text.Slice(start).IndexOf('|');
             if (len < 0)
                 len = text.Length - start;
-            if (pattern.HasTightMatchInAnyGroup(text.Slice(start, len), scheme, slab))
+            var segment = text.Slice(start, len);
+            if (pattern.HasTightMatchInAnyGroup(segment, scheme, slab))
+                return true;
+            if (pattern.TightWindowsWithin(segment, tightSumLimit))
                 return true;
             start += len + 1;
         }
@@ -112,7 +118,7 @@ internal static class FzfPatternAliasMatchExtensions
                     continue;
 
                 var termSpan = termResult.End - termResult.Start;
-                if (termSpan <= Math.Max(term.Text.Length * AliasFallbackPerTermMultiplier, AliasFallbackPerTermFloor))
+                if (AliasMatchRules.IsTightOccurrence(term.Text.Length, termSpan))
                 {
                     setOk = true;
                     break;
@@ -127,8 +133,57 @@ internal static class FzfPatternAliasMatchExtensions
     }
 
     private const int AliasFallbackAnchorLength = 3;
-    private const int AliasFallbackPerTermMultiplier = 4;
-    private const int AliasFallbackPerTermFloor = 8;
+
+    // Budget for the summed tight windows below, in units of what the user typed. Measured on the ticket
+    // name (184 characters, a 303-character full alias): "fangdan baohu nx dnwwzz sj" -- five syllable
+    // blocks from five different parts of the name -- sums to 51 against 22 typed characters, and
+    // "fdbjf gao" sums to 17 against 8; 3x covers both with room for a long initials block, whose window
+    // legitimately spans one syllable per letter.
+    private const int AliasFallbackTightSumMultiplier = 3;
+    private const int AliasFallbackTightSumFloor = 12;
+
+    // Accepts when every positive term set has SOME tight occurrence in the segment and the total of
+    // those occurrences stays proportionate to the typed length -- regardless of how far apart they sit.
+    //
+    // Why a sum of per-term windows rather than the envelope of one alignment: a query's syllables may
+    // match anywhere in a long name (防弹 ... 保护 ... 电脑玩物站长), and an envelope grows with the NAME's
+    // length while what the user typed does not. The sum only measures what each block costs to spell
+    // out, so a query stays proportionate to its own length instead of to the gap between its first and
+    // last block. It also uses each term's TIGHTEST alignment (AliasMatchRules.TightestOccurrence)
+    // rather than the highest-scoring one fzf reports: boundary bonuses make the scoring search prefer a
+    // wide alignment over a narrow one in an alias where every syllable starts on a delimiter.
+    private static bool TightWindowsWithin(this FzfPattern pattern, ReadOnlySpan<char> segment, int limit)
+    {
+        var total = 0;
+        foreach (var set in pattern.EffectiveSets)
+        {
+            var hasPositiveTerm = false;
+            var best = -1;
+            foreach (var term in set.Terms)
+            {
+                if (term.Inverse)
+                    continue;
+                hasPositiveTerm = true;
+                var occurrence = AliasMatchRules.TightestOccurrence(segment, term.Text, term.CaseSensitive);
+                if (occurrence == null)
+                    continue;
+                var window = occurrence[^1] - occurrence[0] + 1;
+                if (best < 0 || window < best)
+                    best = window;
+            }
+
+            if (!hasPositiveTerm)
+                continue;
+            if (best < 0)
+                return false;
+
+            total += best;
+            if (total > limit)
+                return false;
+        }
+
+        return true;
+    }
 
     // Ranking-only refinement for choosing among several ACCEPTED alias candidates for the same name
     // (never rejects -- IsAcceptableAliasMatch already gated that): fzf's raw score rewards total

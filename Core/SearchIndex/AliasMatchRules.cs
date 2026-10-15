@@ -70,6 +70,95 @@ internal static class AliasMatchRules
     }
 
     /// <summary>
+    /// How wide an occurrence of a <paramref name="termLength"/>-character term may be and still count as
+    /// an explanation of a match. Shared by the alias gate and by highlighting, so a candidate cannot be
+    /// found by one rule and painted by another: without it, highlighting paints the greedy earliest
+    /// subsequence wherever it lands, which on a flattened initials alias is a wide scatter of unrelated
+    /// characters (a 7-letter pinyin query lit six characters spread over 116 positions of a 184-character
+    /// name).
+    /// </summary>
+    public static bool IsTightOccurrence(int termLength, int span)
+        => span <= Math.Max(termLength * TightPerTermMultiplier, TightPerTermFloor);
+
+    /// <summary>
+    /// Positions in <paramref name="text"/> of the narrowest in-order occurrence of
+    /// <paramref name="term"/> as a subsequence, or null when the term does not occur at all.
+    /// </summary>
+    /// <remarks>
+    /// Forward scan completes the term, backward scan then pulls the start as late as it can: the classic
+    /// minimum-window-of-subsequence walk. Shared because both sides need the SAME occurrence -- matching
+    /// has to know how tight a term's best occurrence is, and highlighting has to paint that occurrence
+    /// rather than a wider one. Left alone, highlighting takes the greedy earliest subsequence, which on a
+    /// flattened initials alias scatters across the whole string (a 7-letter pinyin query lit six
+    /// characters spread over 116 positions of a 184-character name) while matching had accepted a tight
+    /// occurrence elsewhere.
+    ///
+    /// Callers pass text and term in the same case unless they pass
+    /// <paramref name="caseSensitive"/>; the comparison folds otherwise.
+    /// </remarks>
+    public static int[]? TightestOccurrence(ReadOnlySpan<char> text, ReadOnlySpan<char> term, bool caseSensitive)
+    {
+        if (term.IsEmpty || text.Length < term.Length)
+            return null;
+
+        int[]? best = null;
+        var from = 0;
+        while (from < text.Length)
+        {
+            var ti = 0;
+            var j = from;
+            while (j < text.Length && ti < term.Length)
+            {
+                if (CharsEqual(text[j], term[ti], caseSensitive))
+                    ti++;
+                j++;
+            }
+            if (ti < term.Length)
+                break;
+
+            var end = j - 1;
+            ti = term.Length - 1;
+            var k = end;
+            while (k >= 0 && ti >= 0)
+            {
+                if (CharsEqual(text[k], term[ti], caseSensitive))
+                    ti--;
+                k--;
+            }
+
+            var windowStart = k + 1;
+            if (best == null || end - windowStart < best[^1] - best[0])
+            {
+                var positions = new int[term.Length];
+                var pos = 0;
+                ti = 0;
+                for (var i = windowStart; i <= end && ti < term.Length; i++)
+                {
+                    if (CharsEqual(text[i], term[ti], caseSensitive))
+                    {
+                        positions[pos++] = i;
+                        ti++;
+                    }
+                }
+                best = positions;
+            }
+
+            from = windowStart + 1;
+        }
+
+        return best;
+    }
+
+    private static bool CharsEqual(char left, char right, bool caseSensitive)
+        => caseSensitive ? left == right : char.ToLowerInvariant(left) == char.ToLowerInvariant(right);
+
+    // A pinyin term spelled out over its own syllables needs a few characters of delimiter and padding per
+    // syllable, which is what these bounds allow for. Both are the alias fallback's original measured
+    // values; the sum-of-windows budget in FzfPatternAliasMatchExtensions is the multi-block counterpart.
+    internal const int TightPerTermMultiplier = 4;
+    internal const int TightPerTermFloor = 8;
+
+    /// <summary>
     /// Whether a PRECISE alias match starting at <paramref name="matchStart"/> may stand.
     /// </summary>
     /// <remarks>

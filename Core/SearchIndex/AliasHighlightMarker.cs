@@ -115,14 +115,23 @@ internal static class AliasHighlightMarker
                         // characters that had nothing to do with the hit: "gsh" matches 格式化 through
                         // the initials alias, but a subsequence search also finds g...s...h spread
                         // across the full pinyin and lit 创 along with it.
+                        // The occurrence painted is the term's TIGHTEST one, not its earliest: the gate
+                        // accepts a match when each term has a tight occurrence somewhere, so painting the
+                        // greedy leftmost alignment instead lit characters the gate had not accepted (a
+                        // 7-letter query lit six characters over 116 positions of a flattened initials
+                        // alias). AliasMatchRules owns that measure so matching and painting agree.
                         int[]? positions = null;
                         foreach (var probe in probes)
                         {
-                            positions = kind == FzfTermKind.Fuzzy
-                                ? FindSubsequencePositions(aliasLower, probe)
+                            var candidate = kind == FzfTermKind.Fuzzy
+                                ? AliasMatchRules.TightestOccurrence(aliasLower, probe, caseSensitive: false)
                                 : FindContiguousPositions(aliasLower, probe, separator);
-                            if (positions != null)
-                                break;
+                            if (candidate == null)
+                                continue;
+                            if (!AliasMatchRules.IsTightOccurrence(probe.Length, candidate[^1] - candidate[0] + 1))
+                                continue;
+                            positions = candidate;
+                            break;
                         }
                         if (positions == null)
                             continue;

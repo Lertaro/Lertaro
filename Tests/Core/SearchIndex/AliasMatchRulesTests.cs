@@ -97,4 +97,51 @@ public sealed class AliasMatchRulesTests
         Assert.IsLessThan(MatchRank.TierInitials, MatchRank.TierName);
         Assert.IsLessThan(MatchRank.TierFull, MatchRank.TierInitials);
     }
+
+    [TestMethod]
+    public void TightestOccurrence_TakesTheNarrowWindowNotTheEarliest()
+    {
+        // The greedy leftmost alignment of "bi" starts at 0 and spans 8; the narrow one is the literal
+        // "bi" further along, which is the occurrence highlighting is supposed to paint.
+        var occurrence = AliasMatchRules.TightestOccurrence("bxxxxxxxxi-bi", "bi", caseSensitive: false);
+
+        Assert.IsNotNull(occurrence);
+        CollectionAssert.AreEqual(new[] { 11, 12 }, occurrence);
+    }
+
+    [TestMethod]
+    public void TightestOccurrence_SpansDelimitersWhenTheTermDoes()
+    {
+        var text = $"fang{Sep}dan{Sep}bi";
+
+        // "fangdan" is not literal in a delimited alias; its narrowest occurrence covers the delimiter.
+        var occurrence = AliasMatchRules.TightestOccurrence(text, "fangdan", caseSensitive: false);
+
+        Assert.IsNotNull(occurrence);
+        Assert.AreEqual(8, occurrence[^1] - occurrence[0] + 1);
+        Assert.IsTrue(AliasMatchRules.IsTightOccurrence("fangdan".Length, 8));
+    }
+
+    [TestMethod]
+    public void TightestOccurrence_AbsentTerm_IsNull() =>
+        Assert.IsNull(AliasMatchRules.TightestOccurrence("fangdan", "gao", caseSensitive: false));
+
+    [TestMethod]
+    public void TightestOccurrence_FoldsCaseUnlessAskedNotTo()
+    {
+        Assert.IsNotNull(AliasMatchRules.TightestOccurrence("FANGDAN", "fangdan", caseSensitive: false));
+        Assert.IsNull(AliasMatchRules.TightestOccurrence("FANGDAN", "fangdan", caseSensitive: true));
+    }
+
+    [TestMethod]
+    public void IsTightOccurrence_ScalesWithTermLengthAndKeepsAFloor()
+    {
+        // A short term still gets the floor: "sj" over "shi<SEP>ji" is 6 characters.
+        Assert.IsTrue(AliasMatchRules.IsTightOccurrence(2, 6));
+        Assert.IsFalse(AliasMatchRules.IsTightOccurrence(2, 9));
+
+        // A longer term is allowed a proportionate window, and no more.
+        Assert.IsTrue(AliasMatchRules.IsTightOccurrence(7, 28));
+        Assert.IsFalse(AliasMatchRules.IsTightOccurrence(7, 29));
+    }
 }

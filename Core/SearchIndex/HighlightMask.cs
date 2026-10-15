@@ -134,24 +134,28 @@ internal static class HighlightMask
         if (MarkLiteralSpan(fullText, term, comparison, highlights, out shape))
             return MatchRank.TierName;
 
+        // The alias tier runs BEFORE the name's own scattered pass, because on a long name that pass
+        // almost always succeeds by accident and paints the wrong characters: for a pinyin query "bi"
+        // against a 184-character filename, "b" came from "chu ban" and "i" from "tai bei shi" while the
+        // alias that explains the match (笔) painted nothing, because whichever tier returns first is the
+        // only one that paints. A provider's own spellings are the meaningful explanation whenever they
+        // exist; the name's scattered pass is the fallback for a query that no provider can express.
+        materialized ??= fullText.ToString();
+        shape = MatchRank.ShapeWordStart;
+        if (AliasHighlightMarker.MarkViaAliasProviders(materialized, term, caseSensitive, kind, highlights, out var aliasTier))
+            return aliasTier;
+
         // Scattered positions are only ever what a fuzzy term matched on. Every other kind is built on
         // FzfExactMatcher, which is IndexOf under the same two StringComparisons the literal pass above
         // already used -- so if one of those matched at all, that pass found it, and reaching here means
-        // it did not match this text. Running the fuzzy search anyway lit characters the term had
-        // nothing to do with, and worse, returned before the alias tier below could be tried: a pinyin
-        // term that happened to be a subsequence of some Latin run in a long path was answered by that
-        // run instead of by the alias it actually matched.
+        // it did not match this text. Running the fuzzy search anyway lit characters the term had nothing
+        // to do with.
         if (kind == FzfTermKind.Fuzzy &&
             FzfPositionMatcher.FuzzyMatchV2WithPositions(fullText, term, caseSensitive, FzfScoringScheme.Default, highlights, slab).IsMatch)
         {
             shape = MatchRank.ShapeScattered;
             return MatchRank.TierName;
         }
-
-        materialized ??= fullText.ToString();
-        shape = MatchRank.ShapeWordStart;
-        if (AliasHighlightMarker.MarkViaAliasProviders(materialized, term, caseSensitive, kind, highlights, out var aliasTier))
-            return aliasTier;
 
         // Keep the whole-query gate (a mixed term inside an AND/OR query is ineligible), but only
         // segment after the cheaper tiers fail. Doing this before them allocated per ranked/displayed
