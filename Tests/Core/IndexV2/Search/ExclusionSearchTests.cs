@@ -90,6 +90,41 @@ public sealed class ExclusionSearchTests
         Assert.IsEmpty(Names(fixture, "zghsy :演唱会"));
     }
 
+    // The ancestor pass recovers a row whose name only satisfies SOME of the terms, with the rest supplied
+    // by a folder above. Both name-level clauses have to survive that: an exclusion because no folder can
+    // make it true of a name, and a regex clause because it describes the name just as literally.
+    private static LiveIndexFixture BuildReadmeDrive() => LiveIndexFixture.Build("T", new[]
+    {
+        LiveIndexFixture.Root(),
+        new FileRecord(2, 1, "readme", FileRecordFlags.Directory),
+        new FileRecord(3, 2, "notes.txt", FileRecordFlags.None),
+    });
+
+    [TestMethod]
+    public void SearchStreaming_FolderSuppliesOneTerm_NameStillNeedsTheRegexClause()
+    {
+        using var fixture = BuildReadmeDrive();
+
+        // The control: this row only reaches the results through its folder, which is the pass under test.
+        Assert.Contains(@"T:\readme\notes.txt", Search(fixture, "readme note"));
+
+        // "/.../" reads the candidate's own name, and "notes.txt" has no ".pdf" in it. No folder above can
+        // supply that clause, so the row must stay dropped rather than ride in on the two terms alone.
+        Assert.IsEmpty(Search(fixture, @"readme note /\.pdf$/"));
+    }
+
+    [TestMethod]
+    public void SearchStreaming_FolderSuppliesOneTerm_ExclusionStillVetoesOnlyTheName()
+    {
+        using var fixture = BuildReadmeDrive();
+
+        // An exclusion takes no mask bit (PathTermFallback leaves it out of the term patterns entirely), so
+        // requiring one here would drop every row this pass exists to recover: the folder supplies "readme",
+        // the name satisfies "note", and ":pdf" only says the name must not contain "pdf".
+        Assert.Contains(@"T:\readme\notes.txt", Search(fixture, "readme note :pdf"));
+        Assert.IsEmpty(Search(fixture, "readme note :txt"));
+    }
+
     private static List<string> Names(LiveIndexFixture fixture, string query)
     {
         var results = new List<SearchResult>();
