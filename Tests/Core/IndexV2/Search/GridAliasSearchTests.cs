@@ -79,7 +79,10 @@ public sealed class GridAliasSearchTests
             return map;
         }
 
-        public IEnumerable<string> GetAliases(string text) => new[] { "fdbjf" };
+        // Deliberately NOT a spelling of the readings this provider can answer: a grid-stored name's live
+        // aliases are its lossy enumerated ones, which is exactly the case the highlight tier has to cover
+        // without help from a matching string alias.
+        public IEnumerable<string> GetAliases(string text) => new[] { "zzz" };
     }
 
     // Same readings, but a tiny string encoding -- so the snapshot must keep the string form and store
@@ -187,7 +190,8 @@ public sealed class GridAliasSearchTests
 
     // Regression for the tier that keeps a grid-only hit paintable. The App's item gate reads the final
     // highlight mask, and an empty mask is NoMatch there -- so a name the engine found through its grid
-    // would otherwise be dropped before it was ever shown.
+    // would otherwise be dropped before it was ever shown. The provider's string aliases deliberately do
+    // not match this query, so only the grid tier can light anything.
     [TestMethod]
     public void HighlightMask_LightsUpAGridOnlyMatch()
     {

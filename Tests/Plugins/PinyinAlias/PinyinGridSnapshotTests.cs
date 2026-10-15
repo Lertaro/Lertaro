@@ -18,6 +18,10 @@ public sealed class PinyinGridSnapshotTests
 {
     private const string PolyphonicName = "重.pdf";
 
+    // The 184-character name from the ticket, verbatim, as a highlight fixture.
+    private const string TicketName =
+        "防弹笔记法-简单输出式笔记架构,保护高产出、高效能心流 -- 电脑玩物站长Esor -- View zhi chang li, 2AB964, Chu ban, Tai bei shi, 2022 -- 城邦出版集团 创意市集 -- 9786267149096 -- df7686e59ff25513fb9c9ac4e906db6d -- Anna’s Archive";
+
     [ClassInitialize]
     public static void RegisterRealProvider(TestContext context)
         => AliasProviderRegistry.Register(new PinyinAliasProvider());
@@ -31,11 +35,30 @@ public sealed class PinyinGridSnapshotTests
         temp.Write(name);
 
         // "cz" asks for the SECOND reading of one character and then the first reading of a later one.
-        // The enumerated variants all put the dominant reading first, so no baked string can supply that
-        // order; the grid can, because it holds every reading at every position.
+        // The enumerated variants all put the first reading in table order first, so no baked string can
+        // supply that order; the grid can, because it holds every reading at every position.
         var results = temp.Search("cz");
 
         CollectionAssert.Contains(results, name);
+    }
+
+    // Regression for the grid highlight tier's own gating: it must only speak when the string aliases
+    // painted nothing. Running it on top of a name whose aliases ARE the enumerated strings lights a
+    // second, differently-wrong set of positions -- here four characters from the middle of the name
+    // (构/护/电/脑) for a query that only spells out 防弹.
+    [TestMethod]
+    [DataRow("fangdan")]
+    [DataRow("fangdan bi j f")]
+    public void Highlight_DoesNotLightUnrelatedCharactersForAnAbbreviatedQuery(string query)
+    {
+        using var temp = new TempIndex();
+        temp.Write(TicketName);
+
+        var mask = FuzzyMatcher.ComputeHighlightMask(TicketName, query);
+
+        Assert.IsTrue(mask[0] && mask[1], "'fangdan' is exactly 防弹's pinyin");
+        foreach (var index in new[] { 14, 17, 31, 32 })
+            Assert.IsFalse(mask[index], $"position {index} ('{TicketName[index]}') is not part of '{query}'");
     }
 
     [TestMethod]

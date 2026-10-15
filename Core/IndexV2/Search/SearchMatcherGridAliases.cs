@@ -125,8 +125,9 @@ internal static class SearchMatcherGridAliases
     }
 
     // One reading choice per position satisfying every positive term set, or false when some set has no
-    // witness on this tier. Positions no term constrained keep the dominant reading, which is what makes
-    // the materialized string the single-reading expansion for everything the query did not pin down.
+    // witness on this tier. Positions no term constrained keep the provider's first reading (index 0),
+    // which is what makes the materialized string the single-reading expansion for everything the query
+    // did not pin down.
     private static bool BuildWitness(
         AliasGridFormat.Index grid,
         FzfPattern pattern,

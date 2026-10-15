@@ -145,11 +145,16 @@ internal static class AliasHighlightMarker
                     }
                 }
 
-                // One more tier for a grid-capable provider, run after the string aliases so an
-                // enumerated spelling still wins when it can paint. Without it, a name whose aliases are
-                // stored as a grid would be found by the engine and then render as no match at all,
-                // because the caller's final mask is what its item gate reads.
-                if (provider is IAliasGridProvider gridProvider)
+                // One more tier for a grid-capable provider, and only when the string tier above painted
+                // nothing: the grid witness materializes its own reading choice, which for a name whose
+                // aliases ARE the enumerated strings lights a second, differently-wrong set of positions
+                // on top of the ones the strings already explained (measured: a pinyin query for the
+                // first two characters of a 184-character name lit four unrelated characters elsewhere in
+                // it). The tier exists for the row whose aliases are STORED as a grid, where these
+                // enumerated strings are the lossy single-reading form and may not match at all -- and
+                // without it such a row is found by the engine and then renders as no match, because the
+                // caller's final mask is what its item gate reads.
+                if (!matchedAny && provider is IAliasGridProvider gridProvider)
                     matchedAny |= MarkViaGrid(gridProvider, text, probes, kind, highlights, ref tier);
             }
             catch

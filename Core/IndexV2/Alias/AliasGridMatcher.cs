@@ -63,8 +63,8 @@ internal static class AliasGridMatcher
     /// Decides <paramref name="term"/> (one alternative spelling of one AND condition) against
     /// <paramref name="grid"/> on <paramref name="tier"/>. On true, <paramref name="choice"/> holds one
     /// reading index per position, with the positions the term did not pin down left at whatever the
-    /// caller had there -- so a caller that pre-fills it with the dominant reading (index 0) gets the
-    /// single-reading expansion for everything the query did not constrain.
+    /// caller had there -- so a caller that pre-fills it with the provider's first reading (index 0) gets
+    /// the single-reading expansion for everything the query did not constrain.
     /// </summary>
     /// <remarks>On false the contents of <paramref name="choice"/> are undefined.</remarks>
     public static bool TryMatchTerm(
