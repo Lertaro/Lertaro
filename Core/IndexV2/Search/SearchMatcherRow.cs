@@ -36,20 +36,26 @@ internal static class SearchMatcherRow
 
         var disabledIds = SearchContext.DisabledAliasIds;
         var matched = false;
+        // Aliases are read the alias side's way -- each term as a run if it can be, as a subsequence
+        // otherwise (see FzfPatternAliasReading) -- while the name tier above stays on `pattern`, and so does
+        // the alignment rule. A provider that declares no structure has no boundary to align to, so it keeps
+        // the strict reading.
         foreach (var (alias, providerId) in aliasScratch)
         {
             if (disabledIds != null && disabledIds.Contains(providerId))
                 continue;
-            if (!pattern.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default, slab))
+            var separator = AliasProviderRegistry.GetSyllableSeparator(providerId);
+            var aliasPattern = pattern.ReadingFor(separator);
+            if (!aliasPattern.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default, slab))
                 continue;
 
             // A precise query must not match a full transliteration mid-syllable -- see AliasMatchRules.
-            if (!AliasMatchRules.AllowsMatch(pattern, AliasProviderRegistry.GetSyllableSeparator(providerId), alias, aliasMatch.MinBegin))
+            if (!AliasMatchRules.AllowsMatch(pattern, separator, alias, aliasMatch.MinBegin))
                 continue;
 
-            if (pattern.IsAcceptableAliasMatch(aliasMatch, queryLen, alias, FzfScoringScheme.Default, slab))
+            if (aliasPattern.IsAcceptableAliasMatch(aliasMatch, queryLen, alias, FzfScoringScheme.Default, slab))
             {
-                var weighted = pattern.WeightAliasMatch(aliasMatch, queryLen);
+                var weighted = aliasPattern.WeightAliasMatch(aliasMatch, queryLen);
                 if (!matched || weighted.Score > match.Score)
                 {
                     matched = true;
@@ -107,20 +113,24 @@ internal static class SearchMatcherRow
         var disabledIds = SearchContext.DisabledAliasIds;
         var matched = false;
         aliases ??= Array.Empty<string>();
+        // Same alias-side reading as MatchRow above, per entry: the name tier checked `pattern`, and every
+        // alias is checked with the reading its own provider's structure allows.
         for (var j = 0; j < aliases.Length; j++)
         {
             if (disabledIds != null && providerIds != null && j < providerIds.Length && disabledIds.Contains(providerIds[j]))
                 continue;
-            if (!pattern.TryMatch(aliases[j], out var aliasMatch, FzfScoringScheme.Default, slab))
+            var separator = AliasProviderRegistry.GetSyllableSeparator(providerIds?[j] ?? 0);
+            var aliasPattern = pattern.ReadingFor(separator);
+            if (!aliasPattern.TryMatch(aliases[j], out var aliasMatch, FzfScoringScheme.Default, slab))
                 continue;
 
             // A precise query must not match a full transliteration mid-syllable -- see AliasMatchRules.
-            if (!AliasMatchRules.AllowsMatch(pattern, AliasProviderRegistry.GetSyllableSeparator(providerIds?[j] ?? 0), aliases[j], aliasMatch.MinBegin))
+            if (!AliasMatchRules.AllowsMatch(pattern, separator, aliases[j], aliasMatch.MinBegin))
                 continue;
 
-            if (pattern.IsAcceptableAliasMatch(aliasMatch, queryLen, aliases[j], FzfScoringScheme.Default, slab))
+            if (aliasPattern.IsAcceptableAliasMatch(aliasMatch, queryLen, aliases[j], FzfScoringScheme.Default, slab))
             {
-                var weighted = pattern.WeightAliasMatch(aliasMatch, queryLen);
+                var weighted = aliasPattern.WeightAliasMatch(aliasMatch, queryLen);
                 if (!matched || weighted.Score > result.Score)
                 {
                     matched = true;

@@ -45,8 +45,24 @@ internal static class NameSearch
             ? keep
             : (int)Math.Min((long)keep * RefinementHeadroomFactor, everything);
         var topN = new FzfTopN(Math.Max(scanKeep, 1));
-        CollectRanks(snapshot, delta, pattern, matchAll, directoryContext, topN, token, fileNamePatterns);
+        // CollectRanks hands its rented hit list back instead of recycling it, because the fallback below
+        // needs to know which uids the WHOLE query already matched (see BuildReportedUids); the finally is
+        // what keeps that from leaking the list whenever a superseded search cancels out of here.
+        var hits = CollectRanks(snapshot, delta, pattern, matchAll, directoryContext, topN, token, fileNamePatterns);
+        try
+        {
+            PublishRanks(snapshot, delta, pattern, hits, matchAll, topN, scanKeep, limit, directoryFilterLower, token, onResult);
+        }
+        finally
+        {
+            if (hits != null)
+                SearchMatcher.ReturnHitList(hits);
+        }
+    }
 
+    private static void PublishRanks(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, List<UniqueMatch>? hits, bool matchAll,
+        FzfTopN topN, int scanKeep, int limit, string? directoryFilterLower, CancellationToken token, Action<SearchResult> onResult)
+    {
         var ranks = topN.Finish(scanKeep);
         if (!matchAll && !pattern.IsEmpty)
             RefineRanks(snapshot, delta, pattern, ranks, limit);
@@ -83,11 +99,35 @@ internal static class NameSearch
         // product/relevance decisions, not a fix that belongs at this line. The quick window's 51 and
         // the inline window's bounded limit do close it.
         if (emitted < limit)
+        {
+            var reportedUids = BuildReportedUids(pattern, hits);
             PathTermFallback.SearchStreaming(snapshot, delta, pattern, limit - emitted, result =>
             {
                 SearchResultRelevance.Apply(result, pattern);
                 onResult(result);
-            }, token, directoryFilterLower);
+            }, token, directoryFilterLower, reportedUids);
+        }
+    }
+
+    // The uids phase A matched, i.e. those whose WHOLE query landed on one spelling of the name -- what
+    // PathTermFallback must not report a second time. It cannot be read off that pass's own per-term masks:
+    // a name whose terms are satisfied by DIFFERENT spellings fills the same masks without ever having
+    // matched the whole query, and those rows are the ones the pass exists to add.
+    //
+    // Built only when the fallback is about to run: a page that filled means the name search answered in full
+    // and the fallback is skipped, so this stays bounded by the rows that did not fill the page (plus any whose
+    // rows the directory/file filters dropped). Null for the shapes that pass does not handle per-term
+    // (OR-first branch queries, whose recursive call keeps the old "assume it was reported" rule).
+    private static HashSet<int>? BuildReportedUids(FzfPattern pattern, List<UniqueMatch>? hits)
+    {
+        if (hits == null || pattern.OrGroups != null
+            || pattern.TermSets.Length < 2 || pattern.TermSets.Length > PathTermFallback.MaxTerms)
+            return null;
+
+        var uids = new HashSet<int>(hits.Count);
+        foreach (var hit in hits)
+            uids.Add(hit.Uid);
+        return uids;
     }
 
     [ThreadStatic]
@@ -239,8 +279,13 @@ internal static class NameSearch
         return delta.GetFullPath(row).StartsWith(ctx.FilterLower, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static void CollectRanks(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, bool matchAll, DirectoryContext ctx, FzfTopN topN, CancellationToken token, string[]? fileNamePatterns)
+    // Fills topN with every ranked candidate and hands back the rented hit list phase A matched on (null
+    // when there is no pattern to match, i.e. a bare-drive listing). The caller owns that list and returns
+    // it to the pool -- see the try/finally in SearchStreaming, which needs it to tell PathTermFallback
+    // which uids the whole query already matched.
+    private static List<UniqueMatch>? CollectRanks(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, bool matchAll, DirectoryContext ctx, FzfTopN topN, CancellationToken token, string[]? fileNamePatterns)
     {
+        List<UniqueMatch>? rentHits = null;
         var membership = ctx.FilterLower != null ? new Dictionary<int, bool>() : null;
 
         // Hoisted out of the per-row loops below. Snapshot.Flags builds a span over mapped memory on
@@ -284,6 +329,7 @@ internal static class NameSearch
         else
         {
             var hits = SearchMatcher.RentHitList();
+            rentHits = hits;
             SearchMatcher.MatchUniques(snapshot, pattern, hits, token, fileNamePatterns);
             foreach (var m in hits)
             {
@@ -300,10 +346,10 @@ internal static class NameSearch
                     topN.Add(new FzfRank(row, m.Match.Score, m.SortKey));
                 }
             }
-            SearchMatcher.ReturnHitList(hits);
         }
 
         MatchDeltaRows(snapshot, delta, pattern, matchAll, ctx, topN, fileNamePatterns);
+        return rentHits;
     }
 
     private static bool MatchesFileScope(Snapshot snapshot, DeltaOverlay delta, int row, string[]? patterns)

@@ -176,14 +176,19 @@ public static class LiveDirectorySearcher
         if (aliases == null)
             return false;
 
+        // Aliases are read the alias side's way: each term as a contiguous run if it can be, as a
+        // subsequence otherwise (see FzfPatternAliasReading). The name itself was matched above, with the
+        // user's own precision, and so is the alignment rule. A provider that declares no structure keeps
+        // the strict reading.
         foreach (var (alias, separator) in aliases)
         {
-            if (!pattern.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default, slab))
+            var aliasPattern = pattern.ReadingFor(separator);
+            if (!aliasPattern.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default, slab))
                 continue;
             // Same syllable-alignment rule the index scan applies (see AliasMatchRules).
             if (!AliasMatchRules.AllowsMatch(pattern, separator, alias, aliasMatch.MinBegin))
                 continue;
-            if (pattern.IsAcceptableAliasMatch(aliasMatch, pattern.GetTotalTermLength(), alias, FzfScoringScheme.Default, slab))
+            if (aliasPattern.IsAcceptableAliasMatch(aliasMatch, pattern.GetTotalTermLength(), alias, FzfScoringScheme.Default, slab))
             {
                 return true;
             }

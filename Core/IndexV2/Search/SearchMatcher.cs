@@ -43,6 +43,11 @@ internal static class SearchMatcher
         public required bool CanFilter;
         public required int QueryLen;
         public required MixedTerm? MixedTerm; // non-null only for a bare single term mixing an alias provider's own two alphabets
+
+        // The alias-side byte view of the same query (see FzfPatternAliasReading), built on first use: most
+        // candidates carry no aliases at all, and it costs one encode per term.
+        private FzfBytePattern? _aliasBytePattern;
+        public FzfBytePattern AliasBytePattern => _aliasBytePattern ??= FzfBytePattern.From(Pattern.AliasReading);
     }
 
     private static readonly ConcurrentBag<Worker> WorkerPool = new();

@@ -25,6 +25,11 @@ internal sealed class PathGate
     private readonly string[] _querySegments;
     private readonly FzfPattern[] _segmentPatterns;
     private readonly FzfBytePattern[] _segmentBytePatterns;
+    // The alias-side readings of the same segments (see FzfPatternAliasReading). Aliases are matched
+    // through these, while the two arrays above keep deciding the segment's own name -- and keep answering
+    // the syllable-alignment rule, which is a property of what the user typed.
+    private readonly FzfPattern[] _segmentAliasPatterns;
+    private readonly FzfBytePattern[] _segmentAliasBytePatterns;
     private readonly string[] _rootSegments;
     // Score > 0 = verified (<= 0 rejects, matching the old dirScore contract); Depth 0 only for a
     // bare-root parent (parent path == SourceRoot, whose trailing separator swallows the child's own).
@@ -38,13 +43,17 @@ internal sealed class PathGate
         _querySegments = dirQuery.Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries);
         _segmentPatterns = new FzfPattern[_querySegments.Length];
         _segmentBytePatterns = new FzfBytePattern[_querySegments.Length];
+        _segmentAliasPatterns = new FzfPattern[_querySegments.Length];
+        _segmentAliasBytePatterns = new FzfBytePattern[_querySegments.Length];
         for (var i = 0; i < _querySegments.Length; i++)
         {
             _segmentPatterns[i] = FzfPattern.ParseText(_querySegments[i]);
             _segmentBytePatterns[i] = FzfBytePattern.From(_segmentPatterns[i]);
+            _segmentAliasPatterns[i] = _segmentPatterns[i].AliasReading;
+            _segmentAliasBytePatterns[i] = FzfBytePattern.From(_segmentAliasPatterns[i]);
         }
         _rootSegments = snapshot.SourceRoot.Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries);
-        _weighting = new PathGateWeighting(_snapshot, _delta, _querySegments, _segmentPatterns, _segmentBytePatterns, _rootSegments);
+        _weighting = new PathGateWeighting(_snapshot, _delta, _querySegments, _segmentPatterns, _segmentBytePatterns, _segmentAliasPatterns, _segmentAliasBytePatterns, _rootSegments);
     }
 
     public (int Score, byte Depth) Verify(int parentRow, SearchMatcher.Worker worker)
@@ -173,9 +182,14 @@ internal sealed class PathGate
             if (aliasUtf8.Length == 0)
                 continue;
             var separator = AliasProviderRegistry.GetSyllableSeparator(_snapshot.AliasProviderId(e));
+            // A structured provider reads each term as a run first and as a subsequence second (see
+            // FzfPatternAliasReading); one that declares no boundary has nothing to align to, so it keeps
+            // the strict reading.
+            var aliasPattern = separator == '\0' ? _segmentPatterns[q] : _segmentAliasPatterns[q];
             if (Ascii.IsValid(aliasUtf8))
             {
-                if (_segmentBytePatterns[q].TryMatchSegmented(aliasUtf8, out var aliasMatch, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers)
+                var aliasBytePattern = separator == '\0' ? _segmentBytePatterns[q] : _segmentAliasBytePatterns[q];
+                if (aliasBytePattern.TryMatchSegmented(aliasUtf8, out var aliasMatch, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers)
                     && AliasMatchRules.AllowsMatchUtf8(_segmentPatterns[q], separator, aliasUtf8, aliasMatch.MinBegin))
                 {
                     score = aliasMatch.Score;
@@ -187,7 +201,7 @@ internal sealed class PathGate
                 if (worker.AliasScratch.Length < aliasUtf8.Length)
                     worker.AliasScratch = new char[Math.Max(aliasUtf8.Length, worker.AliasScratch.Length * 2)];
                 var written = Encoding.UTF8.GetChars(aliasUtf8, worker.AliasScratch);
-                if (_segmentPatterns[q].TryMatch(worker.AliasScratch.AsSpan(0, written), out var aliasMatch, FzfScoringScheme.Default, worker.Slab)
+                if (aliasPattern.TryMatch(worker.AliasScratch.AsSpan(0, written), out var aliasMatch, FzfScoringScheme.Default, worker.Slab)
                     && AliasMatchRules.AllowsMatch(_segmentPatterns[q], separator, worker.AliasScratch.AsSpan(0, written), aliasMatch.MinBegin))
                 {
                     score = aliasMatch.Score;
@@ -221,7 +235,8 @@ internal sealed class PathGate
                     continue;
                 foreach (var alias in provider.GetAliases(segment))
                 {
-                    if (!_segmentPatterns[q].TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default, worker.Slab))
+                    var aliasPattern = provider.SyllableSeparator == '\0' ? _segmentPatterns[q] : _segmentAliasPatterns[q];
+                    if (!aliasPattern.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default, worker.Slab))
                         continue;
                     if (!AliasMatchRules.AllowsMatch(_segmentPatterns[q], provider.SyllableSeparator, alias, aliasMatch.MinBegin))
                         continue;

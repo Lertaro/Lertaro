@@ -45,8 +45,46 @@ internal static class AliasMatchRules
         // provider emits several readings as one '|'-joined string, and the matcher scores each segment
         // independently with offsets rebased onto the whole string -- so a match opening a later reading
         // sits right after that '|' and is a boundary in exactly the sense that matters.
+        //
+        // A character the provider did NOT transliterate counts too, and has to: the delimiter is emitted
+        // only BETWEEN two transliterated characters (see PinyinAliasFormat.NeedsSeparatorBefore, and the
+        // grid provider's own NeedsSeparatorBefore) precisely because a passed-through character is already
+        // a visible boundary -- nothing can hide inside it. So a reading that follows one opens on a real
+        // boundary that no separator points at. Missing that rejected the one alias a mixed name had:
+        // "、gao<SEP>xiao" in the ticket's 188-character name matched every alias but the one carrying 高效,
+        // because '高' happens to follow the name's own "、".
         var previous = alias[matchStart - 1];
-        return previous == separator || previous == '|';
+        return previous == separator || previous == '|' || !IsAsciiLetter(previous);
+    }
+
+    // Only an ASCII letter can be the inside of a reading: every reading a provider emits is letters, and
+    // every position that is NOT preceded by one either follows the separator, a '|', a passed-through
+    // character, or (in the byte twin) a multi-byte character's continuation byte. A non-ASCII letter is
+    // passed-through text as well -- no provider transliterates into it.
+    private static bool IsAsciiLetter(char c) => c is >= 'a' and <= 'z' or >= 'A' and <= 'Z';
+
+    /// <summary>
+    /// Whether a whole query is precise: every one of its positive terms was matched as a run rather than as
+    /// a scattered subsequence, so the boundary rule above applies to it.
+    /// </summary>
+    /// <remarks>
+    /// Lives here rather than on the pattern because the alias-side view (FzfPatternAliasReading) holds both
+    /// readings of every term and must NOT be asked this question -- deriving it there would always answer
+    /// "not precise" and switch the rule off in exact mode. That view is handed its source's answer instead.
+    /// </remarks>
+    public static bool RequiresAlignment(FzfTermSet[] sets)
+    {
+        foreach (var set in sets)
+        {
+            foreach (var term in set.Terms)
+            {
+                if (term.Inverse)
+                    continue;
+                if (term.Kind == FzfTermKind.Fuzzy)
+                    return false;
+            }
+        }
+        return true;
     }
 
     /// <summary>Byte twin of <see cref="IsBoundaryAligned(char, ReadOnlySpan{char}, int)"/>.</summary>
@@ -64,9 +102,11 @@ internal static class AliasMatchRules
         if (aliasUtf8.IndexOf(separatorByte) < 0)
             return true;
 
-        // '|' as well as the separator: see the char overload.
+        // '|' as well as the separator, and any byte that cannot be the inside of a reading: see the char
+        // overload. A passed-through multi-byte character leaves a continuation byte (>= 0x80) in front,
+        // which is exactly as much of a boundary as a passed-through ASCII one.
         var previous = aliasUtf8[matchStart - 1];
-        return previous == separatorByte || previous == (byte)'|';
+        return previous == separatorByte || previous == (byte)'|' || !IsAsciiLetter((char)previous);
     }
 
     /// <summary>

@@ -60,21 +60,27 @@ public static class FuzzyMatcher
             if (!provider.CanHandle(text))
                 continue;
 
+            // The alias tiers read a transliteration the alias side's way -- each term as a contiguous run if
+            // it can be, as a subsequence otherwise (see FzfPatternAliasReading: "gxiao" is 高's initial plus
+            // 效's whole reading and exists as no run at all, while "jt" is a run inside 出版集团's initials
+            // alias). The boundary rule below stays keyed on what the user typed.
+            var separator = provider.SyllableSeparator;
+            var aliasPattern = fzf.ReadingFor(separator);
             foreach (var alias in provider.GetAliases(text))
             {
-                if (!fzf.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default))
+                if (!aliasPattern.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default))
                     continue;
 
                 // A precise query must not match a full transliteration mid-syllable -- see
                 // AliasMatchRules, and the same check the core index scan applies.
-                if (!AliasMatchRules.AllowsMatch(fzf.RequiresAlignedAliases, provider.SyllableSeparator, alias, aliasMatch.MinBegin))
+                if (!AliasMatchRules.AllowsMatch(fzf.RequiresAlignedAliases, separator, alias, aliasMatch.MinBegin))
                     continue;
 
                 // Same quality bar the core index scan applies to its own alias fallback (see
                 // FzfPattern.IsAcceptableAliasMatch) -- reject a match whose span is disproportionately
                 // wider than the query, or whose score is too low, so a weak coincidental alias hit
                 // doesn't count as a match here either.
-                if (!fzf.IsAcceptableAliasMatch(aliasMatch, queryLen, alias, FzfScoringScheme.Default))
+                if (!aliasPattern.IsAcceptableAliasMatch(aliasMatch, queryLen, alias, FzfScoringScheme.Default))
                     continue;
 
                 return true;

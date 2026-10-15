@@ -142,7 +142,7 @@ internal static class HighlightMask
         // exist; the name's scattered pass is the fallback for a query that no provider can express.
         materialized ??= fullText.ToString();
         shape = MatchRank.ShapeWordStart;
-        if (AliasHighlightMarker.MarkViaAliasProviders(materialized, term, caseSensitive, kind, highlights, out var aliasTier))
+        if (AliasHighlightMarker.MarkViaAliasProviders(materialized, term, caseSensitive, kind, pattern.RequiresAlignedAliases, highlights, out var aliasTier))
             return aliasTier;
 
         // Scattered positions are only ever what a fuzzy term matched on. Every other kind is built on

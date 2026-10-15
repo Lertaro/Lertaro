@@ -89,20 +89,27 @@ internal static class SearchMatcherAliasExtensions
             if (aliasUtf8.Length == 0)
                 continue;
 
+            // Aliases are read the alias side's way -- each term as a run if it can be, as a subsequence
+            // otherwise (see FzfPatternAliasReading) -- while the boundary rule below stays keyed on what
+            // the user actually typed. A provider that declares no structure has no boundary to align to,
+            // so it keeps the strict reading.
+            var separator = AliasProviderRegistry.GetSyllableSeparator(snapshot.AliasProviderId(e));
+            var aliasPattern = ctx.Pattern.ReadingFor(separator);
             FzfPatternResult aliasMatch;
             bool hit;
             var decodedLength = -1; // -1: not decoded to chars yet (the ASCII/byte fast path below skips it)
             var isAsciiAlias = Ascii.IsValid(aliasUtf8);
             if (isAsciiAlias)
             {
-                hit = ctx.BytePattern.TryMatchSegmented(aliasUtf8, out aliasMatch, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers);
+                var bytePattern = separator == '\0' ? ctx.BytePattern : ctx.AliasBytePattern;
+                hit = bytePattern.TryMatchSegmented(aliasUtf8, out aliasMatch, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers);
             }
             else
             {
                 if (worker.AliasScratch.Length < aliasUtf8.Length)
                     worker.AliasScratch = new char[Math.Max(aliasUtf8.Length, worker.AliasScratch.Length * 2)];
                 decodedLength = Encoding.UTF8.GetChars(aliasUtf8, worker.AliasScratch);
-                hit = ctx.Pattern.TryMatch(worker.AliasScratch.AsSpan(0, decodedLength), out aliasMatch, FzfScoringScheme.Default, worker.Slab);
+                hit = aliasPattern.TryMatch(worker.AliasScratch.AsSpan(0, decodedLength), out aliasMatch, FzfScoringScheme.Default, worker.Slab);
             }
 
             if (hit)
@@ -110,14 +117,13 @@ internal static class SearchMatcherAliasExtensions
                 // A precise query must not match a full transliteration mid-syllable (see AliasMatchRules).
                 // The alias's own provider is the only one that knows where its boundaries fall, and for a
                 // baked alias that provider is reachable only by its id.
-                var separator = AliasProviderRegistry.GetSyllableSeparator(snapshot.AliasProviderId(e));
                 var aligned = isAsciiAlias
                     ? AliasMatchRules.AllowsMatchUtf8(ctx.Pattern, separator, aliasUtf8, aliasMatch.MinBegin)
                     : AliasMatchRules.AllowsMatch(ctx.Pattern, separator, worker.AliasScratch.AsSpan(0, decodedLength), aliasMatch.MinBegin);
                 if (!aligned)
                     continue;
 
-                var acceptable = ctx.Pattern.IsAcceptableAliasMatch(aliasMatch, ctx.QueryLen);
+                var acceptable = aliasPattern.IsAcceptableAliasMatch(aliasMatch, ctx.QueryLen);
                 if (!acceptable)
                 {
                     // The multi-term "every term individually tight" fallback (see FzfPattern's own
@@ -130,12 +136,12 @@ internal static class SearchMatcherAliasExtensions
                             worker.AliasScratch = new char[Math.Max(aliasUtf8.Length, worker.AliasScratch.Length * 2)];
                         decodedLength = Encoding.UTF8.GetChars(aliasUtf8, worker.AliasScratch);
                     }
-                    acceptable = ctx.Pattern.IsAcceptableAliasMatch(aliasMatch, ctx.QueryLen, worker.AliasScratch.AsSpan(0, decodedLength), FzfScoringScheme.Default, worker.Slab);
+                    acceptable = aliasPattern.IsAcceptableAliasMatch(aliasMatch, ctx.QueryLen, worker.AliasScratch.AsSpan(0, decodedLength), FzfScoringScheme.Default, worker.Slab);
                 }
 
                 if (acceptable)
                 {
-                    var weighted = ctx.Pattern.WeightAliasMatch(aliasMatch, ctx.QueryLen);
+                    var weighted = aliasPattern.WeightAliasMatch(aliasMatch, ctx.QueryLen);
                     if (!matched || weighted.Score > best.Score)
                     {
                         matched = true;

@@ -17,14 +17,25 @@ internal sealed class FzfPattern
     // already say the same thing, which is every query without a '|' plus every OR-first query -- the
     // hot engine keeps consuming TermSets unchanged and only a genuinely mixed AND-first query pays for
     // the extra shape. See FzfPatternParser.ParseTermSets.
-    internal FzfPattern(string? targetDrive, FzfTermSet[] termSets, FzfTermGroup[]? orGroups)
+    // requiresAlignedAliases is the alias-side view's own hand-off: it holds both readings of every term,
+    // so deriving the rule from those terms would always answer "not precise" and switch the rule off in
+    // exact mode. Null everywhere else, where the terms do say it.
+    internal FzfPattern(string? targetDrive, FzfTermSet[] termSets, FzfTermGroup[]? orGroups, bool? requiresAlignedAliases = null)
     {
         TargetDrive = targetDrive;
         TermSets = termSets;
         OrGroups = orGroups;
         EffectiveSets = orGroups == null ? termSets : Flatten(orGroups);
         HasExclusions = EffectiveSets.Any(set => set.Terms.Any(term => term.Inverse));
+        _requiresAlignedAliases = requiresAlignedAliases;
     }
+
+    // The same query as the ALIAS tiers read it: every positive term offered as a contiguous run first and
+    // as a subsequence second. Built on demand -- a candidate set with no aliases never pays for it -- and
+    // kept here so it is built once per query rather than once per candidate. The construction (and why
+    // both readings are needed, in that order) lives in FzfPatternAliasReading.
+    private FzfPattern? _aliasReading;
+    internal FzfPattern AliasReading => _aliasReading ??= FzfPatternAliasReading.Build(this);
 
     public string? TargetDrive { get; }
     public FzfTermSet[] TermSets { get; }
@@ -66,23 +77,11 @@ internal sealed class FzfPattern
     // Keyed off the terms rather than SearchContext.FuzzyMatchEnabled so a term that explicitly flips
     // itself back to a subsequence ("'jtqin", under fuzzy-off) stays exempt: for that term the user did ask
     // for a loose match, and applying the boundary rule would contradict what the operator means.
-    public bool RequiresAlignedAliases
-    {
-        get
-        {
-            foreach (var set in EffectiveSets)
-            {
-                foreach (var term in set.Terms)
-                {
-                    if (term.Inverse)
-                        continue;
-                    if (term.Kind == FzfTermKind.Fuzzy)
-                        return false;
-                }
-            }
-            return true;
-        }
-    }
+    //
+    // Computed once and handed to the alias-side view (see the constructor), which holds both readings of
+    // every term and so cannot answer this question from its own terms.
+    private readonly bool? _requiresAlignedAliases;
+    public bool RequiresAlignedAliases => _requiresAlignedAliases ?? AliasMatchRules.RequiresAlignment(EffectiveSets);
 
     // How much text the user actually typed, which is what the alias-fallback quality gate scales its
     // thresholds against (see IsAcceptableAliasMatch). A term set holds ALTERNATIVES -- one OR branch,

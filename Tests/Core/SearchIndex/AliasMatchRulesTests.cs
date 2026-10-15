@@ -1,4 +1,5 @@
 using Lertaro.Core.SearchIndex;
+using Lertaro.Core.SearchIndex.Fzf;
 
 namespace Lertaro.Core.Tests.SearchIndex;
 
@@ -60,6 +61,55 @@ public sealed class AliasMatchRulesTests
                 AliasMatchRules.IsBoundaryAligned(Sep, alias, i),
                 AliasMatchRules.IsBoundaryAligned(Sep, bytes, i),
                 $"position {i}");
+    }
+
+    [TestMethod]
+    public void Alignment_PassedThroughCharacterIsABoundary()
+    {
+        // The delimiter is emitted only BETWEEN two transliterated characters (PinyinAliasFormat
+        // .NeedsSeparatorBefore), because a passed-through character is already a visible boundary. So a
+        // reading that follows one opens on a real boundary no separator points at -- '高' after the ticket
+        // name's own "、". Missing that rejected the one alias of a mixed 188-character name that carried 高效.
+        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, $"、gao{Sep}xiao", 1));
+        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, $"dian{Sep}nao01ji.mp4", 10), "'j' starts a reading after a digit");
+    }
+
+    [TestMethod]
+    public void Alignment_ANonAsciiPassedThroughCharacterIsABoundaryInBothEncodings()
+    {
+        var alias = $"、gao{Sep}xiao";
+        var bytes = System.Text.Encoding.UTF8.GetBytes(alias);
+
+        // The char '、' is three UTF-8 bytes, so the byte twin sees a continuation byte in front of 'g'.
+        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, alias, 1));
+        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, (ReadOnlySpan<byte>)bytes, System.Text.Encoding.UTF8.GetByteCount("、")));
+    }
+
+    [TestMethod]
+    public void Alignment_InsideAReadingIsStillRefusedWhereverItSits()
+    {
+        // Only a character that cannot be the inside of a reading counts as a boundary, so this loosening
+        // cannot admit a mid-syllable start.
+        Assert.IsFalse(AliasMatchRules.IsBoundaryAligned(Sep, $"ji-zhen{Sep}shu", 1));
+        Assert.IsFalse(AliasMatchRules.IsBoundaryAligned(Sep, $"ji-zhen{Sep}shu", 5));
+    }
+
+    [TestMethod]
+    public void TightestAlignedOccurrence_SkipsAMisalignedWindow()
+    {
+        // Painting's aligned finder (see AliasHighlightPositions): "gq" spans the tail of ting and the head of
+        // qin, so every 'q' follows a 'g' whose only occurrence sits inside ting -- there is no occurrence for
+        // a precise query to paint, which is why the splice stays unpainted even though a loose reading finds
+        // it at all.
+        var splice = AliasHighlightPositions.ForProbe($"jia{Sep}ting{Sep}qin{Sep}gan", "gq", Sep, FzfTermKind.Exact, precise: true);
+
+        Assert.IsNull(splice);
+
+        // Where a boundary-aligned occurrence exists, that one is painted, even though a tighter occurrence
+        // starts mid-syllable.
+        var painted = AliasHighlightPositions.ForProbe($"xue{Sep}xi{Sep}ang", "xia", Sep, FzfTermKind.Exact, precise: true);
+
+        CollectionAssert.AreEqual(new[] { 4, 5, 7 }, painted);
     }
 
     [TestMethod]

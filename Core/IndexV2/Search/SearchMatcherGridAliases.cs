@@ -41,6 +41,11 @@ internal static class SearchMatcherGridAliases
     /// tier applies it, while PathGate's segment fallback deliberately does not (it keeps only the
     /// syllable-alignment rule, which is a correctness rule rather than a quality bar).
     /// </summary>
+    /// <remarks>
+    /// <paramref name="pattern"/> is the query itself, never an alias-side view of it: the reading is chosen
+    /// here from the entry's own provider separator (see FzfPatternAliasReading.ReadingFor), so every caller
+    /// passes what the user typed and the alignment rule keeps reading exactly that.
+    /// </remarks>
     internal static bool TryMatchEntry(
         Snapshot snapshot,
         FzfPattern pattern,
@@ -74,6 +79,10 @@ internal static class SearchMatcherGridAliases
         out FzfPatternResult match)
     {
         match = default;
+
+        // Each term witnessed as a contiguous run first and as a subsequence second, for a provider that
+        // declares structure (see FzfPatternAliasReading).
+        pattern = pattern.ReadingFor(separator);
 
         // The AND-first `|` plus space shape is evaluated by FzfPattern against a string, which this
         // tier can only produce as one witness; rather than guess at a shape the pattern would then
