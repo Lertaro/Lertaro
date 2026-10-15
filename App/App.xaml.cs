@@ -295,6 +295,7 @@ public partial class App : Application
                 : settings.Theme;
             ThemeManager.Instance.Initialize(startupThemeId);
             ThemeManager.Instance.InitializeSystemFollow();
+            ThemeManager.Instance.ThemeChanged += ThemedWindowIconHelper.RepaintBrandMarks;
             Logger.Log($"[App] ThemeManager initialized with theme: {startupThemeId}");
         }
         catch (Exception ex)

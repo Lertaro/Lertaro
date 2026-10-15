@@ -51,7 +51,7 @@
             <!-- ═══════════ 1. Search Bar ═══════════ -->
             <local:SearchBoxControl x:Name="SearchBox" Grid.Row="0" SearchText="{Binding SearchQuery, Mode=TwoWay}"
                                     Height="{Binding SearchBarHeight}" IsDynamicScalingEnabled="True"
-                                    LeftIconSize="34" RightIconSize="34" MinimumIconFrameSize="32"
+                                    LeftIconSize="34" RightIconSize="34"
                                     HorizontalAlignment="Stretch" IsServiceRunning="{Binding IsServiceConnected}"/>
 
             <!-- ═══════════ 2. Separator ═══════════ -->

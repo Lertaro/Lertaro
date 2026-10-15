@@ -1,11 +1,14 @@
 using System.Windows;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Image = System.Windows.Controls.Image;
 
 namespace Lertaro.App.Services.Theme;
 
-/// <summary>Uses the ICO's size-specific artwork for native windows and in-app brand images.</summary>
+/// <summary>
+/// Hands out the two forms of the brand mark: the native window icon stays a size-specific ICO
+/// frame because Win32 only accepts an HICON, while in-app brand images use the theme-tinted
+/// vector from <see cref="BrandLogo"/>.
+/// </summary>
 public static class ThemedWindowIconHelper
 {
     private static readonly Lazy<BitmapFrame[]> Frames = new(() =>
@@ -18,59 +21,47 @@ public static class ThemedWindowIconHelper
         return frames;
     });
 
+    private static readonly List<WeakReference<Image>> BrandMarks = [];
+    private static readonly object Gate = new();
+
     // Keep the decoder on the BitmapFrame: WPF can select native small/large window icons from it.
     public static void Apply(Window window) => window.Icon = GetFrame(32);
 
-    public static void Apply(Image image, Window window) => SetUseAppIcon(image, true);
+    public static void Apply(Image image)
+    {
+        image.Source = BrandLogo.Create();
+        lock (Gate) BrandMarks.Add(new WeakReference<Image>(image));
+    }
+
+    /// <summary>Re-paints every brand image handed out so far, because a frozen vector mark is a
+    /// snapshot of the accent it was built under. Wired to ThemeChanged during app startup.</summary>
+    public static void RepaintBrandMarks()
+    {
+        var source = BrandLogo.Create();
+        var live = new List<Image>();
+        lock (Gate)
+        {
+            BrandMarks.RemoveAll(weak => !weak.TryGetTarget(out _));
+            foreach (var weak in BrandMarks)
+                if (weak.TryGetTarget(out var image)) live.Add(image);
+        }
+        foreach (var image in live)
+        {
+            if (image.CheckAccess()) image.Source = source;
+            else image.Dispatcher.BeginInvoke(() => image.Source = source);
+        }
+    }
 
     public static readonly DependencyProperty UseAppIconProperty = DependencyProperty.RegisterAttached(
         "UseAppIcon", typeof(bool), typeof(ThemedWindowIconHelper),
-        new PropertyMetadata(false, OnUseAppIconChanged));
+        new PropertyMetadata(false, (sender, e) =>
+        {
+            if (sender is Image image && (bool)e.NewValue) Apply(image);
+        }));
 
     public static bool GetUseAppIcon(Image image) => (bool)image.GetValue(UseAppIconProperty);
     public static void SetUseAppIcon(Image image, bool value) => image.SetValue(UseAppIconProperty, value);
 
-    public static readonly DependencyProperty MinimumFrameSizeProperty = DependencyProperty.RegisterAttached(
-        "MinimumFrameSize", typeof(double), typeof(ThemedWindowIconHelper),
-        new PropertyMetadata(16.0, (sender, _) =>
-        {
-            if (sender is Image image && GetUseAppIcon(image)) UpdateImage(image, new RoutedEventArgs());
-        }));
-
-    public static double GetMinimumFrameSize(Image image) => (double)image.GetValue(MinimumFrameSizeProperty);
-    public static void SetMinimumFrameSize(Image image, double value) => image.SetValue(MinimumFrameSizeProperty, value);
-
     internal static BitmapFrame GetFrame(double pixelSize) =>
         Frames.Value.FirstOrDefault(frame => frame.PixelWidth >= pixelSize) ?? Frames.Value[^1];
-
-    private static void OnUseAppIconChanged(DependencyObject sender, DependencyPropertyChangedEventArgs e)
-    {
-        if (sender is not Image image) return;
-        if ((bool)e.NewValue)
-        {
-            image.Loaded += UpdateImage;
-            image.SizeChanged += UpdateImage;
-            image.DpiChanged += UpdateImage;
-            image.UseLayoutRounding = true;
-            RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
-            UpdateImage(image, new RoutedEventArgs());
-        }
-        else
-        {
-            image.Loaded -= UpdateImage;
-            image.SizeChanged -= UpdateImage;
-            image.DpiChanged -= UpdateImage;
-        }
-    }
-
-    private static void UpdateImage(object sender, RoutedEventArgs e)
-    {
-        var image = (Image)sender;
-        var width = image.ActualWidth > 0 ? image.ActualWidth : image.Width;
-        var height = image.ActualHeight > 0 ? image.ActualHeight : image.Height;
-        var size = Math.Min(width, height);
-        if (!double.IsFinite(size) || size <= 0) size = 16;
-        image.Source = GetFrame(Math.Max(GetMinimumFrameSize(image),
-            Math.Ceiling(size * VisualTreeHelper.GetDpi(image).PixelsPerDip)));
-    }
 }

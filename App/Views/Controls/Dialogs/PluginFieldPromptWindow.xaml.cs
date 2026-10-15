@@ -22,7 +22,7 @@ public partial class PluginFieldPromptWindow : Window
         SystemMenuBlocker.Attach(this);
         AltTabExcluder.Attach(this);
         ThemedWindowIconHelper.Apply(this);
-        ThemedWindowIconHelper.Apply(TitleBarLogo, this);
+        ThemedWindowIconHelper.Apply(TitleBarLogo);
 
         TxtTitle.Text = string.IsNullOrEmpty(title) ? "Lertaro" : title;
         FieldsControl.ItemsSource = fieldViewModels;

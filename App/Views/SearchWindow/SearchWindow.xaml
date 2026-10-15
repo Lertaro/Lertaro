@@ -69,7 +69,7 @@
                                  logo has its own click handler now, so it stays out of the drag gesture. -->
                             <!-- Shared SearchBoxControl component -->
                             <app:SearchBoxControl x:Name="SearchBox" FontSize="15" Padding="0" Height="26"
-                                                  LeftIconSize="26" RightIconSize="26" MinimumIconFrameSize="24"
+                                                  LeftIconSize="26" RightIconSize="26"
                                                   IsIconOnLeft="True" IsIconClickable="True" IconClickHint="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[SearchWindow_LogoClickHint]}" SearchText="{Binding AdvancedQuery, Mode=TwoWay}" IsServiceRunning="{Binding IsServiceConnected}"/>
                         </Grid>
                         <!-- Drag grip: the affordance for the drag region above, which is otherwise

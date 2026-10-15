@@ -86,7 +86,7 @@ public partial class SettingsWindow : Window
         // to the whole monitor rather than its work area, so without this it covers the taskbar.
         MaximizeBoundsHelper.Attach(this);
         ThemedWindowIconHelper.Apply(this);
-        ThemedWindowIconHelper.Apply(TitleBarLogo, this);
+        ThemedWindowIconHelper.Apply(TitleBarLogo);
         var vm = new SettingsViewModel();
         DataContext = vm;
         _pagePrewarmer = new SettingsPagePrewarmer(this);

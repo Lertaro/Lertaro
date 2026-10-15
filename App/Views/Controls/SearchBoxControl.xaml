@@ -39,7 +39,7 @@
                         </Style.Triggers>
                     </Style>
                 </Grid.Style>
-                <!-- Preserve the ICO colors; state belongs to the outline and search animation. -->
+                <!-- The mark is transparent at rest; this outline carries Stay Open, hover and warnings. -->
                 <Border Width="{Binding LeftIconSize, ElementName=root}" Height="{Binding LeftIconSize, ElementName=root}"
                         MaxHeight="{Binding ActualHeight, ElementName=SearchRow}" VerticalAlignment="Center"
                         BorderThickness="1" CornerRadius="3" SnapsToDevicePixels="True" UseLayoutRounding="True">
@@ -88,7 +88,6 @@
                         </Style>
                     </Border.Style>
                     <Image x:Name="LeftBrandIcon" theme:ThemedWindowIconHelper.UseAppIcon="True"
-                           theme:ThemedWindowIconHelper.MinimumFrameSize="{Binding MinimumIconFrameSize, ElementName=root}"
                            Stretch="Uniform" VerticalAlignment="Center"/>
                 </Border>
             </Grid>
@@ -263,7 +262,6 @@
                         </Style>
                     </Border.Style>
                     <Image x:Name="RightBrandIcon" theme:ThemedWindowIconHelper.UseAppIcon="True"
-                           theme:ThemedWindowIconHelper.MinimumFrameSize="{Binding MinimumIconFrameSize, ElementName=root}"
                            Stretch="Uniform" VerticalAlignment="Center"/>
                 </Border>
             </Grid>

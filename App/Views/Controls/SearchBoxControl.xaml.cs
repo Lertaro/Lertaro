@@ -163,15 +163,6 @@ public partial class SearchBoxControl : UserControl
     public TextBox SearchTextBox => TxtSearch;
     public TextBlock PlaceholderTextBlock => TxtPlaceholder;
 
-    public static readonly DependencyProperty MinimumIconFrameSizeProperty = DependencyProperty.Register(
-        nameof(MinimumIconFrameSize), typeof(double), typeof(SearchBoxControl), new PropertyMetadata(16.0));
-
-    public double MinimumIconFrameSize
-    {
-        get => (double)GetValue(MinimumIconFrameSizeProperty);
-        set => SetValue(MinimumIconFrameSizeProperty, value);
-    }
-
     // IsDynamicScalingEnabled DependencyProperty
     public static readonly DependencyProperty IsDynamicScalingEnabledProperty = DependencyProperty.Register(
         nameof(IsDynamicScalingEnabled), typeof(bool), typeof(SearchBoxControl),

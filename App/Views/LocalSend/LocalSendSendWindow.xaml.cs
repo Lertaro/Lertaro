@@ -22,7 +22,7 @@ public partial class LocalSendSendWindow : Window
         InitializeComponent();
         SystemMenuBlocker.Attach(this);
         ThemedWindowIconHelper.Apply(this);
-        ThemedWindowIconHelper.Apply(TitleBarLogo, this);
+        ThemedWindowIconHelper.Apply(TitleBarLogo);
         _vm = new LocalSendSendViewModel(initialFiles, initialText, initialMode);
         DataContext = _vm;
         _vm.PropertyChanged += Vm_PropertyChanged;

@@ -32,7 +32,7 @@ public partial class LocalSendReceiveWindow : Window
         _currentSessionId = requestArgs.SessionId;
         SystemMenuBlocker.Attach(this);
         ThemedWindowIconHelper.Apply(this);
-        ThemedWindowIconHelper.Apply(TitleBarLogo, this);
+        ThemedWindowIconHelper.Apply(TitleBarLogo);
         StateChanged += (_, _) => { if (WindowState == WindowState.Maximized) WindowState = WindowState.Normal; };
         TranslationManager.Instance.PropertyChanged += OnLanguageChanged;
         Closed += (_, _) => TranslationManager.Instance.PropertyChanged -= OnLanguageChanged;
