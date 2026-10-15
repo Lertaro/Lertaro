@@ -113,14 +113,15 @@ public sealed class BrandIconTests
     [DataRow(20, 20)]
     [DataRow(24, 24)]
     [DataRow(32, 32)]
+    [DataRow(40, 40)]
     [DataRow(48, 48)]
     [DataRow(64, 64)]
     [DataRow(128, 128)]
     [DataRow(256, 256)]
     [DataRow(17, 20)]
     [DataRow(25, 32)]
-    [DataRow(33, 48)]
-    [DataRow(40, 48)]
+    [DataRow(33, 40)]
+    [DataRow(41, 48)]
     [DataRow(49, 64)]
     public void GetFrame_PhysicalPixelSize_PreservesMatchingOrNextLargerArtwork(int requested, int expected)
     {
@@ -135,6 +136,7 @@ public sealed class BrandIconTests
     [DataRow(20)]
     [DataRow(24)]
     [DataRow(32)]
+    [DataRow(40)]
     [DataRow(48)]
     public void CreateIcon_TraySize_UsesMatchingIcoFrame(int size)
     {
