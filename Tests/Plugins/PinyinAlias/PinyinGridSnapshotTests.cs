@@ -41,21 +41,49 @@ public sealed class PinyinGridSnapshotTests
         var (hasAliases, readableStrings) = fixture.AliasCounts(name);
 
         Assert.IsTrue(hasAliases, "the name must carry at least the grid entry");
-        Assert.AreEqual(0, readableStrings, "the enumerated aliases must have lost to the grid for this name");
+        Assert.AreEqual(0, readableStrings, "the grid is the only form this provider's readings are stored in");
     }
 
     [TestMethod]
-    public void SmallReadingSpace_KeepsTheStringEncodingInstead()
+    public void SmallReadingSpace_TakesTheGridToo()
     {
-        // Every character monophonic, so the spelled-out form is two short strings and wins the size
-        // comparison. (A name with even one polyphonic character enumerates its readings into a
-        // '|'-joined cross product, which is where the grid starts to pay off.)
+        // The grid is how this provider's readings are stored, whatever the name's size: the spelled-out
+        // form is the same space enumerated and capped, and a name can lose a reading to either cap
+        // without being long or heavily polyphonic. (Measured cost: ~1.4x the spelled-out bytes here.)
         var name = "高效笔记.pdf";
         using var fixture = new RealIndexFixture(name);
 
-        var (_, readableStrings) = fixture.AliasCounts(name);
+        var (hasAliases, readableStrings) = fixture.AliasCounts(name);
 
-        Assert.IsTrue(readableStrings > 0, "a name with one reading per position spells out to a handful of bytes");
+        Assert.IsTrue(hasAliases);
+        Assert.AreEqual(0, readableStrings, "nothing of this provider's is a readable string alias");
         CollectionAssert.Contains(fixture.Search("gxbj"), name);
+    }
+
+    [TestMethod]
+    public void EveryReading_IsReachableThroughTheGrid()
+    {
+        // 市 reads "fu" and "shi", and "fu" comes first -- so a baked single-reading or enumerated alias
+        // spells 创意市集 as "chuang|yi|fu|ji" and no query for what the characters actually say reaches
+        // it. The grid holds both readings, and the rule (a piece is a whole reading or its initial) turns
+        // them into the spellings a user types.
+        using var fixture = new RealIndexFixture("创意市集.pdf");
+
+        foreach (var query in new[] { "chuangyishiji", "chuangysji", "chuangyifuji", "cysj" })
+            CollectionAssert.Contains(fixture.Search(query), "创意市集.pdf", $"'{query}' must reach the file");
+    }
+
+    [TestMethod]
+    public void MixedAlphabetTerm_StillReachesTheName()
+    {
+        // "电nao" mixes a native-script character with pinyin letters: the literal run has to match the
+        // name and the letters the spelling, and that lane reads an alias as TEXT (it maps the positions it
+        // took back onto the source). A grid stores readings, so it is spelled out for this one lane --
+        // without that, a name whose aliases are a grid loses this query shape entirely.
+        var name = "电脑.pdf";
+        using var fixture = new RealIndexFixture(name);
+
+        CollectionAssert.Contains(fixture.Search("电nao"), name);
+        Assert.IsTrue(FuzzyMatcher.IsMatch("电nao", name), "the public seam keeps the same tier");
     }
 }

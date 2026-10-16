@@ -26,34 +26,30 @@ internal static class AliasHighlightPositions
     /// <summary>Positions to paint for a term matched against one alias STRING.</summary>
     public static int[]? ForProbe(string aliasLower, string probe, char separator, FzfTermKind kind, bool precise)
     {
-        var own = kind == FzfTermKind.Fuzzy
-            ? Tightest(aliasLower, probe, separator, precise)
-            : Contiguous(aliasLower, probe, separator);
-        if (own != null || separator == '\0' || kind is not (FzfTermKind.Fuzzy or FzfTermKind.Exact))
-            return own;
+        // An operator's run is the only thing it means.
+        if (kind is not (FzfTermKind.Fuzzy or FzfTermKind.Exact))
+            return Contiguous(aliasLower, probe, separator);
 
-        // A precise term whose run the alias does not contain is exactly the abbreviation the loose reading
-        // explains ("gxiao" = 高's initial + 效's whole reading), which is what matching accepts too.
-        // Contiguous for every other kind, because a scattered subsequence lights up characters that had
-        // nothing to do with the hit: "gsh" matches 格式化 through the initials alias, but a subsequence
-        // search also finds g...s...h across the full pinyin and lit 创 along with it.
-        return kind == FzfTermKind.Fuzzy
-            ? Contiguous(aliasLower, probe, separator)
-            : Tightest(aliasLower, probe, separator, precise);
-    }
+        // A provider with no declared structure has nothing to align to, so it gets the one reading its
+        // term kind implies.
+        if (separator == '\0')
+        {
+            return kind == FzfTermKind.Fuzzy
+                ? Tightest(aliasLower, probe, separator, precise)
+                : Contiguous(aliasLower, probe, separator);
+        }
 
-    /// <summary>Positions to paint for a term the reading GRID witnessed, whose alias string was materialized.</summary>
-    public static int[]? ForGridProbe(string aliasLower, string probe, char separator, FzfTermKind kind, bool precise)
-    {
-        var own = kind == FzfTermKind.Fuzzy
-            ? GreedyOrAligned(aliasLower, probe, separator, precise)
-            : Contiguous(aliasLower, probe, separator);
-        if (own != null || separator == '\0' || kind is not (FzfTermKind.Fuzzy or FzfTermKind.Exact))
-            return own;
-
-        return kind == FzfTermKind.Fuzzy
-            ? Contiguous(aliasLower, probe, separator)
-            : GreedyOrAligned(aliasLower, probe, separator, precise);
+        // A provider with structure is painted the way matching reads it (FzfPatternAliasReading): a real
+        // run first, the loose occurrence only when no run explains the term. Keyed on the structure rather
+        // than on the term's kind, because pinyin is read the same in both matching modes -- the same row
+        // has to paint the same characters with fuzzy matching on and off.
+        //
+        // The reading grid's witness is painted by this same rule: a materialized witness is an alias
+        // string like any other, and the loose greedy scatter it used to be painted with lit characters
+        // belonging to neither the term nor the spelling that matched it (a 184-character name's "fangdan"
+        // lit four unrelated positions elsewhere in the name).
+        return Contiguous(aliasLower, probe, separator)
+               ?? Tightest(aliasLower, probe, separator, precise);
     }
 
     // The term's own tightest occurrence, held to the boundary rule a precise query's matches are held to.
@@ -66,18 +62,6 @@ internal static class AliasHighlightPositions
         if (occurrence == null || !AliasMatchRules.IsTightOccurrence(probe.Length, occurrence[^1] - occurrence[0] + 1))
             return null;
         return occurrence;
-    }
-
-    // The grid tier's subsequence finder stays greedy and takes no tightness bar: that tier materialized the
-    // witness the matcher had already accepted, so a stricter filter here could paint nothing on a row the
-    // grid had matched -- and an empty mask is not "no match" to every caller.
-    private static int[]? GreedyOrAligned(string aliasLower, string probe, char separator, bool precise)
-    {
-        var positions = GreedySubsequence(aliasLower, probe);
-        if (!precise || (positions != null && AliasMatchRules.IsBoundaryAligned(separator, aliasLower, positions[0])))
-            return positions;
-
-        return TightestAlignedOccurrence(aliasLower, probe, separator);
     }
 
     /// <summary>
@@ -142,29 +126,6 @@ internal static class AliasHighlightPositions
 
     private static bool CharsEqual(char left, char right)
         => char.ToLowerInvariant(left) == char.ToLowerInvariant(right);
-
-    // Finds ANY valid subsequence alignment of `term` within `text`, returning the matched positions in
-    // `text` in order, or null if no such subsequence exists. Greedy (always takes the earliest possible
-    // next position), which is enough for a highlight/weight mask -- this doesn't need the optimal/
-    // highest-scoring alignment, just a real one.
-    private static int[]? GreedySubsequence(string text, string term)
-    {
-        if (term.Length == 0)
-            return null;
-
-        var positions = new int[term.Length];
-        var searchFrom = 0;
-        for (var i = 0; i < term.Length; i++)
-        {
-            var idx = text.IndexOf(term[i], searchFrom);
-            if (idx < 0)
-                return null;
-            positions[i] = idx;
-            searchFrom = idx + 1;
-        }
-
-        return positions;
-    }
 
     // Contiguous counterpart of the walk above, for when matching itself demands a contiguous run.
     //

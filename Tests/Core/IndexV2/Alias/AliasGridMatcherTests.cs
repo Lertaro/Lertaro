@@ -83,15 +83,22 @@ public sealed class AliasGridMatcherTests
     }
 
     [TestMethod]
-    public void FuzzyFull_MatchesAScatteredTerm()
+    public void Rule_TakesAWholeReadingOrAnInitial_AndRefusesAHalfTypedMiddle()
     {
         var grid = Build(new[] { new[] { "zhong" }, new[] { "shu" } }, new[] { false, true });
 
-        Assert.IsTrue(TryMatch(grid, "zhsh", FzfTermKind.Fuzzy, AliasGridTier.Full, out _));
+        // z = 中's initial, shu = 书 spelled out.
+        Assert.IsTrue(TryMatch(grid, "zshu", FzfTermKind.Fuzzy, AliasGridTier.Full, out _));
+        Assert.IsTrue(TryMatch(grid, "zhong" + FakeGridProvider.Separator + "sh", FzfTermKind.Fuzzy, AliasGridTier.Full, out _));
+
+        // "zh" is neither 中's reading nor its initial, and leaving the reading half-typed mid-term is not
+        // a spelling anyone could have meant -- the cursor is only ever at the end.
+        Assert.IsFalse(TryMatch(grid, "zhsh", FzfTermKind.Fuzzy, AliasGridTier.Full, out _));
+        Assert.IsFalse(TryMatch(grid, "hong" + FakeGridProvider.Separator + "shu", FzfTermKind.Fuzzy, AliasGridTier.Full, out _));
     }
 
     [TestMethod]
-    public void FuzzyFull_RejectsACharacterNoReadingCanSupply()
+    public void Rule_RejectsACharacterNoReadingCanSupply()
     {
         var grid = Build(new[] { new[] { "zhong" }, new[] { "shu" } }, new[] { false, true });
 
@@ -99,12 +106,18 @@ public sealed class AliasGridMatcherTests
     }
 
     [TestMethod]
-    public void ExactFull_RequiresTheRunToBeContiguous()
+    public void PlainTerms_AreReadTheSameWayWhetherTheQueryIsExactOrFuzzy()
     {
+        // The matching mode is a setting about the CANDIDATE's own text, never about how a name's readings
+        // are spelled: a plain term gets one decision here, and a contiguous run is one shape of it.
         var grid = Build(new[] { new[] { "zhong" }, new[] { "shu" } }, new[] { false, true });
 
-        Assert.IsTrue(TryMatch(grid, "zshu", FzfTermKind.Fuzzy, AliasGridTier.Full, out _));
-        Assert.IsFalse(TryMatch(grid, "zshu", FzfTermKind.Exact, AliasGridTier.Full, out _));
+        foreach (var kind in new[] { FzfTermKind.Exact, FzfTermKind.Fuzzy })
+        {
+            Assert.IsTrue(TryMatch(grid, "zshu", kind, AliasGridTier.Full, out _), kind.ToString());
+            Assert.IsTrue(TryMatch(grid, "zhong" + FakeGridProvider.Separator + "shu", kind, AliasGridTier.Full, out _), kind.ToString());
+            Assert.IsFalse(TryMatch(grid, "zhsh", kind, AliasGridTier.Full, out _), kind.ToString());
+        }
     }
 
     [TestMethod]

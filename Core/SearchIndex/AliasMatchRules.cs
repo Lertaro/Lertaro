@@ -63,30 +63,6 @@ internal static class AliasMatchRules
     // passed-through text as well -- no provider transliterates into it.
     private static bool IsAsciiLetter(char c) => c is >= 'a' and <= 'z' or >= 'A' and <= 'Z';
 
-    /// <summary>
-    /// Whether a whole query is precise: every one of its positive terms was matched as a run rather than as
-    /// a scattered subsequence, so the boundary rule above applies to it.
-    /// </summary>
-    /// <remarks>
-    /// Lives here rather than on the pattern because the alias-side view (FzfPatternAliasReading) holds both
-    /// readings of every term and must NOT be asked this question -- deriving it there would always answer
-    /// "not precise" and switch the rule off in exact mode. That view is handed its source's answer instead.
-    /// </remarks>
-    public static bool RequiresAlignment(FzfTermSet[] sets)
-    {
-        foreach (var set in sets)
-        {
-            foreach (var term in set.Terms)
-            {
-                if (term.Inverse)
-                    continue;
-                if (term.Kind == FzfTermKind.Fuzzy)
-                    return false;
-            }
-        }
-        return true;
-    }
-
     /// <summary>Byte twin of <see cref="IsBoundaryAligned(char, ReadOnlySpan{char}, int)"/>.</summary>
     /// <remarks>
     /// For the hot path that matches a baked alias straight from its UTF-8 without decoding. Every

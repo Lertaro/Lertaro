@@ -1,7 +1,9 @@
+using System.Text;
 using Lertaro.Core.IndexV2.Alias;
 using Lertaro.Core.IndexV2.Persistence;
 using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Fzf;
+using Lertaro.PluginSdk.Abstractions.Plugins;
 
 namespace Lertaro.Core.IndexV2.Search;
 
@@ -25,6 +27,115 @@ internal static class SearchMatcherGridAliases
     [ThreadStatic] private static AliasGridFormat.Index? _grid;
     [ThreadStatic] private static byte[]? _choice;
     [ThreadStatic] private static char[]? _materialized;
+    [ThreadStatic] private static AliasByteSink? _sink;
+
+    /// <summary>
+    /// Live-text overload for the tiers that hold a provider and a text rather than a baked grid entry:
+    /// encodes that text's readings and decides <paramref name="pattern"/> against them, so the decision a
+    /// grid-stored row gets from the snapshot is the same one a name reached through live alias generation
+    /// gets (see AliasHighlightMarker and FuzzyMatcher).
+    /// </summary>
+    internal static bool TryMatchProvider(
+        IAliasGridProvider provider,
+        string text,
+        FzfPattern pattern,
+        FzfSlab? slab,
+        bool gate,
+        out FzfPatternResult match)
+    {
+        var sink = _sink ??= new AliasByteSink();
+        sink.Reset();
+        if (AliasGridFormat.Encode(text, provider, sink) <= 0)
+        {
+            match = default;
+            return false;
+        }
+
+        return TryMatchPayload(pattern, pattern.GetTotalTermLength(), sink.Segment(0), provider.SyllableSeparator, slab, gate, out match);
+    }
+
+    /// <summary>
+    /// Writes the single-reading spellings of one grid payload into <paramref name="dest"/>: the initials
+    /// alias and the full-pinyin alias, which is what this provider's spelled-out aliases would have been
+    /// for the same name.
+    /// </summary>
+    /// <remarks>
+    /// For the one tier that needs an alias as TEXT mapped back onto the source rather than a verdict: the
+    /// mixed-alphabet lane (a term that mixes a native-script character with alias letters, see
+    /// MixedQueryMatcher) reads its alias-syntax run as a subsequence of a spelling and translates the
+    /// positions it took back through <c>MapAliasToSourceIndices</c>. A grid holds every reading rather than
+    /// one spelling, so the leftmost reading of each position is materialized here -- the same lossy
+    /// spelling that lane has always matched, now derived from the grid instead of baked.
+    /// </remarks>
+    internal static bool TryMaterializeDefaults(ReadOnlySpan<byte> payload, char separator, List<string> dest)
+    {
+        var before = dest.Count;
+        var grid = _grid ??= new AliasGridFormat.Index();
+        if (!grid.TryBind(payload))
+            return false;
+
+        var positions = grid.PositionCount;
+        if (positions == 0)
+            return false;
+        if (_choice == null || _choice.Length < positions)
+            _choice = new byte[Math.Max(positions, 64)];
+        Array.Clear(_choice, 0, positions);
+
+        foreach (var tier in DefaultTiers)
+        {
+            var length = AliasGridMatcher.Measure(grid, tier, _choice);
+            if (length == 0)
+                continue;
+            if (_materialized == null || _materialized.Length < length)
+                _materialized = new char[Math.Max(length, 64)];
+
+            var written = AliasGridMatcher.Materialize(grid, tier, separator, _choice, _materialized);
+            dest.Add(new string(_materialized, 0, written));
+        }
+
+        return dest.Count > before;
+    }
+
+    private static readonly AliasGridTier[] DefaultTiers = { AliasGridTier.Initials, AliasGridTier.Full };
+
+    /// <summary>
+    /// Fills <paramref name="dest"/> with the alias segments the mixed-alphabet lane may match for one
+    /// baked alias entry: the '|'-split spellings of a string entry, or the single-reading spellings of a
+    /// grid entry (see <see cref="TryMaterializeDefaults"/>).
+    /// </summary>
+    internal static void CollectMixedSegments(Snapshot snapshot, int entry, byte providerId, List<string> dest)
+    {
+        dest.Clear();
+        var aliasUtf8 = snapshot.AliasUtf8(entry);
+        if (aliasUtf8.Length == 0)
+            return;
+
+        // The mixed lane matches an alias-syntax run as a subsequence of a spelling and maps the positions
+        // it took back onto the source, so a grid entry has to be spelled out for it -- unlike every other
+        // alias tier, which decides against the readings.
+        if (snapshot.AliasKind(entry) == AliasEntryKind.Grid)
+        {
+            TryMaterializeDefaults(aliasUtf8, AliasProviderRegistry.GetSyllableSeparator(providerId), dest);
+            return;
+        }
+
+        foreach (var segment in Encoding.UTF8.GetString(aliasUtf8).Split('|'))
+        {
+            if (segment.Length > 0)
+                dest.Add(segment);
+        }
+    }
+
+    /// <inheritdoc cref="CollectMixedSegments(Snapshot, int, byte, List{string})"/>
+    /// <remarks>For the live tiers, which hold a provider and a text rather than a baked entry.</remarks>
+    internal static bool TryCollectProviderSegments(IAliasGridProvider provider, string text, List<string> dest)
+    {
+        var sink = _sink ??= new AliasByteSink();
+        sink.Reset();
+        dest.Clear();
+        return AliasGridFormat.Encode(text, provider, sink) > 0
+               && TryMaterializeDefaults(sink.Segment(0), provider.SyllableSeparator, dest);
+    }
 
     /// <summary>
     /// Name-search overload: applies the alias quality bar and returns the weighted result, which is the
@@ -84,12 +195,6 @@ internal static class SearchMatcherGridAliases
         // declares structure (see FzfPatternAliasReading).
         pattern = pattern.ReadingFor(separator);
 
-        // The AND-first `|` plus space shape is evaluated by FzfPattern against a string, which this
-        // tier can only produce as one witness; rather than guess at a shape the pattern would then
-        // re-interpret, leave those queries to the name and string-alias tiers.
-        if (pattern.OrGroups != null)
-            return false;
-
         var grid = _grid ??= new AliasGridFormat.Index();
         if (!grid.TryBind(payload))
             return false;
@@ -119,8 +224,11 @@ internal static class SearchMatcherGridAliases
             var text = _materialized.AsSpan(0, written);
             if (!pattern.TryMatch(text, out var aliasMatch, FzfScoringScheme.Default, slab))
                 continue;
-            if (separator != '\0' && !AliasMatchRules.AllowsMatch(pattern, separator, text, aliasMatch.MinBegin))
-                continue;
+
+            // No syllable-alignment check here: the witness came out of the readings themselves, and
+            // AliasGridMatcher already refused every piece that would start inside one of them. Asking
+            // AliasMatchRules again could only refuse a spelling the readings DO produce, because that
+            // rule reads the first occurrence fzf scored rather than the one the readings chose.
             if (gate && !IsAcceptable(pattern, queryLen, aliasMatch, text, slab))
                 continue;
             if (!matched || aliasMatch.Score > match.Score)
@@ -137,6 +245,9 @@ internal static class SearchMatcherGridAliases
     // witness on this tier. Positions no term constrained keep the provider's first reading (index 0),
     // which is what makes the materialized string the single-reading expansion for everything the query
     // did not pin down.
+    //
+    // An AND-first query is a disjunction of AND groups, so ONE group's sets all have to witness -- not
+    // every group's, which the flattened EffectiveSets would ask for.
     private static bool BuildWitness(
         AliasGridFormat.Index grid,
         FzfPattern pattern,
@@ -144,8 +255,26 @@ internal static class SearchMatcherGridAliases
         AliasGridTier tier,
         byte[] choice)
     {
+        if (pattern.OrGroups == null)
+            return SetsWitness(grid, pattern.TermSets, separator, tier, choice);
+
+        foreach (var group in pattern.OrGroups)
+        {
+            if (SetsWitness(grid, group.Sets, separator, tier, choice))
+                return true;
+        }
+        return false;
+    }
+
+    private static bool SetsWitness(
+        AliasGridFormat.Index grid,
+        FzfTermSet[] sets,
+        char separator,
+        AliasGridTier tier,
+        byte[] choice)
+    {
         Array.Clear(choice, 0, grid.PositionCount);
-        foreach (var set in pattern.EffectiveSets)
+        foreach (var set in sets)
         {
             var witnessed = false;
             foreach (var term in set.Terms)

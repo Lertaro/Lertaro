@@ -54,24 +54,65 @@ public sealed class PinyinExactModeTests
         CollectionAssert.Contains(Search(query, fuzzy: true, Name), Name, $"'{query}' must reach the file with fuzzy matching on");
     }
 
+    // A pinyin match may not BEGIN inside one of a name's readings, in EITHER mode: "ex" is not an
+    // abbreviation of 学习's xue+xi but the tail of one syllable glued to the head of the next, and "huchu"
+    // is the middle of 出's "chu" twice over. Fuzzy matching licenses a loose match against the candidate's
+    // own text, never a word that no spelling of the name actually starts with.
     [TestMethod]
-    public void CrossSyllableSplice_StaysOutOfExactMode()
+    public void CrossSyllableSplice_StaysOutOfBothModes()
     {
-        // "ex" is not an abbreviation of 学习's xue+xi: it is the tail of one syllable glued to the head of
-        // the next, and the match it relies on starts inside xue. Fuzzy mode accepts exactly that, which is
-        // what the setting means; exact mode must not.
         string[] names = ["学习笔记.txt", "人行道.pdf"];
 
         Assert.IsEmpty(Search("ex", fuzzy: false, names), "'ex' spliced out of xue+xi is not what the user typed");
-        Assert.IsNotEmpty(Search("ex", fuzzy: true, names), "with fuzzy on, the loose read is what was asked for");
+        Assert.IsEmpty(Search("ex", fuzzy: true, names), "and fuzzy matching does not license it either");
+    }
+
+    [TestMethod]
+    public void MidReadingStart_StaysOutOfBothModes()
+    {
+        // 简单输出式: "huchu" opens inside 出's "chu" (输's "shu" is the other 'h' it can hide in), so no
+        // spelling of this name starts where that match starts. "jdsc" / "jiandansc" / "jdshuc" all open on
+        // 简's "jian" and stay reachable.
+        string[] names = ["简单输出式笔记架构.txt"];
+
+        Assert.IsEmpty(Search("huchu", fuzzy: false, names));
+        Assert.IsEmpty(Search("huchu", fuzzy: true, names));
+        foreach (var query in new[] { "jdsc", "jiandansc", "jdshuc", "schu", "jiandan schu ji jgou jian" })
+            CollectionAssert.Contains(Search(query, fuzzy: false, names), names[0], $"'{query}' opens on a reading");
+    }
+
+    // The setting must not change how PINYIN reads a name: same query, same names through the alias tiers,
+    // both modes. What still differs by mode is the candidate's own text (exact wants a run in the name,
+    // fuzzy a scattered subsequence of it), which is exactly what the setting means -- so the queries here
+    // are ones whose letters can only be satisfied by pinyin, never by a scatter across the name's own ASCII.
+    [TestMethod]
+    public void BothModes_ReachTheSameNamesForPinyinQueries()
+    {
+        string[] names = [Name, "简单输出式笔记架构.txt", Certificate];
+        foreach (var query in new[]
+                 {
+                     "jdsc", "jiandansc", "jdshuc", "jiandan schu ji jgou jian", "huchu", "gxiao", "xinl",
+                     "fdbjf", "fd bji", "jt", "gao", "cbcbjt", "zcl", "ex", "zhengsh", "piji",
+                 })
+        {
+            CollectionAssert.AreEqual(
+                Search(query, fuzzy: false, names).OrderBy(n => n).ToList(),
+                Search(query, fuzzy: true, names).OrderBy(n => n).ToList(),
+                $"'{query}' must reach exactly the same names with fuzzy off and on");
+        }
     }
 
     [TestMethod]
     public void ExactMode_KeepsReachingWholeReadingsAndHalfTypedTails()
     {
         // Loose reading or not, exact mode did not turn into a subsequence search: a whole reading is still
-        // reached from its own syllable boundary, and a half-typed trailing syllable still completes.
+        // reached from its own syllable boundary, and a half-typed trailing reading still completes.
         Assert.IsNotEmpty(Search("zhengsh", fuzzy: false, Certificate), "'zhengsh' is a run of 证书's reading");
-        Assert.IsEmpty(Search("gsh", fuzzy: false, Certificate), "'gsh' straddles zheng+shu and describes no one sound");
+        Assert.IsNotEmpty(Search("gsh", fuzzy: false, Certificate), "'gsh' is 管's initial plus the half-typed start of 书");
+
+        // "ngsh" opens inside no reading at all -- no reading of this name starts with "n" -- and the name
+        // itself carries no letters to scatter it across, so the rule refuses it outright, in both modes.
+        Assert.IsEmpty(Search("ngsh", fuzzy: false, Certificate));
+        Assert.IsEmpty(Search("ngsh", fuzzy: true, Certificate));
     }
 }

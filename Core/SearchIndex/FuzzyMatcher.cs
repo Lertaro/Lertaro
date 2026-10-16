@@ -1,4 +1,6 @@
+using Lertaro.Core.IndexV2.Search;
 using Lertaro.Core.SearchIndex.Fzf;
+using Lertaro.PluginSdk.Abstractions.Plugins;
 
 namespace Lertaro.Core.SearchIndex;
 
@@ -60,9 +62,20 @@ public static class FuzzyMatcher
             if (!provider.CanHandle(text))
                 continue;
 
-            // The alias tiers read a transliteration the alias side's way -- each term as a contiguous run if
-            // it can be, as a subsequence otherwise (see FzfPatternAliasReading: "gxiao" is 高's initial plus
-            // 效's whole reading and exists as no run at all, while "jt" is a run inside 出版集团's initials
+            // A provider that can spell out its readings is decided from those readings, exactly like the
+            // baked grid the same provider leaves in an index -- its alias STRINGS are that space
+            // enumerated and capped, so matching them here would answer a query the index refuses, and only
+            // the readings know which part of a reading a term may cover.
+            if (provider is IAliasGridProvider gridProvider)
+            {
+                if (SearchMatcherGridAliases.TryMatchProvider(gridProvider, text, fzf, null, gate: false, out _))
+                    return true;
+                continue;
+            }
+
+            // Every other provider is read the alias side's way -- each term as a contiguous run if it can
+            // be, as a subsequence otherwise (see FzfPatternAliasReading: "gxiao" is 高's initial plus 效's
+            // whole reading and exists as no run at all, while "jt" is a run inside 出版集团's initials
             // alias). The boundary rule below stays keyed on what the user typed.
             var separator = provider.SyllableSeparator;
             var aliasPattern = fzf.ReadingFor(separator);
@@ -95,17 +108,29 @@ public static class FuzzyMatcher
         var mixedTerm = MixedQueryMatcher.TrySegmentPattern(fzf);
         if (mixedTerm != null && mixedTerm.Provider.CanHandle(text))
         {
+            // This lane matches an alias as text and maps the positions it took back onto the source, so a
+            // provider that can spell out its readings is materialized first (see
+            // SearchMatcherGridAliases.TryCollectProviderSegments); the alias strings it also emits are the
+            // ones that are not spellings of those readings.
+            var segments = new List<string>(4);
+            if (mixedTerm.Provider is IAliasGridProvider mixedGridProvider)
+                SearchMatcherGridAliases.TryCollectProviderSegments(mixedGridProvider, text, segments);
+
             foreach (var aliasGroup in mixedTerm.Provider.GetAliases(text))
             {
                 if (string.IsNullOrEmpty(aliasGroup))
                     continue;
                 foreach (var segment in aliasGroup.Split('|'))
                 {
-                    if (segment.Length == 0)
-                        continue;
-                    if (MixedQueryMatcher.TryMatch(mixedTerm, text.AsSpan(), text, segment, out _))
-                        return true;
+                    if (segment.Length > 0)
+                        segments.Add(segment);
                 }
+            }
+
+            foreach (var segment in segments)
+            {
+                if (MixedQueryMatcher.TryMatch(mixedTerm, text.AsSpan(), text, segment, out _))
+                    return true;
             }
         }
 

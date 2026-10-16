@@ -17,7 +17,11 @@ public class PinyinAliasProvider : IAliasGridProvider, ITranslationProvider, ICo
     // 5: a name whose full pinyin overran the combination path's per-variant cap baked NO alias at all,
     // leaving it unreachable by every pinyin query; it now falls back to the single-reading spelling, so
     // snapshots baked before this are missing aliases for exactly those names.
-    public int Version => 5;
+    // 6: the host stores this provider's readings as a grid rather than as spelled-out aliases, so a
+    // name's own reading is reachable even where the enumeration was cut off (市 is "fu" alphabetically
+    // first and "shi" in 创意市集, and only the grid offers both). Snapshots baked before this hold the
+    // capped enumeration, which is why this exists rather than being a pure query-side change.
+    public int Version => 6;
 
     public IReadOnlyList<string> SupportedCultures => TranslationService.GetSupportedCultures(System.Reflection.Assembly.GetExecutingAssembly());
 
@@ -30,7 +34,6 @@ public class PinyinAliasProvider : IAliasGridProvider, ITranslationProvider, ICo
     // precise match that begins mid-syllable, which is what stops "ex" being read as the tail of "xue"
     // plus the head of "xi".
     public char SyllableSeparator => PinyinAliasFormat.SyllableSeparator;
-
     private static readonly Dictionary<string, Dictionary<string, string>> Cache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly object LockObj = new();
 

@@ -70,14 +70,18 @@ internal static class SearchMatcherRow
             var mixedTerm = MixedQueryMatcher.TrySegmentPattern(pattern);
             if (mixedTerm != null)
             {
-                foreach (var (alias, providerId) in aliasScratch)
+                // A grid entry is spelled out for this lane, which matches an alias as text (see
+                // SearchMatcherGridAliases.CollectMixedSegments).
+                var segments = new List<string>(4);
+                var (start, end) = snapshot.AliasEntryRange(uid);
+                for (var e = start; e < end; e++)
                 {
-                    if (providerId != mixedTerm.ProviderId)
+                    if (snapshot.AliasProviderId(e) != mixedTerm.ProviderId)
                         continue;
-                    foreach (var segment in alias.Split('|'))
+
+                    SearchMatcherGridAliases.CollectMixedSegments(snapshot, e, mixedTerm.ProviderId, segments);
+                    foreach (var segment in segments)
                     {
-                        if (segment.Length == 0)
-                            continue;
                         if (!MixedQueryMatcher.TryMatch(mixedTerm, name.AsSpan(), name, segment, out var mm))
                             continue;
                         var candidate = new FzfPatternResult(mm.Score, mm.MinBegin, mm.MaxEnd, mm.MaxEnd, mm.ValidOffsetFound);
@@ -161,22 +165,38 @@ internal static class SearchMatcherRow
             var mixedTerm = MixedQueryMatcher.TrySegmentPattern(pattern);
             if (mixedTerm != null)
             {
+                // This lane matches an alias as TEXT (it maps the positions it took back onto the source),
+                // so a row whose reading aliases are stored as a grid has to spell them out -- see
+                // SearchMatcherGridAliases.TryMaterializeDefaults.
+                var segments = new List<string>(4);
                 for (var j = 0; j < aliases.Length && j < providerIds.Length; j++)
                 {
                     if (providerIds[j] != mixedTerm.ProviderId)
                         continue;
                     foreach (var segment in aliases[j].Split('|'))
                     {
-                        if (segment.Length == 0)
-                            continue;
-                        if (!MixedQueryMatcher.TryMatch(mixedTerm, name.AsSpan(), name, segment, out var mm))
-                            continue;
-                        var candidate = new FzfPatternResult(mm.Score, mm.MinBegin, mm.MaxEnd, mm.MaxEnd, mm.ValidOffsetFound);
-                        if (!matched || candidate.Score > result.Score)
-                        {
-                            matched = true;
-                            result = candidate;
-                        }
+                        if (segment.Length > 0)
+                            segments.Add(segment);
+                    }
+                }
+                foreach (var grid in grids)
+                {
+                    if (grid.ProviderId != mixedTerm.ProviderId)
+                        continue;
+
+                    SearchMatcherGridAliases.TryMaterializeDefaults(
+                        grid.Payload, AliasProviderRegistry.GetSyllableSeparator(grid.ProviderId), segments);
+                }
+
+                foreach (var segment in segments)
+                {
+                    if (!MixedQueryMatcher.TryMatch(mixedTerm, name.AsSpan(), name, segment, out var mm))
+                        continue;
+                    var candidate = new FzfPatternResult(mm.Score, mm.MinBegin, mm.MaxEnd, mm.MaxEnd, mm.ValidOffsetFound);
+                    if (!matched || candidate.Score > result.Score)
+                    {
+                        matched = true;
+                        result = candidate;
                     }
                 }
             }

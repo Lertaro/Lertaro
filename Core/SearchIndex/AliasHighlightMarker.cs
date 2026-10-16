@@ -1,4 +1,5 @@
 using Lertaro.Core.IndexV2.Alias;
+using Lertaro.Core.IndexV2.Search;
 using Lertaro.Core.SearchIndex.Fzf;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 
@@ -98,7 +99,14 @@ internal static class AliasHighlightMarker
                 var separator = provider.SyllableSeparator;
                 var probes = ProbesFor(provider, termLower, caseSensitive);
 
-                foreach (var aliasGroup in provider.GetAliases(text))
+                // A provider that can spell out its readings paints from those readings and never from its
+                // alias strings: those strings are the reading space ENUMERATED and capped (the pinyin
+                // provider stops at 32 combinations and 256 characters per variant, then falls back to one
+                // reading per character), so a string-tier hit lights a spelling the engine's own grid
+                // would not have used. The grid tier below is the same witness the search decides with.
+                var gridProvider = provider as IAliasGridProvider;
+                var aliasGroups = gridProvider == null ? provider.GetAliases(text) : Enumerable.Empty<string>();
+                foreach (var aliasGroup in aliasGroups)
                 {                    if (string.IsNullOrEmpty(aliasGroup))
                         continue;
 
@@ -151,16 +159,12 @@ internal static class AliasHighlightMarker
                     }
                 }
 
-                // One more tier for a grid-capable provider, and only when the string tier above painted
-                // nothing: the grid witness materializes its own reading choice, which for a name whose
-                // aliases ARE the enumerated strings lights a second, differently-wrong set of positions
-                // on top of the ones the strings already explained (measured: a pinyin query for the
-                // first two characters of a 184-character name lit four unrelated characters elsewhere in
-                // it). The tier exists for the row whose aliases are STORED as a grid, where these
-                // enumerated strings are the lossy single-reading form and may not match at all -- and
-                // without it such a row is found by the engine and then renders as no match, because the
-                // caller's final mask is what its item gate reads.
-                if (!matchedAny && provider is IAliasGridProvider gridProvider)
+                // The grid tier: the witness the searcher itself decides with, materialized into one alias
+                // string and mapped back onto the source. For a grid-capable provider this is the only
+                // tier (the string loop above was skipped), and without it such a row is found by the
+                // engine and then renders as no match, because the caller's final mask is what its item
+                // gate reads.
+                if (!matchedAny && gridProvider != null)
                     matchedAny |= MarkViaGrid(gridProvider, text, probes, kind, precise, highlights, ref tier);
             }
             catch
@@ -188,6 +192,14 @@ internal static class AliasHighlightMarker
         if (!mixedTerm.Provider.CanHandle(text))
             return;
 
+        // This lane matches an alias as text and maps the positions it took back onto the source, so a
+        // provider that can spell out its readings is materialized first (see
+        // SearchMatcherGridAliases.TryCollectProviderSegments); the alias strings it also emits are the
+        // ones that are not spellings of those readings.
+        var segments = new List<string>(4);
+        if (mixedTerm.Provider is IAliasGridProvider gridProvider)
+            SearchMatcherGridAliases.TryCollectProviderSegments(gridProvider, text, segments);
+
         foreach (var aliasGroup in mixedTerm.Provider.GetAliases(text))
         {
             if (string.IsNullOrEmpty(aliasGroup))
@@ -195,11 +207,15 @@ internal static class AliasHighlightMarker
 
             foreach (var alias in aliasGroup.Split('|'))
             {
-                if (string.IsNullOrEmpty(alias))
-                    continue;
-                if (MixedQueryMatcher.TryMatchAndHighlight(mixedTerm, text, alias, highlights))
-                    return;
+                if (alias.Length > 0)
+                    segments.Add(alias);
             }
+        }
+
+        foreach (var segment in segments)
+        {
+            if (MixedQueryMatcher.TryMatchAndHighlight(mixedTerm, text, segment, highlights))
+                return;
         }
     }
 
@@ -255,7 +271,7 @@ internal static class AliasHighlightMarker
                 var alias = new string(_gridAlias, 0, written);
                 var aliasLower = alias.ToLowerInvariant();
 
-                var found = AliasHighlightPositions.ForGridProbe(aliasLower, probe, separator, kind, precise);
+                var found = AliasHighlightPositions.ForProbe(aliasLower, probe, separator, kind, precise);
                 if (found == null)
                     continue;
 

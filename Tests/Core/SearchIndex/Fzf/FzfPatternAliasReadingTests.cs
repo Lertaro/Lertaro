@@ -72,25 +72,24 @@ public sealed class FzfPatternAliasReadingTests
     }
 
     [TestMethod]
-    public void AliasReading_KeepsTheCallersOwnPrecision()
+    public void AliasReading_RequiresAlignmentInBothModes()
     {
-        // The view holds a Fuzzy term in both modes, so deriving the alignment rule from its own terms would
-        // always answer "not precise" and switch the rule off in exact mode -- exactly where it is the only
-        // thing stopping "ex" from splicing the tail of xue onto the head of xi.
+        // A transliteration is a spelling of the candidate, and no spelling of a sound starts in the middle
+        // of that sound -- so the alignment rule is a property of the alias tiers, not of the fuzzy setting.
+        // It used to be carried over from the source terms, which turned it off whenever fuzzy matching was
+        // on: "huchu" (the middle of 出's "chu") reached 简单输出式 with fuzzy on and not with it off.
         SearchContext.FuzzyMatchEnabled = false;
         try
         {
-            var pattern = FzfPattern.Parse("gxiao");
-
-            Assert.IsTrue(pattern.RequiresAlignedAliases);
-            Assert.IsTrue(pattern.AliasReading.RequiresAlignedAliases);
+            Assert.IsTrue(FzfPattern.Parse("gxiao").AliasReading.RequiresAlignedAliases);
         }
         finally
         {
             SearchContext.FuzzyMatchEnabled = true;
         }
 
-        Assert.IsFalse(FzfPattern.Parse("gxiao").AliasReading.RequiresAlignedAliases, "with fuzzy on, nothing is precise");
+        Assert.IsTrue(FzfPattern.Parse("gxiao").AliasReading.RequiresAlignedAliases, "with fuzzy on as well");
+        Assert.IsTrue(FzfPattern.Parse("huchu").RequiresAlignedAliases);
     }
 
     [TestMethod]

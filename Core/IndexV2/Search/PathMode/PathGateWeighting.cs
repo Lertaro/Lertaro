@@ -5,6 +5,7 @@ using Lertaro.Core.SearchIndex.Fzf;
 using Lertaro.Core.IndexV2.Delta;
 
 using Lertaro.Core.IndexV2.Persistence;
+using Lertaro.PluginSdk.Abstractions.Plugins;
 namespace Lertaro.Core.IndexV2.Search.PathMode;
 
 // Ranking-only weight (percentage*consecutiveness, product across matched segments), computed
@@ -206,6 +207,20 @@ internal sealed class PathGateWeighting
                     continue;
                 if (!provider.CanHandle(segment))
                     continue;
+
+                // Same reading-based decision PathGate makes for the same segment, through the same code a
+                // baked grid entry goes through; only the weight comes from the segment's own text.
+                if (provider is IAliasGridProvider gridProvider)
+                {
+                    if (SearchMatcherGridAliases.TryMatchProvider(
+                            gridProvider, segment, pattern, worker.Slab, gate: false, out _))
+                    {
+                        weight = HighlightMask.ComputeWeight(segment, pattern);
+                        return true;
+                    }
+                    continue;
+                }
+
                 foreach (var alias in provider.GetAliases(segment))
                 {
                     if ((provider.SyllableSeparator == '\0' ? pattern : _segmentAliasPatterns[q])

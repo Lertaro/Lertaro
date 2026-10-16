@@ -16,7 +16,6 @@ internal enum AliasGridTier
 // pinned to.
 internal enum AliasGridAnchor
 {
-    Any,
     Boundary,
     AliasStart,
     AliasEnd,
@@ -34,10 +33,16 @@ internal enum AliasGridAnchor
 /// <see cref="Lertaro.PluginSdk.Abstractions.Plugins.IAliasProvider"/> and the parser lowercases terms --
 /// so comparison is ordinal and the case-sensitivity flag has nothing left to do.
 ///
+/// A plain term (FzfTermKind.Exact or Fuzzy) is decided by the same reading-by-reading rule on both tiers
+/// (see MatchSyllableFull), which is why the two matching modes answer the same thing here: a contiguous
+/// run is one shape of a spelling that rule describes, so the rule covers what the strict reading used to
+/// add, and the loose reading used to add more than any spelling of these characters. The anchored
+/// operator kinds (`^`, `$`, `=`, `'x'`) keep their own contiguous, pinned walk -- an operator says exactly
+/// what it means.
+///
 /// A match here is a <em>witness</em>, not a verdict. The caller materializes the chosen readings and
-/// runs the real matcher (fzf scoring, the syllable-boundary rule, the alias quality gate) over that
-/// string, and that pipeline decides. A witness that does not survive it means this row is not reported,
-/// never a false hit.
+/// runs the real matcher (fzf scoring, the alias quality gate) over that string, and that pipeline
+/// decides. A witness that does not survive it means this row is not reported, never a false hit.
 /// </remarks>
 internal static class AliasGridMatcher
 {
@@ -58,6 +63,7 @@ internal static class AliasGridMatcher
     [ThreadStatic] private static bool[]? _reachable;
     [ThreadStatic] private static bool[]? _next;
     [ThreadStatic] private static byte[]? _draft;
+    [ThreadStatic] private static char[]? _stripped;
 
     /// <summary>
     /// Decides <paramref name="term"/> (one alternative spelling of one AND condition) against
@@ -79,22 +85,41 @@ internal static class AliasGridMatcher
         if (term.IsEmpty || positions == 0 || choice.Length < positions)
             return false;
 
-        var anchor = AnchorFor(kind);
-        if (anchor is null)
-            return false;
-
         var draft = _draft;
         if (draft == null || draft.Length < positions)
             _draft = draft = new byte[Math.Max(positions, 64)];
         choice[..positions].CopyTo(draft);
 
-        var matched = (kind, tier) switch
+        bool matched;
+        if (kind is FzfTermKind.Fuzzy or FzfTermKind.Exact)
         {
-            (FzfTermKind.Fuzzy, AliasGridTier.Initials) => MatchFuzzyInitials(grid, term, draft),
-            (FzfTermKind.Fuzzy, _) => MatchFuzzyFull(grid, term, separator, draft),
-            (_, AliasGridTier.Initials) => MatchExactInitials(grid, term, anchor.Value, draft),
-            _ => MatchExactFull(grid, term, separator, anchor.Value, draft),
-        };
+            // Both modes take the same reading of a plain term: see this class's header and MatchSyllableFull.
+            // There is no "this is a precise query" special case left on the grid.
+            //
+            // The provider's separator marks where its own query segmenter believed a boundary fell; which
+            // part of a reading a piece may cover is decided from the readings here, so only the term's
+            // letters matter. A query form the provider emitted for a run of letters ("zheng<SEP>shu") is
+            // therefore read as the same term the user typed.
+            term = StripSeparator(term, separator);
+            if (term.IsEmpty)
+                return false;
+
+            matched = tier == AliasGridTier.Initials
+                ? MatchInitialsSubsequence(grid, term, draft)
+                : MatchSyllableFull(grid, term, draft);
+        }
+        else
+        {
+            var anchor = AnchorFor(kind);
+            if (anchor is null)
+                return false;
+
+            // An operator's term keeps its separator: it names a character of the ALIAS, and the alias is
+            // what spells that character.
+            matched = tier == AliasGridTier.Initials
+                ? MatchExactInitials(grid, term, anchor.Value, draft)
+                : MatchExactFull(grid, term, separator, anchor.Value, draft);
+        }
 
         if (!matched)
             return false;
@@ -105,7 +130,6 @@ internal static class AliasGridMatcher
 
     private static AliasGridAnchor? AnchorFor(FzfTermKind kind) => kind switch
     {
-        FzfTermKind.Fuzzy or FzfTermKind.Exact => AliasGridAnchor.Any,
         FzfTermKind.ExactBoundary => AliasGridAnchor.Boundary,
         FzfTermKind.Prefix => AliasGridAnchor.AliasStart,
         FzfTermKind.Suffix => AliasGridAnchor.AliasEnd,
@@ -113,11 +137,13 @@ internal static class AliasGridMatcher
         _ => null,
     };
 
-    // One character per position, so a fuzzy term is satisfied exactly when each of its characters can
-    // be taken from a later position than the previous one. Taking the earliest position that can serve
+    // One character per position, so a term is satisfied exactly when each of its characters can be
+    // taken from a later position than the previous one. Taking the earliest position that can serve
     // each character is always the best choice, which makes one left-to-right pass both necessary and
-    // sufficient.
-    private static bool MatchFuzzyInitials(AliasGridFormat.Index grid, ReadOnlySpan<char> term, byte[] choice)
+    // sufficient. Every position of the initials tier is a whole reading of its own, so this IS the rule
+    // MatchSyllableFull implements, restricted to one-character pieces: each piece starts where its reading
+    // starts, and skipping a character is always allowed.
+    private static bool MatchInitialsSubsequence(AliasGridFormat.Index grid, ReadOnlySpan<char> term, byte[] choice)
     {
         var qi = 0;
         for (var p = 0; p < grid.PositionCount && qi < term.Length; p++)
@@ -137,12 +163,17 @@ internal static class AliasGridMatcher
         return qi == term.Length;
     }
 
-    // The full tier emits a whole syllable per position, and a query character that ends one syllable
-    // may be followed by more of that same syllable, so which reading is chosen at a position decides
-    // how much of the term that position can absorb. That is a real search: reachable[j] after the first
-    // p positions means "the first j characters of the term can be produced by some choice of readings
-    // over those positions", and each position extends it by consuming a greedy run.
-    private static bool MatchFuzzyFull(AliasGridFormat.Index grid, ReadOnlySpan<char> term, char separator, byte[] choice)
+    // The full tier emits a whole reading per position, and a piece of the term is a PREFIX of one
+    // reading: the whole reading, its first letter, or -- only where the term ends -- a half-typed start.
+    // A position contributes at most one piece, which is what makes "piji" (pi from ping, ji from jia)
+    // unreachable while "pingj" and "pjia" are: leaving a reading before its end is only ever the cursor
+    // sitting there, never a way to keep consuming the next character.
+    //
+    // That is a reachability walk, not a greedy one: which reading is chosen at a position decides how
+    // much of the term it can absorb, so reachable[j] after the first p positions means "some choice of
+    // readings over those positions spells the first j characters", and each position extends it by the
+    // pieces it can form.
+    private static bool MatchSyllableFull(AliasGridFormat.Index grid, ReadOnlySpan<char> term, byte[] choice)
     {
         var positions = grid.PositionCount;
         var length = term.Length;
@@ -168,19 +199,51 @@ internal static class AliasGridMatcher
                 if (!reachable[j])
                     continue;
 
+                // Skipping this character's reading: an abbreviation names the characters it wants and
+                // lets the rest of the name fall where it may.
+                if (!next[j])
+                {
+                    next[j] = true;
+                    prevJ[(p + 1) * stride + j] = j;
+                    choiceReading[(p + 1) * stride + j] = 0;
+                }
+
                 for (var k = 0; k < count; k++)
                 {
-                    var consumed = Consume(grid, p, k, separator, term, j);
-                    if (next[consumed])
+                    var reading = grid.Reading(p, k);
+                    if (reading.IsEmpty)
                         continue;
 
-                    next[consumed] = true;
-                    prevJ[(p + 1) * stride + consumed] = j;
-                    choiceReading[(p + 1) * stride + consumed] = (byte)k;
+                    var max = Math.Min(reading.Length, length - j);
+                    var matched = 0;
+                    while (matched < max && term[j + matched] == reading[matched])
+                        matched++;
+
+                    for (var piece = 1; piece <= matched; piece++)
+                    {
+                        int target;
+                        if (piece == reading.Length)
+                            target = j + piece;              // the character spelled out in full
+                        else if (piece == 1)
+                            target = j + 1;                  // the character abbreviated to its initial
+                        else if (j + piece == length)
+                            target = length;                 // half-typed, and the term ends there
+                        else
+                            continue;
+
+                        if (target > length || next[target])
+                            continue;
+
+                        next[target] = true;
+                        prevJ[(p + 1) * stride + target] = j;
+                        choiceReading[(p + 1) * stride + target] = (byte)k;
+                    }
                 }
             }
 
-            (reachable, next) = (next, reachable);
+            var swapped = reachable;
+            reachable = next;
+            next = swapped;
         }
 
         if (!reachable[length])
@@ -195,21 +258,22 @@ internal static class AliasGridMatcher
         return true;
     }
 
-    // Furthest term position reachable by taking this position's reading as a subsequence, plus its
-    // separator when the boundary bit says one is emitted and the term expects it there.
-    private static int Consume(AliasGridFormat.Index grid, int position, int reading, char separator, ReadOnlySpan<char> term, int from)
+    private static ReadOnlySpan<char> StripSeparator(ReadOnlySpan<char> term, char separator)
     {
-        var j = from;
-        if (grid.BoundaryBefore(position) && j < term.Length && term[j] == separator)
-            j++;
+        if (separator == '\0' || term.IndexOf(separator) < 0)
+            return term;
 
-        var text = grid.Reading(position, reading);
-        for (var u = 0; u < text.Length && j < term.Length; u++)
+        var buffer = _stripped;
+        if (buffer == null || buffer.Length < term.Length)
+            _stripped = buffer = new char[Math.Max(term.Length, 64)];
+
+        var written = 0;
+        foreach (var c in term)
         {
-            if (text[u] == term[j])
-                j++;
+            if (c != separator)
+                buffer[written++] = c;
         }
-        return j;
+        return buffer.AsSpan(0, written);
     }
 
     // Contiguous run over one-character-per-position readings: the run occupies consecutive positions,
@@ -280,12 +344,23 @@ internal static class AliasGridMatcher
         return false;
     }
 
-    private static bool StartAllowed(AliasGridFormat.Index grid, int position, int offset, AliasGridAnchor anchor) => anchor switch
+    // A run opens where a reading opens: at the position's first emitted character (its separator, when it
+    // has one) or at the character after that separator. An operator chooses which end of the alias the run
+    // is pinned to, never whether it may start inside one of the candidate's sounds -- the middle of a
+    // reading is not a place any of them starts.
+    private static bool StartAllowed(AliasGridFormat.Index grid, int position, int offset, AliasGridAnchor anchor)
     {
-        AliasGridAnchor.AliasStart or AliasGridAnchor.Whole => position == 0 && offset == 0,
-        AliasGridAnchor.Boundary => offset == 0 && (position == 0 || grid.BoundaryBefore(position)),
-        _ => true,
-    };
+        var readingStart = grid.BoundaryBefore(position) ? 1 : 0;
+        if (offset != readingStart && !(offset == 0 && readingStart == 1))
+            return false;
+
+        return anchor switch
+        {
+            AliasGridAnchor.AliasStart or AliasGridAnchor.Whole => position == 0 && offset == 0,
+            AliasGridAnchor.Boundary => position == 0 || grid.BoundaryBefore(position),
+            _ => true, // AliasEnd: pinned to the alias end, and still opens on a reading
+        };
+    }
 
     // Consumes the term from (position, reading, offset) outwards, one emitted character at a time. At a
     // reading boundary the next reading must supply the term's next character as its own first emitted

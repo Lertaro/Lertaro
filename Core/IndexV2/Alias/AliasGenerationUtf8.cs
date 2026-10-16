@@ -13,13 +13,11 @@ namespace Lertaro.Core.IndexV2.Alias;
 // are materialized into plain arrays so a parallel generation pass can hand them across threads
 // to the strictly-serial snapshot blob writer.
 //
-// Providers that implement IAliasGridProvider get one extra choice here: their reading-derived aliases
-// can be stored as a per-position reading grid instead of spelled out. The grid costs space linear in
-// the name's length, the spelled-out form costs the enumeration of the readings' cross product, so this
-// keeps whichever is SMALLER for that exact name. Names with one reading per position keep the string
-// encoding they have today, byte for byte; the polyphonic names that used to bake 6-8 KB of variants get
-// the grid. Aliases that are not spellings of the readings (the pinyin provider's Simplified form) are
-// emitted through GetStandaloneAliasesUtf8 and survive either way.
+// Providers that implement IAliasGridProvider have their reading-derived aliases stored as a per-position
+// reading grid, which is the whole of that provider's reading space rather than an enumeration of it --
+// see AliasGeneration.TryEncodeGrid for why that is unconditional now, and what the size difference is.
+// Aliases that are not spellings of the readings (the pinyin provider's Simplified form) are emitted
+// through GetStandaloneAliasesUtf8 and stay strings.
 internal static class AliasGenerationUtf8
 {
     internal readonly struct Result
@@ -39,8 +37,6 @@ internal static class AliasGenerationUtf8
     }
 
     [ThreadStatic] private static AliasByteSink? _sink;
-    [ThreadStatic] private static AliasByteSink? _readingSink;
-    [ThreadStatic] private static AliasByteSink? _gridSink;
 
     // Generates aliases for one name, OR-ing each alias's char mask into `mask`. Returns null when
     // the name yields no aliases (the common pure-ASCII case exits on the vectorized gate).
@@ -92,8 +88,8 @@ internal static class AliasGenerationUtf8
         return new Result(bytes, segmentLengths, providerIds.ToArray(), kinds!.ToArray());
     }
 
-    // Appends one provider's chosen output: either its string aliases, or -- when it can express its
-    // readings as a grid and that comes out smaller -- the grid plus the standalone aliases it wrote.
+    // Appends one provider's chosen output: the reading grid for a provider that can express its readings,
+    // plus the standalone aliases it wrote.
     private static void AppendProvider(
         string name,
         IAliasProvider provider,
@@ -111,31 +107,22 @@ internal static class AliasGenerationUtf8
             return;
         }
 
-        // Spell the readings out first: their size is what the grid has to beat, and it is the encoding
-        // this name would have had without the grid capability. The comparison itself lives in
-        // AliasGeneration.PreferGrid so this path and the delta path decide identically.
-        var readings = _readingSink ??= new AliasByteSink();
-        var grids = _gridSink ??= new AliasByteSink();
-        if (AliasGeneration.PreferGrid(name, gridProvider, readings, grids, out _))
+        // The readings go in as their grid, always -- see AliasGeneration.TryEncodeGrid.
+        if (AliasGeneration.TryEncodeGrid(name, gridProvider, dest, out _))
         {
-            var start = dest.BeginSegment();
-            dest.Append(grids.Segment(0));
-            dest.EndSegment(start);
             providerIds.Add(providerId);
             kinds.Add((byte)AliasEntryKind.Grid);
             mask |= GridCharMask(name, gridProvider);
         }
         else
         {
-            for (var s = 0; s < readings.SegmentCount; s++)
-            {
-                var start = dest.BeginSegment();
-                dest.Append(readings.Segment(s));
-                dest.EndSegment(start);
-                providerIds.Add(providerId);
-                kinds.Add((byte)AliasEntryKind.String);
-                mask |= FzfAlgorithm.GetCharMaskUtf8(readings.Segment(s));
-            }
+            // The provider could not express its readings as a grid (a contract violation, reported by
+            // TryEncodeGrid). Its alias strings are the only correct representation of the same space, so
+            // all of them go out here -- standalone ones included, and no separate step below.
+            var before = dest.SegmentCount;
+            gridProvider.GetAliasesUtf8(name, dest);
+            RecordSegments(dest, before, providerId, AliasEntryKind.String, providerIds, kinds, ref mask);
+            return;
         }
 
         var standaloneStart = dest.SegmentCount;

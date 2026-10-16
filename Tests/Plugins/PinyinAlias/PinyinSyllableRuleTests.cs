@@ -1,0 +1,93 @@
+using Lertaro.Core;
+using Lertaro.Core.SearchIndex;
+
+namespace Lertaro.Plugins.PinyinAlias.Tests;
+
+// The rule a typed term has to obey to be a spelling of a candidate: every piece of it either spells one
+// character's reading out in full, abbreviates that character to its initial, or is the half-typed start
+// of the LAST character it names. 评价 (ping'jia) is the worked example, straight from the ticket.
+//
+// This is the decision, not a ranking detail, so it is asserted through the real pipeline (real provider,
+// real baked snapshot, real searcher) in BOTH matching modes: pinyin is not a fuzzy/exact choice.
+[TestClass]
+public sealed class PinyinSyllableRuleTests
+{
+    private const string Name = "评价.txt";
+    private const string Certificate = "管理用户证书.txt";
+
+    [ClassInitialize]
+    public static void RegisterRealProvider(TestContext context)
+        => AliasProviderRegistry.Register(new PinyinAliasProvider());
+
+    private static List<string> Search(string query, bool fuzzy, string name)
+    {
+        using var fixture = new RealIndexFixture(name);
+        var previous = SearchContext.FuzzyMatchEnabled;
+        try
+        {
+            SearchContext.FuzzyMatchEnabled = fuzzy;
+            return fixture.Search(query);
+        }
+        finally
+        {
+            SearchContext.FuzzyMatchEnabled = previous;
+        }
+    }
+
+    [TestMethod]
+    // Every one of these is a concatenation of whole readings and initials: "pj" abbreviates both
+    // characters, "pingj" spells the first out and abbreviates the second, "pjia" does the reverse.
+    [DataRow("pj")]
+    [DataRow("pingj")]
+    [DataRow("pjia")]
+    [DataRow("ping")]
+    [DataRow("p")]
+    [DataRow("j")]
+    [DataRow("jia")]
+    [DataRow("pingjia")]
+    [DataRow("pingji")]
+    public void SpellingsThatStartWhereAReadingStarts_ReachTheName(string query)
+    {
+        CollectionAssert.Contains(Search(query, fuzzy: false, Name), Name, $"'{query}' with fuzzy off");
+        CollectionAssert.Contains(Search(query, fuzzy: true, Name), Name, $"'{query}' with fuzzy on");
+    }
+
+    [TestMethod]
+    // "ing"/"ia" open inside a reading, "ja" skips jia's middle, and "piji" is the shape that needs the
+    // whole rule: "pi" is a real prefix of ping and "ji" a real prefix of jia, but a character is
+    // abbreviated to its initial or spelled out, never left half-typed with more to come.
+    [DataRow("ing")]
+    [DataRow("ia")]
+    [DataRow("ja")]
+    [DataRow("piji")]
+    [DataRow("pij")]
+    [DataRow("pinj")]
+    [DataRow("pijia")]
+    public void SpellingsThatStartInsideAReadingOrLeaveOneHalfTyped_ReachNothing(string query)
+    {
+        Assert.IsEmpty(Search(query, fuzzy: false, Name), $"'{query}' with fuzzy off");
+        Assert.IsEmpty(Search(query, fuzzy: true, Name), $"'{query}' with fuzzy on");
+    }
+
+    [TestMethod]
+    // Skipping characters is not the same as skipping their readings: a multi-character name is named by
+    // whichever of its characters the user spelled, in order.
+    [DataRow("gl", "管理用户证书.txt")]
+    [DataRow("gsh", "管理用户证书.txt")]
+    [DataRow("glzs", "管理用户证书.txt")]
+    [DataRow("guanlishu", "管理用户证书.txt")]
+    [DataRow("glyhzshu", "管理用户证书.txt")]
+    public void CharactersTheUserDidNotName_MayBeSkipped(string query, string name)
+    {
+        CollectionAssert.Contains(Search(query, fuzzy: false, name), name, $"{query} with fuzzy off");
+        CollectionAssert.Contains(Search(query, fuzzy: true, name), name, $"{query} with fuzzy on");
+    }
+
+    [TestMethod]
+    // Independent of the query: the same terms on a different name must not suddenly stand for it.
+    public void TheSameRefusedSpelling_StaysRefusedOnAnotherName()
+    {
+        Assert.IsEmpty(Search("piji", fuzzy: false, Certificate));
+        Assert.IsEmpty(Search("zhengp", fuzzy: false, Name), "'zhengp' names no character of 评价");
+    }
+}

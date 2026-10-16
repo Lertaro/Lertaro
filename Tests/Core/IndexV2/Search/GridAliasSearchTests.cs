@@ -7,8 +7,8 @@ using Lertaro.PluginSdk.Abstractions.Plugins;
 namespace Lertaro.Core.Tests.IndexV2.Search;
 
 // End-to-end cover for the reading-grid path: a provider's reading space goes through the real
-// SnapshotWriter, is stored as a grid when that is the smaller encoding, and is then found by the real
-// searcher through the same scoring pipeline a baked string alias uses.
+// SnapshotWriter, is stored as a grid (the encoding a grid-capable provider's readings always take), and
+// is then found by the real searcher through the same scoring pipeline a baked string alias uses.
 //
 // The two fake providers only ever accept names carrying a private-use marker, so registering them
 // process-wide (the registry has no unregister) leaves every other test's names untouched.
@@ -25,8 +25,8 @@ public sealed class GridAliasSearchTests
         AliasProviderRegistry.Register(new StringOnlyProvider());
     }
 
-    // Five readings whose initials spell "fdbjf", and a deliberately bulky string encoding so the grid
-    // wins the size comparison and is what actually lands in the snapshot.
+    // Five readings whose initials spell "fdbjf", and a deliberately bulky string encoding so this stands
+    // for a name whose spelled-out aliases are what the grid replaces.
     private sealed class GridOnlyProvider : IAliasGridProvider
     {
         private static readonly string[][] Readings =
@@ -85,8 +85,8 @@ public sealed class GridAliasSearchTests
         public IEnumerable<string> GetAliases(string text) => new[] { "zzz" };
     }
 
-    // Same readings, but a tiny string encoding -- so the snapshot must keep the string form and store
-    // no grid at all.
+    // The same readings, with a tiny string encoding: still stored as the grid, because the grid is how a
+    // grid-capable provider's readings are stored rather than one of two encodings to choose between.
     private sealed class StringOnlyProvider : IAliasGridProvider
     {
         private static readonly string[][] Readings =
@@ -221,7 +221,7 @@ public sealed class GridAliasSearchTests
     }
 
     [TestMethod]
-    public void SmallEnumeration_KeepsTheStringEncoding()
+    public void SmallEnumeration_TakesTheGridAsWell()
     {
         using var fixture = LiveIndexFixture.Build("Z", new[]
         {
@@ -229,9 +229,11 @@ public sealed class GridAliasSearchTests
             new FileRecord(2, 1, StringMarker + "笔记法X", FileRecordFlags.None),
         });
 
+        // The grid is the encoding, whatever the spelled-out form would have cost: that form is the same
+        // reading space enumerated and capped, so keeping it because it happens to be smaller would keep a
+        // name's own reading out of reach (see AliasGeneration.TryEncodeGrid).
         var kinds = KindsOf(fixture);
-        CollectionAssert.DoesNotContain(kinds, AliasEntryKind.Grid);
-        CollectionAssert.Contains(kinds, AliasEntryKind.String);
+        CollectionAssert.Contains(kinds, AliasEntryKind.Grid);
 
         var results = new List<SearchResult>();
         IndexV2Searcher.SearchStreaming(fixture.Index, "fdbjf", 10, results.Add, CancellationToken.None);

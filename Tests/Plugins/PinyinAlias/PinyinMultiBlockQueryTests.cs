@@ -1,3 +1,4 @@
+using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 
 namespace Lertaro.Plugins.PinyinAlias.Tests;
@@ -33,11 +34,62 @@ public sealed class PinyinMultiBlockQueryTests
     [DataRow("baohu nx")]
     [DataRow("dnwwzz sj")]
     [DataRow("fangdan baohu nx dnwwzz sj")]
+    // The shapes the ticket names: the whole reading of each character, the initials of each character,    // a mix of both, several such blocks at once, and pinyin sharing the query with literal text.
+    [DataRow("fangdanbijifa")]
+    [DataRow("jiandanshuchushi")]
+    [DataRow("chuangyishiji")]
+    [DataRow("diannaowanwuzhanzhang")]
+    [DataRow("gcc")]
+    [DataRow("cbcb")]
+    [DataRow("cbcbjt")]
+    [DataRow("fdan")]
+    [DataRow("jijiagou")]
+    [DataRow("xiaonxl")]
+    [DataRow("chuangysji")]
+    [DataRow("gxiao")]
+    [DataRow("fdbjf gcc")]
+    [DataRow("fdan xiaonxl chuangysji")]
+    [DataRow("dj chu ban chuban df7686")]
+    [DataRow("Esor xinliu cbcb archive")]
+    [DataRow("9786267")]
+    [DataRow("Anna Archive")]
+    [DataRow("xinl gxiao jt fd 简单")]
     public void AnyBlockOrCombinationOfBlocks_FindsTheFile(string query)
     {
         using var fixture = new RealIndexFixture(Name);
 
         CollectionAssert.Contains(fixture.Search(query), Name, $"'{query}' must reach the file");
+    }
+
+    [TestMethod]
+    [DataRow("fangdanbijifa")]
+    [DataRow("fdbjf")]
+    [DataRow("fdan")]
+    [DataRow("fdbjf gcc")]
+    [DataRow("fdan xiaonxl chuangysji")]
+    [DataRow("dj chu ban chuban df7686")]
+    [DataRow("Esor xinliu cbcb archive")]
+    [DataRow("xinl gxiao jt fd 简单")]
+    [DataRow("gcc")]
+    [DataRow("jijiagou")]
+    public void SameQuery_ReachesTheSameFileWithFuzzyMatchingOnAndOff(string query)
+    {
+        using var fixture = new RealIndexFixture(Name);
+        var previous = SearchContext.FuzzyMatchEnabled;
+        try
+        {
+            SearchContext.FuzzyMatchEnabled = false;
+            var exact = fixture.Search(query).OrderBy(n => n, StringComparer.Ordinal).ToList();
+            SearchContext.FuzzyMatchEnabled = true;
+            var fuzzy = fixture.Search(query).OrderBy(n => n, StringComparer.Ordinal).ToList();
+
+            CollectionAssert.Contains(exact, Name, $"'{query}' must reach the file with fuzzy matching off");
+            CollectionAssert.AreEqual(exact, fuzzy, $"'{query}' must reach the same files with the setting either way");
+        }
+        finally
+        {
+            SearchContext.FuzzyMatchEnabled = previous;
+        }
     }
 
     [TestMethod]

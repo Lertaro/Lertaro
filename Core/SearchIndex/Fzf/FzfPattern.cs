@@ -17,17 +17,13 @@ internal sealed class FzfPattern
     // already say the same thing, which is every query without a '|' plus every OR-first query -- the
     // hot engine keeps consuming TermSets unchanged and only a genuinely mixed AND-first query pays for
     // the extra shape. See FzfPatternParser.ParseTermSets.
-    // requiresAlignedAliases is the alias-side view's own hand-off: it holds both readings of every term,
-    // so deriving the rule from those terms would always answer "not precise" and switch the rule off in
-    // exact mode. Null everywhere else, where the terms do say it.
-    internal FzfPattern(string? targetDrive, FzfTermSet[] termSets, FzfTermGroup[]? orGroups, bool? requiresAlignedAliases = null)
+    internal FzfPattern(string? targetDrive, FzfTermSet[] termSets, FzfTermGroup[]? orGroups)
     {
         TargetDrive = targetDrive;
         TermSets = termSets;
         OrGroups = orGroups;
         EffectiveSets = orGroups == null ? termSets : Flatten(orGroups);
         HasExclusions = EffectiveSets.Any(set => set.Terms.Any(term => term.Inverse));
-        _requiresAlignedAliases = requiresAlignedAliases;
     }
 
     // The same query as the ALIAS tiers read it: every positive term offered as a contiguous run first and
@@ -69,19 +65,18 @@ internal sealed class FzfPattern
 
     public bool IsEmpty => TermSets.Length == 0;
 
-    // True when every term was matched as a PRECISE run rather than as a scattered subsequence -- the
-    // ordinary "fuzzy matching is switched off" query, and also an all-explicit-operator one. Alias
-    // fallback then has to respect the provider's syllable boundaries (see AliasMatchRules), which is what
-    // stops "ex" being read as the tail of "xue" plus the head of "xi".
+    // Whether an alias match has to respect the provider's syllable boundaries (see AliasMatchRules), which
+    // is what stops "ex" being read as the tail of "xue" plus the head of "xi", and "huchu" as the middle of
+    // 出's "chu" followed by 出 again.
     //
-    // Keyed off the terms rather than SearchContext.FuzzyMatchEnabled so a term that explicitly flips
-    // itself back to a subsequence ("'jtqin", under fuzzy-off) stays exempt: for that term the user did ask
-    // for a loose match, and applying the boundary rule would contradict what the operator means.
-    //
-    // Computed once and handed to the alias-side view (see the constructor), which holds both readings of
-    // every term and so cannot answer this question from its own terms.
-    private readonly bool? _requiresAlignedAliases;
-    public bool RequiresAlignedAliases => _requiresAlignedAliases ?? AliasMatchRules.RequiresAlignment(EffectiveSets);
+    // Always on, in both modes. A transliteration is a SPELLING of the candidate rather than the text the
+    // user typed, and no spelling of a sound starts in the middle of that sound: "从某个字的中间开始" is
+    // never what an abbreviation means, so fuzzy matching must not license it. The user asked for exactly
+    // that (pinyin search behaving the same whether or not fuzzy matching is on), and the earlier split --
+    // exact mode aligning, fuzzy mode loose -- made the same query reach a file in one mode and not the
+    // other. What still differs by mode is the CANDIDATE's own text: exact mode wants a run in the name,
+    // fuzzy mode accepts a scattered subsequence of it.
+    public bool RequiresAlignedAliases => true;
 
     // How much text the user actually typed, which is what the alias-fallback quality gate scales its
     // thresholds against (see IsAcceptableAliasMatch). A term set holds ALTERNATIVES -- one OR branch,

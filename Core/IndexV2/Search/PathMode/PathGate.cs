@@ -1,11 +1,13 @@
 using System.Collections.Concurrent;
 using System.Text;
+using Lertaro.Core.IndexV2.Alias;
 using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Fzf;
 
 using Lertaro.Core.IndexV2.Delta;
 
 using Lertaro.Core.IndexV2.Persistence;
+using Lertaro.PluginSdk.Abstractions.Plugins;
 namespace Lertaro.Core.IndexV2.Search.PathMode;
 
 // Directory-segment verification for path mode. Replaces the old per-candidate
@@ -233,6 +235,21 @@ internal sealed class PathGate
                     continue;
                 if (!provider.CanHandle(segment))
                     continue;
+
+                // A provider that can spell out its readings is decided from them, exactly like the grid an
+                // index would have baked for the same segment: its alias strings are that reading space
+                // enumerated and capped.
+                if (provider is IAliasGridProvider gridProvider)
+                {
+                    if (SearchMatcherGridAliases.TryMatchProvider(
+                            gridProvider, segment, _segmentPatterns[q], worker.Slab, gate: false, out var gridMatch))
+                    {
+                        score = gridMatch.Score;
+                        return true;
+                    }
+                    continue;
+                }
+
                 foreach (var alias in provider.GetAliases(segment))
                 {
                     var aliasPattern = provider.SyllableSeparator == '\0' ? _segmentPatterns[q] : _segmentAliasPatterns[q];

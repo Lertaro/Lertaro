@@ -17,7 +17,7 @@ internal static class SearchMatcherAliasExtensions
     // Last-resort tier for a query mixing an alias provider's own two alphabets: only
     // the baked aliases belonging to that exact provider are worth trying, since MapAliasToSourceIndices
     // (needed to align the alias-syntax run back onto `name`) is only meaningful for the provider that
-    // produced the alias. Decodes each candidate alias to UTF-16 -- acceptable here since this only runs
+    // produced the alias. Materializes each candidate alias as text -- acceptable here since this only runs
     // for the rare candidates that already failed both the literal-name and whole-query-alias tiers.
     internal static bool TryMatchMixed(Snapshot snapshot, SearchMatcher.QueryContext ctx, int uid, ReadOnlySpan<char> name, out FzfPatternResult best)
     {
@@ -26,26 +26,19 @@ internal static class SearchMatcherAliasExtensions
         var matched = false;
         var (start, end) = snapshot.AliasEntryRange(uid);
         string? nameStr = null;
+        // Segments of one entry: a string entry's '|'-split spellings, or a grid entry's materialized
+        // single-reading spellings. Unlike every other alias tier, this lane matches an alias as TEXT (it
+        // maps the positions it took back onto the source), so a grid entry has to be spelled out.
+        var segments = MixedSegments;
         for (var e = start; e < end; e++)
         {
             if (snapshot.AliasProviderId(e) != mixedTerm.ProviderId)
                 continue;
 
-            // A reading grid is not an alias string, and this tier decodes one to text before matching
-            // it; grid entries are decided by SearchMatcherGridAliases instead.
-            if (snapshot.AliasKind(e) != AliasEntryKind.String)
-                continue;
-
-            var aliasUtf8 = snapshot.AliasUtf8(e);
-            if (aliasUtf8.Length == 0)
-                continue;
-
-            nameStr ??= name.ToString();
-            var aliasStr = Encoding.UTF8.GetString(aliasUtf8);
-            foreach (var segment in aliasStr.Split('|'))
+            SearchMatcherGridAliases.CollectMixedSegments(snapshot, e, mixedTerm.ProviderId, segments);
+            foreach (var segment in segments)
             {
-                if (segment.Length == 0)
-                    continue;
+                nameStr ??= name.ToString();
                 if (!MixedQueryMatcher.TryMatch(mixedTerm, name, nameStr, segment, out var mm))
                     continue;
 
@@ -59,6 +52,11 @@ internal static class SearchMatcherAliasExtensions
         }
         return matched;
     }
+
+    // One scratch list per thread for the lane above: reached per candidate, but only for the rare
+    // candidates that already failed every earlier tier.
+    [ThreadStatic] private static List<string>? _mixedSegments;
+    private static List<string> MixedSegments => _mixedSegments ??= new List<string>(4);
 
     // Zero-copy alias fallback: each baked alias is matched from its raw UTF-8 (byte path for ASCII
     // aliases -- the common case, pinyin -- else decoded into the alias scratch), honoring

@@ -25,9 +25,9 @@ namespace Lertaro.Core.SearchIndex.Fzf;
 // candidate's own name), an operator kind (it says exactly what it means), and a provider's query form (it
 // is already a rewrite of the typed term, whose own second reading supplies the loose one).
 //
-// The syllable-alignment rule is untouched and is still read off the SOURCE terms, never off this view
-// (`FzfPattern.RequiresAlignedAliases` is carried over): a precise query still refuses to start
-// mid-syllable, so "ex" still cannot splice the tail of xue onto the head of xi.
+// The syllable-alignment rule applies to this view like any other (FzfPattern.RequiresAlignedAliases is
+// unconditional now): a match may not BEGIN inside one of the candidate's readings, in either mode. The
+// readings above are about how much of a spelling a term may consume, not about where it may start.
 internal static class FzfPatternAliasReading
 {
     /// <summary>
@@ -49,8 +49,7 @@ internal static class FzfPatternAliasReading
         => new(
             source.TargetDrive,
             Twin(source.TermSets),
-            source.OrGroups == null ? null : TwinGroups(source.OrGroups),
-            source.RequiresAlignedAliases);
+            source.OrGroups == null ? null : TwinGroups(source.OrGroups));
 
     private static FzfTermSet[] Twin(FzfTermSet[] sets)
     {
