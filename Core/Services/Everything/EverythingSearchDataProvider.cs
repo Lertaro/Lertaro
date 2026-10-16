@@ -45,11 +45,22 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
         var normalizedPath = NormalizeDirectory(folderPath);
         var spaceEntries = await _searchService.GetSpaceEntriesAsync(normalizedPath, token,
             IpcSpaceFilters).ConfigureAwait(false);
+        return AnswerFolderSubtreeSize(normalizedPath, spaceEntries);
+    }
+
+    // The answer one folder gets for its whole subtree: a single row carrying the total size, or nothing at
+    // all when the index holds no rows under it. Split from the query above so both answers are testable
+    // without a running service -- the pipe is the only thing standing between a test and this path, and to
+    // a caller "the service is stopped" and "the folder is not indexed" are the same timeout.
+    internal static EverythingQueryResult AnswerFolderSubtreeSize(
+        string folderPath, IReadOnlyList<SpaceIndexEntry> spaceEntries)
+    {
         if (spaceEntries.Count == 0)
         {
             return new EverythingQueryResult(Array.Empty<EverythingResultItem>(), 0, 0, 0);
         }
 
+        var normalizedPath = NormalizeDirectory(folderPath);
         var totalFolderSize = 0L;
         foreach (var entry in spaceEntries)
         {
