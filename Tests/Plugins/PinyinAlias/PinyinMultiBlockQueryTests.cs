@@ -4,10 +4,10 @@ using Lertaro.Core.SearchIndex;
 namespace Lertaro.Plugins.PinyinAlias.Tests;
 
 // The reported ticket: a 184-character filename whose pinyin only matches block by block, from several
-// unrelated parts of the name (防弹 ... 保护 ... 电脑玩物站长 ... 市集). The aliases for it are two
-// STRINGS, not a grid -- its full pinyin overruns the combination path, so the single-reading fallback
-// produces them -- which makes this class about the query side: whether a match is accepted, and what
-// gets highlighted, when the syllables sit far apart.
+// unrelated parts of the name (防弹 ... 保护 ... 电脑玩物站长 ... 市集). Its readings are baked as a GRID
+// entry -- the two strings the provider's GetAliases still returns are that same space enumerated and
+// capped, and the host no longer matches against them -- which makes this class about the query side:
+// whether a match is accepted, and what gets highlighted, when the syllables sit far apart.
 [TestClass]
 public sealed class PinyinMultiBlockQueryTests
 {
@@ -34,7 +34,8 @@ public sealed class PinyinMultiBlockQueryTests
     [DataRow("baohu nx")]
     [DataRow("dnwwzz sj")]
     [DataRow("fangdan baohu nx dnwwzz sj")]
-    // The shapes the ticket names: the whole reading of each character, the initials of each character,    // a mix of both, several such blocks at once, and pinyin sharing the query with literal text.
+    // The shapes the ticket names: the whole reading of each character, the initials of each character,
+    // a mix of both, several such blocks at once, and pinyin sharing the query with literal text.
     [DataRow("fangdanbijifa")]
     [DataRow("jiandanshuchushi")]
     [DataRow("chuangyishiji")]
@@ -47,6 +48,7 @@ public sealed class PinyinMultiBlockQueryTests
     [DataRow("xiaonxl")]
     [DataRow("chuangysji")]
     [DataRow("gxiao")]
+    [DataRow("fdbjfgxiao")]
     [DataRow("fdbjf gcc")]
     [DataRow("fdan xiaonxl chuangysji")]
     [DataRow("dj chu ban chuban df7686")]
@@ -65,6 +67,7 @@ public sealed class PinyinMultiBlockQueryTests
     [DataRow("fangdanbijifa")]
     [DataRow("fdbjf")]
     [DataRow("fdan")]
+    [DataRow("fdbjfgxiao")]
     [DataRow("fdbjf gcc")]
     [DataRow("fdan xiaonxl chuangysji")]
     [DataRow("dj chu ban chuban df7686")]

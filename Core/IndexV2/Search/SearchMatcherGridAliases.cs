@@ -12,13 +12,14 @@ namespace Lertaro.Core.IndexV2.Search;
 //
 // The shape of this tier is deliberate and narrow. It only ever produces a WITNESS -- one reading per
 // position that satisfies each query term -- materializes that witness as a plain alias, and then hands
-// it to the same matching, quality-gate and weighting code the baked string aliases go through
-// (FzfPattern.TryMatch / IsAcceptableAliasMatch / WeightAliasMatch, on the byte engine when the spelling
-// is pure ASCII, which every pinyin spelling is). So a grid row is scored, ranked and highlighted by
-// exactly the machinery a string row uses, and the whole-pattern verdict (exclusions, AND across terms)
-// is made by that machinery rather than re-implemented here. The one thing it does NOT re-apply is the
-// syllable-alignment rule: the witness already came out of the readings, so there is nothing left for
-// AliasMatchRules to confirm.
+// it to the same matching and weighting code the baked string aliases go through (FzfPattern.TryMatch /
+// WeightAliasMatch, on the byte engine when the spelling is pure ASCII, which every pinyin spelling is).
+// So a grid row is scored, ranked and highlighted by exactly the machinery a string row uses, and the
+// whole-pattern verdict (exclusions, AND across terms) is made by that machinery rather than
+// re-implemented here. It judges the alias quality bar on the witness's own evidence: a term that spells a
+// reading out is not bound by the span limit (the text between its pieces is the name's own syllables),
+// while a term of pure initials keeps the shared bar -- see IsAcceptableGridWitness. It keeps the
+// alignment rule out entirely: the witness already came out of the readings.
 //
 // ponytail: the witness is built per term set independently and merged, so a multi-term query whose
 // terms need conflicting readings at the same position can lose a match it would have had. Measured
@@ -28,6 +29,7 @@ internal static class SearchMatcherGridAliases
 {
     [ThreadStatic] private static AliasGridFormat.Index? _grid;
     [ThreadStatic] private static byte[]? _choice;
+    [ThreadStatic] private static int[]? _painted;
     [ThreadStatic] private static char[]? _materialized;
     [ThreadStatic] private static byte[]? _aliasBytes;
     [ThreadStatic] private static FzfByteBuffers? _byteBuffers;
@@ -232,7 +234,7 @@ internal static class SearchMatcherGridAliases
         Span<AliasGridTier> tiers = stackalloc[] { AliasGridTier.Initials, AliasGridTier.Full };
         foreach (var tier in tiers)
         {
-            if (!BuildWitness(grid, pattern, separator, tier, choice))
+            if (!BuildWitness(grid, pattern, separator, tier, choice, out var spellsAReading))
                 continue;
 
             var length = AliasGridMatcher.Measure(grid, tier, choice);
@@ -259,7 +261,7 @@ internal static class SearchMatcherGridAliases
                     // AliasGridMatcher already refused every piece that would start inside one of them. Asking
                     // AliasMatchRules again could only refuse a spelling the readings DO produce, because that
                     // rule reads the first occurrence fzf scored rather than the one the readings chose.
-                    if (gate && !IsAcceptableFromBytes(pattern, queryLen, byteMatch, byteAlias, scoringSlab))
+                    if (gate && !IsAcceptableWitness(pattern, byteMatch, queryLen, spellsAReading, byteAlias, scoringSlab))
                         continue;
 
                     if (!matched || byteMatch.Score > match.Score)
@@ -279,7 +281,7 @@ internal static class SearchMatcherGridAliases
             if (!pattern.TryMatch(text, out var aliasMatch, FzfScoringScheme.Default, slab))
                 continue;
 
-            if (gate && !IsAcceptable(pattern, queryLen, aliasMatch, text, slab))
+            if (gate && !IsAcceptableWitness(pattern, aliasMatch, queryLen, spellsAReading, text, slab))
                 continue;
             if (!matched || aliasMatch.Score > match.Score)
             {
@@ -298,20 +300,30 @@ internal static class SearchMatcherGridAliases
     //
     // An AND-first query is a disjunction of AND groups, so ONE group's sets all have to witness -- not
     // every group's, which the flattened EffectiveSets would ask for.
+    //
+    // spellsAReading comes out with it: true when some term of the winning group took fewer positions than
+    // it has letters, i.e. spelled a reading out rather than abbreviating every character of it. The alias
+    // quality bar weighs those two differently -- see FzfPatternAliasMatchExtensions.IsAcceptableGridWitness.
     private static bool BuildWitness(
         AliasGridFormat.Index grid,
         FzfPattern pattern,
         char separator,
         AliasGridTier tier,
-        byte[] choice)
+        byte[] choice,
+        out bool spellsAReading)
     {
+        spellsAReading = false;
         if (pattern.OrGroups == null)
-            return SetsWitness(grid, pattern.TermSets, separator, tier, choice);
+            return SetsWitness(grid, pattern.TermSets, separator, tier, choice, ref spellsAReading);
 
         foreach (var group in pattern.OrGroups)
         {
-            if (SetsWitness(grid, group.Sets, separator, tier, choice))
-                return true;
+            var reading = false;
+            if (!SetsWitness(grid, group.Sets, separator, tier, choice, ref reading))
+                continue;
+
+            spellsAReading = reading;
+            return true;
         }
         return false;
     }
@@ -321,9 +333,13 @@ internal static class SearchMatcherGridAliases
         FzfTermSet[] sets,
         char separator,
         AliasGridTier tier,
-        byte[] choice)
+        byte[] choice,
+        ref bool spellsAReading)
     {
         Array.Clear(choice, 0, grid.PositionCount);
+        if (_painted == null || _painted.Length < grid.PositionCount)
+            _painted = new int[Math.Max(grid.PositionCount, 64)];
+        var painted = _painted;
         foreach (var set in sets)
         {
             var witnessed = false;
@@ -331,11 +347,15 @@ internal static class SearchMatcherGridAliases
             {
                 if (term.Inverse)
                     continue;
-                if (AliasGridMatcher.TryMatchTerm(grid, term.Text, term.Kind, tier, separator, choice))
-                {
-                    witnessed = true;
-                    break;
-                }
+                if (!AliasGridMatcher.TryMatchTerm(grid, term.Text, term.Kind, tier, separator, choice, painted, out var paintedCount))
+                    continue;
+
+                witnessed = true;
+                // One position per letter is an abbreviation; fewer than that means a position gave up more
+                // than its initial, which only the readings themselves can authorize.
+                if (paintedCount < term.Text.Length)
+                    spellsAReading = true;
+                break;
             }
 
             if (!witnessed)
@@ -344,11 +364,29 @@ internal static class SearchMatcherGridAliases
         return true;
     }
 
-    // The same quality bar the string-alias tier applies, including its multi-term "every term lands
-    // tightly" fallback for a long name (which needs the alias as chars -- available here for free).
-    private static bool IsAcceptable(FzfPattern pattern, int queryLen, FzfPatternResult aliasMatch, ReadOnlySpan<char> text, FzfSlab? slab)
-        => pattern.IsAcceptableAliasMatch(aliasMatch, queryLen)
-           || pattern.IsAcceptableAliasMatch(aliasMatch, queryLen, text, FzfScoringScheme.Default, slab);
+    // The witness's bar, plus the one tail the abbreviation case still needs the shared bar's per-term
+    // tight-window fallback for. A spelling the readings authorized is judged on its score alone.
+    private static bool IsAcceptableWitness(
+        FzfPattern pattern,
+        FzfPatternResult match,
+        int queryLen,
+        bool spellsAReading,
+        ReadOnlySpan<char> alias,
+        FzfSlab? slab)
+        => pattern.IsAcceptableGridWitness(match, queryLen, spellsAReading)
+           || !spellsAReading && pattern.IsAcceptableAliasMatch(match, queryLen, alias, FzfScoringScheme.Default, slab);
+
+    // Byte twin: the alias is widened to chars only once the cheap check has already failed and the term is
+    // a bare abbreviation -- the same deferral the string tier applies to its UTF-8 decode.
+    private static bool IsAcceptableWitness(
+        FzfPattern pattern,
+        FzfPatternResult match,
+        int queryLen,
+        bool spellsAReading,
+        ReadOnlySpan<byte> alias,
+        FzfSlab slab)
+        => pattern.IsAcceptableGridWitness(match, queryLen, spellsAReading)
+           || !spellsAReading && pattern.IsAcceptableAliasMatch(match, queryLen, WidenToChars(alias), FzfScoringScheme.Default, slab);
 
     // Materializes one tier's spelling into the thread's byte scratch, sized from the measured length. An
     // empty span means the spelling is not ASCII-representable, which is unambiguous because a measured
@@ -362,14 +400,8 @@ internal static class SearchMatcherGridAliases
         return written < 0 ? default : _aliasBytes.AsSpan(0, written);
     }
 
-    // The byte lane's quality bar: the cheap span/score check first, and the alias widened to chars only for
-    // the rare tail that needs the per-term tight-window fallback -- the counterpart of the string tier
-    // deferring its UTF-8 decode until the same check has already failed.
-    private static bool IsAcceptableFromBytes(FzfPattern pattern, int queryLen, FzfPatternResult aliasMatch, ReadOnlySpan<byte> alias, FzfSlab slab)
-        => pattern.IsAcceptableAliasMatch(aliasMatch, queryLen)
-           || pattern.IsAcceptableAliasMatch(aliasMatch, queryLen, WidenToChars(alias), FzfScoringScheme.Default, slab);
-
-    // Below 0x80 a byte IS its code unit, so widening is a copy, not a decode.
+    // Below 0x80 a byte IS its code unit, so widening is a copy, not a decode. Only the abbreviation case
+    // needs it: the per-term tight-window fallback of the shared alias bar reads the alias as text.
     private static ReadOnlySpan<char> WidenToChars(ReadOnlySpan<byte> alias)
     {
         if (_materialized == null || _materialized.Length < alias.Length)

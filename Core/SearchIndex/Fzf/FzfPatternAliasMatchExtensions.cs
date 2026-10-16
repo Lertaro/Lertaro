@@ -80,6 +80,31 @@ internal static class FzfPatternAliasMatchExtensions
         return false;
     }
 
+    /// <summary>
+    /// The quality bar for an alias that a reading grid just WITNESSED: a term that spells a reading out is
+    /// judged on its score alone, a term that abbreviates every character keeps the shared bar.
+    /// </summary>
+    /// <remarks>
+    /// The span bound exists to refuse letters that were scattered through unrelated text by luck. A grid
+    /// witness cannot be scattered that way -- every piece starts on one of the candidate's own readings,
+    /// and only the last piece may stop inside one -- and the alias characters between two of its pieces
+    /// are the readings of the characters the abbreviation chose NOT to spell. That is the name's length,
+    /// not the query's, which is the same argument that already made the multi-term bar sum per-term
+    /// windows instead of one envelope (see the overload above): a term that skips a block of the name's
+    /// syllables is the same event with the space left out.
+    ///
+    /// A term of one-letter pieces carries none of that evidence -- a letter is cheap to find at some
+    /// reading's start in a long name -- so it keeps the envelope bound, and its caller then also tries the
+    /// per-term tight-window fallback, which needs the alias as text.
+    /// </remarks>
+    public static bool IsAcceptableGridWitness(this FzfPattern pattern, FzfPatternResult aliasMatch, int queryLen, bool spellsAReading)
+        => spellsAReading
+            ? aliasMatch.Score >= queryLen * AliasWitnessScorePerTerm
+            : pattern.IsAcceptableAliasMatch(aliasMatch, queryLen);
+
+    // The same floor the shared bar applies; only the span bound is the witness's to skip.
+    private const int AliasWitnessScorePerTerm = 5;
+
     private static bool HasAliasFallbackAnchorTerm(this FzfPattern pattern)
     {
         foreach (var set in pattern.EffectiveSets)
