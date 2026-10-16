@@ -138,24 +138,29 @@ public sealed class BrandIconTests
     [DataRow(32)]
     [DataRow(40)]
     [DataRow(48)]
-    public void CreateIcon_TraySize_UsesMatchingIcoFrame(int size)
+    public void CreateIcon_RendersTheVectorAtTheRequestedSize(int size)
     {
         using var icon = TrayIconRenderer.CreateIcon(size);
         Assert.AreEqual(size, icon.Width);
         Assert.AreEqual(size, icon.Height);
         using var bitmap = icon.ToBitmap();
-        var expected = Pixels(ReadFrame(size));
-        for (var y = 0; y < size; y++)
-            for (var x = 0; x < size; x++)
-            {
-                var color = bitmap.GetPixel(x, y);
-                var offset = (y * size + x) * 4;
-                Assert.AreEqual(expected[offset + 3], color.A, $"Alpha at ({x}, {y}).");
-                if (color.A == 0) continue;
-                Assert.AreEqual(expected[offset], color.B, $"Blue at ({x}, {y}).");
-                Assert.AreEqual(expected[offset + 1], color.G, $"Green at ({x}, {y}).");
-                Assert.AreEqual(expected[offset + 2], color.R, $"Red at ({x}, {y}).");
-            }
+        Assert.AreEqual(size, bitmap.Width);
+        // The lens sits at 31.7% of the mark and its hole must survive the rasterization.
+        var center = (int)(size * 0.317);
+        Assert.AreEqual(0, bitmap.GetPixel(center, center).A, $"Lens hole at {size}px.");
+        Assert.IsGreaterThan(200, bitmap.GetPixel(center, (int)(size * 0.098)).A, $"Lens rim at {size}px.");
+    }
+
+    [STATestMethod]
+    public void CreateIcon_IsPaintedFlatWithTheAccent_NotTheIcoArtwork()
+    {
+        // No Application exists under the test host, so the mark falls back to the source accent.
+        using var icon = TrayIconRenderer.CreateIcon(48);
+        using var bitmap = icon.ToBitmap();
+        var painted = bitmap.GetPixel(15, 4);
+        Assert.AreEqual(0x05, painted.R);
+        Assert.AreEqual(0x77, painted.G);
+        Assert.AreEqual(0xbc, painted.B);
     }
 
     [STATestMethod]

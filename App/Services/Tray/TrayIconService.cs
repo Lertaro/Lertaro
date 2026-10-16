@@ -1,4 +1,5 @@
 using System.Windows;
+using Lertaro.App.Services.Theme;
 using Lertaro.App.ViewModels.Search;
 using Lertaro.Core;
 
@@ -29,6 +30,8 @@ public class TrayIconService : IDisposable
     {
         _trayIconVisibleSetting = !UserSettings.Load().HideTrayIcon;
         _notifyIcon = new NotifyIcon { Text = "Lertaro", Visible = _trayIconVisibleSetting };
+        // The icon is painted from the theme accent, so it has to be repainted when the theme moves.
+        ThemeManager.Instance.ThemeChanged += UpdateTrayIcon;
         UpdateTrayIcon();
         _notifyIcon.MouseClick += (_, e) =>
         {
@@ -102,6 +105,7 @@ public class TrayIconService : IDisposable
 
     public void Dispose()
     {
+        ThemeManager.Instance.ThemeChanged -= UpdateTrayIcon;
         _menu.Dispose();
         App.CloseAllManagedWindows();
         if (_notifyIcon != null)
