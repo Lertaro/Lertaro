@@ -24,12 +24,13 @@ public sealed class AliasGridMatcherTests
         FzfTermKind kind,
         AliasGridTier tier,
         out byte[] choice,
-        byte prefill = 0)
+        byte prefill = 0,
+        char separator = FakeGridProvider.Separator)
     {
         choice = new byte[grid.PositionCount];
         if (prefill != 0)
             Array.Fill(choice, prefill);
-        return AliasGridMatcher.TryMatchTerm(grid, term, kind, tier, FakeGridProvider.Separator, choice);
+        return AliasGridMatcher.TryMatchTerm(grid, term, kind, tier, separator, choice);
     }
 
     private static string Materialize(AliasGridFormat.Index grid, AliasGridTier tier, byte[] choice)
@@ -202,5 +203,86 @@ public sealed class AliasGridMatcherTests
 
         Assert.IsTrue(TryMatch(grid, "zhong" + FakeGridProvider.Separator + "shu", FzfTermKind.Exact, AliasGridTier.Full, out var full));
         Assert.AreEqual("zhong" + FakeGridProvider.Separator + "shu", Materialize(grid, AliasGridTier.Full, full));
+    }
+
+    // The byte lane the alias tiers match ASCII spellings with: the same units at the same offsets as the
+    // char lane, or a refusal to produce one at all.
+    private static string? MaterializeBytes(AliasGridFormat.Index grid, AliasGridTier tier, byte[] choice, char separator = FakeGridProvider.Separator)
+    {
+        var measure = AliasGridMatcher.Measure(grid, tier, choice);
+        var buffer = new byte[measure];
+        var length = AliasGridMatcher.TryMaterializeBytes(grid, tier, separator, choice, buffer);
+        if (length < 0)
+            return null;
+        Assert.AreEqual(measure, length, $"positions={grid.PositionCount} measure={measure}");
+
+        // Widened back the way the byte engine reads it: below 0x80 a byte IS its code unit.
+        var chars = new char[length];
+        for (var i = 0; i < length; i++)
+            chars[i] = (char)buffer[i];
+        return new string(chars);
+    }
+
+    [TestMethod]
+    public void FuzzyFull_StopsTheWalkWhereTheTermIsSpelledAndLeavesTheRestToTheCaller()
+    {
+        // Positions behind the match are not walked, so they keep the reading the caller put there. That is
+        // what lets a second term set of one query keep its own late-position reading instead of having a
+        // first set zero-fill it on its way past.
+        var grid = Build(new[] { new[] { "chong", "zhong" }, new[] { "guo", "huo" }, new[] { "ren", "hen" } });
+
+        Assert.IsTrue(TryMatch(grid, "zhong", FzfTermKind.Fuzzy, AliasGridTier.Full, out var choice, prefill: 1));
+        Assert.AreEqual(1, choice[0], "'zhong' is this position's second reading");
+        Assert.AreEqual("zhong" + "huo" + "hen", Materialize(grid, AliasGridTier.Full, choice), "positions 1 and 2 keep the prefill");
+
+        // A term the name cannot spell still gets the answer the whole walk gives -- the early exit is only
+        // reachable once the term is satisfied.
+        Assert.IsTrue(TryMatch(grid, "hr", FzfTermKind.Fuzzy, AliasGridTier.Full, out var late));
+        Assert.AreEqual("chong" + "huo" + "ren", Materialize(grid, AliasGridTier.Full, late));
+    }
+
+    [TestMethod]
+    public void MaterializeBytes_IsTheCharSpellingByteForByte_OnBothTiers()
+    {
+        var grid = Build(new[] { new[] { "zhong", "chong" }, new[] { "shu", "su" }, new[] { "a" } }, new[] { false, true, true });
+
+        Assert.IsTrue(TryMatch(grid, "zsa", FzfTermKind.Fuzzy, AliasGridTier.Initials, out var initials));
+        Assert.AreEqual(Materialize(grid, AliasGridTier.Initials, initials), MaterializeBytes(grid, AliasGridTier.Initials, initials));
+
+        Assert.IsTrue(TryMatch(grid, "chong" + FakeGridProvider.Separator + "shu", FzfTermKind.Fuzzy, AliasGridTier.Full, out var full));
+        Assert.AreEqual(Materialize(grid, AliasGridTier.Full, full), MaterializeBytes(grid, AliasGridTier.Full, full));
+    }
+
+    [TestMethod]
+    public void MaterializeBytes_RefusesAnUntransliteratedCharacter_RefusingToLoseIt()
+    {
+        // A name may carry a character the provider passes through instead of transliterating (an astral
+        // pair, punctuation from another script). Emitting its low byte would silently change the spelling
+        // the char lane matches, so the byte lane declines and the caller keeps the char lane.
+        var grid = Build(new[] { new[] { "fang" }, new[] { "\uD83D\uDCC4" }, new[] { "dan" } });
+
+        Assert.IsTrue(TryMatch(grid, "fd", FzfTermKind.Fuzzy, AliasGridTier.Initials, out var initials));
+        Assert.IsNull(MaterializeBytes(grid, AliasGridTier.Initials, initials), "a surrogate half is not one ASCII byte");
+
+        Assert.IsTrue(TryMatch(grid, "fang" + FakeGridProvider.Separator + "\uD83D", FzfTermKind.Fuzzy, AliasGridTier.Full, out var full));
+        Assert.IsNull(MaterializeBytes(grid, AliasGridTier.Full, full));
+    }
+
+    [TestMethod]
+    public void MaterializeBytes_KeepsTheInitialsTierWhenOnlyTheSeparatorIsNotAscii()
+    {
+        // The initials tier never emits the separator, so an exotic one cannot reach the byte buffer.
+        const char wideSeparator = '、';
+        var provider = new FakeGridProvider(new[] { new[] { "fang" }, new[] { "dan" } }, new[] { false, true }, wideSeparator);
+        var sink = new AliasByteSink();
+        Assert.IsTrue(AliasGridFormat.Encode("xx", provider, sink) > 0);
+        var grid = new AliasGridFormat.Index();
+        Assert.IsTrue(grid.TryBind(sink.Segment(0)));
+
+        Assert.IsTrue(TryMatch(grid, "fd", FzfTermKind.Fuzzy, AliasGridTier.Initials, out var initials, separator: wideSeparator));
+        Assert.AreEqual("fd", MaterializeBytes(grid, AliasGridTier.Initials, initials, wideSeparator));
+
+        Assert.IsTrue(TryMatch(grid, "fang", FzfTermKind.Fuzzy, AliasGridTier.Full, out var full, separator: wideSeparator));
+        Assert.IsNull(MaterializeBytes(grid, AliasGridTier.Full, full, wideSeparator), "the separator would not fit one byte");
     }
 }

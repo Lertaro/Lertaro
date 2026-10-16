@@ -20,6 +20,39 @@ public sealed class AliasGridFormatTests
     }
 
     [TestMethod]
+    public void StartsFrom_ReportsOnlyTheFirstUnitOfEachReading()
+    {
+        // First units: f, d, 7, P. The letters inside a reading (a, n, g) and letters this name never
+        // begins a syllable with (x) are not covered, and the guard that reads the mask has to say so --
+        // the initials walk would otherwise be asked for every candidate that cannot possibly match.
+        var sets = new[] { new[] { "fang" }, new[] { "dan", "duo" }, new[] { "7" }, new[] { "PDF" } };
+        Encode(new FakeGridProvider(sets, new[] { false, true, false, true }), "abcd", out var index);
+
+        Assert.IsTrue(index.StartsFrom('f'));
+        Assert.IsTrue(index.StartsFrom('d'));
+        Assert.IsTrue(index.StartsFrom('7'), "a passed-through digit is a reading that starts with it");
+        Assert.IsTrue(index.StartsFrom('P'), "and so is an uppercase run the provider did not transliterate");
+        Assert.IsFalse(index.StartsFrom('a'), "'a' occurs inside fang, which is not a place a piece starts");
+        Assert.IsFalse(index.StartsFrom('x'));
+        Assert.IsTrue(index.StartsFromAll("fd7P".AsSpan()));
+        Assert.IsFalse(index.StartsFromAll("fdx".AsSpan()), "one uncovered letter is enough to refuse the term");
+    }
+
+    [TestMethod]
+    public void StartsFrom_RefusesAboveTheRangeUntilAReadingStartsThereToo()
+    {
+        Encode(new FakeGridProvider(new[] { new[] { "fang" }, new[] { "dan" } }), "ab", out var ascii);
+        Assert.IsFalse(ascii.StartsFrom('日'), "no reading of an all-ASCII grid can begin with a Han character");
+
+        // A name that carries an untransliterated character is a reading that starts above the tracked
+        // range, and a 128-bit mask cannot represent it -- so the answer becomes "ask the walk", never "no".
+        var wide = new FakeGridProvider(new[] { new[] { "fang" }, new[] { "、" } });
+        Encode(wide, "ab", out var withWide);
+        Assert.IsTrue(withWide.StartsFrom('x'));
+        Assert.IsTrue(withWide.StartsFrom('、'));
+    }
+
+    [TestMethod]
     public void Encode_MixedReadings_RoundTripsEveryPosition()
     {
         var sets = new[]

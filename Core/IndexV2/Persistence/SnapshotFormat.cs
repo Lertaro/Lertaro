@@ -7,7 +7,7 @@ internal enum SnapshotSection
     NameIds, Flags, ParentIndexes, UniqueMasks, NameOffsets, NameBlob,
     Ids, Sizes, RecursiveSizes, CreationTimes, LastWriteTimes, LastAccessTimes,
     ChildStarts, Children, UidStarts, UidRows,
-    AliasStarts, AliasEntryOffsets, AliasProviderIds, AliasEntryKinds, AliasBlob,
+    AliasStarts, AliasEntryOffsets, AliasProviderIds, AliasEntryKinds, AliasBlob, AliasReadings,
     OrphanRows, OrphanFrns,
     // One bit per unique name: 1 = pure ASCII, so its raw UTF-8 bytes ARE its chars and the search
     // hot path can match them with zero decode (FzfBytePattern). Baked at write time instead of
@@ -27,7 +27,10 @@ internal static class SnapshotFormat
     // no room to say which shape each payload is, and the two are not interchangeable -- one is text to
     // match, the other is AliasGridFormat's encoding -- so the old files are rejected at open and
     // rebuilt rather than guessed at.
-    public const int Version = 11;
+    // Bumped 11 -> 12: the AliasReadings section holds each snapshot's reading vocabulary once, and its
+    // grids reference it by id instead of spelling every reading out (see AliasReadingTable). A v11 file's
+    // payloads are self-describing text, so a table-backed decoder has nothing to resolve and vice versa.
+    public const int Version = 12;
     public const int SectionAlignment = 16;
 
     internal sealed class Meta
@@ -49,6 +52,7 @@ internal static class SnapshotFormat
         public int ChildrenLength;
         public int AliasEntryCount;
         public int AliasBlobLength;
+        public int AliasReadingsLength;
         public int OrphanCount;
         public int TotalFiles;
         public int TotalDirs;
@@ -79,6 +83,7 @@ internal static class SnapshotFormat
         writer.Write(meta.ChildrenLength);
         writer.Write(meta.AliasEntryCount);
         writer.Write(meta.AliasBlobLength);
+        writer.Write(meta.AliasReadingsLength);
         writer.Write(meta.OrphanCount);
         writer.Write(meta.TotalFiles);
         writer.Write(meta.TotalDirs);
@@ -123,6 +128,7 @@ internal static class SnapshotFormat
             ChildrenLength = reader.ReadInt32(),
             AliasEntryCount = reader.ReadInt32(),
             AliasBlobLength = reader.ReadInt32(),
+            AliasReadingsLength = reader.ReadInt32(),
             OrphanCount = reader.ReadInt32(),
             TotalFiles = reader.ReadInt32(),
             TotalDirs = reader.ReadInt32(),
@@ -175,6 +181,7 @@ internal static class SnapshotFormat
             meta.AliasEntryCount,          // AliasProviderIds
             meta.AliasEntryCount,          // AliasEntryKinds
             meta.AliasBlobLength,          // AliasBlob
+            meta.AliasReadingsLength,      // AliasReadings
             4L * meta.OrphanCount,         // OrphanRows
             16L * meta.OrphanCount,        // OrphanFrns
             8L * (((long)meta.UniqueCount + 63) / 64), // UniqueAsciiBits
@@ -195,7 +202,7 @@ internal static class SnapshotFormat
     private static void ValidateCounts(Meta meta)
     {
         if (meta.RowCount < 0 || meta.UniqueCount < 0 || meta.NameBlobLength < 0 || meta.ChildrenLength < 0
-            || meta.AliasEntryCount < 0 || meta.AliasBlobLength < 0 || meta.OrphanCount < 0
+            || meta.AliasEntryCount < 0 || meta.AliasBlobLength < 0 || meta.AliasReadingsLength < 0 || meta.OrphanCount < 0
             || meta.TotalFiles < 0 || meta.TotalDirs < 0)
             throw new InvalidDataException("IndexV2 snapshot contains a negative metadata count");
     }

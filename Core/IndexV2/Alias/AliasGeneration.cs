@@ -144,5 +144,14 @@ internal static class AliasGeneration
     /// encodings were already within.
     /// </remarks>
     internal static bool TryEncodeGrid(string name, IAliasGridProvider provider, AliasByteSink dest, out int length)
-        => (length = AliasGridFormat.Encode(name, provider, dest)) > 0;
+        => TryEncodeGrid(name, provider, null, dest, out length);
+
+    /// <inheritdoc cref="TryEncodeGrid(string, IAliasGridProvider, AliasByteSink, out int)"/>
+    /// <param name="table">
+    /// The snapshot's reading vocabulary, for the snapshot build path: payloads then reference readings by
+    /// id instead of spelling them out (see AliasReadingTable). Null -- the delta overlay and the live
+    /// tiers -- encodes a self-contained payload, since there is no snapshot-wide table to point into.
+    /// </param>
+    internal static bool TryEncodeGrid(string name, IAliasGridProvider provider, AliasReadingTable? table, AliasByteSink dest, out int length)
+        => (length = AliasGridFormat.Encode(name, provider, dest, table)) > 0;
 }

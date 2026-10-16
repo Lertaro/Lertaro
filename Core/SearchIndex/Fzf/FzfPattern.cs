@@ -33,6 +33,12 @@ internal sealed class FzfPattern
     private FzfPattern? _aliasReading;
     internal FzfPattern AliasReading => _aliasReading ??= FzfPatternAliasReading.Build(this);
 
+    // This pattern read by the byte-side matchers (see FzfBytePattern), built on demand for the same reason
+    // as AliasReading: the tiers that reach it already hold a pattern, not a second pre-encoded object, and
+    // one pattern serves every candidate of a query.
+    private FzfBytePattern? _byteView;
+    internal FzfBytePattern ByteView => _byteView ??= FzfBytePattern.From(this);
+
     public string? TargetDrive { get; }
     public FzfTermSet[] TermSets { get; }
 

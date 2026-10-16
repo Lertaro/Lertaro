@@ -15,11 +15,11 @@ internal sealed class FakeGridProvider : IAliasGridProvider
     private readonly string[][] _sets;
     private readonly bool[] _boundaries;
 
-    public FakeGridProvider(string[][] sets, bool[]? boundaries = null)
+    public FakeGridProvider(string[][] sets, bool[]? boundaries = null, char separator = Separator)
     {
         _sets = sets;
         _boundaries = boundaries ?? new bool[sets.Length];
-        SyllableSeparator = Separator;
+        SyllableSeparator = separator;
     }
 
     public bool CanHandle(string text) => true;

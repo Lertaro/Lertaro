@@ -145,6 +145,11 @@ internal static class AliasGridMatcher
     // starts, and skipping a character is always allowed.
     private static bool MatchInitialsSubsequence(AliasGridFormat.Index grid, ReadOnlySpan<char> term, byte[] choice)
     {
+        // Every character of a term on this tier IS some position's reading initial, so one bitmap answers
+        // for all of them before a position is walked. Most candidates are refused here, not in the walk.
+        if (!grid.StartsFromAll(term))
+            return false;
+
         var qi = 0;
         for (var p = 0; p < grid.PositionCount && qi < term.Length; p++)
         {
@@ -175,6 +180,12 @@ internal static class AliasGridMatcher
     // pieces it can form.
     private static bool MatchSyllableFull(AliasGridFormat.Index grid, ReadOnlySpan<char> term, byte[] choice)
     {
+        // The term opens with the first character of its first piece, and a piece starts where its reading
+        // does -- so a name no syllable of which can start with that letter is refused without a walk. This
+        // is where most candidates of a scan actually drop out.
+        if (!grid.StartsFrom(term[0]))
+            return false;
+
         var positions = grid.PositionCount;
         var length = term.Length;
         var stride = length + 1;
@@ -190,6 +201,14 @@ internal static class AliasGridMatcher
         Array.Clear(reachable, 0, stride);
         reachable[0] = true;
 
+        // How many positions the walk actually consumed. A term is spelled by the time reachable[length]
+        // is set, and every later position can only CARRY that row forward (the skip branch writes the row
+        // before the readings get to it, and first-writer-wins means a later position cannot rewrite the
+        // path) -- so the walk stops there instead of scanning the rest of a 200-syllable name to rediscover
+        // a spelling it already has. That also leaves every position past the match at the caller's own
+        // reading, which is what this method's contract says and what lets several term sets of one query
+        // keep their witnesses instead of each later set zeroing the earlier ones out behind it.
+        var walked = positions;
         for (var p = 0; p < positions; p++)
         {
             Array.Clear(next, 0, stride);
@@ -244,13 +263,19 @@ internal static class AliasGridMatcher
             var swapped = reachable;
             reachable = next;
             next = swapped;
+
+            if (reachable[length])
+            {
+                walked = p + 1;
+                break;
+            }
         }
 
         if (!reachable[length])
             return false;
 
         var cursor = length;
-        for (var p = positions; p >= 1; p--)
+        for (var p = walked; p >= 1; p--)
         {
             choice[p - 1] = choiceReading[p * stride + cursor];
             cursor = prevJ[p * stride + cursor];
@@ -480,6 +505,44 @@ internal static class AliasGridMatcher
             {
                 text.CopyTo(dest[written..]);
                 written += text.Length;
+            }
+        }
+        return written;
+    }
+
+    /// <summary>
+    /// Writes the alias spelling <paramref name="choice"/> makes on <paramref name="tier"/> as ASCII bytes
+    /// into <paramref name="dest"/> (sized from <see cref="Measure"/>), or returns -1 when something it
+    /// emits is not one ASCII code unit -- an untransliterated character of the name, or a separator that
+    /// is not ASCII. A pure-ASCII alias is matched by the byte-side engine, which reads the same text at
+    /// the same offsets as the char side (see FzfByteMatcher), so -1 is a shape verdict, never a miss.
+    /// </summary>
+    public static int TryMaterializeBytes(AliasGridFormat.Index grid, AliasGridTier tier, char separator, ReadOnlySpan<byte> choice, Span<byte> dest)
+    {
+        if (tier == AliasGridTier.Full && separator >= 0x80)
+            return -1;
+
+        var written = 0;
+        for (var p = 0; p < grid.PositionCount; p++)
+        {
+            if (tier == AliasGridTier.Full && grid.BoundaryBefore(p))
+                dest[written++] = (byte)separator;
+
+            var text = grid.Reading(p, choice[p]);
+            if (tier == AliasGridTier.Initials)
+            {
+                // The initials tier emits one unit per position: text[0] is there because every reading is.
+                if (text[0] >= 0x80)
+                    return -1;
+                dest[written++] = (byte)text[0];
+                continue;
+            }
+
+            foreach (var c in text)
+            {
+                if (c >= 0x80)
+                    return -1;
+                dest[written++] = (byte)c;
             }
         }
         return written;

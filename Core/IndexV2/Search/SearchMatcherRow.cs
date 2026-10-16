@@ -185,7 +185,7 @@ internal static class SearchMatcherRow
                         continue;
 
                     SearchMatcherGridAliases.TryMaterializeDefaults(
-                        grid.Payload, AliasProviderRegistry.GetSyllableSeparator(grid.ProviderId), segments);
+                        grid.Payload, null, AliasProviderRegistry.GetSyllableSeparator(grid.ProviderId), segments);
                 }
 
                 foreach (var segment in segments)

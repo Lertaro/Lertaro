@@ -37,17 +37,17 @@ internal static class SearchMatcher
     internal sealed class QueryContext
     {
         public required FzfPattern Pattern;
-        public required FzfBytePattern BytePattern;
         public required ulong RequiredMask;   // union of single-term sets' masks: candidate must contain all
         public required ulong[][] OrSetMasks; // per multi-term set: candidate must cover at least one term
         public required bool CanFilter;
         public required int QueryLen;
         public required MixedTerm? MixedTerm; // non-null only for a bare single term mixing an alias provider's own two alphabets
 
-        // The alias-side byte view of the same query (see FzfPatternAliasReading), built on first use: most
-        // candidates carry no aliases at all, and it costs one encode per term.
-        private FzfBytePattern? _aliasBytePattern;
-        public FzfBytePattern AliasBytePattern => _aliasBytePattern ??= FzfBytePattern.From(Pattern.AliasReading);
+        public FzfBytePattern BytePattern => Pattern.ByteView;
+
+        // The alias-side byte view of the same query (see FzfPatternAliasReading): both views are cached on
+        // the pattern itself, so only the tiers that actually reach an alias pay for the encode.
+        public FzfBytePattern AliasBytePattern => Pattern.AliasReading.ByteView;
     }
 
     private static readonly ConcurrentBag<Worker> WorkerPool = new();
@@ -75,7 +75,6 @@ internal static class SearchMatcher
             return new QueryContext
             {
                 Pattern = pattern,
-                BytePattern = FzfBytePattern.From(pattern),
                 RequiredMask = 0,
                 OrSetMasks = Array.Empty<ulong[]>(),
                 CanFilter = false,
@@ -111,7 +110,6 @@ internal static class SearchMatcher
         return new QueryContext
         {
             Pattern = pattern,
-            BytePattern = FzfBytePattern.From(pattern),
             RequiredMask = requiredMask,
             OrSetMasks = orSets?.ToArray() ?? Array.Empty<ulong[]>(),
             CanFilter = requiredMask != 0 || orSets != null,

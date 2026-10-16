@@ -1,4 +1,5 @@
 using System.IO.MemoryMappedFiles;
+using Lertaro.Core.IndexV2.Alias;
 
 namespace Lertaro.Core.IndexV2.Persistence;
 
@@ -70,6 +71,13 @@ public sealed unsafe class Snapshot : IDisposable
                 throw new InvalidDataException($"Snapshot file is truncated: header requires {totalLength} bytes but the file holds only {stream.Length}.");
 
             ValidateNameOffsets();
+
+            // Bound here rather than lazily: the alias tiers decode against it from several threads at
+            // once, and it is a few hundred entries (microseconds) even for a CJK-heavy drive.
+            var readings = new AliasReadingTable();
+            if (Meta.AliasReadingsLength > 0 && !readings.TryBind(new ReadOnlySpan<byte>(Section(SnapshotSection.AliasReadings), Meta.AliasReadingsLength)))
+                throw new InvalidDataException($"Snapshot {SourceKey}: the alias reading table does not bind.");
+            AliasReadings = readings;
         }
         catch
         {
@@ -205,6 +213,12 @@ public sealed unsafe class Snapshot : IDisposable
     // one.
     internal AliasEntryKind AliasKind(int entry)
         => (AliasEntryKind)new ReadOnlySpan<byte>(Section(SnapshotSection.AliasEntryKinds), Meta.AliasEntryCount)[entry];
+
+    /// <summary>
+    /// The snapshot's reading vocabulary (AliasReadingTable), bound at open: its grids reference readings
+    /// by id, and one immutable instance is what every query and every thread decodes against.
+    /// </summary>
+    internal AliasReadingTable AliasReadings { get; }
 
     // First (lowest) row holding this id, or -1; hard-link duplicates sit adjacent.
     public int FirstRowForId(UInt128 id)

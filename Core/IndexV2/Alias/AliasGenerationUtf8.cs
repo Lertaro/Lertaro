@@ -38,9 +38,48 @@ internal static class AliasGenerationUtf8
 
     [ThreadStatic] private static AliasByteSink? _sink;
 
+    /// <summary>
+    /// Adds the reading vocabulary of one name to the snapshot's table (see AliasReadingTable): the
+    /// readings a grid will reference by id, collected before any payload is encoded. Reads the reading
+    /// sets only -- no enumeration, no alias strings -- so it costs a fraction of the pass that follows.
+    /// </summary>
+    public static void CollectReadings(string name, AliasReadingTable.Builder table)
+    {
+        if (string.IsNullOrEmpty(name) || AliasProviderRegistry.HasInvalidUtf16(name) || !AliasProviderRegistry.HasNonAscii(name))
+            return;
+
+        foreach (var provider in AliasProviderRegistry.GetAllProviders())
+        {
+            try
+            {
+                if (provider is not IAliasGridProvider gridProvider || !gridProvider.CanHandle(name))
+                    continue;
+
+                var sets = gridProvider.GetReadingSets(name);
+                var length = Math.Min(name.Length, sets.Length);
+                for (var i = 0; i < length; i++)
+                {
+                    var readings = sets[i];
+                    if (readings == null)
+                        continue;
+                    foreach (var reading in readings)
+                    {
+                        if (!string.IsNullOrEmpty(reading))
+                            table.Add(reading);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[IndexV2] Alias provider failed collecting readings for '{name}': {ex.Message}", LogLevel.Error);
+            }
+        }
+    }
+
     // Generates aliases for one name, OR-ing each alias's char mask into `mask`. Returns null when
     // the name yields no aliases (the common pure-ASCII case exits on the vectorized gate).
-    public static Result? Generate(string name, ref ulong mask)
+    // `table` is the snapshot's reading vocabulary; a grid payload references it by id.
+    public static Result? Generate(string name, ref ulong mask, AliasReadingTable table)
     {
         if (string.IsNullOrEmpty(name) || AliasProviderRegistry.HasInvalidUtf16(name) || !AliasProviderRegistry.HasNonAscii(name))
             return null;
@@ -57,7 +96,7 @@ internal static class AliasGenerationUtf8
                 if (!provider.CanHandle(name))
                     continue;
                 var providerId = AliasProviderRegistry.GetProviderId(provider);
-                AppendProvider(name, provider, providerId, sink, providerIds ??= new List<byte>(), kinds ??= new List<byte>(), ref mask);
+                AppendProvider(name, provider, providerId, table, sink, providerIds ??= new List<byte>(), kinds ??= new List<byte>(), ref mask);
             }
             catch (Exception ex)
             {
@@ -94,6 +133,7 @@ internal static class AliasGenerationUtf8
         string name,
         IAliasProvider provider,
         byte providerId,
+        AliasReadingTable table,
         AliasByteSink dest,
         List<byte> providerIds,
         List<byte> kinds,
@@ -108,7 +148,7 @@ internal static class AliasGenerationUtf8
         }
 
         // The readings go in as their grid, always -- see AliasGeneration.TryEncodeGrid.
-        if (AliasGeneration.TryEncodeGrid(name, gridProvider, dest, out _))
+        if (AliasGeneration.TryEncodeGrid(name, gridProvider, table, dest, out _))
         {
             providerIds.Add(providerId);
             kinds.Add((byte)AliasEntryKind.Grid);
