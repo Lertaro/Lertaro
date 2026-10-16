@@ -91,7 +91,7 @@ internal static class UpdateApplyRequestHandler
 
             // No user profile, no PATH lookup for the host; the script also restricts module discovery.
             var system32 = Environment.GetFolderPath(Environment.SpecialFolder.System);
-            var arguments = $"-NoLogo -NoProfile -NonInteractive -File \"{updaterScript}\" -Source \"{payloadDir}\" -Destination \"{installDir}\"";
+            var arguments = $"-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"{updaterScript}\" -Source \"{payloadDir}\" -Destination \"{installDir}\"";
             var powershell = Path.Combine(system32, "WindowsPowerShell", "v1.0", "powershell.exe");
             if (!SessionProcessLauncher.TryLaunch(sessionId, powershell, arguments, requestElevation: true,
                     detachFromConsole: false, out var pid, out var error))
