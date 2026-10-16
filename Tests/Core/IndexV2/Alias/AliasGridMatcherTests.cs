@@ -242,6 +242,25 @@ public sealed class AliasGridMatcherTests
     }
 
     [TestMethod]
+    public void FuzzyFull_SecondTermSetKeepsTheReadingsTheFirstSetPinned()
+    {
+        // One query's term sets share ONE reading choice per position, because that is what the materialized
+        // alias they are scored against is built from. 屏 reads "bing" first and "ping" second, so "pmjietu"
+        // needs index 1 at position 0; "jietu" walks over that same position without using it, and writing
+        // its skip branch's default there left the spelling "bingmujietu" -- an alias the term that just
+        // witnessed itself no longer occurs in, so the row was decided and then refused.
+        var grid = Build(new[] { new[] { "bing", "ping" }, new[] { "mu" }, new[] { "jie" }, new[] { "tu" } });
+
+        var choice = new byte[grid.PositionCount];
+        Assert.IsTrue(AliasGridMatcher.TryMatchTerm(grid, "pmjietu", FzfTermKind.Fuzzy, AliasGridTier.Full, FakeGridProvider.Separator, choice));
+        Assert.AreEqual(1, choice[0], "'pmjietu' takes 屏's second reading");
+
+        Assert.IsTrue(AliasGridMatcher.TryMatchTerm(grid, "jietu", FzfTermKind.Fuzzy, AliasGridTier.Full, FakeGridProvider.Separator, choice));
+        Assert.AreEqual(1, choice[0], "the second set carried its term over position 0, so position 0 is not its own to rewrite");
+        Assert.AreEqual("pingmujietu", Materialize(grid, AliasGridTier.Full, choice));
+    }
+
+    [TestMethod]
     public void TryMatchTerm_ReportsThePositionsTheWitnessConsumed()
     {
         // 北岸村邦出版: "bac" is three initials of the first three characters, and 邦/出 stand for nothing

@@ -309,12 +309,18 @@ internal static class AliasGridMatcher
         var cursor = length;
         for (var p = walked; p >= 1; p--)
         {
+            // Only a row whose cursor moved was supplied by this position. A row that carried the term over
+            // it must leave the caller's value alone: another term set of the same query may have pinned a
+            // reading here, and writing the skip branch's reading 0 would spell the materialized alias with
+            // a different syllable than the one that decided the match (which is how "pmjietu jietu" lost
+            // the ping that its own first set chose, and then failed the second pass over that alias).
             var previous = prevJ[p * stride + cursor];
-            choice[p - 1] = choiceReading[p * stride + cursor];
-            // A row whose cursor did not move carried the term over this position; one that moved is the
-            // position that supplied term[previous..cursor), and is therefore a character to light up.
-            if (previous != cursor && paintedCount < painted.Length)
-                painted[paintedCount++] = p - 1;
+            if (previous != cursor)
+            {
+                choice[p - 1] = choiceReading[p * stride + cursor];
+                if (paintedCount < painted.Length)
+                    painted[paintedCount++] = p - 1;
+            }
             cursor = previous;
         }
         return true;

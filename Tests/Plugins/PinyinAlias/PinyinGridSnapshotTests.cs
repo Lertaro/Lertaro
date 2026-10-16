@@ -1,3 +1,4 @@
+using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 
 namespace Lertaro.Plugins.PinyinAlias.Tests;
@@ -85,5 +86,39 @@ public sealed class PinyinGridSnapshotTests
 
         CollectionAssert.Contains(fixture.Search("电nao"), name);
         Assert.IsTrue(FuzzyMatcher.IsMatch("电nao", name), "the public seam keeps the same tier");
+    }
+
+    [TestMethod]
+    public void TwoTermSets_AreSpelledByOneReadingChoice()
+    {
+        // Reported shape: a name whose first character is polyphonic (屏 = bing/ping), queried with two terms
+        // that both need it -- "pmjietu" spells 屏's SECOND reading as an initial, and the row's alias is one
+        // shared reading choice, so a later term walking past position 0 must not re-decide it.
+        const string Name = "屏幕截图滚动截图截屏录屏扫描标记ocr马赛克.txt";
+        using var fixture = new RealIndexFixture(Name);
+        var previous = SearchContext.FuzzyMatchEnabled;
+        try
+        {
+            foreach (var query in new[] { "pmjietu jietu", "pmjietu msk" })
+            {
+                SearchContext.FuzzyMatchEnabled = false;
+                CollectionAssert.Contains(fixture.Search(query), Name, $"'{query}' must reach the file");
+
+                // The same answer through the seam the live tiers, the App's item gate and the ranking key
+                // read -- an index hit the seam denies is a row those windows then order as a path fallback.
+                Assert.IsTrue(FuzzyMatcher.IsMatch(query, Name), $"'{query}' must reach the file through the seam too");
+
+                // An empty mask is NoMatch for the App's item gate, so a found row that lights nothing is a
+                // row the window drops.
+                Assert.IsTrue(fixture.HighlightedIndices(Name, query).Count > 0, $"'{query}' must light something");
+
+                SearchContext.FuzzyMatchEnabled = true;
+                CollectionAssert.AreEqual(new[] { Name }, fixture.Search(query).Take(1).ToArray(), $"'{query}' must answer the same with fuzzy matching on");
+            }
+        }
+        finally
+        {
+            SearchContext.FuzzyMatchEnabled = previous;
+        }
     }
 }
