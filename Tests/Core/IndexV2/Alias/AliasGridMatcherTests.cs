@@ -242,6 +242,31 @@ public sealed class AliasGridMatcherTests
     }
 
     [TestMethod]
+    public void TryMatchTerm_ReportsThePositionsTheWitnessConsumed()
+    {
+        // 北岸村邦出版: "bac" is three initials of the first three characters, and 邦/出 stand for nothing
+        // in it. The painting step reads exactly this list -- the alias itself carries every syllable of the
+        // name, so re-searching it can align the term onto a reading choice that did not match.
+        var grid = Build(new[] { new[] { "bei" }, new[] { "an" }, new[] { "cun" }, new[] { "bang", "beng" }, new[] { "chu" }, new[] { "ban" } });
+        var choice = new byte[grid.PositionCount];
+        var painted = new int[8];
+
+        Assert.IsTrue(AliasGridMatcher.TryMatchTerm(grid, "bac", FzfTermKind.Fuzzy, AliasGridTier.Initials, FakeGridProvider.Separator, choice, painted, out var count));
+        CollectionAssert.AreEqual(new[] { 0, 1, 2 }, painted[..count].ToArray(), "the three initials the term took, in the order it took them");
+
+        Assert.IsTrue(AliasGridMatcher.TryMatchTerm(grid, "bangc", FzfTermKind.Fuzzy, AliasGridTier.Full, FakeGridProvider.Separator, choice, painted, out count));
+        CollectionAssert.AreEqual(new[] { 3, 4 }, painted[..count].OrderBy(x => x).ToArray(), "bang spelled out, chū abbreviated -- nothing before position 3");
+
+        // An anchored operator's run reports the positions it walked.
+        Assert.IsTrue(AliasGridMatcher.TryMatchTerm(grid, "bei", FzfTermKind.Prefix, AliasGridTier.Full, FakeGridProvider.Separator, choice, painted, out count));
+        CollectionAssert.AreEqual(new[] { 0 }, painted[..count].ToArray(), "the run is 北's whole reading and nothing else");
+
+        // A term the grid refuses hands out no positions at all, so a stale list can never be painted.
+        Assert.IsFalse(AliasGridMatcher.TryMatchTerm(grid, "piji", FzfTermKind.Fuzzy, AliasGridTier.Full, FakeGridProvider.Separator, choice, painted, out count));
+        Assert.AreEqual(0, count);
+    }
+
+    [TestMethod]
     public void MaterializeBytes_IsTheCharSpellingByteForByte_OnBothTiers()
     {
         var grid = Build(new[] { new[] { "zhong", "chong" }, new[] { "shu", "su" }, new[] { "a" } }, new[] { false, true, true });

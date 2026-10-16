@@ -36,12 +36,13 @@ internal static class AliasHighlightMarker
     [ThreadStatic]
     private static Dictionary<(IAliasProvider Provider, string Term, bool CaseSensitive), string[]>? _probeCache;
 
-    // Scratch for the grid tier below: the encoded grid, its bound index, one reading choice per position
-    // and the materialized alias.
+    // Scratch for the grid tier below: the encoded grid, its bound index, one reading choice per position,
+    // the positions the witness consumed, and the materialized alias.
     [ThreadStatic] private static AliasByteSink? _gridSink;
     [ThreadStatic] private static AliasGridFormat.Index? _gridIndex;
     [ThreadStatic] private static byte[]? _gridChoice;
     [ThreadStatic] private static char[]? _gridAlias;
+    [ThreadStatic] private static int[]? _gridPaint;
 
     private static readonly AliasGridTier[] GridTiers = { AliasGridTier.Initials, AliasGridTier.Full };
 
@@ -220,8 +221,8 @@ internal static class AliasHighlightMarker
     }
 
     // The reading-grid tier of the same alias fallback. A grid-capable provider's alias space is not
-    // enumerable as strings, so the positions come from its readings instead -- the same witness the
-    // search decides with, materialized into one alias string and then mapped back onto the source text.
+    // enumerable as strings, so the positions come from its readings instead -- the very positions the
+    // witness that decides the match consumed, which are code units of `text` and need no mapping back.
     //
     // This tier is what keeps a grid-only hit from rendering as nothing: HighlightMask's final mask is
     // what the App's item gate reads, and an empty mask is NoMatch there. It needs no snapshot because it
@@ -258,7 +259,9 @@ internal static class AliasHighlightMarker
             foreach (var readingTier in GridTiers)
             {
                 Array.Clear(_gridChoice, 0, positions);
-                if (!AliasGridMatcher.TryMatchTerm(grid, probe, kind, readingTier, separator, _gridChoice))
+                if (_gridPaint == null || _gridPaint.Length < probe.Length)
+                    _gridPaint = new int[Math.Max(probe.Length, 64)];
+                if (!AliasGridMatcher.TryMatchTerm(grid, probe, kind, readingTier, separator, _gridChoice, _gridPaint, out var paintedCount))
                     continue;
 
                 var length = AliasGridMatcher.Measure(grid, readingTier, _gridChoice);
@@ -267,29 +270,30 @@ internal static class AliasHighlightMarker
                 if (_gridAlias == null || _gridAlias.Length < length)
                     _gridAlias = new char[Math.Max(length, 64)];
 
+                // The alias is written only to learn its SHAPE (which tier this witness belongs to, from
+                // whether the separator came out); the characters to light up are the positions the witness
+                // itself consumed. Re-searching the alias here is what used to paint syllables the term
+                // never spelled: the alias carries every syllable of the whole name, so a loose alignment of
+                // the probe inside it can land on a different reading choice than the one that matched.
                 var written = AliasGridMatcher.Materialize(grid, readingTier, separator, _gridChoice, _gridAlias);
-                var alias = new string(_gridAlias, 0, written);
-                var aliasLower = alias.ToLowerInvariant();
 
-                var found = AliasHighlightPositions.ForProbe(aliasLower, probe, separator, kind, precise);
-                if (found == null)
-                    continue;
-
-                var map = provider.MapAliasToSourceIndices(text, alias);
-                if (map == null || map.Length != alias.Length)
-                    continue;
-
-                foreach (var aliasPos in found)
+                var paintedAny = false;
+                for (var i = 0; i < paintedCount; i++)
                 {
-                    if (aliasPos < 0 || aliasPos >= map.Length)
+                    // A grid position is one code unit of `text` -- Encode walks the text it was given --
+                    // so the witness's positions need no mapping back onto the source.
+                    var source = _gridPaint[i];
+                    if (source < 0 || source >= highlights.Length)
                         continue;
-                    var sourceIndex = map[aliasPos];
-                    if (sourceIndex >= 0 && sourceIndex < highlights.Length)
-                        highlights[sourceIndex] = true;
+                    highlights[source] = true;
+                    paintedAny = true;
                 }
 
+                if (!paintedAny)
+                    continue;
+
                 matched = true;
-                tier = Math.Min(tier, AliasMatchRules.TierFor(separator, matchedName: false, aliasLower.AsSpan()));
+                tier = Math.Min(tier, AliasMatchRules.TierFor(separator, matchedName: false, _gridAlias.AsSpan(0, written)));
             }
         }
 

@@ -114,4 +114,50 @@ public sealed class PinyinSyllableRuleTests
         Assert.IsEmpty(Search("piji", fuzzy: false, Certificate));
         Assert.IsEmpty(Search("zhengp", fuzzy: false, Name), "'zhengp' names no character of 评价");
     }
+
+    [TestMethod]
+    // The highlight tells the same story as the decision, character for character. This is the ticket's
+    // `bac`: 北岸村 is a real spelling of it (three initials), 邦出版 is not -- and the painting used to
+    // light 邦出 as well, because it re-searched the materialized alias (which carries EVERY syllable of
+    // the name) and let the term align somewhere other than the reading choice that matched.
+    //
+    // "XX邦出版手册.pdf" + "bangc" is the same defect from the other side: the loose re-search found
+    // nothing, so a row the engine had matched rendered with an empty mask -- and an empty mask is NoMatch
+    // to the App's item gate.
+    [DataRow("北岸村邦出版.pdf", "bac", "0,1,2")]
+    [DataRow("北岸村邦出版.pdf", "ba", "0,1")]
+    [DataRow("北岸村邦出版.pdf", "bcb", "0,2,3")]
+    [DataRow("北岸村邦出版.pdf", "bangc", "3,4")]
+    [DataRow("邦出版.txt", "ban", "0")]
+    [DataRow("邦出版.txt", "bcb", "0,1,2")]
+    [DataRow("XX邦出版手册.pdf", "ba", "2")]
+    [DataRow("XX邦出版手册.pdf", "bangc", "2,3")]
+    [DataRow("bac邦出版.txt", "bcb", "0,2,3")]
+    public void HighlightLightsTheSyllablesTheWitnessConsumed(string name, string query, string expected)
+    {
+        var wanted = expected.Split(',').Select(int.Parse).ToList();
+        foreach (var fuzzy in new[] { false, true })
+        {
+            var lit = Highlight(name, query, fuzzy);
+            CollectionAssert.AreEqual(wanted, lit, $"'{query}' on {name}, fuzzy={fuzzy} lit {Describe(lit, name)}");
+        }
+    }
+
+    private static List<int> Highlight(string name, string query, bool fuzzy)
+    {
+        using var fixture = new RealIndexFixture(name);
+        var previous = SearchContext.FuzzyMatchEnabled;
+        try
+        {
+            SearchContext.FuzzyMatchEnabled = fuzzy;
+            return fixture.HighlightedIndices(name, query);
+        }
+        finally
+        {
+            SearchContext.FuzzyMatchEnabled = previous;
+        }
+    }
+
+    private static string Describe(List<int> lit, string name)
+        => "[" + string.Join(",", lit.Select(index => $"{index}:{name[index]}")) + "]";
 }

@@ -80,7 +80,34 @@ internal static class AliasGridMatcher
         AliasGridTier tier,
         char separator,
         Span<byte> choice)
+        => TryMatchTerm(grid, term, kind, tier, separator, choice, default, out _);
+
+    /// <summary>
+    /// Decides <paramref name="term"/> (one alternative spelling of one AND condition) against
+    /// <paramref name="grid"/> on <paramref name="tier"/>. On true, <paramref name="choice"/> holds one
+    /// reading index per position, with the positions the term did not pin down left at whatever the
+    /// caller had there -- so a caller that pre-fills it with the provider's first reading (index 0) gets
+    /// the single-reading expansion for everything the query did not constrain.
+    /// </summary>
+    /// <param name="painted">
+    /// Optional witness for the paint step: the positions whose readings the term actually consumed, written
+    /// from index 0 and counted by <paramref name="paintedCount"/>. A position appears at most once because
+    /// a position contributes at most one piece, and the grid has one position per code unit of the text it
+    /// was encoded from -- so these are directly the characters to light up. That is the only honest source:
+    /// re-searching the materialized alias can align the term onto a DIFFERENT reading choice than the one
+    /// that decided the match, and light syllables this term never spelled.
+    /// </param>
+    public static bool TryMatchTerm(
+        AliasGridFormat.Index grid,
+        ReadOnlySpan<char> term,
+        FzfTermKind kind,
+        AliasGridTier tier,
+        char separator,
+        Span<byte> choice,
+        Span<int> painted,
+        out int paintedCount)
     {
+        paintedCount = 0;
         var positions = grid.PositionCount;
         if (term.IsEmpty || positions == 0 || choice.Length < positions)
             return false;
@@ -105,8 +132,8 @@ internal static class AliasGridMatcher
                 return false;
 
             matched = tier == AliasGridTier.Initials
-                ? MatchInitialsSubsequence(grid, term, draft)
-                : MatchSyllableFull(grid, term, draft);
+                ? MatchInitialsSubsequence(grid, term, draft, painted, ref paintedCount)
+                : MatchSyllableFull(grid, term, draft, painted, ref paintedCount);
         }
         else
         {
@@ -117,12 +144,15 @@ internal static class AliasGridMatcher
             // An operator's term keeps its separator: it names a character of the ALIAS, and the alias is
             // what spells that character.
             matched = tier == AliasGridTier.Initials
-                ? MatchExactInitials(grid, term, anchor.Value, draft)
-                : MatchExactFull(grid, term, separator, anchor.Value, draft);
+                ? MatchExactInitials(grid, term, anchor.Value, draft, painted, ref paintedCount)
+                : MatchExactFull(grid, term, separator, anchor.Value, draft, painted, ref paintedCount);
         }
 
         if (!matched)
+        {
+            paintedCount = 0;
             return false;
+        }
 
         draft.AsSpan(0, positions).CopyTo(choice);
         return true;
@@ -143,7 +173,7 @@ internal static class AliasGridMatcher
     // sufficient. Every position of the initials tier is a whole reading of its own, so this IS the rule
     // MatchSyllableFull implements, restricted to one-character pieces: each piece starts where its reading
     // starts, and skipping a character is always allowed.
-    private static bool MatchInitialsSubsequence(AliasGridFormat.Index grid, ReadOnlySpan<char> term, byte[] choice)
+    private static bool MatchInitialsSubsequence(AliasGridFormat.Index grid, ReadOnlySpan<char> term, byte[] choice, Span<int> painted, ref int paintedCount)
     {
         // Every character of a term on this tier IS some position's reading initial, so one bitmap answers
         // for all of them before a position is walked. Most candidates are refused here, not in the walk.
@@ -160,6 +190,8 @@ internal static class AliasGridMatcher
                 if (reading.Length > 0 && reading[0] == term[qi])
                 {
                     choice[p] = (byte)k;
+                    if (paintedCount < painted.Length)
+                        painted[paintedCount++] = p;
                     qi++;
                     break;
                 }
@@ -178,7 +210,7 @@ internal static class AliasGridMatcher
     // much of the term it can absorb, so reachable[j] after the first p positions means "some choice of
     // readings over those positions spells the first j characters", and each position extends it by the
     // pieces it can form.
-    private static bool MatchSyllableFull(AliasGridFormat.Index grid, ReadOnlySpan<char> term, byte[] choice)
+    private static bool MatchSyllableFull(AliasGridFormat.Index grid, ReadOnlySpan<char> term, byte[] choice, Span<int> painted, ref int paintedCount)
     {
         // The term opens with the first character of its first piece, and a piece starts where its reading
         // does -- so a name no syllable of which can start with that letter is refused without a walk. This
@@ -277,8 +309,13 @@ internal static class AliasGridMatcher
         var cursor = length;
         for (var p = walked; p >= 1; p--)
         {
+            var previous = prevJ[p * stride + cursor];
             choice[p - 1] = choiceReading[p * stride + cursor];
-            cursor = prevJ[p * stride + cursor];
+            // A row whose cursor did not move carried the term over this position; one that moved is the
+            // position that supplied term[previous..cursor), and is therefore a character to light up.
+            if (previous != cursor && paintedCount < painted.Length)
+                painted[paintedCount++] = p - 1;
+            cursor = previous;
         }
         return true;
     }
@@ -303,7 +340,7 @@ internal static class AliasGridMatcher
 
     // Contiguous run over one-character-per-position readings: the run occupies consecutive positions,
     // pinned to the alias end when the operator says so, and starts at a position boundary.
-    private static bool MatchExactInitials(AliasGridFormat.Index grid, ReadOnlySpan<char> term, AliasGridAnchor anchor, byte[] choice)
+    private static bool MatchExactInitials(AliasGridFormat.Index grid, ReadOnlySpan<char> term, AliasGridAnchor anchor, byte[] choice, Span<int> painted, ref int paintedCount)
     {
         var positions = grid.PositionCount;
         if (term.Length > positions)
@@ -340,6 +377,8 @@ internal static class AliasGridMatcher
                 continue;
             if (anchor == AliasGridAnchor.AliasEnd && start + term.Length != positions)
                 continue;
+            for (var t = 0; t < term.Length && paintedCount < painted.Length; t++)
+                painted[paintedCount++] = start + t;
             return true;
         }
         return false;
@@ -348,7 +387,7 @@ internal static class AliasGridMatcher
     // Contiguous run over whole readings. A reading is several characters long, so the run may begin and
     // end inside one, and may cross position boundaries -- where the next position's reading has to
     // continue the term from its own first emitted character.
-    private static bool MatchExactFull(AliasGridFormat.Index grid, ReadOnlySpan<char> term, char separator, AliasGridAnchor anchor, byte[] choice)
+    private static bool MatchExactFull(AliasGridFormat.Index grid, ReadOnlySpan<char> term, char separator, AliasGridAnchor anchor, byte[] choice, Span<int> painted, ref int paintedCount)
     {
         var budget = ExactStepBudget;
         for (var p = 0; p < grid.PositionCount; p++)
@@ -361,7 +400,7 @@ internal static class AliasGridMatcher
                 {
                     if (!StartAllowed(grid, p, offset, anchor))
                         continue;
-                    if (WalkExact(grid, p, k, offset, term, separator, anchor, choice, ref budget))
+                    if (WalkExact(grid, p, k, offset, term, separator, anchor, choice, painted, ref paintedCount, ref budget))
                         return true;
                 }
             }
@@ -399,12 +438,17 @@ internal static class AliasGridMatcher
         char separator,
         AliasGridAnchor anchor,
         byte[] choice,
+        Span<int> painted,
+        ref int paintedCount,
         ref int budget)
     {
         var t = 0;
         var p = position;
         var k = reading;
         var o = offset;
+        // Each start is tried with a fresh walk, so a dead end's partial list is never read: it is reset
+        // here and the caller only looks at it when this returns true.
+        paintedCount = 0;
         choice[p] = (byte)k;
 
         while (true)
@@ -415,6 +459,7 @@ internal static class AliasGridMatcher
             var text = grid.Reading(p, k);
             var hasSeparator = grid.BoundaryBefore(p);
             var emitted = text.Length + (hasSeparator ? 1 : 0);
+            var tBefore = t;
             while (o < emitted && t < term.Length)
             {
                 var c = hasSeparator && o == 0 ? separator : text[o - (hasSeparator ? 1 : 0)];
@@ -423,6 +468,9 @@ internal static class AliasGridMatcher
                 t++;
                 o++;
             }
+
+            if (t > tBefore && paintedCount < painted.Length)
+                painted[paintedCount++] = p;
 
             if (t == term.Length)
             {
