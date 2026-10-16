@@ -84,6 +84,30 @@ public sealed class PinyinSyllableRuleTests
     }
 
     [TestMethod]
+    // 贝 spells "bei", and its middle "i" is not a piece of its own: neither "bi" nor "fbi" (an f, then
+    // that spliced "bi") may reach it. The old boundary-only reading did exactly that -- it pinned where a
+    // match STARTS and let every later character fall anywhere, so "b" opened 贝 and "i" came out of the
+    // same reading's middle. 笔/比/必 are spelled "bi" for real, which is why the initials alias alone
+    // cannot tell them from 贝 and why the rule has to be about readings.
+    public void APieceMayNotBeSplicedOutOfAReadingItDoesNotStart()
+    {
+        const string Bei = "4分贝.pdf";
+        const string Bi = "4分笔.pdf";
+
+        foreach (var fuzzy in new[] { false, true })
+        {
+            Assert.IsEmpty(Search("bi", fuzzy, Bei), $"'bi' spliced out of bei, fuzzy={fuzzy}");
+            Assert.IsEmpty(Search("fbi", fuzzy, Bei), $"'f' + the spliced 'bi', fuzzy={fuzzy}");
+            Assert.IsEmpty(Search("fei", fuzzy, Bei), "'ei' is not a prefix of bei either");
+
+            CollectionAssert.Contains(Search("bi", fuzzy, Bi), Bi, $"'{Bi}' really is spelled bi");
+            CollectionAssert.Contains(Search("fbi", fuzzy, Bi), Bi);
+            CollectionAssert.Contains(Search("fbei", fuzzy, Bei), Bei);
+            CollectionAssert.Contains(Search("bei", fuzzy, Bei), Bei);
+        }
+    }
+
+    [TestMethod]
     // Independent of the query: the same terms on a different name must not suddenly stand for it.
     public void TheSameRefusedSpelling_StaysRefusedOnAnotherName()
     {
