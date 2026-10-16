@@ -128,6 +128,13 @@ public static class StartMenuShortcutResolver
         }
     }
 
+    // Callable from whatever thread the caller is on, including a search's background worker with no STA of
+    // its own (WindowsRecentCandidateMapper resolves Recent Items shortcuts while a search paints). That is
+    // safe for this coclass specifically: ShellLink is registered InProcServer32 (windows.storage.dll) with
+    // ThreadingModel=Both, so an MTA caller gets a direct in-process pointer, and this method creates, uses
+    // and releases its own instance -- no apartment-wide state is shared with anyone, which is what makes the
+    // one-STA-worker rule necessary for the shell enumerations (see ShellOperationStaWorker) and unnecessary
+    // here.
     public static string? ResolveShortcutTarget(string shortcutPath)
     {
         if (!Path.GetExtension(shortcutPath).Equals(".lnk", StringComparison.OrdinalIgnoreCase))

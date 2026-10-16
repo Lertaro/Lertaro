@@ -2,7 +2,7 @@
 
 Lertaro 採用多程序隔離與模組化分層設計，在實現毫秒級檢索與視窗整合的同時，保證運行安全與穩定。
 
-![Lertaro 架構圖](/architecture-zh-CN.svg)
+<ArchitectureDiagram />
 
 ## 1. 三程序隔離模型
 

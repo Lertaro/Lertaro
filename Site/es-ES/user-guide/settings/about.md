@@ -31,6 +31,12 @@ Enlaces interactivos para abrir los directorios de almacenamiento en el Explorad
 - **Versión instalable**: Los datos de usuario se guardan en `%LocalAppData%\Lertaro` y los de máquina en `%ProgramData%\Lertaro`.
 - **Versión portátil**: Los datos se guardan en `Data\Users\<SID hash>` y `Data\Machine` junto al ejecutable (ver [**Aislamiento de datos en versión portátil**](../getting-started)).
 
+### Trasladar el directorio de datos (vínculos simbólicos y junctions)
+
+- **Compatible**: El directorio de datos de usuario (`%LocalAppData%\Lertaro` en la versión instalable, `<instalación>\Data\Users` en la portátil) puede trasladarse a otra partición o a otro disco local mediante un vínculo simbólico o una junction. Al arrancar, Lertaro resuelve esa cadena de vínculos al directorio real y trabaja sobre él.
+- **Solo volúmenes fijos locales**: El destino del vínculo debe ser una unidad fija local. Un vínculo que apunte a una ubicación de red o a un volumen extraíble se rechaza al arrancar indicando el motivo, en lugar de escribir en otro sitio sin avisar.
+- **Los vínculos por debajo del directorio de datos siguen rechazándose**: Ningún subdirectorio **dentro** del directorio de datos puede ser un vínculo, porque uno colocado mientras la aplicación se ejecuta redirigiría sus escrituras. Es un límite de seguridad, no una opción de configuración.
+
 ## 3. Comprobación y aplicación de actualizaciones
 
 - **Buscar actualizaciones**: Consulta en línea nuevas versiones con información dinámica en el propio botón ("Buscando actualizaciones..." → "Ya tienes la última versión" o detalles de la nueva versión).

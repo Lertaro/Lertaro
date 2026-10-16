@@ -94,6 +94,7 @@ public static class TextHighlighter
             if (isHighlighted)
             {
                 run.Foreground = highlightBrush;
+                run.FontWeight = FontWeights.SemiBold; // Keep matches identifiable without relying on hue alone.
             }
 
             textBlock.Inlines.Add(run);

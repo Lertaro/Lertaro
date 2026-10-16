@@ -120,96 +120,96 @@ public static class PluginSearchResultMapper
     private static void MapItem(List<AppSearchResult> uiResults, InstantResultItem item, string effectiveHighlightQuery, IPluginComponent provider)
     {
 
-                    // Detect if the result represents a real file or directory to unlock native thumbnail and correct path display
-                    var isRealFile = false;
-                    var isRealDir = false;
-                    var targetPath = item.ActionArgument ?? string.Empty;
+        // Detect if the result represents a real file or directory to unlock native thumbnail and correct path display
+        var isRealFile = false;
+        var isRealDir = false;
+        var targetPath = item.ActionArgument ?? string.Empty;
 
-                    if (item.ActionType == "Execute" && !string.IsNullOrWhiteSpace(targetPath))
-                    {
-                        // WSL targets stay opaque until the user explicitly opens them; probing here
-                        // would wake the distro merely because a plugin result was displayed. UNC paths
-                        // are likewise skipped to prevent blocking the search thread on dead network shares.
-                        if (!WslPath.IsPath(targetPath) && !targetPath.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase))
-                        {
-                            if (File.Exists(targetPath)) isRealFile = true;
-                            else if (Directory.Exists(targetPath)) isRealDir = true;
-                        }
-                    }
+        if (item.ActionType == "Execute" && !string.IsNullOrWhiteSpace(targetPath))
+        {
+            // WSL targets stay opaque until the user explicitly opens them; probing here
+            // would wake the distro merely because a plugin result was displayed. UNC paths
+            // are likewise skipped to prevent blocking the search thread on dead network shares.
+            if (!WslPath.IsPath(targetPath) && !targetPath.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase))
+            {
+                if (File.Exists(targetPath)) isRealFile = true;
+                else if (Directory.Exists(targetPath)) isRealDir = true;
+            }
+        }
 
-                    System.Windows.Media.ImageSource? iconOverride = null;
-                    var iconPath = "";
+        System.Windows.Media.ImageSource? iconOverride = null;
+        var iconPath = "";
 
-                    if (item.HBitmapIcon != IntPtr.Zero)
-                    {
-                        // Takes priority over IconData -- a provider that hands over a real pre-loaded
-                        // bitmap (e.g. WindowSwitcher's window-content thumbnail) means it, regardless
-                        // of whatever static IconData/path fallback it also set for when no bitmap was
-                        // ready yet.
-                        iconOverride = MaterializeHBitmapIcon(item.HBitmapIcon);
-                    }
-                    else if (!string.IsNullOrWhiteSpace(item.IconData))
-                    {
-                        if (item.IconData.StartsWith("path:", StringComparison.OrdinalIgnoreCase))
-                        {
-                            iconPath = item.IconData.Substring(5).Trim();
-                        }
-                        else
-                        {
-                            try
-                            {
-                                var color = string.IsNullOrWhiteSpace(item.IconColor) ? "DefaultPluginIconColor" : item.IconColor;
-                                iconOverride = ShellIconHelper.CreateVectorIcon(item.IconData, color);
-                            }
-                            catch (Exception ex)
-                            {
-                                Logger.Log($"[SearchResultMapper] Failed to create vector icon for instant result: {ex.Message}", LogLevel.Error);
-                            }
-                        }
-                    }
-                    else if (!isRealFile && !isRealDir)
-                    {
-                        // Fallback vector icon only for custom textual action results
-                        try
-                        {
-                            iconOverride = ShellIconHelper.CreateVectorIcon("M7 2v11h3v9l7-12h-4l3-8z", "DefaultPluginIconColor");
-                        }
-                        catch { }
-                    }
+        if (item.HBitmapIcon != IntPtr.Zero)
+        {
+            // Takes priority over IconData -- a provider that hands over a real pre-loaded
+            // bitmap (e.g. WindowSwitcher's window-content thumbnail) means it, regardless
+            // of whatever static IconData/path fallback it also set for when no bitmap was
+            // ready yet.
+            iconOverride = MaterializeHBitmapIcon(item.HBitmapIcon);
+        }
+        else if (!string.IsNullOrWhiteSpace(item.IconData))
+        {
+            if (item.IconData.StartsWith("path:", StringComparison.OrdinalIgnoreCase))
+            {
+                iconPath = item.IconData.Substring(5).Trim();
+            }
+            else
+            {
+                try
+                {
+                    var color = string.IsNullOrWhiteSpace(item.IconColor) ? "DefaultPluginIconColor" : item.IconColor;
+                    iconOverride = ShellIconHelper.CreateVectorIcon(item.IconData, color);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log($"[SearchResultMapper] Failed to create vector icon for instant result: {ex.Message}", LogLevel.Error);
+                }
+            }
+        }
+        else if (!isRealFile && !isRealDir)
+        {
+            // Fallback vector icon only for custom textual action results
+            try
+            {
+                iconOverride = ShellIconHelper.CreateVectorIcon("M7 2v11h3v9l7-12h-4l3-8z", "DefaultPluginIconColor");
+            }
+            catch { }
+        }
 
-                    var isVirtualPreview = targetPath.StartsWith("flow-preview:", StringComparison.OrdinalIgnoreCase)
-                        || targetPath.StartsWith("__FLOW_PREVIEW__:", StringComparison.OrdinalIgnoreCase);
-                    var resultKind = isRealFile ? "File" : (isRealDir ? "Directory" : "InstantResult");
-                    var fullPath = (isRealFile || isRealDir || isVirtualPreview) ? targetPath : (!string.IsNullOrEmpty(iconPath) ? iconPath : $"__INSTANT_RESULT__:{provider.Name}:{item.Title}");
-                    var parentDir = !string.IsNullOrWhiteSpace(item.Description)
-                        ? item.Description
-                        : ((isRealFile || isRealDir) ? Path.GetDirectoryName(targetPath) ?? string.Empty : string.Empty);
+        var isVirtualPreview = targetPath.StartsWith("flow-preview:", StringComparison.OrdinalIgnoreCase)
+            || targetPath.StartsWith("__FLOW_PREVIEW__:", StringComparison.OrdinalIgnoreCase);
+        var resultKind = isRealFile ? "File" : (isRealDir ? "Directory" : "InstantResult");
+        var fullPath = (isRealFile || isRealDir || isVirtualPreview) ? targetPath : (!string.IsNullOrEmpty(iconPath) ? iconPath : $"__INSTANT_RESULT__:{provider.Name}:{item.Title}");
+        var parentDir = !string.IsNullOrWhiteSpace(item.Description)
+            ? item.Description
+            : ((isRealFile || isRealDir) ? Path.GetDirectoryName(targetPath) ?? string.Empty : string.Empty);
 
-                    // No synchronous icon here on purpose. This mapper runs from the final render
-                    // callback, on the UI thread, and GetIconForPath is the cache-missing extraction
-                    // (SHGetFileInfo, IImageList::GetIcon, a pixel-scan trim). Content-search rows can
-                    // name files on any drive, so one cold SMB icon could stall the paint for seconds --
-                    // AppSearchResult.Icon already answers from the cache and kicks off a background load
-                    // when it misses, which is how every other row in this window is mapped.
-                    uiResults.Add(new AppSearchResult
-                    {
-                        Name = SanitizeSingleLine(item.Title),
-                        FullPath = fullPath,
-                        ParentDir = SanitizeSingleLine(parentDir),
-                        IsDir = isRealDir,
-                        Drive = string.Empty,
-                        ResultKind = resultKind,
-                        Index = uiResults.Count,
-                        SearchQuery = effectiveHighlightQuery,
-                        IconOverride = iconOverride,
-                        InstantResultActionType = item.ActionType ?? "Copy",
-                        InstantResultActionArgument = targetPath,
-                        InstantResultOnExecute = item.OnExecute,
-                        InstantResultOnExecuteFunc = item.OnExecuteFunc,
-                        TabCompletion = SanitizeSingleLine(item.TabCompletion),
-                        SourceProvider = provider
-                    });
-                    }
+        // No synchronous icon here on purpose. This mapper runs from the final render
+        // callback, on the UI thread, and GetIconForPath is the cache-missing extraction
+        // (SHGetFileInfo, IImageList::GetIcon, a pixel-scan trim). Content-search rows can
+        // name files on any drive, so one cold SMB icon could stall the paint for seconds --
+        // AppSearchResult.Icon already answers from the cache and kicks off a background load
+        // when it misses, which is how every other row in this window is mapped.
+        uiResults.Add(new AppSearchResult
+        {
+            Name = SanitizeSingleLine(item.Title),
+            FullPath = fullPath,
+            ParentDir = SanitizeSingleLine(parentDir),
+            IsDir = isRealDir,
+            Drive = string.Empty,
+            ResultKind = resultKind,
+            Index = uiResults.Count,
+            SearchQuery = effectiveHighlightQuery,
+            IconOverride = iconOverride,
+            InstantResultActionType = item.ActionType ?? "Copy",
+            InstantResultActionArgument = targetPath,
+            InstantResultOnExecute = item.OnExecute,
+            InstantResultOnExecuteFunc = item.OnExecuteFunc,
+            TabCompletion = SanitizeSingleLine(item.TabCompletion),
+            SourceProvider = provider
+        });
+    }
 
     // Key of the CoreExtensions plugin setting that hides shortcut commands in the inline window only.
     // Declared by that plugin's own config schema (see CoreExtensionsPlugin); this is only the read site.

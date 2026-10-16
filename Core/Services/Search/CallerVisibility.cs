@@ -126,10 +126,7 @@ internal sealed class CallerVisibility : IDisposable
         WindowsIdentity? caller = null;
         try
         {
-            pipe.RunAsClient(() =>
-            {
-                caller = WindowsIdentity.GetCurrent();
-            });
+            pipe.RunAsClient(() => caller = WindowsIdentity.GetCurrent());
             if (caller?.User == null) throw new UnauthorizedAccessException("The pipe client has no user SID.");
             var profileVisibility = For(caller.User,
                 new WindowsPrincipal(caller).IsInRole(WindowsBuiltInRole.Administrator), UserProfiles.Read());

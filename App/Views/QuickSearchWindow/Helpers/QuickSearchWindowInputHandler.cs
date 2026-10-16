@@ -132,10 +132,8 @@ public class QuickSearchWindowInputHandler
                 _window.LstResults.SelectedIndex = 0;
                 result = _window.LstResults.SelectedItem as AppSearchResult;
             }
-            // File/folder results are handled earlier by HotkeyActionTrigger (Ctrl+Enter locate,
-            // Ctrl+Shift+Enter open-as-admin) and never reach here. What reaches here on those chords
-            // is a result with no matching file action — notably an application — so honor
-            // Ctrl+Shift+Enter as "launch as admin" so apps can still be elevated.
+            // Non-file rows only reach here (HotkeyActionTrigger already handled files -- see its header),
+            // so Ctrl+Shift+Enter stays "launch as admin" for apps.
             if (result != null)
             {
                 var asAdmin = Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift);
@@ -193,8 +191,8 @@ public class QuickSearchWindowInputHandler
             if (num >= 0)
             {
                 var scrollViewer = WpfUiHelper.GetScrollViewer(_window.LstResults);
-                // Mode-aware (see QuickSearchShortcutHelper's own comment) -- this is the separate
-                // execution-side lookup that maps the pressed digit back to an actual result.
+                // Same scrolling-mode-tolerant helper the hints use (see QuickSearchShortcutHelper) -- this
+                // is the separate execution-side lookup that maps the pressed digit back to an actual result.
                 var firstVisible = WpfUiHelper.GetFirstVisibleIndex(scrollViewer, UiMetrics.ScaledNormalRowHeight);
                 var shortcutIndex = 0;
                 for (var i = firstVisible; i < _window.LstResults.Items.Count; i++)
@@ -269,8 +267,7 @@ public class QuickSearchWindowInputHandler
     }
     private void MoveResultSelection(int direction)
     {
-        // Wraps like the actions list's NavigateActionsList (ShellMenuPresenter.cs) -- past the last
-        // item goes back to the first, and vice versa.
+        // Wraps past either end -- see ListSelectionNavigator.NextSelectable for the rule.
         var count = _window.LstResults.Items.Count;
         if (count == 0) return;
         var next = ListSelectionNavigator.NextSelectable(_window.LstResults.SelectedIndex, direction, count,

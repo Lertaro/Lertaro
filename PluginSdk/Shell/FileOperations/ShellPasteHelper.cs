@@ -21,7 +21,8 @@ public static class ShellPasteHelper
     // folder has to be told, since nothing else will tell it. Raised on the shell worker's own thread
     // once PerformOperations returns, whether it copied anything or the user cancelled the dialog: the
     // only honest signal available is "the operation is over", and a view's answer to both is the same,
-    // which is to go and look again.
+    // which is to go and look again. The two early returns below are the only paths that never raise it,
+    // because there is no operation to finish on them.
     public static void PasteAsync(
         IReadOnlyList<string> sourcePaths, string destinationFolder, bool move, Action? onCompleted = null)
     {
@@ -96,9 +97,7 @@ public static class ShellPasteHelper
         }
         catch (Exception ex)
         {
-            // Includes the user cancelling the native confirmation -- IFileOperation surfaces that as
-            // a COMException too, not a distinct "cancelled" signal, so this stays a log rather than
-            // something surfaced to the user as an error.
+            // See ShellDeleteHelper.DeleteCore -- a user cancel surfaces here as a COMException too, so this stays a log.
             Logger.Log($"[ShellPasteHelper] Paste operation failed or was cancelled: {ex.Message}", LogLevel.Debug);
         }
         finally

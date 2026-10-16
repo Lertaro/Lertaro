@@ -104,7 +104,7 @@ public partial class QuickPanelViewModel : ViewModelBase
     ///
     /// Answered against every enabled workspace rather than the ones that turned out to have content,
     /// because nothing has loaded yet when this runs: the answer is what the panel WANTS to open on, and
-    /// AddWorkspaceTab settles for something else only until that one arrives.
+    /// AddTab settles for something else only until that one arrives.
     /// </remarks>
     /// <remarks>
     /// Only a workspace can be claimed by the app in front: claiming is a statement that this app means

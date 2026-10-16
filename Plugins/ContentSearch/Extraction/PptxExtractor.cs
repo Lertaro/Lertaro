@@ -32,9 +32,7 @@ public sealed class PptxExtractor : ITextExtractor
             {
                 timeoutCts.Token.ThrowIfCancellationRequested();
                 using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                // Disposing the stream from the timeout callback unblocks ZipArchive/XDocument
-                // reads that are stuck on a hung network share: the abandoned extraction then
-                // throws and exits instead of running forever.
+                // Unblocks a hung-share read -- DocxExtractor.ExtractTextAsync explains why this works.
                 using var timeoutRegistration = timeoutCts.Token.Register(fileStream.Dispose);
                 using var archive = new ZipArchive(fileStream, ZipArchiveMode.Read, leaveOpen: false);
                 return ExtractPresentationText(archive, timeoutCts.Token);
@@ -53,8 +51,7 @@ public sealed class PptxExtractor : ITextExtractor
         }
         catch (Exception) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
-            // The stream was disposed by the timeout callback above while the reader was
-            // still reading it; semantically this is a timeout, not a random parse error.
+            // Thrown by the disposal above, so semantically a timeout -- see DocxExtractor.ExtractTextAsync.
             PluginSdk.Logger.Log(
                 $"[ContentSearch] Timed out extracting presentation '{filePath}'",
                 PluginSdk.LogLevel.Warn);

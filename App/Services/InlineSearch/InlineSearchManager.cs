@@ -96,19 +96,11 @@ public class InlineSearchManager : IDisposable
             {
                 if (_window != null)
                 {
-                    // In a dialog host the baseline is the folder the user was last working in, resolved by the very
-                    // same logic Ctrl+G uses, so "switch to the folder I came from" and "search from the folder I
-                    // came from" agree. A file manager host keeps its own folder: there the point IS what is on
-                    // screen. This is also why typing in the dialog cannot search the wrong place -- the keyboard
-                    // stays with the dialog until the card is summoned.
-                    var scope = _explorerTracker.IsActiveWindowDialog
-                        ? Core.Hook.InlineSearch.QuickSwitchTargetResolver.Resolve(_explorerTracker, PluginSdk.Services.ExplorerPathService.GetOpenedFolderPaths()) ?? path
-                        : path;
                     var oldScope = _window.ViewModel.SearchScope;
-                    if (oldScope != scope)
+                    if (oldScope != path)
                     {
-                        _window.ViewModel.SearchScope = scope;
-                        Logger.Log($"[InlineSearchManager] Updated SearchScope dynamically to: {scope}", LogLevel.Debug);
+                        _window.ViewModel.SearchScope = path;
+                        Logger.Log($"[InlineSearchManager] Updated SearchScope dynamically to: {path}", LogLevel.Debug);
 
                         // Re-run with the text as it stands, not only when the box is empty. The scope just
                         // replaced is the one the CURRENT results were computed against, so leaving them on

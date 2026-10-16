@@ -78,8 +78,7 @@ public sealed class WindowSwitcherInstantProviderFuzzyMatchTests
     [TestMethod]
     public void GetMatchTier_LiteralMatchAlreadyFound_DoesNotNeedFuzzyFallback()
     {
-        // If a literal tier already matched, the fuzzy fallback must never even run -- returning false
-        // here would still be correct only because it's never reached; this pins tier 0, not 3.
+        // IsMatchFunc=false never runs once a literal tier matched; canonical note at ProcessManagerInstantProviderFuzzyMatchTests.
         PluginSdk.Services.FuzzyMatchService.IsMatchFunc = (_, _) => false;
 
         var tier = WindowSwitcherInstantProvider.GetMatchTier("Untitled - Notepad", "notepad", "1234", "notepad");

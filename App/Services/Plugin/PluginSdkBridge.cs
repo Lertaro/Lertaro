@@ -3,7 +3,6 @@ using Lertaro.Core.SearchIndex;
 using Lertaro.Core.Services.Plugin.DirectoryIndex;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services.AppWindow;
-using Lertaro.App.Services.Tray;
 using Lertaro.App.ViewModels.Settings.Plugins;
 namespace Lertaro.App.Services.Plugin;
 
@@ -183,13 +182,11 @@ internal static class PluginSdkBridge
             });
         };
 
-        // Where the user was last browsing: the SAME resolution Ctrl+G uses, so the inline card's baseline, the
-        // quick panel and the plugins all agree with the hotkey about which folder that is. The tracker here is
-        // the App's mirror of the Hook's state, and the opened-folder paths arrive ordered by last activation
-        // with desktop sources already filtered out, so no rule is repeated on this side.
+        // Where the user was last browsing, from the same tracker the search context reads. Reached
+        // through InlineSearchManager because that is what owns the tracker; it mirrors the Hook
+        // process's live state, so this is a field read rather than a round trip.
         PluginSdk.Services.ExplorerPathService.GetLastActivePathFunc =
-            () => Core.Hook.InlineSearch.QuickSwitchTargetResolver.Resolve(
-                InlineSearchManager.Instance.ExplorerTracker, OpenedFolderSnapshots.GetPaths());
+            () => InlineSearchManager.Instance.ExplorerTracker.LastActiveExplorerPath;
         PluginSdk.Services.ExplorerPathService.GetOpenedFolderPathsFunc = OpenedFolderSnapshots.GetPaths;
 
         // Wire up the favorites service delegate for plugins using Core UserSettings

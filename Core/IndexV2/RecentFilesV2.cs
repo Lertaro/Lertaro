@@ -7,7 +7,7 @@ using Lertaro.Core.IndexV2.Search;
 using Lertaro.Core.IndexV2.Persistence;
 namespace Lertaro.Core.IndexV2;
 
-// Mirrors RecentFilesWalker.CollectFromDirectory over Snapshot+DeltaOverlay: an in-memory subtree DFS
+// CollectFromDirectory over Snapshot+DeltaOverlay: an in-memory subtree DFS
 // via the CSR children column, base rows plus delta rows relocated into the walked subtree, capped at
 // the same per-directory scan limit so a target accidentally set to a whole drive can't runaway.
 public static class RecentFilesV2

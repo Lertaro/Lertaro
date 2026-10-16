@@ -1,4 +1,3 @@
-using System.IO;
 using Lertaro.App.Views.InlineSearchWindow.Helpers;
 using Lertaro.Core.Hook;
 

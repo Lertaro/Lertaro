@@ -30,23 +30,16 @@ public sealed class HanConversionTests
     }
 
     [TestMethod]
-    public void ToSimplified_AlreadySimplifiedText_ReturnsInputUnchanged()
-    {
+    public void ToSimplified_AlreadySimplifiedText_ReturnsInputUnchanged() =>
         // The alias side relies on this: a name that is already Simplified must not gain a duplicate
         // alias, which is what SimplifiedForms' "differs from the input" check leans on.
         Assert.AreEqual("电脑", HanConversion.ToSimplified("电脑"));
-    }
 
     [TestMethod]
-    public void ToSimplified_TraditionalNameWithExtension_KeepsTheNonCjkPartLiteral()
-    {
-        Assert.AreEqual("电脑.txt", HanConversion.ToSimplified("電腦.txt"));
-    }
+    public void ToSimplified_TraditionalNameWithExtension_KeepsTheNonCjkPartLiteral() => Assert.AreEqual("电脑.txt", HanConversion.ToSimplified("電腦.txt"));
 
     [TestMethod]
-    public void ToSimplified_CalledRepeatedly_IsStable()
-    {
+    public void ToSimplified_CalledRepeatedly_IsStable() =>
         // The bounded cache answers the second call; both must agree.
         Assert.AreEqual(HanConversion.ToSimplified("繁體中文"), HanConversion.ToSimplified("繁體中文"));
-    }
 }

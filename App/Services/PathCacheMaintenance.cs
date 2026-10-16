@@ -5,16 +5,14 @@ using Lertaro.Core.Services.Search;
 namespace Lertaro.App.Services;
 
 // Gives back memory held by long-lived search caches across every live index, on both sides of the
-// process boundary:
-//  - Local drives run in the elevated Service process, reached via a fire-and-forget pipe command. Only
-//    the path memo needs clearing here -- the candidate/rank cache already has its own 3s-idle-driven
-//    trim (SearchEngine.OnIdleTimerTick), so by the time a window actually closes it's normally already
-//    clear.
-//  - Network/WSL/folder-index drives run in-process and have no idle-timer equivalent, so both their
-//    path memo AND their candidate/rank cache need clearing here.
-// PathMemo already self-caps at a high backstop threshold on its own (see Core's PathQueryExtensions),
-// but a search window closing/hiding is also a natural point to proactively give memory back -- called
-// from the same spots that already call ShellIconHelper.ClearCache()/Win32Api.TrimWorkingSet() on close/hide.
+// process boundary: local drives run in the elevated Service process and are reached by a fire-and-forget
+// pipe command, network/WSL/folder-index drives run in-process.
+// Most of what this used to reclaim is gone: IndexV2's Snapshot rebuilds a row's path from cheap mmap
+// reads on every GetFullPath, so neither side keeps a per-row path memo any more (both legs are no-ops --
+// see UsnIndexer.ClearAllPathCaches and NetworkIndex.ClearPathCache). The entry point stays because a
+// search window closing/hiding is a natural point to hand memory back anyway -- called from the same
+// spots that already call ShellIconHelper.ClearCache()/Win32Api.TrimWorkingSet() on close/hide -- and so
+// its callers don't have to know which legs still do anything.
 public static class PathCacheMaintenance
 {
     public static void ClearAllPathCaches()

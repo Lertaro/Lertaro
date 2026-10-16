@@ -274,4 +274,37 @@ public sealed class ContentSearchDatabaseTests
             return true;
         });
     }
+
+    [TestMethod]
+    public void OpenConnection_KeepsTempTablesOffTheDisk()
+    {
+        // The full-scan retention pass creates a TEMP TABLE, and SQLite puts those in %TEMP% -- a directory a
+        // reduced-integrity process cannot write, which came back as "unable to open database file" with
+        // nothing pointing at the temp directory. temp_store is per-connection, so the check is that the
+        // opener sets it, not that some one-time schema pass did.
+        var dbPath = Path.Combine(Path.GetTempPath(), $"test_db_tempstore_{Guid.NewGuid():N}.db");
+        try
+        {
+            using var db = new ContentSearchDatabase(dbPath);
+            db.Initialize();
+
+            using var conn = db.OpenConnection();
+            using (var createTemp = conn.CreateCommand())
+            {
+                createTemp.CommandText = "CREATE TEMP TABLE IF NOT EXISTS to_delete (path TEXT PRIMARY KEY);";
+                createTemp.ExecuteNonQuery();
+            }
+
+            using var readStore = conn.CreateCommand();
+            readStore.CommandText = "PRAGMA temp_store;";
+            Assert.AreEqual(2, Convert.ToInt32(readStore.ExecuteScalar()), "2 is SQLITE_TEMP_STORE memory");
+        }
+        finally
+        {
+            if (File.Exists(dbPath))
+            {
+                try { File.Delete(dbPath); } catch { }
+            }
+        }
+    }
 }

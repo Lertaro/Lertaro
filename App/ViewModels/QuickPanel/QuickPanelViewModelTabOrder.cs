@@ -30,6 +30,4 @@ public partial class QuickPanelViewModel
             .Select(id => sources[id])
             .ToList();
     }
-
-    /// <summary>Loads one workspace's visible folders, each on its own, and files each as it lands.</summary>
 }

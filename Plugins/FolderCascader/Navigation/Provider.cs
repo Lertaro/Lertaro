@@ -55,8 +55,15 @@ public class Provider : IQuickNavigationProvider
         _folderPages.Clear();
         _folderSnapshots.Clear();
         _commandMap.Clear();
-        Interlocked.Exchange(ref _nextId, 1);
-        Interlocked.Exchange(ref _nextCmdId, 1);
+        // Deliberately NOT resetting the counters: a fetch from an OLDER session can still be in flight
+        // when this runs (a newer Show() has taken over and the old menu is closing), and it keeps
+        // allocating handles as it walks the provider. Resetting would hand those stale allocations the
+        // same values the NEXT session is about to use, so an old handle would resolve to a new path --
+        // exactly the empty/wrong-submenu failure this session dance exists to prevent. Monotonic,
+        // never-reused handles keep the two sessions distinguishable while they briefly overlap; the
+        // maps are still dropped here.
+        // ponytail: int handles, so they wrap after 2^31 allocations -- unreachable for any real session;
+        // switch to long (mind IntPtr's width) if that ever stops being true.
     }
 
     public IntPtr AllocateHandle(string path)

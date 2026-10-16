@@ -5,8 +5,7 @@ using Lertaro.Core;
 
 namespace Lertaro.App.ViewModels.Settings.General;
 
-// Edits stage locally and only commit to _userSettings/UiMetrics when Save() runs (called from
-// GeneralSettingsViewModel.Apply()) -- see GeneralSettingsViewModel's class-level comment.
+// The quick window's search bar layout. Save() commits _userSettings.SearchWindow.
 public class SearchBarLayoutSettingsViewModel : ViewModelBase
 {
     private readonly UserSettings _userSettings;

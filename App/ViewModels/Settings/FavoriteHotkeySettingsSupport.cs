@@ -16,16 +16,14 @@ internal static class FavoriteHotkeySettingsSupport
     /// </summary>
     public static void ApplyHotkeys(FavoritesSettingsViewModel owner)
     {
-        var alreadyReported = UnavailableCombinations(owner);
-
-        var registrations = FavoriteHotkeyRegistrations.Build(owner.Settings.Favorites);
+        var registrations = FavoriteHotkeyRegistrations.BuildForSettings(owner.Settings);
 
         var failures = new List<FavoriteHotkeyFailure>();
         FavoriteHotkeyService.Instance?.Refresh(registrations, collected => failures.AddRange(collected));
 
         ClearHints(owner);
-        ReportFailures(owner, failures, alreadyReported);
-        ReportDuplicates(owner, registrations);
+        ReportFailures(owner, failures);
+        ReportSkipped(owner, registrations);
     }
 
     /// <summary>Drops every row's hotkey hint, e.g. when the page is re-opened or before reporting anew.</summary>
@@ -34,27 +32,27 @@ internal static class FavoriteHotkeySettingsSupport
         foreach (var item in owner.Items) item.HotkeyHint = string.Empty;
     }
 
-    // The combinations the user has already been told about. A combination another application owns
-    // fails on every later Apply too, and re-announcing it each time would make an unrelated, successful
-    // edit look like it failed -- so only a newly unavailable one is worth showing.
-    private static HashSet<string> UnavailableCombinations(FavoritesSettingsViewModel owner)
+    // Validate the draft without registering it. A rejected combination remains visible/editable,
+    // and the hint persists across Apply and reopening Settings until the conflict is resolved.
+    public static void RefreshHints(FavoritesSettingsViewModel owner)
     {
-        var service = FavoriteHotkeyService.Instance;
-        return owner.Items
-            .Select(item => item.Hotkey)
-            .Where(hotkey => service?.IsNewlyUnavailable(hotkey) == true)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        ClearHints(owner);
+        var registrations = FavoriteHotkeyRegistrations.Build(
+            owner.Items.Select(item => new Core.FavoriteItemSetting { Hotkey = item.Hotkey }),
+            owner.Settings.Hotkeys, FavoriteHotkeyConflicts.PluginHotkeys(owner.Settings));
+        foreach (var item in owner.Items)
+            if (FavoriteHotkeyService.Instance?.IsNewlyUnavailable(item.Hotkey) == true)
+                item.HotkeyHint = Translation("Favorites_HotkeyUnavailable");
+        ReportSkipped(owner, registrations);
     }
 
     private static void ReportFailures(
         FavoritesSettingsViewModel owner,
-        IReadOnlyList<FavoriteHotkeyFailure> failures,
-        HashSet<string> alreadyReported)
+        IReadOnlyList<FavoriteHotkeyFailure> failures)
     {
         foreach (var failure in failures)
         {
             if (failure.OwnerIndex < 0 || failure.OwnerIndex >= owner.Items.Count) continue;
-            if (alreadyReported.Contains(failure.Hotkey)) continue;
 
             owner.Items[failure.OwnerIndex].HotkeyHint = string.Format(
                 Translation("Favorites_HotkeyUnavailable"), failure.Hotkey);
@@ -63,17 +61,22 @@ internal static class FavoriteHotkeySettingsSupport
 
     // A duplicate registers nothing, so it never reaches the failures above -- without this the row
     // would look configured while a different favorite is the one that actually fires.
-    private static void ReportDuplicates(
+    private static void ReportSkipped(
         FavoritesSettingsViewModel owner,
         IReadOnlyList<FavoriteHotkeyRegistration> registrations)
     {
         foreach (var registration in registrations)
         {
-            if (registration.SkipReason != FavoriteHotkeySkipReason.Duplicate) continue;
             if (registration.OwnerIndex < 0 || registration.OwnerIndex >= owner.Items.Count) continue;
-
-            owner.Items[registration.OwnerIndex].HotkeyHint = string.Format(
-                Translation("Favorites_HotkeyInUse"), registration.Hotkey);
+            var key = registration.SkipReason switch
+            {
+                FavoriteHotkeySkipReason.Invalid => "Favorites_HotkeyInvalid",
+                FavoriteHotkeySkipReason.Duplicate => "Favorites_HotkeyInUse",
+                FavoriteHotkeySkipReason.Reserved => "Favorites_HotkeyReserved",
+                FavoriteHotkeySkipReason.ApplicationConflict => "Favorites_HotkeyApplicationConflict",
+                _ => null
+            };
+            if (key != null) owner.Items[registration.OwnerIndex].HotkeyHint = Translation(key);
         }
     }
 

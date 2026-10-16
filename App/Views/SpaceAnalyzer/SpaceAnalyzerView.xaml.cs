@@ -14,6 +14,7 @@ using Lertaro.PluginSdk.Abstractions;
 using Button = System.Windows.Controls.Button;
 using UserControl = System.Windows.Controls.UserControl;
 namespace Lertaro.App.Views.SpaceAnalyzer;
+
 public partial class SpaceAnalyzerView : UserControl, IDisposable
 {
     private readonly List<SpaceAnalyzerLocation> _history = [];

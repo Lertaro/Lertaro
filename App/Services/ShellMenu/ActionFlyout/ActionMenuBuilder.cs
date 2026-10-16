@@ -6,6 +6,7 @@ using Lertaro.App.Helpers;
 using Lertaro.App.Services.PluginManagerCore;
 using Lertaro.App.ViewModels.Settings.Plugins;
 namespace Lertaro.App.Services.ShellMenu.ActionFlyout;
+
 internal static class ActionMenuBuilder
 {
     // Windows shell menu text carries an access-key mnemonic Lertaro's own hotkey system never wires
@@ -157,10 +158,7 @@ internal static class ActionMenuBuilder
             return uiItems;
 
         var itemHeight = Math.Round(UiMetrics.ListItemHeight * UiMetrics.ActionMenuCompactRowScale);
-        // Unified to the exact same height a normal row gets (was a shorter, independently-derived
-        // value) -- height-sum calculations elsewhere that assume a uniform row size can't drift from
-        // what a header row actually renders at if the two are never allowed to be different numbers
-        // in the first place.
+        // Same unified header-height rationale as BuildStatic above -- see its comment there.
         var headerHeight = itemHeight;
 
         if (hMenu == IntPtr.Zero)

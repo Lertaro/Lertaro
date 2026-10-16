@@ -14,9 +14,8 @@ namespace Lertaro.App.ViewModels.Settings.General;
 // synthetic "Files" entry for raw file-index results -- as a hard tier above match-quality weight
 // (see SearchResultMapper.RankedCandidate.TypeRank), and optionally give each type a single-character
 // trigger that exclusively filters to just that type (see BuildQuickResults' triggeredTypeId).
-// History/Favorites stay hardcoded top-priority and are deliberately NOT part of this list. Edits
-// stage in Items and only commit to _userSettings.ResultTypeOrder/ResultTypeTriggers when Save() runs
-// (called from GeneralSettingsViewModel.Apply()).
+// History/Favorites stay hardcoded top-priority and are deliberately NOT part of this list. Save()
+// commits _userSettings.ResultTypeOrder/ResultTypeTriggers.
 public class ResultTypeOrderViewModel : ViewModelBase
 {
     private readonly System.ComponentModel.PropertyChangedEventHandler _translationHandler;

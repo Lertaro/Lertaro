@@ -24,8 +24,8 @@ public sealed class CalendarInstantProvider : IInstantResultProvider
         if (word.Length == 0)
             yield break;
 
-        // TryMatch, not TryMatchInvoked: the bare word is the whole feature, so "cal" alone has to be
-        // enough to bring the row up.
+        // TryMatch, not TryMatchInvoked: the bare word is the whole feature, so the configured trigger
+        // word alone has to be enough to bring the row up.
         if (!TriggerWord.TryMatch(query, word, out _))
             yield break;
 

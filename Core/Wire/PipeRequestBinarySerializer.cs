@@ -63,6 +63,7 @@ public static class PipeRequestBinarySerializer
             case IpcMessageId.KeyLeft:
             case IpcMessageId.KeyRight:
             case IpcMessageId.ClearHookLog:
+            case IpcMessageId.RearmHooks:
                 break;
             case IpcMessageId.SetAppProcessId:
             case IpcMessageId.KillProcess:
@@ -186,6 +187,7 @@ public static class PipeRequestBinarySerializer
             case IpcMessageId.KeyLeft:
             case IpcMessageId.KeyRight:
             case IpcMessageId.ClearHookLog:
+            case IpcMessageId.RearmHooks:
                 break;
 
             case IpcMessageId.SetAppProcessId:

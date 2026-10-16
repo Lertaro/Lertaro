@@ -140,9 +140,9 @@ public sealed class FlowProcessRunnerTests
     public async Task DisposeAsync_WaitsForExternalWriterAndPreventsNewProcesses()
     {
         var root = Directory.CreateTempSubdirectory("FlowWriter-").FullName;
-        var oldDirectory = Lertaro.PluginSdk.Services.UserDataService.GetUserDataDirectoryFunc;
+        var oldDirectory = PluginSdk.Services.UserDataService.GetUserDataDirectoryFunc;
         var oldStatePath = FlowPluginStateStore.CustomFilePath;
-        Lertaro.PluginSdk.Services.UserDataService.GetUserDataDirectoryFunc = () => root;
+        PluginSdk.Services.UserDataService.GetUserDataDirectoryFunc = () => root;
         FlowPluginStateStore.CustomFilePath = Path.Combine(root, "Plugins.json");
         var script = Path.Combine(root, "writer.ps1");
         var release = Path.Combine(root, "release");
@@ -183,7 +183,7 @@ public sealed class FlowProcessRunnerTests
             try { await runner.DisposeAsync(); }
             finally
             {
-                Lertaro.PluginSdk.Services.UserDataService.GetUserDataDirectoryFunc = oldDirectory;
+                PluginSdk.Services.UserDataService.GetUserDataDirectoryFunc = oldDirectory;
                 FlowPluginStateStore.CustomFilePath = oldStatePath;
                 Directory.Delete(root, true);
             }

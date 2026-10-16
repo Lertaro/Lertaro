@@ -22,6 +22,9 @@
   <ItemGroup>
     <ProjectReference Include="..\..\App\App.csproj" />
     <ProjectReference Include="..\..\Plugins\SystemSettings\SystemSettings.csproj" />
+    <ProjectReference Include="..\..\Plugins\CustomActions\CustomActions.csproj" />
+    <ProjectReference Include="..\..\Plugins\CustomCommands\CustomCommands.csproj" />
+    <ProjectReference Include="..\..\Plugins\WebSearch\WebSearch.csproj" />
   </ItemGroup>
 
 </Project>

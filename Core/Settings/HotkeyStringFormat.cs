@@ -12,19 +12,9 @@ public static class HotkeyStringFormat
 
     /// <summary>
     /// Returns whether a recorder-format hotkey is assigned to Windows itself. These combinations are
-    /// intentionally unavailable to Lertaro so Windows keeps its documented behavior.
-    /// Microsoft Windows 10/11 shortcuts as of 2026-07-27:
-    /// Win; Win+A; Win+Shift+A; Win+Alt+B; Win+C; Win+Alt+D; Win+Alt+Down; Win+Alt+H;
-    /// Win+Alt+Enter; Win+Alt+K; Win+Alt+Up; Win+Comma; Win+Ctrl+C; Win+Ctrl+D; Win+Ctrl+Enter; Win+Ctrl+F;
-    /// Win+Ctrl+F4; Win+Ctrl+Left; Win+Ctrl+Q; Win+Ctrl+Right;
-    /// Win+Ctrl+Shift+B; Win+Ctrl+Space; Win+Ctrl+V; Win+D; Win+Down; Win+E; Win+Esc; Win+F;
-    /// Win+Slash; Win+G; Win+H; Win+Home; Win+I; Win+J; Win+K; Win+L; Win+Left; Win+M;
-    /// Win+Minus; Win+N; Win+O; Win+P; Win+Pause; Win+Period; Win+Semicolon; Win+Plus;
-    /// Win+PrintScreen; Win+Q; Win+R; Win+Right; Win+S; Win+Shift+Down; Win+Shift+Enter;
-    /// Win+Shift+Left; Win+Shift+M; Win+Shift+R; Win+Shift+Right; Win+Shift+S;
-    /// Win+Shift+Space; Win+Shift+T; Win+Shift+Up; Win+Shift+V; Win+Space; Win+Tab; Win+T;
-    /// Win+U; Win+Up; Win+V; Win+W; Win+X; Win+Y; Win+Z; Win+(0-9); Win+Alt+(0-9);
-    /// Win+Ctrl+(0-9); Win+Ctrl+Shift+(0-9); Win+Shift+(0-9).
+    /// intentionally unavailable to Lertaro so Windows keeps its documented behavior. The switch below is
+    /// the list of record, keyed by modifier set; enumerating the same combinations here too would only
+    /// give the two a chance to disagree.
     /// Source: https://support.microsoft.com/windows/keyboard-shortcuts-in-windows-dcc61a57-8ff0-cffe-9796-cb9706c75eec
     /// </summary>
     public static bool IsReservedWindowsShortcut(string? value)
@@ -69,6 +59,7 @@ public static class HotkeyStringFormat
 
     private static string NormalizeWindowsKey(string key) => key.Trim().ToUpperInvariant() switch
     {
+        var digit when digit.Length == 2 && digit[0] == 'D' && digit[1] is >= '0' and <= '9' => digit[1..],
         "ESCAPE" => "ESC",
         "RETURN" => "ENTER",
         "OEMCOMMA" => "COMMA",

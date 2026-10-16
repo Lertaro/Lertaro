@@ -18,7 +18,7 @@
     <SolidColorBrush x:Key="FileIconColor" Color="#9C97CC"/>
     <SolidColorBrush x:Key="ShortcutColor" Color="#9C97CC"/>
     <SolidColorBrush x:Key="ControlBackground" Color="#1F1A47"/>
-    <SolidColorBrush x:Key="ControlBorderBrush" Color="#2E2A5C"/>
+    <SolidColorBrush x:Key="ControlBorderBrush" Color="#716F91"/>
     <SolidColorBrush x:Key="ControlHoverBackground" Color="#251F52"/>
     <SolidColorBrush x:Key="ControlDisabledBackground" Color="#161233"/>
     <SolidColorBrush x:Key="ControlDisabledBorderBrush" Color="#2E2A5C"/>
@@ -64,7 +64,7 @@
     <!-- Accent is a light periwinkle (#818CF8) rather than a mid-tone hue: white button text
          reads low-contrast on it, so this uses dark text like Nord's light-cyan accent does. -->
     <SolidColorBrush x:Key="PrimaryButtonText" Color="#14102E"/>
-    <SolidColorBrush x:Key="PrimaryButtonHoverBackground" Color="#6C74EF"/>
+    <SolidColorBrush x:Key="PrimaryButtonHoverBackground" Color="#6E76EF"/>
     <SolidColorBrush x:Key="PrimaryButtonPressedBackground" Color="#A5ABF9"/>
 
     <SolidColorBrush x:Key="SecondaryButtonText" Color="#9C97CC"/>
@@ -93,9 +93,9 @@
     <SolidColorBrush x:Key="ArchiveIconColor" Color="#C084FC"/>
     <SolidColorBrush x:Key="DefaultPluginIconColor" Color="#818CF8"/>
 
-    <SolidColorBrush x:Key="ScrollBarThumbBackground" Color="#413B88"/>
-    <SolidColorBrush x:Key="ScrollBarThumbHover" Color="#524AA1"/>
-    <SolidColorBrush x:Key="ScrollBarThumbDragging" Color="#746FA8"/>
+    <SolidColorBrush x:Key="ScrollBarThumbBackground" Color="#716DA7"/>
+    <SolidColorBrush x:Key="ScrollBarThumbHover" Color="#7C77B8"/>
+    <SolidColorBrush x:Key="ScrollBarThumbDragging" Color="#8683B3"/>
     <SolidColorBrush x:Key="CloseButtonHoverBg" Color="#E81123"/>
     <SolidColorBrush x:Key="CalculatorIconColor" Color="#34D399"/>
 

@@ -1,6 +1,7 @@
 using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Fzf;
 
+using Lertaro.Core.IndexV2.Alias;
 using Lertaro.Core.IndexV2.Persistence;
 namespace Lertaro.Core.IndexV2.Search;
 
@@ -24,26 +25,37 @@ internal static class SearchMatcherRow
         if (pattern.TryMatch(name, out match, FzfScoringScheme.Default, slab))
             return true;
 
+        // A `!term` has nothing to compare against in a transliteration, so the alias tiers below have to
+        // be vetoed on the name -- see FzfPatternExclusionExtensions.ExclusionsPass.
+        if (pattern.HasExclusions && !pattern.ExclusionsPass(name))
+            return false;
+
         var uid = (int)snapshot.NameIds[row];
         if (!snapshot.HasAliases(uid) || snapshot.GetAliases(uid, aliasScratch) == 0)
             return false;
 
         var disabledIds = SearchContext.DisabledAliasIds;
         var matched = false;
+        // Aliases are read the alias side's way -- each term as a run if it can be, as a subsequence
+        // otherwise (see FzfPatternAliasReading) -- while the name tier above stays on `pattern`, and so does
+        // the alignment rule. A provider that declares no structure has no boundary to align to, so it keeps
+        // the strict reading.
         foreach (var (alias, providerId) in aliasScratch)
         {
             if (disabledIds != null && disabledIds.Contains(providerId))
                 continue;
-            if (!pattern.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default, slab))
+            var separator = AliasProviderRegistry.GetSyllableSeparator(providerId);
+            var aliasPattern = pattern.ReadingFor(separator);
+            if (!aliasPattern.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default, slab))
                 continue;
 
             // A precise query must not match a full transliteration mid-syllable -- see AliasMatchRules.
-            if (!AliasMatchRules.AllowsMatch(pattern, AliasProviderRegistry.GetSyllableSeparator(providerId), alias, aliasMatch.MinBegin))
+            if (!AliasMatchRules.AllowsMatch(pattern, separator, alias, aliasMatch.MinBegin))
                 continue;
 
-            if (pattern.IsAcceptableAliasMatch(aliasMatch, queryLen, alias, FzfScoringScheme.Default, slab))
+            if (aliasPattern.IsAcceptableAliasMatch(aliasMatch, queryLen, alias, FzfScoringScheme.Default, slab))
             {
-                var weighted = pattern.WeightAliasMatch(aliasMatch, queryLen);
+                var weighted = aliasPattern.WeightAliasMatch(aliasMatch, queryLen);
                 if (!matched || weighted.Score > match.Score)
                 {
                     matched = true;
@@ -58,14 +70,18 @@ internal static class SearchMatcherRow
             var mixedTerm = MixedQueryMatcher.TrySegmentPattern(pattern);
             if (mixedTerm != null)
             {
-                foreach (var (alias, providerId) in aliasScratch)
+                // A grid entry is spelled out for this lane, which matches an alias as text (see
+                // SearchMatcherGridAliases.CollectMixedSegments).
+                var segments = new List<string>(4);
+                var (start, end) = snapshot.AliasEntryRange(uid);
+                for (var e = start; e < end; e++)
                 {
-                    if (providerId != mixedTerm.ProviderId)
+                    if (snapshot.AliasProviderId(e) != mixedTerm.ProviderId)
                         continue;
-                    foreach (var segment in alias.Split('|'))
+
+                    SearchMatcherGridAliases.CollectMixedSegments(snapshot, e, mixedTerm.ProviderId, segments);
+                    foreach (var segment in segments)
                     {
-                        if (segment.Length == 0)
-                            continue;
                         if (!MixedQueryMatcher.TryMatch(mixedTerm, name.AsSpan(), name, segment, out var mm))
                             continue;
                         var candidate = new FzfPatternResult(mm.Score, mm.MinBegin, mm.MaxEnd, mm.MaxEnd, mm.ValidOffsetFound);
@@ -84,33 +100,62 @@ internal static class SearchMatcherRow
 
     // For delta rows (renamed/added), which carry their own precomputed alias array.
     internal static bool TryMatchNameOrAliases(FzfPattern pattern, string name, string[]? aliases, byte[]? providerIds, int queryLen, FzfSlab slab, out FzfPatternResult result)
+        => TryMatchNameOrAliases(pattern, name, aliases, providerIds, Array.Empty<GridAlias>(), queryLen, slab, out result);
+
+    // Overload for the delta/live rows, whose aliases may include reading grids (see
+    // AliasGeneration.Generate). Grid entries are decided by the same code the snapshot's baked grids go
+    // through, which is what keeps a row's answer the same before and after it is compacted.
+    internal static bool TryMatchNameOrAliases(FzfPattern pattern, string name, string[]? aliases, byte[]? providerIds, GridAlias[] grids, int queryLen, FzfSlab slab, out FzfPatternResult result)
     {
         if (pattern.TryMatch(name, out result, FzfScoringScheme.Default, slab))
             return true;
-        if (aliases == null)
+        if (pattern.HasExclusions && !pattern.ExclusionsPass(name))
+            return false;
+        if (aliases == null && grids.Length == 0)
             return false;
 
         var disabledIds = SearchContext.DisabledAliasIds;
         var matched = false;
+        aliases ??= Array.Empty<string>();
+        // Same alias-side reading as MatchRow above, per entry: the name tier checked `pattern`, and every
+        // alias is checked with the reading its own provider's structure allows.
         for (var j = 0; j < aliases.Length; j++)
         {
             if (disabledIds != null && providerIds != null && j < providerIds.Length && disabledIds.Contains(providerIds[j]))
                 continue;
-            if (!pattern.TryMatch(aliases[j], out var aliasMatch, FzfScoringScheme.Default, slab))
+            var separator = AliasProviderRegistry.GetSyllableSeparator(providerIds?[j] ?? 0);
+            var aliasPattern = pattern.ReadingFor(separator);
+            if (!aliasPattern.TryMatch(aliases[j], out var aliasMatch, FzfScoringScheme.Default, slab))
                 continue;
 
             // A precise query must not match a full transliteration mid-syllable -- see AliasMatchRules.
-            if (!AliasMatchRules.AllowsMatch(pattern, AliasProviderRegistry.GetSyllableSeparator(providerIds?[j] ?? 0), aliases[j], aliasMatch.MinBegin))
+            if (!AliasMatchRules.AllowsMatch(pattern, separator, aliases[j], aliasMatch.MinBegin))
                 continue;
 
-            if (pattern.IsAcceptableAliasMatch(aliasMatch, queryLen, aliases[j], FzfScoringScheme.Default, slab))
+            if (aliasPattern.IsAcceptableAliasMatch(aliasMatch, queryLen, aliases[j], FzfScoringScheme.Default, slab))
             {
-                var weighted = pattern.WeightAliasMatch(aliasMatch, queryLen);
+                var weighted = aliasPattern.WeightAliasMatch(aliasMatch, queryLen);
                 if (!matched || weighted.Score > result.Score)
                 {
                     matched = true;
                     result = weighted;
                 }
+            }
+        }
+
+        foreach (var grid in grids)
+        {
+            if (disabledIds != null && disabledIds.Contains(grid.ProviderId))
+                continue;
+            if (!SearchMatcherGridAliases.TryMatchPayload(
+                    pattern, queryLen, grid.Payload, AliasProviderRegistry.GetSyllableSeparator(grid.ProviderId), slab, gate: true, out var gridMatch))
+                continue;
+
+            var weightedGrid = pattern.WeightAliasMatch(gridMatch, queryLen);
+            if (!matched || weightedGrid.Score > result.Score)
+            {
+                matched = true;
+                result = weightedGrid;
             }
         }
 
@@ -120,22 +165,38 @@ internal static class SearchMatcherRow
             var mixedTerm = MixedQueryMatcher.TrySegmentPattern(pattern);
             if (mixedTerm != null)
             {
+                // This lane matches an alias as TEXT (it maps the positions it took back onto the source),
+                // so a row whose reading aliases are stored as a grid has to spell them out -- see
+                // SearchMatcherGridAliases.TryMaterializeDefaults.
+                var segments = new List<string>(4);
                 for (var j = 0; j < aliases.Length && j < providerIds.Length; j++)
                 {
                     if (providerIds[j] != mixedTerm.ProviderId)
                         continue;
                     foreach (var segment in aliases[j].Split('|'))
                     {
-                        if (segment.Length == 0)
-                            continue;
-                        if (!MixedQueryMatcher.TryMatch(mixedTerm, name.AsSpan(), name, segment, out var mm))
-                            continue;
-                        var candidate = new FzfPatternResult(mm.Score, mm.MinBegin, mm.MaxEnd, mm.MaxEnd, mm.ValidOffsetFound);
-                        if (!matched || candidate.Score > result.Score)
-                        {
-                            matched = true;
-                            result = candidate;
-                        }
+                        if (segment.Length > 0)
+                            segments.Add(segment);
+                    }
+                }
+                foreach (var grid in grids)
+                {
+                    if (grid.ProviderId != mixedTerm.ProviderId)
+                        continue;
+
+                    SearchMatcherGridAliases.TryMaterializeDefaults(
+                        grid.Payload, null, AliasProviderRegistry.GetSyllableSeparator(grid.ProviderId), segments);
+                }
+
+                foreach (var segment in segments)
+                {
+                    if (!MixedQueryMatcher.TryMatch(mixedTerm, name.AsSpan(), name, segment, out var mm))
+                        continue;
+                    var candidate = new FzfPatternResult(mm.Score, mm.MinBegin, mm.MaxEnd, mm.MaxEnd, mm.ValidOffsetFound);
+                    if (!matched || candidate.Score > result.Score)
+                    {
+                        matched = true;
+                        result = candidate;
                     }
                 }
             }

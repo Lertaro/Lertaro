@@ -73,11 +73,17 @@ internal static class FavoriteHotkeyDialogNavigator
             return;
         }
 
+        // Same foreground-lock handoff used by inline search's Escape. Without it, the dialog can
+        // receive WM_SETTEXT while the inline card retains focus, so its guarded Enter never runs.
+        if (hookClient.ServiceProcessId != 0)
+            Views.InlineSearchWindow.Helpers.InlineSearchNavigator.AllowSetForegroundWindow(hookClient.ServiceProcessId);
+
         hookClient.SendMessage(new IpcMessage
         {
             Id = IpcMessageId.NavigateDialog,
             Hwnd = dialogWindow.ToInt64(),
-            StringVal1 = folderPath
+            StringVal1 = folderPath,
+            BoolVal = true // Restore focus before navigating, on the same Hook worker.
         });
     }
 }

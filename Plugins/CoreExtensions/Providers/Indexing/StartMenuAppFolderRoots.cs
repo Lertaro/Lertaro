@@ -14,8 +14,9 @@ internal static class StartMenuAppFolderRoots
     /// configured still searches the applications a Start Menu scan alone misses.
     /// </summary>
     /// <remarks>
-    /// shell:AppsFolder is a virtual shell folder with no filesystem path: UserPathResolver returns the
-    /// token unchanged and Directory.Exists is false for it, so <see cref="Merge"/> drops it as a directory
+    /// shell:AppsFolder is a virtual shell folder with no filesystem path: UserPathResolver turns the token
+    /// into its canonical <c>::{CLSID}</c> parsing name and Directory.Exists is false for that, so
+    /// <see cref="Merge"/> drops it as a directory
     /// to scan. That is deliberate -- handing a virtual token to the directory indexer could only fail --
     /// and it costs nothing, because the provider's own shell enumeration of that folder is what returns
     /// those entries. This default therefore declares "applications are searched out of the box" rather

@@ -4,7 +4,8 @@ namespace Lertaro.Core.Services.LocalSend;
 
 /// <summary>
 /// Session user acceptance helper for LocalSendServer.
-/// ponytail: Split out purely to keep LocalSendServer.cs under the repo's 300-line limit.
+/// ponytail: Split out of LocalSendServer.cs for the same reason; LocalSendServer.cs is still above the
+/// repo's 300-line guideline, so the split relieved it without clearing it.
 /// </summary>
 public static class LocalSendServerSessionHelper
 {

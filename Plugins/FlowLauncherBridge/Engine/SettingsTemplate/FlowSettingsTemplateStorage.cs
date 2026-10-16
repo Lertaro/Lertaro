@@ -6,7 +6,7 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Engine.SettingsTemplate;
 
 /// <summary>
 /// Helper managing JSON settings persistence and default values for SettingsTemplate panels.
-/// Split out from FlowSettingsTemplateBuilder to stay under the line limit.
+/// Split out from FlowConfigSchemaBuilder to stay under the line limit.
 /// </summary>
 public static class FlowSettingsTemplateStorage
 {
@@ -22,10 +22,7 @@ public static class FlowSettingsTemplateStorage
             : JsonNode.Parse(text) as JsonObject ?? throw new InvalidDataException($"Invalid settings: {path}");
     }
 
-    public static void SaveSettings(string path, JsonObject obj)
-    {
-        FlowSettingsStorage.WriteJsonFile(path, obj.ToJsonString(JsonOptions));
-    }
+    public static void SaveSettings(string path, JsonObject obj) => FlowSettingsStorage.WriteJsonFile(path, obj.ToJsonString(JsonOptions));
 
     public static void EnsureDefaultSettings(string templateFilePath, string settingsJsonPath)
     {

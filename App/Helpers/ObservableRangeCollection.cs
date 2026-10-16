@@ -30,9 +30,6 @@ public class ObservableRangeCollection<T> : ObservableCollection<T>
     }
 
     /// <summary>
-    /// Clears the collection and adds a new range of items, raising only a single Reset notification.
-    /// </summary>
-    /// <summary>
     /// Whether the update currently being notified grew an existing set of content rather than
     /// replacing it with a different one.
     /// </summary>
@@ -46,6 +43,7 @@ public class ObservableRangeCollection<T> : ObservableCollection<T>
     /// </remarks>
     public bool LastUpdateExtendedContent { get; private set; }
 
+    /// <summary>Clears the collection and adds a new range of items, raising only a single Reset notification.</summary>
     public void ReplaceRange(IEnumerable<T> collection)
     {
         LastUpdateExtendedContent = false;

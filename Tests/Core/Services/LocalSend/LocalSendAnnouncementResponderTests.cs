@@ -41,7 +41,10 @@ public sealed class LocalSendAnnouncementResponderTests
     {
         var peer = new LocalSendDeviceInfo
         {
-            IpAddress = "192.168.1.20", Port = 53317, Protocol = "https", Fingerprint = "certificate-fingerprint"
+            IpAddress = "192.168.1.20",
+            Port = 53317,
+            Protocol = "https",
+            Fingerprint = "certificate-fingerprint"
         };
         var info = new LocalSendInfoDto { Alias = "Confirmed alias", Fingerprint = "claimed-fingerprint" };
 
@@ -56,7 +59,10 @@ public sealed class LocalSendAnnouncementResponderTests
     {
         var peer = new LocalSendDeviceInfo
         {
-            IpAddress = "192.168.1.20", Port = 53317, Protocol = "http", Fingerprint = "announcement-fingerprint"
+            IpAddress = "192.168.1.20",
+            Port = 53317,
+            Protocol = "http",
+            Fingerprint = "announcement-fingerprint"
         };
         var info = new LocalSendInfoDto { Alias = "Confirmed alias", Fingerprint = "response-fingerprint" };
 

@@ -1,68 +1,67 @@
 using System.Windows;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Application = System.Windows.Application;
-using Color = System.Windows.Media.Color;
 using Image = System.Windows.Controls.Image;
 
 namespace Lertaro.App.Services.Theme;
 
 /// <summary>
-/// Sets a window's title-bar icon (native Window.Icon, and/or an in-window logo Image) to a
-/// monochrome, theme-colored render of tray.png -- the same silhouette source TrayIconService
-/// recolors for the system tray icon, just recolored here as a plain WPF BitmapSource (both
-/// Window.Icon and Image.Source accept any ImageSource, so no .ico conversion is needed).
-/// Re-renders whenever the active theme changes.
+/// Hands out the two forms of the brand mark: the native window icon stays a size-specific ICO
+/// frame because Win32 only accepts an HICON, while in-app brand images use the theme-tinted
+/// vector from <see cref="BrandLogo"/>.
 /// </summary>
 public static class ThemedWindowIconHelper
 {
-    private static readonly Uri SourceUri = new("pack://application:,,,/Lertaro.App;component/tray.png", UriKind.Absolute);
-
-    public static void Apply(Window window) => ApplyCore(bmp => window.Icon = bmp, window);
-
-    public static void Apply(Image image, Window window) => ApplyCore(bmp => image.Source = bmp, window);
-
-    private static void ApplyCore(Action<BitmapSource> setIcon, Window window)
+    private static readonly Lazy<BitmapFrame[]> Frames = new(() =>
     {
-        void Update() => setIcon(Render());
-        Update();
+        var decoder = BitmapDecoder.Create(
+            new Uri("pack://application:,,,/Lertaro.App;component/logo.ico", UriKind.Absolute),
+            BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+        var frames = decoder.Frames.OrderBy(frame => frame.PixelWidth).ToArray();
+        foreach (var frame in frames) frame.Freeze();
+        return frames;
+    });
 
-        void OnThemeChanged() => window.Dispatcher.Invoke(Update);
-        ThemeManager.Instance.ThemeChanged += OnThemeChanged;
-        window.Closed += (_, _) => ThemeManager.Instance.ThemeChanged -= OnThemeChanged;
+    private static readonly List<WeakReference<Image>> BrandMarks = [];
+    private static readonly object Gate = new();
+
+    // Keep the decoder on the BitmapFrame: WPF can select native small/large window icons from it.
+    public static void Apply(Window window) => window.Icon = GetFrame(32);
+
+    public static void Apply(Image image)
+    {
+        image.Source = BrandLogo.Create();
+        lock (Gate) BrandMarks.Add(new WeakReference<Image>(image));
     }
 
-    private static BitmapSource Render()
+    /// <summary>Re-paints every brand image handed out so far, because a frozen vector mark is a
+    /// snapshot of the accent it was built under. Wired to ThemeChanged during app startup.</summary>
+    public static void RepaintBrandMarks()
     {
-        Color color;
-        if (ThemeManager.Instance.ActiveTheme?.IsDark == true)
+        var source = BrandLogo.Create();
+        var live = new List<Image>();
+        lock (Gate)
         {
-            color = Colors.White;
+            BrandMarks.RemoveAll(weak => !weak.TryGetTarget(out _));
+            foreach (var weak in BrandMarks)
+                if (weak.TryGetTarget(out var image)) live.Add(image);
         }
-        else
+        foreach (var image in live)
         {
-            var brush = Application.Current.Resources["AccentBlue"] as SolidColorBrush;
-            color = brush?.Color ?? Colors.DodgerBlue;
+            if (image.CheckAccess()) image.Source = source;
+            else image.Dispatcher.BeginInvoke(() => image.Source = source);
         }
-
-        var source = new BitmapImage(SourceUri);
-        var converted = new FormatConvertedBitmap(source, PixelFormats.Bgra32, null, 0);
-
-        var stride = converted.PixelWidth * 4;
-        var pixels = new byte[stride * converted.PixelHeight];
-        converted.CopyPixels(pixels, stride, 0);
-
-        // Bgra32 is straight (non-premultiplied) alpha, stored B,G,R,A per pixel -- replace the color
-        // channels with the theme color while keeping the source alpha, i.e. its silhouette shape.
-        for (var i = 0; i < pixels.Length; i += 4)
-        {
-            pixels[i] = color.B;
-            pixels[i + 1] = color.G;
-            pixels[i + 2] = color.R;
-        }
-
-        var bitmap = BitmapSource.Create(converted.PixelWidth, converted.PixelHeight, converted.DpiX, converted.DpiY, PixelFormats.Bgra32, null, pixels, stride);
-        bitmap.Freeze();
-        return bitmap;
     }
+
+    public static readonly DependencyProperty UseAppIconProperty = DependencyProperty.RegisterAttached(
+        "UseAppIcon", typeof(bool), typeof(ThemedWindowIconHelper),
+        new PropertyMetadata(false, (sender, e) =>
+        {
+            if (sender is Image image && (bool)e.NewValue) Apply(image);
+        }));
+
+    public static bool GetUseAppIcon(Image image) => (bool)image.GetValue(UseAppIconProperty);
+    public static void SetUseAppIcon(Image image, bool value) => image.SetValue(UseAppIconProperty, value);
+
+    internal static BitmapFrame GetFrame(double pixelSize) =>
+        Frames.Value.FirstOrDefault(frame => frame.PixelWidth >= pixelSize) ?? Frames.Value[^1];
 }

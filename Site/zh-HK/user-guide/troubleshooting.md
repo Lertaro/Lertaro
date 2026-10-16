@@ -33,7 +33,32 @@
   1. **直接打拼音**：Lertaro 內建了拼音別名引擎，直接輸入拼音字母即可跳躍命中中文檔案名稱（詳見[**搜尋語法**](./search-syntax#_7-多語言智能別名)），無需調用輸入法候選字浮窗。
   2. **切換為快速視窗**：按下雙擊 `Ctrl` 喚出擁有完整焦點的快速視窗，即可正常使用任何輸入法。
 
-## 6. 記錄檢視與提交 Issue
+## 6. 資料目錄、權限與更新失敗
+
+- **資料目錄搬遷**：把安裝版的 `%LocalAppData%\Lertaro` 或可攜版的 `Data\Users` 用符號連結或 Junction 搬到其他分割區是受支援的，但連結目標必須是**本機固定磁碟區**。若連結指向網絡位置或可移除磁碟區，程式會在啟動時拒絕並說明原因（詳見[**設定 → 關於**](./settings/about)）。
+- **啟動被拒絕：資料目錄屬於另一個身分**：若使用者資料目錄的 owner 不是你的帳戶，Lertaro 會拒絕啟動，並先嘗試以提權方式修復。提示中會同時給出**實際 owner 與期望 SID**，這就是完整的診斷資訊。該修復的每一步（包括超時被終止時仍停留在的那一步）都會寫進 `%TEMP%\Lertaro\repair.log`，回報問題時請附上該檔案。
+
+若該目錄的 owner 是 `BUILTIN\Administrators`，而權限其實已經授予**你** FullControl，只需把 owner 改回自己即可。下面指令碼只修改 `%LOCALAPPDATA%\Lertaro` 範圍內的所有者，不改權限、也不改任何檔案內容：
+
+```powershell
+$sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+$root = Join-Path $env:LOCALAPPDATA 'Lertaro'
+Get-Item -LiteralPath $root | ForEach-Object {
+    $acl = $_.GetAccessControl('Owner')
+    $acl.SetOwner($sid)
+    $_.SetAccessControl($acl)
+}
+Get-ChildItem -LiteralPath $root -Recurse -Force | ForEach-Object {
+    $acl = $_.GetAccessControl('Owner')
+    $acl.SetOwner($sid)
+    $_.SetAccessControl($acl)
+}
+```
+
+- **上次無訊息更新失敗**：更新程式會把結論（狀態、失敗原因與回滾目錄）寫到安裝目錄旁的 `update-result.json`。Lertaro 會在下次啟動時把這個原因提示一次，同一份結論不會重複提示；若提示反覆出現，可以刪除該檔案，或手動覆蓋安裝新版本。
+- **資料目錄以下的連結一律拒絕**：只有資料目錄自身這條鏈路允許是連結，它內部的子目錄不允許（詳見[**設定 → 關於**](./settings/about)）。
+
+## 7. 記錄檢視與提交 Issue
 
 若上述步驟均未能解決你的問題，請進入[**設定 → 運行狀態**](./settings/service-status)檢視詳細的運行記錄：
 

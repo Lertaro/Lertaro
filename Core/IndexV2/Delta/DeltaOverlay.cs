@@ -25,6 +25,9 @@ public sealed class DeltaOverlay
         public UInt128 ParentFrn;
         public string[]? Aliases;
         public byte[] ProviderIds = Array.Empty<byte>();
+        // Reading-grid entries, stored beside the string aliases rather than inside them: a grid payload
+        // is not text, and every string consumer would have to learn to skip it.
+        public GridAlias[] Grids = Array.Empty<GridAlias>();
         public bool Removed;
     }
 
@@ -48,9 +51,8 @@ public sealed class DeltaOverlay
 
     // Running adjustment to Snapshot.TotalFiles/TotalDirs from every visibility change this overlay
     // has made -- LiveIndex.GetCounts() adds these to the base snapshot's frozen totals instead of
-    // rescanning millions of rows on every status poll. Mirrors RuntimeIndex.TotalFiles/TotalDirs,
-    // which the old engine updates at the same transition points (Upsert/Remove/MarkRowDeleted/
-    // AppendHardLink) rather than recomputing.
+    // rescanning millions of rows on every status poll. Adjusted at the same transition points
+    // (Upsert/Remove/MarkRowDeleted/AppendHardLink) rather than ever being recomputed.
     public int FileCountDelta { get; private set; }
     public int DirCountDelta { get; private set; }
 
@@ -81,8 +83,9 @@ public sealed class DeltaOverlay
             ParentBaseRow = ResolveParentRow(id, parentId),
             ParentFrn = parentId,
         };
-        record.Aliases = AliasGeneration.Generate(name, out var providerIds);
+        record.Aliases = AliasGeneration.Generate(name, out var providerIds, out var grids);
         record.ProviderIds = providerIds;
+        record.Grids = grids;
 
         if (_addedById.TryGetValue(id, out var deltaIdx))
         {
@@ -122,7 +125,7 @@ public sealed class DeltaOverlay
     // (renamed/moved in place still counts as existing), or a non-removed Added record. Deliberately
     // NOT `!IsSuperseded(row)`: IsSuperseded also flags overridden rows (so name search's base-row
     // pass skips them in favor of the override record), but an override means "exists under new
-    // attributes," not "gone." Mirrors QueryExtensions.TryGetIndexById's skip-deleted semantics; used
+    // attributes," not "gone." Used
     // by watcher-family path application to avoid redundantly re-Upserting an already-known parent.
     public bool Exists(UInt128 id)
     {

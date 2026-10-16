@@ -196,7 +196,7 @@ internal static class MftIndexScanner
             Store = store,
             NextUsn = nextUsn,
             JournalId = journalId,
-            IsSortedById = false // one FRN can span multiple rows; let RuntimeIndex.Load sort.
+            IsSortedById = false // one FRN can span multiple rows, so the store arrives unsorted by id.
         };
     }
 

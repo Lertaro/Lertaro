@@ -51,39 +51,59 @@ internal static partial class DirectoryLockNativeMethods
     /// link can be removed through the same handle; a file another process holds open without sharing
     /// delete is opened without it (such a file is in use by its owner, not a planted link).
     /// </summary>
-    public static SafeFileHandle OpenWithoutFollowing(string path, SafeFileHandle? parent = null, bool migration = false)
+    /// <param name="migration">
+    /// A legacy tree this run deletes through the handle. DELETE is required, so the open is never retried
+    /// without it, and the tree is shared for reads only while it is merged.
+    /// </param>
+    /// <param name="pin">
+    /// A live ancestor of the path about to be repaired. It is opened only to refuse a link on it and to reach
+    /// the child through this handle, so it asks for neither DELETE nor rights over that directory's owner or
+    /// DACL. That is the whole point: the profile is already open elsewhere with FILE_SHARE_DELETE withheld
+    /// (the shell and CSRSS both hold one), so asking for DELETE there is refused with
+    /// ERROR_SHARING_VIOLATION before the repair does anything at all -- which is how the elevated repair died
+    /// on 'C:\Users\&lt;you&gt;' and the App stopped starting.
+    /// </param>
+    public static SafeFileHandle OpenWithoutFollowing(string path, SafeFileHandle? parent = null,
+        bool migration = false, bool pin = false)
     {
         const uint flags = Win32Api.FILE_FLAG_BACKUP_SEMANTICS | Win32Api.FILE_FLAG_OPEN_REPARSE_POINT;
-        var share = migration ? Win32Api.FILE_SHARE_READ : Win32Api.FILE_SHARE_READ | Win32Api.FILE_SHARE_WRITE | Win32Api.FILE_SHARE_DELETE;
+        var share = migration ? Win32Api.FILE_SHARE_READ
+            : Win32Api.FILE_SHARE_READ | Win32Api.FILE_SHARE_WRITE | Win32Api.FILE_SHARE_DELETE;
         var access = ReadControl | FileReadAttributes | 0x00100001u; // SYNCHRONIZE + READ_DATA/LIST_DIRECTORY
-        if (!migration) access |= WriteDac | WriteOwner;
+        if (!pin) access |= DeleteAccess;
+        if (!migration && !pin) access |= WriteDac | WriteOwner;
+        // Only the lock walk settles for a handle without DELETE: the merge deletes through its handles, and a
+        // pinned ancestor never asked for DELETE to begin with.
+        var canOpenWithoutDelete = !migration && !pin;
 
         if (parent != null)
         {
-            var relative = OpenRelative(parent, path, access | DeleteAccess, share, out var errorCode);
-            if (relative.IsInvalid && errorCode == ErrorSharingViolation && !migration)
+            var relative = OpenRelative(parent, path, access, share, out var errorCode);
+            if (relative.IsInvalid && errorCode == ErrorSharingViolation && canOpenWithoutDelete)
             {
                 relative.Dispose();
-                relative = OpenRelative(parent, path, access, share, out errorCode);
+                relative = OpenRelative(parent, path, access & ~DeleteAccess, share, out errorCode);
             }
             if (!relative.IsInvalid) return relative;
+            var reason = new Win32Exception(errorCode);
             relative.Dispose();
-            throw new IOException($"Could not open child '{path}'.", new Win32Exception(errorCode));
+            throw new IOException($"Could not open child '{path}': {reason.Message} (Win32 {errorCode}).", reason);
         }
 
-        var handle = Win32Api.CreateFileW(path, access | DeleteAccess, share, IntPtr.Zero, Win32Api.OPEN_EXISTING, flags, IntPtr.Zero);
-        if (handle.IsInvalid && Marshal.GetLastWin32Error() == ErrorSharingViolation && !migration)
+        var handle = Win32Api.CreateFileW(path, access, share, IntPtr.Zero, Win32Api.OPEN_EXISTING, flags, IntPtr.Zero);
+        if (handle.IsInvalid && Marshal.GetLastWin32Error() == ErrorSharingViolation && canOpenWithoutDelete)
         {
             handle.Dispose();
-            handle = Win32Api.CreateFileW(path, access, share, IntPtr.Zero, Win32Api.OPEN_EXISTING, flags, IntPtr.Zero);
+            handle = Win32Api.CreateFileW(path, access & ~DeleteAccess, share, IntPtr.Zero, Win32Api.OPEN_EXISTING, flags, IntPtr.Zero);
         }
 
         if (!handle.IsInvalid)
             return handle;
 
         var error = Marshal.GetLastWin32Error();
+        var failure = new Win32Exception(error);
         handle.Dispose();
-        throw new IOException($"Could not open '{path}'.", new Win32Exception(error));
+        throw new IOException($"Could not open '{path}': {failure.Message} (Win32 {error}).", failure);
     }
 
     // NtOpenFile's RootDirectory pins the actual parent object. A rename/junction swap after enumeration
@@ -100,8 +120,10 @@ internal static partial class DirectoryLockNativeMethods
                 parent.DangerousAddRef(ref added);
                 var attributes = new ObjectAttributes
                 {
-                    Length = (uint)sizeof(ObjectAttributes), RootDirectory = parent.DangerousGetHandle(),
-                    ObjectName = &unicode, Attributes = 0x40 // OBJ_CASE_INSENSITIVE
+                    Length = (uint)sizeof(ObjectAttributes),
+                    RootDirectory = parent.DangerousGetHandle(),
+                    ObjectName = &unicode,
+                    Attributes = 0x40 // OBJ_CASE_INSENSITIVE
                 };
                 // FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT | FILE_OPEN_REPARSE_POINT
                 var status = NtOpenFile(out var handle, access, &attributes, out _, share, 0x00204020);

@@ -4,7 +4,7 @@ using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.PinyinAlias;
 
-public class PinyinAliasProvider : IAliasProvider, ITranslationProvider, IConfigurable
+public class PinyinAliasProvider : IAliasGridProvider, ITranslationProvider, IConfigurable
 {
     public string Name => TranslationService.Get("Plugins_PinyinAliasPluginName");
 
@@ -14,7 +14,14 @@ public class PinyinAliasProvider : IAliasProvider, ITranslationProvider, IConfig
     // every already-built index regenerate its baked aliases -- see AliasProvidersReconciler -- which a
     // snapshot baked before this ran has none of. (Turning the setting off again does not re-bake on its
     // own: the fingerprint only tracks provider versions, so that change lands on the next rebuild.)
-    public int Version => 4;
+    // 5: a name whose full pinyin overran the combination path's per-variant cap baked NO alias at all,
+    // leaving it unreachable by every pinyin query; it now falls back to the single-reading spelling, so
+    // snapshots baked before this are missing aliases for exactly those names.
+    // 6: the host stores this provider's readings as a grid rather than as spelled-out aliases, so a
+    // name's own reading is reachable even where the enumeration was cut off (市 is "fu" alphabetically
+    // first and "shi" in 创意市集, and only the grid offers both). Snapshots baked before this hold the
+    // capped enumeration, which is why this exists rather than being a pure query-side change.
+    public int Version => 6;
 
     public IReadOnlyList<string> SupportedCultures => TranslationService.GetSupportedCultures(System.Reflection.Assembly.GetExecutingAssembly());
 
@@ -27,7 +34,6 @@ public class PinyinAliasProvider : IAliasProvider, ITranslationProvider, IConfig
     // precise match that begins mid-syllable, which is what stops "ex" being read as the tail of "xue"
     // plus the head of "xi".
     public char SyllableSeparator => PinyinAliasFormat.SyllableSeparator;
-
     private static readonly Dictionary<string, Dictionary<string, string>> Cache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly object LockObj = new();
 
@@ -293,6 +299,23 @@ public class PinyinAliasProvider : IAliasProvider, ITranslationProvider, IConfig
     // repo's per-file line limit.
     public void GetAliasesUtf8(string text, AliasByteSink dest) =>
         PinyinAliasUtf8Encoder.Encode(text, dest, ConvertEnabled, HanConversion.ToSimplified);
+
+    // IAliasGridProvider. Deliberately delegates to the very same per-position readings the string and
+    // byte generation paths already build their aliases from, so the grid cannot disagree with either
+    // about what a character reads as: the two encodings are the same alias space, and the host picks
+    // between them per name. GetSyllableLists' returned array is thread-static scratch -- the host
+    // copies what it needs before calling back in, which is the lifetime the interface documents.
+    public string[][] GetReadingSets(string text) => PinyinAliasCombinationGenerator.GetSyllableLists(text);
+
+    public bool NeedsSeparatorBefore(string text, int index) => PinyinAliasFormat.NeedsSeparatorBefore(text, index);
+
+    // The pinyin half of GetAliasesUtf8, separated so the host can weigh it against the grid and keep
+    // whichever is smaller for a given name. The Simplified spelling is not a spelling of the readings,
+    // so it goes out through GetStandaloneAliasesUtf8 and survives either way.
+    public void GetReadingAliasesUtf8(string text, AliasByteSink dest) => PinyinAliasUtf8PinyinEncoder.Encode(text, dest);
+
+    public void GetStandaloneAliasesUtf8(string text, AliasByteSink dest) =>
+        PinyinAliasUtf8Encoder.AppendSimplified(text, dest, ConvertEnabled, HanConversion.ToSimplified);
 
     // The one configurable surface this assembly has -- see PinyinAliasConfigSchema.
     public PluginConfigSchema GetConfigSchema() => PinyinAliasConfigSchema.Create();

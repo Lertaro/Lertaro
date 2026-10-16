@@ -4,6 +4,9 @@ using Lertaro.App.Services;
 using Lertaro.Core;
 namespace Lertaro.App.ViewModels.Settings.General;
 
+// Root of the General settings page. Canonical staging rule for the page and every sub-ViewModel it
+// owns: edits change local fields only and commit to _userSettings/UiMetrics when Save() runs, and
+// Save() only runs from Apply() below (the Settings window's Apply/OK). Each sub-VM header names its key.
 public class GeneralSettingsViewModel : ViewModelBase
 {
     private readonly System.ComponentModel.PropertyChangedEventHandler _translationHandler;
@@ -13,8 +16,8 @@ public class GeneralSettingsViewModel : ViewModelBase
     private IReadOnlyList<LogLevelOption>? _logLevelOptions;
     private IReadOnlyList<LanguageOption>? _languageOptions;
 
-    // Staged edits -- everything below except SelectedTheme/PreferredLanguage (which apply live for
-    // instant preview) only commits to _userSettings when Apply() runs (Settings window's Apply/OK).
+    // Staged per the class-level rule, except PreferredLanguage further down, which writes straight
+    // through to _userSettings so the UI retranslates live.
     private bool _startWithWindows;
     private bool _autoCheckUpdates;
     private bool _autoSilentUpdate;
@@ -29,7 +32,8 @@ public class GeneralSettingsViewModel : ViewModelBase
     private bool _openFoldersInNewExplorerTabs;
     private string _globalTokenPrefix;
 
-    // Tab navigation for the System/Layout/Preview Window split of this page.
+    // Tab navigation across this page's six tabs (System/Layout/SearchWindow/PreviewWindow/
+    // QuickNavigation/PreviewProviders).
     private string _selectedTab = "System";
     public string SelectedTab
     {
@@ -94,8 +98,8 @@ public class GeneralSettingsViewModel : ViewModelBase
         TranslationManager.Instance.PropertyChanged += _translationHandler;
     }
 
-    // Persistence and the side effects (Logger.MinimumLevel, hook-process notification) are staged
-    // until Apply() -- see the class-level comment.
+    // Its side effects (Logger.MinimumLevel, hook-process notification) are staged too -- see the
+    // class-level rule.
     public LogLevelOption? SelectedLogLevel
     {
         get => _selectedLogLevel;

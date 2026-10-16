@@ -16,9 +16,11 @@ namespace Lertaro.App.Helpers.Visuals;
 /// pass blockClose: false, because they are ordinary windows the user opens and is done with and
 /// closing them is a perfectly good thing to want.
 ///
-/// The quick window is the one that genuinely cannot do without this, being the application's
-/// MainWindow with no ShutdownMode set, so letting Alt+F4 through would take the whole tray app down
-/// with it. Attaching it to the inline window has never reliably covered that one: unresolved, and
+/// The quick window is the one that genuinely cannot do without this: it is the application's MainWindow,
+/// created once at startup and only ever hidden rather than closed, so a system-menu close destroys the
+/// launcher's own surface for the rest of the session. App.xaml sets ShutdownMode="OnExplicitShutdown",
+/// so the process survives it -- which is exactly why the loss is silent rather than obvious.
+/// Attaching it to the inline window has never reliably covered that one: unresolved, and
 /// left as it is rather than pursued here.
 /// </remarks>
 public static class SystemMenuBlocker

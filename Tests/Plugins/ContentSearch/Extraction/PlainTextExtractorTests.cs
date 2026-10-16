@@ -3,8 +3,7 @@ using Lertaro.Plugins.ContentSearch.Extraction;
 
 namespace Lertaro.Plugins.ContentSearch.Tests.Extraction;
 
-// PlainTextExtractor tests share the process-wide PluginSdk.Logger.LogAction hook,
-// so they must not run concurrently with anything that reads or resets it.
+// [DoNotParallelize]: the process-wide PluginSdk.Logger.LogAction hook -- see IndexBatchProcessorTests' header.
 [TestClass]
 [DoNotParallelize]
 public sealed class PlainTextExtractorTests

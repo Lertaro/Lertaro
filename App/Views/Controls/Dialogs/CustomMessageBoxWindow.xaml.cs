@@ -17,7 +17,7 @@ public partial class CustomMessageBoxWindow : Window
         SystemMenuBlocker.Attach(this);
         AltTabExcluder.Attach(this);
         ThemedWindowIconHelper.Apply(this);
-        ThemedWindowIconHelper.Apply(TitleBarLogo, this);
+        ThemedWindowIconHelper.Apply(TitleBarLogo);
 
         TxtTitle.Text = string.IsNullOrEmpty(caption) ? "Lertaro" : caption;
         TxtMessage.Text = messageBoxText;

@@ -41,7 +41,7 @@ public static class NetworkIndexerRecentFilesExtensions
     // both point at the exact same distro that NetworkIndexer itself always keys and stores paths under as
     // "\\wsl$\{distro}" (see NetworkIndexer.Configure and NetworkDriveSettingsHelper.GetWslDistros). A
     // "Recent Files" directory pasted or browsed to in the newer alias must still resolve to that same
-    // cached index, and the path handed to RuntimeIndex must be rewritten to the alias the index's own
+    // cached index, and the path handed to the index lookup must be rewritten to the alias the index's own
     // records actually use, or the subtree lookup silently finds nothing. Matching (and rewriting) by the
     // distro NAME rather than a raw string prefix also avoids "Ubuntu-22" wrongly prefix-matching "Ubuntu".
     private static bool TryResolveIndex(NetworkIndexer indexer, string dir, out NetworkIndex? index, out string canonicalDirLower)

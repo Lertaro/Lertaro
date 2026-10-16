@@ -10,7 +10,7 @@ namespace Lertaro.Plugins.DirectoryOpus.Favorites;
 
 // Exposes Directory Opus's own Favorites menu as a Quick Navigation cascade. Same structure and
 // conventions as TotalCommander's DirMenuProvider, including the private _nodeMap/_commandMap field names,
-// which App/Services/ShellMenu/QuickNavigationPathResolver.cs finds by reflection to resolve a handle back
+// which App/Services/ShellMenu/QuickNav/QuickNavigationPathResolver.cs finds by reflection to resolve a handle back
 // to a path for icon loading.
 public class FavoritesProvider : IQuickNavigationProvider
 {

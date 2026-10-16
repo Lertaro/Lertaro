@@ -29,8 +29,9 @@ public sealed class InlineFolderScopeTests
             OneFileAndTwoFolders(), "report", scope: null, contextDirectory: null,
             isInlineWindow: true, folderScope: true);
 
+        // "report" is a whole word in report-final and only a word start in Reports, hence this order.
         CollectionAssert.AreEqual(
-            new[] { @"C:\Reports", @"C:\Desktop\report-final" },
+            new[] { @"C:\Desktop\report-final", @"C:\Reports" },
             result.Select(row => row.FullPath).ToList());
     }
 

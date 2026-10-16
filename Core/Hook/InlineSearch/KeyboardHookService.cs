@@ -23,6 +23,9 @@ public class KeyboardHookService : IDisposable
     public event Action? OnDoubleCtrl;
     public event Action? OnQuickPanelHotkey;
     public event Action? OnQuickNavigationHotkey;
+    /// <summary>A recognized Quick Switch, carrying the dialog it was aimed at. The subscriber must not do the
+    /// navigation on this thread: see <see cref="QuickSwitchNavigator"/>.</summary>
+    public event Action<IntPtr>? OnQuickSwitchRequested;
     public event Action<char>? OnCharacterTyped;
     public event Action? OnBackspacePressed;
     public event Action? OnEscapePressed;
@@ -59,12 +62,17 @@ public class KeyboardHookService : IDisposable
     public KeyboardHookService(ExplorerTracker explorerTracker)
     {
         _explorerTracker = explorerTracker;
-        _hotkeyDetector = new GlobalHotkeyDetector(_settings, _explorerTracker);
+        _hotkeyDetector = new GlobalHotkeyDetector(_settings, _explorerTracker, RequestQuickSwitch);
     }
+
+    // The hook callback only recognizes the gesture and raises this: both halves of the work -- the tracker
+    // lock and the cross-process navigation -- belong to whoever subscribes.
+    private void RequestQuickSwitch(IntPtr dialogHwnd) => OnQuickSwitchRequested?.Invoke(dialogHwnd);
+
     public void ReloadSettings()
     {
         _settings = UserSettings.ForceReload();
-        _hotkeyDetector = new GlobalHotkeyDetector(_settings, _explorerTracker);
+        _hotkeyDetector = new GlobalHotkeyDetector(_settings, _explorerTracker, RequestQuickSwitch);
         Logger.Log("[KeyboardHookService] Hotkey settings reloaded.", LogLevel.Info);
     }
     // Wired from MouseHookService.OnRightButtonDown, and also called directly below for the VK_APPS

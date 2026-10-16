@@ -14,9 +14,9 @@ internal static class QuickSearchShortcutHelper
 {
     public static void UpdateShortcutHints(Lertaro.App.QuickSearchWindow window, ScrollViewer? scrollViewer)
     {
-        // LstResults toggles between item-based (virtualized -- VerticalOffset is already an item index)
-        // and pixel-based (VerticalOffset needs converting) scrolling depending on whether the current
-        // layout pass needs to clip a partial row -- see QuickSearchWindowLayoutManager.ApplyResultsLayout.
+        // GetFirstVisibleIndex copes with both scrolling modes; this list is item-based throughout now
+        // (QuickSearchWindowLayoutManager sets CanContentScroll to true), so the offset is already an item
+        // index and the row-height argument is only used for the pixel-based case.
         var firstVisible = WpfUiHelper.GetFirstVisibleIndex(scrollViewer, UiMetrics.ScaledNormalRowHeight);
         var shortcutIndex = 1;
 

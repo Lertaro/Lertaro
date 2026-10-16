@@ -32,51 +32,6 @@ public static class SearchResultMapper
         public bool Collected;
         public readonly List<AppSearchResult> Rows = new();
         public bool HasPluginSearchActions;
-
-        // The three candidate blocks below depend only on per-search inputs (query, scope, window kind,
-        // type order) -- not on the streamed file rows and not on contextDirectory -- so they are computed
-        // once per search instead of on every paint. Measured before this: 29 paints of "a" spent
-        // 633.8 ms and 91 MB rebuilding them (project knowledge base, search-render measurements).
-        public List<RankedCandidate>? HistoryCandidates;
-        public List<RankedCandidate>? FavoriteCandidates;
-        public List<RankedCandidate>? SearchableItemCandidates;
-    }
-
-    // The history snapshot and the three blocks above move only when the user opens something, edits a favorite
-    // or installs an app -- but they were rebuilt for EVERY search, and that rebuild is the one-time cost that
-    // made a repeated search feel like it "hitches" rather than opening instantly (the inline card, where every
-    // summon starts a fresh search, is where that is felt most). Held across searches for a short window instead.
-    // ponytail: a 1 s lifetime, not invalidation hooks. Ceiling: a just-opened item can be a second late in
-    // gaining its history priority. Upgrade path: bump a version counter in SearchHistoryStore and compare it
-    // here when that ever shows up in use.
-    private static InstantPassCache? _recentPass;
-    private static long _recentPassAt;
-    private static IReadOnlyDictionary<string, int>? _recentHistory;
-    private static long _recentHistoryAt;
-    private const long RecentPassLifetimeMs = 1000;
-
-    private static InstantPassCache RecentPass()
-    {
-        var now = Environment.TickCount64;
-        if (_recentPass == null || now - _recentPassAt > RecentPassLifetimeMs)
-        {
-            _recentPass = new InstantPassCache();
-            _recentPassAt = now;
-        }
-
-        return _recentPass;
-    }
-
-    private static IReadOnlyDictionary<string, int> RecentHistory()
-    {
-        var now = Environment.TickCount64;
-        if (_recentHistory == null || now - _recentHistoryAt > RecentPassLifetimeMs)
-        {
-            _recentHistory = SearchHistoryStore.Snapshot();
-            _recentHistoryAt = now;
-        }
-
-        return _recentHistory;
     }
 
     internal static List<AppSearchResult> CollectInstantPass(InstantPassCache pass, string rawQuery, string query, bool isInlineWindow, string? contextDirectory,
@@ -109,7 +64,7 @@ public static class SearchResultMapper
         // One pass over the plugin providers per search, not per paint. This method IS a paint callback --
         // the quick and inline windows re-run it on every intermediate paint of a streaming search, and a
         // paint cannot reach the screen until the pass below finishes. See InstantPassCache.
-        instantPass ??= RecentPass();
+        instantPass ??= new InstantPassCache();
         CollectInstantPass(instantPass, rawQuery ?? query, query, isInlineWindow, contextDirectory);
         uiResults.AddRange(instantPass.Rows);
         var hasPluginSearchActions = instantPass.HasPluginSearchActions;
@@ -138,7 +93,7 @@ public static class SearchResultMapper
             SearchResultHelper.IsPathInsideScope(normalizedPath, f)
             && !string.Equals(normalizedPath, f, StringComparison.OrdinalIgnoreCase));
 
-        var historySnapshot = RecentHistory();
+        var historySnapshot = SearchHistoryStore.Snapshot();
 
         // Quick-window-only: a user-orderable hard tier between history priority and match-quality
         // weight (RankedCandidate.TypeRank) -- lets e.g. Applications always outrank Files regardless
@@ -154,7 +109,7 @@ public static class SearchResultMapper
         // probed since it's the one guaranteed to still have whatever the user actually typed first,
         // including a literal space -- see PluginSearchResultMapper.AddInstantResults' own use of it
         // above for the same reason. query itself already arrives with the trigger character stripped
-        // (SearchDispatchController.StripResultTypeTrigger removes it before the file-index engine ever
+        // (ResultTypeTriggerHandler.StripTrigger removes it before the file-index engine ever
         // sees it), so it's used as-is below for matching/highlighting -- the trigger character never
         // shows up highlighted and never pollutes the fuzzy match, with no second stripping needed here.
         string? triggeredTypeId = null;
@@ -193,54 +148,51 @@ public static class SearchResultMapper
         // downstream path dedupe. An explicit type trigger retains its strict result domain.
         if (triggeredTypeId == null)
         {
-            if (instantPass.HistoryCandidates == null)
-            {
-                var historyCandidates = HistorySearchCandidateMapper.Collect(fuzzy, scope);
-                if (normalizedScopeFolders != null)
-                    historyCandidates = historyCandidates.Where(c => InFileFilterScope(c.NormalizedPath)).ToList();
-                instantPass.HistoryCandidates = historyCandidates;
-            }
+            var historyCandidates = HistorySearchCandidateMapper.Collect(fuzzy, scope);
+            if (normalizedScopeFolders != null)
+                historyCandidates = historyCandidates.Where(c => InFileFilterScope(c.NormalizedPath)).ToList();
+            candidates.AddRange(historyCandidates);
 
-            // Added on every paint, not only when the cache was filled: the candidate list is rebuilt per
-            // paint, so adding inside the cache check dropped these rows from every paint after the first.
-            candidates.AddRange(instantPass.HistoryCandidates);
+            // Windows' Recent Items: what was opened in any app, ranked right below the user's own picks.
+            var recentCandidates = WindowsRecentCandidateMapper.Collect(fuzzy, scope);
+            if (normalizedScopeFolders != null)
+                recentCandidates = recentCandidates.Where(c => InFileFilterScope(c.NormalizedPath)).ToList();
+            candidates.AddRange(recentCandidates);
         }
 
         if (!string.IsNullOrWhiteSpace(query))
         {
-            if (instantPass.FavoriteCandidates == null)
+            var favorites = UserSettings.Load().Favorites;
+            for (var i = 0; i < favorites.Count; i++)
             {
-                var favoriteCandidates = new List<RankedCandidate>();
-                var favorites = UserSettings.Load().Favorites;
-                for (var i = 0; i < favorites.Count; i++)
-                {
-                    var fav = favorites[i];
-                    var match = FavoriteSearchHelper.ComputeMatch(fav, fuzzy);
-                    if (!match.IsMatch || !Helpers.FavoritePathResolver.IsPathAvailable(fav.Path))
-                        continue;
+                var fav = favorites[i];
+                var match = FavoriteSearchHelper.ComputeMatch(fav, fuzzy);
+                if (!match.IsMatch || !Helpers.FavoritePathResolver.IsPathAvailable(fav.Path))
+                    continue;
 
-                    // A favorite is curated by the user regardless of whether it also has USAGE history --
-                    // that's a stronger signal than "matched the query text well" or "happens to be an
-                    // application", so it stays ahead of both. TypeRank never actually differentiates a
-                    // favorite from anything else (IsCurated already does), so it's given the Files id here
-                    // simply as the closest match to what a favorited path actually is.
-                    var normalizedFavPath = Helpers.FavoritePathResolver.NormalizeForComparison(fav.Path);
-                    if (normalizedScopeFolders != null && !InFileFilterScope(normalizedFavPath))
-                        continue;
-                    var priority = historySnapshot.TryGetValue(normalizedFavPath, out var hp) ? hp : int.MaxValue;
-                    favoriteCandidates.Add(new RankedCandidate(
-                        FavoriteSearchHelper.CreateFavoriteUiResult(fav, query, 0),
-                        IsCurated: true,
-                        priority,
-                        SearchResultTypePriority.Rank(SearchResultTypePriority.FilesTypeId, typeOrder),
-                        match,
-                        normalizedFavPath));
-                }
-
-                instantPass.FavoriteCandidates = favoriteCandidates;
+                // A favorite is curated by the user regardless of whether it also has USAGE history --
+                // that's a stronger signal than "matched the query text well" or "happens to be an
+                // application", so it stays ahead of both. TypeRank never actually differentiates a
+                // favorite from anything else (IsCurated already does), so it's given the Files id here
+                // simply as the closest match to what a favorited path actually is.
+                var normalizedFavPath = Helpers.FavoritePathResolver.NormalizeForComparison(fav.Path);
+                if (normalizedScopeFolders != null && !InFileFilterScope(normalizedFavPath))
+                    continue;
+                var favoriteRow = FavoriteSearchHelper.CreateFavoriteUiResult(fav, query, 0);
+                // A favorite clears the same bar the index side's rows do (see
+                // HistorySearchCandidateMapper.IsExcludedFromSearch): a hidden target, or one on a source
+                // this session found unreachable, is not a row the full window could list either.
+                if (HistorySearchCandidateMapper.IsExcludedFromSearch(favoriteRow))
+                    continue;
+                var priority = historySnapshot.TryGetValue(normalizedFavPath, out var hp) ? hp : int.MaxValue;
+                candidates.Add(new RankedCandidate(
+                    favoriteRow,
+                    IsCurated: true,
+                    priority,
+                    SearchResultTypePriority.Rank(SearchResultTypePriority.FilesTypeId, typeOrder),
+                    match,
+                    normalizedFavPath));
             }
-
-            candidates.AddRange(instantPass.FavoriteCandidates);
         }
 
         // Searchable items (Start Menu apps, settings, ...) take part in ordinary searches only -- a
@@ -248,36 +200,28 @@ public static class SearchResultMapper
         // routing hid these too (its "Case B").
         if (fileFilterScope == null)
         {
-            if (instantPass.SearchableItemCandidates == null)
+            foreach (var (result, match) in SearchableItemMapper.CollectSearchableItemResults(query, isInlineWindow))
             {
-                var itemCandidates = new List<RankedCandidate>();
-                foreach (var (result, match) in SearchableItemMapper.CollectSearchableItemResults(query, isInlineWindow))
-                {
-                    var typeId = result.SourceProvider is PluginSdk.Abstractions.Plugins.ISearchableItemProvider provider
-                        ? SearchResultTypePriority.GetProviderTypeId(provider)
-                        : SearchResultTypePriority.FilesTypeId;
-                    if (triggeredTypeId != null && typeId != triggeredTypeId)
-                        continue;
+                var typeId = result.SourceProvider is ISearchableItemProvider provider
+                    ? SearchResultTypePriority.GetProviderTypeId(provider)
+                    : SearchResultTypePriority.FilesTypeId;
+                if (triggeredTypeId != null && typeId != triggeredTypeId)
+                    continue;
 
-                    // An application's FullPath can be a virtual shell:AppsFolder\{AUMID} id (packaged apps) --
-                    // Path.GetFullPath (inside NormalizePath) would mangle that, and SearchHistoryStore itself
-                    // never runs it through NormalizePath either (see SearchHistoryStore.RecordCore), so the
-                    // lookup key has to skip it here too or an app's history priority would never resolve.
-                    var lookupPath = result.IsApplication ? result.FullPath.Trim() : SearchResultHelper.NormalizePath(result.FullPath);
-                    var hasHistory = historySnapshot.TryGetValue(lookupPath, out var priority);
-                    itemCandidates.Add(new RankedCandidate(
-                        result,
-                        IsCurated: hasHistory,
-                        hasHistory ? priority : int.MaxValue,
-                        SearchResultTypePriority.Rank(typeId, typeOrder),
-                        match,
-                        SearchResultHelper.NormalizePath(result.FullPath)));
-                }
-
-                instantPass.SearchableItemCandidates = itemCandidates;
+                // An application's FullPath can be a virtual shell:AppsFolder\{AUMID} id (packaged apps) --
+                // Path.GetFullPath (inside NormalizePath) would mangle that, and SearchHistoryStore itself
+                // never runs it through NormalizePath either (see SearchHistoryStore.RecordCore), so the
+                // lookup key has to skip it here too or an app's history priority would never resolve.
+                var lookupPath = result.IsApplication ? result.FullPath.Trim() : SearchResultHelper.NormalizePath(result.FullPath);
+                var hasHistory = historySnapshot.TryGetValue(lookupPath, out var priority);
+                candidates.Add(new RankedCandidate(
+                    result,
+                    IsCurated: hasHistory,
+                    hasHistory ? priority : int.MaxValue,
+                    SearchResultTypePriority.Rank(typeId, typeOrder),
+                    match,
+                    SearchResultHelper.NormalizePath(result.FullPath)));
             }
-
-            candidates.AddRange(instantPass.SearchableItemCandidates);
         }
 
         // Only entered when nothing is triggered, or "Files" itself is the triggered type -- fileResults
@@ -286,18 +230,30 @@ public static class SearchResultMapper
         // other type gets, not just whatever a trigger-polluted query happened to match.
         if (fileResults != null && (triggeredTypeId == null || triggeredTypeId == SearchResultTypePriority.FilesTypeId))
         {
-            var filesTypeRank = SearchResultTypePriority.Rank(SearchResultTypePriority.FilesTypeId, typeOrder);
+            var nowUtc = DateTime.UtcNow;
             foreach (var result in fileResults)
             {
                 var lookupPath = result.Path.Length > 3 && result.Path[^1] == '\\' ? result.Path.TrimEnd('\\') : result.Path;
                 var hasHistory = historySnapshot.TryGetValue(lookupPath, out var priority);
+                var (band, depth) = RankedCandidateOrdering.SignalsOf(result.Metadata, result.Path, nowUtc);
+                // A row the index returned whose own NAME does not match the query at all -- it was reached
+                // through a transliteration of that name -- ranks by how much of its whole path the query
+                // explains, which is the rank the full window's row key has always given it
+                // (SearchResultRelevance.Apply). Leaving it at NoMatch instead made this window order those
+                // rows by path length and name where the full window ordered the same rows by coverage: one
+                // query, two file orders, and exactly the many-CJK-files case pinyin search produces.
+                var match = fuzzy.Rank(result.Name);
+                if (!match.IsMatch)
+                    match = fuzzy.FallbackRank(result.Path);
                 candidates.Add(new RankedCandidate(
                     SearchResultHelper.CreateUiResult(result, query, 0, isApplication: false, scope),
                     IsCurated: hasHistory,
                     hasHistory ? priority : int.MaxValue,
-                    filesTypeRank,
-                    fuzzy.Rank(result.Name),
-                    SearchResultHelper.NormalizePath(result.Path)));
+                    SearchResultTypePriority.Rank(SearchResultTypePriority.FilesTypeId, typeOrder),
+                    match,
+                    SearchResultHelper.NormalizePath(result.Path),
+                    band,
+                    depth));
             }
         }
 
@@ -352,8 +308,10 @@ public static class SearchResultMapper
     }
 
     // TypeRank: this candidate's position in UserSettings.ResultTypeOrder -- see RankedCandidateOrdering,
-    // which owns the ordering ladder these candidates are fed through.
-    internal readonly record struct RankedCandidate(AppSearchResult Result, bool IsCurated, int Priority, int TypeRank, MatchRank Match, string NormalizedPath);
+    // which owns the ordering ladder these candidates are fed through. RecencyBand and Depth are only
+    // filled for index rows (RankedCandidateOrdering.SignalsOf); every other candidate keeps the best
+    // value of each, so an app or setting is never demoted for having no file times or folder depth.
+    internal readonly record struct RankedCandidate(AppSearchResult Result, bool IsCurated, int Priority, int TypeRank, MatchRank Match, string NormalizedPath, int RecencyBand = 0, int Depth = 0);
 
     // Shared by both search groups the inline window shows (its own "Current Folder" matches via
     // ExplorerSearchHelper, and this "Global Search" tier below) so a file scores the same way regardless
@@ -399,7 +357,7 @@ public static class SearchResultMapper
 
     // Same rule again, but resolved ONCE for a caller that then tests many results against it.
     // IsQueriedDirectoryItself re-derives this per call, and deriving it can hit the disk
-    // (Directory.Exists) -- fine for the handful of results a streaming pipe callback sees, ruinous for
+    // (Directory.Exists) -- tolerable one row at a time, ruinous for
     // a caller filtering hundreds of thousands. Returns null when the query isn't a directory path at
     // all, which is the common case and means there is nothing to strip.
     internal static string? GetQueriedDirectory(string query) => SearchResultDirectoryHelper.GetQueriedDirectory(query);

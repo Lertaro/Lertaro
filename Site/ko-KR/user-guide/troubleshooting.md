@@ -33,7 +33,32 @@ Lertaro 사용 중 문제가 발생했나요? 아래 단계에 따라 일반적�
   1. **병음 직접 입력**: Lertaro에는 병음 별칭 엔진이 내장돼 있어 병음 글자를 치면 중국어 파일명에 문자 도약으로 일치합니다. 입력기 후보 창을 열 필요가 없습니다([**검색 문법**](./search-syntax#_7-다국어-스마트-별칭) 참고).
   2. **퀵 윈도우 사용**: `Ctrl` 더블 클릭으로 열리는 퀵 윈도우는 정식 포커스를 가지므로 모든 IME가 정상 작동합니다.
 
-## 6. 로그 확인 및 이슈 등록
+## 6. 데이터 디렉토리, 권한 및 업데이트 실패
+
+- **데이터 디렉토리 이동**: 설치형 버전의 `%LocalAppData%\Lertaro` 또는 포터블 버전의 `Data\Users`를 심볼릭 링크나 정션으로 다른 파티션으로 옮기는 것은 지원되지만, 링크 대상은 **로컬 고정 볼륨**이어야 합니다. 네트워크 위치나 이동식 볼륨을 가리키는 링크는 시작 시 이유와 함께 거부됩니다([**설정 → 정보**](./settings/about) 참고).
+- **시작 거부: 데이터 디렉토리가 다른 ID 소유**: 사용자 데이터 디렉토리의 소유자가 내 계정이 아니면 Lertaro는 시작을 거부하고, 먼저 관리자 권한으로 복구를 시도합니다. 메시지에는 **실제 소유자와 기대하는 SID**가 함께 표시되며, 이것이 진단의 전부입니다. 그 복구의 각 단계(시간 초과로 종료된 경우 멈춰 있던 단계)는 `%TEMP%\Lertaro\repair.log`에 기록되므로 문제를 보고할 때 첨부해 주세요.
+
+폴더 소유자가 `BUILTIN\Administrators`인데 권한은 이미 **나**에게 FullControl을 부여하고 있다면 소유자만 되돌리면 됩니다. 아래 스크립트는 `%LOCALAPPDATA%\Lertaro` 범위의 소유권만 변경하며 권한과 파일 내용은 건드리지 않습니다.
+
+```powershell
+$sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+$root = Join-Path $env:LOCALAPPDATA 'Lertaro'
+Get-Item -LiteralPath $root | ForEach-Object {
+    $acl = $_.GetAccessControl('Owner')
+    $acl.SetOwner($sid)
+    $_.SetAccessControl($acl)
+}
+Get-ChildItem -LiteralPath $root -Recurse -Force | ForEach-Object {
+    $acl = $_.GetAccessControl('Owner')
+    $acl.SetOwner($sid)
+    $_.SetAccessControl($acl)
+}
+```
+
+- **지난 무음 업데이트 실패**: 업데이트 프로그램은 결과(상태, 실패 이유, 롤백 디렉토리)를 설치 경로 옆의 `update-result.json`에 기록합니다. Lertaro는 다음 시작 시 그 이유를 한 번만 표시하며 같은 결과를 반복해서 알리지 않습니다. 알림이 계속 나타나면 그 파일을 삭제하거나 새 버전을 수동으로 덮어쓰기 설치하세요.
+- **데이터 루트 아래의 링크는 항상 거부**: 링크로 해석되는 것은 데이터 디렉토리 자체의 체인뿐이며, 그 내부의 하위 디렉토리는 링크일 수 없습니다([**설정 → 정보**](./settings/about) 참고).
+
+## 7. 로그 확인 및 이슈 등록
 
 문제가 지속되면 [**설정 → 서비스 상태**](./settings/service-status)에서 실시간 로그를 확인하세요.
 

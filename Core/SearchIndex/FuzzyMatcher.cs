@@ -1,9 +1,11 @@
+using Lertaro.Core.IndexV2.Search;
 using Lertaro.Core.SearchIndex.Fzf;
+using Lertaro.PluginSdk.Abstractions.Plugins;
 
 namespace Lertaro.Core.SearchIndex;
 
 // A standalone, public entry point for the exact "name, falling back to alias" matching rule the core
-// index scan already applies per record (see RecordSearch/CacheExtensions.cs and its siblings), for
+// index scan already applies per record (see IndexV2/Search/SearchMatcherRow.cs and its siblings), for
 // callers that need identical matching semantics without running an actual index scan -- e.g. a query
 // token provider filtering already-fetched results by fzf pattern against something other than a
 // record's own name (a path segment, in PathExclusionQueryTokenProvider's case). FzfPattern itself stays
@@ -41,6 +43,10 @@ public static class FuzzyMatcher
             return false;
         if (fzf.TryMatch(text, out _, FzfScoringScheme.Default))
             return true;
+        // Same veto as the index scan: the alias tiers below match a transliteration, which can never
+        // contain the text a `!term` excluded -- see FzfPatternExclusionExtensions.ExclusionsPass.
+        if (fzf.HasExclusions && !fzf.ExclusionsPass(text))
+            return false;
 
         if (!AliasProviderRegistry.HasNonAscii(text))
             return false;
@@ -56,21 +62,38 @@ public static class FuzzyMatcher
             if (!provider.CanHandle(text))
                 continue;
 
+            // A provider that can spell out its readings is decided from those readings, exactly like the
+            // baked grid the same provider leaves in an index -- its alias STRINGS are that space
+            // enumerated and capped, so matching them here would answer a query the index refuses, and only
+            // the readings know which part of a reading a term may cover.
+            if (provider is IAliasGridProvider gridProvider)
+            {
+                if (SearchMatcherGridAliases.TryMatchProvider(gridProvider, text, fzf, null, gate: false, out _))
+                    return true;
+                continue;
+            }
+
+            // Every other provider is read the alias side's way -- each term as a contiguous run if it can
+            // be, as a subsequence otherwise (see FzfPatternAliasReading: "gxiao" is 高's initial plus 效's
+            // whole reading and exists as no run at all, while "jt" is a run inside 出版集团's initials
+            // alias). The boundary rule below stays keyed on what the user typed.
+            var separator = provider.SyllableSeparator;
+            var aliasPattern = fzf.ReadingFor(separator);
             foreach (var alias in provider.GetAliases(text))
             {
-                if (!fzf.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default))
+                if (!aliasPattern.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default))
                     continue;
 
                 // A precise query must not match a full transliteration mid-syllable -- see
                 // AliasMatchRules, and the same check the core index scan applies.
-                if (!AliasMatchRules.AllowsMatch(fzf.RequiresAlignedAliases, provider.SyllableSeparator, alias, aliasMatch.MinBegin))
+                if (!AliasMatchRules.AllowsMatch(fzf.RequiresAlignedAliases, separator, alias, aliasMatch.MinBegin))
                     continue;
 
                 // Same quality bar the core index scan applies to its own alias fallback (see
                 // FzfPattern.IsAcceptableAliasMatch) -- reject a match whose span is disproportionately
                 // wider than the query, or whose score is too low, so a weak coincidental alias hit
                 // doesn't count as a match here either.
-                if (!fzf.IsAcceptableAliasMatch(aliasMatch, queryLen, alias, FzfScoringScheme.Default))
+                if (!aliasPattern.IsAcceptableAliasMatch(aliasMatch, queryLen, alias, FzfScoringScheme.Default))
                     continue;
 
                 return true;
@@ -85,17 +108,29 @@ public static class FuzzyMatcher
         var mixedTerm = MixedQueryMatcher.TrySegmentPattern(fzf);
         if (mixedTerm != null && mixedTerm.Provider.CanHandle(text))
         {
+            // This lane matches an alias as text and maps the positions it took back onto the source, so a
+            // provider that can spell out its readings is materialized first (see
+            // SearchMatcherGridAliases.TryCollectProviderSegments); the alias strings it also emits are the
+            // ones that are not spellings of those readings.
+            var segments = new List<string>(4);
+            if (mixedTerm.Provider is IAliasGridProvider mixedGridProvider)
+                SearchMatcherGridAliases.TryCollectProviderSegments(mixedGridProvider, text, segments);
+
             foreach (var aliasGroup in mixedTerm.Provider.GetAliases(text))
             {
                 if (string.IsNullOrEmpty(aliasGroup))
                     continue;
                 foreach (var segment in aliasGroup.Split('|'))
                 {
-                    if (segment.Length == 0)
-                        continue;
-                    if (MixedQueryMatcher.TryMatch(mixedTerm, text.AsSpan(), text, segment, out _))
-                        return true;
+                    if (segment.Length > 0)
+                        segments.Add(segment);
                 }
+            }
+
+            foreach (var segment in segments)
+            {
+                if (MixedQueryMatcher.TryMatch(mixedTerm, text.AsSpan(), text, segment, out _))
+                    return true;
             }
         }
 
@@ -134,9 +169,9 @@ public static class FuzzyMatcher
         return HighlightMask.ComputeWeight(text, FzfPattern.Parse(query));
     }
 
-    // The same "does it match, where does it start, how well" measure the two windows rank by -- start
-    // position first, then weight (see MatchRank). Exposed alongside ComputeMatchWeight so callers that
-    // only need the weight are not forced to pay for the extra field.
+    // The same "does it match, how and where, how well" measure the windows rank by (see MatchRank).
+    // Exposed alongside ComputeMatchWeight so callers that only need the weight are not forced to pay for
+    // the extra fields.
     public static MatchRank ComputeMatchRank(string text, string query)
     {
         if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(query))
@@ -150,6 +185,11 @@ public static class FuzzyMatcher
     // alias provider (pinyin) is registered, because Parse consults every provider's GetQueryForms.
     internal static MatchRank ComputeMatchRank(string? text, FzfPattern pattern)
         => string.IsNullOrEmpty(text) ? MatchRank.NoMatch : HighlightMask.ComputeRank(text, pattern);
+
+    // The percentage*consecutiveness measure alone, for the one rank that needs the weight of a text the
+    // query did NOT match -- see FuzzyQuery.FallbackRank and MatchRank.NoNameFallback.
+    internal static double ComputeMatchWeight(string? text, FzfPattern pattern)
+        => string.IsNullOrEmpty(text) ? 0 : HighlightMask.ComputeWeight(text, pattern);
 
     // The standard "does this match, and how well" contract for App-side candidate sources that judge
     // a match against more than one text representation of the same item -- a favorite's display name
@@ -194,10 +234,10 @@ public static class FuzzyMatcher
         return best;
     }
 
-    // Stronger match wins, in the same order the windows rank by (see SearchResultRelevance): start
-    // position first, then quality weight, then tier last. Tier being weakest means 英文 > 简拼 > 全拼 only
-    // separates texts that already agree on where and how tightly they matched -- a tighter full-pinyin hit
-    // beats a looser literal one, which is the requested global weighting.
+    // Stronger match wins, in the same order the windows rank by (see SearchResultRelevance): shape
+    // first, then start position, then quality weight, then tier last. Tier being weakest means
+    // 英文 > 简拼 > 全拼 only separates texts that already agree on how, where and how tightly they matched
+    // -- a tighter full-pinyin hit beats a looser literal one, which is the requested global weighting.
     internal static bool IsStronger(MatchRank candidate, MatchRank incumbent)
     {
         if (!candidate.IsMatch)
@@ -205,6 +245,8 @@ public static class FuzzyMatcher
         if (!incumbent.IsMatch)
             return true;
 
+        if (candidate.Shape != incumbent.Shape)
+            return candidate.Shape < incumbent.Shape;
         if (candidate.Start != incumbent.Start)
             return candidate.Start < incumbent.Start;
         if (candidate.Weight != incumbent.Weight)

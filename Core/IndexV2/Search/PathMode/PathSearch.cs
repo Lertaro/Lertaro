@@ -88,7 +88,7 @@ internal static class PathSearch
             if (pattern != null)
             {
                 var record = child >= snapshot.Count ? delta.Added[child - snapshot.Count] : delta.BaseOverrides[child];
-                if (!SearchMatcherRow.TryMatchNameOrAliases(pattern, name, record.Aliases, record.ProviderIds, queryLen, slab, out var match))
+                if (!SearchMatcherRow.TryMatchNameOrAliases(pattern, name, record.Aliases, record.ProviderIds, record.Grids, queryLen, slab, out var match))
                     return;
                 matches.Add(FzfResultRank.ForDefaultScheme(child, name, match));
                 return;

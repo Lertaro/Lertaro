@@ -10,7 +10,7 @@ namespace Lertaro.Plugins.TotalCommander.DirMenu;
 
 // Exposes Total Commander's own Directory Hotlist ([DirMenu] in wincmd.ini) as a Quick Navigation cascade.
 // Mirrors Plugins/FolderCascader/Navigation/Provider.cs's structure and conventions exactly (including the
-// private _nodeMap/_commandMap field names, which App/Services/ShellMenu/QuickNavigationPathResolver.cs
+// private _nodeMap/_commandMap field names, which App/Services/ShellMenu/QuickNav/QuickNavigationPathResolver.cs
 // finds by reflection to resolve a handle back to a path for icon loading).
 public class DirMenuProvider : IQuickNavigationProvider
 {

@@ -12,13 +12,10 @@ public class SpecialKeyState
     public bool AltPressed { get; set; }
     public bool WinPressed { get; set; }
 
-    public ModifierKeys ToModifierKeys()
-    {
-        return (CtrlPressed ? ModifierKeys.Control : ModifierKeys.None) |
+    public ModifierKeys ToModifierKeys() => (CtrlPressed ? ModifierKeys.Control : ModifierKeys.None) |
                (ShiftPressed ? ModifierKeys.Shift : ModifierKeys.None) |
                (AltPressed ? ModifierKeys.Alt : ModifierKeys.None) |
                (WinPressed ? ModifierKeys.Windows : ModifierKeys.None);
-    }
 
     public static readonly SpecialKeyState Default = new()
     {

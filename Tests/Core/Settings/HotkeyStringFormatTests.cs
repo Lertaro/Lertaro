@@ -109,6 +109,9 @@ public sealed class HotkeyStringFormatTests
     [DataRow("Win+Ctrl+1")]
     [DataRow("Win+Ctrl+Shift+1")]
     [DataRow("Win+Shift+1")]
+    [DataRow("Win+D1")]
+    [DataRow("Windows+Shift+d0")]
+    [DataRow("Control+Win+D9")]
     public void IsReservedWindowsShortcut_DetectsDocumentedWindowsShortcuts(string hotkey) =>
         Assert.IsTrue(HotkeyStringFormat.IsReservedWindowsShortcut(hotkey));
 

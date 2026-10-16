@@ -5,22 +5,20 @@
     <!-- Theme Metadata -->
     <sys:String x:Key="ThemeId">Nord</sys:String>
     <sys:Boolean x:Key="IsDark">False</sys:Boolean>
-    <sys:Double x:Key="WindowOpacity">0.96</sys:Double>
+    <sys:Double x:Key="WindowOpacity">1.0</sys:Double>
 
     <SolidColorBrush x:Key="CardBackground" Color="#E5E9F0"/>
     <SolidColorBrush x:Key="CardBorderBrush" Color="#D8DEE9"/>
     <SolidColorBrush x:Key="TextPrimary" Color="#2E3440"/>
     <SolidColorBrush x:Key="TextSecondary" Color="#4C566A"/>
-    <SolidColorBrush x:Key="AccentBlue" Color="#88C0D0"/>
-    <!-- #ECEFF4 duplicated ContentBg exactly (zero contrast on hover); using the theme's own
-         BorderColor tone instead so a hovered row is actually visible. -->
+    <SolidColorBrush x:Key="AccentBlue" Color="#3E5E78"/>
     <SolidColorBrush x:Key="HoverBackground" Color="#D8DEE9"/>
     <SolidColorBrush x:Key="SeparatorBrush" Color="#D8DEE9"/>
-    <SolidColorBrush x:Key="FolderIconColor" Color="#D08770"/>
+    <SolidColorBrush x:Key="FolderIconColor" Color="#A86D5A"/>
     <SolidColorBrush x:Key="FileIconColor" Color="#4C566A"/>
     <SolidColorBrush x:Key="ShortcutColor" Color="#4C566A"/>
     <SolidColorBrush x:Key="ControlBackground" Color="#ECEFF4"/>
-    <SolidColorBrush x:Key="ControlBorderBrush" Color="#D8DEE9"/>
+    <SolidColorBrush x:Key="ControlBorderBrush" Color="#787C82"/>
     <SolidColorBrush x:Key="ControlHoverBackground" Color="#F3F5F9"/>
     <SolidColorBrush x:Key="ControlDisabledBackground" Color="#D8DEE9"/>
     <SolidColorBrush x:Key="ControlDisabledBorderBrush" Color="#E5E9F0"/>
@@ -44,32 +42,28 @@
     <SolidColorBrush x:Key="SidebarSelected" Color="#81A1C1"/>
     <SolidColorBrush x:Key="SidebarText" Color="#4C566A"/>
     <SolidColorBrush x:Key="SidebarTextActive" Color="#2E3440"/>
-    <SolidColorBrush x:Key="SidebarAccent" Color="#5E81AC"/>
+    <SolidColorBrush x:Key="SidebarAccent" Color="#5C7EA9"/>
     <SolidColorBrush x:Key="ContentBg" Color="#ECEFF4"/>
     <SolidColorBrush x:Key="HeaderBg" Color="#E5E9F0"/>
     <SolidColorBrush x:Key="ItemHover" Color="#D8DEE9"/>
     <SolidColorBrush x:Key="ItemSelected" Color="#81A1C1"/>
-    <!-- Dedicated accent-bar color: this theme's row-selection tint is already high-contrast against
-         its hover fill, so the bar reuses it as-is. -->
-    <SolidColorBrush x:Key="AccentBarColor" Color="#81A1C1"/>
+    <SolidColorBrush x:Key="AccentBarColor" Color="#657E97"/>
     <SolidColorBrush x:Key="BorderColor" Color="#D8DEE9"/>
-    <SolidColorBrush x:Key="AccentColor" Color="#88C0D0"/>
+    <SolidColorBrush x:Key="AccentColor" Color="#3E5E78"/>
     <SolidColorBrush x:Key="TextPrimary2" Color="#2E3440"/>
     <SolidColorBrush x:Key="TextSecondary2" Color="#4C566A"/>
     <SolidColorBrush x:Key="StatusBarBg" Color="#E5E9F0"/>
     <SolidColorBrush x:Key="IconMutedBrush" Color="#4C566A"/>
-    <SolidColorBrush x:Key="SuccessBrush" Color="#A3BE8C"/>
-    <!-- Nord's actual nord13 (#EBCB8B) is barely darker than WarningBackground below (#FDF6E2),
-         so warning text was nearly unreadable; darkened to a legible gold while staying in-palette. -->
-    <SolidColorBrush x:Key="WarningBrush" Color="#A8791E"/>
+    <SolidColorBrush x:Key="SuccessBrush" Color="#768965"/>
+    <SolidColorBrush x:Key="WarningBrush" Color="#876118"/>
     <SolidColorBrush x:Key="WarningBackground" Color="#FDF6E2"/>
     <SolidColorBrush x:Key="WarningBorderBrush" Color="#F5E0B3"/>
     <SolidColorBrush x:Key="BadgeBackground" Color="#E5E9F0"/>
     <SolidColorBrush x:Key="BadgeBorderBrush" Color="#D8DEE9"/>
-    <SolidColorBrush x:Key="BadgeText" Color="#5E81AC"/>
-    <SolidColorBrush x:Key="PrimaryButtonText" Color="#2E3440"/>
-    <SolidColorBrush x:Key="PrimaryButtonHoverBackground" Color="#88C0D0"/>
-    <SolidColorBrush x:Key="PrimaryButtonPressedBackground" Color="#81A1C1"/>
+    <SolidColorBrush x:Key="BadgeText" Color="#4A6688"/>
+    <SolidColorBrush x:Key="PrimaryButtonText" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="PrimaryButtonHoverBackground" Color="#547781"/>
+    <SolidColorBrush x:Key="PrimaryButtonPressedBackground" Color="#5D748B"/>
     
     <SolidColorBrush x:Key="SecondaryButtonText" Color="#4C566A"/>
     <SolidColorBrush x:Key="SecondaryButtonHoverText" Color="#2E3440"/>
@@ -77,11 +71,11 @@
     <!-- Badges, status alerts & placeholders -->
     <SolidColorBrush x:Key="SuccessBadgeBackground" Color="#F0F4EC"/>
     <SolidColorBrush x:Key="SuccessBadgeBorderBrush" Color="#DDE7D5"/>
-    <SolidColorBrush x:Key="SuccessBadgeText" Color="#A3BE8C"/>
+    <SolidColorBrush x:Key="SuccessBadgeText" Color="#5D6D50"/>
     
     <SolidColorBrush x:Key="ErrorBackground" Color="#FBEBEB"/>
     <SolidColorBrush x:Key="ErrorBorderBrush" Color="#F4CECE"/>
-    <SolidColorBrush x:Key="ErrorBrush" Color="#BF616A"/>
+    <SolidColorBrush x:Key="ErrorBrush" Color="#9E5058"/>
 
     <SolidColorBrush x:Key="EmptyPlaceholderBackground" Color="#ECEFF4"/>
     <SolidColorBrush x:Key="EmptyPlaceholderBorderBrush" Color="#D8DEE9"/>
@@ -95,15 +89,15 @@
     <SolidColorBrush x:Key="#333" Color="#2E3440"/>
 
     <!-- Dynamic icon colors for sidebar and plugins -->
-    <SolidColorBrush x:Key="VideoIconColor" Color="#B48EAD"/>
-    <SolidColorBrush x:Key="ArchiveIconColor" Color="#81A1C1"/>
-    <SolidColorBrush x:Key="DefaultPluginIconColor" Color="#88C0D0"/>
+    <SolidColorBrush x:Key="VideoIconColor" Color="#91728B"/>
+    <SolidColorBrush x:Key="ArchiveIconColor" Color="#657E97"/>
+    <SolidColorBrush x:Key="DefaultPluginIconColor" Color="#3E5E78"/>
 
     <!-- ScrollBar and CloseButton custom dynamic colors -->
-    <SolidColorBrush x:Key="ScrollBarThumbBackground" Color="#BBC5D8"/>
-    <SolidColorBrush x:Key="ScrollBarThumbHover" Color="#628AB2"/>
-    <SolidColorBrush x:Key="ScrollBarThumbDragging" Color="#4B6A91"/>
+    <SolidColorBrush x:Key="ScrollBarThumbBackground" Color="#747A86"/>
+    <SolidColorBrush x:Key="ScrollBarThumbHover" Color="#517293"/>
+    <SolidColorBrush x:Key="ScrollBarThumbDragging" Color="#4A688F"/>
     <SolidColorBrush x:Key="CloseButtonHoverBg" Color="#BF616A"/>
-    <SolidColorBrush x:Key="CalculatorIconColor" Color="#A3BE8C"/>
+    <SolidColorBrush x:Key="CalculatorIconColor" Color="#6F815F"/>
 
 </ResourceDictionary>

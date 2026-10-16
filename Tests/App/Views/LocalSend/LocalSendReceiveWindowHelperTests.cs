@@ -117,6 +117,10 @@ public sealed class LocalSendReceiveWindowHelperTests
 
     private static LocalSendReceiveFileItem CreateItem(string id) => new()
     {
-        FileId = id, FileName = $"{id}.txt", DisplayName = $"{id}.txt", Size = 4, SizeText = "4 B"
+        FileId = id,
+        FileName = $"{id}.txt",
+        DisplayName = $"{id}.txt",
+        Size = 4,
+        SizeText = "4 B"
     };
 }

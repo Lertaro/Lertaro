@@ -1,7 +1,7 @@
 namespace Lertaro.Core.Indexer.NetworkDrive.Walk;
 
-// Mid-walk snapshotting for TreeBuilder, as extension methods (matching RuntimeIndex's BucketExtensions/
-// QueryExtensions split) instead of a partial class, to keep TreeBuilder.cs under the project's line
+// Mid-walk snapshotting for TreeBuilder, as extension methods instead of a partial class, to keep
+// TreeBuilder.cs under the project's line
 // limit. Strictly count-based -- no wall-clock fallback, so a checkpoint only ever fires once that many
 // items have genuinely been processed since the last one. The threshold-crossing/doubling mechanics
 // themselves live in DoublingCheckpointGate (shared with ReFsScanner's own checkpointing); this is just

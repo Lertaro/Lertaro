@@ -13,9 +13,9 @@ internal static class PathHelpers
     // A bare drive letter ("Z") needs ":\" appended to form a root. Anything else (a UNC path or a
     // folder-index target, e.g. "Z:\Archive") is already a full path and just needs a trailing separator --
     // blindly appending ":\" there would produce "Z:\Archive:\", a colon in the middle of the path that can
-    // never resolve. The single call site for each of the three shapes this handles: RuntimeIndex.Load
-    // building a runtime source root, DriveRefreshRunner rooting a scan pass, and WatcherManager/
-    // DriveWatcherHost translating a raw drive key back into a root to diff a watcher event against.
+    // never resolve. Its callers cover all three shapes: SnapshotWriter rooting a snapshot it is about to
+    // write, DriveRefreshRunner rooting a scan pass, and WatcherManager/DriveWatcherHost translating a raw
+    // drive key back into a root to diff a watcher event against.
     public static string BuildSourceRoot(string sourceKey) =>
         sourceKey.Length == 1 ? sourceKey + @":\"
         : sourceKey.EndsWith(Path.DirectorySeparatorChar) || sourceKey.EndsWith(Path.AltDirectorySeparatorChar) ? sourceKey

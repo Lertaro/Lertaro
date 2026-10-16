@@ -2,7 +2,7 @@
 
 Lertaro is built upon a multi-process isolation model and a layered architecture, delivering sub-millisecond retrieval and desktop integration while keeping the system stable and secure.
 
-![Lertaro Architecture](/architecture.svg)
+<ArchitectureDiagram />
 
 ## 1. Three-Process Isolation Model
 

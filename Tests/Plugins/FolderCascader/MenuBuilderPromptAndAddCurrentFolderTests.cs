@@ -5,9 +5,8 @@ using static Lertaro.Plugins.FolderCascader.Tests.MenuBuilderTestHelpers;
 
 namespace Lertaro.Plugins.FolderCascader.Tests;
 
-// Wires PluginSettingsService.GetSettingFunc/SetSettingFunc/PluginPromptService.PromptFunc (shared static
-// delegates) -- [DoNotParallelize] keeps it from racing against other tests in this class touching the
-// same statics.
+// Wires the shared static setting/prompt delegates -- [DoNotParallelize] for the reason given in
+// MenuBuilderTestHelpers' header.
 [TestClass]
 [DoNotParallelize]
 public sealed class MenuBuilderPromptAndAddCurrentFolderTests

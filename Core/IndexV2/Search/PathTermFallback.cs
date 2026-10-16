@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Text;
 using Lertaro.Core.SearchIndex.Fzf;
 
 using Lertaro.Core.IndexV2.Delta;
@@ -67,10 +68,10 @@ internal static class PathTermFallback
 
     // The satisfied-term set is carried as a bitmask, so a query with more terms than bits simply
     // opts out rather than silently matching on a truncated set.
-    private const int MaxTerms = 16;
+    internal const int MaxTerms = 16;
 
     public static void SearchStreaming(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, int limit,
-        Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower)
+        Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower, HashSet<int>? reportedUids = null)
     {
         if (pattern.OrGroups != null)
         {
@@ -90,10 +91,17 @@ internal static class PathTermFallback
 
         var termPatterns = new FzfPattern[termCount];
         var termBytePatterns = new FzfBytePattern[termCount];
+        // The alias-side reading of each term (see FzfPatternAliasReading), used only where the helper below
+        // asks about a candidate's ALIASES -- the term's own name is still matched with the user's own
+        // precision, which is what the two arrays above are for.
+        var termAliasPatterns = new FzfPattern[termCount];
+        var termAliasBytePatterns = new FzfBytePattern[termCount];
         for (var i = 0; i < termCount; i++)
         {
             termPatterns[i] = FzfPattern.ForTermSet(pattern, i);
             termBytePatterns[i] = FzfBytePattern.From(termPatterns[i]);
+            termAliasPatterns[i] = termPatterns[i].AliasReading;
+            termAliasBytePatterns[i] = FzfBytePattern.From(termAliasPatterns[i]);
         }
 
         // Phase A once per term instead of once per query: which unique names satisfy term i, and with
@@ -144,7 +152,7 @@ internal static class PathTermFallback
         var membership = directoryContext.FilterLower != null ? new Dictionary<int, bool>() : null;
         var worker = SearchMatcher.RentWorker();
         // Bounded by the index rather than by the caller's limit, which is no longer capped: the
-        // multiply overflows int for a large enough limit, and FzfTopN reserves twice its capacity.
+        // multiply overflows int for a large enough limit, and FzfTopN buffers up to twice its capacity.
         var keep = (int)Math.Min((long)Math.Max(limit, 8) * 8, snapshot.Count + delta.Added.Count);
         var topN = new FzfTopN(keep);
         try
@@ -152,12 +160,27 @@ internal static class PathTermFallback
             foreach (var (uid, hit) in nameHits)
             {
                 token.ThrowIfCancellationRequested();
-                // A name satisfying every term on its own is exactly what the name search matches, so
-                // it has already been reported (or was cut by its limit, which this pass must not
-                // undo by re-reporting it further down). Skipping is what keeps the two passes from
-                // double-reporting now that this one runs alongside a non-empty result set.
+                // A name that satisfies every term through ONE spelling -- its own name, or one alias -- is
+                // exactly what the name search matches, so it has already been reported (or was cut by its
+                // limit, which this pass must not undo by re-reporting it further down). Skipping is what
+                // keeps the two passes from double-reporting now that this one runs alongside a non-empty
+                // result set.
+                //
+                // That per-term mask cannot answer the question on its own: a name whose terms are satisfied
+                // by DIFFERENT spellings fills it just the same without the whole query ever having matched
+                // it, and those rows are exactly what this pass exists for -- a literal block sitting in the
+                // name (简单) next to pinyin blocks only its aliases carry (xinl gxiao jt fd). So the caller
+                // hands down the uids the name search actually matched, and only those are skipped. When it
+                // cannot (the OR-first branch shape below), the old "assume it was reported" rule stands,
+                // which costs at most recall and can never produce a duplicate.
                 var nameMask = hit.Mask;
-                if (nameMask == fullMask)
+                if (nameMask == fullMask && (reportedUids == null || reportedUids.Contains(uid)))
+                    continue;
+
+                // An `!term` is satisfied by any segment that lacks it, so the mask above can be filled by
+                // an ANCESTOR while this candidate's own name carries the very text the user excluded. The
+                // veto belongs on the name -- see FzfPatternExclusionExtensions.ExclusionsPass.
+                if (pattern.HasExclusions && !NamePassesExclusions(snapshot, uid, pattern, worker))
                     continue;
 
                 foreach (var row in snapshot.RowsForUid(uid))
@@ -170,7 +193,7 @@ internal static class PathTermFallback
                     var parent = snapshot.ParentIndexes[row];
                     if (parent == row || parent < 0)
                         continue;
-                    if ((nameMask | PathTermFallbackAncestorHelper.AncestorMask(snapshot, delta, parent, termPatterns, termBytePatterns, worker, ancestorMemo, fullMask, rootMask, ancestorChain)) != fullMask)
+                    if ((nameMask | PathTermFallbackAncestorHelper.AncestorMask(snapshot, delta, parent, termPatterns, termBytePatterns, termAliasPatterns, termAliasBytePatterns, worker, ancestorMemo, fullMask, rootMask, ancestorChain)) != fullMask)
                         continue;
 
                     topN.Add(new FzfRank(row, hit.Score, hit.SortKey));
@@ -222,4 +245,14 @@ internal static class PathTermFallback
         }
     }
 
+    // Decodes one unique name into the worker's scratch and applies the query's exclusions to it. Only
+    // the verdict survives: the same scratch is reused by the ancestor walk this is called from.
+    private static bool NamePassesExclusions(Snapshot snapshot, int uid, FzfPattern pattern, SearchMatcher.Worker worker)
+    {
+        var utf8 = snapshot.UniqueNameUtf8(uid);
+        if (worker.Scratch.Length < utf8.Length)
+            worker.Scratch = new char[Math.Max(utf8.Length, worker.Scratch.Length * 2)];
+        var written = Encoding.UTF8.GetChars(utf8, worker.Scratch);
+        return pattern.ExclusionsPass(worker.Scratch.AsSpan(0, written));
+    }
 }

@@ -1,15 +1,15 @@
 using System.IO.Pipes;
 using Lertaro.Core.IndexV2.Space;
-using Lertaro.Core.Services.HookLaunch;
 using Lertaro.Core.Services.Pipe;
 using Lertaro.Core.Services.Search;
 using Lertaro.Core.Wire;
 
 namespace Lertaro.Core.Services;
 
-// Request dispatch for UsnServicePipeServer's non-streaming commands (everything except Search/SearchDir,
-// SubscribeStatus, and LaunchHook, which stay in the server itself since they stream rather than return a
-// single response) -- extracted to keep UsnServicePipeServer.cs under the project's line limit.
+// Request dispatch for UsnServicePipeServer's non-streaming commands -- everything the server can answer
+// with a single PipeResponse. The commands that stream (search, directory enumeration, status
+// subscription, hook launch) stay in the server itself, so this switch has no case for them --
+// extracted to keep UsnServicePipeServer.cs under the project's line limit.
 internal static class UsnServicePipeRequestProcessor
 {
     internal static async Task<PipeResponse> ProcessAsync(SearchEngine? engine, SearchRequestMessage msg,
@@ -142,8 +142,11 @@ internal static class UsnServicePipeRequestProcessor
                         : new PipeResponse { Kind = PipeResponseKind.Error, Message = "The service could not truncate its own log file" };
 
                 case SearchRequestId.GetServiceLog:
-                    return new PipeResponse { Kind = PipeResponseKind.ServiceLog,
-                        Message = string.Join('\n', Logger.ReadLogLines(Path.Combine(Logger.SharedDataDir, "logs", "service.log")).TakeLast(500)) };
+                    return new PipeResponse
+                    {
+                        Kind = PipeResponseKind.ServiceLog,
+                        Message = string.Join('\n', Logger.ReadLogLines(Path.Combine(Logger.SharedDataDir, "logs", "service.log")).TakeLast(500))
+                    };
 
                 case SearchRequestId.ClearPathCaches:
                     engine?.ClearPathCaches();

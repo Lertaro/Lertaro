@@ -57,11 +57,14 @@ public static class FlowConfigSchemaBuilder
             {
                 pluginFields.Add(new PluginConfigField
                 {
-                    Key = $"{pluginName}.ActionKeyword", GroupKey = pluginName,
+                    Key = $"{pluginName}.ActionKeyword",
+                    GroupKey = pluginName,
                     LabelKey = PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_PluginActionKeywordLabel"),
                     DescriptionKey = string.Format(PluginSdk.Services.TranslationService.Get("FlowLauncherBridge_PluginActionKeywordDesc"), pair.Metadata.ActionKeyword),
-                    FieldType = ConfigFieldType.Text, DefaultValue = pair.Metadata.ActionKeyword ?? string.Empty,
-                    RequireNonEmpty = true, MaxLength = 16,
+                    FieldType = ConfigFieldType.Text,
+                    DefaultValue = pair.Metadata.ActionKeyword ?? string.Empty,
+                    RequireNonEmpty = true,
+                    MaxLength = 16,
                     // Typing this word dispatches straight to this Flow plugin, and
                     // FlowInstantResultProvider publishes it to the host as a trigger word -- so a clash
                     // with another feature is warned about right here.

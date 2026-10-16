@@ -18,8 +18,9 @@ namespace Lertaro.App.Services.Notifications;
 /// does that by becoming a layered one first -- which costs ClearType and a per-pixel composite on every frame,
 /// and flips between the two states at each end of the animation. Both of those were observed on screen here:
 /// soft text at small sizes, and a black rectangle where the card had not been painted yet. So notifications
-/// appear and go away instantly, and the only animation left is the 200ms slide of the stack making room, which
-/// moves a window rather than compositing one.
+/// appear and go away instantly. What is left is motion that never touches the Window's own opacity: the
+/// 200ms slide of the stack making room, and the card's arrival rim flash (see
+/// NotificationCardWindow.FlashArrival, which animates one element inside an already-composited card).
 /// </remarks>
 internal sealed class NotificationWindowManager(
     Action<NotificationItem> onGone,

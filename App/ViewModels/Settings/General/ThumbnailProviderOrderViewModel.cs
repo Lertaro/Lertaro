@@ -11,9 +11,8 @@ using Lertaro.App.Services.Plugin;
 namespace Lertaro.App.ViewModels.Settings.General;
 
 // Lets the user reorder which IThumbnailProvider gets first refusal when generating a result's
-// icon/thumbnail (the built-in shell thumbnail provider plus any third-party plugin's own). Edits
-// stage in Items and only commit to _userSettings.ThumbnailProviderOrder when Save() runs (called
-// from GeneralSettingsViewModel.Apply()).
+// icon/thumbnail (the built-in shell thumbnail provider plus any third-party plugin's own). Save()
+// commits _userSettings.ThumbnailProviderOrder.
 public class ThumbnailProviderOrderViewModel : ViewModelBase
 {
     private readonly System.ComponentModel.PropertyChangedEventHandler _translationHandler;
@@ -24,11 +23,8 @@ public class ThumbnailProviderOrderViewModel : ViewModelBase
     {
         _userSettings = userSettings;
 
-        // PluginManager.Instance.ThumbnailProviders already applies both the enabled-components
-        // filter and the persisted order (falling back to each provider's own Priority for anything
-        // unlisted), so this list starts out showing exactly what thumbnail dispatch would try, in
-        // the same order -- disabled providers never appear here, same "reordering them would be
-        // meaningless" call every other Order view model in this file already makes.
+        // Same filter/persisted-order behaviour as QuickNavigationOrderViewModel's ctor comment, except
+        // unlisted providers fall back to their own Priority, not to discovery order.
         foreach (var provider in PluginManager.Instance.ThumbnailProviders)
         {
             Items.Add(new ThumbnailProviderOrderItem(BuildId(provider), () => provider.Name));

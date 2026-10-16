@@ -1,4 +1,5 @@
 using Lertaro.Core.SearchIndex;
+using Lertaro.Core.SearchIndex.Fzf;
 
 namespace Lertaro.Core.Tests.SearchIndex;
 
@@ -19,52 +20,35 @@ public sealed class AliasMatchRulesTests
     private const char Sep = (char)2;
 
     [TestMethod]
-    public void Alignment_AllowsTheStartOfTheAlias()
-    {
-        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, $"zheng{Sep}shu", 0));
-    }
+    public void Alignment_AllowsTheStartOfTheAlias() => Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, $"zheng{Sep}shu", 0));
 
     [TestMethod]
-    public void Alignment_AllowsAPositionRightAfterASeparator()
-    {
-        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, $"zheng{Sep}shu", 6));
-    }
+    public void Alignment_AllowsAPositionRightAfterASeparator() => Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, $"zheng{Sep}shu", 6));
 
     [TestMethod]
-    public void Alignment_RejectsAMidSyllableStart()
-    {
+    public void Alignment_RejectsAMidSyllableStart() =>
         // Index 3 is inside "zheng" -- matching there is what spliced xue+xi into "ex".
         Assert.IsFalse(AliasMatchRules.IsBoundaryAligned(Sep, $"zheng{Sep}shu", 3));
-    }
 
     [TestMethod]
-    public void Alignment_RejectsAMidSyllableStartInTheLastSyllable()
-    {
+    public void Alignment_RejectsAMidSyllableStartInTheLastSyllable() =>
         // Only the START of a match is constrained; a match may still run to the end (that is what keeps a
         // half-typed trailing syllable working), but it may not START inside a syllable.
         Assert.IsFalse(AliasMatchRules.IsBoundaryAligned(Sep, $"zheng{Sep}shu", 8));
-    }
 
     [TestMethod]
-    public void Alignment_FlatAliasIsAlignedEverywhere()
-    {
+    public void Alignment_FlatAliasIsAlignedEverywhere() =>
         // An alias with no separator is the per-character initials shape, where every position is a real
         // boundary -- "x" must be allowed to match the second character of "ex".
         Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, "ex", 1));
-    }
 
     [TestMethod]
-    public void Alignment_PolyphonicSegmentBoundaryCounts()
-    {
+    public void Alignment_PolyphonicSegmentBoundaryCounts() =>
         // A '|'-joined reading opens a fresh segment, so a match right after that character is aligned.
         Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, $"zhong{Sep}guo|zhong{Sep}hua|zhong", 10));
-    }
 
     [TestMethod]
-    public void Alignment_ProviderWithoutASeparatorIsNeverConstrained()
-    {
-        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned('\0', "anything", 3));
-    }
+    public void Alignment_ProviderWithoutASeparatorIsNeverConstrained() => Assert.IsTrue(AliasMatchRules.IsBoundaryAligned('\0', "anything", 3));
 
     [TestMethod]
     public void Alignment_Utf8TwinAgreesWithTheCharVersion()
@@ -80,6 +64,55 @@ public sealed class AliasMatchRulesTests
     }
 
     [TestMethod]
+    public void Alignment_PassedThroughCharacterIsABoundary()
+    {
+        // The delimiter is emitted only BETWEEN two transliterated characters (PinyinAliasFormat
+        // .NeedsSeparatorBefore), because a passed-through character is already a visible boundary. So a
+        // reading that follows one opens on a real boundary no separator points at -- '高' after the ticket
+        // name's own "、". Missing that rejected the one alias of a mixed 188-character name that carried 高效.
+        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, $"、gao{Sep}xiao", 1));
+        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, $"dian{Sep}nao01ji.mp4", 10), "'j' starts a reading after a digit");
+    }
+
+    [TestMethod]
+    public void Alignment_ANonAsciiPassedThroughCharacterIsABoundaryInBothEncodings()
+    {
+        var alias = $"、gao{Sep}xiao";
+        var bytes = System.Text.Encoding.UTF8.GetBytes(alias);
+
+        // The char '、' is three UTF-8 bytes, so the byte twin sees a continuation byte in front of 'g'.
+        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, alias, 1));
+        Assert.IsTrue(AliasMatchRules.IsBoundaryAligned(Sep, (ReadOnlySpan<byte>)bytes, System.Text.Encoding.UTF8.GetByteCount("、")));
+    }
+
+    [TestMethod]
+    public void Alignment_InsideAReadingIsStillRefusedWhereverItSits()
+    {
+        // Only a character that cannot be the inside of a reading counts as a boundary, so this loosening
+        // cannot admit a mid-syllable start.
+        Assert.IsFalse(AliasMatchRules.IsBoundaryAligned(Sep, $"ji-zhen{Sep}shu", 1));
+        Assert.IsFalse(AliasMatchRules.IsBoundaryAligned(Sep, $"ji-zhen{Sep}shu", 5));
+    }
+
+    [TestMethod]
+    public void TightestAlignedOccurrence_SkipsAMisalignedWindow()
+    {
+        // Painting's aligned finder (see AliasHighlightPositions): "gq" spans the tail of ting and the head of
+        // qin, so every 'q' follows a 'g' whose only occurrence sits inside ting -- there is no occurrence for
+        // a precise query to paint, which is why the splice stays unpainted even though a loose reading finds
+        // it at all.
+        var splice = AliasHighlightPositions.ForProbe($"jia{Sep}ting{Sep}qin{Sep}gan", "gq", Sep, FzfTermKind.Exact, precise: true);
+
+        Assert.IsNull(splice);
+
+        // Where a boundary-aligned occurrence exists, that one is painted, even though a tighter occurrence
+        // starts mid-syllable.
+        var painted = AliasHighlightPositions.ForProbe($"xue{Sep}xi{Sep}ang", "xia", Sep, FzfTermKind.Exact, precise: true);
+
+        CollectionAssert.AreEqual(new[] { 4, 5, 7 }, painted);
+    }
+
+    [TestMethod]
     public void AllowsMatch_PreciseQueryAppliesTheRule()
     {
         Assert.IsFalse(AliasMatchRules.AllowsMatch(precise: true, Sep, $"zheng{Sep}shu", 3));
@@ -87,18 +120,13 @@ public sealed class AliasMatchRulesTests
     }
 
     [TestMethod]
-    public void AllowsMatch_FuzzyTermIsExempt()
-    {
+    public void AllowsMatch_FuzzyTermIsExempt() =>
         // A fuzzy term asked for a loose match, so the operator the user typed would be contradicted by
         // applying the boundary rule.
         Assert.IsTrue(AliasMatchRules.AllowsMatch(precise: false, Sep, $"zheng{Sep}shu", 3));
-    }
 
     [TestMethod]
-    public void Tier_LiteralNameBeatsEveryAliasShape()
-    {
-        Assert.AreEqual(MatchRank.TierName, AliasMatchRules.TierFor(Sep, matchedName: true, $"zheng{Sep}shu"));
-    }
+    public void Tier_LiteralNameBeatsEveryAliasShape() => Assert.AreEqual(MatchRank.TierName, AliasMatchRules.TierFor(Sep, matchedName: true, $"zheng{Sep}shu"));
 
     [TestMethod]
     public void Tier_InitialsBeatFullReading()
@@ -109,16 +137,61 @@ public sealed class AliasMatchRulesTests
     }
 
     [TestMethod]
-    public void Tier_ProviderWithoutASeparatorIsScoredAsInitials()
-    {
+    public void Tier_ProviderWithoutASeparatorIsScoredAsInitials() =>
         // Nothing distinguishes its two shapes, so it cannot be ranked as a full reading.
         Assert.AreEqual(MatchRank.TierInitials, AliasMatchRules.TierFor('\0', matchedName: false, "whatever"));
-    }
 
     [TestMethod]
     public void Tier_LiteralBeatsInitialsBeatsFull()
     {
         Assert.IsLessThan(MatchRank.TierInitials, MatchRank.TierName);
         Assert.IsLessThan(MatchRank.TierFull, MatchRank.TierInitials);
+    }
+
+    [TestMethod]
+    public void TightestOccurrence_TakesTheNarrowWindowNotTheEarliest()
+    {
+        // The greedy leftmost alignment of "bi" starts at 0 and spans 8; the narrow one is the literal
+        // "bi" further along, which is the occurrence highlighting is supposed to paint.
+        var occurrence = AliasMatchRules.TightestOccurrence("bxxxxxxxxi-bi", "bi", caseSensitive: false);
+
+        Assert.IsNotNull(occurrence);
+        CollectionAssert.AreEqual(new[] { 11, 12 }, occurrence);
+    }
+
+    [TestMethod]
+    public void TightestOccurrence_SpansDelimitersWhenTheTermDoes()
+    {
+        var text = $"fang{Sep}dan{Sep}bi";
+
+        // "fangdan" is not literal in a delimited alias; its narrowest occurrence covers the delimiter.
+        var occurrence = AliasMatchRules.TightestOccurrence(text, "fangdan", caseSensitive: false);
+
+        Assert.IsNotNull(occurrence);
+        Assert.AreEqual(8, occurrence[^1] - occurrence[0] + 1);
+        Assert.IsTrue(AliasMatchRules.IsTightOccurrence("fangdan".Length, 8));
+    }
+
+    [TestMethod]
+    public void TightestOccurrence_AbsentTerm_IsNull() =>
+        Assert.IsNull(AliasMatchRules.TightestOccurrence("fangdan", "gao", caseSensitive: false));
+
+    [TestMethod]
+    public void TightestOccurrence_FoldsCaseUnlessAskedNotTo()
+    {
+        Assert.IsNotNull(AliasMatchRules.TightestOccurrence("FANGDAN", "fangdan", caseSensitive: false));
+        Assert.IsNull(AliasMatchRules.TightestOccurrence("FANGDAN", "fangdan", caseSensitive: true));
+    }
+
+    [TestMethod]
+    public void IsTightOccurrence_ScalesWithTermLengthAndKeepsAFloor()
+    {
+        // A short term still gets the floor: "sj" over "shi<SEP>ji" is 6 characters.
+        Assert.IsTrue(AliasMatchRules.IsTightOccurrence(2, 6));
+        Assert.IsFalse(AliasMatchRules.IsTightOccurrence(2, 9));
+
+        // A longer term is allowed a proportionate window, and no more.
+        Assert.IsTrue(AliasMatchRules.IsTightOccurrence(7, 28));
+        Assert.IsFalse(AliasMatchRules.IsTightOccurrence(7, 29));
     }
 }

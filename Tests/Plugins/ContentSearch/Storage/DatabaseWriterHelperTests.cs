@@ -5,8 +5,7 @@ namespace Lertaro.Plugins.ContentSearch.Tests.Storage;
 // Covers the duplicate-row cascade in DatabaseWriterHelper: rows referencing a source
 // are deleted whenever the source is updated or removed, which leaves a search gap for
 // those files until the next full scan re-indexes them, so the count must be logged.
-// Captures the process-wide PluginSdk.Logger.LogAction hook, so it must not run
-// concurrently with anything that reads or resets it.
+// [DoNotParallelize]: the process-wide PluginSdk.Logger.LogAction hook -- see IndexBatchProcessorTests' header.
 [TestClass]
 [DoNotParallelize]
 public sealed class DatabaseWriterHelperTests

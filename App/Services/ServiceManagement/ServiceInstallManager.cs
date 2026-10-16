@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using Lertaro.Core;
+using Lertaro.Core.Services.Installation;
 
 namespace Lertaro.App.Services;
 
@@ -9,14 +10,52 @@ public static class ServiceInstallManager
     public static void RepairPermissions()
     {
         var sid = System.Security.Principal.WindowsIdentity.GetCurrent().User!.Value;
+        // The elevated repair cannot have its stderr captured, and it deliberately runs before the service
+        // opens its log: it records its steps in this file instead, which is read back below. See
+        // PermissionRepairReport for why nothing else works on this path.
+        PermissionRepairReport.Clear();
         using var process = Process.Start(new ProcessStartInfo(GetServiceExePath(), $"--repair-permissions {sid}")
         { UseShellExecute = true, Verb = "runas", WindowStyle = ProcessWindowStyle.Hidden })
             ?? throw new IOException("Could not start the permission repair.");
-        if (!process.WaitForExit(InstallerTimeoutMs) || process.ExitCode != 0)
-            throw new IOException("Permission repair did not complete successfully.");
+        var exited = process.WaitForExit(InstallerTimeoutMs);
+        if (!exited || process.ExitCode != 0)
+            throw new IOException(DescribeRepairFailure(exited, exited ? process.ExitCode : 0, PermissionRepairReport.Read(), sid));
     }
 
-    private const int InstallerTimeoutMs = 30000;
+    /// <summary>What the user is told when the elevated repair did not succeed. Pure, so it can be asserted.</summary>
+    /// <remarks>
+    /// "Permission repair did not complete successfully" was the whole message this used to produce, for a
+    /// timeout, a refused lock walk, an unknown profile and a thrown exception alike (issue #342).
+    /// </remarks>
+    internal static string DescribeRepairFailure(bool exited, int exitCode, string? report, string sid)
+    {
+        var reason = exited
+            ? $"Permission repair failed (exit code {exitCode})."
+            : $"Permission repair did not finish within {InstallerTimeoutMs / 1000} seconds; it was still at: "
+              + $"{PermissionRepairReport.LastStep(report) ?? "an unrecorded step"}.";
+        var detail = TailOf(report) ?? "It left no diagnostic of its own.";
+        return $"{reason}\n{detail}\nThe whole trace is in {PermissionRepairReport.DefaultPath}\n"
+            + $"To see the failure directly, run \"{GetServiceExePath()}\" --repair-permissions {sid} "
+            + "from an elevated command prompt.";
+    }
+
+    /// <summary>
+    /// The last few lines of the repair's trace: enough to show what happened, not a scrolling box. The file
+    /// itself is capped at 16 KB, which is still far more than a message box should ever be asked to show.
+    /// </summary>
+    internal static string? TailOf(string? report, int lines = MaximumReportLines)
+    {
+        if (string.IsNullOrWhiteSpace(report)) return null;
+
+        var all = report.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return all.Length == 0 ? null : string.Join("\n", all[^Math.Min(lines, all.Length)..]);
+    }
+
+    private const int MaximumReportLines = 6;
+
+    // Raised from 30 s: --repair-permissions performs the same install-directory lock walk as service startup
+    // (see Program.LockDirectories), so the old budget no longer described the work it was bounding.
+    private const int InstallerTimeoutMs = 120000;
     private const int StartTimeoutMs = 10000;
     private static int _silentInstallInFlight;
 

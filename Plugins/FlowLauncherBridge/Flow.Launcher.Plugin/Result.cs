@@ -120,6 +120,8 @@ public class Result
         set
         {
             _pluginDirectory = value;
+            // Assigning to itself on purpose: re-runs the setters' relative-path conversion, which was
+            // skipped earlier because PluginDirectory was still empty when the icon path first arrived.
             if (!string.IsNullOrEmpty(IcoPath))
                 IcoPath = IcoPath;
             if (!string.IsNullOrEmpty(BadgeIcoPath))
@@ -129,46 +131,40 @@ public class Result
 
     internal Query? OriginQuery { get; set; }
 
-    public ValueTask<bool> ExecuteAsync(ActionContext context)
-    {
-        return AsyncAction?.Invoke(context) ?? ValueTask.FromResult(Action?.Invoke(context) ?? false);
-    }
+    public ValueTask<bool> ExecuteAsync(ActionContext context) => AsyncAction?.Invoke(context) ?? ValueTask.FromResult(Action?.Invoke(context) ?? false);
 
-    public Result Clone()
+    public Result Clone() => new Result
     {
-        return new Result
-        {
-            Title = Title,
-            SubTitle = SubTitle,
-            ActionKeywordAssigned = ActionKeywordAssigned,
-            CopyText = CopyText,
-            AutoCompleteText = AutoCompleteText,
-            IcoPath = IcoPath,
-            BadgeIcoPath = BadgeIcoPath,
-            RoundedIcon = RoundedIcon,
-            Icon = Icon,
-            BadgeIcon = BadgeIcon,
-            Glyph = Glyph,
-            Action = Action,
-            AsyncAction = AsyncAction,
-            Score = Score,
-            TitleHighlightData = TitleHighlightData,
-            OriginQuery = OriginQuery,
-            PluginDirectory = PluginDirectory,
-            ContextData = ContextData,
-            PluginID = PluginID,
-            TitleToolTip = TitleToolTip,
-            SubTitleToolTip = SubTitleToolTip,
-            PreviewPanel = PreviewPanel,
-            ProgressBar = ProgressBar,
-            ProgressBarColor = ProgressBarColor,
-            Preview = Preview,
-            AddSelectedCount = AddSelectedCount,
-            RecordKey = RecordKey,
-            ShowBadge = ShowBadge,
-            QuerySuggestionText = QuerySuggestionText
-        };
-    }
+        Title = Title,
+        SubTitle = SubTitle,
+        ActionKeywordAssigned = ActionKeywordAssigned,
+        CopyText = CopyText,
+        AutoCompleteText = AutoCompleteText,
+        IcoPath = IcoPath,
+        BadgeIcoPath = BadgeIcoPath,
+        RoundedIcon = RoundedIcon,
+        Icon = Icon,
+        BadgeIcon = BadgeIcon,
+        Glyph = Glyph,
+        Action = Action,
+        AsyncAction = AsyncAction,
+        Score = Score,
+        TitleHighlightData = TitleHighlightData,
+        OriginQuery = OriginQuery,
+        PluginDirectory = PluginDirectory,
+        ContextData = ContextData,
+        PluginID = PluginID,
+        TitleToolTip = TitleToolTip,
+        SubTitleToolTip = SubTitleToolTip,
+        PreviewPanel = PreviewPanel,
+        ProgressBar = ProgressBar,
+        ProgressBarColor = ProgressBarColor,
+        Preview = Preview,
+        AddSelectedCount = AddSelectedCount,
+        RecordKey = RecordKey,
+        ShowBadge = ShowBadge,
+        QuerySuggestionText = QuerySuggestionText
+    };
 
     public override string ToString() => Title + SubTitle + Score;
 

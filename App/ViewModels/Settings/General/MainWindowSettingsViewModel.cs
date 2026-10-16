@@ -6,9 +6,7 @@ using Lertaro.Core;
 namespace Lertaro.App.ViewModels.Settings.General;
 
 // Settings for the full/main SearchWindow's default size -- distinct from SearchWindowSettings,
-// which configures the quick window's search bar layout. Edits stage locally and only commit to
-// _userSettings/UiMetrics when Save() runs (called from GeneralSettingsViewModel.Apply(), i.e. the
-// Settings window's Apply/OK button) -- see GeneralSettingsViewModel's class-level comment.
+// which configures the quick window's search bar layout. Save() commits _userSettings.MainWindow.
 public class MainWindowSettingsViewModel : ViewModelBase
 {
     private readonly UserSettings _userSettings;

@@ -37,12 +37,17 @@ internal static class SearchMatcher
     internal sealed class QueryContext
     {
         public required FzfPattern Pattern;
-        public required FzfBytePattern BytePattern;
         public required ulong RequiredMask;   // union of single-term sets' masks: candidate must contain all
         public required ulong[][] OrSetMasks; // per multi-term set: candidate must cover at least one term
         public required bool CanFilter;
         public required int QueryLen;
         public required MixedTerm? MixedTerm; // non-null only for a bare single term mixing an alias provider's own two alphabets
+
+        public FzfBytePattern BytePattern => Pattern.ByteView;
+
+        // The alias-side byte view of the same query (see FzfPatternAliasReading): both views are cached on
+        // the pattern itself, so only the tiers that actually reach an alias pay for the encode.
+        public FzfBytePattern AliasBytePattern => Pattern.AliasReading.ByteView;
     }
 
     private static readonly ConcurrentBag<Worker> WorkerPool = new();
@@ -70,7 +75,6 @@ internal static class SearchMatcher
             return new QueryContext
             {
                 Pattern = pattern,
-                BytePattern = FzfBytePattern.From(pattern),
                 RequiredMask = 0,
                 OrSetMasks = Array.Empty<ulong[]>(),
                 CanFilter = false,
@@ -106,7 +110,6 @@ internal static class SearchMatcher
         return new QueryContext
         {
             Pattern = pattern,
-            BytePattern = FzfBytePattern.From(pattern),
             RequiredMask = requiredMask,
             OrSetMasks = orSets?.ToArray() ?? Array.Empty<ulong[]>(),
             CanFilter = requiredMask != 0 || orSets != null,
@@ -248,8 +251,16 @@ internal static class SearchMatcher
         if (ctx.Pattern.TryMatch(name, out var match, FzfScoringScheme.Default, worker.Slab))
         {
             worker.Hits.Add(new UniqueMatch(uid, match, FzfResultRank.ForDefaultScheme(uid, name, match).SortKey));
+            return;
         }
-        else if (snapshot.HasAliases(uid) && TryMatchAliases(snapshot, ctx, uid, worker, out var best))
+
+        // An alias can never contain the text a `!term` excluded, so the tiers below have to be vetoed on
+        // the name themselves -- otherwise the candidate TryMatch just rejected is revived through its
+        // pinyin (see FzfPatternExclusionExtensions.ExclusionsPass).
+        if (ctx.Pattern.HasExclusions && !ctx.Pattern.ExclusionsPass(name))
+            return;
+
+        if (snapshot.HasAliases(uid) && TryMatchAliases(snapshot, ctx, uid, worker, out var best))
         {
             worker.Hits.Add(new UniqueMatch(uid, best, FzfResultRank.ForDefaultScheme(uid, name, best).SortKey));
         }

@@ -13,7 +13,7 @@ namespace Lertaro.Core.DriveMonitoring;
 // independent half of the same fix.
 //
 // Bounded on purpose: a service stop must never hang. The loops observe cancellation at their awaits
-// (100-2000 ms Task.Delay calls plus a per-iteration token check), so the normal case returns in
+// (200-2000 ms Task.Delay calls plus a per-iteration token check), so the normal case returns in
 // milliseconds; only a loop parked inside a synchronous FSCTL read can exceed the bound, and that case is
 // logged rather than waited on forever. Four drives at this bound still sit well inside Windows' own
 // service-stop timeout.

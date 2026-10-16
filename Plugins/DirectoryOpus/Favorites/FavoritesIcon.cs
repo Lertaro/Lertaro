@@ -13,7 +13,7 @@ namespace Lertaro.Plugins.DirectoryOpus.Favorites;
 
 // Icons for the entries that are not a real filesystem path -- the root "Favorites" entry and the
 // submenus inside it. Real files and folders need none of this: FavoritesNode.Path being a real property
-// lets the host's generic path-based shell-icon loader (App/Services/ShellMenu/QuickNavigationMenu.cs)
+// lets the host's generic path-based shell-icon loader (App/Services/ShellMenu/QuickNav/QuickNavigationMenu.cs)
 // resolve their actual file-type icon for free.
 //
 // Same technique as TotalCommander's DirMenuIcon and FolderCascader's Helper: a WPF vector Geometry
@@ -36,12 +36,10 @@ internal static class FavoritesIcon
     private static IntPtr _rootCached = IntPtr.Zero;
     private static IntPtr _menuGroupCached = IntPtr.Zero;
 
-    // Cache-and-reuse, never delete-on-replace: the provider builds every submenu row in ONE pass,
-    // and the host converts each row's HBITMAP only later, when the popup actually materializes.
-    // Deleting the previous handle on every GetMenuGroupHBitmap call invalidated all earlier rows'
-    // handles, leaving only the last-built row with a surviving icon (the same bug QuickNavIcon
-    // already fixed for CustomCommands). Invalidate() frees the handles once per popup session,
-    // which still lets a re-render track theme/accent changes between opens.
+    // Cache-and-reuse, never delete-on-replace: deleting the previous handle here invalidated all earlier
+    // favorites rows' handles, leaving only the last-built row with a surviving icon. The full reason (the
+    // one-pass row build, the host's late HBITMAP conversion, and Invalidate()'s once-per-session free) is
+    // written out at Plugins/TotalCommander/DirMenu/DirMenuIcon.cs -- a separate assembly, hence the pointer.
     public static IntPtr GetRootHBitmap()
     {
         lock (Sync)

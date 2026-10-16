@@ -86,7 +86,7 @@ public class TotalCommanderInlineSearchAdapter : IInlineSearchAdapter
     {
         // Asking Total Commander for its source panel path is a synchronous WM_COPYDATA into its UI thread,
         // and TC abandons an in-progress quick rename as soon as it services one (reproduced on its own,
-        // with Lertaro not running, by scratch/tcquerykill.ps1). Renaming was impossible for as long as
+        // with Lertaro not running). Renaming was impossible for as long as
         // Lertaro ran -- by F2 or by the context menu alike, since both open this same editor -- because
         // the editor was cancelled again before a character could be typed (issue #189). The panel cannot
         // change directory while its own rename is up, so the last answer is still the right one.
@@ -196,12 +196,10 @@ public class TotalCommanderInlineSearchAdapter : IInlineSearchAdapter
     {
         try
         {
-            // The Hook (which runs this) doesn't check Directory.Exists/File.Exists itself -- when it runs
-            // elevated (admin auto-elevate), UAC's split token puts it in a different logon session than
-            // the one that mapped any network drive letters, so a perfectly valid mapped-drive path would
-            // otherwise silently resolve to "doesn't exist". The caller already knows and encodes it as a
-            // trailing separator (see InlineAdapterIpcCoordinator.ExecuteItem); stripped back off here so
-            // the path actually sent to TC is unchanged from before.
+            // Why the caller marks a directory with a trailing separator and this strips it back off --
+            // including the elevation/logon-session reason the Hook cannot test that itself -- is written
+            // out once in CoreExtensions' ExplorerInlineSearchAdapter.ExecuteItem. Same rule here, so the
+            // path actually sent to TC is unchanged from before.
             var isDir = Path.EndsInDirectorySeparator(path);
             var cleanPath = isDir ? Path.TrimEndingDirectorySeparator(path) : path;
             // Enter the folder directly, or pass the file itself -- the 'A' flag opens its parent folder

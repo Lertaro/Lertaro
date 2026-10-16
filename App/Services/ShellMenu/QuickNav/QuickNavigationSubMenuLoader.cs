@@ -38,7 +38,14 @@ internal static class QuickNavigationSubMenuLoader
                 // The whole quick-nav popup (or just this submenu's owning menu) may have already been
                 // closed/torn down by the time this background fetch finishes -- updating a detached
                 // MenuItem is harmless, but there's no reason to do the work.
-                if (!contextMenu.IsOpen) return;
+                if (!contextMenu.IsOpen)
+                {
+                    // Do not leave this row permanently marked as loading. A ContextMenu can be
+                    // closed while a fetch is in flight (e.g. a newer quick-nav session takes over),
+                    // and a reused/reopened menu must be able to start a fresh fetch later.
+                    menuItem.Tag = null;
+                    return;
+                }
 
                 menuItem.Tag = "loaded";
                 var continuation = subItems.LastOrDefault(subItem => subItem.IsContinuation);

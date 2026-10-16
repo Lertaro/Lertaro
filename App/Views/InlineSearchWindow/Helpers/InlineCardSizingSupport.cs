@@ -10,8 +10,9 @@ namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 // is trimmed to the rows it is actually showing. This covers completed searches, empty results, and the
 // empty-query startup panel without exposing a transient full-budget layout.
 //
-// Split out of InlineSearchWindow to keep that file under the repo's per-file line limit; it holds only
-// the pulse animation and always operates on the one window it is given.
+// Split out of InlineSearchWindow to keep that file under the repo's per-file line limit; it holds the
+// card's row budget and the height application that reads it, and always operates on the one window it
+// is given.
 internal sealed class InlineCardSizingSupport
 {
     // The window's own transparent margin around the card (MainBorder's Margin in the XAML).

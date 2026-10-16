@@ -63,7 +63,7 @@ public static class ShellEnumerator
                 }
             }
         }
-        catch { }
+        catch (Exception ex) { Logger.Log($"[ShellEnumerator] enumeration failed for {scanPath}: {ex.Message}", LogLevel.Error); }
     }
 
     // One long-lived STA apartment serves every Shell.Application call in this plugin, and work reaches it

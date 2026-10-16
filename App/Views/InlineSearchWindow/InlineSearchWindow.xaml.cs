@@ -13,9 +13,9 @@ using Lertaro.App.Helpers.Visuals;
 namespace Lertaro.App;
 
 /// <summary>
-/// Compact inline search window that appears at the bottom-right corner of
-/// the active Explorer window or Desktop when the user types any character.
-/// Results expand upward, search box stays anchored at bottom.
+/// Compact inline search card summoned by typing. Docked to a host window it uses the drop-down layout:
+/// search box pinned at the top, results growing downward. Anchoring at the bottom-right corner with
+/// results expanding upward is only the fallback for when no valid dock rectangle is available.
 /// </summary>
 public partial class InlineSearchWindow : Window, ISearchWindow
 {

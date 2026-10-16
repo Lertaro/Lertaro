@@ -194,4 +194,103 @@ public sealed class PortableDirectoryLockTests
         Assert.IsNull(zoneFor(Path.Combine(App, "Data", "Machine")));
         Assert.IsNull(zoneFor(Path.Combine(Users, CurrentUserIdentity.Hash(AliceSid), "user-settings.json")));
     }
+
+    // Every root a repair has to cover: the installed copy keeps its data under the profile, a portable one
+    // keeps it beside the executable, and a portable one without a Data folder still reuses the installed data.
+    [TestMethod]
+    [DataRow(InstallationMode.Installed, false, 1)]
+    [DataRow(InstallationMode.Portable, true, 2)]
+    [DataRow(InstallationMode.Portable, false, 1)]
+    public void RepairTargets_CoverTheRootThisCopyUsesAndTheProfileDefault(InstallationMode mode, bool ownData, int expected)
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"LertaroRepairTargets_{Guid.NewGuid():N}");
+        var app = Directory.CreateDirectory(Path.Combine(root, "app")).FullName;
+        var profile = Directory.CreateDirectory(Path.Combine(root, "profile")).FullName;
+        var local = Directory.CreateDirectory(Path.Combine(profile, "AppData", "Local")).FullName;
+        Directory.CreateDirectory(Path.Combine(local, "Lertaro"));
+        if (ownData) Directory.CreateDirectory(Path.Combine(app, "Data"));
+        try
+        {
+            var targets = PortableDirectoryLock.RepairTargets(mode, app, local, profile, AliceSid);
+
+            // The root the App actually reads comes first whenever it is not the profile default already: a
+            // portable copy keeps its user data beside its executable, so a repair that only knew the profile
+            // default walked a folder nothing reads and left the one that matters untouched. The profile default
+            // is always last, listed once, never the same tree twice under two names.
+            Assert.HasCount(expected, targets);
+            Assert.AreEqual(Path.Combine(profile, "AppData", "Local", "Lertaro"), targets[^1]);
+            if (expected == 2)
+            {
+                Assert.AreEqual(DataDirectoryResolver.ResolveUser(InstallationMode.Portable, app, local, AliceSid), targets[0]);
+                StringAssert.Contains(targets[0], Path.Combine("Data", "Users"));
+            }
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    // Which of the two roots is repaired, and which branch each one takes: the profile default has to pin the
+    // profile's own chain first, so it is never treated as a plain root, while the portable root is repaired
+    // where it sits because it is not under the profile at all.
+    [TestMethod]
+    [DataRow(true)]
+    [DataRow(false)]
+    public void RepairUserDataDirectory_RepairsOnlyARootThatIsThere(bool profileDefault)
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"LertaroRepairBranch_{Guid.NewGuid():N}");
+        var profile = Directory.CreateDirectory(Path.Combine(root, "profile")).FullName;
+        Directory.CreateDirectory(Path.Combine(profile, "AppData", "Local"));
+        var portable = Directory.CreateDirectory(
+            Path.Combine(root, "app", "Data", "Users", CurrentUserIdentity.Hash(AliceSid))).FullName;
+        var directory = profileDefault ? Path.Combine(profile, "AppData", "Local", "Lertaro") : portable;
+        try
+        {
+            var report = PortableDirectoryLock.RepairUserDataDirectory(
+                directory, profile, WindowsIdentity.GetCurrent().User!);
+
+            Assert.IsEmpty(report.Failed);
+            if (profileDefault)
+                Assert.IsFalse(Directory.Exists(directory), "nothing to repair means nothing is created either");
+            else
+                Assert.AreEqual(WindowsIdentity.GetCurrent().User!.Value, UserDataAccess.TryGetOwner(directory));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    // The trust boundary is the directory's ACL and owner. A personal file another process is holding open is
+    // not: elevation cannot open it either, and treating it as a failed repair is what turned one busy settings
+    // file into an App that could not start at all.
+    [TestMethod]
+    public void FatalReason_ABusyPersonalFileIsNotARepairFailure()
+    {
+        var report = new InstallDirectoryLock.Report();
+        report.UserDataFailed.Add(@"C:\Data\Users\0123456789abcdef\plugin.json: the file is in use");
+        Assert.IsNull(PortableDirectoryLock.FatalReason(report));
+
+        report.Failed.Add(@"C:\Data\Users\0123456789abcdef: the ACL could not be set");
+        Assert.AreEqual(@"C:\Data\Users\0123456789abcdef: the ACL could not be set", PortableDirectoryLock.FatalReason(report));
+    }
+
+    [TestMethod]
+    public void RepairProfileUserDirectory_ReachesAProfileTheShellHoldsOpenWithoutSharingDelete()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"LertaroProfileRepair_{Guid.NewGuid():N}");
+        var profile = Directory.CreateDirectory(Path.Combine(root, "profile")).FullName;
+        Directory.CreateDirectory(Path.Combine(profile, "AppData", "Local", "Lertaro"));
+        var live = DirectoryLockNativeMethodsTests.HoldOpenWithoutSharingDelete(profile);
+        try
+        {
+            // The repair used to ask for DELETE on this profile, which the held handle above refuses; the
+            // elevated repair is also the only thing that can unblock a start, so the App never started.
+            Assert.IsFalse(live.IsInvalid, "the test needs the live-profile handle to reproduce the refusal");
+            var report = PortableDirectoryLock.RepairProfileUserDirectory(profile, WindowsIdentity.GetCurrent().User!);
+
+            Assert.IsEmpty(report.Failed);
+            Assert.IsEmpty(report.UserDataFailed);
+        }
+        finally
+        {
+            live.Dispose();
+            Directory.Delete(root, recursive: true);
+        }
+    }
 }

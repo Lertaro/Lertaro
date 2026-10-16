@@ -51,7 +51,7 @@ internal static class InlineSearchWindowQuickNavWiring
             // flip between "the dialog reclaimed foreground before Show() ran, so the popup was unaffected"
             // and "the dialog's foreground change lands AFTER Show()'s popup already opened, deactivating
             // it exactly like a real click-away would." Polling GetForegroundWindow() for real confirmation
-            // first (the same pattern QuickSearchWindowController.FocusSearchBoxWhenForeground already
+            // first (the same pattern QuickSearchWindowFocusHelper.FocusWhenForeground already
             // uses for the identical async-foreground-change problem) removes that race instead of hoping
             // one dispatcher hop is enough of a head start.
             window.SearchBox.IconLeftClicked += (x, y) =>
@@ -62,7 +62,7 @@ internal static class InlineSearchWindowQuickNavWiring
         }
     }
 
-    // Mirrors QuickSearchWindowController.FocusSearchBoxWhenForeground's own polling pattern for the
+    // Mirrors QuickSearchWindowFocusHelper.FocusWhenForeground's own polling pattern for the
     // identical problem: a requested SetForegroundWindow (here, ResetInlineSearchAndFocusDialog's) doesn't
     // land synchronously with the call that asked for it. Same 10ms/200ms cadence -- if the deadline is
     // hit without the dialog ever reporting foreground (something else is holding it), still shows the

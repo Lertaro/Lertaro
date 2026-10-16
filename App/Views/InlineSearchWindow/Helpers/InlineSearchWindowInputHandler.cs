@@ -79,10 +79,8 @@ public class InlineSearchWindowInputHandler
                 _window.LstResults.Items.OfType<AppSearchResult>().ToList(),
                 _window.LstResults.SelectedIndex);
 
-            // File/folder results are handled earlier by HotkeyActionTrigger (Ctrl+Enter locate,
-            // Ctrl+Shift+Enter open-as-admin) and never reach here. What reaches here on those chords
-            // is a result with no matching file action — notably an application — so honor
-            // Ctrl+Shift+Enter as "launch as admin" so apps can still be elevated.
+            // Non-file rows only reach here (HotkeyActionTrigger already handled files -- see its header),
+            // so Ctrl+Shift+Enter stays "launch as admin" for apps.
             if (result != null)
             {
                 var asAdmin = Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift);
@@ -198,10 +196,10 @@ public class InlineSearchWindowInputHandler
         if (_userNavigatedSinceLastQuery)
             return;
 
-        // What to land on is decided by InlineResultTargetResolver: a real file/folder is preferred even
-        // when a shortcut command or instant result also matched, because this row is the one Enter acts on
-        // -- landing on a command made Enter run the command instead of opening the file the user searched
-        // for. (Arrow keys still reach every row.)
+        // What to land on is decided by InlineResultTargetResolver: the first selectable row, which is a
+        // shortcut command or instant result whenever one matched -- those are inserted ahead of every
+        // real result, and deliberately so, since this row is the one Enter acts on and a query that IS a
+        // command keyword should run it. (Arrow keys still reach every row.)
         var rows = _window.LstResults.Items.OfType<AppSearchResult>().ToList();
         var index = InlineResultTargetResolver.ResolveAutoSelectIndex(rows);
 
@@ -216,8 +214,7 @@ public class InlineSearchWindowInputHandler
 
     private void MoveResultSelection(int direction)
     {
-        // Wraps like the actions list's NavigateActionsList (ShellMenuPresenter.cs) -- past the last
-        // item goes back to the first, and vice versa.
+        // Wraps past either end -- see ListSelectionNavigator.NextSelectable for the rule.
         _userNavigatedSinceLastQuery = true;
         var count = _window.LstResults.Items.Count;
         if (count == 0) return;

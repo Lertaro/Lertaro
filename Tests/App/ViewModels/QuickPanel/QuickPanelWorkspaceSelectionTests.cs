@@ -188,7 +188,8 @@ public sealed class QuickPanelWorkspaceSelectionTests
     }
 
     [TestMethod]
-    public async Task SelectTab_AWorkspaceThatIsNotThere_ChangesNothing()    {
+    public async Task SelectTab_AWorkspaceThatIsNotThere_ChangesNothing()
+    {
         var settings = OneWorkspace();
         var vm = Build(settings);
         await vm.RefreshAsync();

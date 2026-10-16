@@ -5,7 +5,7 @@ using System.Security.Principal;
 namespace Lertaro.Core.Services.Pipe;
 
 // Split out of UsnServicePipeServer to keep that file under the line-count limit. Public (not internal)
-// so App\Services\AppSearchPipeService.cs -- a different assembly -- can reuse CreateCurrentUserOnly
+// so App\Services\Pipe\AppSearchPipeService.cs -- a different assembly -- can reuse CreateCurrentUserOnly
 // too, for the same elevation-crossing reason HookIpcServer needed it (see that method's own comment).
 public static class PipeSecurityFactory
 {

@@ -1,6 +1,7 @@
 using System.Text;
 using Lertaro.Core.IndexV2.Delta;
 using Lertaro.Core.IndexV2.Persistence;
+using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Fzf;
 
 namespace Lertaro.Core.IndexV2.Search;
@@ -11,7 +12,8 @@ namespace Lertaro.Core.IndexV2.Search;
 internal static class PathTermFallbackAncestorHelper
 {
     internal static int AncestorMask(Snapshot snapshot, DeltaOverlay delta, int parentRow,
-        FzfPattern[] termPatterns, FzfBytePattern[] termBytePatterns, SearchMatcher.Worker worker,
+        FzfPattern[] termPatterns, FzfBytePattern[] termBytePatterns,
+        FzfPattern[] termAliasPatterns, FzfBytePattern[] termAliasBytePatterns, SearchMatcher.Worker worker,
         Dictionary<int, int> memo, int fullMask, int rootMask, List<int> chain)
     {
         if (memo.TryGetValue(parentRow, out var cached))
@@ -57,7 +59,7 @@ internal static class PathTermFallbackAncestorHelper
                 var uid = (int)snapshot.NameIds[node];
                 var nameUtf8 = snapshot.UniqueNameUtf8(uid);
                 if (nameUtf8.Length > 0)
-                    mask |= MaskForSegment(snapshot, uid, nameUtf8, termPatterns, termBytePatterns, worker, mask, fullMask);
+                    mask |= MaskForSegment(snapshot, uid, nameUtf8, termPatterns, termBytePatterns, termAliasPatterns, termAliasBytePatterns, worker, mask, fullMask);
             }
 
             if (composable)
@@ -72,7 +74,8 @@ internal static class PathTermFallbackAncestorHelper
     }
 
     private static int MaskForSegment(Snapshot snapshot, int uid, ReadOnlySpan<byte> nameUtf8,
-        FzfPattern[] termPatterns, FzfBytePattern[] termBytePatterns, SearchMatcher.Worker worker, int already, int fullMask)
+        FzfPattern[] termPatterns, FzfBytePattern[] termBytePatterns,
+        FzfPattern[] termAliasPatterns, FzfBytePattern[] termAliasBytePatterns, SearchMatcher.Worker worker, int already, int fullMask)
     {
         var mask = 0;
         var ascii = snapshot.IsUniqueAscii(uid);
@@ -98,12 +101,16 @@ internal static class PathTermFallbackAncestorHelper
 
         var unresolved = fullMask & ~(already | mask);
         if (unresolved != 0)
-            mask |= MaskFromAliases(snapshot, uid, termPatterns, termBytePatterns, worker, unresolved);
+            mask |= MaskFromAliases(snapshot, uid, termPatterns, termBytePatterns, termAliasPatterns, termAliasBytePatterns, worker, unresolved);
         return mask;
     }
 
+    // Only ever asked about a candidate's ALIASES, so it works off the alias-side readings of the terms
+    // (FzfPatternAliasReading): each term as a contiguous run if it can be, as a subsequence otherwise --
+    // for a provider that declares syllable structure, and only for one.
     private static int MaskFromAliases(Snapshot snapshot, int uid, FzfPattern[] termPatterns,
-        FzfBytePattern[] termBytePatterns, SearchMatcher.Worker worker, int unresolved)
+        FzfBytePattern[] termBytePatterns, FzfPattern[] termAliasPatterns,
+        FzfBytePattern[] termAliasBytePatterns, SearchMatcher.Worker worker, int unresolved)
     {
         var mask = 0;
         var disabledIds = SearchContext.DisabledAliasIds;
@@ -112,6 +119,21 @@ internal static class PathTermFallbackAncestorHelper
         {
             if (disabledIds != null && disabledIds.Contains(snapshot.AliasProviderId(e)))
                 continue;
+            // A grid entry answers the same "can this row carry that term" question, but through the
+            // grid tier rather than by matching text: its payload is UTF-16 code units, not a string.
+            if (snapshot.AliasKind(e) == AliasEntryKind.Grid)
+            {
+                for (var i = 0; i < termPatterns.Length; i++)
+                {
+                    var bit = 1 << i;
+                    if ((unresolved & bit) == 0 || (mask & bit) != 0)
+                        continue;
+                    if (SearchMatcherGridAliases.TryMatchEntry(
+                            snapshot, termPatterns[i], termPatterns[i].GetTotalTermLength(), e, worker.Slab, gate: false, out _))
+                        mask |= bit;
+                }
+                continue;
+            }
             var aliasUtf8 = snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)
                 continue;
@@ -125,14 +147,19 @@ internal static class PathTermFallbackAncestorHelper
                 written = Encoding.UTF8.GetChars(aliasUtf8, worker.AliasScratch);
             }
 
+            // Same reading choice the other alias tiers make: both readings for a provider that declares
+            // syllable structure, the strict one for a provider that declares none.
+            var separator = AliasProviderRegistry.GetSyllableSeparator(snapshot.AliasProviderId(e));
             for (var i = 0; i < termPatterns.Length; i++)
             {
                 var bit = 1 << i;
                 if ((unresolved & bit) == 0 || (mask & bit) != 0)
                     continue;
                 var hit = ascii
-                    ? termBytePatterns[i].TryMatchSegmented(aliasUtf8, out _, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers)
-                    : termPatterns[i].TryMatch(worker.AliasScratch.AsSpan(0, written), out _, FzfScoringScheme.Default, worker.Slab);
+                    ? (separator == '\0' ? termBytePatterns[i] : termAliasBytePatterns[i])
+                        .TryMatchSegmented(aliasUtf8, out _, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers)
+                    : (separator == '\0' ? termPatterns[i] : termAliasPatterns[i])
+                        .TryMatch(worker.AliasScratch.AsSpan(0, written), out _, FzfScoringScheme.Default, worker.Slab);
                 if (hit)
                     mask |= bit;
             }

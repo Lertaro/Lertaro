@@ -43,11 +43,9 @@ public class FlowSettingsStorage
         }
     }
 
-    public void SaveSetting<T>(string pluginId) where T : new()
-    {
+    public void SaveSetting<T>(string pluginId) where T : new() =>
         // Defer to the configuration commit; never substitute defaults for unreadable persisted data.
         _ = LoadSetting<T>(pluginId);
-    }
 
     public void SaveAll()
     {

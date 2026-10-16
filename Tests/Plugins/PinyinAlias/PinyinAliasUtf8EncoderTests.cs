@@ -104,4 +104,20 @@ public sealed class PinyinAliasUtf8EncoderTests
         var expected = PinyinAliasCombinationGenerator.GenerateAliases(text);
         CollectionAssert.AreEquivalent(expected, decoded);
     }
+
+    [TestMethod]
+    public void Encode_LongPolyphonicName_MatchesTheStringPathsFallback()
+    {
+        // The bulk indexing path is the one that actually bakes this name's aliases, and the snapshot
+        // was baking none of them. Both paths must agree on the single-reading fallback or the index and
+        // the live scans would answer the same query differently.
+        var sink = new AliasByteSink();
+        PinyinAliasUtf8Encoder.Encode(PinyinAliasCombinationGeneratorTests.LongPolyphonicName, sink, false, FakeConvert);
+
+        var expected = PinyinAliasCombinationGenerator.GenerateAliases(PinyinAliasCombinationGeneratorTests.LongPolyphonicName);
+        var decoded = DecodeSegments(sink);
+
+        Assert.HasCount(2, decoded);
+        CollectionAssert.AreEquivalent(expected, decoded);
+    }
 }

@@ -169,8 +169,7 @@ public sealed class SearchHistoryStoreTests
     {
         File.WriteAllText(BackupPath, BucketJson("backup-kw", @"C:\backup\file.txt"));
 
-        // A missing main file is a deliberate delete (or a fresh install): the backup must not
-        // resurrect the history.
+        // A missing main file is a deliberate delete: the backup must not resurrect history (canonical: KeywordHistoryStoreTests).
         Assert.IsEmpty(SearchHistoryStore.LoadFromFiles(MainPath, BackupPath));
     }
 

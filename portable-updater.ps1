@@ -47,6 +47,50 @@ function Invoke-LertaroUpdateCopy([string]$Source, [string]$Destination, [string
     }
 }
 
+function Stop-LertaroService {
+    param([string]$Sc, [int]$TimeoutMs = 15000, [int]$PollMs = 100)
+    $deadline = [Diagnostics.Stopwatch]::StartNew()
+    while ($true) {
+        & $Sc stop LertaroService | Out-Null
+        $exit = $LASTEXITCODE
+        # 1061 means the SCM is already processing a stop; retry until it accepts a stop or reports stopped.
+        if ($exit -in 0, 1060, 1062) { return }
+        if ($exit -ne 1061 -or $deadline.Elapsed.TotalMilliseconds -ge $TimeoutMs) { throw "Could not stop service: $exit" }
+        Start-Sleep -Milliseconds $PollMs
+    }
+}
+
+function Start-LertaroService {
+    param([string]$Sc, [int]$TimeoutMs = 15000, [int]$PollMs = 100)
+    $deadline = [Diagnostics.Stopwatch]::StartNew()
+    while ($true) {
+        & $Sc start LertaroService | Out-Null
+        $exit = $LASTEXITCODE
+        if ($exit -in 0, 1056) { return }
+        # A stop from another controller can still make start report 1061 briefly.
+        if ($exit -ne 1061 -or $deadline.Elapsed.TotalMilliseconds -ge $TimeoutMs) { throw "Could not restart service: $exit" }
+        Start-Sleep -Milliseconds $PollMs
+    }
+}
+
+function Complete-LertaroUpdate {
+    param([hashtable]$Result, [bool]$RestartSafe, [string]$Sc, [string]$TargetRoot, [IDisposable]$Lease)
+    try {
+        if ($RestartSafe) {
+            try { Start-LertaroService $Sc }
+            catch {
+                $message = $_.Exception.Message
+                $Result.Status = 'failed'
+                $Result.Message = if ([string]::IsNullOrWhiteSpace($Result.Message)) { $message } else { "$($Result.Message); $message" }
+            }
+        }
+    } finally {
+        try {
+            $Result | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $TargetRoot 'update-result.json') -Encoding UTF8
+        } finally { $Lease.Dispose() }
+    }
+}
+
 if ($MyInvocation.InvocationName -eq '.') { return }
 $ErrorActionPreference = 'Stop'
 # An elevated PowerShell must not discover modules from a user's custom module search path.
@@ -73,8 +117,7 @@ $sc = Join-Path ([Environment]::GetFolderPath('System')) 'sc.exe'
 $restartSafe = $true
 $result = @{ Status = 'failed'; Time = [DateTime]::UtcNow.ToString('O'); Message = ''; RecoveryDirectory = $backup }
 try {
-    & $sc stop LertaroService | Out-Null
-    if ($LASTEXITCODE -notin @(0, 1060, 1062)) { throw "Could not stop service: $LASTEXITCODE" }
+    Stop-LertaroService $sc
     foreach ($process in Get-Process -Name 'Lertaro.App', 'Lertaro.Service', 'lff' -ErrorAction SilentlyContinue) {
         try {
             if ($process.Path -and [IO.Path]::GetDirectoryName($process.Path).TrimEnd('\') -eq $targetRoot) {
@@ -96,11 +139,6 @@ try {
     $result.Message = $_.Exception.Message
     $restartSafe = !$result.Message.StartsWith('ROLLBACK FAILED:')
 } finally {
-    try {
-        $result | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $targetRoot 'update-result.json') -Encoding UTF8
-    } finally {
-        try { if ($restartSafe) { & $sc start LertaroService | Out-Null } }
-        finally { $lease.Dispose() }
-    }
+    Complete-LertaroUpdate -Result $result -RestartSafe $restartSafe -Sc $sc -TargetRoot $targetRoot -Lease $lease
 }
 if ($result.Status -ne 'success') { Write-Error $result.Message; exit 1 }

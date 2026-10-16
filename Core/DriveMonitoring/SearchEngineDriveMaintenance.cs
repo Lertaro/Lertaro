@@ -1,6 +1,7 @@
 using Lertaro.Core.Indexer.Usn;
 using Lertaro.Core.IndexV2.Persistence;
 namespace Lertaro.Core.DriveMonitoring;
+
 internal sealed class SearchEngineDriveMaintenance
 {
     private static readonly string IndexCacheDir = LocalDriveCacheLocator.DefaultCacheDir;
@@ -200,8 +201,7 @@ internal sealed class SearchEngineDriveMaintenance
             _indexer.Status.ActiveDrives = new List<string> { drive };
         }
         _indexer.SetDriveState(drive, "indexing");
-        // Stop only the live watcher before rebuilding. Keep the device notification registered so a
-        // physical removal during this rebuild can cancel its scan and schedule recovery.
+        // Watcher stopped, device notification kept -- same reasoning as DriveRecovery.RestoreOrRebuild.
         if (VolumeHelper.SupportsUsnJournal(drive))
             _indexer.ReleaseDriveMonitor(drive);
         var wasCancelled = false;
@@ -209,18 +209,14 @@ internal sealed class SearchEngineDriveMaintenance
             getToken: _ => token, onDriveCancelled: _ => wasCancelled = true, forceFullScan: true);
         if (metadata.Count == 0)
         {
-            // A Stop request reverts to "cached" (mirrors NetworkIndexer's own CancelDrive), not "failed"
-            // -- the user asked for this, it isn't an error.
+            // A Stop request reverts to "cached", not "failed" -- see DriveRecovery.RestoreOrRebuild.
             var present = VolumeHelper.DetectIndexableLocalDrives().Contains(drive, StringComparer.OrdinalIgnoreCase);
             _indexer.SetDriveState(drive, wasCancelled ? (present ? "cached" : "unavailable") : "failed");
             return;
         }
 
         EnsureDriveMonitor(drive, metadata[0].JournalId, metadata[0].NextUsn);
-        // The drive's own monitor stayed alive throughout the rebuild (see
-        // UsnIndexerExtensions.ApplyFolderChange); if it detected a change it couldn't persist against
-        // the doomed old LiveIndex, queue one follow-up refresh so the next walk observes it. A journal
-        // drive (monitor already stopped above) never sets this flag in the first place.
+        // Same missed-folder-change check as DriveRecovery.RestoreOrRebuild -- queue a rebuild for it.
         if (_indexer.ConsumeMissedFolderChangeDuringRebuild(drive))
             QueueDriveRebuild(drive);
     }

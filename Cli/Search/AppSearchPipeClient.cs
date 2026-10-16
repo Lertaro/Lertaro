@@ -4,7 +4,7 @@ using Lertaro.Core.IndexV2.Space;
 using Lertaro.Core.Wire;
 namespace Lertaro.Cli.Search;
 
-// The wire-level half of talking to AppSearchPipeService (App\Services\AppSearchPipeService.cs): connects
+// The wire-level half of talking to AppSearchPipeService (App\Services\Pipe\AppSearchPipeService.cs): connects
 // to the App's own search pipe and reads back streamed (SearchResult, highlight-ranges) pairs.
 // SearchSession owns the query-debouncing/ranking/session-state side of things; this class only knows how
 // to ask the pipe a question and hand back what it says.
@@ -12,8 +12,7 @@ public static class AppSearchPipeClient
 {
     public const int ConnectTimeoutMs = 1500;
 
-    // Response buffer for the streaming read below. Large enough that one read covers several hundred
-    // results, small enough to stay off the large object heap.
+    // Same size and reasoning as Core's SearchPipeClient.ResponseReadBufferSize -- see that field's comment.
     private const int ResponseReadBufferSize = 64 * 1024;
 
     // Must match AppSearchPipeService's own naming exactly (per-user-session suffix + ACL) -- see that file's
@@ -40,7 +39,7 @@ public static class AppSearchPipeClient
         // of Administrators -- so `lff` run from an admin terminal was throwing UnauthorizedAccessException
         // ("was not owned by the current user") against a perfectly reachable, correctly-ACL'd pipe. The
         // actual security boundary is the server's ACL (see PipeSecurityFactory.CreateCurrentUserOnly's
-        // own comment, App\Services\AppSearchPipeService.cs), which checks the real user SID and doesn't
+        // own comment, App\Services\Pipe\AppSearchPipeService.cs), which checks the real user SID and doesn't
         // have this problem -- a client from a genuinely different Windows account still gets rejected by
         // the OS itself, just via the ACL rather than this redundant extra check.
         using var probePipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);

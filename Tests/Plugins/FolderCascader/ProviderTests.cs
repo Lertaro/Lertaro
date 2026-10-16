@@ -72,15 +72,18 @@ public sealed class ProviderTests
     }
 
     [TestMethod]
-    public void ClearSession_ResetsHandleCounterToStartOver()
+    public void ClearSession_DoesNotReuseHandleValues()
     {
         var provider = new Provider();
-        var first = provider.AllocateHandle(@"C:\a");
+        var beforeClear = provider.AllocateHandle(@"C:\a");
 
         provider.ClearSession();
         var afterClear = provider.AllocateHandle(@"C:\b");
 
-        Assert.AreEqual(first, afterClear); // both are the first handle allocated after a fresh/cleared session
+        // Handles must stay monotonic across ClearSession: a background fetch from the old session can
+        // still be allocating when a newer session clears the maps, and a reused value would make that
+        // stale handle resolve to the new session's path (the empty "This PC" submenu bug).
+        Assert.AreNotEqual(beforeClear, afterClear);
     }
 
     [TestMethod]

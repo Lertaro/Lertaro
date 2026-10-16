@@ -99,7 +99,8 @@ public sealed class SearchCoordinatorTests
         //
         // So: the first row of each thread holds the callback open until another thread is inside it too.
         // Under a serialising lock nothing can ever get inside concurrently, both waits expire, and the
-        // deepest observed overlap stays at 1.
+        // deepest observed overlap stays at 1. Unbounded limit: that is the streaming path. A bounded one
+        // finishes every drive's search before emitting, so a slow client cannot hold a drive up there.
         using var dir = new TempDirectory();
         using var c = LoadMany(dir, "C", 6);
         using var d = LoadMany(dir, "D", 6);
@@ -112,7 +113,7 @@ public sealed class SearchCoordinatorTests
         using var twoInside = new ManualResetEventSlim(false);
         var firstPerThread = new ConcurrentDictionary<int, byte>();
 
-        SearchCoordinator.SearchStreaming(drives, new object(), "report", 100, r =>
+        SearchCoordinator.SearchStreaming(drives, new object(), "report", int.MaxValue, r =>
         {
             var depth = Interlocked.Increment(ref inside);
             lock (gate)
@@ -131,6 +132,42 @@ public sealed class SearchCoordinatorTests
 
         Assert.HasCount(12, hits);
         Assert.IsTrue(maxInside >= 2, $"no two threads were ever inside onResult at the same time (max depth {maxInside})");
+    }
+
+    [TestMethod]
+    public void ABoundedLimit_KeepsTheBestRowsAcrossDrives_NotTheFirstToArrive()
+    {
+        // Reported: "code-atlas" (on D:) missing for "atlas" while names that merely contain a-t-l-a-s
+        // scattered (on C:) filled the page. The budget used to go to whichever drive emitted first.
+        using var dir = new TempDirectory();
+        using var c = LoadNames(dir, "C", Enumerable.Range(0, 10).Select(i => $"AutofillStates{i}").ToArray());
+        using var d = LoadNames(dir, "D", "code-atlas");
+        var drives = new Dictionary<string, LiveIndex> { ["C"] = c, ["D"] = d };
+
+        var hits = Search(drives, "atlas", limit: 3);
+
+        Assert.HasCount(3, hits);
+        Assert.AreEqual("code-atlas", hits[0].Name);
+    }
+
+    [TestMethod]
+    public void ABrokenDrive_DoesNotTakeTheOtherDrivesRowsWithIt()
+    {
+        // The bounded fan-out holds every drive's rows until the whole fan-out returns, so one drive's
+        // search throwing used to discard the rows the other drives had already produced -- one bad index
+        // cost the user the entire result page. A disposed index stands in for any drive-level fault (an
+        // index whose compaction failed, a plugin alias provider throwing); the healthy drive's rows must
+        // still arrive.
+        using var dir = new TempDirectory();
+        using var c = Load(dir, "C", "report.txt");
+        var broken = Load(dir, "D", "report.md");
+        var drives = new Dictionary<string, LiveIndex> { ["C"] = c, ["D"] = broken };
+        broken.Dispose();
+
+        var hits = Search(drives, "report", limit: 10);
+
+        Assert.HasCount(1, hits);
+        Assert.AreEqual("report.txt", hits[0].Name);
     }
 
     private static List<SearchResult> Search(Dictionary<string, LiveIndex> drives, string query, int limit = 100)
@@ -155,6 +192,16 @@ public sealed class SearchCoordinatorTests
         var store = BuildStore(drive, "unused.txt");
         for (var i = 0; i < count; i++)
             store.Records.Add(new FileRecord((ulong)(i + 3), 1, $"report{i}.txt", FileRecordFlags.None));
+        SnapshotWriter.Write(store, path);
+        return new LiveIndex(Snapshot.Open(path));
+    }
+
+    private static LiveIndex LoadNames(TempDirectory dir, string drive, params string[] names)
+    {
+        var path = Path.Combine(dir.Path, $"{drive}names.idx");
+        var store = BuildStore(drive, names[0]);
+        for (var i = 1; i < names.Length; i++)
+            store.Records.Add(new FileRecord((ulong)(i + 2), 1, names[i], FileRecordFlags.None));
         SnapshotWriter.Write(store, path);
         return new LiveIndex(Snapshot.Open(path));
     }

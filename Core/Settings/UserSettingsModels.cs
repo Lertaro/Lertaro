@@ -195,9 +195,9 @@ public class SearchWindowSettings
 
 public class PreviewWindowSettings
 {
-    // Defaults match the default search bar height (70) plus a fully-expanded 9-item results list
-    // (9 * BaseSearchResultItemHeight = 459) -- see UiMetrics -- so the preview window's height is
-    // predictable and doesn't change with however many results happen to be showing right now.
+    // Height is the fully-expanded default: a 9-item results list (9 * BaseSearchResultItemHeight = 459,
+    // see UiMetrics) plus the search bar's band, so the preview window's height is predictable and
+    // doesn't change with however many results happen to be showing right now.
     public double Width { get; set; } = 400;
     public double Height { get; set; } = 529;
 }

@@ -8,7 +8,7 @@ internal static class TrayCleanExitHelper
 {
     private static int _exiting;
 
-    public static async void CleanExit()
+    public static async void CleanExit(bool stopService = true)
     {
         if (Interlocked.Exchange(ref _exiting, 1) != 0) return;
         try
@@ -18,9 +18,12 @@ internal static class TrayCleanExitHelper
                 if (App.HookClient is { } hook) await hook.StopAsync().ConfigureAwait(false);
             }
             catch (Exception ex) { Logger.Log($"[TrayCleanExitHelper] Hook shutdown failed: {ex.Message}", LogLevel.Warn); }
-            using var service = new SearchService();
-            if (!await service.StopServiceAsync().ConfigureAwait(false))
-                Logger.Log("[TrayCleanExitHelper] Service shutdown could not be confirmed.", LogLevel.Error);
+            if (stopService)
+            {
+                using var service = new SearchService();
+                if (!await service.StopServiceAsync().ConfigureAwait(false))
+                    Logger.Log("[TrayCleanExitHelper] Service shutdown could not be confirmed.", LogLevel.Error);
+            }
         }
         catch (Exception ex)
         {

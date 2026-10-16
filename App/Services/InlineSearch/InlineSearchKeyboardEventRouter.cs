@@ -130,9 +130,8 @@ internal sealed class InlineSearchKeyboardEventRouter
         _keyboardHook.OnCtrlNumberPressed += num => Application.Current.Dispatcher.BeginInvoke(new Action(() => _getWindow()?.LaunchByShortcutIndex(num)));
     }
 
-    // Wraps like the actions list's NavigateActionsList (ShellMenuPresenter.cs) -- past the last item
-    // goes back to the first, and vice versa -- matching InlineSearchWindowInputHandler.MoveResultSelection,
-    // used when the window doesn't have WPF focus and this global hook drives it instead.
+    // Global-hook twin of InlineSearchWindowInputHandler.MoveResultSelection, used when the window has no
+    // WPF focus; the wrap itself is ListSelectionNavigator.NextSelectable's rule.
     private static void MoveResultSelection(InlineSearchWindow window, int direction)
     {
         var count = window.LstResults.Items.Count;

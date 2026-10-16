@@ -38,6 +38,27 @@ internal static class SettingsTransferRestart
     internal static FileStream StartSession(string dataDirectory, IReadOnlyList<string> arguments,
         out string? message, string? applicationDirectory = null, bool migrate = false)
     {
+        try
+        {
+            return StartSessionCore(dataDirectory, arguments, out message, applicationDirectory, migrate);
+        }
+        catch (SettingsLeaseConflictException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Anything else that stops this session from opening is not a lease conflict, and telling the
+            // user to close other instances for it (as the caller used to, unconditionally) is a diagnosis
+            // that costs them the one clue this line keeps.
+            Logger.Log($"[SettingsTransfer] Could not open the settings session for '{dataDirectory}': {ex}", LogLevel.Error);
+            throw new SettingsSessionUnavailableException(dataDirectory, ex);
+        }
+    }
+
+    private static FileStream StartSessionCore(string dataDirectory, IReadOnlyList<string> arguments,
+        out string? message, string? applicationDirectory, bool migrate)
+    {
         message = null;
         var requestId = ParseRequestId(arguments);
         FileStream exclusive;
@@ -45,7 +66,13 @@ internal static class SettingsTransferRestart
         catch (IOException ex)
         {
             if (requestId != null) message = TransferFailure(ex);
-            return SettingsBackup.OpenSession(dataDirectory, exclusive: false);
+            try { return SettingsBackup.OpenSession(dataDirectory, exclusive: false); }
+            catch (IOException sharing) when (IsSharingViolation(sharing))
+            {
+                // Both the exclusive and the shared session were refused: that is another instance holding
+                // the lease for a transfer, and the only case where saying so is true.
+                throw new SettingsLeaseConflictException(dataDirectory, sharing);
+            }
         }
         using (exclusive)
         {
@@ -92,6 +119,19 @@ internal static class SettingsTransferRestart
             }
         }
         return SettingsBackup.OpenSession(dataDirectory, exclusive: false);
+    }
+
+    // The lease lives in a file another instance holds with FileShare.None, but the refusal reaches us as a
+    // plain IOException wrapping the Win32 code (see DirectoryLockNativeMethods.OpenForBackup), so the code
+    // has to be read off the chain rather than off HResult alone.
+    private static bool IsSharingViolation(Exception exception)
+    {
+        for (var current = (Exception?)exception; current != null; current = current.InnerException)
+        {
+            if (current is System.ComponentModel.Win32Exception { NativeErrorCode: 32 or 33 }) return true;
+            if (current.HResult is unchecked((int)0x80070020) or unchecked((int)0x80070021)) return true;
+        }
+        return false;
     }
 
     private static string TransferFailure(Exception exception)

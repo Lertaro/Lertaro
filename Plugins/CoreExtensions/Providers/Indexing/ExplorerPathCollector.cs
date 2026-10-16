@@ -178,11 +178,12 @@ public class ExplorerPathCollector : IActivePathCollector
     // GetActiveExplorerPathCore talks to Explorer entirely via dynamic COM (Shell.Application,
     // IShellBrowser, Document.Folder.Self.Path) with no built-in timeout -- if Explorer's own thread is
     // stalled (a huge/slow/network folder still enumerating, a misbehaving shell extension, an
-    // unhydrated OneDrive placeholder file), those calls can block indefinitely. This method is called
-    // synchronously from both the App's WPF UI thread (InlineSearchManager.EnsureWindowCreated) and the
-    // Hook process's dedicated WinEvent tracker thread (ExplorerTracker.WinEventProc); either one hanging
-    // freezes something load-bearing for the whole process, matching a reported "inline search hangs and
-    // never recovers without restarting" bug. Run the actual COM work on its own throwaway STA thread and
+    // unhydrated OneDrive placeholder file), those calls can block indefinitely. Both live callers already
+    // bound it -- ExplorerWindowClassifier and ExplorerActivePathPoller wrap TryGetPath in
+    // ExplorerStaInvoker.RunOnStaWithTimeout with a 2 second limit, and the App reads the tracker's cached
+    // ActivePath rather than calling in here -- so a stalled Explorer can no longer freeze the UI or the
+    // WinEvent thread. This method keeps a bound of its own for the same reason instead of trusting every
+    // future caller to remember to wrap it. Run the actual COM work on its own throwaway STA thread and
     // bound the wait -- if it doesn't finish in time, give up and return null; the worker either finishes
     // harmlessly in the background afterward or leaks, which is far preferable to freezing the caller.
     private static string? GetActiveExplorerPath(IntPtr targetHwnd)

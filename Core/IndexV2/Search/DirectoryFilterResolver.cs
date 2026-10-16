@@ -4,8 +4,7 @@ using Lertaro.Core.IndexV2.Persistence;
 namespace Lertaro.Core.IndexV2.Search;
 
 // Shared "is this row under directory X" resolution for name search, path search and the recent-files
-// walk. Mirrors Helpers.NormalizeFilter/TryGetDirectoryRootId/IsUnderDirectoryCached and
-// PathQueryExtensions.TryResolvePath, retargeted at Snapshot+DeltaOverlay.
+// walk, over Snapshot+DeltaOverlay.
 internal static class DirectoryFilterResolver
 {
     public static string? NormalizeFilter(string? directoryFilter)

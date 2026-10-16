@@ -45,9 +45,23 @@ internal static class AliasMatchRules
         // provider emits several readings as one '|'-joined string, and the matcher scores each segment
         // independently with offsets rebased onto the whole string -- so a match opening a later reading
         // sits right after that '|' and is a boundary in exactly the sense that matters.
+        //
+        // A character the provider did NOT transliterate counts too, and has to: the delimiter is emitted
+        // only BETWEEN two transliterated characters (see PinyinAliasFormat.NeedsSeparatorBefore, and the
+        // grid provider's own NeedsSeparatorBefore) precisely because a passed-through character is already
+        // a visible boundary -- nothing can hide inside it. So a reading that follows one opens on a real
+        // boundary that no separator points at. Missing that rejected the one alias a mixed name had:
+        // "、gao<SEP>xiao" in the ticket's 188-character name matched every alias but the one carrying 高效,
+        // because '高' happens to follow the name's own "、".
         var previous = alias[matchStart - 1];
-        return previous == separator || previous == '|';
+        return previous == separator || previous == '|' || !IsAsciiLetter(previous);
     }
+
+    // Only an ASCII letter can be the inside of a reading: every reading a provider emits is letters, and
+    // every position that is NOT preceded by one either follows the separator, a '|', a passed-through
+    // character, or (in the byte twin) a multi-byte character's continuation byte. A non-ASCII letter is
+    // passed-through text as well -- no provider transliterates into it.
+    private static bool IsAsciiLetter(char c) => c is >= 'a' and <= 'z' or >= 'A' and <= 'Z';
 
     /// <summary>Byte twin of <see cref="IsBoundaryAligned(char, ReadOnlySpan{char}, int)"/>.</summary>
     /// <remarks>
@@ -64,10 +78,101 @@ internal static class AliasMatchRules
         if (aliasUtf8.IndexOf(separatorByte) < 0)
             return true;
 
-        // '|' as well as the separator: see the char overload.
+        // '|' as well as the separator, and any byte that cannot be the inside of a reading: see the char
+        // overload. A passed-through multi-byte character leaves a continuation byte (>= 0x80) in front,
+        // which is exactly as much of a boundary as a passed-through ASCII one.
         var previous = aliasUtf8[matchStart - 1];
-        return previous == separatorByte || previous == (byte)'|';
+        return previous == separatorByte || previous == (byte)'|' || !IsAsciiLetter((char)previous);
     }
+
+    /// <summary>
+    /// How wide an occurrence of a <paramref name="termLength"/>-character term may be and still count as
+    /// an explanation of a match. Shared by the alias gate and by highlighting, so a candidate cannot be
+    /// found by one rule and painted by another: without it, highlighting paints the greedy earliest
+    /// subsequence wherever it lands, which on a flattened initials alias is a wide scatter of unrelated
+    /// characters (a 7-letter pinyin query lit six characters spread over 116 positions of a 184-character
+    /// name).
+    /// </summary>
+    public static bool IsTightOccurrence(int termLength, int span)
+        => span <= Math.Max(termLength * TightPerTermMultiplier, TightPerTermFloor);
+
+    /// <summary>
+    /// Positions in <paramref name="text"/> of the narrowest in-order occurrence of
+    /// <paramref name="term"/> as a subsequence, or null when the term does not occur at all.
+    /// </summary>
+    /// <remarks>
+    /// Forward scan completes the term, backward scan then pulls the start as late as it can: the classic
+    /// minimum-window-of-subsequence walk. Shared because both sides need the SAME occurrence -- matching
+    /// has to know how tight a term's best occurrence is, and highlighting has to paint that occurrence
+    /// rather than a wider one. Left alone, highlighting takes the greedy earliest subsequence, which on a
+    /// flattened initials alias scatters across the whole string (a 7-letter pinyin query lit six
+    /// characters spread over 116 positions of a 184-character name) while matching had accepted a tight
+    /// occurrence elsewhere.
+    ///
+    /// Callers pass text and term in the same case unless they pass
+    /// <paramref name="caseSensitive"/>; the comparison folds otherwise.
+    /// </remarks>
+    public static int[]? TightestOccurrence(ReadOnlySpan<char> text, ReadOnlySpan<char> term, bool caseSensitive)
+    {
+        if (term.IsEmpty || text.Length < term.Length)
+            return null;
+
+        int[]? best = null;
+        var from = 0;
+        while (from < text.Length)
+        {
+            var ti = 0;
+            var j = from;
+            while (j < text.Length && ti < term.Length)
+            {
+                if (CharsEqual(text[j], term[ti], caseSensitive))
+                    ti++;
+                j++;
+            }
+            if (ti < term.Length)
+                break;
+
+            var end = j - 1;
+            ti = term.Length - 1;
+            var k = end;
+            while (k >= 0 && ti >= 0)
+            {
+                if (CharsEqual(text[k], term[ti], caseSensitive))
+                    ti--;
+                k--;
+            }
+
+            var windowStart = k + 1;
+            if (best == null || end - windowStart < best[^1] - best[0])
+            {
+                var positions = new int[term.Length];
+                var pos = 0;
+                ti = 0;
+                for (var i = windowStart; i <= end && ti < term.Length; i++)
+                {
+                    if (CharsEqual(text[i], term[ti], caseSensitive))
+                    {
+                        positions[pos++] = i;
+                        ti++;
+                    }
+                }
+                best = positions;
+            }
+
+            from = windowStart + 1;
+        }
+
+        return best;
+    }
+
+    private static bool CharsEqual(char left, char right, bool caseSensitive)
+        => caseSensitive ? left == right : char.ToLowerInvariant(left) == char.ToLowerInvariant(right);
+
+    // A pinyin term spelled out over its own syllables needs a few characters of delimiter and padding per
+    // syllable, which is what these bounds allow for. Both are the alias fallback's original measured
+    // values; the sum-of-windows budget in FzfPatternAliasMatchExtensions is the multi-block counterpart.
+    internal const int TightPerTermMultiplier = 4;
+    internal const int TightPerTermFloor = 8;
 
     /// <summary>
     /// Whether a PRECISE alias match starting at <paramref name="matchStart"/> may stand.

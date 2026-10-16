@@ -30,24 +30,86 @@ public static class PortableDirectoryLock
     // already has the right ACL. Lives in the administrator-owned binary directory, never user data.
     private const string PermissionsRevision = "2";
     private const string RevisionFile = ".permissions-version";
+    /// <summary>
+    /// Locks <paramref name="directory"/> to <paramref name="user"/> alone, and checks that the owner it claims
+    /// to have set is the owner that is actually there.
+    /// </summary>
     public static Report RepairUserDirectory(string directory, SecurityIdentifier user)
     {
         Directory.CreateDirectory(directory);
-        return InstallDirectoryLock.Lock(directory, OwnedBy(user), _ => null);
+        var report = InstallDirectoryLock.Lock(directory, OwnedBy(user), _ => null);
+
+        // A repair that returns without having changed the owner is the failure issue #342 could not see: the
+        // walk reported success, every later start refused again, and the user had nothing to go on. The owner
+        // is read back here, while the walk's own result is still in hand, and a mismatch is reported rather
+        // than assumed away -- the App turns a non-empty Failed list into the reason it shows.
+        var owner = UserDataAccess.TryGetOwner(directory);
+        if (owner != null && !string.Equals(owner, user.Value, StringComparison.OrdinalIgnoreCase))
+            report.Failed.Add($"{directory}: owner is still {owner}, expected {user.Value}");
+        return report;
     }
+
+    /// <summary>
+    /// The data roots an elevated repair has to cover, in the order it should try them: the one this copy
+    /// actually uses, then the profile default.
+    /// </summary>
+    /// <remarks>
+    /// Only the profile default used to be repaired, which is where an installed copy keeps its data and not
+    /// where a portable one does: a portable copy's user data sits beside its executable, so its repair walked
+    /// a folder the App never reads and left the one it does read exactly as it was. Both roots are derived
+    /// here from this process's own location and the profile map -- never from a path the caller handed in --
+    /// so no low-integrity process can steer elevation at a directory of its choosing.
+    /// </remarks>
+    public static IReadOnlyList<string> RepairTargets(InstallationMode mode, string applicationDirectory,
+        string localApplicationDataDirectory, string profileDirectory, string userSid)
+    {
+        var profileDefault = Path.Combine(profileDirectory, "AppData", "Local", "Lertaro");
+        var used = DataDirectoryResolver.ResolveUser(mode, applicationDirectory, localApplicationDataDirectory, userSid);
+        return SamePath(used, profileDefault) ? [profileDefault] : [used, profileDefault];
+    }
+
+    /// <summary>
+    /// Repairs one of <see cref="RepairTargets"/>: the root the App is about to use, wherever this copy keeps
+    /// it. The profile default is the one of them whose ancestors have to be pinned first, because that is the
+    /// user-writable chain a planted junction could redirect elevation through.
+    /// </summary>
+    public static Report RepairUserDataDirectory(string directory, string profile, SecurityIdentifier user) =>
+        SamePath(directory, Path.Combine(profile, "AppData", "Local", "Lertaro"))
+            ? RepairProfileUserDirectory(profile, user)
+            : RepairUserDirectory(directory, user);
+
+    /// <summary>
+    /// What an elevated repair has to report as a failure, or null when it may be treated as done.
+    /// </summary>
+    /// <remarks>
+    /// The trust boundary is <see cref="Report.Failed"/>: a directory or file whose ACL or owner the walk could
+    /// not set. A personal file that was in use is reported under <see cref="Report.UserDataFailed"/> instead,
+    /// and deliberately does not fail the repair -- elevation cannot open a file another process is holding, and
+    /// one busy settings file must not be the reason an App cannot start. The App re-checks the directory itself
+    /// right after the repair, which is the verdict that actually decides whether it can run.
+    /// </remarks>
+    public static string? FatalReason(Report report) =>
+        report.Failed.Count == 0 ? null : string.Join(Environment.NewLine, report.Failed);
+
+    private static bool SamePath(string left, string right) =>
+        string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(left)),
+            Path.TrimEndingDirectorySeparator(Path.GetFullPath(right)), StringComparison.OrdinalIgnoreCase);
 
     public static Report RepairProfileUserDirectory(string profile, SecurityIdentifier user)
     {
         // ProfileList supplies the trusted root. Pin each user-writable ancestor and refuse junctions
         // before resolving the final Lertaro folder; elevation must not repair an arbitrary link target.
-        using var root = DirectoryLockNativeMethods.OpenWithoutFollowing(profile, migration: true);
+        // Pinned, not migrated: these are live directories the shell already holds open without sharing
+        // delete, and nothing here is deleted or re-ACLed through these handles.
+        using var root = DirectoryLockNativeMethods.OpenWithoutFollowing(profile, pin: true);
         RejectLink(root);
-        using var appData = DirectoryLockNativeMethods.OpenWithoutFollowing("AppData", root, migration: true);
+        using var appData = DirectoryLockNativeMethods.OpenWithoutFollowing("AppData", root, pin: true);
         RejectLink(appData);
-        using var local = DirectoryLockNativeMethods.OpenWithoutFollowing("Local", appData, migration: true);
+        using var local = DirectoryLockNativeMethods.OpenWithoutFollowing("Local", appData, pin: true);
         RejectLink(local);
         var directory = Path.Combine(profile, "AppData", "Local", "Lertaro");
-        return Directory.Exists(directory) ? RepairUserDirectory(directory, user) : new Report();
+        if (!Directory.Exists(directory)) return new Report();
+        return RepairUserDirectory(directory, user);
 
         static void RejectLink(Microsoft.Win32.SafeHandles.SafeFileHandle handle)
         {
@@ -114,7 +176,7 @@ public static class PortableDirectoryLock
         appDirectory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(appDirectory));
         if (SettingsFileReader.ReadIfPresent(Path.Combine(appDirectory, RevisionFile)) != PermissionsRevision) return false;
         return IsCurrent(appDirectory, Directory.Exists(Path.Combine(appDirectory, "Data")),
-            UserProfiles.Read().Keys, (folder, zone) => Directory.Exists(folder) && InstallDirectoryLock.GrantsAtLeast(folder, zone));
+            UserProfiles.Read().Keys, (folder, zone) => Directory.Exists(folder) && GrantsAtLeast(folder, zone));
     }
 
     internal static bool IsCurrent(string appDirectory, bool hasPortableData, IEnumerable<string> profileSids,

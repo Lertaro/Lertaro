@@ -7,8 +7,8 @@ namespace Lertaro.App.ViewModels.Search;
 // Fast one-level locator for the inline window's "Current Folder" section: lists the files sitting
 // directly in the window's own folder and matches the query against their names.
 //
-// Why this exists next to the scoped engine search (ExplorerSearchHelper.SearchLocalMatchesAsync): that
-// search covers the WHOLE subtree and only ships its top-ranked candidates to the App, so in a folder
+// Why this exists next to the global search: the engine covers the WHOLE subtree and only ships its
+// top-ranked candidates to the App, so in a folder
 // with many matches the direct children can be crowded out of that window entirely by deeper files. The
 // proximity ordering (DirectoryProximity) can only reorder what actually arrived -- it cannot bring back
 // a direct child the engine never sent. Enumerating one level here is cheap, independent of the index,
@@ -16,8 +16,9 @@ namespace Lertaro.App.ViewModels.Search;
 internal static class DirectChildrenLocator
 {
     // ponytail: bounded scan. A directory holding an enormous number of entries stops being examined
-    // after this many rather than stalling the inline search; anything past the cap is still delivered by
-    // the scoped engine search, so nothing is permanently lost -- only this fast pass gives up on it.
+    // after this many rather than stalling the inline search; anything past the cap can still arrive
+    // through the global search, whose merge re-orders this folder's descendants first, so nothing is
+    // permanently lost -- only this fast pass gives up on it.
     internal const int MaxExaminedEntries = 20_000;
 
     // Emits every direct child of `directory` whose name matches `query` (case-insensitively, through the

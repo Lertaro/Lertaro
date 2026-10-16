@@ -1,5 +1,7 @@
 using Lertaro.App.Services.Favorites;
 using Lertaro.Core;
+using Lertaro.App.Services;
+using Lertaro.App.ViewModels.Settings;
 
 namespace Lertaro.App.Tests.Services.Favorites;
 
@@ -92,7 +94,9 @@ public sealed class FavoriteHotkeyServiceTests
             new FavoriteHotkeyRegistration(0, string.Empty, 0, 0, FavoriteHotkeySkipReason.Empty),
             Registered(1, "Ctrl+2"),
             new FavoriteHotkeyRegistration(2, "Ctrl", 0, 0, FavoriteHotkeySkipReason.Invalid),
-            new FavoriteHotkeyRegistration(3, "Ctrl+2", 0x44, 2, FavoriteHotkeySkipReason.Duplicate)
+            new FavoriteHotkeyRegistration(3, "Ctrl+2", 0x44, 2, FavoriteHotkeySkipReason.Duplicate),
+            new FavoriteHotkeyRegistration(4, "Alt+D", 0x44, 1, FavoriteHotkeySkipReason.Reserved),
+            new FavoriteHotkeyRegistration(5, "Ctrl+G", 0x47, 2, FavoriteHotkeySkipReason.ApplicationConflict)
         ]);
 
         // Only the one real request reached the OS, and it kept its own owner index.
@@ -230,5 +234,27 @@ public sealed class FavoriteHotkeyServiceTests
 
         CollectionAssert.AreEqual(new[] { 1, 2 }, window.UnregisterCalls);
         Assert.AreEqual(-1, service.FindOwnerIndex(1));
+    }
+
+    [TestMethod]
+    public void ApplyHotkeys_ExternalConflictHint_PersistsUntilRegistrationSucceeds()
+    {
+        var window = new FakeHotkeyWindow();
+        window.RefuseIds.Add(1);
+        using var service = CreateService(window);
+        FavoriteHotkeyService.Instance = service;
+        var settings = new UserSettings { Favorites = [new() { Hotkey = "Alt+T" }] };
+        var vm = new FavoritesSettingsViewModel(settings);
+
+        vm.ApplyHotkeys();
+        Assert.AreEqual(TranslationManager.Instance["Favorites_HotkeyUnavailable"], vm.Items[0].HotkeyHint);
+        vm.ApplyHotkeys();
+        Assert.AreEqual(TranslationManager.Instance["Favorites_HotkeyUnavailable"], vm.Items[0].HotkeyHint);
+        var reopened = new FavoritesSettingsViewModel(settings);
+        Assert.AreEqual(TranslationManager.Instance["Favorites_HotkeyUnavailable"], reopened.Items[0].HotkeyHint);
+
+        window.RefuseIds.Clear();
+        reopened.ApplyHotkeys();
+        Assert.AreEqual(string.Empty, reopened.Items[0].HotkeyHint);
     }
 }

@@ -66,7 +66,9 @@ public sealed class SettingsWindowSearchExtensionsTests
         var settings = new UserSettings();
         var group = new PluginConfigFieldViewModel("flow", new PluginConfigField
         {
-            Key = "MDictGroup", LabelKey = "MDict", FieldType = ConfigFieldType.Group,
+            Key = "MDictGroup",
+            LabelKey = "MDict",
+            FieldType = ConfigFieldType.Group,
             SubFields = [new PluginConfigField
             {
                 Key = "MDict.ActionKeyword", LabelKey = "MDict trigger", GroupKey = "MDict",

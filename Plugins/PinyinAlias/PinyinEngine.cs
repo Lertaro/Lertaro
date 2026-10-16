@@ -38,10 +38,10 @@ public static class PinyinEngine
     private static readonly int MultiTableOffset;
     private static readonly int CharTableOffset;
 
-    // Pre-built one-element result arrays per syllable id: the (dominant) single-pronunciation
-    // lookup used to allocate a fresh string[1] on EVERY call, which at snapshot-bake volume is
-    // millions of allocations per rebuild for identical contents. A few hundred tiny arrays built
-    // once cover it. Callers must treat returned arrays as read-only (they are shared).
+    // Pre-built one-element result arrays per syllable id: the single-pronunciation lookup used to
+    // allocate a fresh string[1] on EVERY call, which at snapshot-bake volume is millions of allocations
+    // per rebuild for identical contents. A few hundred tiny arrays built once cover it. Callers must
+    // treat returned arrays as read-only (they are shared).
     private static readonly string[][] SingleSyllableArrays;
     // Same idea for polyphonic entries, keyed by the multi-table offset, built lazily on first
     // lookup. Concurrent first lookups may build the same array twice; the reference store is

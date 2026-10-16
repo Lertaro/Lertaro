@@ -1,5 +1,4 @@
 using Microsoft.Data.Sqlite;
-using System.Text;
 
 namespace Lertaro.Plugins.ContentSearch.Storage;
 
@@ -42,7 +41,8 @@ public static class DatabaseSearchHelper
                 yield return hit;
             }
 
-            // Nothing came of the terms ANDed above; concatenated they may still match text where the words
+            // Fewer hits than the limit came out of the terms ANDed above; concatenated they may still
+            // match text where the words
             // run together ("报告 单" against "报告单").
             if (emitted < limit && tokens.Length > 1)
             {

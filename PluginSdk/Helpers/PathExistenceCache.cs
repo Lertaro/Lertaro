@@ -72,7 +72,8 @@ public static class PathExistenceCache
     /// </summary>
     /// <remarks>
     /// Stopping early is what keeps this from ever being more work than not calling it. Every caller
-    /// reads the result through All(), which stops at the first false too, so priming past that point
+    /// folds the results together with LINQ's All(), which stops at the first false too, so priming past
+    /// that point
     /// would probe paths nobody was going to ask about -- and on a selection of hundreds of thousands
     /// whose first entry is stale, that would turn a single probe into all of them.
     ///

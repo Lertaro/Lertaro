@@ -21,66 +21,73 @@ internal static class SearchCoordinator
         string? directoryFilter,
         string? fileNameFilter = null)
     {
-        LiveIndex[] drives;
+        KeyValuePair<string, LiveIndex>[] drives;
         lock (lockObj)
         {
-            drives = recordIndexes.Values.ToArray();
+            drives = recordIndexes.ToArray();
         }
 
-        if (drives.Length == 0)
+        if (drives.Length == 0 || limit <= 0)
             return;
 
         if (drives.Length == 1)
         {
-            IndexV2Searcher.SearchStreaming(drives[0], query, limit, onResult, token, directoryFilter, fileNameFilter);
+            IndexV2Searcher.SearchStreaming(drives[0].Value, query, limit, onResult, token, directoryFilter, fileNameFilter);
             return;
         }
 
-        var emitted = 0;
-        Parallel.For(
-            0,
-            drives.Length,
-            new ParallelOptions
+        // A bounded limit cuts rows, so the cut has to be by rank across ALL drives: sharing the budget
+        // first-come let whichever drive answered first fill it, and the best row on a slower drive never
+        // arrived. Each drive returns its own best `limit`, and the global best `limit` is among their union.
+        //
+        // ponytail: buffers up to drives * limit rows and gives up streaming for bounded queries (the quick
+        // and inline windows, a few hundred rows). The latency price is on a multi-drive machine: the first
+        // row reaches the window only after the slowest drive's search returns, where the streaming path
+        // below shows each drive's rows as they arrive. The unbounded full window keeps that streaming path,
+        // where nothing is cut and arrival order does not matter.
+        //
+        // One drive's search failing (a plugin alias provider throwing, an index whose compaction just
+        // failed) must not cost the other drives their rows -- here the whole fan-out's rows are still
+        // buffered when the exception surfaces, where the streaming path below has already handed its own
+        // rows over. Cancelling stays fatal: that is how the caller stops a search, not a drive failing.
+        if (limit < int.MaxValue)
+        {
+            var buffered = new List<SearchResult>[drives.Length];
+            Parallel.For(0, drives.Length, ParallelOptionsFor(drives.Length, token), i =>
             {
-                CancellationToken = token,
-                MaxDegreeOfParallelism = Math.Min(drives.Length, Math.Clamp(Environment.ProcessorCount, 2, 8))
-            },
-            i =>
+                var rows = buffered[i] = new List<SearchResult>();
+                try
+                {
+                    IndexV2Searcher.SearchStreaming(drives[i].Value, query, limit, rows.Add, token, directoryFilter, fileNameFilter);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    Logger.Log($"[SearchCoordinator] Search of drive {drives[i].Key} failed; its rows are left out: {ex.Message}", LogLevel.Error);
+                }
+            });
+            foreach (var row in buffered.SelectMany(rows => rows).OrderBy(row => row, SearchResultRankComparer.Instance).Take(limit))
             {
                 token.ThrowIfCancellationRequested();
-                // One budget shared by the whole fan-out. Each drive used to be handed the full limit and
-                // every hit was forwarded, so a limit=200 query on a 4-drive machine streamed up to 800
-                // rows to the wire layer, and the count a user saw changed as drives were attached or
-                // removed -- while the single-drive path above was correct, which made it worse.
-                var alreadyEmitted = Volatile.Read(ref emitted);
-                if (alreadyEmitted >= limit)
-                    return;
+                onResult(row);
+            }
+            return;
+        }
 
-                IndexV2Searcher.SearchStreaming(drives[i], query, limit - alreadyEmitted, result =>
-                {
-                    token.ThrowIfCancellationRequested();
-                    // Reserve the slot atomically, then emit with no lock held. Wrapping onResult in a
-                    // lock serialised every drive's emission behind whichever pipe write is currently
-                    // parked on the pump's backpressure, so one slow client stalled every other drive as
-                    // well. The wire itself stays serialised -- the pump has one consumer task writing the
-                    // response -- but the callback is now reachable concurrently, which is why
-                    // SearchStreamPump.CreateResultChannel sets SingleWriter = false. Cross-drive arrival
-                    // order was never meaningful either: consumers merge by the shared RankSortKey, not by
-                    // when a drive happened to finish.
-                    //
-                    // ponytail: an in-flight drive search is not aborted once the budget runs out, it
-                    // just stops forwarding rows -- stopping it would need its own cancellation token.
-                    // The per-drive limit above already bounds how long that can go on.
-                    if (Interlocked.Increment(ref emitted) > limit)
-                    {
-                        Interlocked.Decrement(ref emitted);
-                        return;
-                    }
-
-                    onResult(result);
-                }, token, directoryFilter, fileNameFilter);
-            });
+        Parallel.For(0, drives.Length, ParallelOptionsFor(drives.Length, token), i =>
+            // Emits with no lock held. Wrapping onResult in a lock serialised every drive's emission behind
+            // whichever pipe write is currently parked on the pump's backpressure, so one slow client
+            // stalled every other drive as well. The wire itself stays serialised -- the pump has one
+            // consumer task writing the response -- but the callback is reachable concurrently, which is
+            // why SearchStreamPump.CreateResultChannel sets SingleWriter = false. Cross-drive arrival order
+            // is not meaningful: consumers merge by the shared RankSortKey.
+            IndexV2Searcher.SearchStreaming(drives[i].Value, query, limit, onResult, token, directoryFilter, fileNameFilter));
     }
+
+    private static ParallelOptions ParallelOptionsFor(int driveCount, CancellationToken token) => new()
+    {
+        CancellationToken = token,
+        MaxDegreeOfParallelism = Math.Min(driveCount, Math.Clamp(Environment.ProcessorCount, 2, 8))
+    };
 
     // No fan-out here, unlike the search above: a path lives on exactly one drive, and every other
     // drive's index rejects it on the source-root prefix check before doing any work.

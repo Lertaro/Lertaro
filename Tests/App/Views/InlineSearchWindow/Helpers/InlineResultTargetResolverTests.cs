@@ -38,7 +38,7 @@ public sealed class InlineResultTargetResolverTests
 
     // Shortcut commands lead and the default selection lands on one, so Enter runs it -- the intended
     // behavior for a query that IS a command keyword. (Turning the commands off is what makes searches
-    // purely about files; see UserSettings.EnableSearchActions.)
+    // purely about files; see the CoreExtensions InlineSearchEnableSearchActions setting.)
     [TestMethod]
     public void AutoSelect_ShortcutCommandLeads_CommandIsSelected()
     {

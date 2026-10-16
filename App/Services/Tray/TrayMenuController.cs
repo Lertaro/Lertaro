@@ -94,7 +94,7 @@ internal sealed class TrayMenuController : IDisposable
         _toggleHotkeys = Item(string.Empty, ToggleHotkeys);
         _settings = Item("\uE713", () => App.ShowSettingsWindow());
         _about = Item("\uE946", () => App.ShowSettingsWindow("About"));
-        _cleanExit = Item("\uE74D", TrayCleanExitHelper.CleanExit);
+        _cleanExit = Item("\uE74D", () => TrayCleanExitHelper.CleanExit());
         _exit = Item("\uF3B1", () => System.Windows.Application.Current.Shutdown());
 
         _menu.Items.Add(_showWindow);

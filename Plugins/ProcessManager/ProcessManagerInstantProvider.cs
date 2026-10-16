@@ -8,9 +8,7 @@ namespace Lertaro.Plugins.ProcessManager;
 public class ProcessManagerInstantProvider : IInstantResultProvider
 {
     public string Name => TranslationService.Get("ProcessManager_Name");
-    // The word the user types to invoke this provider, published for the host so it can strip it before
-    // matching/highlighting file names. Read live from the plugin's own settings: the host never keeps a
-    // copy, and changing the word in Settings takes effect on the next keystroke.
+    // Trigger word read live from settings and published for the host to strip; see TriggerWord for the rule.
     public IReadOnlyList<string> QueryTriggerKeywords => [GetTriggerKeyword()];
 
     // CharSet.Unicode is required, not cosmetic: without it this binds to SendMessageTimeoutA, whose
@@ -128,10 +126,12 @@ public class ProcessManagerInstantProvider : IInstantResultProvider
     }
 
     // Lower tier ranks first: 0 = literal process-name match, 1 = literal PID match, 2 = literal
-    // window-title match, 3 = fuzzy/alias fallback on name or title -- the same literal/fuzzy/alias
-    // tiering BrowserDataInstantProvider uses, so e.g. a window titled in Chinese is still reachable by
-    // typing its pinyin, just ranked behind anything that matched literally instead of competing with
-    // it on plain alphabetical order. Returns null when nothing matches at any tier.
+    // window-title match, 3 = fuzzy/alias fallback on name or title. Same idea as
+    // BrowserDataInstantProvider's tiering -- a window titled in Chinese is still reachable by typing its
+    // pinyin, just ranked behind anything that matched literally instead of competing with it on plain
+    // alphabetical order -- but not the same ordering: BrowserData puts a title-fuzzy hit ahead of a
+    // cross-field literal, while here every literal wins first. Returns null when nothing matches at any
+    // tier.
     // windowTitle is often empty (background/non-windowed processes); Contains("", ...) would trivially
     // match everything, and FuzzyMatchService.IsMatch isn't designed for an empty pattern/text either,
     // so it's only checked when non-empty.

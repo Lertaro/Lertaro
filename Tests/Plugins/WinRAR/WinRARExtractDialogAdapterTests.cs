@@ -42,8 +42,7 @@ public sealed class WinRARExtractDialogAdapterTests
     [TestMethod]
     public void NormalizeIfWellFormed_NotRootedText_ReturnsNull()
     {
-        // A placeholder/hint string (or any non-path text) isn't a rooted path -- must still be rejected
-        // even without an existence check.
+        // A placeholder/hint string isn't a rooted path; canonical note at BandizipPathHelpersTests.
         var result = WinRARExtractDialogAdapter.NormalizeIfWellFormed("choose a folder...");
 
         Assert.IsNull(result);
@@ -52,9 +51,8 @@ public sealed class WinRARExtractDialogAdapterTests
     [TestMethod]
     public void NormalizeIfWellFormed_DriveRoot_KeepsTrailingBackslash()
     {
-        // "D:" alone is a different path than "D:\" (current directory on that drive vs. its root) --
-        // trimming the drive root's trailing separator must not produce the former. Confirmed live via
-        // app.log showing a bare "D:" SearchScope breaking Path.GetRelativePath downstream.
+        // "D:" alone is a different path than "D:\" (current dir on that drive vs. its root) -- full
+        // confirmed-live reason at Plugins/Bandizip/BandizipPathHelpers.cs, which documents both copies.
         var result = WinRARExtractDialogAdapter.NormalizeIfWellFormed(@"D:\");
 
         Assert.AreEqual(@"D:\", result);
@@ -63,10 +61,9 @@ public sealed class WinRARExtractDialogAdapterTests
     [TestMethod]
     public void NormalizeIfWellFormed_NetworkDrive_ReturnsItEvenThoughUnreachableFromHere()
     {
-        // The whole point of dropping the Directory.Exists check: a mapped network drive the interactive
-        // user can see is invisible to the elevated Hook process this runs in, so verifying it here would
-        // wrongly reject a perfectly real path. Confirmed live: this used to silently freeze SearchScope at
-        // its last value once the dialog's target moved onto a network drive.
+        // Dropping the Directory.Exists check is the whole point here: a mapped network drive the
+        // interactive user can see is invisible to the elevated Hook process this runs in -- full reason
+        // (including the confirmed-live SearchScope freeze) at Plugins/Bandizip/BandizipPathHelpers.cs.
         var result = WinRARExtractDialogAdapter.NormalizeIfWellFormed(@"Z:\share\projects\build");
 
         Assert.AreEqual(@"Z:\share\projects\build", result);

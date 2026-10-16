@@ -126,7 +126,8 @@ internal static class Mp4RotationReader
         TryFindBox(stream, minfStart, minfEnd, "vmhd", out _, out _);
 
     // tkhd layout (ISO/IEC 14496-12): version(1) + flags(3), then creation/modification/track_ID/reserved/
-    // duration sized by version (32-bit fields in v0, 64-bit in v1), then reserved(8) + layer(2) +
+    // duration -- only creation, modification and duration widen to 64-bit in v1, while track_ID and
+    // reserved stay 32-bit -- then reserved(8) + layer(2) +
     // alternate_group(2) + volume(2) + reserved(2), then the 3x3 transform matrix (9 x 32-bit fixed-point).
     // Only the matrix's first two entries (a, b) are needed: for the axis-aligned 0/90/180/270 rotations
     // every camera actually writes, atan2(b, a) alone recovers the intended display angle.

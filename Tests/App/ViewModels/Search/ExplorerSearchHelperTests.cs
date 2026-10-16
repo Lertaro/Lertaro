@@ -12,8 +12,25 @@ public sealed class ExplorerSearchHelperTests
     private static AppSearchResult Item(string path, bool isDir = false) =>
         new() { FullPath = path, Name = System.IO.Path.GetFileName(path), ResultKind = "File", IsDir = isDir };
 
-    private static ExplorerSearchHelper.RankedRow Row(string path, int tier = MatchRank.TierName, int start = 0, double weight = 1.0, bool isDir = false) =>
-        new(Item(path, isDir), new MatchRank(tier, start, weight));
+    private static ExplorerSearchHelper.RankedRow Row(string path, int tier = MatchRank.TierName, int start = 0, double weight = 1.0, bool isDir = false, int shape = MatchRank.ShapeWholeWord) =>
+        new(Item(path, isDir), new MatchRank(tier, start, weight, shape));
+
+    // Within a direct-children group, how the query sits in the name leads: a whole word later in the
+    // name beats scattered letters from the start.
+    [TestMethod]
+    public void OrderByDirectoryTier_DirectChildren_ShapeComesBeforeStart()
+    {
+        var result = ExplorerSearchHelper.OrderByDirectoryTier(
+            [
+                Row(@"C:\Root\AutofillStates", shape: MatchRank.ShapeScattered),
+                Row(@"C:\Root\code-atlas", start: 5),
+            ],
+            @"C:\Root");
+
+        CollectionAssert.AreEqual(
+            new[] { @"C:\Root\code-atlas", @"C:\Root\AutofillStates" },
+            result.Select(item => item.FullPath).ToArray());
+    }
 
     [TestMethod]
     public void OrderByDirectoryTier_DirectChildrenPrecedeDescendantMatches()

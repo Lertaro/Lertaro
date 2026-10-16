@@ -40,7 +40,8 @@ public sealed class PluginConfigCommitSupportTests
         var saves = 0;
         var field = new PluginConfigFieldViewModel("flow", new PluginSdk.Abstractions.PluginConfigField
         {
-            Key = "MDict", FieldType = PluginSdk.Abstractions.ConfigFieldType.Group,
+            Key = "MDict",
+            FieldType = PluginSdk.Abstractions.ConfigFieldType.Group,
             SubFields = [new PluginSdk.Abstractions.PluginConfigField
             {
                 Key = "MDict.CustomPanel", FieldType = PluginSdk.Abstractions.ConfigFieldType.CustomControl

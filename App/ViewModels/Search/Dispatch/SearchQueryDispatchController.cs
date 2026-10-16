@@ -3,6 +3,7 @@ using Lertaro.Core;
 using Lertaro.App.Services.Plugin;
 using Lertaro.App.ViewModels.Service;
 
+using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Query;
 using Lertaro.App.ViewModels.Search.Mapping;
 using Lertaro.PluginSdk.Abstractions.Plugins;
@@ -90,13 +91,29 @@ internal sealed class SearchQueryDispatchController
         var strippedTrailing = SearchQuerySortParser.Strip(query, out var tokens, globalPrefixChar);
         _queryTokens = tokens;
         var cleanQuery = SearchQuerySortParser.StripExclusionBypass(strippedTrailing, out var bypassExclusions);
+        // The quick window's per-type trigger CHARACTER comes off here too, before the scope keyword is
+        // resolved: this window re-runs text typed into it or carried over from that window, and searching
+        // the character as literal text is why one visible query answered differently in the two windows
+        // (see ResultTypeTriggerHandler.Match, which documents the full window's side of this). Only the
+        // character -- the type it names is this window's sidebar's job -- and its precedence over a
+        // file-filter scope keyword is the quick window's, so the scope below is skipped when one fired.
+        var (triggerStripped, triggeredTypeId) = ResultTypeTriggerHandler.Match(
+            query,
+            cleanQuery,
+            isInlineSearchContext: false,
+            UserSettings.Load().ResultTypeTriggers ?? new Dictionary<string, string>(),
+            word => PluginTriggerQuery.ClaimsLeadingWord(word, SearchWindowType.Main));
+        cleanQuery = triggerStripped;
         // A file-filter scope keyword ("tf report" -> search "report" only inside the tf filter's folders)
-        // resolves first, in the same order SearchDispatchController applies it: the scope is the more
-        // specific prefix and its own resolver owns stripping its word, so the trigger-word strip below is
-        // skipped when it claimed the leading token. Without this, "Show more"/Ctrl+F carrying a scoped
-        // quick-window query landed here as literal text and this window searched for "tf report".
+        // resolves next, in the same order SearchDispatchController applies it: the scope owns stripping its
+        // own word, so the trigger-word strip below is skipped when it claimed the leading token. Without
+        // this, "Show more"/Ctrl+F carrying a scoped quick-window query landed here as literal text and this
+        // window searched for "tf report". A per-type trigger outranks the scope keyword, exactly as it does
+        // in the quick window -- the scope is skipped for it above.
         var scopedQuery = cleanQuery;
-        var scopeDirective = FileFilterScopeResolver.Resolve(cleanQuery, out scopedQuery);
+        var scopeDirective = triggeredTypeId == null
+            ? FileFilterScopeResolver.Resolve(cleanQuery, out scopedQuery)
+            : null;
         // Same rule as the quick/inline windows: a leading trigger word ("cs report" ->
         // search "report") must not be fuzzy-matched against file names or highlighted. Overwritten in
         // place so the streaming accumulator below ranks by the very term being searched. This window is
@@ -125,6 +142,7 @@ internal sealed class SearchQueryDispatchController
         // once. Built here rather than on the first mapper call because the content append has to reach it
         // even when the file search never answers. See StreamingResultAccumulator.
         var accumulator = new StreamingResultAccumulator(cleanQuery, new Dictionary<string, int>());
+        var prioritiesApplied = false;
         _accumulator = accumulator;
         _searchSettled = false;
 
@@ -171,8 +189,15 @@ internal sealed class SearchQueryDispatchController
             {
                 if (fileResults == null)
                     return new List<AppSearchResult>();
-                // The full window is a file-browser-style view: only rank actual index matches here.
-                // Quick and inline search retain their separate history/favorite learning behavior.
+                // Only index matches are shown here, but they rank like the quick window's: what the user
+                // picked before for this text, then other history, then Windows' Recent Items, then match
+                // quality. Rank-only -- nothing the index did not return is added. Worked out here, on the
+                // render callback's thread, before the first batch is ranked.
+                if (!prioritiesApplied)
+                {
+                    accumulator.UsePriorities(HistorySearchCandidateMapper.RankingPriorities(FuzzyQuery.Parse(cleanQuery)));
+                    prioritiesApplied = true;
+                }
                 return accumulator.AbsorbBatch(fileResults);
             },
             searching => _setIsSearching(searching),
@@ -255,8 +280,10 @@ internal sealed class SearchQueryDispatchController
             // A resolved file-filter scope: the engine runs one query per configured folder and keeps only
             // file names matching the filter's pattern, exactly as the quick window's scoped search does.
             scopeDirective: scopeDirective,
-            // The untouched box text: this window's providers still have to recognise a trigger word that
-            // cleanQuery above has already had stripped.
+            // The instant-result text described on SearchExecutionEngine's own parameter: the untouched
+            // box text, since cleanQuery above has already had the trigger word stripped. Inert on this
+            // call -- emitInstantResults is false, so the engine never reaches the provider pass that
+            // would read it.
             instantQuery: query,
             onReceivedCountUpdated: count =>
             {
@@ -381,7 +408,7 @@ internal sealed class SearchQueryDispatchController
 
             // The file search is done, so nothing else will take the prefix up: absorb an empty batch,
             // which is how the accumulator applies a queued prefix and hands the same list back.
-            _setAllResults(accumulator.AbsorbBatch(Array.Empty<Core.SearchResult>()), true);
+            _setAllResults(accumulator.AbsorbBatch(Array.Empty<SearchResult>()), true);
             // Prepending moves every row that was already there, so no scroll anchor survives this one.
             _applyFiltersAndRender(false, accumulator.FirstChangedIndex);
         }, System.Windows.Threading.DispatcherPriority.Background);

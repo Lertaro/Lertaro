@@ -9,8 +9,7 @@ namespace Lertaro.Plugins.ContentSearch.Tests.Indexing;
 // shape a SQLITE_TOOBIG on a pathologically large document takes, where the batch's single
 // transaction rolls back on that one item. The trigger lets the failed row (failed_at set)
 // through, which is exactly what the recovery needs.
-// Captures the process-wide PluginSdk.Logger.LogAction hook, so it must not run concurrently with
-// anything that reads or resets it.
+// [DoNotParallelize]: the process-wide PluginSdk.Logger.LogAction hook -- see IndexBatchProcessorTests' header.
 [TestClass]
 [DoNotParallelize]
 public sealed class IndexBatchProcessorWriteFailureTests

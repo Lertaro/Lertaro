@@ -8,11 +8,9 @@ using Lertaro.Core.SearchIndex;
 namespace Lertaro.App.Services.PluginManagerCore;
 
 /// <summary>
-/// Scans the <c>Plugins/</c> directory for DLL assemblies and registers every
-/// recognised <see cref="PluginSdk.Abstractions.Plugins.IPlugin"/>, <see cref="IAliasProvider"/>,
-/// <see cref="PluginSdk.Abstractions.Plugins.IInstantResultProvider"/>, <see cref="PluginSdk.Abstractions.Plugins.IFullSearchFileResultProvider"/>,
-/// <see cref="PluginSdk.Abstractions.Plugins.ISidebarFilterProvider"/>,
-/// <see cref="PluginSdk.Abstractions.Plugins.IResultColumnProvider"/> and <see cref="PluginSdk.Abstractions.Plugins.ITranslationProvider"/>.
+/// Scans the <c>Plugins/</c> directory for DLL assemblies and registers every component type each
+/// registry accepts. <see cref="TryLoadAssembly"/> is the authoritative list of kinds -- enumerating
+/// them here as well only invites drift.
 /// </summary>
 internal static class PluginLoader
 {
@@ -198,9 +196,7 @@ internal static class PluginLoader
         }
         catch (BadImageFormatException)
         {
-            // Not a .NET assembly at all -- expected for a plugin's own bundled native dependency
-            // (e.g. a SQLite provider's e_sqlite3.dll) now that the scan is recursive into each
-            // plugin's own subdirectory. Not a failure, so not worth an Error-level log line.
+            // Not a .NET assembly (a plugin's bundled native dep, e.g. e_sqlite3.dll) -- expected, so Debug not Error.
             Logger.Log($"[PluginManager] Skipped non-.NET file: {fileName}", LogLevel.Debug);
         }
         catch (FileLoadException ex) when (ex.Message.Contains("same name is already loaded", StringComparison.OrdinalIgnoreCase))

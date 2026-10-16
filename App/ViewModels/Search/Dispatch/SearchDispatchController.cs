@@ -288,11 +288,7 @@ internal sealed class SearchDispatchController
             ? FileFilterScopeResolver.Resolve(cleanQuery, out scopedQuery)
             : null;
         var searchQuery = scopeDirective != null ? scopedQuery : cleanQuery;
-        // A trigger word -- an instant provider's configured one ("cs report") or a search action's command
-        // word ("mkdir sub") -- is not part of what the user wants found, so it must not be fuzzy
-        // matched against file names nor highlighted. Skipped when
-        // a file-filter scope already claimed the leading keyword -- two prefixes cannot both win, and the
-        // scope is the more specific feature. Instant providers still receive the raw text (instantQuery).
+        // Same trigger-word stripping and scope precedence as DispatchSearch above -- see its comment.
         if (scopeDirective == null)
             searchQuery = PluginTriggerQuery.Strip(searchQuery, ActionWindowType);
         if (string.IsNullOrWhiteSpace(cleanQuery))

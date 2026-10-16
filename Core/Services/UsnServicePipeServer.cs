@@ -40,9 +40,7 @@ public sealed class UsnServicePipeServer : IDisposable
     private async Task PipeServerLoop(CancellationToken token)
     {
         Logger.Log("[PipeServer] Pipe server loop started.", LogLevel.Debug);
-        var pipeSecurity = PipeSecurityFactory.Create();
-        if (pipeSecurity == null)
-            throw new UnauthorizedAccessException("The service pipe security descriptor could not be created.");
+        var pipeSecurity = PipeSecurityFactory.Create() ?? throw new UnauthorizedAccessException("The service pipe security descriptor could not be created.");
 
         // Pre-create 2 parallel listener loops to serve as a connection pool
         var listeners = Enumerable.Range(0, 2)

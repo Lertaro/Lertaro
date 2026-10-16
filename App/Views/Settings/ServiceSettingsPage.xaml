@@ -117,7 +117,7 @@
                 </Grid>
             </Border>
 
-        <!-- Log view: Service/App/Hook, mirroring the Hotkeys page's tab pattern -->
+        <!-- Log view: App/Hook/Service, mirroring the Hotkeys page's tab pattern -->
         <Grid Grid.Row="2" Margin="0,4,0,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>

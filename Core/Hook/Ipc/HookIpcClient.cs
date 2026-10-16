@@ -4,6 +4,7 @@ using Lertaro.Core.Services.Search;
 using Lertaro.Core.Wire;
 using Lertaro.Core.Hook.Commands;
 namespace Lertaro.Core.Hook.Ipc;
+
 public sealed class HookIpcClient : IDisposable
 {
     private Process? _hookProcess;
@@ -16,6 +17,8 @@ public sealed class HookIpcClient : IDisposable
     private readonly object _lifecycleGate = new();
     private int _stopping;
     private readonly SemaphoreSlim _writeGate = new(1, 1);
+    private const int LaunchRetryDelayFirstMs = 5_000, LaunchRetryDelayMaxMs = 60_000;
+    private int _launchRetryDelayMs = LaunchRetryDelayFirstMs;
     public int ServiceProcessId { get; private set; }
     // False during cold-start or hook downtime, so IPC-bound calls fail fast instead of waiting for an unreachable reply.
     public bool IsConnected => _cmdPipe != null && _cmdPipe.IsConnected;
@@ -34,6 +37,11 @@ public sealed class HookIpcClient : IDisposable
             }
         }
     }
+
+    /// <summary>Asks the hook to put its low-level hooks back up. Windows drops them silently once a
+    /// callback overruns the hook timeout -- which resume is prone to -- and the handle it returned stays
+    /// valid, so only a caller outside that process can notice. See <see cref="IpcMessageId.RearmHooks"/>.</summary>
+    public void RearmHooks() => SendMessage(new IpcMessage { Id = IpcMessageId.RearmHooks });
 
     private async Task ClosePipesAsync()
     {
@@ -200,15 +208,21 @@ public sealed class HookIpcClient : IDisposable
                 if (_hookProcess == null)
                 {
                     // Warn, not Error: expected on a cold start while the Service is still coming up --
-                    // this loop retries every 5s and self-heals once it's reachable. Inside the
+                    // this loop retries and self-heals once it's reachable. Inside the
                     // cold-start window it is Debug outright so a boot does not log a batch of these.
                     var level = ServicePipeReadinessGate.Instance.IsColdStart(Environment.TickCount64)
                         ? LogLevel.Debug
                         : LogLevel.Warn;
                     Logger.Log("[HookIpcClient] Failed to launch hook process.", level);
-                    await Task.Delay(5000, token);
+                    // Back off to a minute instead of retrying on a fixed 5s beat forever. A service that is
+                    // merely still starting heals inside the first few rounds; a launch that can never succeed
+                    // (the pipe object sits above this process's reach, a broken install) would otherwise write
+                    // the same two lines twelve times a minute for the whole session, as issue #342's logs did.
+                    await Task.Delay(_launchRetryDelayMs, token);
+                    _launchRetryDelayMs = Math.Min(_launchRetryDelayMs * 2, LaunchRetryDelayMaxMs);
                     continue;
                 }
+                _launchRetryDelayMs = LaunchRetryDelayFirstMs;
 
                 ServiceProcessId = _hookProcess.Id;
                 Logger.Log($"[HookIpcClient] Hook process launched (PID {_hookProcess.Id}), connecting to Event and Cmd pipes...", LogLevel.Debug);
@@ -252,7 +266,7 @@ public sealed class HookIpcClient : IDisposable
                     _writeGate.Release();
                 }
 
-                // Send initial process ID of the App so the Service can ignore it.
+                // Send initial process ID of the App so the Hook can ignore it.
                 SendMessage(new IpcMessage { Id = IpcMessageId.SetAppProcessId, ProcessId = (uint)Environment.ProcessId });
                 SendMessage(new IpcMessage { Id = IpcMessageId.SetHotkeysDisabled, BoolVal = _isHotkeysDisabled });
                 // Listen for events from Hook Service.

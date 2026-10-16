@@ -118,7 +118,7 @@ public sealed class AliasRankingTests
     }
 
     [TestMethod]
-    public void BothNames_MatchThePinyinQuery() 
+    public void BothNames_MatchThePinyinQuery()
     {
         Assert.IsTrue(FuzzyMatcher.IsMatch("hao", "好爱哦耶.mp3"));
         Assert.IsTrue(FuzzyMatcher.IsMatch("hao", "毫宅.psd"));
@@ -161,12 +161,17 @@ public sealed class AliasRankingTests
         }
     }
 
-    // The rule is for precise queries only -- with fuzzy on, the same loose read is what the user asked for.
+    // The rule holds in BOTH modes: fuzzy matching licenses a loose match against the candidate's own text,
+    // never a pinyin match that starts inside one of the name's readings. "ex" is the tail of 学习's xue
+    // glued to the head of 人行道's xi, so neither spelling of either name begins where that match begins.
     [TestMethod]
-    public void Fuzzy_KeepsTheLooseBehaviour()
+    public void Fuzzy_DoesNotLicenseASpliceEither()
     {
-        Assert.IsTrue(FuzzyMatcher.IsMatch("ex", "学习.txt"));
-        Assert.IsTrue(FuzzyMatcher.IsMatch("ex", "人行道.txt"));
+        Assert.IsFalse(FuzzyMatcher.IsMatch("ex", "学习.txt"));
+        Assert.IsFalse(FuzzyMatcher.IsMatch("ex", "人行道.txt"));
+
+        // What fuzzy mode still does: a loose match against the name the user can see.
+        Assert.IsTrue(FuzzyMatcher.IsMatch("lrn", "learning.txt"), "a scattered match in the name itself is what fuzzy means");
     }
 
     // Tier orders by HOW the match was found: a literal name hit beats an initials hit, which beats a full

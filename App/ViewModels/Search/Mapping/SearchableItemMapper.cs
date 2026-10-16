@@ -36,7 +36,7 @@ public static class SearchableItemMapper
     }
 
     // Providers load on a background thread and a query issued before a given provider finishes is
-    // silently missing its items (see AddSearchableItemResults' cache-miss "continue" below) -- there is
+    // silently missing its items (see CollectSearchableItemResults' cache-miss "continue" below) -- there is
     // no synchronous "wait for everything" alternative without blocking the UI. Instead, a live search
     // re-runs itself once more providers become available, so results stream in rather than staying
     // incomplete for the rest of the session. Raised on a background thread; subscribers must marshal
@@ -93,10 +93,11 @@ public static class SearchableItemMapper
         }
 
         // Generous safety cap only -- the real top-N selection happens after this merges with the
-        // other candidate categories in BuildQuickResults. Same primary key as the final ranking (match
-        // start, then weight) so the cap cannot drop a candidate the merge would have ranked higher.
+        // other candidate categories in BuildQuickResults. Same primary keys as the final ranking (match
+        // shape, start, then weight) so the cap cannot drop a candidate the merge would have ranked higher.
         var matches = matched
-            .OrderBy(m => m.Match.Start)
+            .OrderBy(m => m.Match.Shape)
+            .ThenBy(m => m.Match.Start)
             .ThenByDescending(m => m.Match.Weight)
             .Take(50);
         foreach (var (entry, match, provider, activeQuery) in matches)

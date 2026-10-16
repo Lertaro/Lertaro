@@ -12,9 +12,8 @@ namespace Lertaro.App.ViewModels.Settings.General;
 
 // Lets the user reorder the full SearchWindow's sidebar filter groups (Type/Date/Size/any third-party
 // ISidebarFilterProvider) -- one entry per PROVIDER rather than per group, matching how
-// PluginManager.SidebarFilterProviders already orders at provider granularity. Edits stage in Items and
-// only commit to _userSettings.SidebarGroupOrder when Save() runs (called from
-// GeneralSettingsViewModel.Apply()).
+// PluginManager.SidebarFilterProviders already orders at provider granularity. Save() commits
+// _userSettings.SidebarGroupOrder.
 public class SidebarGroupOrderViewModel : ViewModelBase
 {
     private readonly System.ComponentModel.PropertyChangedEventHandler _translationHandler;
@@ -25,11 +24,9 @@ public class SidebarGroupOrderViewModel : ViewModelBase
     {
         _userSettings = userSettings;
 
-        // PluginManager.Instance.SidebarFilterProviders already applies both the enabled-components
-        // filter (via FilteredSidebarFilterProvider) and the persisted order, so this list starts out
-        // showing exactly what the sidebar itself would show, in the same order. A provider whose every
-        // group is currently disabled contributes no groups -- skipped here too, since reordering an
-        // entry with nothing to show would be meaningless.
+        // Same filter/persisted-order behaviour as QuickNavigationOrderViewModel's ctor comment; the
+        // filter here comes from the FilteredSidebarFilterProvider wrapper. A provider whose every group
+        // is disabled contributes none -- skipped, since reordering an empty entry would be meaningless.
         foreach (var provider in PluginManager.Instance.SidebarFilterProviders)
         {
             var groups = provider.GetFilterGroups().ToList();

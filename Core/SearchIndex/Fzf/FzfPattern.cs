@@ -23,10 +23,29 @@ internal sealed class FzfPattern
         TermSets = termSets;
         OrGroups = orGroups;
         EffectiveSets = orGroups == null ? termSets : Flatten(orGroups);
+        HasExclusions = EffectiveSets.Any(set => set.Terms.Any(term => term.Inverse));
     }
+
+    // The same query as the ALIAS tiers read it: every positive term offered as a contiguous run first and
+    // as a subsequence second. Built on demand -- a candidate set with no aliases never pays for it -- and
+    // kept here so it is built once per query rather than once per candidate. The construction (and why
+    // both readings are needed, in that order) lives in FzfPatternAliasReading.
+    private FzfPattern? _aliasReading;
+    internal FzfPattern AliasReading => _aliasReading ??= FzfPatternAliasReading.Build(this);
+
+    // This pattern read by the byte-side matchers (see FzfBytePattern), built on demand for the same reason
+    // as AliasReading: the tiers that reach it already hold a pattern, not a second pre-encoded object, and
+    // one pattern serves every candidate of a query.
+    private FzfBytePattern? _byteView;
+    internal FzfBytePattern ByteView => _byteView ??= FzfBytePattern.From(this);
 
     public string? TargetDrive { get; }
     public FzfTermSet[] TermSets { get; }
+
+    // Whether the query holds a `!term`. Exclusions only ever have something to compare against in a
+    // candidate's own name (see ExclusionsPass), so the alias tiers test this before they run and skip
+    // the check entirely for the far more common query that has none.
+    public bool HasExclusions { get; }
 
     // Non-null only for an AND-first query that actually mixes '|' with spaces. When set, this is the
     // authoritative shape and TryMatch/TryMatchSingle evaluate it instead of TermSets.
@@ -52,31 +71,18 @@ internal sealed class FzfPattern
 
     public bool IsEmpty => TermSets.Length == 0;
 
-    // True when every term was matched as a PRECISE run rather than as a scattered subsequence -- the
-    // ordinary "fuzzy matching is switched off" query, and also an all-explicit-operator one. Alias
-    // fallback then has to respect the provider's syllable boundaries (see AliasMatchRules), which is what
-    // stops "ex" being read as the tail of "xue" plus the head of "xi".
+    // Whether an alias match has to respect the provider's syllable boundaries (see AliasMatchRules), which
+    // is what stops "ex" being read as the tail of "xue" plus the head of "xi", and "huchu" as the middle of
+    // 出's "chu" followed by 出 again.
     //
-    // Keyed off the terms rather than SearchContext.FuzzyMatchEnabled so a term that explicitly flips
-    // itself back to a subsequence ("'jtqin", under fuzzy-off) stays exempt: for that term the user did ask
-    // for a loose match, and applying the boundary rule would contradict what the operator means.
-    public bool RequiresAlignedAliases
-    {
-        get
-        {
-            foreach (var set in EffectiveSets)
-            {
-                foreach (var term in set.Terms)
-                {
-                    if (term.Inverse)
-                        continue;
-                    if (term.Kind == FzfTermKind.Fuzzy)
-                        return false;
-                }
-            }
-            return true;
-        }
-    }
+    // Always on, in both modes. A transliteration is a SPELLING of the candidate rather than the text the
+    // user typed, and no spelling of a sound starts in the middle of that sound: "从某个字的中间开始" is
+    // never what an abbreviation means, so fuzzy matching must not license it. The user asked for exactly
+    // that (pinyin search behaving the same whether or not fuzzy matching is on), and the earlier split --
+    // exact mode aligning, fuzzy mode loose -- made the same query reach a file in one mode and not the
+    // other. What still differs by mode is the CANDIDATE's own text: exact mode wants a run in the name,
+    // fuzzy mode accepts a scattered subsequence of it.
+    public bool RequiresAlignedAliases => true;
 
     // How much text the user actually typed, which is what the alias-fallback quality gate scales its
     // thresholds against (see IsAcceptableAliasMatch). A term set holds ALTERNATIVES -- one OR branch,

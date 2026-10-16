@@ -5,8 +5,7 @@ using Lertaro.Plugins.ContentSearch.Storage;
 
 namespace Lertaro.Plugins.ContentSearch.Tests.Indexing;
 
-// Captures the process-wide PluginSdk.Logger.LogAction hook, so it must not run
-// concurrently with anything that reads or resets it.
+// Captures the process-wide PluginSdk.Logger.LogAction hook; canonical note at IndexBatchProcessorTests.
 [TestClass]
 [DoNotParallelize]
 public sealed class IndexBatchProcessorExtractionLimitTests

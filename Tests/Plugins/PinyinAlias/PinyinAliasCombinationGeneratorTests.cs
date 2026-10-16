@@ -91,4 +91,57 @@ public sealed class PinyinAliasCombinationGeneratorTests
         foreach (var alias in aliases)
             Assert.DoesNotContain("|", alias);
     }
+
+    // A real-world shape: an e-book export whose name is a Chinese title plus a long transliterated
+    // metadata tail. Its full pinyin is longer than the combination path's per-variant cap, which used
+    // to mean the capped walk completed nothing and the name baked NO alias at all -- unreachable by
+    // every pinyin query, however short, while its literal Chinese text still matched.
+    internal const string LongPolyphonicName =
+        "防弹笔记法-简单输出式笔记架构,保护高产出、高效能心流 -- 电脑玩物站长Esor -- View zhi chang li, 2AB964, Chu ban, Tai bei shi, 2022 -- 城邦出版集团 创意市集 -- 9786267149096 -- df7686e59ff25513fb9c9ac4e906db6d -- Anna’s Archive.pdf";
+
+    [TestMethod]
+    public void GenerateAliases_LongPolyphonicName_KeepsItsInitialsAlias()
+    {
+        var aliases = PinyinAliasCombinationGenerator.GenerateAliases(LongPolyphonicName);
+
+        Assert.IsGreaterThan(0, aliases.Length, "an over-long name must not lose every alias");
+        var initials = aliases[0].Split('|')[0];
+        Assert.AreEqual(LongPolyphonicName.Length, initials.Length, "the initials alias is one character per source character");
+        Assert.StartsWith("fdbjf", initials);
+    }
+
+    [TestMethod]
+    public void GenerateAliases_LongPolyphonicName_KeepsOneFullSpellingPastTheCap()
+    {
+        var aliases = PinyinAliasCombinationGenerator.GenerateAliases(LongPolyphonicName);
+
+        // The cap bounds how many readings are enumerated, not how long a name may be: the fallback's
+        // buffer grows, so the single-reading spelling is emitted even though it overruns the cap.
+        Assert.HasCount(2, aliases);
+        var full = aliases[1];
+        Assert.IsGreaterThan(PinyinAliasCombinationGenerator.MaxComboFullPinyinLength, full.Length);
+        Assert.StartsWith("fang", full);
+    }
+
+    [TestMethod]
+    public void GenerateAliases_EnumerationBeyondTheStepsBudget_FallsBackInsteadOfReturningNothing()
+    {
+        // 55 x a two-reading character: every branch overruns the cap, so no leaf is ever reached and
+        // the steps budget stops the walk. Same all-or-nothing cliff, reached by the other route.
+        var text = new string('重', 55) + ".pdf";
+
+        var aliases = PinyinAliasCombinationGenerator.GenerateAliases(text);
+
+        Assert.AreEqual(2, aliases.Length);
+        Assert.AreEqual(text.Length, aliases[0].Split('|')[0].Length);
+    }
+
+    [TestMethod]
+    public void GenerateAliases_NameWithinTheCap_StillEnumeratesEveryReading()
+    {
+        // The fallback must not become the normal path: a short polyphonic name keeps its alternatives.
+        var aliases = PinyinAliasCombinationGenerator.GenerateAliases("重建");
+
+        Assert.HasCount(2, aliases[0].Split('|'), "both readings of 重 are still offered");
+    }
 }

@@ -8,7 +8,9 @@ public enum FavoriteHotkeySkipReason
     None,
     Empty,
     Invalid,
-    Duplicate
+    Duplicate,
+    Reserved,
+    ApplicationConflict
 }
 
 /// <summary>
@@ -36,24 +38,34 @@ public static class FavoriteHotkeyRegistrations
     /// twice. Dropped favorites are still returned (with their <see cref="FavoriteHotkeySkipReason"/>)
     /// so the Settings page can explain the row instead of silently ignoring it.
     /// </summary>
-    public static IReadOnlyList<FavoriteHotkeyRegistration> Build(IEnumerable<FavoriteItemSetting>? favorites)
+    public static IReadOnlyList<FavoriteHotkeyRegistration> Build(IEnumerable<FavoriteItemSetting>? favorites,
+        HotkeyPageSettings? hotkeys = null, IEnumerable<string>? pluginHotkeys = null)
     {
         var result = new List<FavoriteHotkeyRegistration>();
         if (favorites == null) return result;
 
-        var claimed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var claimed = new HashSet<(uint Key, uint Modifiers)>();
+        var applicationKeys = new HashSet<(uint Key, uint Modifiers)>();
+        foreach (var combo in (hotkeys == null ? [] : FavoriteHotkeyConflicts.HostHotkeys(hotkeys))
+                     .Concat(pluginHotkeys ?? []))
+            if (FavoriteHotkeyFormat.TryBuild(combo, out var key, out var modifiers))
+                applicationKeys.Add((key, modifiers));
         var index = 0;
 
         foreach (var favorite in favorites)
         {
-            result.Add(BuildOne(favorite, index, claimed));
+            result.Add(BuildOne(favorite, index, claimed, applicationKeys));
             index++;
         }
 
         return result;
     }
 
-    private static FavoriteHotkeyRegistration BuildOne(FavoriteItemSetting favorite, int index, HashSet<string> claimed)
+    internal static IReadOnlyList<FavoriteHotkeyRegistration> BuildForSettings(UserSettings settings) =>
+        Build(settings.Favorites, settings.Hotkeys, FavoriteHotkeyConflicts.PluginHotkeys(settings));
+
+    private static FavoriteHotkeyRegistration BuildOne(FavoriteItemSetting favorite, int index,
+        HashSet<(uint Key, uint Modifiers)> claimed, HashSet<(uint Key, uint Modifiers)> applicationKeys)
     {
         var hotkey = favorite.Hotkey?.Trim() ?? string.Empty;
         if (hotkey.Length == 0)
@@ -62,9 +74,15 @@ public static class FavoriteHotkeyRegistrations
         if (!FavoriteHotkeyFormat.TryBuild(hotkey, out var virtualKey, out var modifiers))
             return new FavoriteHotkeyRegistration(index, hotkey, 0, 0, FavoriteHotkeySkipReason.Invalid);
 
-        // The keep-first rule is applied on the raw (trimmed) text, so "Ctrl+D" and "Ctrl+d" -- the same
-        // combination to Windows -- cannot both be registered.
-        if (!claimed.Add(hotkey))
+        if (HotkeyStringFormat.IsReservedWindowsShortcut(hotkey)
+            || FavoriteHotkeyConflicts.IsExplorerShortcut(virtualKey, modifiers))
+            return new FavoriteHotkeyRegistration(index, hotkey, virtualKey, modifiers, FavoriteHotkeySkipReason.Reserved);
+
+        if (applicationKeys.Contains((virtualKey, modifiers)))
+            return new FavoriteHotkeyRegistration(index, hotkey, virtualKey, modifiers, FavoriteHotkeySkipReason.ApplicationConflict);
+
+        // Compare physical combinations, including aliases and modifier order (Ctrl+Shift+1 == Shift+Control+D1).
+        if (!claimed.Add((virtualKey, modifiers)))
             return new FavoriteHotkeyRegistration(index, hotkey, virtualKey, modifiers, FavoriteHotkeySkipReason.Duplicate);
 
         return new FavoriteHotkeyRegistration(index, hotkey, virtualKey, modifiers, FavoriteHotkeySkipReason.None);

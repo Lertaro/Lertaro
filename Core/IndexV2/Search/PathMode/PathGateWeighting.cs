@@ -5,6 +5,7 @@ using Lertaro.Core.SearchIndex.Fzf;
 using Lertaro.Core.IndexV2.Delta;
 
 using Lertaro.Core.IndexV2.Persistence;
+using Lertaro.PluginSdk.Abstractions.Plugins;
 namespace Lertaro.Core.IndexV2.Search.PathMode;
 
 // Ranking-only weight (percentage*consecutiveness, product across matched segments), computed
@@ -22,15 +23,22 @@ internal sealed class PathGateWeighting
     private readonly string[] _querySegments;
     private readonly FzfPattern[] _segmentPatterns;
     private readonly FzfBytePattern[] _segmentBytePatterns;
+    // The alias-side readings of the same segments: aliases are found through these (each term as a run if
+    // it can be, as a subsequence otherwise -- see FzfPatternAliasReading), while the arrays above keep
+    // matching the segment's own name and keep answering the alignment rule.
+    private readonly FzfPattern[] _segmentAliasPatterns;
+    private readonly FzfBytePattern[] _segmentAliasBytePatterns;
     private readonly string[] _rootSegments;
 
-    public PathGateWeighting(Snapshot snapshot, DeltaOverlay delta, string[] querySegments, FzfPattern[] segmentPatterns, FzfBytePattern[] segmentBytePatterns, string[] rootSegments)
+    public PathGateWeighting(Snapshot snapshot, DeltaOverlay delta, string[] querySegments, FzfPattern[] segmentPatterns, FzfBytePattern[] segmentBytePatterns, FzfPattern[] segmentAliasPatterns, FzfBytePattern[] segmentAliasBytePatterns, string[] rootSegments)
     {
         _snapshot = snapshot;
         _delta = delta;
         _querySegments = querySegments;
         _segmentPatterns = segmentPatterns;
         _segmentBytePatterns = segmentBytePatterns;
+        _segmentAliasPatterns = segmentAliasPatterns;
+        _segmentAliasBytePatterns = segmentAliasBytePatterns;
         _rootSegments = rootSegments;
     }
 
@@ -126,12 +134,29 @@ internal sealed class PathGateWeighting
         {
             if (disabledIds != null && disabledIds.Contains(_snapshot.AliasProviderId(e)))
                 continue;
+            // Mirrors PathGate.TryMatchSegmentRow's grid branch: the grid tier decides the entry, ungated,
+            // and this only needs whether it matched at all.
+            if (_snapshot.AliasKind(e) == AliasEntryKind.Grid)
+            {
+                if (SearchMatcherGridAliases.TryMatchEntry(
+                        _snapshot, pattern, pattern.GetTotalTermLength(), e, worker.Slab, gate: false, out _))
+                {
+                    weight = ComputeSegmentNameWeight(uid, nameUtf8, worker, pattern);
+                    return true;
+                }
+                continue;
+            }
             var aliasUtf8 = _snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)
                 continue;
+            // Same reading choice PathGate makes for the same entry: a structured provider gets both
+            // readings, one that declares no boundary keeps the strict one.
+            var separator = AliasProviderRegistry.GetSyllableSeparator(_snapshot.AliasProviderId(e));
+            var aliasPattern = separator == '\0' ? pattern : _segmentAliasPatterns[q];
             var isMatch = Ascii.IsValid(aliasUtf8)
-                ? _segmentBytePatterns[q].TryMatchSegmented(aliasUtf8, out _, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers)
-                : MatchesAliasChars(pattern, aliasUtf8, worker);
+                ? (separator == '\0' ? _segmentBytePatterns[q] : _segmentAliasBytePatterns[q])
+                    .TryMatchSegmented(aliasUtf8, out _, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers)
+                : MatchesAliasChars(aliasPattern, aliasUtf8, worker);
             if (isMatch)
             {
                 // Weight is measured against the segment's own display name, not the alias string --
@@ -182,9 +207,24 @@ internal sealed class PathGateWeighting
                     continue;
                 if (!provider.CanHandle(segment))
                     continue;
+
+                // Same reading-based decision PathGate makes for the same segment, through the same code a
+                // baked grid entry goes through; only the weight comes from the segment's own text.
+                if (provider is IAliasGridProvider gridProvider)
+                {
+                    if (SearchMatcherGridAliases.TryMatchProvider(
+                            gridProvider, segment, pattern, worker.Slab, gate: false, out _))
+                    {
+                        weight = HighlightMask.ComputeWeight(segment, pattern);
+                        return true;
+                    }
+                    continue;
+                }
+
                 foreach (var alias in provider.GetAliases(segment))
                 {
-                    if (pattern.TryMatch(alias, out _, FzfScoringScheme.Default, worker.Slab))
+                    if ((provider.SyllableSeparator == '\0' ? pattern : _segmentAliasPatterns[q])
+                        .TryMatch(alias, out _, FzfScoringScheme.Default, worker.Slab))
                     {
                         weight = HighlightMask.ComputeWeight(segment, pattern);
                         return true;

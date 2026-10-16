@@ -65,11 +65,15 @@ public sealed class QuickPanelPathCollector : IActivePathCollector
         var receiver = CreateWindowExW(0, QueryClassName, null, 0, 0, 0, 0, 0, HWND_MESSAGE, IntPtr.Zero, GetModuleHandle(null), IntPtr.Zero);
         if (receiver == IntPtr.Zero) return null;
 
+        // Without this the reply coming back from the panel's process is silently dropped by UIPI.
         ChangeWindowMessageFilterEx(receiver, WM_COPYDATA, MSGFLT_ALLOW, IntPtr.Zero);
         try
         {
             _capturedPath = null;
             var request = new CopyDataStruct { DataType = (IntPtr)RequestParentDirectory };
+            // The reply is filled into the [ThreadStatic] _capturedPath by this window's own WndProc, so
+            // it only arrives while THIS thread pumps messages -- and SendMessage waits for the target,
+            // which parks this thread for as long as that process takes to answer.
             SendMessage(panelHwnd, WM_COPYDATA, receiver, ref request);
             return string.IsNullOrEmpty(_capturedPath) ? null : _capturedPath;
         }

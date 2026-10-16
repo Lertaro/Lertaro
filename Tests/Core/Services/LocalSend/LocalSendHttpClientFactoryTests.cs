@@ -34,7 +34,8 @@ public sealed class LocalSendHttpClientFactoryTests
             Certificate = serverCertificate,
             DeviceInfo = new LocalSendDeviceInfo
             {
-                Alias = "Server", Protocol = "https",
+                Alias = "Server",
+                Protocol = "https",
                 Fingerprint = LocalSendCertificate.GetFingerprint(serverCertificate)
             }
         };
@@ -58,7 +59,8 @@ public sealed class LocalSendHttpClientFactoryTests
             Certificate = serverCertificate,
             DeviceInfo = new LocalSendDeviceInfo
             {
-                Alias = "Server", Protocol = "https",
+                Alias = "Server",
+                Protocol = "https",
                 Fingerprint = LocalSendCertificate.GetFingerprint(serverCertificate)
             }
         };
@@ -81,7 +83,8 @@ public sealed class LocalSendHttpClientFactoryTests
             Certificate = serverCertificate,
             DeviceInfo = new LocalSendDeviceInfo
             {
-                Alias = "Server", Protocol = "https",
+                Alias = "Server",
+                Protocol = "https",
                 Fingerprint = LocalSendCertificate.GetFingerprint(serverCertificate)
             }
         };

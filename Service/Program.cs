@@ -29,12 +29,17 @@ static class Program
             // locked any user may have planted a link in it that redirects exactly that write.
             var repair = args.Length > 0 && args[0].Equals("--repair-permissions", StringComparison.OrdinalIgnoreCase);
             var isService = args.Length > 0 && args[0].Equals("--service", StringComparison.OrdinalIgnoreCase);
+            // This path has no log of its own (see PermissionRepairReport), so every step is recorded before it
+            // runs: a repair that is killed for running too long leaves the step it was stuck on as the last line.
+            if (repair) PermissionRepairReport.Write($"repair starting ({string.Join(' ', args)})");
             var (lockReport, lockErrors) = LockDirectories(isService: isService || repair);
             var install = args.Length > 0 && args[0] is "--install" or "-i";
             if ((isService || repair || install) && (lockReport.Failed.Count > 0 || lockErrors.Count > 0))
             {
                 // Do not open logs, indexes or plugins through a tree whose ACL preparation failed.
-                Console.Error.WriteLine(string.Join(Environment.NewLine, lockReport.Failed.Concat(lockErrors)));
+                var failure = string.Join(Environment.NewLine, lockReport.Failed.Concat(lockErrors));
+                if (repair) PermissionRepairReport.Write($"repair failed while locking directories: {failure}");
+                Console.Error.WriteLine(failure);
                 Environment.ExitCode = 1;
                 return;
             }
@@ -45,16 +50,48 @@ static class Program
                     if (args.Length != 2 || !UserProfiles.IsAccount(args[1]) ||
                         !UserProfiles.Read().TryGetValue(args[1], out var profile))
                         throw new UnauthorizedAccessException("Unknown settings owner.");
-                    // Derived from Windows' profile map, never an arbitrary path supplied by a low-integrity process.
-                    var localData = Path.Combine(profile, "AppData", "Local", "Lertaro");
-                    if (Directory.Exists(localData))
+                    var user = new System.Security.Principal.SecurityIdentifier(args[1]);
+                    var failures = new List<string>();
+
+                    // Every root this copy could be about to use, both derived from the profile map and this
+                    // process's own location -- never an arbitrary path supplied by a low-integrity process.
+                    // A portable copy keeps its user data beside its executable, so repairing only the profile
+                    // default walked a folder the App never reads and left the one it does read untouched.
+                    foreach (var directory in PortableDirectoryLock.RepairTargets(InstallationDetector.Detect(),
+                                 AppContext.BaseDirectory,
+                                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                                 profile, args[1]))
                     {
-                        var repaired = PortableDirectoryLock.RepairProfileUserDirectory(profile, new System.Security.Principal.SecurityIdentifier(args[1]));
-                        if (repaired.Failed.Count > 0 || repaired.UserDataFailed.Count > 0)
-                            throw new IOException(string.Join(Environment.NewLine, repaired.Failed.Concat(repaired.UserDataFailed)));
+                        if (!Directory.Exists(directory))
+                        {
+                            PermissionRepairReport.Write($"{directory} does not exist; nothing to repair.");
+                            continue;
+                        }
+
+                        PermissionRepairReport.Write($"repairing {directory}");
+                        var repaired = PortableDirectoryLock.RepairUserDataDirectory(directory, profile, user);
+                        if (PortableDirectoryLock.FatalReason(repaired) is { } fatal) failures.Add(fatal);
+                        // A personal file another process is holding open is not the trust boundary, and
+                        // elevation cannot open it anyway, so it is recorded rather than failing the repair:
+                        // one busy settings file must not be the reason the App cannot start. The App
+                        // re-checks the directory itself once this returns (UserDataAccess.Verify), and that
+                        // is the verdict which actually decides whether it can run.
+                        if (repaired.UserDataFailed.Count > 0)
+                            PermissionRepairReport.Write(
+                                $"left as it is, in use: {string.Join(Environment.NewLine, repaired.UserDataFailed)}");
                     }
+
+                    if (failures.Count > 0) throw new IOException(string.Join(Environment.NewLine, failures));
+                    PermissionRepairReport.Write("repair completed");
                 }
-                catch (Exception ex) { Console.Error.WriteLine(ex.Message); Environment.ExitCode = 1; }
+                catch (Exception ex)
+                {
+                    // Written back for the App to show: with UseShellExecute + runas its stderr cannot be
+                    // redirected, and the service log is not open yet on this path.
+                    PermissionRepairReport.Write($"repair failed: {ex.Message}");
+                    Console.Error.WriteLine(ex.Message);
+                    Environment.ExitCode = 1;
+                }
                 return;
             }
             Logger.Initialize("service.log", Logger.SharedDataDir, overwrite: true);

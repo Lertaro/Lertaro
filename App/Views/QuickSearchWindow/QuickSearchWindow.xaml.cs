@@ -18,6 +18,7 @@ using Lertaro.App.Services.Theme;
 using Lertaro.App.Services.ShellMenu.Presenter;
 using Lertaro.App.Helpers.Visuals;
 namespace Lertaro.App;
+
 public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleContentInset
 {
     private readonly QuickSearchViewModel _viewModel;
@@ -99,7 +100,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     }
     // Runs the results-panel height computation synchronously instead of through the normal deferred
     // QueueResultsLayoutUpdate -- see QuickSearchWindowController.ShowWindow's own comment on why it needs
-    // this rather than waiting for that callback's usual Send-priority-deferred pass.
+    // this rather than waiting for that callback's usual Normal-priority-deferred pass.
     public void ApplyResultsLayoutImmediate() => _layoutManager.ApplyResultsLayout();
     public void FocusSearch()
     {
@@ -149,8 +150,8 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         // notification throws "ItemsControl inconsistent with its items source" -- confirmed by an actual
         // crash log after trying exactly that. See QuickSearchWindowLayoutManager.QueueResultsLayoutUpdate
         // for why Render priority isn't early enough either (real frame data caught a fully composited,
-        // wrong-height frame slipping through first) -- Send is used instead, still deferred past this
-        // synchronous call stack (and so past the generator's own reconciliation) but higher priority than
+        // wrong-height frame slipping through first) -- Normal is used instead, still deferred past this
+        // synchronous call stack (and so past the generator's own reconciliation) while still outranking
         // the render/paint pass.
         _viewModel.Results.CollectionChanged += (s, e) => _layoutManager.QueueResultsLayoutUpdate();
         // Row/tab heights change in place when the search bar height setting changes live (see

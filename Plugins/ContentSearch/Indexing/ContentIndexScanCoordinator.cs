@@ -108,7 +108,7 @@ internal sealed class ContentIndexScanCoordinator : IDisposable
             catch (Exception ex)
             {
                 PluginSdk.Logger.Log(
-                    $"[ContentSearch] Full scan failed: {ex.Message}", PluginSdk.LogLevel.Error);
+                    $"[ContentSearch] Full scan failed: {ex}", PluginSdk.LogLevel.Error);
             }
             finally
             {

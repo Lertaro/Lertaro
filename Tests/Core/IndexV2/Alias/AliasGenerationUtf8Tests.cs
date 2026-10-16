@@ -11,7 +11,7 @@ public sealed class AliasGenerationUtf8Tests
     public void Generate_AsciiName_ReturnsNull()
     {
         ulong mask = 0;
-        var result = AliasGenerationUtf8.Generate("readme.txt", ref mask);
+        var result = AliasGenerationUtf8.Generate("readme.txt", ref mask, AliasReadingTable.Empty);
 
         Assert.IsNull(result);
         Assert.AreEqual(0UL, mask);
@@ -21,7 +21,7 @@ public sealed class AliasGenerationUtf8Tests
     public void Generate_EmptyName_ReturnsNull()
     {
         ulong mask = 0;
-        var result = AliasGenerationUtf8.Generate("", ref mask);
+        var result = AliasGenerationUtf8.Generate("", ref mask, AliasReadingTable.Empty);
 
         Assert.IsNull(result);
     }
@@ -30,7 +30,7 @@ public sealed class AliasGenerationUtf8Tests
     public void Generate_NonAsciiNameWithNoRegisteredProviders_ReturnsNull()
     {
         ulong mask = 0;
-        var result = AliasGenerationUtf8.Generate("文件搜索", ref mask);
+        var result = AliasGenerationUtf8.Generate("文件搜索", ref mask, AliasReadingTable.Empty);
 
         Assert.IsNull(result);
     }
@@ -40,7 +40,7 @@ public sealed class AliasGenerationUtf8Tests
     {
         // Mirrors the AliasGeneration gate: lone surrogates are rejected before any provider runs.
         ulong mask = 0;
-        var result = AliasGenerationUtf8.Generate("broken\uD83Ename 文件.srt", ref mask);
+        var result = AliasGenerationUtf8.Generate("broken\uD83Ename 文件.srt", ref mask, AliasReadingTable.Empty);
 
         Assert.IsNull(result);
     }

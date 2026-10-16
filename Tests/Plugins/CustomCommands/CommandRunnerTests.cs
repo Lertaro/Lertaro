@@ -8,8 +8,12 @@ public sealed class CommandRunnerTests
     {
         var command = new CustomCommandsInstantProvider.CommandItem
         {
-            Path = "tool.exe", Parameter = "--flag", WorkingDir = @"C:\fixed",
-            UseCurrentDirectory = true, RunAsAdmin = true, RunSilently = true
+            Path = "tool.exe",
+            Parameter = "--flag",
+            WorkingDir = @"C:\fixed",
+            UseCurrentDirectory = true,
+            RunAsAdmin = true,
+            RunSilently = true
         };
         var info = CommandRunner.BuildStartInfo(command, @"D:\current", (configured, current, context) =>
         {

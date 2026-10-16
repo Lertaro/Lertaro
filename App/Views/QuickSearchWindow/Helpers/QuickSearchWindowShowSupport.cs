@@ -103,9 +103,9 @@ internal sealed class QuickSearchWindowShowSupport
     /// refill are both meant to replace the kept text, and an empty box has nothing worth keeping.
     /// </summary>
     /// <remarks>
-    /// Both queries are tested with IsNullOrEmpty because the view model's own query field is only ever
-    /// assigned by this window's show path: on the very first summon it is still null, and reading it
-    /// eagerly is what used to throw a NullReferenceException here.
+    /// Both queries are tested with IsNullOrEmpty because this window's query field can still be null on
+    /// the very first summon -- nothing has written it yet -- and reading it eagerly is what used to throw
+    /// a NullReferenceException here.
     /// </remarks>
     internal static bool ShouldKeepSearchText(bool settingEnabled, string? newQuery, string? existingQuery)
         => settingEnabled && string.IsNullOrEmpty(newQuery) && !string.IsNullOrEmpty(existingQuery);

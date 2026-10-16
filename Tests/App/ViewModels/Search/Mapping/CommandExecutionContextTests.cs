@@ -82,8 +82,12 @@ public sealed class CommandExecutionContextTests
     {
         using var doc = JsonDocument.Parse(JsonSerializer.Serialize(new
         {
-            Path = "tool.exe", Arguments = "", WorkingDir = directory,
-            RunAsAdmin = false, RunSilently = false, UseCurrentDirectory = true
+            Path = "tool.exe",
+            Arguments = "",
+            WorkingDir = directory,
+            RunAsAdmin = false,
+            RunSilently = false,
+            UseCurrentDirectory = true
         }));
         string? Resolve(string? configured, bool current, string? context)
         {

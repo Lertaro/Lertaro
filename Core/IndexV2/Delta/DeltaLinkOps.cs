@@ -24,8 +24,9 @@ public static class DeltaLinkOps
             ParentBaseRow = delta.TryFindBaseRow(parentFrn, out var parentRow) ? parentRow : -1,
             ParentFrn = parentFrn,
         };
-        record.Aliases = AliasGeneration.Generate(name, out var providerIds);
+        record.Aliases = AliasGeneration.Generate(name, out var providerIds, out var grids);
         record.ProviderIds = providerIds;
+        record.Grids = grids;
         delta.Added.Add(record);
         delta.CountAdded(flags.HasFlag(FileRecordFlags.Directory));
     }
@@ -52,7 +53,7 @@ public static class DeltaLinkOps
     // marked renamed-away and path walks forward through the FRN once the new-name AddLink arrives
     // (mirrors HardLinkDelta.RemoveLinkForRename + ReorphanChildren). Counted as removed immediately,
     // like the old engine's MarkRowDeleted -- AddLink re-counts it when the new-name row lands, so a
-    // mid-rename status poll sees a brief -1/+1 dip, matching RuntimeIndex's own behavior exactly.
+    // mid-rename status poll sees a brief -1/+1 dip.
     // Returns whether anything matched, same contract as RemoveLink.
     public static bool RemoveLinkForRename(DeltaOverlay delta, UInt128 frn, UInt128 parentFrn, string name)
     {
@@ -186,8 +187,9 @@ public static class DeltaLinkOps
                     ParentBaseRow = snapshot.ParentIndexes[row],
                     ParentFrn = snapshot.GetParentId(row),
                 };
-                record.Aliases = AliasGeneration.Generate(name, out var providerIds);
+                record.Aliases = AliasGeneration.Generate(name, out var providerIds, out var grids);
                 record.ProviderIds = providerIds;
+                record.Grids = grids;
                 delta.MetadataOverrides.Remove(row);
                 delta.BaseOverrides[row] = record;
             }

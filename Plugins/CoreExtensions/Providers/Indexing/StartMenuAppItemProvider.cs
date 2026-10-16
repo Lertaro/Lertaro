@@ -108,7 +108,7 @@ public class StartMenuAppItemProvider : ISearchableItemProvider, IDisposable
             }
         }
 
-        // 4. Map to SearchableItem list with dynamic icon loading
+        // 4. Map to the SearchableItem list
         var descTemplate = TranslationService.Get("Search_ResultAppDir");
         foreach (var entry in deduped)
         {

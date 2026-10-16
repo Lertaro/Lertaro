@@ -2,13 +2,12 @@ using Lertaro.Core.Indexer.NetworkDrive.Walk;
 
 namespace Lertaro.Core.IndexV2.Delta;
 
-// Watcher-family (folder-scan / FAT drive-letter) path-based delta application, mirroring
-// Indexer.Shared.PathDeltaApplier but targeting a DeltaOverlay instead of a RuntimeIndex. Ids are path
+// Watcher-family (folder-scan / FAT drive-letter) path-based delta application, targeting a
+// DeltaOverlay. Ids are path
 // hashes (PathHelpers.HashPath64), not FRNs -- the watcher side of the "one family per drive"
 // invariant; USN drives use DeltaLinkOps instead (see DeltaOverlay's header comment).
 //
-// ApplyDeleted no longer needs a manual recursive subtree walk the way the old RuntimeIndex-based
-// RemoveSubtree did: DeltaOverlay.Remove already cascades a directory's children (base, overridden,
+// ApplyDeleted needs no manual recursive subtree walk: DeltaOverlay.Remove already cascades a directory's children (base, overridden,
 // and delta-added alike) via TombstoneCascade/RemoveAddedCascade, so one Remove() call on the target
 // id is enough.
 public static class DeltaPathApplier

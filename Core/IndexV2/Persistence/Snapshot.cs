@@ -1,4 +1,5 @@
 using System.IO.MemoryMappedFiles;
+using Lertaro.Core.IndexV2.Alias;
 
 namespace Lertaro.Core.IndexV2.Persistence;
 
@@ -70,6 +71,13 @@ public sealed unsafe class Snapshot : IDisposable
                 throw new InvalidDataException($"Snapshot file is truncated: header requires {totalLength} bytes but the file holds only {stream.Length}.");
 
             ValidateNameOffsets();
+
+            // Bound here rather than lazily: the alias tiers decode against it from several threads at
+            // once, and it is a few hundred entries (microseconds) even for a CJK-heavy drive.
+            var readings = new AliasReadingTable();
+            if (Meta.AliasReadingsLength > 0 && !readings.TryBind(new ReadOnlySpan<byte>(Section(SnapshotSection.AliasReadings), Meta.AliasReadingsLength)))
+                throw new InvalidDataException($"Snapshot {SourceKey}: the alias reading table does not bind.");
+            AliasReadings = readings;
         }
         catch
         {
@@ -160,15 +168,20 @@ public sealed unsafe class Snapshot : IDisposable
     }
 
     // Precomputed alias strings for a unique name, decoded on demand (only when the name itself
-    // failed to match, and only for the CJK subset that has aliases at all).
+    // failed to match, and only for the CJK subset that has aliases at all). Reading-grid entries are
+    // skipped: they are not strings, and AliasGridFormat is the only thing that may decode one.
     public int GetAliases(int uid, List<(string Alias, byte ProviderId)> into)
     {
         into.Clear();
         var starts = new ReadOnlySpan<int>(Section(SnapshotSection.AliasStarts), UniqueCount + 1);
         var entryOffsets = new ReadOnlySpan<uint>(Section(SnapshotSection.AliasEntryOffsets), Meta.AliasEntryCount + 1);
         var providerIds = new ReadOnlySpan<byte>(Section(SnapshotSection.AliasProviderIds), Meta.AliasEntryCount);
+        var kinds = new ReadOnlySpan<byte>(Section(SnapshotSection.AliasEntryKinds), Meta.AliasEntryCount);
         for (var e = starts[uid]; e < starts[uid + 1]; e++)
         {
+            if (kinds[e] != (byte)AliasEntryKind.String)
+                continue;
+
             var alias = SnapshotFormat.NameEncoding.GetString(
                 new ReadOnlySpan<byte>(Section(SnapshotSection.AliasBlob) + entryOffsets[e], (int)(entryOffsets[e + 1] - entryOffsets[e])));
             into.Add((alias, providerIds[e]));
@@ -194,6 +207,18 @@ public sealed unsafe class Snapshot : IDisposable
 
     internal byte AliasProviderId(int entry)
         => new ReadOnlySpan<byte>(Section(SnapshotSection.AliasProviderIds), Meta.AliasEntryCount)[entry];
+
+    // Whether this entry's payload is an alias string or a reading grid. Every string-tier consumer of
+    // AliasUtf8 has to skip grids; the grid tier (AliasGridMatcher) is the only thing that may decode
+    // one.
+    internal AliasEntryKind AliasKind(int entry)
+        => (AliasEntryKind)new ReadOnlySpan<byte>(Section(SnapshotSection.AliasEntryKinds), Meta.AliasEntryCount)[entry];
+
+    /// <summary>
+    /// The snapshot's reading vocabulary (AliasReadingTable), bound at open: its grids reference readings
+    /// by id, and one immutable instance is what every query and every thread decodes against.
+    /// </summary>
+    internal AliasReadingTable AliasReadings { get; }
 
     // First (lowest) row holding this id, or -1; hard-link duplicates sit adjacent.
     public int FirstRowForId(UInt128 id)
@@ -241,7 +266,7 @@ public sealed unsafe class Snapshot : IDisposable
     }
 
     // The true parent FRN for a row -- resolved parent's own id, the stashed orphan FRN if
-    // unresolved, or self (root) if genuinely rootless. Mirrors QueryExtensions.GetParentId.
+    // unresolved, or self (root) if genuinely rootless.
     public UInt128 GetParentId(int row)
     {
         var parentIndex = ParentIndexes[row];

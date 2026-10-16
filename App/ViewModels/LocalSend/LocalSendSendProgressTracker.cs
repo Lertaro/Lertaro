@@ -84,6 +84,7 @@ internal sealed class LocalSendSendProgressTracker
 
     private bool TryGet(int index, out LocalSendSendFileItem item)
     {
+        // The LocalSend protocol numbers files from 1; Items is 0-based.
         var itemIndex = index - 1;
         if (itemIndex >= 0 && itemIndex < Items.Count)
         {

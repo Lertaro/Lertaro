@@ -3,6 +3,7 @@ using Lertaro.Core.IndexV2.Delta;
 using Lertaro.Core.DriveMonitoring;
 using Lertaro.Core.Indexer.NetworkDrive.Walk;
 namespace Lertaro.Core.Indexer.Usn;
+
 public static class UsnIndexerExtensions
 {
     // Reasons that mean the file's data/attributes changed in a way that can affect Size or the three
@@ -248,9 +249,8 @@ public static class UsnIndexerExtensions
     // Consumes (clears) the "a change was detected while this drive was being rebuilt" flag set by
     // ApplyFolderChange above. Called once by the rebuild's own caller (SearchEngineDriveMaintenance/
     // DriveRecovery) right after BuildDrives returns and the fresh LiveIndex is already swapped in and
-    // marked ready, so a true result only ever reflects a change that's otherwise unrecoverable -- one
-    // that arrived after the swap already applied normally to the NEW index and scheduled its own
-    // persist, so it never sets this flag in the first place.
+    // marked ready, so a true result means a watcher change landed on this drive during the rebuild
+    // window: the rebuilt snapshot predates it, and the caller has to re-walk the affected folder.
     public static bool ConsumeMissedFolderChangeDuringRebuild(this UsnIndexer indexer, string drive)
     {
         lock (indexer.LockObj)

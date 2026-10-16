@@ -5,9 +5,9 @@ using Lertaro.App.Views.Notifications;
 namespace Lertaro.App.Services.Notifications;
 
 /// <summary>
-/// One shown notification: its window, and what is left of its time. Owned entirely by
-/// <see cref="NotificationWindowManager"/>; the service reads it to run the countdown and never writes to it
-/// except through that class.
+/// One shown notification: its window, and what is left of its time. <see cref="NotificationWindowManager"/>
+/// owns the window and its arrival/moving state; the service owns the countdown and decrements
+/// <see cref="RemainingMs"/> itself.
 /// </summary>
 internal sealed class NotificationRunner(NotificationItem item, Window window)
 {

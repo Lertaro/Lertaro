@@ -39,6 +39,10 @@ internal static class SearchReachabilityGate
 
     public static bool IsPathReachable(string path) => IsPathReachable(path, _unreachable);
 
+    // This session's own answer, for the one caller that has to filter rows built App-side rather than index
+    // results it receives -- see HistorySearchCandidateMapper.IsExcludedFromSearch.
+    internal static IReadOnlySet<string> UnreachableSources => _unreachable;
+
     internal static bool IsResultReachable(string? drive, IReadOnlySet<string> unreachable)
         => string.IsNullOrEmpty(drive) || !unreachable.Contains(drive);
 

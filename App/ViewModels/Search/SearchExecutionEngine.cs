@@ -112,10 +112,7 @@ internal sealed class SearchExecutionEngine : IDisposable
         bool resultMapperConsumesBatches = false,
         Action<int>? onReceivedCountUpdated = null,
         FileFilterScopeDirective? scopeDirective = null,
-        // The untouched box text, handed to the instant-result providers instead of `query`: the host has
-        // already stripped a plugin's own trigger word out of `query` so it is not fuzzy-matched against
-        // file names, but the provider that owns that word must still recognise it. Null (every other
-        // caller) means "nothing was stripped", which is the same query for both purposes.
+        // See QueueSearch's instantQuery above for what this carries and why it differs from `query`.
         string? instantQuery = null,
         // See QueueSearch: false skips the provider pass entirely instead of running it and
         // discarding what comes back.
@@ -213,7 +210,8 @@ internal sealed class SearchExecutionEngine : IDisposable
     public void PrewarmDirectoryListing(string? directory) => _directChildrenListing.Prewarm(directory);
 
     public void CancelPendingSearch()
-    {        try
+    {
+        try
         {
             _debounceCts?.Cancel();
             _debounceCts?.Dispose();

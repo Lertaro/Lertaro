@@ -126,10 +126,8 @@ public class SearchWindowInputHandler
 
         else if (actualKey == Key.Enter)
         {
-            // File/folder results are handled earlier by HotkeyActionTrigger (Ctrl+Enter locate,
-            // Ctrl+Shift+Enter open-as-admin) and never reach here. What reaches here on those chords
-            // is a result with no matching file action — notably an application — so honor
-            // Ctrl+Shift+Enter as "launch as admin" so apps can still be elevated.
+            // Non-file rows only reach here (HotkeyActionTrigger already handled files -- see its header),
+            // so Ctrl+Shift+Enter stays "launch as admin" for apps.
             if (_window.LstGridResultsControl.SelectedItem is AppSearchResult)
             {
                 var asAdmin = Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift);

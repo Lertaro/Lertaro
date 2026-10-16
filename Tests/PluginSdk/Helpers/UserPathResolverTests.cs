@@ -93,9 +93,6 @@ public sealed class UserPathResolverTests
     }
 
     [TestMethod]
-    public void ResolveForNavigation_UsesResolvedPhysicalPath()
-    {
-        Assert.AreEqual(@"C:\Users\test\Desktop",
+    public void ResolveForNavigation_UsesResolvedPhysicalPath() => Assert.AreEqual(@"C:\Users\test\Desktop",
             UserPathResolver.ResolveForNavigation("shell:Desktop", _ => @"C:\Users\test\Desktop"));
-    }
 }

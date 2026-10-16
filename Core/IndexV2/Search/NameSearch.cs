@@ -32,9 +32,9 @@ internal static class NameSearch
             return;
 
         // Nothing is truncated on the way through: the only ceiling is the index itself, since a search
-        // cannot return more rows than exist. That bound matters for more than tidiness -- FzfTopN
-        // pre-allocates twice its capacity, so deriving it from the caller's limit (which is now
-        // effectively unbounded) would reserve arrays for a number of results nobody can reach.
+        // cannot return more rows than exist. That bound matters for more than tidiness -- FzfTopN's
+        // buffer ceiling is twice its capacity, so deriving it from the caller's limit (which is now
+        // effectively unbounded) would let that ceiling grow to a number of results nobody can reach.
         //
         // The arithmetic is widened deliberately. keep * RefinementHeadroomFactor overflows int once the
         // limit passes about 53 million, and a negative capacity used to reach FzfTopN.Finish and throw
@@ -45,11 +45,27 @@ internal static class NameSearch
             ? keep
             : (int)Math.Min((long)keep * RefinementHeadroomFactor, everything);
         var topN = new FzfTopN(Math.Max(scanKeep, 1));
-        CollectRanks(snapshot, delta, pattern, matchAll, directoryContext, topN, token, fileNamePatterns);
+        // CollectRanks hands its rented hit list back instead of recycling it, because the fallback below
+        // needs to know which uids the WHOLE query already matched (see BuildReportedUids); the finally is
+        // what keeps that from leaking the list whenever a superseded search cancels out of here.
+        var hits = CollectRanks(snapshot, delta, pattern, matchAll, directoryContext, topN, token, fileNamePatterns);
+        try
+        {
+            PublishRanks(snapshot, delta, pattern, hits, matchAll, topN, scanKeep, limit, directoryFilterLower, token, onResult);
+        }
+        finally
+        {
+            if (hits != null)
+                SearchMatcher.ReturnHitList(hits);
+        }
+    }
 
+    private static void PublishRanks(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, List<UniqueMatch>? hits, bool matchAll,
+        FzfTopN topN, int scanKeep, int limit, string? directoryFilterLower, CancellationToken token, Action<SearchResult> onResult)
+    {
         var ranks = topN.Finish(scanKeep);
         if (!matchAll && !pattern.IsEmpty)
-            RefineWithWeight(snapshot, delta, pattern, ranks);
+            RefineRanks(snapshot, delta, pattern, ranks, limit);
 
         var seen = new HashSet<int>();
         var emitted = 0;
@@ -83,45 +99,119 @@ internal static class NameSearch
         // product/relevance decisions, not a fix that belongs at this line. The quick window's 51 and
         // the inline window's bounded limit do close it.
         if (emitted < limit)
+        {
+            var reportedUids = BuildReportedUids(pattern, hits);
             PathTermFallback.SearchStreaming(snapshot, delta, pattern, limit - emitted, result =>
             {
                 SearchResultRelevance.Apply(result, pattern);
                 onResult(result);
-            }, token, directoryFilterLower);
+            }, token, directoryFilterLower, reportedUids);
+        }
+    }
+
+    // The uids phase A matched, i.e. those whose WHOLE query landed on one spelling of the name -- what
+    // PathTermFallback must not report a second time. It cannot be read off that pass's own per-term masks:
+    // a name whose terms are satisfied by DIFFERENT spellings fills the same masks without ever having
+    // matched the whole query, and those rows are the ones the pass exists to add.
+    //
+    // Built only when the fallback is about to run: a page that filled means the name search answered in full
+    // and the fallback is skipped, so this stays bounded by the rows that did not fill the page (plus any whose
+    // rows the directory/file filters dropped). Null for the shapes that pass does not handle per-term
+    // (OR-first branch queries, whose recursive call keeps the old "assume it was reported" rule).
+    private static HashSet<int>? BuildReportedUids(FzfPattern pattern, List<UniqueMatch>? hits)
+    {
+        if (hits == null || pattern.OrGroups != null
+            || pattern.TermSets.Length < 2 || pattern.TermSets.Length > PathTermFallback.MaxTerms)
+            return null;
+
+        var uids = new HashSet<int>(hits.Count);
+        foreach (var hit in hits)
+            uids.Add(hit.Uid);
+        return uids;
     }
 
     [ThreadStatic]
-    private static Dictionary<string, double>? _weightsByName;
+    private static Dictionary<string, MatchRank>? _ranksByName;
 
     // Bounded refinement: only ever runs over the scanKeep-sized headroom set above, never the full
-    // matched set. Ranking-only (FzfResultRank.ApplyWeight never rejects), so this can't drop a result.
-    private static void RefineWithWeight(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, List<FzfRank> ranks)
+    // matched set. Ranking-only (never rejects), so this can't drop a result.
+    //
+    // Rewrites each candidate's high 32 bits to the SAME relevance key SearchResultRelevance.Apply gives
+    // the emitted result, so the `limit` cut in SearchStreaming drops the rows every window would rank
+    // last. Cutting on the raw fzf score instead let a whole-word hit later in a name ("code-atlas") lose
+    // its slot to rows the windows then sorted below it.
+    //
+    // ponytail: the headroom set itself is still pre-selected by raw fzf score (scanKeep = limit * 40).
+    // Ceiling: more than scanKeep rows with a higher raw score can still crowd out a whole-word hit before
+    // it gets here. Upgrade path: classify MatchShape inside the hot scan and let FzfTopN keep by it.
+    //
+    // Recency and depth need the row's times and path, so they are only worked out when the limit can
+    // actually cut (the quick and inline windows). The full window keeps everything, Apply gives each
+    // emitted row its complete key, and building every path twice would only slow its broadest queries.
+    private static void RefineRanks(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, List<FzfRank> ranks, int limit)
     {
-        // The weight depends on the name and the pattern, and on nothing else about the row -- so every
-        // row sharing a name shares its weight, and a set of a few thousand holds only about two thirds
-        // that many distinct names. Worth remembering because the calculation is not cheap for a query
-        // that matches through an alias: it has to ask the provider for the candidate's own spellings.
+        var cuts = ranks.Count > limit;
+        var nowUnix = FileTimeHelper.ToUnixSeconds(DateTime.UtcNow);
+        var depthByParent = cuts ? new Dictionary<int, int>() : null;
+        // The rank depends on the name and the pattern, and on nothing else about the row -- so every
+        // row sharing a name shares it, and a set of a few thousand holds only about two thirds that
+        // many distinct names. Worth remembering because the calculation is not cheap for a query that
+        // matches through an alias: it has to ask the provider for the candidate's own spellings.
         // Reused per thread rather than built per search: a query whose names all match literally gets
         // no benefit from the memo and should not pay to allocate one either.
-        var weights = _weightsByName ??= new Dictionary<string, double>(StringComparer.Ordinal);
-        weights.Clear();
+        var ranksByName = _ranksByName ??= new Dictionary<string, MatchRank>(StringComparer.Ordinal);
+        ranksByName.Clear();
         for (var i = 0; i < ranks.Count; i++)
         {
             var rank = ranks[i];
             var name = GetNameForEntry(snapshot, delta, rank.EntryIndex);
             if (name.Length == 0)
                 continue;
-            ref var weight = ref CollectionsMarshal.GetValueRefOrAddDefault(weights, name, out var known);
+            ref var match = ref CollectionsMarshal.GetValueRefOrAddDefault(ranksByName, name, out var known);
             if (!known)
-                weight = HighlightMask.ComputeWeight(name, pattern);
-            ranks[i] = FzfResultRank.ApplyWeight(rank, weight);
+                match = HighlightMask.ComputeRank(name, pattern);
+            var (band, depth) = cuts
+                ? RowSignals(snapshot, delta, rank.EntryIndex, nowUnix, depthByParent!)
+                : (RankSignals.BandOlder, 0);
+            var high = SearchResultRelevance.HighKey(match, IsEntryDirectory(snapshot, delta, rank.EntryIndex), band, depth);
+            ranks[i] = rank with { SortKey = ((ulong)high << 32) | (rank.SortKey & 0xFFFF_FFFFUL) };
         }
         FzfRankRadixSorter.Sort(ranks);
 
         // Emptied here rather than only on the way in. Clearing on entry leaves the buckets from the last
         // search sitting in a thread static for as long as the process is idle, and a whole-drive query
         // sizes them to its own name count -- see SearchScratchPolicy.
-        SearchScratchPolicy.ClearAndTrim(weights);
+        SearchScratchPolicy.ClearAndTrim(ranksByName);
+    }
+
+    // The same recency band and depth Apply derives from the built result. Depth is worked out once per
+    // parent folder, since a headroom set is mostly siblings; a row with no resolved parent (an orphan,
+    // or an added delta row) pays for its own path.
+    //
+    // ponytail: depth costs one built path per distinct parent in the headroom set (measured 30 to ~5100
+    // per bounded search on a 20k-name drive, together with the band work about 2 ms of a ~22 ms search).
+    // Counting the parent chain instead is NOT the same thing: DeltaPathBuilder forwards a renamed-away row
+    // to the FRN's live identity, which can sit at a different depth, so the count would disagree with the
+    // key Apply writes on the emitted result. Upgrade path: count only while no ancestor is renamed away,
+    // and fall back to the built path for the rest.
+    private static (int Band, int Depth) RowSignals(Snapshot snapshot, DeltaOverlay delta, int entryIndex, uint nowUnix, Dictionary<int, int> depthByParent)
+    {
+        if (entryIndex >= snapshot.Count)
+        {
+            var record = delta.Added[entryIndex - snapshot.Count];
+            return (RankSignals.RecencyBand(record.Creation, record.LastWrite, nowUnix), RankSignals.PathDepth(delta.GetFullPath(record)));
+        }
+
+        var (_, creation, lastWrite, _) = delta.MetadataOf(entryIndex);
+        var band = RankSignals.RecencyBand(creation, lastWrite, nowUnix);
+        var parent = delta.ParentOf(entryIndex);
+        if (parent < 0 || parent == entryIndex)
+            return (band, RankSignals.PathDepth(delta.GetFullPath(entryIndex)));
+
+        ref var parentDepth = ref CollectionsMarshal.GetValueRefOrAddDefault(depthByParent, parent, out var known);
+        if (!known)
+            parentDepth = RankSignals.PathDepth(delta.GetFullPath(parent));
+        return (band, parentDepth + 1);
     }
 
     // Mirrors ResultBuilder.ToResult's entryIndex->name resolution (base row, possibly overridden, vs
@@ -129,7 +219,12 @@ internal static class NameSearch
     private static string GetNameForEntry(Snapshot snapshot, DeltaOverlay delta, int entryIndex)
         => entryIndex >= snapshot.Count ? delta.Added[entryIndex - snapshot.Count].Name : delta.NameOf(entryIndex);
 
-    // Mirrors Searcher's drive gate: a foreign-drive query returns nothing; a bare drive prefix with
+    private static bool IsEntryDirectory(Snapshot snapshot, DeltaOverlay delta, int entryIndex)
+        => entryIndex >= snapshot.Count
+            ? (delta.Added[entryIndex - snapshot.Count].Flags & (ushort)FileRecordFlags.Directory) != 0
+            : IsDirectory(snapshot, delta, entryIndex);
+
+    // Drive gate: a foreign-drive query returns nothing; a bare drive prefix with
     // no terms ("t:") matches everything (TryMatch trivially succeeds on an empty pattern).
     private static bool DriveAdmits(Snapshot snapshot, FzfPattern pattern, out bool matchAll)
     {
@@ -184,8 +279,13 @@ internal static class NameSearch
         return delta.GetFullPath(row).StartsWith(ctx.FilterLower, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static void CollectRanks(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, bool matchAll, DirectoryContext ctx, FzfTopN topN, CancellationToken token, string[]? fileNamePatterns)
+    // Fills topN with every ranked candidate and hands back the rented hit list phase A matched on (null
+    // when there is no pattern to match, i.e. a bare-drive listing). The caller owns that list and returns
+    // it to the pool -- see the try/finally in SearchStreaming, which needs it to tell PathTermFallback
+    // which uids the whole query already matched.
+    private static List<UniqueMatch>? CollectRanks(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, bool matchAll, DirectoryContext ctx, FzfTopN topN, CancellationToken token, string[]? fileNamePatterns)
     {
+        List<UniqueMatch>? rentHits = null;
         var membership = ctx.FilterLower != null ? new Dictionary<int, bool>() : null;
 
         // Hoisted out of the per-row loops below. Snapshot.Flags builds a span over mapped memory on
@@ -229,6 +329,7 @@ internal static class NameSearch
         else
         {
             var hits = SearchMatcher.RentHitList();
+            rentHits = hits;
             SearchMatcher.MatchUniques(snapshot, pattern, hits, token, fileNamePatterns);
             foreach (var m in hits)
             {
@@ -245,10 +346,10 @@ internal static class NameSearch
                     topN.Add(new FzfRank(row, m.Match.Score, m.SortKey));
                 }
             }
-            SearchMatcher.ReturnHitList(hits);
         }
 
         MatchDeltaRows(snapshot, delta, pattern, matchAll, ctx, topN, fileNamePatterns);
+        return rentHits;
     }
 
     private static bool MatchesFileScope(Snapshot snapshot, DeltaOverlay delta, int row, string[]? patterns)
@@ -286,7 +387,7 @@ internal static class NameSearch
             if (!MatchesFileScope(record.Name, record.Flags, fileNamePatterns))
                 continue;
             var match = EmptyPatternMatch;
-            if (!matchAll && !SearchMatcherRow.TryMatchNameOrAliases(pattern, record.Name, record.Aliases, record.ProviderIds, queryLen, slab, out match))
+            if (!matchAll && !SearchMatcherRow.TryMatchNameOrAliases(pattern, record.Name, record.Aliases, record.ProviderIds, record.Grids, queryLen, slab, out match))
                 continue;
             if (ctx.FilterLower != null && !delta.GetFullPath(row).StartsWith(ctx.FilterLower, StringComparison.OrdinalIgnoreCase))
                 continue;
@@ -300,7 +401,7 @@ internal static class NameSearch
             if (!MatchesFileScope(record.Name, record.Flags, fileNamePatterns))
                 continue;
             var match = EmptyPatternMatch;
-            if (!matchAll && !SearchMatcherRow.TryMatchNameOrAliases(pattern, record.Name, record.Aliases, record.ProviderIds, queryLen, slab, out match))
+            if (!matchAll && !SearchMatcherRow.TryMatchNameOrAliases(pattern, record.Name, record.Aliases, record.ProviderIds, record.Grids, queryLen, slab, out match))
                 continue;
             if (ctx.FilterLower != null && !delta.GetFullPath(record).StartsWith(ctx.FilterLower, StringComparison.OrdinalIgnoreCase))
                 continue;

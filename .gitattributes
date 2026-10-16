@@ -1,0 +1,12 @@
+# Where line endings are decided: here, not in each machine's global git config.
+#
+# Every tracked text file in this repository is LF, and this keeps it that way whatever a contributor's
+# core.autocrlf says. Without it, a machine with autocrlf=true (the Git for Windows default) contradicts
+# .editorconfig's end_of_line=lf: an editor writes LF, git reports the whole repository as modified, and
+# `git add` normalises those changes away again -- work that can never be committed.
+* text=auto eol=lf
+
+# Bytes, not lines: git must never normalise these.
+*.ico binary
+*.webp binary
+*.bin binary

@@ -9,7 +9,7 @@
             <VisualBrush.Visual>
                 <Label Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Hotkeys_RecorderPlaceholder]}"
                        Foreground="{DynamicResource TextSecondary}"
-                       Opacity="0.5" FontSize="12"/>
+                       FontSize="12"/>
             </VisualBrush.Visual>
         </VisualBrush>
         <Style x:Key="RecorderBoxStyle" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">

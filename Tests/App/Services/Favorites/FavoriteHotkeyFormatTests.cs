@@ -28,6 +28,10 @@ public sealed class FavoriteHotkeyFormatTests
     [DataRow("Ctrl+NotAKey")]
     [DataRow("F12")]
     [DataRow("Ctrl+F12")]
+    [DataRow("Unknown+T")]
+    [DataRow("Ctrl+Unknown+T")]
+    [DataRow("Ctrl++T")]
+    [DataRow("Ctrl+")]
     public void TryBuild_RejectsUnusableCombinations(string? hotkey) =>
         Assert.IsFalse(FavoriteHotkeyFormat.TryBuild(hotkey, out _, out _));
 
@@ -66,6 +70,26 @@ public sealed class FavoriteHotkeyFormatTests
         // punctuation hotkeys silently never fire elsewhere in the app.
         Assert.IsTrue(FavoriteHotkeyFormat.TryBuild("Ctrl+Oem1", out var oem1, out _));
         Assert.AreEqual(0xBAu, oem1);
+    }
+
+    [TestMethod]
+    [DataRow("Alt+D0", 0x30u)]
+    [DataRow("Alt+d9", 0x39u)]
+    [DataRow("Control+Add", 0x6Bu)]
+    [DataRow("Control+Subtract", 0x6Du)]
+    public void TryBuild_MapsRecorderDigitAndNumpadKeys(string hotkey, uint expectedKey)
+    {
+        Assert.IsTrue(FavoriteHotkeyFormat.TryBuild(hotkey, out var key, out _));
+        Assert.AreEqual(expectedKey, key);
+    }
+
+    [TestMethod]
+    public void TryBuild_ModifierAliasesAndOrder_ProduceTheSamePhysicalCombination()
+    {
+        Assert.IsTrue(FavoriteHotkeyFormat.TryBuild("Ctrl+Shift+Win+9", out var key, out var modifiers));
+        Assert.IsTrue(FavoriteHotkeyFormat.TryBuild("Windows+Shift+Control+D9", out var aliasKey, out var aliasModifiers));
+        Assert.AreEqual(key, aliasKey);
+        Assert.AreEqual(modifiers, aliasModifiers);
     }
 
     [TestMethod]

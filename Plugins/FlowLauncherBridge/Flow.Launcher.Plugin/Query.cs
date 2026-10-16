@@ -48,10 +48,7 @@ public class Query
     [JsonIgnore]
     public string FourthToEndSearch => SearchTerms.Length > 3 ? string.Join(' ', SearchTerms[3..]) : string.Empty;
 
-    public string SplitSearch(int index)
-    {
-        return (SearchTerms.Length > index && index >= 0) ? SearchTerms[index] : string.Empty;
-    }
+    public string SplitSearch(int index) => (SearchTerms.Length > index && index >= 0) ? SearchTerms[index] : string.Empty;
 
     public override string ToString() => RawQuery;
 }

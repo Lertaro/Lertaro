@@ -1,9 +1,9 @@
 namespace Lertaro.Core;
 
 /// <summary>
-/// Shared durable-write path for the settings and history stores (one write discipline, five
-/// call sites: UserSettings, MachineSettings, SearchHistoryStore, KeywordHistoryStore, and the
-/// settings data-directory migrator). Extracted for that reuse, not for any line limit; owns no state.
+/// Shared durable-write path for every store that keeps user data (one write discipline across the
+/// settings, backup, history, plugin-settings, migration and portable-lock call sites). Extracted for
+/// that reuse, not for any line limit; owns no state.
 /// </summary>
 public static class AtomicFileStore
 {

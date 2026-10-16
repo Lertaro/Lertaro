@@ -33,7 +33,32 @@
   1. **Escribir pinyin directamente**: Lertaro incorpora un motor de alias por pinyin; basta escribir las letras del pinyin para que coincida con nombres de archivo en chino sin abrir el menú del método de entrada (consulta [**Sintaxis de búsqueda**](./search-syntax#_7-alias-multilingues)).
   2. **Cambiar a la Ventana rápida**: la doble pulsación de `Ctrl` abre la Ventana rápida con foco completo, donde todos los métodos de entrada funcionan con normalidad.
 
-## 6. Consulta de registros y reporte de errores
+## 6. Directorio de datos, permisos y actualizaciones fallidas
+
+- **Trasladar el directorio de datos**: Mover `%LocalAppData%\Lertaro` (versión instalable) o la carpeta `Data\Users` de la versión portátil a otra partición con un vínculo simbólico o una junction es compatible, pero el destino debe ser un **volumen fijo local**. Un vínculo a una ubicación de red o a un volumen extraíble se rechaza al arrancar indicando el motivo (ver [**Configuración → Acerca de**](./settings/about)).
+- **Arranque rechazado: la carpeta de datos pertenece a otra identidad**: Si el propietario del directorio de datos de usuario no es tu cuenta, Lertaro se niega a arrancar e intenta primero una reparación con permisos elevados. El mensaje indica el **propietario real y el SID esperado**, que es todo el diagnóstico. Cada paso de esa reparación —incluido el paso en el que se quedó si se agotó el tiempo— se escribe en `%TEMP%\Lertaro\repair.log`; adjunta ese archivo al informar del problema.
+
+Si el propietario de la carpeta es `BUILTIN\Administrators` pero sus permisos ya conceden FullControl a **tu** cuenta, basta con restablecer el propietario. El script siguiente cambia únicamente la propiedad dentro de `%LOCALAPPDATA%\Lertaro`: no toca los permisos ni el contenido de los archivos.
+
+```powershell
+$sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+$root = Join-Path $env:LOCALAPPDATA 'Lertaro'
+Get-Item -LiteralPath $root | ForEach-Object {
+    $acl = $_.GetAccessControl('Owner')
+    $acl.SetOwner($sid)
+    $_.SetAccessControl($acl)
+}
+Get-ChildItem -LiteralPath $root -Recurse -Force | ForEach-Object {
+    $acl = $_.GetAccessControl('Owner')
+    $acl.SetOwner($sid)
+    $_.SetAccessControl($acl)
+}
+```
+
+- **La última actualización silenciosa falló**: El actualizador escribe su veredicto —estado, motivo y carpeta de reversión— en `update-result.json`, junto a la instalación. Lertaro muestra ese motivo una vez en el siguiente arranque y no repite el mismo veredicto; si el aviso aparece una y otra vez, elimina ese archivo o instala la nueva versión manualmente sobre la actual.
+- **Los vínculos por debajo del directorio de datos se rechazan siempre**: Solo la propia cadena del directorio de datos puede resolverse como vínculo; los subdirectorios de su interior no pueden serlo (ver [**Configuración → Acerca de**](./settings/about)).
+
+## 7. Consulta de registros y reporte de errores
 
 Si el problema persiste, revisa los registros en [**Configuración → Estado del servicio**](./settings/service-status):
 

@@ -109,12 +109,12 @@ internal static class CommandRunner
 
     internal static ProcessStartInfo BuildStartInfo(CustomCommandsInstantProvider.CommandItem cmd, string? contextDirectory,
         Func<string?, bool, string?, string?> resolveDirectory) => new()
-    {
-        FileName = cmd.Path,
-        Arguments = ResolveParameter(cmd, ""),
-        UseShellExecute = true,
-        WorkingDirectory = resolveDirectory(cmd.WorkingDir, cmd.UseCurrentDirectory, contextDirectory) ?? "",
-        WindowStyle = cmd.RunSilently ? ProcessWindowStyle.Hidden : ProcessWindowStyle.Normal,
-        Verb = cmd.RunAsAdmin ? "runas" : ""
-    };
+        {
+            FileName = cmd.Path,
+            Arguments = ResolveParameter(cmd, ""),
+            UseShellExecute = true,
+            WorkingDirectory = resolveDirectory(cmd.WorkingDir, cmd.UseCurrentDirectory, contextDirectory) ?? "",
+            WindowStyle = cmd.RunSilently ? ProcessWindowStyle.Hidden : ProcessWindowStyle.Normal,
+            Verb = cmd.RunAsAdmin ? "runas" : ""
+        };
 }

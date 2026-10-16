@@ -216,7 +216,8 @@ public static class PluginLoaderHelper
                     var pluginId = Path.GetFileNameWithoutExtension(dllName);
                     foreach (var field in schema.Fields)
                     {
-                        configFields.Add(new PluginConfigFieldViewModel(pluginId, field, userSettings));
+                        configFields.Add(new PluginConfigFieldViewModel(pluginId, field, userSettings,
+                            pluginVersion: assembly.GetName().Version?.ToString(3) ?? ""));
                     }
                     return schema;
                 }

@@ -162,12 +162,12 @@ public sealed class QuickPanelStreamingTests
         CollectionAssert.AreEqual(new[] { "fast" }, vm.Groups.Select(g => g.SourceId).ToList());
 
         // And the slow one still lands, into a panel that is already up.
-        var groupChanges = new List<System.Collections.Specialized.NotifyCollectionChangedAction>();
+        var groupChanges = new List<NotifyCollectionChangedAction>();
         vm.Groups.CollectionChanged += (_, e) => groupChanges.Add(e.Action);
         await DeliverAndWaitAsync(vm.Groups, () => vm.Groups.Count == 2,
             () => gates.Deliver("slow", @"C:\slow", "b.txt"));
         CollectionAssert.AreEqual(new[] { "fast", "slow" }, vm.Groups.Select(g => g.SourceId).ToList());
-        CollectionAssert.AreEqual(new[] { System.Collections.Specialized.NotifyCollectionChangedAction.Add }, groupChanges,
+        CollectionAssert.AreEqual(new[] { NotifyCollectionChangedAction.Add }, groupChanges,
             "a late group should be inserted without rebuilding groups that are already visible");
     }
 

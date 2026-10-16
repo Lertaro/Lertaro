@@ -51,10 +51,7 @@ public class BandizipExtractDialogAdapter : IFileDialogAdapter
         return BandizipPathHelpers.NormalizeIfWellFormed(BandizipDialogInterop.GetText(combo));
     }
 
-    // No file-to-folder resolution here: TargetIsFolderOnly (above) tells every caller that reaches
-    // NavigateTo to resolve a picked file to its containing folder themselves before ever sending it --
-    // see WinRARExtractDialogAdapter.NavigateTo's own comment for why that used to be duplicated here via
-    // a File.Exists check, and why that's unreliable in the elevated Hook process this runs in.
+    // No file-to-folder resolution here -- same TargetIsFolderOnly/elevated-Hook reason as BandizipAddFilesDialogAdapter.NavigateTo.
     public bool NavigateTo(IntPtr hwnd, string targetPath)
     {
         var edit = BandizipDialogInterop.FindPathEdit(hwnd);

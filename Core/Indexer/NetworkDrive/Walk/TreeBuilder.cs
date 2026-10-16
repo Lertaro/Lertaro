@@ -5,8 +5,8 @@ using Lertaro.Core.Indexer.NetworkDrive.Scheduling;
 namespace Lertaro.Core.Indexer.NetworkDrive.Walk;
 
 // Checkpoint/snapshot logic lives in TreeBuilderCheckpointExtensions.cs and diff-reuse logic in
-// TreeBuilderDiffExtensions.cs (extension methods, matching RuntimeIndex's BucketExtensions/
-// QueryExtensions split) instead of partial classes, to keep this file under the project's line limit.
+// TreeBuilderDiffExtensions.cs (extension methods) instead of partial classes, to keep this file under
+// the project's line limit.
 // Both need broad access to this walker's shared mutable state, so the fields/methods they touch are
 // `internal` rather than `private`.
 internal sealed class TreeBuilder
@@ -43,8 +43,9 @@ internal sealed class TreeBuilder
     internal int _slowDirectories;
     internal int _reusedDirectories;
 
-    // Diff-aware reuse state (TreeBuilderDiffExtensions): reusing a directory's cached children instead
-    // of re-listing it over the network when TreeDiffBaseline confirms nothing changed, and tracking
+    // Diff-aware reuse state (TreeBuilderDiffExtensions): re-committing a directory's cached records
+    // instead of rebuilding them from the listing once TreeDiffBaseline confirms nothing changed (the
+    // listing itself is still taken), and tracking
     // which directories in THIS store have been fully enumerated (FileRecordFlags.Listed) so a future
     // resume can trust them the same way.
     internal readonly TreeDiffBaseline? _diffBaseline;

@@ -1,4 +1,5 @@
 using Lertaro.Core.SearchIndex;
+using Lertaro.Core.SearchIndex.Fzf;
 
 namespace Lertaro.Core.Tests.SearchIndex;
 
@@ -63,6 +64,28 @@ public sealed class FuzzyQueryTests
         Assert.IsFalse(empty.Rank("anything").IsMatch);
         Assert.IsFalse(empty.BestMatch("anything").IsMatch);
         Assert.IsEmpty(empty.HighlightMask("anything"));
+    }
+
+    // The quick window calls this for rows whose own name does not match the query, and the full window's row
+    // key reaches the same rank through SearchResultRelevance.Apply. Pinned against that value rather than
+    // against literals, because "one query, one file order" is the whole point of it.
+    [TestMethod]
+    public void FallbackRank_IsTheRankTheFullWindowsRowKeyGivesSuchARow()
+    {
+        const string path = @"C:\Docs\annual-report-2024.pdf";
+
+        var expected = MatchRank.NoNameFallback(HighlightMask.ComputeWeight(path, FzfPattern.Parse("report")));
+
+        Assert.AreEqual(expected, FuzzyQuery.Parse("report").FallbackRank(path));
+        Assert.IsTrue(FuzzyQuery.Parse("report").FallbackRank(path).Weight > 0, "the path still explains part of the query");
+    }
+
+    [TestMethod]
+    public void FallbackRank_WithoutAQueryOrPath_IsNoMatch()
+    {
+        Assert.IsFalse(FuzzyQuery.Parse("").FallbackRank(@"C:\Docs\a.txt").IsMatch);
+        Assert.IsFalse(FuzzyQuery.Parse("report").FallbackRank(null).IsMatch);
+        Assert.IsFalse(FuzzyQuery.Parse("report").FallbackRank(string.Empty).IsMatch);
     }
 
     [TestMethod]

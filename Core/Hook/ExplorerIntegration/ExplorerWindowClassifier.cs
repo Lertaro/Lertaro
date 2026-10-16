@@ -141,28 +141,21 @@ internal sealed class ExplorerWindowClassifier
                         if (!collectorTimedOut)
                         {
                             if (!string.IsNullOrEmpty(activePath))
-                        {
-                            // The desktop reports a path like any Explorer window, but it is not a file manager, so
-                            // it must not become "the folder the user was working in". Recorded here it leaked into
-                            // every consumer of that memory: Ctrl+G, the inline card's baseline, the quick panel.
-                            // Gated on the classifier's own isDesktop, so this holds for every route into the memory
-                            // rather than only for the hotkey. LastPath is still updated below: that is "the active
-                            // window's path" and other features depend on it, desktop included.
-                            if (!isDesktop && _dialogTracker.LastActiveExplorerPath != activePath)
-                                _dialogTracker.SetLastActiveExplorerPath(activePath);
-
-                            if (activePath != _tracker.LastPath)
                             {
-                                if (!isDesktop)
-                                {
-                                    // Remember the provider while it is the active window: that is when its scope is
-                                    // still readable.
-                                    _tracker.RememberPathProvider(_tracker.ActiveInlineAdapter, _tracker.ActiveHwnd);
-                                }
+                                if (_dialogTracker.LastActiveExplorerPath != activePath)
+                                    _dialogTracker.SetLastActiveExplorerPath(activePath);
 
-                                _tracker.UpdatePath(activePath, isDesktop);
+                                // Remember the provider while it is the active window: that is when its scope
+                                // is still readable, and a folder that did not move is no reason to forget it.
+                                // The path travels with it: Quick Switch picks among these windows by which one
+                                // shares the dialog's process, and an entry without a folder cannot be chosen.
+                                _tracker.RememberPathProvider(_tracker.ActiveInlineAdapter, rootHwnd, activePath);
+
+                                if (activePath != _tracker.LastPath)
+                                {
+                                    _tracker.UpdatePath(activePath, isDesktop);
+                                }
                             }
-                        }
                             else if (!string.IsNullOrEmpty(_tracker.LastPath))
                             {
                                 _tracker.UpdatePath(string.Empty, isDesktop);
@@ -199,6 +192,7 @@ internal sealed class ExplorerWindowClassifier
                     _tracker.IsDesktop = false;
                     _tracker.IsActiveWindowExplorer = false;
                     _tracker.ActiveHwnd = rootHwnd;
+                    _tracker.RememberPathProvider(matchedInlineAdapter, rootHwnd);
 
                     if (rootHwnd != _tracker.LastActiveHwnd)
                     {
@@ -241,22 +235,35 @@ internal sealed class ExplorerWindowClassifier
         _tracker.IsDesktop = false;
         _tracker.ActiveHwnd = mainDialog;
 
-
-        // The folder the user is browsing lives in the path provider; the dialog's own path does not.
-        // Read it once here, for both uses: the dialog tracker's follow decision, and the publication
-        // below -- without that, the App's LastActiveExplorerPath (what the inline list offers as
-        // "jump to the open folder") never learns the file manager's folder at all.
-        // Prefer the window that was active just before the dialog; fall back to the provider remembered
-        // while it was active -- the usual case with more than one file manager open, or when focus passed
-        // through an unrelated window on its way to the dialog.
         if (previousWasPathProvider) _tracker.RememberPathProvider(providerAdapter, providerHwnd);
-        var scopeAdapter = providerAdapter ?? (previousWasPathProvider ? null : _tracker.LastPathProviderAdapter);
-        var scopeHwnd = previousWasPathProvider ? providerHwnd : _tracker.LastPathProviderHwnd;
-        var providerScope = scopeAdapter == null || scopeHwnd == IntPtr.Zero ? null : ExplorerStaInvoker.RunOnStaWithTimeout(
-            () => scopeAdapter.GetSearchScope(scopeHwnd), null, pluginReadTimeout);
+
+        // A dialog that stays foreground keeps being classified: its title changes when the user navigates
+        // inside it, and focus moves inside it. So the provider read and the activation event below share one
+        // condition -- this is an activation the tracker has not announced yet. Deactivate clears the handle,
+        // which is what keeps a recycled one from looking like an activation already announced.
+        var isNewActivation = mainDialog != _tracker.LastActiveHwnd;
+
+        // The folder the user is browsing belongs to the path provider, not to the dialog, and Quick Switch
+        // reads it from the App's mirror tracker. While the window that just gave way to the dialog IS that
+        // provider, its folder already reached the App through the ordinary path events. The case that reaches
+        // nobody is the fallback -- two file managers open, or focus passing through an unrelated window on
+        // its way to the dialog -- so read the remembered provider and publish what it shows now.
+        //
+        // Once per activation, because the read is a cross-process call under the tracker lock and a folder
+        // that did not move is not worth either: re-publishing it puts the file manager behind the dialog
+        // into the mirror's LastPath and the card's search scope, which belong to the dialog. IsWindow first,
+        // since a read aimed at a handle nobody owns any more answers for whatever holds it now -- and an
+        // adapter that reports nothing for it publishes nothing (see RaisePathProviderScope).
+        var remembered = _tracker.LastPathProvider;
+        string? providerScope = null;
+        if (isNewActivation && !previousWasPathProvider && remembered is { } provider
+            && ExplorerNativeHooks.IsWindow(provider.Hwnd))
+            providerScope = ExplorerStaInvoker.RunOnStaWithTimeout(
+                () => provider.Adapter.GetSearchScope(provider.Hwnd), null, pluginReadTimeout);
 
         _ = _dialogTracker.HandleDialogSeenAsync(mainDialog, _tracker.ActiveAdapter, previousWasPathProvider,
-            providerScope == null ? null : () => providerScope);
+            providerAdapter == null ? null : () => ExplorerStaInvoker.RunOnStaWithTimeout(
+                () => providerAdapter.GetSearchScope(providerHwnd), null, pluginReadTimeout));
 
         // Bounded dispatch (see the collector loop above). On timeout the null fallback flows into the
         // keep-last-known branch below, matching the empty-result handling.
@@ -269,6 +276,7 @@ internal sealed class ExplorerWindowClassifier
             // Keep showing whatever was last known instead of resetting the search scope to nothing.
             activePath = _tracker.LastPath ?? string.Empty;
         }
+        _tracker.LastPath = activePath;
 
         var windowTitle = new StringBuilder(256);
         ExplorerNativeHooks.GetWindowText(mainDialog, windowTitle, windowTitle.Capacity);
@@ -276,16 +284,20 @@ internal sealed class ExplorerWindowClassifier
         var sbCls2 = new StringBuilder(256);
         ExplorerNativeHooks.GetClassName(mainDialog, sbCls2, sbCls2.Capacity);
 
-        if (mainDialog != _tracker.LastActiveHwnd)
+        if (isNewActivation)
         {
             _tracker.LastActiveHwnd = mainDialog;
             _tracker.RaiseExplorerActivated(mainDialog, windowTitle.ToString(), sbCls2.ToString(), false);
         }
 
-        // Publish the file manager's folder, not the dialog's: this is the value the App keeps as
-        // LastActiveExplorerPath and hands to the inline list's "jump to the open folder" row. The
-        // dialog's own path still goes out below, flagged as a dialog path, for last-directory tracking.
-        _tracker.RaisePathCaptured(string.IsNullOrEmpty(providerScope) ? _tracker.LastPath : providerScope, false, false);
+        // After the activation event, deliberately: for a dialog host the App closes the card and makes a
+        // fresh one with an empty box, so a provider folder that arrives before that is handed to a card about
+        // to be thrown away, and the search it triggers runs against the file manager instead of the dialog.
+        _tracker.RaisePathProviderScope(providerScope);
+
+        // The dialog's own folder is what the inline list searches while the dialog is up, so it goes out
+        // flagged as a dialog path: a mirror only replaces its last-browsed path for a non-dialog one, which
+        // is the distinction Quick Switch depends on.
         _tracker.RaisePathCaptured(_tracker.LastPath, false, true);
     }
 

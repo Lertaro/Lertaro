@@ -43,9 +43,8 @@ public sealed class AutoCADFileDialogAdapter : IFileDialogAdapter
             if (process == IntPtr.Zero) return null;
             remoteBuffer = VirtualAllocEx(process, IntPtr.Zero, (uint)(maxChars * sizeof(char)), MEM_COMMIT, PAGE_READWRITE);
             if (remoteBuffer == IntPtr.Zero) return null;
-            // SendMessageTimeout, not SendMessage: this runs on the hook process's polling thread,
-            // and a hung target dialog would otherwise park that thread forever. SMTO_ABORTIFHUNG
-            // degrades a wedged dialog to a failed read instead.
+            // SendMessageTimeout, not SendMessage, so a hung dialog can't park the polling thread -- full
+            // reason at Plugins/CoreExtensions/FileDialog/ClassicFileDialogAdapter.cs.
             if (SendMessageTimeout(hwnd, CDM_GETFOLDERPATH, (IntPtr)maxChars, remoteBuffer, SMTO_ABORTIFHUNG, GetPathTimeoutMs, out var result) == IntPtr.Zero) return null;
             if (result.ToInt64() <= 0) return null;
             var bytes = new byte[maxChars * sizeof(char)];

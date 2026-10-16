@@ -1,5 +1,3 @@
-using Lertaro.Plugins.CustomCommands;
-
 namespace Lertaro.Plugins.CustomCommands.Tests;
 
 // The quick-navigation submenu loader builds its rows inside Task.Run, so these getters are reached from a
@@ -38,5 +36,27 @@ public sealed class QuickNavIconTests
         var handle = await Task.Run(QuickNavIcon.GetCategoryHBitmap);
 
         Assert.AreNotEqual(IntPtr.Zero, handle);
+    }
+
+    // Callers reaching a cold cache at the same time must still leave with ONE handle. Without the lock both
+    // rendered and the later one overwrote the earlier, leaving that first bitmap owned by nothing.
+    [TestMethod]
+    public async Task GetCategoryHBitmap_CalledConcurrently_HandsOutASingleHandle()
+    {
+        const int callers = 8;
+        using var start = new CountdownEvent(1);
+        var renders = Enumerable.Range(0, callers)
+            .Select(_ => Task.Run(() =>
+            {
+                start.Wait();
+                return QuickNavIcon.GetCategoryHBitmap();
+            }))
+            .ToArray();
+
+        start.Signal();
+        var handles = await Task.WhenAll(renders);
+
+        Assert.IsFalse(Array.Exists(handles, handle => handle == IntPtr.Zero));
+        Assert.AreEqual(1, handles.Distinct().Count());
     }
 }

@@ -33,7 +33,32 @@ Lertaro の使用中に問題が発生した場合は、以下の手順に従っ
   1. **ピンインを直接入力**：Lertaro にはピンインエイリアスエンジンが内蔵されているため、ピンインの字母を入力するだけで中国語のファイル名に文字飛び一致します。IME の候補ウィンドウを開く必要はありません（詳しくは[**検索構文**](./search-syntax#_7-多言語スマートエイリアス)）。
   2. **クイックウィンドウを利用**：`Ctrl` 2 回連打で開くクイックウィンドウは完全なフォーカスを持つため、すべての IME が正常に動作します。
 
-## 6. ログの確認と Issue の報告
+## 6. データディレクトリ・権限・更新の失敗
+
+- **データディレクトリの移設**：インストーラー版の `%LocalAppData%\Lertaro` やポータブル版の `Data\Users` を、シンボリックリンクまたはジャンクションで別のパーティションへ移すことは可能ですが、リンク先は**ローカルの固定ボリューム**である必要があります。ネットワーク上の場所やリムーバブルボリュームを指すリンクは、起動時に理由を示して拒否されます（[**設定 → バージョン情報**](./settings/about) を参照）。
+- **起動が拒否される：データディレクトリが別の ID に属している**：ユーザーデータディレクトリの所有者が自分のアカウントでない場合、Lertaro は起動を拒否し、まず昇格して修復を試みます。メッセージには**実際の所有者と期待される SID** が表示され、これが診断のすべてです。その修復の各ステップ（タイムアウトで強制終了された場合は、その時点で止まっていたステップ）は `%TEMP%\Lertaro\repair.log` に記録されるので、報告時に添付してください。
+
+フォルダーの所有者が `BUILTIN\Administrators` で、権限はすでに**自分**に FullControl を与えている場合は、所有者だけを元に戻します。以下のスクリプトは `%LOCALAPPDATA%\Lertaro` の範囲内の所有権だけを変更し、権限やファイルの内容には触れません。
+
+```powershell
+$sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+$root = Join-Path $env:LOCALAPPDATA 'Lertaro'
+Get-Item -LiteralPath $root | ForEach-Object {
+    $acl = $_.GetAccessControl('Owner')
+    $acl.SetOwner($sid)
+    $_.SetAccessControl($acl)
+}
+Get-ChildItem -LiteralPath $root -Recurse -Force | ForEach-Object {
+    $acl = $_.GetAccessControl('Owner')
+    $acl.SetOwner($sid)
+    $_.SetAccessControl($acl)
+}
+```
+
+- **前回のサイレント更新が失敗した**：更新プログラムは結論（状態・失敗理由・ロールバック先）をインストール先の隣の `update-result.json` に書き込みます。Lertaro は次回起動時にその理由を一度だけ表示し、同じ結論を繰り返し表示しません。表示が繰り返される場合は、そのファイルを削除するか、新しいバージョンを手動で上書きインストールしてください。
+- **データディレクトリより下のリンクは一律に拒否**：リンクとして解決できるのはデータディレクトリ自身の連鎖だけで、その内部のサブディレクトリはリンクにできません（[**設定 → バージョン情報**](./settings/about) を参照）。
+
+## 7. ログの確認と Issue の報告
 
 上記の手順で解決しない場合は、[**設定 → サービス状態**](./settings/service-status) でログを確認してください。
 

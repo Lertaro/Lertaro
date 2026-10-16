@@ -16,6 +16,28 @@ Lertaro activa la coincidencia difusa (Fuzzy Matching) de forma predeterminada. 
 
 Desactiva esta opción en **Configuración → General → Sistema → Habilitar coincidencia difusa** y los términos de búsqueda simples (sin operadores) requerirán una subcadena continua; `abc` solo coincidirá con nombres que contengan `abc` continuo, ya no con `a-b-c`. Esta opción solo afecta a los términos simples; todos los operadores descritos a continuación mantienen su comportamiento exacto.
 
+### Cómo se ordenan los resultados
+
+Los resultados se ordenan primero por **cómo** aparece el texto en el nombre y solo después por dónde empieza:
+
+1. **Palabra completa**: `atlas` encuentra `atlas`, `code-atlas`, `atlas.png` y `CodeAtlas`. Una palabra empieza al principio del nombre, después de un espacio, `-`, `_`, `.` o un separador de ruta, en un paso de minúscula a mayúscula y donde se juntan letras y dígitos.
+2. **Inicio de palabra**: `atlasing`.
+3. **Dentro de una palabra**: `metatlas.txt`.
+4. **Letras dispersas**: las coincidencias difusas como `AutofillStates` (**A**u**t**ofil**l**St**a**te**s**) siempre van al final.
+
+Dentro de cada grupo:
+
+- Primero va lo creado o modificado **recientemente**, por tramos: hoy, la última semana, el último mes y lo anterior. Cuenta la más reciente de las fechas de creación y modificación, así que un archivo que acabas de copiar o descargar cuenta como nuevo.
+- Después, la **ruta menos profunda**: `D:\dev\code-atlas` va antes que la misma palabra diez carpetas más abajo dentro de la carpeta de un juego o de un paquete.
+- Después, la coincidencia que empieza más a la izquierda y, por último, la más compacta y completa.
+
+Si todo lo demás es igual, un archivo aparece antes que una carpeta (la lista de la carpeta actual en la ventana incrustada mantiene las carpetas primero, como el Explorador). Con varios términos, el término más débil decide el grupo.
+
+En todas las ventanas, hay dos cosas que van antes que todo lo anterior:
+
+1. **Lo que elegiste antes**: abre un resultado y, la próxima vez que escribas el mismo texto, aparecerá arriba del todo. Lo último que elegiste va primero.
+2. **Los elementos recientes de Windows**: archivos y carpetas que abriste hace poco en cualquier aplicación y que coinciden con lo que escribiste.
+
 ### Sin distinción entre mayúsculas y minúsculas (Case Insensitive)
 
 La coincidencia siempre ignora las mayúsculas y minúsculas, en ambos sentidos: las mayúsculas que escribas no cambian lo que coincide, y las del nombre del archivo tampoco. `myfile`, `MyFile` y `MYFILE` coinciden entre sí.
@@ -26,7 +48,7 @@ No existe un modo sensible a mayúsculas: escribir una mayúscula ya no restring
 
 Los nombres en chino se pueden buscar por pinyin, en dos formas: las **iniciales** (una letra por carácter; `ex` para 恶性) y la **lectura completa** (cada sílaba deletreada; `zhengshu` para 证书).
 
-**Orden: posición de la coincidencia > cobertura > inglés > iniciales > pinyin completo.** Primero gana la coincidencia que empieza más a la izquierda; después, la que es más compacta y completa. Inglés, iniciales y pinyin completo solo separan resultados que ya coinciden en ambos criterios, así que una coincidencia en inglés ya no supera automáticamente a una por pinyin: solo lo hace cuando están igual de bien situadas y de ajustadas. La última sílaba puede coincidir a medias, así que `zhengsh` sigue encontrando 证书 mientras terminas de escribir.
+**Orden:** una coincidencia por pinyin cuenta como *inicio de palabra* (consulta «Cómo se ordenan los resultados» más arriba), así que queda por debajo de una palabra completa en inglés y por encima de una coincidencia en inglés dentro de una palabra. Dentro del mismo grupo, el orden es antigüedad > profundidad de la ruta > posición de la coincidencia > cobertura > inglés > iniciales > pinyin completo, así que inglés, iniciales y pinyin completo solo separan resultados que ya coinciden en todo lo demás. La última sílaba puede coincidir a medias, así que `zhengsh` sigue encontrando 证书 mientras terminas de escribir.
 
 **Con la coincidencia difusa desactivada**, las coincidencias por pinyin deben alinearse con el inicio de una sílaba. `ex` encuentra 恶性 (las iniciales de dos caracteres) pero no 学习 (que exigiría empalmar el final de `xue` con el principio de `xi`). Con la coincidencia difusa activada, esa lectura laxa es justo lo que pediste y sigue disponible.
 

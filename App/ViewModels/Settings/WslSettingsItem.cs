@@ -37,9 +37,7 @@ public class WslSettingsItem : ViewModelBase, INetworkRowItem
         {
             if (string.IsNullOrEmpty(value))
             {
-                // WPF's ComboBox transiently pushes SelectedValue=null through this TwoWay binding
-                // while its ItemsSource is being rebuilt (e.g. RefreshModeOptions refreshing labels
-                // on a language change). Reject it and re-raise so the combo re-syncs to the real value.
+                // Reject the transient null WPF's ComboBox pushes here -- see FolderIndexSettingsItem's RefreshMode setter.
                 OnPropertyChanged(nameof(RefreshMode));
                 return;
             }

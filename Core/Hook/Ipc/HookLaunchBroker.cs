@@ -7,7 +7,7 @@ namespace Lertaro.Core.Hook.Ipc;
 // process itself anymore -- every launch (elevated or not) is asked of the already-running --service
 // instance over IPC (see HookProcessBroker on the Service side), so there's no App-side "runas" UAC
 // fallback left to trigger. If the Service is unreachable (not installed, still starting up after
-// login/boot, etc.) this just returns null; HookIpcClient's own RunLoop already retries every 5s.
+// login/boot, etc.) this just returns null; HookIpcClient's own RunLoop retries with a backoff.
 internal sealed class HookLaunchBroker : IDisposable
 {
     private readonly SearchService _searchService = new();
@@ -21,8 +21,8 @@ internal sealed class HookLaunchBroker : IDisposable
             {
                 if (!string.IsNullOrEmpty(error))
                 {
-                    // The hook launch is retried every 5s by HookIpcClient, so a batch of these is
-                    // expected while the service is still coming up on boot; downgrade to Debug
+                    // The hook launch is retried on a backing-off delay by HookIpcClient, so a batch of these
+                    // is expected while the service is still coming up on boot; downgrade to Debug
                     // inside the cold-start window and keep real failures afterwards visible.
                     var level = ServicePipeReadinessGate.Instance.IsColdStart(Environment.TickCount64)
                         ? LogLevel.Debug

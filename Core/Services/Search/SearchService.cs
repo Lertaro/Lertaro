@@ -19,10 +19,8 @@ public class SearchService : IDisposable
 
     public Task<bool> PingAsync(CancellationToken token = default) => _pipeClient.PingAsync(token);
 
-    // Asks the already-running --service instance to spawn the hook process directly into this caller's
-    // own session (see HookProcessBroker) -- the App itself never launches the hook process anymore, so
-    // it never has a "runas" UAC prompt of its own to show. requestElevation is only honored server-side
-    // when that session's user is genuinely an administrator; otherwise it just launches non-elevated.
+    // Asks the running service to launch the hook process into this caller's session. See SearchPipeClient's
+    // method of the same name for the elevation semantics.
     public Task<(bool Ok, int Pid, string? Error)> RequestHookLaunchAsync(bool requestElevation, CancellationToken token = default)
         => _pipeClient.RequestHookLaunchAsync(requestElevation, token);
 
@@ -31,9 +29,7 @@ public class SearchService : IDisposable
     public Task<(bool Ok, string? Error)> RequestApplyUpdateAsync(string sourceDir, CancellationToken token = default)
         => _pipeClient.RequestApplyUpdateAsync(sourceDir, token);
 
-    // Fire-and-forget, called whenever a search window closes/hides (mirrors ShellIconHelper.ClearCache()'s
-    // existing trigger points) -- gives back the local drives' per-row full-path memo, which otherwise
-    // only self-clears once it crosses its own high backstop threshold (see PathQueryExtensions).
+    // Fire-and-forget cache clear, forwarded to the pipe client -- see SearchPipeClient's method of the same name.
     public Task ClearPathCachesAsync(CancellationToken token = default) => _pipeClient.ClearPathCachesAsync(token);
 
     // bypassExclusions: opts this one search out of ExcludedPaths/IgnoredPathGlobs/IgnoredPathRegexes

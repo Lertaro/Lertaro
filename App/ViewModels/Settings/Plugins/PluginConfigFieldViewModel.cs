@@ -15,6 +15,7 @@ public class PluginConfigFieldViewModel : ViewModelBase
     private object? _localValueStore;
 
     public string PluginId { get; }
+    public string PluginVersion { get; }
     public PluginConfigField SchemaField { get; }
     public UserSettings Settings { get; }
 
@@ -89,6 +90,11 @@ public class PluginConfigFieldViewModel : ViewModelBase
     // list of strings/numbers/bools) render as a single-column compact list -- neither currently
     // occurs without the other, but a plugin's schema decides which at declaration time.
     public bool IsObjectArray => IsArray && SchemaField.SubFields is { Count: > 0 };
+    public bool SupportsEntryTransfer => !HasValueChangedCallback && !string.IsNullOrEmpty(PluginVersion)
+        && PluginConfigEntryTransfer.IsSupported(SchemaField);
+    public bool CanExportEntry => SupportsEntryTransfer && SelectedArrayItem != null;
+    internal byte[] ExportEntry() => _arraySupport.ExportEntry();
+    internal string ImportEntry(ReadOnlyMemory<byte> json) => _arraySupport.ImportEntry(json);
     public bool IsScalarArray => IsArray && !IsObjectArray;
     public bool IsObject => FieldType == ConfigFieldType.Object;
     public bool IsGroup => FieldType == ConfigFieldType.Group;
@@ -189,7 +195,10 @@ public class PluginConfigFieldViewModel : ViewModelBase
     public PluginConfigArrayItemViewModel? SelectedArrayItem
     {
         get => _selectedArrayItem;
-        set => SetProperty(ref _selectedArrayItem, value);
+        set
+        {
+            if (SetProperty(ref _selectedArrayItem, value)) OnPropertyChanged(nameof(CanExportEntry));
+        }
     }
 
     public ICommand AddCommand { get; }
@@ -262,9 +271,10 @@ public class PluginConfigFieldViewModel : ViewModelBase
         }
     }
 
-    public PluginConfigFieldViewModel(string pluginId, PluginConfigField field, UserSettings settings, Action? onValueChanged = null)
+    public PluginConfigFieldViewModel(string pluginId, PluginConfigField field, UserSettings settings, Action? onValueChanged = null, string pluginVersion = "")
     {
         PluginId = pluginId;
+        PluginVersion = pluginVersion;
         SchemaField = field;
         Settings = settings;
         _onValueChanged = onValueChanged;

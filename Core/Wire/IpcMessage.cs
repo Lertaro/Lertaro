@@ -7,7 +7,7 @@ public enum IpcMessageId : byte
     SetAppProcessId = 2,
     SetQuickSearchVisible = 3,
     SetInlineSearchVisible = 4,
-    NavigateDialog = 5,
+    NavigateDialog = 5, // BoolVal: restore dialog focus before navigating (favorite hotkeys).
     RestoreDialogFocus = 6,
     ReloadSettings = 7,
     SetHotkeysDisabled = 8,
@@ -22,7 +22,7 @@ public enum IpcMessageId : byte
     SetInlineWindowOnScreen = 18,
     RequestOpenedFolders = 19,
 
-    // App -> Hook
+    // Hook -> App
     Activate = 20,
     ExplorerDeactivated = 21,
     ActiveWindowMoved = 22,
@@ -57,7 +57,7 @@ public enum IpcMessageId : byte
     // integrity level, and that needs SeAssignPrimaryTokenPrivilege, which the Hook's token does not hold.
     // The App is already at the user's level, so it runs the tool instead and reports back.
     //   Hook -> App  RunTool:    StringVal1 = output file, StringVal2 = tool path
-    //   App -> Hook  ToolResult: BoolVal = started, IntVal = process id, StringVal1 = failure reason
+    //   App -> Hook  ToolResult: BoolVal = started, IntVal = process id, StringVal1 = output file
     RunTool = 43,
     ToolResult = 44,
 
@@ -66,7 +66,11 @@ public enum IpcMessageId : byte
     // file -- it has to ask. Carries nothing, and like every other command here is only reachable by the
     // App the hook actually launched (see HookPipePeer).
     ClearHookLog = 46,
-    LocateInlineItem = 47
+    LocateInlineItem = 47,
+    // App -> Hook: tear the low-level hooks down and put them back up. Windows drops such a hook silently
+    // once its callback overruns the hook timeout, and the returned handle stays valid, so nothing on the
+    // hook side can tell a dropped hook from an installed one. Carries nothing.
+    RearmHooks = 48
 }
 
 public struct IpcMessage

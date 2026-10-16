@@ -54,10 +54,20 @@ public sealed class ContentSearchDatabase : IDisposable
         _connectionString = builder.ToString();
     }
 
-    private SqliteConnection OpenConnection()
+    internal SqliteConnection OpenConnection()
     {
         var conn = new SqliteConnection(_connectionString);
         conn.Open();
+        // Per-connection, so it belongs here and not in InitializeSchema: the full-scan retention pass creates
+        // a TEMP TABLE, and SQLite files that under %TEMP% -- a directory a reduced-integrity process cannot
+        // write, which surfaced as "unable to open database file" with nothing pointing at the temp dir.
+        // ponytail: costs RAM equal to the deletion candidate list; if a scan ever needs more than that,
+        // the fix is a keyed table in the main db rather than a larger temp_store.
+        using (var tempStoreCmd = conn.CreateCommand())
+        {
+            tempStoreCmd.CommandText = "PRAGMA temp_store = MEMORY;";
+            tempStoreCmd.ExecuteNonQuery();
+        }
         return conn;
     }
 
@@ -143,8 +153,8 @@ public sealed class ContentSearchDatabase : IDisposable
     }
 
     /// <summary>
-    /// Runs VACUUM when a large share of the database is free pages left over from
-    /// deleted rows, reclaiming the file space. Cheap no-op on a compact database.
+    /// Opens a connection and delegates to <see cref="DatabaseMaintenanceHelper.VacuumIfBloat"/>,
+    /// which documents the vacuum-when-bloated behaviour.
     /// </summary>
     public void VacuumIfBloat(double maxFreeRatio = 0.3)
     {
@@ -234,7 +244,7 @@ public sealed class ContentSearchDatabase : IDisposable
     /// A failure partway is logged and ends the enumeration rather than throwing at the caller, exactly as
     /// <see cref="SearchFts"/> collected the partial answer: hits already yielded are real matches and stay
     /// with whoever took them.
-    /// </summary>
+    /// </remarks>
     public IEnumerable<SearchHitItem> SearchFtsStreamed(string rawQuery, int limit)
     {
         if (string.IsNullOrWhiteSpace(rawQuery) || limit <= 0 || !File.Exists(_dbPath))

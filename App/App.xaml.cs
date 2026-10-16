@@ -18,6 +18,7 @@ using Lertaro.Core.Services.Installation;
 using Lertaro.Core.Services;
 using Application = System.Windows.Application;
 namespace Lertaro.App;
+
 public partial class App : Application
 {
     // Set before InitializeComponent creates controls, including plugin content and popup controls.
@@ -98,7 +99,11 @@ public partial class App : Application
         try { _settingsSession = SettingsTransferRestart.StartSession(e.Args, out transferMessage); }
         catch (Exception ex)
         {
-            System.Windows.MessageBox.Show($"Settings transfer could not complete. No plugins were started.\n配置传输未完成，插件尚未启动。请关闭其他 Lertaro 实例后重试。\n\n{ex.Message}", "Lertaro",
+            // Logged before the box. This catch used to say nothing at all and show one hardcoded sentence
+            // about other instances, so a data folder that had merely been relocated to another drive was
+            // reported as a settings transfer in progress -- and left no trace to contradict it.
+            Logger.Log($"[App] The settings session could not be started (data={Logger.UserDataDir}): {ex}", LogLevel.Error);
+            System.Windows.MessageBox.Show(SettingsStartupFailure.Describe(ex), "Lertaro",
                 MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
             return;
@@ -176,6 +181,9 @@ public partial class App : Application
         HookClient.OnQuickNavigationHotkey += () => Dispatcher.BeginInvoke(
             new Action(QuickNavigationMenu.ShowFromKeyboard));
         HookClient.Start();
+        // Subscribed here rather than at first use: a hook dropped during a sleep has to be noticed by the
+        // very next resume, and the launcher spends its life hidden.
+        Services.HookResumeWatcher.EnsureWatching();
         // Set up the quick panel. Built here rather than lazily on the first hotkey so the handler above always
         // has something to call; it creates no window of its own until it is first opened.
         _quickPanelManager = new Services.QuickPanel.QuickPanelManager();
@@ -291,6 +299,7 @@ public partial class App : Application
                 : settings.Theme;
             ThemeManager.Instance.Initialize(startupThemeId);
             ThemeManager.Instance.InitializeSystemFollow();
+            ThemeManager.Instance.ThemeChanged += ThemedWindowIconHelper.RepaintBrandMarks;
             Logger.Log($"[App] ThemeManager initialized with theme: {startupThemeId}");
         }
         catch (Exception ex)
@@ -333,6 +342,9 @@ public partial class App : Application
         Helpers.LocalSend.LocalSendAppEventHandler.Initialize(settings);
         if (transferMessage != null)
             _ = Dispatcher.BeginInvoke(new Action(() => Views.Controls.Dialogs.CustomMessageBox.Show(transferMessage, "Lertaro", MessageBoxButton.OK, MessageBoxImage.Information)));
+        // Nothing before this line may fail quietly, and the window alone was not enough to say the start
+        // worked: LocalSend's identity is built after Show() and it is exactly where a reduced token dies.
+        _dispatcherExceptionHandler.StartupCompleted = true;
     }
 
     public static void HideInlineSearch() => InlineSearchManager.Instance.CloseInlineSearch();
@@ -356,6 +368,7 @@ public partial class App : Application
         Services.Notifications.NotificationService.Shutdown();
         _favoriteHotkeys?.Dispose(); _favoriteHotkeys = null;
         foreach (var provider in PluginManager.Instance.AllSearchScopeProviders.OfType<IDisposable>()) provider.Dispose();
+        Services.HookResumeWatcher.StopWatching();
         HookClient?.Stop(); HookClient?.Dispose(); HookClient = null;
         AppPipeService.StopServer(); AppSearchPipeService.StopServer(); Services.Everything.EverythingServiceBootstrapper.Stop(); InlineSearchManager.Instance.Dispose(); CloseAllManagedWindows();
         if (_appMutex != null) { try { _appMutex.ReleaseMutex(); } catch { } _appMutex.Dispose(); }
