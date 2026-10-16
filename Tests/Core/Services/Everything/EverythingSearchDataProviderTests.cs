@@ -1,3 +1,4 @@
+using Lertaro.Core.IndexV2.Space;
 using Lertaro.Core.Services.Everything;
 using Lertaro.Core.Services.Search;
 
@@ -44,28 +45,34 @@ public class EverythingSearchDataProviderTests
         Assert.AreEqual(9u, provider.GetRunCount(alreadyStored), "an entry already in the map is still updated");
     }
 
+    // The answers a folder-size client can get, decided by the index rows rather than by this machine. The
+    // provider's query path itself cannot run here: it reads the index through the elevated service's pipe,
+    // and with the service stopped the connect times out -- which reached this test as "The operation has
+    // timed out." instead of as "the folder is not indexed". EverythingQueryParserTests covers the query
+    // string that routes here (a quoted path with a trailing separator).
     [TestMethod]
-    public async Task QueryFolderSubtree_UnindexedFolder_ReturnsEmptyResult()
+    public void AnswerFolderSubtreeSize_UnindexedFolder_AnswersNothing()
     {
-        using var searchService = new SearchService();
-        var provider = new EverythingSearchDataProvider(searchService);
-
-        var request = new EverythingQueryRequest(
-            ReplyHwnd: IntPtr.Zero,
-            ReplyCopyDataMessage: 0,
-            SearchFlags: 0,
-            Offset: 0,
-            MaxResults: 100,
-            RequestFlags: 0x110,
-            SortType: 0,
-            SearchString: @"""Z:\NonExistentDriveXYZ\""",
-            IsUnicode: true,
-            IsQuery2: true);
-
-        var result = await provider.ExecuteQueryAsync(request);
+        var result = EverythingSearchDataProvider.AnswerFolderSubtreeSize(@"Z:\NonExistentDriveXYZ\", []);
 
         Assert.AreEqual(0u, result.TotalItems);
         Assert.IsEmpty(result.Items);
+    }
+
+    [TestMethod]
+    public void AnswerFolderSubtreeSize_IndexedFolder_AnswersOneRowWithItsWholeSubtreeSize()
+    {
+        var result = EverythingSearchDataProvider.AnswerFolderSubtreeSize(@"C:\Projects\atlas\",
+        [
+            new SpaceIndexEntry(@"C:\Projects\atlas\report.docx", "report.docx", 1024, false, false),
+            new SpaceIndexEntry(@"C:\Projects\atlas\raw\photo.png", "photo.png", 2048, false, false),
+        ]);
+
+        var item = Assert.ContainsSingle(result.Items);
+        Assert.AreEqual(1u, result.TotalItems);
+        Assert.AreEqual("atlas", item.FileName);
+        Assert.AreEqual(@"C:\Projects", item.Path);
+        Assert.AreEqual(3072L, item.Size, "the row carries the subtree's total, not one entry's size");
     }
 
     [TestMethod]
