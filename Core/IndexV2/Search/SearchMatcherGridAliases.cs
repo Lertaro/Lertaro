@@ -53,7 +53,9 @@ internal static class SearchMatcherGridAliases
             return false;
         }
 
-        return TryMatchPayload(pattern, pattern.GetTotalTermLength(), sink.Segment(0), provider.SyllableSeparator, slab, gate, out match);
+        // `text` is the candidate's own name here -- it is what those readings were encoded from -- so it is
+        // also what the query's name-level clauses are checked against.
+        return TryMatchPayload(pattern, pattern.GetTotalTermLength(), sink.Segment(0), provider.SyllableSeparator, slab, gate, text, out match);
     }
 
     /// <summary>
