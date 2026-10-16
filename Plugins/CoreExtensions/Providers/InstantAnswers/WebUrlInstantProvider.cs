@@ -1,12 +1,13 @@
 using System.Text.RegularExpressions;
 using Lertaro.PluginSdk.Abstractions.Plugins;
+using Lertaro.PluginSdk.Helpers;
 using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.CoreExtensions.Providers.InstantAnswers;
 
 /// <summary>
 /// Recognizes explicit web addresses and protocol-less domains typed or pasted into the search box,
-/// offering browser actions for the detected URL variants.
+/// offering browser actions for the detected URL variants and a ping of their host.
 /// </summary>
 public class WebUrlInstantProvider : IInstantResultProvider
 {
@@ -53,6 +54,10 @@ public class WebUrlInstantProvider : IInstantResultProvider
     // Globe icon.
     private const string GlobeIcon = "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z";
 
+    // Hand-drawn uppercase "P" for the ping row: stem plus bowl, with the counter as a second
+    // subpath. Both run the same way round, so the hole only exists because F0 forces even-odd.
+    private const string PingIcon = "F0 M5 3H14C16.76 3 19 5.24 19 8V11C19 13.76 16.76 16 14 16H9V21H5zM9 7H14C14.55 7 15 7.45 15 8V11C15 11.55 14.55 12 14 12H9z";
+
     public IEnumerable<InstantResultItem> GetInstantResults(string query)
     {
         var normalizedQuery = query.Trim();
@@ -60,6 +65,7 @@ public class WebUrlInstantProvider : IInstantResultProvider
         if (explicitUrl != null)
         {
             yield return CreateResult(explicitUrl);
+            if (CreatePingResult(explicitUrl) is { } explicitPing) yield return explicitPing;
             yield break;
         }
 
@@ -68,6 +74,7 @@ public class WebUrlInstantProvider : IInstantResultProvider
 
         yield return CreateResult(httpsUrl);
         yield return CreateResult(httpUrl);
+        if (CreatePingResult(httpsUrl) is { } barePing) yield return barePing;
     }
 
     private static InstantResultItem CreateResult(string url) => new()
@@ -80,6 +87,31 @@ public class WebUrlInstantProvider : IInstantResultProvider
         ActionArgument = url,
         TabCompletion = url
     };
+
+    /// <summary>
+    /// Builds the ping row for a URL, or null when no host can be taken from it. Uri supplies the bare
+    /// host -- scheme, userinfo, port, path, query and fragment are already gone, an IPv6 literal comes
+    /// out without its brackets (which is what ping.exe takes), and IdnHost gives the punycode an
+    /// internationalised domain needs.
+    /// </summary>
+    private static InstantResultItem? CreatePingResult(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || string.IsNullOrEmpty(uri.IdnHost))
+            return null;
+
+        var command = $"ping {uri.IdnHost}";
+        return new InstantResultItem
+        {
+            Title = command,
+            Description = TranslationService.Get("WebUrl_PingHint"),
+            IconData = PingIcon,
+            IconColor = "AccentBlue",
+            ActionType = "Execute",
+            // Launched instead of handed to the host as a command line, because the host would open a
+            // console that closes the moment ping is done -- an interpreter stays up with the answers in it.
+            OnExecute = () => ShellCommandLauncher.Launch(command, CommandSettings.Shell)
+        };
+    }
 
     /// <summary>Returns the URL for an explicit http/https query, else null.</summary>
     private static string? TryGetExplicitUrl(string query)
