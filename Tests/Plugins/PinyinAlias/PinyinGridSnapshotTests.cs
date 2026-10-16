@@ -121,4 +121,33 @@ public sealed class PinyinGridSnapshotTests
             SearchContext.FuzzyMatchEnabled = previous;
         }
     }
+
+    [TestMethod]
+    public void TwoTerms_NeedingDifferentReadingsOfOneCharacter_AgreeOnBothOrders()
+    {
+        // Reported: 屏 reads bing and ping, so "pmjtmske" needs its p while "bj" needs a b -- two terms
+        // reaching for the same character. The per-set merge let whichever term ran last rewrite position 0,
+        // and the one spelling they share then held no 'p' at all: the answer depended on the order the terms
+        // were typed, while the matcher asks each term independently and never mentions order.
+        const string Name = "屏幕截图滚动截图截屏录屏扫描标记ocr马赛克翻译.txt";
+        using var fixture = new RealIndexFixture(Name);
+        var previous = SearchContext.FuzzyMatchEnabled;
+        try
+        {
+            foreach (var query in new[] { "pmjtmske bj", "bj pmjtmske", "pmjt bj", "bj pmjt", "pmjt mske bj", "bj mske pmjt" })
+            {
+                SearchContext.FuzzyMatchEnabled = false;
+                CollectionAssert.Contains(fixture.Search(query), Name, $"'{query}' must reach the file");
+                Assert.IsTrue(FuzzyMatcher.IsMatch(query, Name), $"'{query}' must reach it through the seam too");
+                Assert.IsTrue(fixture.HighlightedIndices(Name, query).Count > 0, $"'{query}' must light something");
+
+                SearchContext.FuzzyMatchEnabled = true;
+                CollectionAssert.Contains(fixture.Search(query), Name, $"'{query}' must reach the file with fuzzy matching on");
+            }
+        }
+        finally
+        {
+            SearchContext.FuzzyMatchEnabled = previous;
+        }
+    }
 }

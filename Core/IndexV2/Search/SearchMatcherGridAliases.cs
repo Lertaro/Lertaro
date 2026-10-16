@@ -21,10 +21,11 @@ namespace Lertaro.Core.IndexV2.Search;
 // while a term of pure initials keeps the shared bar -- see IsAcceptableGridWitness. It keeps the
 // alignment rule out entirely: the witness already came out of the readings.
 //
-// ponytail: the witness is built per term set independently and merged, so a multi-term query whose
-// terms need conflicting readings at the same position can lose a match it would have had. Measured
-// ceiling: queries with several space-separated terms over a polyphonic name. Upgrade path is a joint
-// walk over (position, per-set progress) instead of one set at a time.
+// ponytail: the first witness is built per term set and merged, so a multi-term query whose sets need
+// conflicting readings of one character loses that merge -- the retry (AliasGridJointMatcher) answers it
+// with one choice for all sets, but declines a query holding a precise operator, a set whose alternatives
+// are not the same letters, and shapes past its cell budget; those keep the merge's ceiling. Upgrade path
+// is that same joint walk covering those shapes too, instead of a second strategy per tier.
 internal static class SearchMatcherGridAliases
 {
     [ThreadStatic] private static AliasGridFormat.Index? _grid;
@@ -234,63 +235,131 @@ internal static class SearchMatcherGridAliases
         Span<AliasGridTier> tiers = stackalloc[] { AliasGridTier.Initials, AliasGridTier.Full };
         foreach (var tier in tiers)
         {
+            // The per-set merge first: it is the cheap walk and it answers almost everything. A set that
+            // witnesses nowhere cannot witness inside a shared choice either, so a tier that refuses here
+            // refuses for good.
             if (!BuildWitness(grid, pattern, separator, tier, choice, out var spellsAReading))
                 continue;
 
-            var length = AliasGridMatcher.Measure(grid, tier, choice);
-            if (length == 0)
+            var outcome = TryScoreWitness(grid, tier, separator, choice, pattern, queryLen, slab, gate, spellsAReading, out var scored);
+
+            // The sets witnessed, and the one spelling they merged into matches none of them: they needed
+            // different readings of the same character, and whichever set was merged last decided what that
+            // spelling said. One choice for all sets at once is the witness the merge cannot produce. Only
+            // the matcher's own refusal earns that walk -- a spelling the quality bar refused is refused
+            // whoever produced it, and this is the hot tail of every scan.
+            if (outcome == WitnessScore.NoMatch
+                && JointWitness(grid, pattern, separator, tier, choice, out var jointSpelling)
+                && TryScoreWitness(grid, tier, separator, choice, pattern, queryLen, slab, gate, jointSpelling, out scored) == WitnessScore.Accepted)
+                outcome = WitnessScore.Accepted;
+
+            if (outcome != WitnessScore.Accepted)
                 continue;
 
-            // The reading DP above already decided the match; what runs here only scores the spelling that
-            // decision chose. A pinyin spelling is ASCII, and for ASCII the byte engine answers the same
-            // match at the same offsets with nothing to decode (see FzfByteMatcher), so materializing
-            // straight into bytes replaces "build a char array, then run the char engine over it" with one
-            // pass. An empty alias below is a shape verdict, not a miss: the spelling holds a code unit that
-            // is not ASCII -- a character the provider passed through untransliterated -- so the char lane
-            // stays the one that decides it. A caller with no slab to score against has nowhere to match
-            // bytes either, and takes that same lane.
-            if (slab is { } scoringSlab)
-            {
-                var byteAlias = TryMaterializeBytes(grid, tier, separator, choice, length);
-                if (!byteAlias.IsEmpty)
-                {
-                    if (!pattern.ByteView.TryMatchSegmented(byteAlias, out var byteMatch, FzfScoringScheme.Default, scoringSlab, _byteBuffers ??= new FzfByteBuffers()))
-                        continue;
-
-                    // No syllable-alignment check here: the witness came out of the readings themselves, and
-                    // AliasGridMatcher already refused every piece that would start inside one of them. Asking
-                    // AliasMatchRules again could only refuse a spelling the readings DO produce, because that
-                    // rule reads the first occurrence fzf scored rather than the one the readings chose.
-                    if (gate && !IsAcceptableWitness(pattern, byteMatch, queryLen, spellsAReading, byteAlias, scoringSlab))
-                        continue;
-
-                    if (!matched || byteMatch.Score > match.Score)
-                    {
-                        matched = true;
-                        match = byteMatch;
-                    }
-                    continue;
-                }
-            }
-
-            if (_materialized == null || _materialized.Length < length)
-                _materialized = new char[Math.Max(length, 64)];
-
-            var chars = AliasGridMatcher.Materialize(grid, tier, separator, choice, _materialized);
-            var text = _materialized.AsSpan(0, chars);
-            if (!pattern.TryMatch(text, out var aliasMatch, FzfScoringScheme.Default, slab))
-                continue;
-
-            if (gate && !IsAcceptableWitness(pattern, aliasMatch, queryLen, spellsAReading, text, slab))
-                continue;
-            if (!matched || aliasMatch.Score > match.Score)
+            if (!matched || scored.Score > match.Score)
             {
                 matched = true;
-                match = aliasMatch;
+                match = scored;
             }
         }
 
         return matched;
+    }
+
+    // Whether a witness's spelling decided the row: matched and allowed, matched and refused by the quality
+    // bar, or not matched at all. The third is the only one a second witness can help with.
+    private enum WitnessScore
+    {
+        Accepted,
+        RefusedByBar,
+        NoMatch,
+    }
+
+    // Materializes the witness this tier's reading choice made and hands it to the matcher, the quality bar
+    // and the weighting -- the same pipeline a baked string alias goes through, so the whole-pattern verdict
+    // (exclusions, AND across terms) is made there rather than re-implemented here.
+    private static WitnessScore TryScoreWitness(
+        AliasGridFormat.Index grid,
+        AliasGridTier tier,
+        char separator,
+        byte[] choice,
+        FzfPattern pattern,
+        int queryLen,
+        FzfSlab? slab,
+        bool gate,
+        bool spellsAReading,
+        out FzfPatternResult match)
+    {
+        match = default;
+
+        var length = AliasGridMatcher.Measure(grid, tier, choice);
+        if (length == 0)
+            return WitnessScore.NoMatch;
+
+        // The reading walk above already decided the match; what runs here only scores the spelling that
+        // decision chose. A pinyin spelling is ASCII, and for ASCII the byte engine answers the same match at
+        // the same offsets with nothing to decode (see FzfByteMatcher), so materializing straight into bytes
+        // replaces "build a char array, then run the char engine over it" with one pass. An empty alias below
+        // is a shape verdict, not a miss: the spelling holds a code unit that is not ASCII -- a character the
+        // provider passed through untransliterated -- so the char lane stays the one that decides it. A
+        // caller with no slab to score against has nowhere to match bytes either, and takes that same lane.
+        if (slab is { } scoringSlab)
+        {
+            var byteAlias = TryMaterializeBytes(grid, tier, separator, choice, length);
+            if (!byteAlias.IsEmpty)
+            {
+                // No syllable-alignment check here: the witness came out of the readings themselves, and
+                // AliasGridMatcher already refused every piece that would start inside one of them. Asking
+                // AliasMatchRules again could only refuse a spelling the readings DO produce, because that
+                // rule reads the first occurrence fzf scored rather than the one the readings chose.
+                if (!pattern.ByteView.TryMatchSegmented(byteAlias, out var byteMatch, FzfScoringScheme.Default, scoringSlab, _byteBuffers ??= new FzfByteBuffers()))
+                    return WitnessScore.NoMatch;
+                if (gate && !IsAcceptableWitness(pattern, byteMatch, queryLen, spellsAReading, byteAlias, scoringSlab))
+                    return WitnessScore.RefusedByBar;
+
+                match = byteMatch;
+                return WitnessScore.Accepted;
+            }
+        }
+
+        if (_materialized == null || _materialized.Length < length)
+            _materialized = new char[Math.Max(length, 64)];
+
+        var chars = AliasGridMatcher.Materialize(grid, tier, separator, choice, _materialized);
+        var text = _materialized.AsSpan(0, chars);
+        if (!pattern.TryMatch(text, out var aliasMatch, FzfScoringScheme.Default, slab))
+            return WitnessScore.NoMatch;
+        if (gate && !IsAcceptableWitness(pattern, aliasMatch, queryLen, spellsAReading, text, slab))
+            return WitnessScore.RefusedByBar;
+
+        match = aliasMatch;
+        return WitnessScore.Accepted;
+    }
+
+    // The same question one step further: ONE reading choice that satisfies every set at once, for the
+    // queries whose sets need different readings of the same character. See AliasGridJointMatcher, which also
+    // reports the spelling flag the merge computes from its own walks.
+    private static bool JointWitness(
+        AliasGridFormat.Index grid,
+        FzfPattern pattern,
+        char separator,
+        AliasGridTier tier,
+        byte[] choice,
+        out bool spellsAReading)
+    {
+        // The merge left its own choice behind; this walk answers from the provider's first readings.
+        Array.Clear(choice, 0, grid.PositionCount);
+
+        spellsAReading = false;
+        if (pattern.OrGroups == null)
+            return AliasGridJointMatcher.TryMatchSets(grid, pattern.TermSets, separator, tier, choice, out spellsAReading);
+
+        foreach (var group in pattern.OrGroups)
+        {
+            if (AliasGridJointMatcher.TryMatchSets(grid, group.Sets, separator, tier, choice, out spellsAReading))
+                return true;
+        }
+        return false;
     }
 
     // One reading choice per position satisfying every positive term set, or false when some set has no

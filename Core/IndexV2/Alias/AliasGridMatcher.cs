@@ -326,7 +326,7 @@ internal static class AliasGridMatcher
         return true;
     }
 
-    private static ReadOnlySpan<char> StripSeparator(ReadOnlySpan<char> term, char separator)
+    internal static ReadOnlySpan<char> StripSeparator(ReadOnlySpan<char> term, char separator)
     {
         if (separator == '\0' || term.IndexOf(separator) < 0)
             return term;
