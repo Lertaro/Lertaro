@@ -113,10 +113,18 @@ public class ExplorerTracker : IDisposable
             if (!string.IsNullOrEmpty(sameProcess.Path)) return sameProcess.Path;
         }
 
+        // Fork rule: the folder the user was actually working in -- what the file manager showed when the dialog
+        // opened -- outranks the provider list. That list is ordered by which window was activated last, and a
+        // dialog's provider history often still leads with an older window, so list-first sent Ctrl+G to the
+        // previously activated file manager instead of the current one. The list stays as the fallback for what
+        // the memory cannot serve (no file manager seen since this Hook started).
+        if (!string.IsNullOrEmpty(_dialogTracker.LastActiveExplorerPath))
+            return _dialogTracker.LastActiveExplorerPath;
+
         foreach (var entry in _pathProviders)
             if (!string.IsNullOrEmpty(entry.Path)) return entry.Path;
 
-        return _dialogTracker.LastActiveExplorerPath;
+        return null;
     }
 
     // Publishes the provider's folder as the last browsed path, which is what the App's mirror tracker turns
@@ -126,6 +134,25 @@ public class ExplorerTracker : IDisposable
     {
         if (!string.IsNullOrEmpty(path)) RaisePathCaptured(path, false, false);
     }
+    // Fork members: the file manager window whose folder Ctrl+G lands on, remembered while it is the active
+    // window (that is when its scope is still readable). Upstream tracks the same thing as a provider list;
+    // these stay so the fork's Quick Switch implementation keeps working alongside it.
+    public PluginSdk.Abstractions.Plugins.WindowAdapters.IInlineSearchAdapter? LastPathProviderAdapter { get; private set; }
+
+    public IntPtr LastPathProviderHwnd { get; private set; }
+
+    public void UpdatePathProviderScope(string? path)
+    {
+        if (!string.IsNullOrEmpty(path)) _dialogTracker.SetLastActiveExplorerPath(path);
+    }
+
+    public void RememberPathProvider(PluginSdk.Abstractions.Plugins.WindowAdapters.IInlineSearchAdapter? adapter, IntPtr hwnd)
+    {
+        if (adapter == null || hwnd == IntPtr.Zero || !adapter.IsFileExplorer) return;
+        LastPathProviderAdapter = adapter;
+        LastPathProviderHwnd = hwnd;
+    }
+
     public string? LastActiveExplorerClassName { get; set; }
     public string? LastActiveExplorerWindowTitle { get; set; }
     public bool IsExplorerOrDesktopActive { get; set; }

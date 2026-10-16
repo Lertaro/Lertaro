@@ -58,6 +58,29 @@ public static class SearchResultMapper
     // silently drops the token's real matches whenever they don't also happen to be in the top ~50 by
     // plain filename weight (e.g. a common substring like "1080" already fills that cap with unrelated
     // files before the directory filter gets a chance to run at all).
+    // The history snapshot and the instant-pass candidates move only when the user opens something, edits a
+    // favorite or installs an app -- but they were rebuilt for EVERY search, and that rebuild is the one-time
+    // cost that makes a repeated search feel like it hitches instead of opening instantly. Held across searches
+    // for a short window instead. (Re-applied: the v5.9.6 merge replaced this file and dropped it.)
+    // ponytail: a 1 s lifetime, not invalidation hooks. Ceiling: a just-opened item can be a second late in
+    // gaining its history priority. Upgrade path: bump a version counter in SearchHistoryStore and compare here.
+    private static IReadOnlyDictionary<string, int>? _recentHistory;
+    private static long _recentHistoryAt;
+    private const long RecentPassLifetimeMs = 1000;
+
+
+    private static IReadOnlyDictionary<string, int> RecentHistory()
+    {
+        var now = Environment.TickCount64;
+        if (_recentHistory == null || now - _recentHistoryAt > RecentPassLifetimeMs)
+        {
+            _recentHistory = SearchHistoryStore.Snapshot();
+            _recentHistoryAt = now;
+        }
+
+        return _recentHistory;
+    }
+
     internal static List<AppSearchResult> BuildQuickResults(List<SearchResult>? fileResults, string query, string? scope, string? contextDirectory, bool isInlineWindow, string? rawQuery = null, bool skipDisplayCap = false, FileFilterScopeDirective? fileFilterScope = null, bool folderScope = false, InstantPassCache? instantPass = null)
     {
         var uiResults = new List<AppSearchResult>();
@@ -93,7 +116,7 @@ public static class SearchResultMapper
             SearchResultHelper.IsPathInsideScope(normalizedPath, f)
             && !string.Equals(normalizedPath, f, StringComparison.OrdinalIgnoreCase));
 
-        var historySnapshot = SearchHistoryStore.Snapshot();
+        var historySnapshot = RecentHistory();
 
         // Quick-window-only: a user-orderable hard tier between history priority and match-quality
         // weight (RankedCandidate.TypeRank) -- lets e.g. Applications always outrank Files regardless

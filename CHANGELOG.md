@@ -5,6 +5,28 @@
 符号：* 核心功能　+ 小功能添加　# 修复。只写"改了什么"。
 -->
 
+## v5.9.6.1
+
+## 更新内容
+
+```
+* 合并上游 v5.9.6（拼音简拼与全拼混搜、Everything 目录大小性能、搜索排序与提示、设置与权限修复）
++ 左侧优先恢复为排序的首要匹配键（上游新增的形状、时间、深度不再抢先）
+# Ctrl+G 恢复记忆优先：跳到当前在用的文件管理器目录，桌面不算文件管理器
++ 自动更新只检查本仓库的发行
++ 保留鼠标平滑滚动
+```
+
+## What's changed
+
+```
+* Merged upstream v5.9.6 (mixed pinyin abbreviations and full readings, Everything folder-size performance, search ranking and tips, settings and permissions fixes)
++ Left-side match priority leads the ladder again (upstream's shape, recency and depth keys no longer outrank it)
+# Quick Switch prefers the folder you were working in, and the desktop is not a file manager
++ Auto-update only checks this repository's releases
++ Keeps the smooth wheel scrolling
+```
+
 ## v5.9.1.7
 
 ## 更新内容
