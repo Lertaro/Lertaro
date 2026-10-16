@@ -13,10 +13,12 @@ namespace Lertaro.Core.IndexV2.Search;
 // The shape of this tier is deliberate and narrow. It only ever produces a WITNESS -- one reading per
 // position that satisfies each query term -- materializes that witness as a plain alias string, and
 // then hands it to the same matching, boundary, quality-gate and weighting code the baked string
-// aliases go through (FzfPattern.TryMatch / AliasMatchRules.AllowsMatch / IsAcceptableAliasMatch /
+// aliases go through (FzfPattern.TryMatchAlias / AliasMatchRules.AllowsMatch / IsAcceptableAliasMatch /
 // WeightAliasMatch). So a grid row is scored, ranked and highlighted by exactly the machinery a string
-// row uses, and the whole-pattern verdict (exclusions, AND across terms) is made by that machinery
-// rather than re-implemented here.
+// row uses, and the whole-pattern verdict (AND across terms, quality gate) is still made there rather
+// than re-implemented here. The one difference: a `/.../` clause and a `:term` describe the candidate's
+// own text, so they read the name the caller handed in, not the materialized reading (see the name
+// parameter below) -- the same split FzfPattern.TryMatchAlias draws.
 //
 // ponytail: the witness is built per term set independently and merged, so a multi-term query whose
 // terms need conflicting readings at the same position can lose a match it would have had. Measured
@@ -140,9 +142,10 @@ internal static class SearchMatcherGridAliases
     /// <summary>
     /// Name-search overload: applies the alias quality bar and returns the weighted result, which is the
     /// contract the baked string aliases are held to, or null when the entry does not match.
+    /// <paramref name="name"/> is the candidate's own name, which the query's name-level clauses read.
     /// </summary>
-    internal static FzfPatternResult? TryMatchEntry(Snapshot snapshot, SearchMatcher.QueryContext ctx, int entry, SearchMatcher.Worker worker)
-        => TryMatchEntry(snapshot, ctx.Pattern, ctx.QueryLen, entry, worker.Slab, gate: true, out var match)
+    internal static FzfPatternResult? TryMatchEntry(Snapshot snapshot, SearchMatcher.QueryContext ctx, int entry, SearchMatcher.Worker worker, ReadOnlySpan<char> name)
+        => TryMatchEntry(snapshot, ctx.Pattern, ctx.QueryLen, entry, worker.Slab, gate: true, name, out var match)
             ? ctx.Pattern.WeightAliasMatch(match, ctx.QueryLen)
             : null;
 
@@ -151,6 +154,9 @@ internal static class SearchMatcherGridAliases
     /// <paramref name="match"/>. <paramref name="gate"/> selects the alias quality bar: the name-search
     /// tier applies it, while PathGate's segment fallback deliberately does not (it keeps only the
     /// syllable-alignment rule, which is a correctness rule rather than a quality bar).
+    /// <paramref name="name"/> is the text the query's name-level clauses (`/.../` and `:term`) are
+    /// checked against; empty means the materialized reading is that text, which is what a path segment
+    /// or an ancestor folder is asked with -- there the clause describes that very segment.
     /// </summary>
     /// <remarks>
     /// <paramref name="pattern"/> is the query itself, never an alias-side view of it: the reading is chosen
@@ -164,6 +170,7 @@ internal static class SearchMatcherGridAliases
         int entry,
         FzfSlab? slab,
         bool gate,
+        ReadOnlySpan<char> name,
         out FzfPatternResult match)
         => TryMatchPayload(
             pattern,
@@ -172,6 +179,7 @@ internal static class SearchMatcherGridAliases
             AliasProviderRegistry.GetSyllableSeparator(snapshot.AliasProviderId(entry)),
             slab,
             gate,
+            name,
             out match);
 
     /// <summary>
@@ -179,6 +187,8 @@ internal static class SearchMatcherGridAliases
     /// <paramref name="match"/>. Separate from the snapshot overload so the delta and live paths -- whose
     /// aliases are generated in memory rather than read from a snapshot -- decide through this same code,
     /// which is what keeps a name's answer the same before and after it is compacted.
+    /// <paramref name="name"/> is the text the query's name-level clauses are checked against; empty
+    /// means the payload's own materialized reading is that text (see the other overload).
     /// </summary>
     internal static bool TryMatchPayload(
         FzfPattern pattern,
@@ -187,6 +197,7 @@ internal static class SearchMatcherGridAliases
         char separator,
         FzfSlab? slab,
         bool gate,
+        ReadOnlySpan<char> name,
         out FzfPatternResult match)
     {
         match = default;
@@ -222,7 +233,11 @@ internal static class SearchMatcherGridAliases
 
             var written = AliasGridMatcher.Materialize(grid, tier, separator, choice, _materialized);
             var text = _materialized.AsSpan(0, written);
-            if (!pattern.TryMatch(text, out var aliasMatch, FzfScoringScheme.Default, slab))
+            // The same split the string-alias tier draws: the terms read this materialized reading, while
+            // a `/.../` clause and a `:term` read the candidate's own text -- `name` where the caller holds
+            // one, and this same spelling where it does not, which is a path segment being asked about
+            // itself (see FzfPattern.TryMatchAlias and the caller-side note in each tier).
+            if (!pattern.TryMatchAlias(text, name.IsEmpty ? text : name, out var aliasMatch, FzfScoringScheme.Default, slab))
                 continue;
 
             // No syllable-alignment check here: the witness came out of the readings themselves, and

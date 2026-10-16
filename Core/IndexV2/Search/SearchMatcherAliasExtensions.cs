@@ -76,7 +76,7 @@ internal static class SearchMatcherAliasExtensions
 
             if (snapshot.AliasKind(e) == AliasEntryKind.Grid)
             {
-                var gridMatch = SearchMatcherGridAliases.TryMatchEntry(snapshot, ctx, e, worker);
+                var gridMatch = SearchMatcherGridAliases.TryMatchEntry(snapshot, ctx, e, worker, name);
                 if (gridMatch != null && (!matched || gridMatch.Value.Score > best.Score))
                 {
                     matched = true;

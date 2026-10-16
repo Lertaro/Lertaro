@@ -173,7 +173,7 @@ internal sealed class PathGate
             if (_snapshot.AliasKind(e) == AliasEntryKind.Grid)
             {
                 if (SearchMatcherGridAliases.TryMatchEntry(
-                        _snapshot, _segmentPatterns[q], _segmentPatterns[q].GetTotalTermLength(), e, worker.Slab, gate: false, out var gridMatch))
+                        _snapshot, _segmentPatterns[q], _segmentPatterns[q].GetTotalTermLength(), e, worker.Slab, gate: false, name: default, out var gridMatch))
                 {
                     score = gridMatch.Score;
                     return true;

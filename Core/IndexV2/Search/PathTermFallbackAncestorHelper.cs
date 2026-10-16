@@ -129,7 +129,7 @@ internal static class PathTermFallbackAncestorHelper
                     if ((unresolved & bit) == 0 || (mask & bit) != 0)
                         continue;
                     if (SearchMatcherGridAliases.TryMatchEntry(
-                            snapshot, termPatterns[i], termPatterns[i].GetTotalTermLength(), e, worker.Slab, gate: false, out _))
+                            snapshot, termPatterns[i], termPatterns[i].GetTotalTermLength(), e, worker.Slab, gate: false, name: default, out _))
                         mask |= bit;
                 }
                 continue;

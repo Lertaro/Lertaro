@@ -139,7 +139,7 @@ internal sealed class PathGateWeighting
             if (_snapshot.AliasKind(e) == AliasEntryKind.Grid)
             {
                 if (SearchMatcherGridAliases.TryMatchEntry(
-                        _snapshot, pattern, pattern.GetTotalTermLength(), e, worker.Slab, gate: false, out _))
+                        _snapshot, pattern, pattern.GetTotalTermLength(), e, worker.Slab, gate: false, name: default, out _))
                 {
                     weight = ComputeSegmentNameWeight(uid, nameUtf8, worker, pattern);
                     return true;

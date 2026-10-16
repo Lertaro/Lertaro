@@ -153,7 +153,7 @@ internal static class SearchMatcherRow
             if (disabledIds != null && disabledIds.Contains(grid.ProviderId))
                 continue;
             if (!SearchMatcherGridAliases.TryMatchPayload(
-                    pattern, queryLen, grid.Payload, AliasProviderRegistry.GetSyllableSeparator(grid.ProviderId), slab, gate: true, out var gridMatch))
+                    pattern, queryLen, grid.Payload, AliasProviderRegistry.GetSyllableSeparator(grid.ProviderId), slab, gate: true, name, out var gridMatch))
                 continue;
 
             var weightedGrid = pattern.WeightAliasMatch(gridMatch, queryLen);

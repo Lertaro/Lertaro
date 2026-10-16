@@ -149,9 +149,10 @@ public sealed class GridAliasSearchTests
         CollectionAssert.Contains(results.Select(result => result.Name).ToList(), GridMarker + "笔记法X");
     }
 
-    // The grid tier decides a candidate from the query's POSITIVE terms alone -- it skips the inverse ones
-    // and never sees the name -- so the clauses that read the name must be applied by whoever consults it,
-    // which is what the string-alias tier gets from FzfPattern.TryMatchAlias for free.
+    // The grid tier decides terms from the readings, so the clauses that describe the candidate's own text
+    // -- a `/.../` and a `:term` -- need the name handed to it the same way FzfPattern.TryMatchAlias draws
+    // that line for the string aliases. A path segment asked about itself passes no name and keeps reading
+    // the clauses off its own spelling.
     [TestMethod]
     public void GridEntry_StillRequiresTheClausesThatReadTheName()
     {
@@ -175,16 +176,15 @@ public sealed class GridAliasSearchTests
 
         // No text of this name -- and no reading of it -- contains "zz", and a regex clause describes the
         // NAME. The class form is deliberate: with no literal for the character prefilter to reject on,
-        // only a matcher that consulted a text can answer it. The tier consults the materialized reading,
-        // so a name the clause rejects stays rejected here either way.
+        // only a matcher that consulted a text can answer it.
         Assert.IsEmpty(Search(@"fdbjf /[z]{2}/"), "a grid hit does not answer a regex clause");
 
-        // Same for an exclusion: it is the name that must not carry the text, not the reading.
+        // The other direction, which is the one the tier used to get wrong: the name really does carry the
+        // clause's text while no reading of it does, and refusing the row here meant the clause had been
+        // read off the materialized pinyin (see SearchMatcherGridAliases.TryMatchPayload).
+        CollectionAssert.Contains(Search(@"fdbjf /X/"), GridMarker + "笔记法X");
+        // The name-level veto still applies to a grid hit: no reading carries 笔记, the name does.
         Assert.IsEmpty(Search("fdbjf :笔记"), "a grid hit does not answer an exclusion");
-
-        // Known gap, other direction: `fdbjf /X/` finds nothing, because the tier reads the clause off the
-        // materialized reading and no pinyin reading carries the "X" the name does. Repro, mechanism and
-        // the two ways out are written up in exam/grid-alias-clauses.md.
     }
 
     // The delta overlay generates aliases in memory, so a grid-worthy row reaches search through the
@@ -207,10 +207,14 @@ public sealed class GridAliasSearchTests
         var deltaGrids = fixture.Index.Read((_, delta) => delta.Added.Single(record => record.Name == name).Grids.Length);
         Assert.AreEqual(1, deltaGrids, "the delta row must carry a grid entry");
 
-        string[] Queries = { "fdbjf", "tf" };
+        // The regex clause is in this list because both halves have to answer it the same way: the delta
+        // row decides through SearchMatcherRow and the baked one through the snapshot's alias tiers, and a
+        // clause reads the row's own NAME in either.
+        string[] Queries = { "fdbjf", "tf", @"fdbjf /X/" };
         var before = Queries.ToDictionary(q => q, q => Search(fixture, q));
         CollectionAssert.Contains(before["fdbjf"], name, "the delta row's grid must be searched, not just its spelled-out aliases");
         CollectionAssert.Contains(before["tf"], name);
+        CollectionAssert.Contains(before[@"fdbjf /X/"], name, "a delta row's own name satisfies the clause even though no reading of it does");
 
         Assert.IsTrue(fixture.Index.Compact(fixture.Path, force: true), "compaction must succeed");
 
