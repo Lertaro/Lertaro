@@ -101,6 +101,11 @@ public class ExplorerTracker : IDisposable
         // keep answering for a folder nobody is looking at any more.
         _pathProviders.RemoveAll(entry => !WindowIsAlive(entry.Hwnd));
 
+        // The desktop reports a path like any Explorer window, but it is not a file manager and must not
+        // become the folder Quick Switch lands on. Judged from the provider WINDOW, never by comparing paths, so
+        // a file manager parked on the desktop folder stays a legitimate destination.
+        _pathProviders.RemoveAll(entry => ExplorerNativeHooks.IsDesktopWindow(entry.Hwnd, out _));
+
         if (dialogProcessId == 0 && dialogHwnd != IntPtr.Zero) dialogProcessId = WindowProcessId(dialogHwnd);
         if (dialogProcessId != 0)
         {
@@ -108,10 +113,18 @@ public class ExplorerTracker : IDisposable
             if (!string.IsNullOrEmpty(sameProcess.Path)) return sameProcess.Path;
         }
 
+        // The folder the user was actually working in -- what the file manager showed when the dialog opened --
+        // outranks the provider list. That list is ordered by which window was activated last, and a dialog's
+        // provider history often still leads with an older window, so list-first sends Ctrl+G to the previously
+        // activated file manager instead of the current one. The list stays as the fallback for what the memory
+        // cannot serve (no file manager seen since this Hook started).
+        if (!string.IsNullOrEmpty(_dialogTracker.LastActiveExplorerPath))
+            return _dialogTracker.LastActiveExplorerPath;
+
         foreach (var entry in _pathProviders)
             if (!string.IsNullOrEmpty(entry.Path)) return entry.Path;
 
-        return _dialogTracker.LastActiveExplorerPath;
+        return null;
     }
 
     // Publishes the provider's folder as the last browsed path, which is what the App's mirror tracker turns
