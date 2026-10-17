@@ -80,8 +80,10 @@ public sealed class AutoCADFileDialogAdapter : IFileDialogAdapter
 
             // Logged before the separator is appended, because "folderNavigation=false" is the one answer
             // that would silently skip the whole undo, and it cannot be told apart from a working build out
-            // here. Debug level, per-process log like every other hook-side line.
-            Logger.Log($"[AutoCAD] navigate to {targetPath}: file={isFile} directory={isDirectory} folderNavigation={navigatingToFolder}", LogLevel.Debug);
+            // here. Debug level, per-process log like every other hook-side line. The edit's handle is in it
+            // because the box is re-found for the undo, and a dialog that rebuilt its children would leave
+            // the name sitting in a control nobody is showing.
+            Logger.Log($"[AutoCAD] navigate to {targetPath}: file={isFile} directory={isDirectory} folderNavigation={navigatingToFolder} edit=0x{edit:X}", LogLevel.Debug);
 
             // Appending the separator stays keyed on the folder this process can actually see, so the string
             // written into the box is exactly what it always was; the wider folder decision above only picks
@@ -95,7 +97,7 @@ public sealed class AutoCADFileDialogAdapter : IFileDialogAdapter
 
             Task.Run(async () =>
             {
-                await Task.Delay(300);
+                await Task.Delay(EnterDelayMs);
                 if (GetForegroundWindow() != hwnd) return;
                 var targetThread = GetWindowThreadProcessId(edit, out _);
                 var currentThread = GetCurrentThreadId();
@@ -119,20 +121,24 @@ public sealed class AutoCADFileDialogAdapter : IFileDialogAdapter
                 var pathAskedFor = targetPath;
                 Task.Run(async () =>
                 {
-                    // Past the commit above. Timed rather than watched for a signal because a dialog that
-                    // never moved has nothing to report, and this runs off the UI thread either way.
-                    await Task.Delay(1200);
-                    var box = FindFileNameEdit(hwnd);
-                    var boxNow = ReadTextBox(box);
-                    // This decision is invisible from outside the elevated process, and the first report on
-                    // this fix was "it still left the path there" with nothing to say why.
-                    Logger.Log($"[AutoCAD] folder jump: wrote {pathAskedFor}, box now {boxNow}, name to restore {remembered}", LogLevel.Debug);
-                    if (ShouldPutNameBack(boxNow: boxNow, wrote: pathAskedFor))
+                    // Two passes, no fixed wait for the undo itself. A single timeout is wrong in both
+                    // directions: long enough to be seen as a lag on a quick machine, short enough to lose
+                    // the race on a loaded or slow one -- the dialog can still be finishing the navigation
+                    // when the name goes in, and then puts its own path back over it.
+                    for (var pass = 1; pass <= RestorePasses; pass++)
                     {
+                        var (box, reading) = await SettleAsync(hwnd, pathAskedFor, pass == 1 ? FirstPassStartMs : LateRewriteCheckMs);
+                        if (reading != BoxReading.PutNameBack)
+                        {
+                            Logger.Log($"[AutoCAD] folder jump undo: {reading} on box 0x{box:X}", LogLevel.Debug);
+                            return;
+                        }
+
                         SendMessage(box, WM_SETTEXT, IntPtr.Zero, remembered);
                         // Selected, the way the dialog had it when this method arrived: the next keystroke
                         // replaces the name instead of appending to it.
                         PostMessage(box, EM_SETSEL, IntPtr.Zero, (IntPtr)(-1));
+                        Logger.Log($"[AutoCAD] folder jump undo pass {pass}: name written into box 0x{box:X}", LogLevel.Debug);
                     }
                 });
             }
@@ -140,6 +146,54 @@ public sealed class AutoCADFileDialogAdapter : IFileDialogAdapter
             return true;
         }
         catch { return false; }
+    }
+
+    private const int EnterDelayMs = 300;      // when the commit is posted, below
+    private const int FirstPassStartMs = 400;  // past that, or the undo would erase the path before the dialog reads it
+    private const int LateRewriteCheckMs = 700;
+    private const int RestorePasses = 2;
+    private const int SettlePollMs = 50;
+    private const int SettleReads = 4;         // this many identical reads = the dialog has stopped touching it
+    private const int SettleTimeoutMs = 2500;  // a machine slower than this still gets the undo, just later
+
+    internal enum BoxReading { KeepWaiting, PutNameBack, LeaveAlone }
+
+    /// <summary>
+    /// What one reading of the file-name box means for the undo.
+    /// </summary>
+    /// <remarks>
+    /// Pure, so the settling rule can be tested without a dialog. Anything other than the path this method
+    /// put there ends the attempt: that text is the user's typing or the dialog's own, and overwriting it is
+    /// the damage this exists to undo. Our own path needs a few identical reads first, because one value
+    /// cannot tell "the dialog is done with it" from "the dialog is mid-write".
+    /// </remarks>
+    internal static BoxReading ClassifyReading(string pathAskedFor, string now, int sameInARow) =>
+        now != pathAskedFor ? BoxReading.LeaveAlone
+        : sameInARow >= SettleReads ? BoxReading.PutNameBack
+        : BoxReading.KeepWaiting;
+
+    /// <summary>
+    /// Watches the box until it stops changing, and reports what the undo should do.
+    /// </summary>
+    private static async Task<(IntPtr Box, BoxReading Reading)> SettleAsync(IntPtr dialog, string pathAskedFor, int startAfterMs)
+    {
+        await Task.Delay(startAfterMs);
+        var deadline = Environment.TickCount64 + SettleTimeoutMs;
+        var box = IntPtr.Zero;
+        var previous = string.Empty;
+        var same = 0;
+        while (Environment.TickCount64 < deadline)
+        {
+            box = FindFileNameEdit(dialog);
+            var now = ReadTextBox(box);
+            same = now == previous ? same + 1 : 1;
+            previous = now;
+            var reading = ClassifyReading(pathAskedFor, now, same);
+            if (reading != BoxReading.KeepWaiting) return (box, reading);
+            await Task.Delay(SettlePollMs);
+        }
+
+        return (box, previous == pathAskedFor ? BoxReading.PutNameBack : BoxReading.LeaveAlone);
     }
 
     /// <summary>
@@ -157,27 +211,9 @@ public sealed class AutoCADFileDialogAdapter : IFileDialogAdapter
     internal static bool IsFolderNavigation(bool isFile, bool isDirectory, string targetPath) =>
         !isFile && (isDirectory || !Path.HasExtension(targetPath));
 
-    /// <summary>
-    /// Whether the remembered name may go back into the box after a folder navigation.
-    /// </summary>
-    /// <remarks>
-    /// The path can come back in a different shape than it went in -- a dialog is free to normalize the
-    /// trailing separator or the drive's case, and the first real report of this method leaving the path in
-    /// place compared unequal in every way -- so the two are compared as paths, not as strings. An empty box
-    /// is restorable too: either the dialog cleared the field after navigating, or the read got nothing
-    /// back, and those look identical from here while both mean the name the user had is still missing.
-    /// Anything else in the field is newer than us -- the user typing a name, or the dialog putting
-    /// something else there -- and stays untouched. Called only for folder targets, so a picked file keeps
-    /// its name in place.
-    /// </remarks>
-    internal static bool ShouldPutNameBack(string boxNow, string wrote) =>
-        boxNow.Length == 0
-        || string.Equals(Path.TrimEndingDirectorySeparator(boxNow), Path.TrimEndingDirectorySeparator(wrote),
-            StringComparison.OrdinalIgnoreCase);
-
     // WM_GETTEXT is one of the messages user32 marshals across the boundary itself, so the buffer stays in
-    // this process. A path longer than the buffer reads back short, and the comparison above then treats it
-    // as someone else's text and writes nothing -- the safe direction for a mistake. Timeout for the same
+    // this process. A path longer than the buffer reads back short, and ClassifyReading then treats it as
+    // someone else's text and writes nothing -- the safe direction for a mistake. Timeout for the same
     // reason GetCurrentPath below does: this runs on a worker that other dialog traffic waits on, and a hung
     // AutoCAD must degrade to "read nothing", not park that thread.
     private static string ReadTextBox(IntPtr edit)

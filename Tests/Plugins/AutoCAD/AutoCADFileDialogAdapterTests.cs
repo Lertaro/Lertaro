@@ -43,42 +43,44 @@ public sealed class AutoCADFileDialogAdapterTests
         Assert.IsFalse(string.IsNullOrWhiteSpace(adapter.Name));
     }
 
-    // AutoCAD really does navigate on a path in the file-name box plus Enter -- the bug was that the path
-    // stayed there afterwards, so the name the user meant to save was gone and could not be got back. These
-    // pin when the remembered name may be written again; only the box's own text is consulted, because
-    // anything else in it is either the dialog's doing or the user's, and overwriting that would be the same
-    // damage this exists to undo.
+    // AutoCAD really does navigate on a path in the file-name box plus Enter -- measured on the reporter's
+    // machine, so nothing about the commit is tested or changed here. What is tested is the undo of the
+    // leftover: the dialog leaves its own path sitting in the box after a folder jump, so this method puts
+    // the name it found there back -- but only into a field that still holds exactly the path it wrote, and
+    // only once the field has stopped changing under it, which is what keeps a slow machine from losing the
+    // race and a fast one from watching a fixed wait.
     [TestMethod]
-    public void TheLeftoverPathIsWhatGetsReplaced() =>
-        Assert.IsTrue(AutoCADFileDialogAdapter.ShouldPutNameBack(boxNow: @"D:\a\", wrote: @"D:\a\"));
+    public void OurPathHeldSteadyGetsTheNameBack() =>
+        // Four identical reads at the poll interval is the settle window.
+        Assert.IsTrue(AutoCADFileDialogAdapter.ClassifyReading(@"C:\Windows\", @"C:\Windows\", 4)
+            == AutoCADFileDialogAdapter.BoxReading.PutNameBack);
 
     [TestMethod]
-    public void APathTheDialogNormalizedIsStillOurs() =>
-        // Compared as paths: a dialog may drop the trailing separator or retype the drive, and that is not
-        // somebody else putting text in the field. This comparison shape is what the first report of the fix
-        // leaving the path in place came down to.
-        Assert.IsTrue(AutoCADFileDialogAdapter.ShouldPutNameBack(boxNow: @"d:\a", wrote: @"D:\a\"));
+    public void AFieldThatIsStillMovingIsNotTouchedYet() =>
+        // One reading of our path cannot tell "the dialog is done with it" from "the dialog is mid-write".
+        Assert.IsTrue(AutoCADFileDialogAdapter.ClassifyReading(@"C:\Windows\", @"C:\Windows\", 3)
+            == AutoCADFileDialogAdapter.BoxReading.KeepWaiting);
 
     [TestMethod]
-    public void AnEmptyBoxGoesBackToTheNameItHad() =>
-        // Either the dialog cleared the field after navigating or the read got nothing back, and those look
-        // the same from here. Both leave the user without the name they had, which is the thing to undo.
-        Assert.IsTrue(AutoCADFileDialogAdapter.ShouldPutNameBack(boxNow: "", wrote: @"D:\a\"));
-
-    [TestMethod]
-    public void ABoxTheUserTypedIntoIsLeftAlone() =>
-        Assert.IsFalse(AutoCADFileDialogAdapter.ShouldPutNameBack(boxNow: "泵房平面图", wrote: @"D:\a\"));
-
-    [TestMethod]
-    public void ABoxHoldingMoreThanThePathIsLeftAlone() =>
-        // The folder plus something the dialog put on after it is not the path we wrote.
-        Assert.IsFalse(AutoCADFileDialogAdapter.ShouldPutNameBack(boxNow: @"D:\a\Drawing1.dwg", wrote: @"D:\a\"));
+    public void TextThatIsNotOursEndsTheAttempt()
+    {
+        // The user typed a name, or the dialog put something of its own there. Writing over either is the
+        // damage the undo exists to prevent, so this is a stop, not a wait.
+        Assert.IsTrue(AutoCADFileDialogAdapter.ClassifyReading(@"C:\Windows\", "泵房平面图", 9)
+            == AutoCADFileDialogAdapter.BoxReading.LeaveAlone);
+        // An emptied field likewise: the dialog cleared it, or the user selected all and deleted. The
+        // evidence on the reporter's machine is that AutoCAD leaves the path sitting there instead, so this
+        // branch is the unusual one -- and the field is no longer ours to write into.
+        Assert.IsTrue(AutoCADFileDialogAdapter.ClassifyReading(@"C:\Windows\", "", 9)
+            == AutoCADFileDialogAdapter.BoxReading.LeaveAlone);
+    }
 
     [TestMethod]
     public void APathTooLongToReadBackIsLeftAlone() =>
-        // ReadTextBox caps at 1024 chars, so a longer path reads back short and compares unequal. The safe
-        // direction for that mistake is to write nothing.
-        Assert.IsFalse(AutoCADFileDialogAdapter.ShouldPutNameBack(boxNow: new string('路', 500), wrote: new string('路', 1024)));
+        // ReadTextBox caps at 1024 chars, so a longer path reads back short and is not ours any more. The
+        // safe direction for that mistake is to write nothing.
+        Assert.IsTrue(AutoCADFileDialogAdapter.ClassifyReading(new string('路', 1024), new string('路', 500), 9)
+            == AutoCADFileDialogAdapter.BoxReading.LeaveAlone);
 
     // The other half of the same undo: which targets have a leftover to undo at all. This runs in the
     // elevated hook process, where a drive the user mapped without elevation is not visible -- which is the
