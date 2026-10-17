@@ -117,6 +117,16 @@ public sealed class PinyinNameEvaluatorTests
     }
 
     [TestMethod]
+    public void Extension_DoesNotDiluteCoverage()
+    {
+        // A file that spells its own name is no less exact for carrying an extension. Measured over the
+        // whole name, ".txt" thins the coverage term and the file loses to the folder it lives in -- the
+        // failure mode the reference records as its pitfall 2360 (curl vs curl.exe).
+        var provider = new FakeLiveProvider().Span("bg", 0, 2);
+        Assert.AreEqual(Score("bg", "报告", provider).Score, Score("bg", "报告.txt", provider).Score);
+    }
+
+    [TestMethod]
     public void SetsAnd_LiteralAndPinyin()
     {
         // fzf's own 62 for the word the name literally says, plus 26 for the word only the readings can

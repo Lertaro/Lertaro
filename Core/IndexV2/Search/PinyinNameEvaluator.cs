@@ -313,15 +313,20 @@ internal sealed class PinyinNameEvaluator
         if (literalTerms == 0)
         {
             if (readTerms > 0)
-                total += 25 * Math.Min(covered, name.Length) / name.Length;
+            {
+                // Coverage is measured over the stem, as the reference's own whole-name rule does: with
+                // the extension in the denominator, 报告.txt explains itself exactly as well as the folder
+                // 报告 and still scores 6 to its 25, which is how a file loses to its own folder for
+                // naming itself in full (the reference's pitfall 2360, curl vs curl.exe).
+                var stem = StemLength(name);
+                total += 25 * Math.Min(covered, stem) / stem;
+            }
 
-            // The reference's remaining two bonuses belong to a single word that spelled the whole name,
-            // extension included, from its first character.
             if (_loneWord != null && loneReadingStart == 0)
             {
-                var stem = StemLength(name);
-                if (loneReadingEnd - loneReadingStart >= stem)
-                    total += 40;
+                var stemLength = StemLength(name);
+                if (loneReadingEnd - loneReadingStart >= stemLength)
+                    total += 40; // one word that spelled the whole stem, from the first character
             }
         }
 

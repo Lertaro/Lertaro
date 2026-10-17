@@ -32,11 +32,16 @@ public interface IAliasLiveMatcherProvider : IAliasProvider
     IAliasTermMatcher? CreateMatcher(string foldedTerm, bool commonOnly);
 
     /// <summary>
-    /// One entry per character of <paramref name="text"/>, each holding that character's candidate
-    /// readings in this provider's own spelling (moved over from the removed IAliasGridProvider,
-    /// same contract -- see that history in the repository). Used ONLY by the bake-time prefilter
-    /// mask now; matching itself goes through <see cref="CreateMatcher"/>.
+    /// The candidate readings of each character of <paramref name="text"/> in this provider's own
+    /// spelling, for indices [0, text.Length). Used ONLY by the bake-time prefilter mask now; matching
+    /// itself goes through <see cref="CreateMatcher"/>.
     /// </summary>
+    /// <remarks>
+    /// The returned array is the provider's reusable scratch: it may be LONGER than the text (with
+    /// entries beyond <c>text.Length</c> left over from an earlier, longer call), and it, its entries and
+    /// the strings inside are only valid until the next call on the same thread. Copy what you need before
+    /// calling back into the provider. Moved over from the removed IAliasGridProvider, same contract.
+    /// </remarks>
     string[][] GetReadingSets(string text);
 
     /// <summary>
