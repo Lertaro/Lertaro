@@ -57,10 +57,12 @@ internal static class HighlightMask
         return rank.IsMatch ? rank with { Tier = tier, Shape = shape } : rank;
     }
 
-    // Paints every matching term and returns the strongest tier reached (MatchRank.TierName .. TierFull).
-    // A term satisfied by the candidate's own text outranks one satisfied through a provider's alias, so
-    // the minimum wins; a multi-term query where one word is literal and another came from pinyin is
-    // ranked as a literal hit, which is the evidence that actually matters to the user.
+    // Paints every matching term and returns the strongest tier reached (MatchRank.TierName ..
+    // TierFullRare). A term satisfied by the candidate's own text outranks one satisfied through a
+    // provider's alias, so the minimum wins; a multi-term query where one word is literal and another
+    // came from pinyin is ranked as a literal hit, which is the evidence that actually matters to the
+    // user. The floor is the weakest tier there is, not TierFull: a match that needed a character's rare
+    // reading has to be able to report that, and starting at TierFull would Math.Min it away.
     //
     // Shape folds the other way round from tier, following the query's own logic: within a set (an OR
     // group) the best-shaped term counts, and across sets (AND) the worst set decides -- "code atlas"
@@ -68,7 +70,7 @@ internal static class HighlightMask
     // through a route the mask cannot paint) is treated as scattered rather than guessed better.
     private static int Mark(ReadOnlySpan<char> fullText, FzfPattern pattern, Span<bool> highlights, ref string? materialized, FzfSlab slab, out int shape)
     {
-        var tier = MatchRank.TierFull;
+        var tier = MatchRank.TierFullRare;
         shape = MatchRank.ShapeWholeWord;
         foreach (var set in pattern.EffectiveSets)
         {
@@ -133,6 +135,18 @@ internal static class HighlightMask
         var comparison = caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         if (MarkLiteralSpan(fullText, term, comparison, highlights, out shape))
             return MatchRank.TierName;
+
+        // The live reading tier: the reading NFA decides the term from the name's own readings and
+        // paints the span it consumed -- exactly the position set the searcher's match used. It sits
+        // where the reading grid used to: before the string aliases, because a provider's own
+        // spellings are the meaningful explanation whenever they exist, while the name's scattered
+        // pass below is the fallback for a query no provider can express.
+        var live = IndexV2.Search.PinyinNameEvaluator.ForPattern(pattern);
+        if (live.HasProviders && live.TryPaintTerm(fullText, term, kind, highlights, out var liveTier))
+        {
+            shape = MatchRank.ShapeWordStart;
+            return liveTier;
+        }
 
         // The alias tier runs BEFORE the name's own scattered pass, because on a long name that pass
         // almost always succeeds by accident and paints the wrong characters: for a pinyin query "bi"

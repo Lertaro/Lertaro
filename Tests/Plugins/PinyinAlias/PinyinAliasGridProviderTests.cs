@@ -3,54 +3,41 @@ using Lertaro.PluginSdk.Abstractions.Plugins;
 
 namespace Lertaro.Plugins.PinyinAlias.Tests;
 
-// The grid capability's contract is that its readings are the very alias space the string and byte
-// generators already produce: the initials alias is one character per position and the full alias is
-// the readings with the provider's boundaries between them. These tests hold the grid to what
-// GenerateAliases actually yields for the same text, which is what keeps a baked index and a live scan
-// from answering the same query differently.
+// The live matching capability (IAliasLiveMatcherProvider): the matcher factory, the reading sets
+// that feed the bake-time prefilter mask, and the single-reading spellings the mixed-alphabet lane
+// matches as text. The file keeps its historical name until the grid-machinery rename lands.
 [TestClass]
-public sealed class PinyinAliasGridProviderTests
+public sealed class PinyinAliasLiveProviderTests
 {
     private static readonly PinyinAliasProvider Provider = new();
 
     [TestMethod]
-    public void GetReadingSets_DominantReadings_SpellTheInitialsAlias()
+    public void CreateMatcher_EligibilityMatchesTheWordRule()
     {
-        var text = "防弹笔记法";
-
-        var sets = Provider.GetReadingSets(text).Take(text.Length).ToArray();
-        var initials = string.Concat(sets.Select(s => s[0][0]));
-
-        // The dominant-reading initials are one variant among the enumerated ones (this name is
-        // polyphonic, so the string encoding emits a '|'-joined set of them).
-        var variants = PinyinAliasCombinationGenerator.GenerateAliases(text).SelectMany(a => a.Split('|'));
-        CollectionAssert.Contains(variants.ToList(), initials);
-        Assert.AreEqual(text.Length, initials.Length);
-        Assert.AreEqual("fdbjf", initials);
+        Assert.IsNull(Provider.CreateMatcher("a", false), "a single letter is not a pinyin word");
+        Assert.IsNull(Provider.CreateMatcher("12", false), "digits alone are not a pinyin word");
+        Assert.IsNull(Provider.CreateMatcher("a-b", false));
+        Assert.IsNull(Provider.CreateMatcher(new string('a', 64), false), "over 63 letters");
+        Assert.IsNotNull(Provider.CreateMatcher("ab", false));
+        Assert.IsNotNull(Provider.CreateMatcher("ab1", false));
+        Assert.IsNotNull(Provider.CreateMatcher(new string('a', 63), false));
     }
 
     [TestMethod]
-    public void GetReadingSets_DominantReadings_SpellTheFullAlias()
+    public void CreateMatcher_FindsAcrossAdjacentReadings()
     {
-        var text = "防弹笔记法";
+        var matcher = Provider.CreateMatcher("bg", false);
+        Assert.IsNotNull(matcher);
 
-        var sets = Provider.GetReadingSets(text);
-        var full = new StringBuilder();
-        for (var i = 0; i < text.Length; i++)
-        {
-            if (Provider.NeedsSeparatorBefore(text, i))
-                full.Append(PinyinAliasFormat.SyllableSeparator);
-            full.Append(sets[i][0]);
-        }
-
-        var variants = PinyinAliasCombinationGenerator.GenerateAliases(text).SelectMany(a => a.Split('|'));
-        CollectionAssert.Contains(variants.ToList(), full.ToString());
+        Assert.IsTrue(matcher.TryFind("报告", default, out var start, out var end));
+        Assert.AreEqual(0, start);
+        Assert.AreEqual(2, end);
     }
 
     [TestMethod]
     public void GetReadingSets_EveryReadingIsNonEmptyAndLowercase()
     {
-        var text = "中国A|b\uD83D\uDE00";
+        var text = "中国A|b😀";
 
         foreach (var set in Provider.GetReadingSets(text).Take(text.Length))
         {
@@ -66,23 +53,24 @@ public sealed class PinyinAliasGridProviderTests
     [TestMethod]
     public void GetReadingSets_PipePosition_UsesTheSamePlaceholderTheStringPathSubstitutes()
     {
-        // '|' separates alternative readings inside a generated alias, so both encodings have to replace
-        // a literal one in the name; a grid that passed it through would split one alias into two.
+        // '|' separates alternative readings inside a generated alias, so both encodings have to
+        // replace a literal one in the name; a reading set that passed it through would split one
+        // alias into two.
         var sets = Provider.GetReadingSets("中|");
 
-        Assert.AreEqual("\u0001", sets[1][0]);
+        Assert.AreEqual("", sets[1][0]);
     }
 
     [TestMethod]
     public void GetReadingSets_SurrogatePair_KeepsBothHalvesSoMaterializationRePairsThem()
     {
-        var text = "中\uD83D\uDE00";
+        var text = "中😀";
 
         var sets = Provider.GetReadingSets(text);
 
         Assert.AreEqual("\uD83D", sets[1][0]);
         Assert.AreEqual("\uDE00", sets[2][0]);
-        Assert.AreEqual("\uD83D\uDE00", string.Concat(sets[1][0], sets[2][0]));
+        Assert.AreEqual("😀", string.Concat(sets[1][0], sets[2][0]));
     }
 
     [TestMethod]
@@ -98,47 +86,35 @@ public sealed class PinyinAliasGridProviderTests
     [TestMethod]
     public void NeedsSeparatorBefore_SeparatesTwoTransliteratedPositionsOnly()
     {
+        // The format's own rule, unchanged by the live switch: the shared helper behind
+        // AppendSpellings' full spelling.
         var withDigits = "第01集";
         var both = "中集";
 
-        Assert.IsFalse(Provider.NeedsSeparatorBefore(withDigits, 0));
-        Assert.IsFalse(Provider.NeedsSeparatorBefore(withDigits, 1), "a transliterated position meeting a digit keeps the alias glued");
-        Assert.IsFalse(Provider.NeedsSeparatorBefore(withDigits, 3), "the digit before 集 already is the visible boundary");
-        Assert.IsTrue(Provider.NeedsSeparatorBefore(both, 1), "two adjacent transliterated positions get a boundary");
-    }
-
-    private static string FakeConvert(string text) => text.Replace('電', '电').Replace('腦', '脑');
-
-    [TestMethod]
-    public void ReadingAndStandaloneHalves_ReassembleIntoExactlyWhatEncodeEmits()
-    {
-        var text = "電腦|A中";
-        var expected = new AliasByteSink();
-        PinyinAliasUtf8Encoder.Encode(text, expected, convertEnabled: true, FakeConvert);
-
-        var split = new AliasByteSink();
-        PinyinAliasUtf8PinyinEncoder.Encode(text, split);
-        PinyinAliasUtf8Encoder.AppendSimplified(text, split, convertEnabled: true, FakeConvert);
-
-        Assert.AreEqual(expected.SegmentCount, split.SegmentCount);
-        for (var i = 0; i < expected.SegmentCount; i++)
-            CollectionAssert.AreEqual(expected.Segment(i).ToArray(), split.Segment(i).ToArray());
+        Assert.IsFalse(PinyinAliasFormat.NeedsSeparatorBefore(withDigits, 0));
+        Assert.IsFalse(PinyinAliasFormat.NeedsSeparatorBefore(withDigits, 1), "a transliterated position meeting a digit keeps the alias glued");
+        Assert.IsFalse(PinyinAliasFormat.NeedsSeparatorBefore(withDigits, 3), "the digit before 集 already is the visible boundary");
+        Assert.IsTrue(PinyinAliasFormat.NeedsSeparatorBefore(both, 1), "two adjacent transliterated positions get a boundary");
     }
 
     [TestMethod]
-    public void ProviderHalves_ReassembleIntoGetAliasesUtf8()
+    public void AppendSpellings_EmitsTheInitialsAndTheFullSingleReadingSpelling()
     {
-        var text = "中国A";
+        var dest = new List<string>();
+        Provider.AppendSpellings("防弹笔记法", dest);
 
-        var expected = new AliasByteSink();
-        Provider.GetAliasesUtf8(text, expected);
+        Assert.HasCount(2, dest);
+        Assert.AreEqual("fdbjf", dest[0]);
+        var sep = PinyinAliasFormat.SyllableSeparator;
+        Assert.AreEqual($"fang{sep}dan{sep}bi{sep}ji{sep}fa", dest[1], "the first reading of each position, boundaries where the format places them");
+    }
 
-        var split = new AliasByteSink();
-        Provider.GetReadingAliasesUtf8(text, split);
-        Provider.GetStandaloneAliasesUtf8(text, split);
+    [TestMethod]
+    public void AppendSpellings_EmptyText_EmitsNothing()
+    {
+        var dest = new List<string>();
+        Provider.AppendSpellings("", dest);
 
-        Assert.AreEqual(expected.SegmentCount, split.SegmentCount);
-        for (var i = 0; i < expected.SegmentCount; i++)
-            CollectionAssert.AreEqual(expected.Segment(i).ToArray(), split.Segment(i).ToArray());
+        Assert.IsEmpty(dest);
     }
 }

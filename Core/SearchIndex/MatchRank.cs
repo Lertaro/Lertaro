@@ -23,6 +23,10 @@ public readonly record struct MatchRank(int Tier, int Start, double Weight, int 
     public const int TierName = 0;
     public const int TierInitials = 1;
     public const int TierFull = 2;
+    // A pinyin match that had to use a character's less common reading (see PinyinNameEvaluator):
+    // below every common-reading match, above nothing else. The reference demotes the same thing by
+    // -12 in its score table; here it is the weakest separate key instead.
+    public const int TierFullRare = 3;
 
     // How the query sits in the text, best first. Alias hits rank as WordStart: providers only accept
     // matches aligned to a syllable/word start (AliasMatchRules.IsBoundaryAligned). NoName is the shape of

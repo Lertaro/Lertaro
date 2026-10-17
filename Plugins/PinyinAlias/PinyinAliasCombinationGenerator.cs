@@ -212,6 +212,25 @@ internal static class PinyinAliasCombinationGenerator
         return lists;
     }
 
+    /// <summary>
+    /// Appends the single-reading spellings of <paramref name="text"/> -- the initials spelling, then
+    /// the full spelling when it differs. This is the materialization the mixed-alphabet lane consumes
+    /// (IAliasLiveMatcherProvider.AppendSpellings): the same shape the reading grid materialized for
+    /// that lane before matching went live.
+    /// </summary>
+    public static void AppendDefaultSpellings(string text, List<string> dest)
+    {
+        if (string.IsNullOrEmpty(text))
+            return;
+
+        var result = _resultListScratch ??= new List<string>(4);
+        result.Clear();
+        GenerateSingleReading(text, GetSyllableLists(text), result);
+        dest.AddRange(result);
+        result.Clear();
+    }
+
+
     private static void GenerateCombinations(
         string text,
         string[][] lists,

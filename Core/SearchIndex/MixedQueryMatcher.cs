@@ -46,6 +46,11 @@ internal static class MixedQueryMatcher
         if (terms.Length != 1)
             return null;
         var term = terms[0];
+        // Deliberately the fuzzy shape only. In an exact query this lane cannot tell a word's pinyin
+        // letters from letters that are literal content of the name: "笔ab记" against "笔abc记" re-reads
+        // the name's own a/b as two initials and reports a run the name does not contain. So the one lane
+        // that matches an alias as TEXT stays a fuzzy-mode rescue, and a mixed term typed with exact
+        // matching on is answered by the literal tiers alone.
         if (term.Inverse || term.Kind != FzfTermKind.Fuzzy || term.CaseSensitive)
             return null;
 

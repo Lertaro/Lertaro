@@ -148,9 +148,19 @@ internal sealed class PathGate
             if (worker.Scratch.Length < nameUtf8.Length)
                 worker.Scratch = new char[Math.Max(nameUtf8.Length, worker.Scratch.Length * 2)];
             var written = Encoding.UTF8.GetChars(nameUtf8, worker.Scratch);
-            if (_segmentPatterns[q].TryMatch(worker.Scratch.AsSpan(0, written), out var match, FzfScoringScheme.Default, worker.Slab))
+            var segmentName = worker.Scratch.AsSpan(0, written);
+            if (_segmentPatterns[q].TryMatch(segmentName, out var match, FzfScoringScheme.Default, worker.Slab))
             {
                 score = match.Score;
+                return true;
+            }
+
+            // The live reading tier: a CJK segment carries a pinyin term the same way a file name
+            // does (see PinyinNameEvaluator), with the reference's additive score.
+            var live = PinyinNameEvaluator.ForPattern(_segmentPatterns[q]);
+            if (live.HasProviders && live.TryScore(segmentName, worker.Slab, out var liveMatch))
+            {
+                score = liveMatch.Score;
                 return true;
             }
         }
@@ -226,6 +236,16 @@ internal sealed class PathGate
         }
         if (!AliasProviderRegistry.HasNonAscii(segment))
             return false;
+
+        // The live reading tier decides a CJK segment from its own readings (see PinyinNameEvaluator)
+        // before the string-alias fallback below.
+        var segmentLive = PinyinNameEvaluator.ForPattern(_segmentPatterns[q]);
+        if (segmentLive.HasProviders && segmentLive.TryScore(segment, worker.Slab, out var segmentLiveMatch))
+        {
+            score = segmentLiveMatch.Score;
+            return true;
+        }
+
         var disabledIds = SearchContext.DisabledAliasIds;
         foreach (var provider in AliasProviderRegistry.GetActiveProviders())
         {

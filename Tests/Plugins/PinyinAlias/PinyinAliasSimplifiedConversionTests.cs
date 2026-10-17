@@ -86,7 +86,7 @@ public sealed class PinyinAliasSimplifiedConversionTests
     // ── The provider, through the real converter ───────────────────────────
 
     [TestMethod]
-    public void GetAliases_TraditionalNameWithConversionOn_OffersItsSimplifiedSpellingAndKeepsPinyin()
+    public void GetAliases_TraditionalNameWithConversionOn_OffersExactlyTheSimplifiedSpelling()
     {
         SetConversionEnabled(true);
         var expected = HanConversion.ToSimplified("電腦");
@@ -94,20 +94,19 @@ public sealed class PinyinAliasSimplifiedConversionTests
 
         var aliases = Provider.GetAliases("電腦").ToList();
 
-        CollectionAssert.Contains(aliases, expected);
-        Assert.IsTrue(aliases.Any(a => Ascii.IsValid(a)), "the pinyin aliases must still be offered");
+        // The readings are matched live now, so the Simplified spelling is the ONLY alias this
+        // provider still bakes -- no spelled-out pinyin strings exist any more.
+        CollectionAssert.AreEqual(new[] { expected }, aliases);
     }
 
     [TestMethod]
-    public void GetAliases_TraditionalNameWithConversionOff_OmitsTheSimplifiedSpelling()
+    public void GetAliases_TraditionalNameWithConversionOff_BakesNothing()
     {
         SetConversionEnabled(false);
-        var expected = HanConversion.ToSimplified("電腦");
 
         var aliases = Provider.GetAliases("電腦").ToList();
 
-        CollectionAssert.DoesNotContain(aliases, expected);
-        Assert.IsTrue(aliases.Any(a => Ascii.IsValid(a)), "the pinyin aliases must still be offered");
+        Assert.IsEmpty(aliases, "with the conversion off a live provider has nothing left to bake");
     }
 
     [TestMethod]

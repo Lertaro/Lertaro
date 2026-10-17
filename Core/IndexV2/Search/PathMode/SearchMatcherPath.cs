@@ -96,7 +96,18 @@ internal static class SearchMatcherPath
         var written = Encoding.UTF8.GetChars(utf8, worker.Scratch);
         var name = worker.Scratch.AsSpan(0, written);
 
-        if (ctx.Pattern.TryMatch(name, out var match, FzfScoringScheme.Default, worker.Slab))
+        // The live reading tier first, exactly as in SearchMatcher.MatchOne; without a live provider
+        // the name-tier match runs as always.
+        var live = PinyinNameEvaluator.ForPattern(ctx.Pattern);
+        if (live.HasProviders)
+        {
+            if (live.TryScore(name, worker.Slab, out var liveMatch))
+            {
+                hits.Add(new PathUniqueMatch(uid, liveMatch, FzfResultRank.RankLow32(name, liveMatch), written));
+                return;
+            }
+        }
+        else if (ctx.Pattern.TryMatch(name, out var match, FzfScoringScheme.Default, worker.Slab))
         {
             hits.Add(new PathUniqueMatch(uid, match, FzfResultRank.RankLow32(name, match), written));
             return;

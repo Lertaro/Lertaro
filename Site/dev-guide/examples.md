@@ -18,13 +18,13 @@ The `CoreExtensions` plugin is Lertaro's core functionality bundle, implementing
 
 ## 2. PinyinAlias —— Non-ASCII Transliteration Engine
 
-The `PinyinAlias` plugin provides full pinyin and initialism alias search support for Chinese filenames, implementing both `IAliasProvider` and `ITranslationProvider`.
+The `PinyinAlias` plugin provides full pinyin and initialism alias search support for Chinese filenames, implementing `IAliasLiveMatcherProvider` (an `IAliasProvider`) and `ITranslationProvider`.
 
 ### Key Implementation Highlights
 
 - **Alphabet Boundaries (`InputRanges` / `OutputRanges`)**: Declares one CJK Ideograph range (U+3007–U+9FFD) as the input boundary and lowercase `a`–`z` as the output range. The host uses these boundaries to partition mixed queries (e.g. `大cj` matching `大长今`) into literal and alias segments.
 - **Pre-flight Fast Checks (`CanHandle(text)`)**: Scans for Chinese characters before generating aliases, returning `false` immediately for pure English strings to avoid allocation overhead.
-- **Polyphonic Combinations (`GetAliases(text)`)**: Constructs a syllable map and generates all common pronunciation combinations connected with `|` (capped at 32 combinations to prevent combinatorial explosions), allowing parallel matching across all permutations.
+- **Live Reading Match (`IAliasLiveMatcherProvider`)**: the readings are never written into the index. The plugin builds one immutable bit-parallel matcher per query term (2–63 ASCII letters/digits) and the host runs it over the candidate's own characters: every character consumes a non-empty prefix of one of its readings, so a hit is always one contiguous run and a polyphonic name costs nothing extra. `GetAliases(text)` now emits only the Simplified spelling of a Traditional name.
 - **Embedded Localization & Thread-Safe Caching**: Provides localized plugin display names via `ITranslationProvider`, caching parsed JSON tables inside a `lock`-guarded dictionary to avoid repeated disk reads.
 
 ## 3. FlowLauncherBridge —— Cross-Ecosystem Compatibility & Isolated Runtimes

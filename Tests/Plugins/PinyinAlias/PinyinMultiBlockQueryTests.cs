@@ -4,10 +4,10 @@ using Lertaro.Core.SearchIndex;
 namespace Lertaro.Plugins.PinyinAlias.Tests;
 
 // The reported ticket: a 184-character filename whose pinyin only matches block by block, from several
-// unrelated parts of the name (防弹 ... 保护 ... 电脑玩物站长 ... 市集). Its readings are baked as a GRID
-// entry -- the two strings the provider's GetAliases still returns are that same space enumerated and
-// capped, and the host no longer matches against them -- which makes this class about the query side:
-// whether a match is accepted, and what gets highlighted, when the syllables sit far apart.
+// unrelated parts of the name (防弹 ... 保护 ... 电脑玩物站长 ... 市集). Its readings are decided LIVE per
+// candidate (nothing is baked -- see PinyinLiveSnapshotTests), which makes this class about the query
+// side: whether a match is accepted, and what gets highlighted, when the syllables sit far apart. A
+// token is one contiguous run, so blocks from different parts of the name need their own spaces.
 [TestClass]
 public sealed class PinyinMultiBlockQueryTests
 {
@@ -48,10 +48,10 @@ public sealed class PinyinMultiBlockQueryTests
     [DataRow("xiaonxl")]
     [DataRow("chuangysji")]
     [DataRow("gxiao")]
-    [DataRow("fdbjfgxiao")]
+    [DataRow("fdbjf gxiao")]
     [DataRow("fdbjf gcc")]
     [DataRow("fdan xiaonxl chuangysji")]
-    [DataRow("dj chu ban chuban df7686")]
+    [DataRow("diannao chu ban chuban df7686")]
     [DataRow("Esor xinliu cbcb archive")]
     [DataRow("9786267")]
     [DataRow("Anna Archive")]
@@ -67,10 +67,10 @@ public sealed class PinyinMultiBlockQueryTests
     [DataRow("fangdanbijifa")]
     [DataRow("fdbjf")]
     [DataRow("fdan")]
-    [DataRow("fdbjfgxiao")]
+    [DataRow("fdbjf gxiao")]
     [DataRow("fdbjf gcc")]
     [DataRow("fdan xiaonxl chuangysji")]
-    [DataRow("dj chu ban chuban df7686")]
+    [DataRow("diannao chu ban chuban df7686")]
     [DataRow("Esor xinliu cbcb archive")]
     [DataRow("xinl gxiao jt fd 简单")]
     [DataRow("gcc")]
@@ -112,7 +112,7 @@ public sealed class PinyinMultiBlockQueryTests
 
     [TestMethod]
     [DataRow("fangdan")]
-    [DataRow("fangdan bi j f")]
+    [DataRow("fangdan bi ji fa")]
     public void MultiBlockQuery_DoesNotLightUnrelatedCharacters(string query)
     {
         using var fixture = new RealIndexFixture(Name);

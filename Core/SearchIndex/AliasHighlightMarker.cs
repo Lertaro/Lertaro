@@ -198,8 +198,10 @@ internal static class AliasHighlightMarker
         // SearchMatcherGridAliases.TryCollectProviderSegments); the alias strings it also emits are the
         // ones that are not spellings of those readings.
         var segments = new List<string>(4);
-        if (mixedTerm.Provider is IAliasGridProvider gridProvider)
-            SearchMatcherGridAliases.TryCollectProviderSegments(gridProvider, text, segments);
+        // The readings are live now: the spelling this lane matches is materialized from the provider
+        // (AppendSpellings) rather than read from a baked payload.
+        if (mixedTerm.Provider is IAliasLiveMatcherProvider liveProvider)
+            liveProvider.AppendSpellings(text, segments);
 
         foreach (var aliasGroup in mixedTerm.Provider.GetAliases(text))
         {

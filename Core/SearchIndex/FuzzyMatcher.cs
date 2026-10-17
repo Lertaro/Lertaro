@@ -41,8 +41,16 @@ public static class FuzzyMatcher
     {
         if (fzf.IsEmpty || string.IsNullOrEmpty(text))
             return false;
-        if (fzf.TryMatch(text, out _, FzfScoringScheme.Default))
+        var live = PinyinNameEvaluator.ForPattern(fzf);
+        if (live.HasProviders)
+        {
+            if (live.TryScore(text, null, out _))
+                return true;
+        }
+        else if (fzf.TryMatch(text, out _, FzfScoringScheme.Default))
+        {
             return true;
+        }
         // Same veto as the index scan: the alias tiers below match a transliteration, which can never
         // contain the text a `!term` excluded -- see FzfPatternExclusionExtensions.ExclusionsPass.
         if (fzf.HasExclusions && !fzf.ExclusionsPass(text))
@@ -113,7 +121,11 @@ public static class FuzzyMatcher
             // SearchMatcherGridAliases.TryCollectProviderSegments); the alias strings it also emits are the
             // ones that are not spellings of those readings.
             var segments = new List<string>(4);
-            if (mixedTerm.Provider is IAliasGridProvider mixedGridProvider)
+            // A live provider bakes no readings, so the spelling this lane matches is materialized from
+            // the provider -- the same source the index scan and the highlight marker use.
+            if (mixedTerm.Provider is IAliasLiveMatcherProvider liveProvider)
+                liveProvider.AppendSpellings(text, segments);
+            else if (mixedTerm.Provider is IAliasGridProvider mixedGridProvider)
                 SearchMatcherGridAliases.TryCollectProviderSegments(mixedGridProvider, text, segments);
 
             foreach (var aliasGroup in mixedTerm.Provider.GetAliases(text))
