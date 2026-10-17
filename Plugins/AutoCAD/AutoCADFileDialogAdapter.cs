@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using Lertaro.PluginSdk;
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
 using Lertaro.PluginSdk.Services;
 
@@ -70,10 +71,22 @@ public sealed class AutoCADFileDialogAdapter : IFileDialogAdapter
             // Going into a folder is a step, not an answer: AutoCAD does navigate on a path in this box plus
             // Enter, then leaves that path sitting where the name belongs, so the user has to clear it by
             // hand and cannot get the default name back. A file's path IS the answer -- nothing to undo.
-            var navigatingToFolder = Directory.Exists(targetPath);
+            // Both existence probes below run in the elevated hook process, where a drive the user mapped
+            // without elevation does not exist at all, which is why the extension is part of the answer.
+            var isFile = File.Exists(targetPath);
+            var isDirectory = !isFile && Directory.Exists(targetPath);
+            var navigatingToFolder = IsFolderNavigation(isFile, isDirectory, targetPath);
             var remembered = navigatingToFolder ? ReadTextBox(edit) : string.Empty;
 
-            if (navigatingToFolder && !targetPath.EndsWith("\\")) targetPath += "\\";
+            // Logged before the separator is appended, because "folderNavigation=false" is the one answer
+            // that would silently skip the whole undo, and it cannot be told apart from a working build out
+            // here. Debug level, per-process log like every other hook-side line.
+            Logger.Log($"[AutoCAD] navigate to {targetPath}: file={isFile} directory={isDirectory} folderNavigation={navigatingToFolder}", LogLevel.Debug);
+
+            // Appending the separator stays keyed on the folder this process can actually see, so the string
+            // written into the box is exactly what it always was; the wider folder decision above only picks
+            // whether the name is put back afterwards.
+            if (isDirectory && !targetPath.EndsWith("\\")) targetPath += "\\";
             SendMessage(edit, WM_SETTEXT, IntPtr.Zero, targetPath);
             var parent = GetParent(edit);
             var id = GetDlgCtrlID(edit);
@@ -110,8 +123,17 @@ public sealed class AutoCADFileDialogAdapter : IFileDialogAdapter
                     // never moved has nothing to report, and this runs off the UI thread either way.
                     await Task.Delay(1200);
                     var box = FindFileNameEdit(hwnd);
-                    if (ShouldPutNameBack(boxNow: ReadTextBox(box), wrote: pathAskedFor))
+                    var boxNow = ReadTextBox(box);
+                    // This decision is invisible from outside the elevated process, and the first report on
+                    // this fix was "it still left the path there" with nothing to say why.
+                    Logger.Log($"[AutoCAD] folder jump: wrote {pathAskedFor}, box now {boxNow}, name to restore {remembered}", LogLevel.Debug);
+                    if (ShouldPutNameBack(boxNow: boxNow, wrote: pathAskedFor))
+                    {
                         SendMessage(box, WM_SETTEXT, IntPtr.Zero, remembered);
+                        // Selected, the way the dialog had it when this method arrived: the next keystroke
+                        // replaces the name instead of appending to it.
+                        PostMessage(box, EM_SETSEL, IntPtr.Zero, (IntPtr)(-1));
+                    }
                 });
             }
 
@@ -121,19 +143,41 @@ public sealed class AutoCADFileDialogAdapter : IFileDialogAdapter
     }
 
     /// <summary>
+    /// Whether this navigation went into a folder, and so has a leftover path to undo.
+    /// </summary>
+    /// <remarks>
+    /// Pulled out of NavigateTo so the decision can be tested without a dialog. A file's path is the answer
+    /// the save box wants, so misreading a file as a folder would delete what the user just asked to save --
+    /// that is the direction this has to fail safe in. Existence alone cannot answer it: this runs elevated,
+    /// and a drive the user mapped without elevation is not visible here, so a real folder reads as nothing
+    /// (File.Exists false, Directory.Exists false) while an extension-less file reads exactly the same. A
+    /// path with no extension is therefore treated as the folder it most likely is, and a path this process
+    /// can see to be a file is never undone.
+    /// </remarks>
+    internal static bool IsFolderNavigation(bool isFile, bool isDirectory, string targetPath) =>
+        !isFile && (isDirectory || !Path.HasExtension(targetPath));
+
+    /// <summary>
     /// Whether the remembered name may go back into the box after a folder navigation.
     /// </summary>
     /// <remarks>
-    /// Only while the box still holds exactly the path this method wrote. Anything else in it -- the dialog
-    /// having moved the field on after the navigation, or the user typing a name in the meantime -- is not
-    /// ours to overwrite, and writing the remembered name back there would be the same damage this exists to
-    /// undo. Called only for folder targets, so a picked file keeps its name in place.
+    /// The path can come back in a different shape than it went in -- a dialog is free to normalize the
+    /// trailing separator or the drive's case, and the first real report of this method leaving the path in
+    /// place compared unequal in every way -- so the two are compared as paths, not as strings. An empty box
+    /// is restorable too: either the dialog cleared the field after navigating, or the read got nothing
+    /// back, and those look identical from here while both mean the name the user had is still missing.
+    /// Anything else in the field is newer than us -- the user typing a name, or the dialog putting
+    /// something else there -- and stays untouched. Called only for folder targets, so a picked file keeps
+    /// its name in place.
     /// </remarks>
-    internal static bool ShouldPutNameBack(string boxNow, string wrote) => boxNow == wrote;
+    internal static bool ShouldPutNameBack(string boxNow, string wrote) =>
+        boxNow.Length == 0
+        || string.Equals(Path.TrimEndingDirectorySeparator(boxNow), Path.TrimEndingDirectorySeparator(wrote),
+            StringComparison.OrdinalIgnoreCase);
 
     // WM_GETTEXT is one of the messages user32 marshals across the boundary itself, so the buffer stays in
-    // this process. A path longer than the buffer reads back short, and the comparison above then refuses
-    // to write anything -- the safe direction for a mistake.
+    // this process. A path longer than the buffer reads back short, and the comparison above then treats it
+    // as someone else's text and writes nothing -- the safe direction for a mistake.
     private static string ReadTextBox(IntPtr edit)
     {
         if (edit == IntPtr.Zero) return string.Empty;
