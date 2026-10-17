@@ -150,8 +150,7 @@ public static class ExplorerSearchHelper
         // whose match beats every matched folder's is the section's first row. Folders still lead files at
         // equal match shape and position, which is the grouping the earlier request was about.
         var orderedDirect = direct
-            .OrderBy(row => row.Match.Shape)
-            .ThenBy(row => row.Match.Start)
+            .OrderBy(row => row.Match.Start)
             .ThenBy(row => row.Result.IsDir ? 0 : 1)
             .ThenBy(row => row.Match.Tier)
             .ThenBy(row => row.Result.Name, NaturalNameComparer.Instance)
