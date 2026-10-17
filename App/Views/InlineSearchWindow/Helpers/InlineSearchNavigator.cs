@@ -16,20 +16,46 @@ public static class InlineSearchNavigator
     public static void LocateInExplorerExternal(this Lertaro.App.InlineSearchWindow window, string path)
     {
         var tracker = window.Manager.ExplorerTracker;
+        var hostHwnd = tracker.ActiveHwnd;
 
-        // An Explorer window that is already open is driven in place.
-        if (ExplorerShellWindowsHelper.IsExplorerWindow(tracker.ActiveHwnd)
-            && FileExecutor.TryLocateInExistingExplorer(path, tracker.ActiveHwnd))
+        // Read once here rather than re-read after the shell hop below, the same way OpenPathFromInline
+        // does it: the card is on its way out, a re-summon can land on a different host while the worker is
+        // busy, and the locate must go to the window the user actually acted in.
+        var askHostAdapter = !tracker.IsDesktop && !tracker.IsActiveWindowDialog
+                             && tracker.ActiveInlineAdapter?.IsFileExplorer == true && hostHwnd != IntPtr.Zero;
+
+        // An Explorer window that is already open is driven in place -- on a ShellThread. This is
+        // cross-process COM reached from a key press: ExplorerShellWindowsHelper's own remark documents
+        // that IShellBrowser::GetWindow answers RPC_E_CANTCALLOUT_ININPUTSYNCCALL from a thread inside an
+        // input-synchronous call, and NavigateAndSelect then polls for up to 2s. Every other caller of
+        // that helper goes through a ShellThread worker; this route was the one that didn't.
+        if (ExplorerShellWindowsHelper.IsExplorerWindow(hostHwnd))
         {
+            ShellThread.Run("InlineLocate", () =>
+            {
+                if (FileExecutor.TryLocateInExistingExplorer(path, hostHwnd)) return;
+
+                // The folder's existence probes are blocking I/O, so they come along on the worker rather
+                // than being paid again back on the UI thread.
+                var isDir = ResolveIsDir(path);
+                window.Dispatcher.BeginInvoke(new Action(() => LocateBeyondHostWindow(window, path, hostHwnd, askHostAdapter, isDir)));
+            });
             return;
         }
 
+        LocateBeyondHostWindow(window, path, hostHwnd, askHostAdapter, askHostAdapter ? ResolveIsDir(path) : null);
+    }
+
+    /// <summary>
+    /// The two steps left once the host window could not be driven in place: the host adapter's own
+    /// locate, then the shell. Runs on the UI thread, because the adapter step hides the card.
+    /// </summary>
+    private static void LocateBeyondHostWindow(Lertaro.App.InlineSearchWindow window, string path, IntPtr hostHwnd, bool askHostAdapter, bool? isDir)
+    {
         // "ExplorerOrDesktop" also includes third-party collectors. Ask a file-manager adapter for
         // explicit locate semantics; ExecuteItem may enter a directory or even launch a selected file.
-        if (!tracker.IsDesktop && !tracker.IsActiveWindowDialog
-            && tracker.ActiveInlineAdapter?.IsFileExplorer == true && tracker.ActiveHwnd != IntPtr.Zero
-            && ResolveIsDir(path) is { } isDir
-            && TryLocateInActiveHost(window, tracker.ActiveHwnd, path, isDir))
+        if (askHostAdapter && isDir.HasValue
+            && TryLocateInActiveHost(window, hostHwnd, path, isDir.Value))
         {
             return;
         }
@@ -220,32 +246,49 @@ public static class InlineSearchNavigator
             }
         }
 
+        var searchText = window.SearchText;
+
         if (!forceRealOpen
             && isDir == true
             && tracker.IsExplorerOrDesktopActive
 
             && !tracker.IsDesktop
 
-            && tracker.ActiveHwnd != IntPtr.Zero
+            && tracker.ActiveHwnd != IntPtr.Zero)
 
-            && FileExecutor.TryLocateInExistingExplorer(path, tracker.ActiveHwnd))
         {
+            var hostHwnd = tracker.ActiveHwnd;
+            // Hidden before the attempt, not after: this locate is cross-process COM and now runs on a
+            // ShellThread, where it can spend its whole poll, and the user has already committed to the
+            // action -- the same reasoning TryLocateInActiveHost gives for hiding up front. The search text
+            // is read above, because the card is gone by the time the worker has an answer.
             window.HideWindow();
+            ShellThread.Run("InlineFolderLocate", () =>
+            {
+                if (!FileExecutor.TryLocateInExistingExplorer(path, hostHwnd)) OpenPlainly(path, asAdmin, searchText);
+            });
             return;
         }
 
-        var searchText = window.SearchText;
         if (path != "__SHOW_MORE__")
         {
             window.HideWindow();
-            if (asAdmin)
-                FileExecutor.OpenFileOrFolderAsAdmin(path, searchText);
-            else
-                FileExecutor.OpenFileOrFolder(path, searchText);
+            OpenPlainly(path, asAdmin, searchText);
             return;
         }
 
         FileExecutor.OpenFileOrFolder(path, searchText, () => window.HideWindow());
+    }
+
+    // The plain "hand it to the shell" half, which the in-place locate above falls back to when the host
+    // window would not take the navigation. Safe from a ShellThread worker: FileExecutor does its own
+    // posting, and CustomMessageBox marshals itself back when called off-thread.
+    private static void OpenPlainly(string path, bool asAdmin, string searchText)
+    {
+        if (asAdmin)
+            FileExecutor.OpenFileOrFolderAsAdmin(path, searchText);
+        else
+            FileExecutor.OpenFileOrFolder(path, searchText);
     }
 
     public static void ResetInlineSearchAndFocusDialog(this Lertaro.App.InlineSearchWindow window)
