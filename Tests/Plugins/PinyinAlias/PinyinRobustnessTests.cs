@@ -72,11 +72,28 @@ public sealed class PinyinRobustnessTests
     [DataRow("nx")]
     [DataRow("xiaonxl")]
     [DataRow("zhangesor")]
-    [DataRow("电nao")]
     public void PinyinShapes_ReachBothNames(string query)
     {
         AssertReachesBothModes(query, Ticket);
         AssertReachesBothModes(query, Messy);
+    }
+
+    // A term mixing native-script characters with pinyin letters is answered by the mixed-alphabet lane,
+    // which is a last-resort rescue for ONE bare fuzzy term. Both halves of that limit are load-bearing:
+    // the lane matches an alias as text and has to say how its sub-match combines with the rest of a
+    // multi-term query, and in an exact query it cannot tell a word's pinyin letters from letters that
+    // are literal content of the name -- "笔ab记" against "笔abc记" re-reads the a/b as two initials and
+    // reports a run the name does not contain. So exact matching answers a mixed term from the name's own
+    // text, and only a name that literally carries it is found.
+    [TestMethod]
+    public void MixedAlphabetTerm_IsAFuzzyModeRescue()
+    {
+        Assert.IsTrue(Reaches("电nao", Ticket, fuzzy: true), "fuzzy matching reads 电 + 脑's initial run");
+        Assert.IsTrue(Reaches("电nao", Messy, fuzzy: true));
+        Assert.IsFalse(Reaches("电nao", Ticket, fuzzy: false), "the same query in exact mode wants the run in the name");
+        Assert.IsTrue(Reaches("chuangysji Anna", Ticket, fuzzy: true));
+        Assert.IsTrue(Reaches("chuangysji Anna 电nao", Ticket, fuzzy: true));
+        Assert.IsFalse(Reaches("chuangysji Anna 电nao", Ticket, fuzzy: false), "and the mixed word has no lane to read it inside a multi-term query");
     }
 
     // Space-separated tokens are independent; a pinyin block, a literal CJK word and an English word
@@ -88,7 +105,6 @@ public sealed class PinyinRobustnessTests
     [DataRow("fdan xiaonxl chuangysji")]
     [DataRow("fdbjf 简单")]
     [DataRow("xinl gxiao 简单")]
-    [DataRow("chuangysji Anna 电nao")]
     public void MultiTermTokens_AreIndependent(string query)
     {
         AssertReachesBothModes(query, Ticket);
@@ -138,18 +154,16 @@ public sealed class PinyinRobustnessTests
         AssertReachesBothModes(query, Messy);
     }
 
-    // The WinShun-semantics rejections, all in both modes:
+    // The reference-semantics rejections, all in both modes:
     //   * a run interrupted by other characters (no skipping inside one token);
     //   * blocks out of the name's order inside one token;
     //   * a reading's tail glued to the next syllable's head ("ex", "piji");
-    //   * a token that would need one position twice ("baj" over 笔a…j);
     //   * a pinyin token crossing a separator ('-') between two blocks;
     //   * the reported "duc": its d/u/c only exist with gaps between them (single-token skipping was
     //     the OLD semantics; the whole example minus "duc" is pinned positive below).
     [TestMethod]
     [DataRow("fdbjfgxiao")]
     [DataRow("dnwwzzfdbjf")]
-    [DataRow("baj")]
     [DataRow("ex")]
     [DataRow("piji")]
     [DataRow("fangdanbijifajiandan")]
@@ -157,13 +171,26 @@ public sealed class PinyinRobustnessTests
     [DataRow("fdanbjfa cy Anna test duc hu")]
     public void RejectedShapes_ReachNothing(string query) => AssertReachesNothing(query);
 
-    // The same example WITHOUT "duc": everything else lands, in both modes.
+    // "baj" is NOT rejected, and that is the behaviour the port is for: 版 gives up "ba" (a prefix of its
+    // own "ban") and 集 gives "j", so the word is one contiguous run of the name's readings -- the same
+    // shape the reference pins as correct ("bga" reaching 报告). It ranks where a mid-name four-point hit
+    // belongs, below anything literal or boundary-aligned, which is the demotion the old span/score gate
+    // was doing by hand.
+    [TestMethod]
+    public void HalfTypedReadingMidName_IsReadAndRankedLow()
+    {
+        Assert.IsTrue(Reaches("baj", Ticket, fuzzy: false));
+        Assert.IsTrue(Reaches("baj", Ticket, fuzzy: true));
+    }
+
+    // The same example WITHOUT the unfindable "duc": everything else lands, in both modes. "test" is the
+    // messy variant's own literal content -- the ticket name has no such word -- so that token is only
+    // asserted there; the ticket answer is the same sentence with it dropped.
     [TestMethod]
     public void ReportedExample_MinusTheGappedToken_ReachesBothNames()
     {
-        const string query = "fdanbjfa cy Anna test hu";
-        AssertReachesBothModes(query, Ticket);
-        AssertReachesBothModes(query, Messy);
+        AssertReachesBothModes("fdanbjfa cy Anna test hu", Messy);
+        AssertReachesBothModes("fdanbjfa cy Anna hu", Ticket);
     }
 
     // The mode split, pinned: pinyin is the same in both modes, while scattered literal text is what
