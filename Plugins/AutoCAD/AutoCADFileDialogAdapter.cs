@@ -66,7 +66,14 @@ public sealed class AutoCADFileDialogAdapter : IFileDialogAdapter
         {
             var edit = FindFileNameEdit(hwnd);
             if (edit == IntPtr.Zero) return false;
-            if (Directory.Exists(targetPath) && !targetPath.EndsWith("\\")) targetPath += "\\";
+
+            // Going into a folder is a step, not an answer: AutoCAD does navigate on a path in this box plus
+            // Enter, then leaves that path sitting where the name belongs, so the user has to clear it by
+            // hand and cannot get the default name back. A file's path IS the answer -- nothing to undo.
+            var navigatingToFolder = Directory.Exists(targetPath);
+            var remembered = navigatingToFolder ? ReadTextBox(edit) : string.Empty;
+
+            if (navigatingToFolder && !targetPath.EndsWith("\\")) targetPath += "\\";
             SendMessage(edit, WM_SETTEXT, IntPtr.Zero, targetPath);
             var parent = GetParent(edit);
             var id = GetDlgCtrlID(edit);
@@ -93,9 +100,46 @@ public sealed class AutoCADFileDialogAdapter : IFileDialogAdapter
                     if (attached) AttachThreadInput(currentThread, targetThread, false);
                 }
             });
+
+            if (navigatingToFolder)
+            {
+                var pathAskedFor = targetPath;
+                Task.Run(async () =>
+                {
+                    // Past the commit above. Timed rather than watched for a signal because a dialog that
+                    // never moved has nothing to report, and this runs off the UI thread either way.
+                    await Task.Delay(1200);
+                    var box = FindFileNameEdit(hwnd);
+                    if (ShouldPutNameBack(boxNow: ReadTextBox(box), wrote: pathAskedFor))
+                        SendMessage(box, WM_SETTEXT, IntPtr.Zero, remembered);
+                });
+            }
+
             return true;
         }
         catch { return false; }
+    }
+
+    /// <summary>
+    /// Whether the remembered name may go back into the box after a folder navigation.
+    /// </summary>
+    /// <remarks>
+    /// Only while the box still holds exactly the path this method wrote. Anything else in it -- the dialog
+    /// having moved the field on after the navigation, or the user typing a name in the meantime -- is not
+    /// ours to overwrite, and writing the remembered name back there would be the same damage this exists to
+    /// undo. Called only for folder targets, so a picked file keeps its name in place.
+    /// </remarks>
+    internal static bool ShouldPutNameBack(string boxNow, string wrote) => boxNow == wrote;
+
+    // WM_GETTEXT is one of the messages user32 marshals across the boundary itself, so the buffer stays in
+    // this process. A path longer than the buffer reads back short, and the comparison above then refuses
+    // to write anything -- the safe direction for a mistake.
+    private static string ReadTextBox(IntPtr edit)
+    {
+        if (edit == IntPtr.Zero) return string.Empty;
+        var buffer = new StringBuilder(1024);
+        SendMessage(edit, WM_GETTEXT, (IntPtr)buffer.Capacity, buffer);
+        return buffer.ToString();
     }
 
     public bool GetDockBounds(IntPtr hwnd, out AdapterRect rect)
@@ -221,6 +265,9 @@ public sealed class AutoCADFileDialogAdapter : IFileDialogAdapter
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
     private static extern IntPtr SendMessage(IntPtr hwnd, uint message, IntPtr wParam, string lParam);
 
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern IntPtr SendMessage(IntPtr hwnd, uint message, IntPtr wParam, StringBuilder lParam);
+
     [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     private static extern IntPtr SendMessageTimeout(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam, uint fuFlags, uint uTimeout, out IntPtr lpdwResult);
     private const uint SMTO_ABORTIFHUNG = 0x0002;
@@ -282,6 +329,7 @@ public sealed class AutoCADFileDialogAdapter : IFileDialogAdapter
     private const uint PAGE_READWRITE = 0x04;
     private const uint CDM_GETFOLDERPATH = 0x0466;
     private const uint WM_SETTEXT = 0x000C;
+    private const uint WM_GETTEXT = 0x000D;
     private const uint WM_COMMAND = 0x0111;
     private const uint EN_CHANGE = 0x0300;
     private const uint WM_KEYDOWN = 0x0100;
