@@ -93,6 +93,27 @@ public sealed class SnapshotWriterTests
         Assert.ThrowsExactly<InvalidDataException>(() => Snapshot.Open(path));
     }
 
+    // The grid's two columns came off in v13, so a file that does not declare v13 has to be refused
+    // before a single byte is read as a column: the section table no longer carries the entries whose
+    // lengths the old header stated, so reading on would map every section after AliasProviderIds to the
+    // wrong offset -- a silently misindexed drive rather than a catchable exception. This is the gate the
+    // forced rebuild leans on, and it is the only thing standing between an old .idx and a corrupt one.
+    [TestMethod]
+    public void Open_OlderSnapshotVersion_ThrowsInvalidDataException()
+    {
+        using var dir = new TempDirectory();
+        var path = Path.Combine(dir.Path, "older-version.idx");
+        SnapshotWriter.Write(BuildStore(fileCount: 4), path);
+
+        using (var stream = new FileStream(path, FileMode.Open, FileAccess.Write))
+        {
+            stream.Position = sizeof(ulong); // the version int, right after Magic
+            stream.Write(BitConverter.GetBytes(SnapshotFormat.Version - 1));
+        }
+
+        Assert.ThrowsExactly<InvalidDataException>(() => Snapshot.Open(path));
+    }
+
     // Regression (CS-07): a name's length is the difference of two consecutive unsigned offsets, so one
     // non-monotonic entry wraps to a huge positive number and the read past the end of the mapping is an
     // access violation -- not an exception the service can catch or log. Magic, version and file length
