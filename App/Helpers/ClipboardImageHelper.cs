@@ -9,7 +9,7 @@ namespace Lertaro.App.Helpers;
 /// </summary>
 /// <remarks>
 /// Needs an STA thread, exactly like <see cref="ClipboardTextHelper">the text side of the clipboard</see>:
-/// WPF's clipboard is COM-backed. Both of its callers reach it from the UI thread.
+/// WPF's clipboard is COM-backed. Its one caller reaches it from the UI thread.
 ///
 /// ponytail: covers the bitmap formats WPF itself recognises (CF_BITMAP, CF_DIB, CF_DIBV5). A source that
 /// offers nothing but a bare PNG or JPEG payload reads as no image, and the upgrade path is to sniff those
@@ -58,9 +58,9 @@ internal static class ClipboardImageHelper
     }
 
     /// <summary>
-    /// The first free name for this second's copy, which is two files rather than one overwritten: a
-    /// second picture saved under the first one's name would leave the item already in the list pointing
-    /// at the new image's bytes.
+    /// The first free <c>clipboard-&lt;stamp&gt;.png</c> in <paramref name="folder"/>. Two copies in one
+    /// second are two files: writing the second under the first one's name would leave the item already in
+    /// the list pointing at the new image's bytes.
     /// </summary>
     internal static string NextTempPath(string folder)
     {

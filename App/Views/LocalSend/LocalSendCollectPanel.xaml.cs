@@ -39,8 +39,8 @@ public partial class LocalSendCollectPanel : WpfUserControl
         if (dialog.ShowDialog() == true && !string.IsNullOrEmpty(dialog.FolderName)) ViewModel?.AddPaths([dialog.FolderName]);
     }
 
-    // The panel is the only way to send a screenshot: nothing on disk points at the pixels the clipboard
-    // holds, so they have to become a file before the send can read them.
+    // A screenshot has no path, and the send reads only paths, so the clipboard's pixels have to become a
+    // file before anything can be added here.
     private void AddClipboardImage_Click(object sender, RoutedEventArgs e)
     {
         if (ViewModel is not { } vm) return;
