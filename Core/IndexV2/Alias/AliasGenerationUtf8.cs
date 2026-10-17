@@ -24,14 +24,12 @@ internal static class AliasGenerationUtf8
         public readonly byte[] Bytes;
         public readonly int[] SegmentLengths;
         public readonly byte[] ProviderIds;
-        public readonly byte[] Kinds;
 
-        public Result(byte[] bytes, int[] segmentLengths, byte[] providerIds, byte[] kinds)
+        public Result(byte[] bytes, int[] segmentLengths, byte[] providerIds)
         {
             Bytes = bytes;
             SegmentLengths = segmentLengths;
             ProviderIds = providerIds;
-            Kinds = kinds;
         }
     }
 
@@ -48,7 +46,6 @@ internal static class AliasGenerationUtf8
         sink.Reset();
 
         List<byte>? providerIds = null;
-        List<byte>? kinds = null;
         foreach (var provider in AliasProviderRegistry.GetAllProviders())
         {
             try
@@ -56,7 +53,7 @@ internal static class AliasGenerationUtf8
                 if (!provider.CanHandle(name))
                     continue;
                 var providerId = AliasProviderRegistry.GetProviderId(provider);
-                AppendProvider(name, provider, providerId, sink, providerIds ??= new List<byte>(), kinds ??= new List<byte>(), ref mask);
+                AppendProvider(name, provider, providerId, sink, providerIds ??= new List<byte>(), ref mask);
             }
             catch (Exception ex)
             {
@@ -84,7 +81,7 @@ internal static class AliasGenerationUtf8
             offset += segment.Length;
         }
 
-        return new Result(bytes, segmentLengths, providerIds.ToArray(), kinds!.ToArray());
+        return new Result(bytes, segmentLengths, providerIds.ToArray());
     }
 
     // Appends one provider's aliases as string entries, plus -- for a provider that bakes no readings --
@@ -95,7 +92,6 @@ internal static class AliasGenerationUtf8
         byte providerId,
         AliasByteSink dest,
         List<byte> providerIds,
-        List<byte> kinds,
         ref ulong mask)
     {
         // Without this the scan's char-mask gate would reject every CJK candidate for a pinyin query the
@@ -115,22 +111,19 @@ internal static class AliasGenerationUtf8
 
         var before = dest.SegmentCount;
         provider.GetAliasesUtf8(name, dest);
-        RecordSegments(dest, before, providerId, AliasEntryKind.String, providerIds, kinds, ref mask);
+        RecordSegments(dest, before, providerId, providerIds, ref mask);
     }
 
     private static void RecordSegments(
         AliasByteSink dest,
         int from,
         byte providerId,
-        AliasEntryKind kind,
         List<byte> providerIds,
-        List<byte> kinds,
         ref ulong mask)
     {
         for (var s = from; s < dest.SegmentCount; s++)
         {
             providerIds.Add(providerId);
-            kinds.Add((byte)kind);
             mask |= FzfAlgorithm.GetCharMaskUtf8(dest.Segment(s));
         }
     }

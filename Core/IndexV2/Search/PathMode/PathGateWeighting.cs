@@ -143,10 +143,6 @@ internal sealed class PathGateWeighting
         {
             if (disabledIds != null && disabledIds.Contains(_snapshot.AliasProviderId(e)))
                 continue;
-            // Mirrors PathGate.TryMatchSegmentRow: a legacy grid entry is inert bytes nothing decodes any
-            // more, so it is skipped here exactly as the snapshot's own alias reader skips it.
-            if (_snapshot.AliasKind(e) == AliasEntryKind.Grid)
-                continue;
             var aliasUtf8 = _snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)
                 continue;

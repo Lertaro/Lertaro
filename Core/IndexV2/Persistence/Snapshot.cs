@@ -71,15 +71,6 @@ public sealed unsafe class Snapshot : IDisposable
                 throw new InvalidDataException($"Snapshot file is truncated: header requires {totalLength} bytes but the file holds only {stream.Length}.");
 
             ValidateNameOffsets();
-
-            // The legacy reading vocabulary is bound here, at open, so a snapshot whose section does not
-            // decode fails loudly at open like every other corrupt column instead of mid-query. Nothing
-            // reads the result any more -- no tier can resolve a grid id since no tier walks a grid -- and
-            // binding it costs microseconds either way (a few hundred entries at most).
-            var readings = new AliasReadingTable();
-            if (Meta.AliasReadingsLength > 0 && !readings.TryBind(new ReadOnlySpan<byte>(Section(SnapshotSection.AliasReadings), Meta.AliasReadingsLength)))
-                throw new InvalidDataException($"Snapshot {SourceKey}: the alias reading table does not bind.");
-            AliasReadings = readings;
         }
         catch
         {
@@ -170,21 +161,15 @@ public sealed unsafe class Snapshot : IDisposable
     }
 
     // Precomputed alias strings for a unique name, decoded on demand (only when the name itself
-    // failed to match, and only for the CJK subset that has aliases at all). Reading-grid entries are
-    // skipped: they are not strings, and nothing decodes one any more -- those readings are answered
-    // live, so the payload stays the inert bytes it is to every other tier.
+    // failed to match, and only for the CJK subset that has aliases at all).
     public int GetAliases(int uid, List<(string Alias, byte ProviderId)> into)
     {
         into.Clear();
         var starts = new ReadOnlySpan<int>(Section(SnapshotSection.AliasStarts), UniqueCount + 1);
         var entryOffsets = new ReadOnlySpan<uint>(Section(SnapshotSection.AliasEntryOffsets), Meta.AliasEntryCount + 1);
         var providerIds = new ReadOnlySpan<byte>(Section(SnapshotSection.AliasProviderIds), Meta.AliasEntryCount);
-        var kinds = new ReadOnlySpan<byte>(Section(SnapshotSection.AliasEntryKinds), Meta.AliasEntryCount);
         for (var e = starts[uid]; e < starts[uid + 1]; e++)
         {
-            if (kinds[e] != (byte)AliasEntryKind.String)
-                continue;
-
             var alias = SnapshotFormat.NameEncoding.GetString(
                 new ReadOnlySpan<byte>(Section(SnapshotSection.AliasBlob) + entryOffsets[e], (int)(entryOffsets[e + 1] - entryOffsets[e])));
             into.Add((alias, providerIds[e]));
@@ -210,19 +195,6 @@ public sealed unsafe class Snapshot : IDisposable
 
     internal byte AliasProviderId(int entry)
         => new ReadOnlySpan<byte>(Section(SnapshotSection.AliasProviderIds), Meta.AliasEntryCount)[entry];
-
-    // Whether this entry's payload is an alias string or a legacy reading grid. Every string-tier
-    // consumer of AliasUtf8 has to skip the latter: a grid payload is UTF-16 code units, not text, and
-    // nothing decodes one any more.
-    internal AliasEntryKind AliasKind(int entry)
-        => (AliasEntryKind)new ReadOnlySpan<byte>(Section(SnapshotSection.AliasEntryKinds), Meta.AliasEntryCount)[entry];
-
-    /// <summary>
-    /// The snapshot's reading vocabulary (AliasReadingTable), bound at open. Kept because the section is
-    /// part of the format and a snapshot on disk can still hold a non-empty one; no tier reads it, since
-    /// nothing bakes a grid payload that could reference it.
-    /// </summary>
-    internal AliasReadingTable AliasReadings { get; }
 
     // First (lowest) row holding this id, or -1; hard-link duplicates sit adjacent.
     public int FirstRowForId(UInt128 id)

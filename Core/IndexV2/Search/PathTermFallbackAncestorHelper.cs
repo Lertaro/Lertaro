@@ -126,10 +126,6 @@ internal static class PathTermFallbackAncestorHelper
         {
             if (disabledIds != null && disabledIds.Contains(snapshot.AliasProviderId(e)))
                 continue;
-            // A legacy grid entry answers nothing here: it is not text, and nothing decodes one any more
-            // (its readings are decided live), so the mask walk skips it as the alias reader does.
-            if (snapshot.AliasKind(e) == AliasEntryKind.Grid)
-                continue;
             var aliasUtf8 = snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)
                 continue;

@@ -177,11 +177,6 @@ internal sealed class PathGate
         {
             if (disabledIds != null && disabledIds.Contains(_snapshot.AliasProviderId(e)))
                 continue;
-            // A legacy snapshot can still hold reading-grid entries. Nothing decodes one any more -- the
-            // readings they stood for are decided live -- so the payload is inert bytes this tier skips,
-            // exactly as Snapshot.GetAliases skips it.
-            if (_snapshot.AliasKind(e) == AliasEntryKind.Grid)
-                continue;
             var aliasUtf8 = _snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)
                 continue;

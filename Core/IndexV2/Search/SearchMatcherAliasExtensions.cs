@@ -57,9 +57,6 @@ internal static class SearchMatcherAliasExtensions
             if (snapshot.AliasProviderId(e) != mixedTerm.ProviderId)
                 continue;
 
-            if (snapshot.AliasKind(e) == AliasEntryKind.Grid)
-                continue; // A legacy grid payload is not alias text, and nothing decodes one any more.
-
             segments.Clear();
             foreach (var segment in Encoding.UTF8.GetString(snapshot.AliasUtf8(e)).Split('|'))
             {
@@ -100,12 +97,6 @@ internal static class SearchMatcherAliasExtensions
         for (var e = start; e < end; e++)
         {
             if (disabledIds != null && disabledIds.Contains(snapshot.AliasProviderId(e)))
-                continue;
-
-            // A legacy snapshot can still hold reading-grid entries. Nothing decodes one any more -- the
-            // readings they stood for are answered live (see PinyinNameEvaluator) -- so the payload is
-            // inert bytes this tier skips, exactly as Snapshot.GetAliases skips it.
-            if (snapshot.AliasKind(e) == AliasEntryKind.Grid)
                 continue;
 
             var aliasUtf8 = snapshot.AliasUtf8(e);
