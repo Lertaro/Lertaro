@@ -406,6 +406,8 @@
   "General_DefaultFileManagerEnabled": "使用第三方文件管理器打开文件夹",
   "General_ShowOpenedFoldersInInlineSearch": "在内联搜索中显示当前打开的文件夹",
   "General_ShowOpenedFoldersInInlineSearchDesc": "内联窗口停靠在文件选择器时，显示该选择器当前打开的文件夹。",
+  "General_InlineSearchWindowWidth": "内联窗口宽度 (%)",
+  "General_InlineSearchWindowWidthDesc": "内联窗口停靠在某个窗口上时，以该窗口宽度为 100% 按此百分比取宽，可设 20–100。实际宽度还会按屏幕自动收放：下限是该窗口宽度的 20% 与屏幕宽度的 1/6 中的较大者，上限是该窗口本身与屏幕宽度的 90% 中的较小者。",
   "General_DefaultFileManagerHint": "打开文件夹(包括\"打开所在文件夹\")时改用下面配置的程序，而不是系统默认关联。",
   "General_DefaultFileManagerPath": "路径(程序)",
   "General_DefaultFileManagerBrowseTooltip": "浏览选择程序",

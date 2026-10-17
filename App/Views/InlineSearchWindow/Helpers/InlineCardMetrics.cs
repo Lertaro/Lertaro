@@ -29,6 +29,17 @@ internal static class InlineCardMetrics
     internal const double WorkingAreaHeightShare = 0.9;
     internal const double AnchoredWindowHeightShare = 0.6;
 
+    // The docked card's width, in shares of the window it is anchored to and of that window's screen. The
+    // user names a percent of the window; the floor keeps the card wide enough to read a path in, the
+    // ceiling keeps it from lying across more of somebody else's window than the window itself. The default
+    // takes a fifth of the screen over a narrow window because nothing was chosen, so the card is at least
+    // as wide as it has always been on the screens people actually use.
+    internal const double MinCardWidthShareOfHost = 0.2;
+    internal const double MinCardWidthShareOfScreen = 1.0 / 6;
+    internal const double DefaultCardWidthShareOfHost = 0.4;
+    internal const double DefaultCardWidthShareOfScreen = 0.2;
+    internal const double MaxCardWidthShareOfScreen = 0.9;
+
     /// <summary>What the results area should occupy right now.</summary>
     /// <param name="ShownItems">Bound items to occupy with real rows, including any section titles.</param>
     /// <param name="AreaRows">Rows reserved by the result area while a search is running.</param>
@@ -133,5 +144,35 @@ internal static class InlineCardMetrics
 
         var rows = (int)Math.Floor((availableHeight - chromeHeight) / rowHeight);
         return Math.Clamp(rows, Math.Min(minRows, maxRows), maxRows);
+    }
+
+    /// <summary>
+    /// The docked card's width in DIP: the user's percent of <paramref name="hostWidth"/>, held between the
+    /// floor and the ceiling named above.
+    /// </summary>
+    /// <remarks>
+    /// A null <paramref name="percent"/> is the default, not a missing number. <paramref name="screenWidth"/>
+    /// is the anchored window's own screen; 0 means nothing could be read for it, and then the shares of the
+    /// host carry the bounds alone -- a screen the card is not on has no claim on its width.
+    /// </remarks>
+    internal static double ResolveDockedWidth(double hostWidth, double screenWidth, int? percent)
+    {
+        var hasScreen = screenWidth > 0;
+
+        var floor = hostWidth * MinCardWidthShareOfHost;
+        if (hasScreen) floor = Math.Max(floor, screenWidth * MinCardWidthShareOfScreen);
+        var ceiling = hasScreen ? Math.Min(hostWidth, screenWidth * MaxCardWidthShareOfScreen) : hostWidth;
+
+        // A window narrower than the screen's own floor can only be answered by giving the floor up: a card
+        // wider than the window it belongs to is the exact thing this setting exists to prevent.
+        if (floor > ceiling) floor = ceiling;
+
+        var desired = percent is null
+            ? hasScreen
+                ? Math.Max(hostWidth * DefaultCardWidthShareOfHost, screenWidth * DefaultCardWidthShareOfScreen)
+                : hostWidth * DefaultCardWidthShareOfHost
+            : hostWidth * Math.Clamp(percent.Value, UiMetrics.MinInlineCardWidthPercent, UiMetrics.MaxInlineCardWidthPercent) / 100.0;
+
+        return Math.Clamp(desired, floor, ceiling);
     }
 }

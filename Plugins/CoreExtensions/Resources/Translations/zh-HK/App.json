@@ -406,6 +406,8 @@
   "General_DefaultFileManagerEnabled": "使用第三方檔案總管開啟資料夾",
   "General_ShowOpenedFoldersInInlineSearch": "在內嵌搜尋中顯示目前開啟的資料夾",
   "General_ShowOpenedFoldersInInlineSearchDesc": "內嵌視窗停靠在檔案選擇器時，顯示該選擇器目前開啟的資料夾。",
+  "General_InlineSearchWindowWidth": "內嵌視窗寬度 (%)",
+  "General_InlineSearchWindowWidthDesc": "內嵌視窗停靠在某個視窗上時，以該視窗寬度為 100% 依此百分比取寬，可設定 20–100。實際寬度仍會依螢幕自動調整：下限是該視窗寬度的 20% 與螢幕寬度的 1/6 中的較大者，上限是該視窗本身與螢幕寬度的 90% 中的較小者。",
   "General_DefaultFileManagerHint": "開啟資料夾(包括「開啟所在資料夾」)時改用下面設定的程式，而不是系統預設關聯。",
   "General_DefaultFileManagerPath": "路徑(程式)",
   "General_DefaultFileManagerBrowseTooltip": "瀏覽選擇程式",

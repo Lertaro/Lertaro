@@ -88,6 +88,13 @@ public static class UiMetrics
     public const double MinMainWindowHeight = 400;
     public const double MaxMainWindowHeight = 1400;
 
+    // Range for the inline card's user-chosen width, as a percent of the window it docks to. The card's
+    // placement bounds the result further still -- see InlineCardMetrics.ResolveDockedWidth -- so this is
+    // only what the settings box accepts.
+    public const int MinInlineCardWidthPercent = 20;
+    public const int MaxInlineCardWidthPercent = 100;
+    public const int DefaultInlineCardWidthPercent = 40;
+
     private static double _scale = 1.0;
     private static double _flowRowScale = 1.0;
     private static double _previewWindowWidth = 400;

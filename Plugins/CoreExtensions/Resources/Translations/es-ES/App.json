@@ -406,6 +406,8 @@
   "General_DefaultFileManagerEnabled": "Abrir carpetas con un administrador de archivos de terceros",
   "General_ShowOpenedFoldersInInlineSearch": "Mostrar las carpetas abiertas actualmente en la búsqueda integrada",
   "General_ShowOpenedFoldersInInlineSearchDesc": "Cuando la ventana de búsqueda integrada esté acoplada a un selector de archivos, muestra las carpetas abiertas actualmente en ese selector.",
+  "General_InlineSearchWindowWidth": "Ancho de la Ventana Integrada (%)",
+  "General_InlineSearchWindowWidthDesc": "Cuando la ventana de búsqueda integrada se acopla a una ventana, toma ese porcentaje del ancho de dicha ventana (se aceptan valores de 20 a 100, siendo su ancho el 100 %). El resultado sigue limitado por la pantalla: como mínimo el mayor entre el 20 % de esa ventana y una sexta parte del ancho de la pantalla, y como máximo el menor entre esa ventana misma y el 90 % del ancho de la pantalla.",
   "General_DefaultFileManagerHint": "Redirige la apertura de una carpeta (incluido \"Abrir Ubicación de la Carpeta\") al programa indicado a continuación en lugar de al predeterminado del propio shell.",
   "General_DefaultFileManagerPath": "Ruta (programa)",
   "General_DefaultFileManagerBrowseTooltip": "Buscar un programa",

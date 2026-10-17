@@ -6,13 +6,12 @@ namespace Lertaro.App.Tests.Views.InlineSearchWindow.Helpers;
 public sealed class InlineSearchWindowPositionerTests
 {
     [TestMethod]
-    public void CalculateDockedWidth_UsesTwoThirdsOfTargetWindow() => Assert.AreEqual(800, InlineSearchWindowPositioner.CalculateDockedWidth(1200));
-
-    [TestMethod]
-    public void CalculateDockedWidth_DoesNotApplyMinimumWidth() => Assert.AreEqual(200, InlineSearchWindowPositioner.CalculateDockedWidth(300));
-
-    [TestMethod]
     public void CalculateDesktopWidth_UsesTwentyPercentOfWorkingArea() => Assert.AreEqual(384, InlineSearchWindowPositioner.CalculateDesktopWidth(1920));
+
+    // The docked card's width is no longer a fixed share of the window it docks to -- it is the user's percent
+    // bounded by that window and its screen, and that arithmetic lives with the rest of the card's geometry in
+    // InlineCardMetrics.ResolveDockedWidth, where InlineCardMetricsTests tests it. What is tested here is only
+    // where a card of a GIVEN width is put, so every width below is an input, never a derived number.
 
     // The numbers below are a real WPS file dialog, measured off a live one: dialog 480..1440, file-name
     // box 783..1405, card 640 wide. Centering it put the card's left edge 143px left of the box.
@@ -42,7 +41,9 @@ public sealed class InlineSearchWindowPositionerTests
     //                        list SHELLDLL_DefView at 352,438..1047,788.
     //   WPS's 上传到云     -- 187,310..1147,958, file list KcfdContentWidget at 396,394..1147,818.
     //
-    // Card width is the existing 2/3 of the dock rect: 571 for the Firefox dialog (857 wide), 640 for WPS.
+    // Card widths below are the ones those dialogs were measured with -- 571 for the Firefox dialog (857
+    // wide), 640 for WPS -- and the placement does not care where a width came from, so they stay valid
+    // inputs now that the width itself is the user's percent rather than a fixed share.
     private static Core.Hook.ExplorerTracker.RECT Box(int left, int top, int right, int bottom) =>
         new() { Left = left, Top = top, Right = right, Bottom = bottom };
 
