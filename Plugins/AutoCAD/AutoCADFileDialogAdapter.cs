@@ -177,12 +177,14 @@ public sealed class AutoCADFileDialogAdapter : IFileDialogAdapter
 
     // WM_GETTEXT is one of the messages user32 marshals across the boundary itself, so the buffer stays in
     // this process. A path longer than the buffer reads back short, and the comparison above then treats it
-    // as someone else's text and writes nothing -- the safe direction for a mistake.
+    // as someone else's text and writes nothing -- the safe direction for a mistake. Timeout for the same
+    // reason GetCurrentPath below does: this runs on a worker that other dialog traffic waits on, and a hung
+    // AutoCAD must degrade to "read nothing", not park that thread.
     private static string ReadTextBox(IntPtr edit)
     {
         if (edit == IntPtr.Zero) return string.Empty;
         var buffer = new StringBuilder(1024);
-        SendMessage(edit, WM_GETTEXT, (IntPtr)buffer.Capacity, buffer);
+        SendMessageTimeout(edit, WM_GETTEXT, (IntPtr)buffer.Capacity, buffer, SMTO_ABORTIFHUNG, GetPathTimeoutMs, out _);
         return buffer.ToString();
     }
 
@@ -309,11 +311,11 @@ public sealed class AutoCADFileDialogAdapter : IFileDialogAdapter
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
     private static extern IntPtr SendMessage(IntPtr hwnd, uint message, IntPtr wParam, string lParam);
 
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    private static extern IntPtr SendMessage(IntPtr hwnd, uint message, IntPtr wParam, StringBuilder lParam);
-
     [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     private static extern IntPtr SendMessageTimeout(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam, uint fuFlags, uint uTimeout, out IntPtr lpdwResult);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern IntPtr SendMessageTimeout(IntPtr hwnd, uint message, IntPtr wParam, StringBuilder lParam, uint fuFlags, uint uTimeout, out IntPtr lpdwResult);
     private const uint SMTO_ABORTIFHUNG = 0x0002;
     private const uint GetPathTimeoutMs = 500;
 
