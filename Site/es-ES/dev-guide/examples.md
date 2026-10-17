@@ -18,13 +18,13 @@ El plugin `CoreExtensions` constituye el paquete de extensiones principal de Ler
 
 ## 2. PinyinAlias —— Motor de transliteración para caracteres no ASCII
 
-`PinyinAlias` proporciona búsqueda por pinyin completo y siglas para nombres de archivos en chino, implementando `IAliasProvider` e `ITranslationProvider`.
+`PinyinAlias` proporciona búsqueda por pinyin completo y siglas para nombres de archivos en chino, implementando `IAliasLiveMatcherProvider` (una `IAliasProvider`) e `ITranslationProvider`.
 
 ### Puntos clave de implementación
 
 - **Límites de alfabetos (`InputRanges` / `OutputRanges`)**: Declara un único rango ideográfico CJK (U+3007–U+9FFD) como límite de entrada y `a`–`z` en minúsculas como salida, permitiendo dividir consultas mixtas en segmentos literales y de alias.
 - **Comprobación previa rápida (`CanHandle(text)`)**: Detecta si el texto contiene caracteres chinos antes de generar alias, devolviendo `false` inmediatamente para cadenas en inglés.
-- **Combinaciones polifónicas (`GetAliases(text)`)**: Construye un mapa silábico y genera combinaciones unidas por `|` (hasta un máximo de 32 para evitar saturación), permitiendo búsquedas paralelas.
+- **Coincidencia de lecturas en vivo (`IAliasLiveMatcherProvider`)**: las lecturas ya no se escriben en el índice. El plugin construye un comparador bit-paralelo inmutable por término de búsqueda (2–63 letras/dígitos ASCII) y el host lo ejecuta sobre los caracteres del propio candidato: cada carácter consume un prefijo no vacío de una de sus lecturas, así que una coincidencia es siempre un tramo contiguo y un nombre polifónico no ocupa nada extra. `GetAliases(text)` ya solo emite la escritura simplificada de un nombre tradicional.
 - **Localización incrustada y caché segura**: Traduce el nombre del plugin mediante `ITranslationProvider` y almacena los JSON analizados en un diccionario protegido con `lock`.
 
 ## 3. FlowLauncherBridge —— Compatibilidad entre ecosistemas y entornos aislados

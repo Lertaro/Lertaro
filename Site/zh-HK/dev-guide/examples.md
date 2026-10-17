@@ -18,13 +18,13 @@
 
 ## 2. PinyinAlias —— 非 ASCII 別名轉寫引擎
 
-`PinyinAlias` 外掛模組專門為中文檔案名稱提供拼音全拼與首字母縮寫檢索支援，同時實作了 `IAliasProvider` 與 `ITranslationProvider` 兩個介面。
+`PinyinAlias` 外掛模組專門為中文檔案名稱提供拼音全拼與首字母縮寫檢索支援，同時實作了 `IAliasLiveMatcherProvider`（`IAliasProvider` 的延伸）與 `ITranslationProvider` 兩個介面。
 
 ### 核心實作要點
 
 - **輸入/輸出字母表邊界（`InputRanges` / `OutputRanges`）**：宣告一個 CJK 表意文字範圍（U+3007–U+9FFD）作為輸入邊界，輸出字元範圍為小寫 `a`–`z`。宿主利用該邊界智慧將「大cj」等混合查詢切分為字面比對與拼音別名比對。
 - **快速預檢過濾（`CanHandle(text)`）**：在產生別名前先掃描文字中是否存在中文字元，對於純英文字串直接返回 `false`，完全跳過後續開銷。
-- **多音字組合與別名建置（`GetAliases(text)`）**：先建置字元級音節表，對於含多音字的檔案名稱（如「重」、「長」），自動產生各常見讀音組合並使用 `|` 管道符連接（上限 32 種組合以防爆炸），供搜尋引擎作為候選集並行比對。
+- **讀音即時比對（`IAliasLiveMatcherProvider`）**：讀音不再寫入索引。外掛為每個查詢詞建立一個不可變的位元平行比對器（2–63 個 ASCII 字母／數字），宿主以它逐字元扫描候選名稱：每個字元可吃掉該字任一讀音的非空前綻，因此命中必是一段連續片段，多音字名稱也不額外佔空間。`GetAliases(text)` 現在只輸出繁轉簡寫法。
 - **內嵌多語言與執行緒安全快取**：透過 `ITranslationProvider` 提供外掛模組顯示名稱與描述的多語言當地語系化，並在內部使用帶 `lock` 保護的字典快取剖析後的 JSON 翻譯，避免每次查詢重複剖析。
 
 ## 3. FlowLauncherBridge —— 跨生態橋接與隔離執行階段

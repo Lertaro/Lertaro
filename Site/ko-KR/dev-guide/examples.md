@@ -18,13 +18,13 @@
 
 ## 2. PinyinAlias —— 비 ASCII 별칭 변환 엔진
 
-`PinyinAlias` 플러그인은 중국어 파일명에 대한 병음 전체 및 초성 검색을 지원하며 `IAliasProvider`와 `ITranslationProvider`를 구현합니다.
+`PinyinAlias` 플러그인은 중국어 파일명에 대한 병음 전체 및 초성 검색을 지원하며 `IAliasLiveMatcherProvider`(`IAliasProvider` 확장)와 `ITranslationProvider`를 구현합니다.
 
 ### 핵심 구현 사항
 
 - **입출력 문자 집합 경계 (`InputRanges` / `OutputRanges`)**: 입력 경계를 CJK 한자 블록 하나(U+3007–U+9FFD)로, 출력 범위를 소문자 `a`–`z`로 선언. 호스트는 이 경계를 활용해 한자와 영문이 섞인 쿼리를 자면 매칭과 병음 매칭으로 자동 분할.
 - **빠른 사전 검사 (`CanHandle(text)`)**: 별칭 생성 전 한자가 포함되어 있는지 먼저 스캔하여 순수 영문 문자열은 즉시 `false`를 반환하고 후속 처리를 건너뜀.
-- **다음자 조합 및 별칭 구성 (`GetAliases(text)`)**: 음절 맵을 구성하고 여러 발음이 있는 경우 파이프 기호 `|`로 연결된 후보군을 최대 32개까지 생성하여 병렬 일치 수행.
+- **발음 라이브 일치(`IAliasLiveMatcherProvider`)**: 발음을 더 이상 인덱스에 저장하지 않습니다. 플러그인은 검색어마다 바뀐 적인 비트 병렬 일치기(ASCII 문자/숨자 2–63개)를 구성하고, 호스트가 후보 이름의 문자를 하나씩 검사합니다. 매 문자는 해당 가지 발음 중 비어있는 접두를 사용하므로, 일치 구간은 항상 연속되어야 하며 다음자 이름도 추가 용량이 들지 않습니다. `GetAliases(text)`는 이제 번체가의 간체 표기만 출력합니다.
 - **임베디드 다국어 및 스레드 안전 캐싱**: `ITranslationProvider`를 통해 표시 이름을 다국어화하고, 내부에서는 `lock` 기반 딕셔너리로 JSON 번역을 캐싱하여 반복 파싱 방지.
 
 ## 3. FlowLauncherBridge —— 커뮤니티 플러그인 호환 및 격리 런타임
