@@ -92,6 +92,24 @@ public class QuickSearchWindowController
         return reopenAsFullWindowSetting ? ToggleAction.ReopenAsFullWindow : ToggleAction.Hide;
     }
 
+    /// <summary>
+    /// Whether a hide should hand the foreground back to whatever was active before the summon.
+    /// </summary>
+    /// <remarks>
+    /// Pulled out of FinishHide so the rule can be unit tested without a live window, like
+    /// DetermineToggleAction above. The foreground check is what was missing: an action run from a key
+    /// press takes the foreground on its own thread, while this window's hide lands a fade-out later, so
+    /// the restore used to fire *after* the window that action had just brought forward. "Open containing
+    /// folder" is the clearest case -- reusing an Explorer window that already shows the folder is fast
+    /// enough to beat the fade, so the folder flashed up and the foreground snapped back to the pre-summon
+    /// window, while a cold Explorer window arrived too late to be undone and looked normal.
+    /// Anything else holding the foreground at that moment got there on purpose: a located window, the one
+    /// the user Alt-tabbed to, another of ours. Restoring over it fights what the user is looking at --
+    /// and if this window never reached the foreground, there is nothing here to hand back.
+    /// </remarks>
+    internal static bool ShouldRestoreForeground(bool restoreFocus, bool suppressed, IntPtr lastActiveHwnd, IntPtr foregroundAtHide, IntPtr ownHwnd) =>
+        restoreFocus && !suppressed && lastActiveHwnd != IntPtr.Zero && foregroundAtHide == ownHwnd;
+
     // Opens the full SearchWindow carrying over the quick window's current query -- the same
     // "__SHOW_MORE__" path as the quick window's own Ctrl+F/"Open More" expand action -- then hides
     // this window without restoring focus to whatever was active before it (the full window is about
@@ -233,6 +251,11 @@ public class QuickSearchWindowController
             // replaces it instead of appending to it.
             if (!UserSettings.Load().SearchWindow.KeepSearchText) _window.ViewModel.SearchQuery = string.Empty;
 
+            // Read before the hide, while this window is still on screen: Hide() makes the OS move the
+            // foreground itself, so what the restore below needs to know is who held it during the fade-out.
+            var ownHwnd = new WindowInteropHelper(_window).Handle;
+            var foregroundAtHide = QuickSearchWindowNative.GetForegroundWindow();
+
             _window.UpdateLayout();
             _window.Hide();
             // Hiding really does take the window off screen (WS_VISIBLE is cleared, and hit-testing can no
@@ -249,7 +272,7 @@ public class QuickSearchWindowController
             InlineSearchManager.Instance.KeyboardHook.IsQuickSearchWindowVisible = false;
             InlineSearchManager.Instance.KeyboardHook.Start();
 
-            if (restoreFocus && !_suppressNextRestore && _lastActiveHwnd != IntPtr.Zero) QuickSearchWindowNative.SetForegroundWindow(_lastActiveHwnd);
+            if (ShouldRestoreForeground(restoreFocus, _suppressNextRestore, _lastActiveHwnd, foregroundAtHide, ownHwnd)) QuickSearchWindowNative.SetForegroundWindow(_lastActiveHwnd);
             _suppressNextRestore = false;
             _lastActiveHwnd = IntPtr.Zero;
 

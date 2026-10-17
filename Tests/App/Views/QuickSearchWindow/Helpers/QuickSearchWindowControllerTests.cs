@@ -68,4 +68,46 @@ public sealed class QuickSearchWindowControllerTests
         // is a full summon.
         Assert.AreEqual(QuickSearchWindowController.ToggleAction.Show,
             Toggle(isVisible: true, WindowState.Minimized, reopenAsFullWindowSetting: false, isActive: false, stayOpen: true));
+
+    // Any distinct non-zero values will do; only their equality matters here.
+    private const int OwnWindow = 0x1111, PreviousWindow = 0x2222, ForeignWindow = 0x3333, OtherOwnWindow = 0x4444;
+
+    private static bool ShouldRestore(bool restoreFocus = true, bool suppressed = false,
+        int lastActiveHwnd = PreviousWindow, int foregroundAtHide = OwnWindow)
+        => QuickSearchWindowController.ShouldRestoreForeground(restoreFocus, suppressed,
+            new IntPtr(lastActiveHwnd), new IntPtr(foregroundAtHide), new IntPtr(OwnWindow));
+
+    [TestMethod]
+    public void ShouldRestoreForeground_StillOurForeground_Restores() =>
+        // The ordinary dismiss: nothing came forward while the window faded, so the pre-summon window is
+        // the one that deserves the foreground back.
+        Assert.IsTrue(ShouldRestore());
+
+    [TestMethod]
+    public void ShouldRestoreForeground_ForeignWindowAlreadyForeground_DoesNotRestore() =>
+        // The Ctrl+Enter locate: Explorer reused a window already showing the folder and took the
+        // foreground a beat before this deferred hide landed. Restoring now is the bug being fixed -- it
+        // yanks the foreground straight back off the window the user just asked to be shown.
+        Assert.IsFalse(ShouldRestore(foregroundAtHide: ForeignWindow));
+
+    [TestMethod]
+    public void ShouldRestoreForeground_OwnOtherWindowForeground_DoesNotRestore() =>
+        // The other half of that rule: Settings or the full window holding the foreground is also not
+        // something to steal back, and it is not this window's handle either.
+        Assert.IsFalse(ShouldRestore(foregroundAtHide: OtherOwnWindow));
+
+    [TestMethod]
+    public void ShouldRestoreForeground_NoPreviousWindow_DoesNotRestore() =>
+        // Summoned over another of our own windows, so there was never a prior foreground to return to.
+        Assert.IsFalse(ShouldRestore(lastActiveHwnd: 0));
+
+    [TestMethod]
+    public void ShouldRestoreForeground_Suppressed_DoesNotRestore() =>
+        // A caller that says it is taking the foreground itself still gets its way even when that has not
+        // landed yet -- a cold browser or a UAC-blocked launch is still behind this hide.
+        Assert.IsFalse(ShouldRestore(suppressed: true));
+
+    [TestMethod]
+    public void ShouldRestoreForeground_RestoreFocusNotRequested_DoesNotRestore() =>
+        Assert.IsFalse(ShouldRestore(restoreFocus: false));
 }
