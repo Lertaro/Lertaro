@@ -46,8 +46,18 @@ public sealed class LocalSendDeviceInfo
     [JsonIgnore]
     public string IpAddress { get; set; } = string.Empty;
 
+    /// <summary>
+    /// The identity a device keeps when it moves. <see cref="Fingerprint"/> is the hash of the peer's
+    /// self-signed certificate, so it survives the DHCP lease that does not: one device answering on a new
+    /// address re-registers under this same key and the newest address simply replaces the old, which is how
+    /// upstream LocalSend keys its device map. The port stays in the key because one certificate can be
+    /// serving a second instance elsewhere, and the IP stays in only when the peer answered with no
+    /// fingerprint at all, which leaves nothing else to tell two rows apart.
+    /// </summary>
     [JsonIgnore]
-    public string DiscoveryKey => $"{IpAddress}\u001F{Port}\u001F{Fingerprint}";
+    public string DiscoveryKey => string.IsNullOrEmpty(Fingerprint)
+        ? $"{IpAddress}\u001F{Port}"
+        : $"{Port}\u001F{Fingerprint}";
 
     [JsonIgnore]
     public bool Https => string.Equals(Protocol, "https", StringComparison.OrdinalIgnoreCase);

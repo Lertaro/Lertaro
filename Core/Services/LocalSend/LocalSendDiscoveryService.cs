@@ -154,7 +154,7 @@ public sealed class LocalSendDiscoveryService : IDisposable
 
         device.IpAddress = LocalSendServerHelper.CleanIpAddress(device.IpAddress);
         var key = device.DiscoveryKey;
-        var isNew = !_discoveredDevices.TryGetValue(key, out var existingDev);
+        var isNew = !_discoveredDevices.TryGetValue(key, out var previous);
         device.LastSeen = DateTime.UtcNow;
         _discoveredDevices[key] = device;
 
@@ -162,6 +162,12 @@ public sealed class LocalSendDiscoveryService : IDisposable
         {
             Logger.Log($"[LocalSendDiscovery] Discovered device: {device.Alias} ({device.IpAddress}:{device.Port}, model: {device.DeviceModel})", LogLevel.Debug);
             DeviceDiscovered?.Invoke(this, device);
+        }
+        else if (previous != null && !string.Equals(previous.IpAddress, device.IpAddress, StringComparison.Ordinal))
+        {
+            // What a merged row would otherwise hide: one of these lines per address change is the only
+            // sign in the log that the device moved rather than went quiet.
+            Logger.Log($"[LocalSendDiscovery] {device.Alias} moved from {previous.IpAddress} to {device.IpAddress} (port {device.Port})", LogLevel.Debug);
         }
         DeviceListChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -199,9 +205,13 @@ public sealed class LocalSendDiscoveryService : IDisposable
             var results = await Task.WhenAll(checks).ConfigureAwait(false);
             var removedAny = false;
 
-            foreach (var (key, reachable) in results)
+            foreach (var (key, device, reachable) in results)
             {
-                if (!reachable && _discoveredDevices.TryRemove(key, out _))
+                // Removal is by key and value, not key alone: the identity is the fingerprint, so a device
+                // that changed address while this probe was in flight has already re-registered under this
+                // very key with its new IP. Deleting on the strength of an answer about the old one would
+                // throw away the row that just arrived.
+                if (!reachable && _discoveredDevices.TryRemove(new KeyValuePair<string, LocalSendDeviceInfo>(key, device)))
                     removedAny = true;
             }
 
@@ -214,14 +224,14 @@ public sealed class LocalSendDiscoveryService : IDisposable
         }
     }
 
-    private async Task<(string Key, bool Reachable)> ValidateDeviceAsync(KeyValuePair<string, LocalSendDeviceInfo> pair)
+    private async Task<(string Key, LocalSendDeviceInfo Device, bool Reachable)> ValidateDeviceAsync(KeyValuePair<string, LocalSendDeviceInfo> pair)
     {
         var device = pair.Value;
         using var client = new LocalSendClient(expectedFingerprint: device.Https ? device.Fingerprint : null);
         using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(Math.Min(DiscoveryTimeout, 1000)));
         var response = await client.GetDeviceInfoAsync(
             device.IpAddress, device.Port, device.Https, timeout.Token, device.Version, LocalInfo.Fingerprint).ConfigureAwait(false);
-        return (pair.Key, response != null && response.Fingerprint == device.Fingerprint);
+        return (pair.Key, device, response != null && response.Fingerprint == device.Fingerprint);
     }
 
     private async Task AnnounceBurstAsync()

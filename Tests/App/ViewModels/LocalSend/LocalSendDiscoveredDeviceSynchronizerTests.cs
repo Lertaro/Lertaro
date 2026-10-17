@@ -22,4 +22,22 @@ public sealed class LocalSendDiscoveredDeviceSynchronizerTests
 
         Assert.HasCount(3, items);
     }
+
+    [TestMethod]
+    public void Synchronize_KeepsTheRowAndItsPinWhenTheDeviceChangesAddress()
+    {
+        var items = new ObservableCollection<LocalSendSendDeviceItem>();
+        LocalSendDiscoveredDeviceSynchronizer.Synchronize(items,
+            [new LocalSendDeviceInfo { Alias = "Phone", IpAddress = "192.168.1.20", Port = 53317, Fingerprint = "peer" }]);
+        var row = items.Single();
+        row.Pin = "123456";
+
+        LocalSendDiscoveredDeviceSynchronizer.Synchronize(items,
+            [new LocalSendDeviceInfo { Alias = "Phone", IpAddress = "192.168.1.55", Port = 53317, Fingerprint = "peer" }]);
+
+        Assert.HasCount(1, items);
+        Assert.AreSame(row, items[0]);
+        Assert.AreEqual("192.168.1.55", items[0].IpAddress);
+        Assert.AreEqual("123456", row.Pin);
+    }
 }

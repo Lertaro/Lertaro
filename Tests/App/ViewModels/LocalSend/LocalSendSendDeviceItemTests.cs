@@ -18,4 +18,17 @@ public sealed class LocalSendSendDeviceItemTests
         Assert.IsTrue(item.UsesHttps);
         CollectionAssert.Contains(changedProperties, nameof(LocalSendSendDeviceItem.UsesHttps));
     }
+
+    [TestMethod]
+    public void UpdateDevice_RaisesTheTagReadOffTheAddressWhenTheDeviceMoves()
+    {
+        var item = new LocalSendSendDeviceItem(new LocalSendDeviceInfo { Alias = "Phone", IpAddress = "192.168.1.20", Fingerprint = "peer", Port = 53317 });
+        var changedProperties = new List<string?>();
+        item.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
+
+        item.UpdateDevice(new LocalSendDeviceInfo { Alias = "Phone", IpAddress = "192.168.1.55", Fingerprint = "peer", Port = 53317 });
+
+        Assert.AreEqual("55", item.FingerprintTag);
+        CollectionAssert.Contains(changedProperties, nameof(LocalSendSendDeviceItem.FingerprintTag));
+    }
 }

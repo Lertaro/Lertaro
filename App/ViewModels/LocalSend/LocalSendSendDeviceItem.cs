@@ -78,6 +78,9 @@ public sealed class LocalSendSendDeviceItem : INotifyPropertyChanged
         OnPropertyChanged(nameof(UsesHttps));
         OnPropertyChanged(nameof(ShowInsecureLabel));
         OnPropertyChanged(nameof(DeviceTypeIcon));
+        // The tag is read off the address, and a device that keeps its fingerprint is allowed to change
+        // address under this row, so the row has to be told to read it again.
+        OnPropertyChanged(nameof(FingerprintTag));
     }
 
     public bool IsSelected
