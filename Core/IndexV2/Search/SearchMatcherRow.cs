@@ -22,7 +22,13 @@ internal static class SearchMatcherRow
         match = default;
         if (name.Length == 0)
             return false;
-        if (pattern.TryMatch(name, out match, FzfScoringScheme.Default, slab))
+        var live = PinyinNameEvaluator.ForPattern(pattern);
+        if (live.HasProviders)
+        {
+            if (live.TryScore(name, slab, out match))
+                return true;
+        }
+        else if (pattern.TryMatch(name, out match, FzfScoringScheme.Default, slab))
             return true;
 
         // A `!term` has nothing to compare against in a transliteration, so the alias tiers below have to
@@ -107,7 +113,13 @@ internal static class SearchMatcherRow
     // through, which is what keeps a row's answer the same before and after it is compacted.
     internal static bool TryMatchNameOrAliases(FzfPattern pattern, string name, string[]? aliases, byte[]? providerIds, GridAlias[] grids, int queryLen, FzfSlab slab, out FzfPatternResult result)
     {
-        if (pattern.TryMatch(name, out result, FzfScoringScheme.Default, slab))
+        var live = PinyinNameEvaluator.ForPattern(pattern);
+        if (live.HasProviders)
+        {
+            if (live.TryScore(name, slab, out result))
+                return true;
+        }
+        else if (pattern.TryMatch(name, out result, FzfScoringScheme.Default, slab))
             return true;
         if (pattern.HasExclusions && !pattern.ExclusionsPass(name))
             return false;

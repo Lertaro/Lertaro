@@ -95,6 +95,13 @@ internal static class PathTermFallbackAncestorHelper
             var hit = ascii
                 ? termBytePatterns[i].TryMatch(nameUtf8, out _, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers)
                 : termPatterns[i].TryMatch(worker.Scratch.AsSpan(0, written), out _, FzfScoringScheme.Default, worker.Slab);
+            if (!hit && !ascii)
+            {
+                // The live reading tier decides the same question for a pinyin word the literal pass
+                // cannot reach (see PinyinNameEvaluator).
+                var live = PinyinNameEvaluator.ForPattern(termPatterns[i]);
+                hit = live.HasProviders && live.TryScore(worker.Scratch.AsSpan(0, written), worker.Slab, out _);
+            }
             if (hit)
                 mask |= bit;
         }
@@ -180,7 +187,15 @@ internal static class PathTermFallbackAncestorHelper
                 var bit = 1 << i;
                 if (((already | mask) & bit) != 0)
                     continue;
-                if (termPatterns[i].TryMatch(segment, out _, FzfScoringScheme.Default, worker.Slab))
+                var hit = termPatterns[i].TryMatch(segment, out _, FzfScoringScheme.Default, worker.Slab);
+                if (!hit)
+                {
+                    // Same live reading tier as the per-name mask: a pinyin word the literal pass
+                    // cannot reach still counts for this segment (see PinyinNameEvaluator).
+                    var live = PinyinNameEvaluator.ForPattern(termPatterns[i]);
+                    hit = live.HasProviders && live.TryScore(segment, worker.Slab, out _);
+                }
+                if (hit)
                     mask |= bit;
             }
         }

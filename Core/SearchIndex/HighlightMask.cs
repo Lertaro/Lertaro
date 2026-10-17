@@ -134,6 +134,18 @@ internal static class HighlightMask
         if (MarkLiteralSpan(fullText, term, comparison, highlights, out shape))
             return MatchRank.TierName;
 
+        // The live reading tier: the reading NFA decides the term from the name's own readings and
+        // paints the span it consumed -- exactly the position set the searcher's match used. It sits
+        // where the reading grid used to: before the string aliases, because a provider's own
+        // spellings are the meaningful explanation whenever they exist, while the name's scattered
+        // pass below is the fallback for a query no provider can express.
+        var live = IndexV2.Search.PinyinNameEvaluator.ForPattern(pattern);
+        if (live.HasProviders && live.TryPaintTerm(fullText, term, kind, highlights, out var liveTier))
+        {
+            shape = MatchRank.ShapeWordStart;
+            return liveTier;
+        }
+
         // The alias tier runs BEFORE the name's own scattered pass, because on a long name that pass
         // almost always succeeds by accident and paints the wrong characters: for a pinyin query "bi"
         // against a 184-character filename, "b" came from "chu ban" and "i" from "tai bei shi" while the

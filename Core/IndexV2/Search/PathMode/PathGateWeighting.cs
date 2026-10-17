@@ -126,6 +126,15 @@ internal sealed class PathGateWeighting
                 weight = HighlightMask.ComputeWeight(name, pattern);
                 return true;
             }
+
+            // Same live reading tier PathGate answers with; the weight still comes from the segment's
+            // own name through the shared mask computation.
+            var live = PinyinNameEvaluator.ForPattern(pattern);
+            if (live.HasProviders && live.TryScore(name, worker.Slab, out _))
+            {
+                weight = ComputeSegmentNameWeight(uid, nameUtf8, worker, pattern);
+                return true;
+            }
         }
 
         var disabledIds = SearchContext.DisabledAliasIds;
@@ -198,6 +207,15 @@ internal sealed class PathGateWeighting
         }
         if (!AliasProviderRegistry.HasNonAscii(segment))
             return false;
+
+        // Same live reading tier PathGate answers with; the weight still comes from the segment's own text.
+        var segmentLive = PinyinNameEvaluator.ForPattern(pattern);
+        if (segmentLive.HasProviders && segmentLive.TryScore(segment, worker.Slab, out _))
+        {
+            weight = HighlightMask.ComputeWeight(segment, pattern);
+            return true;
+        }
+
         var disabledIds = SearchContext.DisabledAliasIds;
         foreach (var provider in AliasProviderRegistry.GetActiveProviders())
         {

@@ -167,9 +167,18 @@ public static class LiveDirectorySearcher
         if (pattern == null)
             return true;
 
-        // 1. Try match the name itself using the core FZF engine
-        if (pattern.TryMatch(entry.Name, out _, FzfScoringScheme.Default, slab))
+        // 1. Try match the name itself, live first (a registered live provider decides from the name's
+        // own readings, see PinyinNameEvaluator); without one, the core FZF engine runs as always.
+        var live = IndexV2.Search.PinyinNameEvaluator.ForPattern(pattern);
+        if (live.HasProviders)
+        {
+            if (live.TryScore(entry.Name, slab, out _))
+                return true;
+        }
+        else if (pattern.TryMatch(entry.Name, out _, FzfScoringScheme.Default, slab))
+        {
             return true;
+        }
 
         // 2. Try match aliases generated for the name
         var aliases = GenerateAliases(entry.Name);

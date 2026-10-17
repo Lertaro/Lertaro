@@ -139,6 +139,28 @@ internal static class AliasGenerationUtf8
         List<byte> kinds,
         ref ulong mask)
     {
+        // A live provider bakes no readings, so the prefilter mask must take their letters from
+        // GetReadingSets -- otherwise the scan's char-mask gate would reject every CJK candidate for a
+        // pinyin query the live matcher would have answered (a name's own chars carry none of the
+        // query's Latin letters). Its baked aliases are strings as usual (the Simplified form).
+        if (provider is IAliasLiveMatcherProvider liveProvider)
+        {
+            var sets = liveProvider.GetReadingSets(name);
+            for (var i = 0; i < name.Length && i < sets.Length; i++)
+            {
+                var readings = sets[i];
+                if (readings == null)
+                    continue;
+                foreach (var reading in readings)
+                    mask |= FzfAlgorithm.GetCharMask(reading);
+            }
+
+            var liveBefore = dest.SegmentCount;
+            provider.GetAliasesUtf8(name, dest);
+            RecordSegments(dest, liveBefore, providerId, AliasEntryKind.String, providerIds, kinds, ref mask);
+            return;
+        }
+
         if (provider is not IAliasGridProvider gridProvider)
         {
             var before = dest.SegmentCount;
