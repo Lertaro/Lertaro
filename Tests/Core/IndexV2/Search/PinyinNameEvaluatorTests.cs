@@ -6,7 +6,8 @@ using Lertaro.PluginSdk.Abstractions.Plugins;
 namespace Lertaro.Core.Tests.IndexV2.Search;
 
 // The evaluator's scoring and set semantics, driven by a fake live provider with scripted spans --
-// the reading table plays no part here. Scores are the WinShun table spelled out in the assertions.
+// the reading table plays no part here. A word the name literally says keeps fzf's number; the WinShun
+// table spelled out in the assertions decides only the words that had to be read.
 [TestClass]
 public sealed class PinyinNameEvaluatorTests
 {
@@ -77,19 +78,15 @@ public sealed class PinyinNameEvaluatorTests
     }
 
     [TestMethod]
-    public void LiteralBonus_NameStart()
+    public void LiteralMatch_KeepsFzfsOwnVerdict()
     {
-        // 30 (start of the name) + 25 * 5/11 (coverage).
-        var result = Score("hello", "hello world", new FakeLiveProvider().Span("hello", 0, 5));
-        Assert.AreEqual(41, result.Score);
-    }
-
-    [TestMethod]
-    public void LiteralBonus_WordStart()
-    {
-        // 18 (word start) + 25 * 5/9.
-        var result = Score("hello", "say hello", new FakeLiveProvider().Span("hello", 0, 5));
-        Assert.AreEqual(31, result.Score);
+        // Nothing had to be read, so fzf scores it: "hello" at the start of a name and after a space are
+        // both word starts to FzfAlgorithm and pay the same 140. The reference's 30/18/4 rung only decides
+        // candidates the name's own text cannot answer -- which is what keeps an ordinary search ranked the
+        // way it was before the readings went live.
+        var provider = new FakeLiveProvider().Span("hello", 0, 5);
+        Assert.AreEqual(140, Score("hello", "hello world", provider).Score);
+        Assert.AreEqual(140, Score("hello", "say hello", provider).Score);
     }
 
     [TestMethod]
@@ -122,9 +119,11 @@ public sealed class PinyinNameEvaluatorTests
     [TestMethod]
     public void SetsAnd_LiteralAndPinyin()
     {
-        // pinyin 26 + literal 30 (both at the name start) + coverage 25 * min(4, 2)/2.
+        // fzf's own 62 for the word the name literally says, plus 26 for the word only the readings can
+        // answer (name start, common reading). No coverage term: something literal anchored this candidate,
+        // so the reading table's aggregate terms stay out of the number.
         var result = Score("bg 报告", "报告", new FakeLiveProvider().Span("bg", 0, 2));
-        Assert.AreEqual(81, result.Score);
+        Assert.AreEqual(62 + 26, result.Score);
     }
 
     [TestMethod]
