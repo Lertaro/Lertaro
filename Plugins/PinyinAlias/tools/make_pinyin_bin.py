@@ -9,11 +9,17 @@ provides:
   kTGHZ2013.txt   the readings of the 8105 characters in the 2013 standard
                   《通用规范汉字字典》, without the rare and historic ones
 
-For each character in CJK Unified Ideographs (U+4E00-U+9FFF) the table keeps, without tones:
+For each character in CJK Extension A plus CJK Unified Ideographs (U+3400-U+9FFF)
+the table keeps, without tones:
   - characters in the standard: their standard readings, most common first (at most three);
     so 胶 is only "jiao", but 行 is "xing" and "hang"
   - other (rare) characters: their most common reading
 ü is written v, as pinyin keyboards do ("lv" for 绿).
+
+The range opens at U+3400, not U+4E00: the char table indexes U+3007-U+9FFD anyway, so
+Extension A costs no bytes it isn't already paying, and stopping at U+4E00 would drop the
+5,787 characters the previous table covered there -- 77 of them listed in the 2013 standard
+and used in people's names (㙍, 㫰...), whose files would silently stop answering pinyin.
 
 Output layout (little-endian; PinyinEngine.cs reads exactly this):
   u16   syllable count
@@ -38,7 +44,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 DATA = HERE / "data"
 OUTPUT = HERE.parent / "Resources" / "pinyin.bin"
 
-FIRST, LAST = 0x4E00, 0x9FFF
+FIRST, LAST = 0x3400, 0x9FFF
 TABLE_FIRST = 12295  # U+3007, as baked into PinyinEngine.CharTableOffset/IsChinese
 TABLE_COUNT = 28647  # U+3007..U+9FFD, idem
 MAX_READINGS = 3
