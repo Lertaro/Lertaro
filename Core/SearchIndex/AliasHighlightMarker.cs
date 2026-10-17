@@ -1,5 +1,3 @@
-using Lertaro.Core.IndexV2.Alias;
-using Lertaro.Core.IndexV2.Search;
 using Lertaro.Core.SearchIndex.Fzf;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 
@@ -35,16 +33,6 @@ internal static class AliasHighlightMarker
     // thousands of candidates in the refinement set, which was most of what that refinement cost.
     [ThreadStatic]
     private static Dictionary<(IAliasProvider Provider, string Term, bool CaseSensitive), string[]>? _probeCache;
-
-    // Scratch for the grid tier below: the encoded grid, its bound index, one reading choice per position,
-    // the positions the witness consumed, and the materialized alias.
-    [ThreadStatic] private static AliasByteSink? _gridSink;
-    [ThreadStatic] private static AliasGridFormat.Index? _gridIndex;
-    [ThreadStatic] private static byte[]? _gridChoice;
-    [ThreadStatic] private static char[]? _gridAlias;
-    [ThreadStatic] private static int[]? _gridPaint;
-
-    private static readonly AliasGridTier[] GridTiers = { AliasGridTier.Initials, AliasGridTier.Full };
 
     private static string[] ProbesFor(IAliasProvider provider, string termLower, bool caseSensitive)
     {
@@ -100,15 +88,9 @@ internal static class AliasHighlightMarker
                 var separator = provider.SyllableSeparator;
                 var probes = ProbesFor(provider, termLower, caseSensitive);
 
-                // A provider that can spell out its readings paints from those readings and never from its
-                // alias strings: those strings are the reading space ENUMERATED and capped (the pinyin
-                // provider stops at 32 combinations and 256 characters per variant, then falls back to one
-                // reading per character), so a string-tier hit lights a spelling the engine's own grid
-                // would not have used. The grid tier below is the same witness the search decides with.
-                var gridProvider = provider as IAliasGridProvider;
-                var aliasGroups = gridProvider == null ? provider.GetAliases(text) : Enumerable.Empty<string>();
-                foreach (var aliasGroup in aliasGroups)
-                {                    if (string.IsNullOrEmpty(aliasGroup))
+                foreach (var aliasGroup in provider.GetAliases(text))
+                {
+                    if (string.IsNullOrEmpty(aliasGroup))
                         continue;
 
                     foreach (var alias in aliasGroup.Split('|'))
@@ -159,14 +141,6 @@ internal static class AliasHighlightMarker
                         tier = Math.Min(tier, AliasMatchRules.TierFor(separator, matchedName: false, aliasLower.AsSpan()));
                     }
                 }
-
-                // The grid tier: the witness the searcher itself decides with, materialized into one alias
-                // string and mapped back onto the source. For a grid-capable provider this is the only
-                // tier (the string loop above was skipped), and without it such a row is found by the
-                // engine and then renders as no match, because the caller's final mask is what its item
-                // gate reads.
-                if (!matchedAny && gridProvider != null)
-                    matchedAny |= MarkViaGrid(gridProvider, text, probes, kind, precise, highlights, ref tier);
             }
             catch
             {
@@ -193,13 +167,11 @@ internal static class AliasHighlightMarker
         if (!mixedTerm.Provider.CanHandle(text))
             return;
 
-        // This lane matches an alias as text and maps the positions it took back onto the source, so a
-        // provider that can spell out its readings is materialized first (see
-        // SearchMatcherGridAliases.TryCollectProviderSegments); the alias strings it also emits are the
-        // ones that are not spellings of those readings.
+        // This lane matches an alias as text and maps the positions it took back onto the source, so the
+        // spelling comes from the provider itself (AppendSpellings) -- its readings are decided live and
+        // nothing bakes them; the alias strings added below are the ones that are not spellings of those
+        // readings.
         var segments = new List<string>(4);
-        // The readings are live now: the spelling this lane matches is materialized from the provider
-        // (AppendSpellings) rather than read from a baked payload.
         if (mixedTerm.Provider is IAliasLiveMatcherProvider liveProvider)
             liveProvider.AppendSpellings(text, segments);
 
@@ -220,86 +192,6 @@ internal static class AliasHighlightMarker
             if (MixedQueryMatcher.TryMatchAndHighlight(mixedTerm, text, segment, highlights))
                 return;
         }
-    }
-
-    // The reading-grid tier of the same alias fallback. A grid-capable provider's alias space is not
-    // enumerable as strings, so the positions come from its readings instead -- the very positions the
-    // witness that decides the match consumed, which are code units of `text` and need no mapping back.
-    //
-    // This tier is what keeps a grid-only hit from rendering as nothing: HighlightMask's final mask is
-    // what the App's item gate reads, and an empty mask is NoMatch there. It needs no snapshot because it
-    // encodes the grid from the provider for this one candidate, exactly like the string tier above
-    // regenerates that provider's aliases live.
-    private static bool MarkViaGrid(
-        IAliasGridProvider provider,
-        string text,
-        string[] probes,
-        FzfTermKind kind,
-        bool precise,
-        Span<bool> highlights,
-        ref int tier)
-    {
-        var sink = _gridSink ??= new AliasByteSink();
-        sink.Reset();
-        if (AliasGridFormat.Encode(text, provider, sink) <= 0)
-            return false;
-
-        var grid = _gridIndex ??= new AliasGridFormat.Index();
-        if (!grid.TryBind(sink.Segment(0)))
-            return false;
-
-        var separator = provider.SyllableSeparator;
-        var positions = grid.PositionCount;
-        if (positions == 0)
-            return false;
-        if (_gridChoice == null || _gridChoice.Length < positions)
-            _gridChoice = new byte[Math.Max(positions, 64)];
-
-        var matched = false;
-        foreach (var probe in probes)
-        {
-            foreach (var readingTier in GridTiers)
-            {
-                Array.Clear(_gridChoice, 0, positions);
-                if (_gridPaint == null || _gridPaint.Length < probe.Length)
-                    _gridPaint = new int[Math.Max(probe.Length, 64)];
-                if (!AliasGridMatcher.TryMatchTerm(grid, probe, kind, readingTier, separator, _gridChoice, _gridPaint, out var paintedCount))
-                    continue;
-
-                var length = AliasGridMatcher.Measure(grid, readingTier, _gridChoice);
-                if (length == 0)
-                    continue;
-                if (_gridAlias == null || _gridAlias.Length < length)
-                    _gridAlias = new char[Math.Max(length, 64)];
-
-                // The alias is written only to learn its SHAPE (which tier this witness belongs to, from
-                // whether the separator came out); the characters to light up are the positions the witness
-                // itself consumed. Re-searching the alias here is what used to paint syllables the term
-                // never spelled: the alias carries every syllable of the whole name, so a loose alignment of
-                // the probe inside it can land on a different reading choice than the one that matched.
-                var written = AliasGridMatcher.Materialize(grid, readingTier, separator, _gridChoice, _gridAlias);
-
-                var paintedAny = false;
-                for (var i = 0; i < paintedCount; i++)
-                {
-                    // A grid position is one code unit of `text` -- Encode walks the text it was given --
-                    // so the witness's positions need no mapping back onto the source.
-                    var source = _gridPaint[i];
-                    if (source < 0 || source >= highlights.Length)
-                        continue;
-                    highlights[source] = true;
-                    paintedAny = true;
-                }
-
-                if (!paintedAny)
-                    continue;
-
-                matched = true;
-                tier = Math.Min(tier, AliasMatchRules.TierFor(separator, matchedName: false, _gridAlias.AsSpan(0, written)));
-            }
-        }
-
-        return matched;
     }
 }
 

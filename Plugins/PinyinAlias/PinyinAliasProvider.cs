@@ -17,16 +17,17 @@ public class PinyinAliasProvider : IAliasLiveMatcherProvider, ITranslationProvid
     // 5: a name whose full pinyin overran the combination path's per-variant cap baked NO alias at all,
     // leaving it unreachable by every pinyin query; it now falls back to the single-reading spelling, so
     // snapshots baked before this are missing aliases for exactly those names.
-    // 6: the host stores this provider's readings as a grid rather than as spelled-out aliases, so a
-    // name's own reading is reachable even where the enumeration was cut off (市 is "fu" alphabetically
-    // first and "shi" in 创意市集, and only the grid offers both). Snapshots baked before this hold the
-    // capped enumeration, which is why this exists rather than being a pure query-side change.
+    // 6: at that bump the host began storing this provider's readings as a per-position grid rather than as
+    // spelled-out aliases, so a name's own reading stayed reachable even where the enumeration had been cut
+    // off (市 is "fu" alphabetically first and "shi" in 创意市集, and only the grid offered both). Snapshots
+    // baked before it held the capped enumeration, which is why this exists rather than being a pure
+    // query-side change.
     // 7: matching left the index entirely. The provider decides a query term LIVE against the
     // candidate's readings (IAliasLiveMatcherProvider; see PinyinTermMatcher), so no reading-derived
     // aliases are baked at all any more -- the only alias this provider still emits is the Simplified
-    // spelling of a Traditional name. A snapshot stamped with an older version holds spelled-out pinyin
-    // aliases that no query consults, and the readings those baked aliases described now reach matching
-    // through the live matcher instead.
+    // spelling of a Traditional name, and the grid form the previous bump wrote is gone with it. A snapshot
+    // stamped with an older version holds spelled-out pinyin aliases that no query consults, and the
+    // readings those baked aliases described now reach matching through the live matcher instead.
     public int Version => 7;
 
     public IReadOnlyList<string> SupportedCultures => TranslationService.GetSupportedCultures(System.Reflection.Assembly.GetExecutingAssembly());
@@ -314,7 +315,7 @@ public class PinyinAliasProvider : IAliasLiveMatcherProvider, ITranslationProvid
 
     // IAliasLiveMatcherProvider. The mixed-alphabet lane (电nao) matches an alias as TEXT and maps the
     // positions it took back onto the source, so it needs one concrete spelling: the same
-    // single-reading spelling the grid used to materialize for it.
+    // single-reading spelling the index used to bake for it.
     public void AppendSpellings(string text, List<string> dest) =>
         PinyinAliasCombinationGenerator.AppendDefaultSpellings(text, dest);
 

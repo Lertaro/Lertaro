@@ -25,11 +25,17 @@ internal static class SnapshotFormat
     // Bumped 9 -> 10: recursive logical sizes support instant, index-only space analysis.
     // Bumped 10 -> 11: alias entries carry a kind column (alias string vs reading grid). A v10 file has
     // no room to say which shape each payload is, and the two are not interchangeable -- one is text to
-    // match, the other is AliasGridFormat's encoding -- so the old files are rejected at open and
-    // rebuilt rather than guessed at.
-    // Bumped 11 -> 12: the AliasReadings section holds each snapshot's reading vocabulary once, and its
-    // grids reference it by id instead of spelling every reading out (see AliasReadingTable). A v11 file's
-    // payloads are self-describing text, so a table-backed decoder has nothing to resolve and vice versa.
+    // match, the other was a per-name reading grid's encoding -- so the old files are rejected at open
+    // and rebuilt rather than guessed at.
+    // Bumped 11 -> 12: the AliasReadings section holds one snapshot's reading vocabulary, which that
+    // version's grids referenced by id instead of spelling every reading out (see AliasReadingTable).
+    // A v11 file's payloads were self-describing text, so a table-backed decoder had nothing to resolve
+    // and vice versa.
+    //
+    // STILL 12. Nothing writes a grid entry or a non-empty vocabulary any more -- a provider's readings
+    // are decided live -- but the sections keep their place in the layout: opening rejects a version
+    // mismatch, so a bump would re-index every multi-gigabyte .idx on every drive to buy nothing. The
+    // writer emits an empty AliasReadings, and a grid entry already on disk is skipped as inert bytes.
     public const int Version = 12;
     public const int SectionAlignment = 16;
 

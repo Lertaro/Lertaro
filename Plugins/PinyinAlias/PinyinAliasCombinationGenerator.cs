@@ -1,47 +1,35 @@
 namespace Lertaro.Plugins.PinyinAlias;
 
-// The string-path combination-generation core behind PinyinAliasProvider.GetAliases -- extracted into
-// its own class (composition, not a partial class) purely to keep PinyinAliasProvider.cs under the
-// repo's per-file line limit. GetSyllableLists is also called directly by
-// PinyinAliasProvider.MapAliasToSourceIndices, so it stays internal-visible here rather than private.
+// The reading-spelling helpers behind PinyinAliasProvider: the per-position syllable lists (which the
+// host reads for its bake-time prefilter mask and for MapAliasToSourceIndices) and the single-reading
+// spellings the mixed-alphabet lane matches as text. Extracted into its own class purely to keep
+// PinyinAliasProvider.cs under the repo's per-file line limit; GetSyllableLists therefore stays
+// internal-visible here rather than private.
 internal static class PinyinAliasCombinationGenerator
 {
     private static readonly string[][] AsciiSyllableCache;
 
-    // Generation scratch, reused per thread: only the returned alias strings themselves are
-    // allocated per call. _comboFullScratch is deliberately FIXED at MaxComboFullPinyinLength -- the
-    // combination path's per-variant cap is what bounds the cost of enumerating readings, and a
-    // growable buffer here would make results depend on what a previous call happened to grow it to.
-    // Names that overrun it are not dropped: GenerateAliases falls back to the single-reading path,
-    // whose _fullBufferScratch does grow.
+    // Generation scratch, reused per thread: only the returned alias strings themselves are allocated
+    // per call. The full-spelling buffer grows with the name because a spelling must carry every
+    // syllable of it; a name is bounded by the file-system limit, not by a budget of this class's.
     [ThreadStatic] private static string[][]? _syllableScratch;
     [ThreadStatic] private static char[]? _fullBufferScratch;
-    [ThreadStatic] private static char[]? _comboFullScratch;
     [ThreadStatic] private static char[]? _initialsScratch;
-    [ThreadStatic] private static List<string>? _fullsListScratch;
-    [ThreadStatic] private static List<string>? _initialsListScratch;
     [ThreadStatic] private static List<string>? _resultListScratch;
 
-    // '|' is the one ASCII character that can't pass through literally: every alias consumer (this
-    // class's own JoinUnique, HighlightMask.MarkViaAliasProviders, and FzfPattern.TryMatch/
-    // IsAcceptableAliasMatch's own alias-side splitting) treats a '|' found INSIDE a generated alias
-    // string as the separator between alternative polyphonic readings. A source text that happens to
-    // contain a literal '|' (e.g. a browser tab title like "example.com | 代理", which uses it as a
-    // plain visual separator) would otherwise pass that character straight through into the alias,
-    // getting it misread as a reading boundary -- splitting one continuous alias into two fragments
-    // that individually either can't find the query or can't map back to the right source positions,
-    // silently losing highlighting (and, in the worst case, a match) for perfectly good source text.
+    // '|' is the one ASCII character that can't pass through literally: every alias consumer (the '|' a
+    // host reads as the separator between alternative polyphonic readings, in HighlightMask.MarkViaAliasProviders,
+    // FzfPattern.TryMatch/IsAcceptableAliasMatch's own alias-side splitting and Snapshot's alias blobs)
+    // treats a '|' found INSIDE a generated alias string as that separator. A source text that happens to
+    // contain a literal '|' (e.g. a browser tab title like "example.com | 代理", which uses it as a plain
+    // visual separator) would otherwise pass that character straight through into the alias, getting it
+    // misread as a reading boundary -- splitting one continuous alias into two fragments that individually
+    // either can't find the query or can't map back to the right source positions, silently losing
+    // highlighting (and, in the worst case, a match) for perfectly good source text.
     // Substituting a control character that can never occur in real generated aliases sidesteps the
     // ambiguity entirely: it can never coincide with the genuine outer-join '|', so every consumer's
     // existing split-on-'|' logic keeps working exactly as intended for real alternative readings.
     private const char PipePlaceholder = (char)1; // U+0001 (SOH) -- a control character that can never occur in real generated aliases
-
-    // The combination path's per-variant full-pinyin ceiling. It bounds the alias blob one polyphonic
-    // name can bake (up to 32 variants of it); it was never meant to bound how long a name may be, and
-    // no longer does -- see the fallback in GenerateAliases. Shared with the byte path, which counts
-    // the same thing in bytes: aliases are ASCII by construction, so the only gap is names carrying
-    // multi-byte literal punctuation, where the byte cap bites slightly earlier.
-    internal const int MaxComboFullPinyinLength = 256;
 
     static PinyinAliasCombinationGenerator()
     {
@@ -53,72 +41,9 @@ internal static class PinyinAliasCombinationGenerator
         }
     }
 
-    public static string[] GenerateAliases(string text)
-    {
-        if (text.Length == 1)
-        {
-            // Single character fallback (needed for single-character queries)
-            return PinyinEngine.TryGetPinyins(text[0], out var pinyins)
-                ? pinyins
-                : Array.Empty<string>();
-        }
-
-        var result = _resultListScratch ??= new List<string>(4);
-        result.Clear();
-
-        var lists = GetSyllableLists(text);
-
-        var totalCombinations = 1;
-        for (var i = 0; i < text.Length; i++)
-        {
-            totalCombinations *= lists[i].Length;
-            if (totalCombinations > 32)
-                break;
-        }
-
-        if (totalCombinations == 1)
-            return GenerateSingleReading(text, lists, result);
-
-        var fullPinyins = _fullsListScratch ??= new List<string>(32);
-        var initials = _initialsListScratch ??= new List<string>(32);
-        fullPinyins.Clear();
-        initials.Clear();
-        var count = 0;
-        var steps = 0;
-
-        var fullBufferTemp = _comboFullScratch ??= new char[MaxComboFullPinyinLength];
-        var initialsBuffer = _initialsScratch;
-        if (initialsBuffer == null || initialsBuffer.Length < text.Length)
-            _initialsScratch = initialsBuffer = new char[Math.Max(text.Length, 64)];
-
-        // Generate combinations. Since we concatenate them, we can safely allow up to 32 combinations
-        // to support longer polyphonic names without database explosion.
-        GenerateCombinations(text, lists, text.Length, 0, 0, fullPinyins, initials, fullBufferTemp, initialsBuffer, ref count, ref steps);
-
-        // Both aliases are written only at a completed leaf, so when the fixed-cap walk completes
-        // nothing -- the name's full pinyin overruns MaxComboFullPinyinLength, or the steps budget cut
-        // the enumeration off -- it used to emit NO alias at all. The name then stayed findable by its
-        // literal text but was unreachable by every pinyin query, including a 5-letter one over its own
-        // first five characters. Fall back to the single-reading spelling, whose buffer grows.
-        // ponytail: over-long polyphonic names lose their alternative readings; the ceiling is the
-        // enumeration itself. Upgrade path is per-position reading sets, which need no enumeration.
-        if (count == 0)
-            return GenerateSingleReading(text, lists, result);
-
-        var joinedInitials = JoinUnique(initials);
-        if (joinedInitials != null)
-            result.Add(joinedInitials);
-
-        var joinedFulls = JoinUnique(fullPinyins);
-        if (joinedFulls != null && !joinedFulls.Equals(joinedInitials, StringComparison.OrdinalIgnoreCase))
-            result.Add(joinedFulls);
-
-        return result.ToArray();
-    }
-
     // The one-reading expansion: initials plus the full spelling built from every character's first
-    // candidate syllable. Shared by the monophonic case and by the over-long fallback above.
-    private static string[] GenerateSingleReading(string text, string[][] lists, List<string> result)
+    // candidate syllable, appended to the caller's list.
+    private static void GenerateSingleReading(string text, string[][] lists, List<string> result)
     {
         var initialsArr = _initialsScratch;
         if (initialsArr == null || initialsArr.Length < text.Length)
@@ -153,38 +78,6 @@ internal static class PinyinAliasCombinationGenerator
         var fullAlias = new string(fullBuffer, 0, fullLen);
         if (fullAlias != initialAlias)
             result.Add(fullAlias);
-        return result.ToArray();
-    }
-
-    // Dedup preserving insertion order (List.Contains semantics), '|'-joined; n <= 32 so a linear
-    // scan beats a HashSet allocation at this size.
-    private static string? JoinUnique(List<string> values)
-    {
-        string? single = null;
-        List<string>? unique = null;
-        foreach (var v in values)
-        {
-            if (string.IsNullOrWhiteSpace(v))
-                continue;
-            if (single == null)
-            {
-                single = v;
-                continue;
-            }
-            if (unique == null)
-            {
-                if (v == single)
-                    continue;
-                unique = new List<string>(4) { single, v };
-                continue;
-            }
-            if (!unique.Contains(v))
-                unique.Add(v);
-        }
-
-        if (unique != null)
-            return string.Join('|', unique);
-        return single;
     }
 
     public static string[][] GetSyllableLists(string text)
@@ -215,8 +108,8 @@ internal static class PinyinAliasCombinationGenerator
     /// <summary>
     /// Appends the single-reading spellings of <paramref name="text"/> -- the initials spelling, then
     /// the full spelling when it differs. This is the materialization the mixed-alphabet lane consumes
-    /// (IAliasLiveMatcherProvider.AppendSpellings): the same shape the reading grid materialized for
-    /// that lane before matching went live.
+    /// (IAliasLiveMatcherProvider.AppendSpellings): the same shape the index baked for that lane before
+    /// matching went live.
     /// </summary>
     public static void AppendDefaultSpellings(string text, List<string> dest)
     {
@@ -229,58 +122,4 @@ internal static class PinyinAliasCombinationGenerator
         dest.AddRange(result);
         result.Clear();
     }
-
-
-    private static void GenerateCombinations(
-        string text,
-        string[][] lists,
-        int listCount,
-        int index,
-        int currentFullLength,
-        List<string> fullPinyins,
-        List<string> initials,
-        char[] fullBuffer,
-        char[] initialsBuffer,
-        ref int count,
-        ref int steps)
-    {
-        // Steps budget: the 32-combination cap below only counts FULL-depth completions, but the
-        // fullBuffer-overflow check prunes branches BEFORE full depth -- a long name (full pinyin
-        // longer than the buffer) dense with polyphonic characters means no branch ever completes,
-        // the cap never fires, and the recursion explores the whole combinatorial tree (a 240-char
-        // all-polyphonic name explored ~2^55 paths and hung the process). The budget covers every
-        // legitimate enumeration and turns the pathological case into an immediate bounded bail-out,
-        // which GenerateAliases then answers with the single-reading spelling rather than no alias.
-        if (++steps > listCount * 32 + 256) return;
-        if (count >= 32) return; // Limit to 32 combinations to prevent combinatorial explosion
-
-        if (index == listCount)
-        {
-            fullPinyins.Add(new string(fullBuffer, 0, currentFullLength));
-            initials.Add(new string(initialsBuffer, 0, listCount));
-            count++;
-            return;
-        }
-
-        var elements = lists[index];
-        var separate = PinyinAliasFormat.NeedsSeparatorBefore(text, index);
-        foreach (var element in elements)
-        {
-            var at = currentFullLength;
-            if (separate)
-            {
-                if (at + 1 > fullBuffer.Length)
-                    continue;
-                fullBuffer[at++] = PinyinAliasFormat.SyllableSeparator;
-            }
-
-            if (at + element.Length <= fullBuffer.Length)
-            {
-                element.CopyTo(0, fullBuffer, at, element.Length);
-                initialsBuffer[index] = element.Length > 0 ? element[0] : '\0';
-                GenerateCombinations(text, lists, listCount, index + 1, at + element.Length, fullPinyins, initials, fullBuffer, initialsBuffer, ref count, ref steps);
-            }
-        }
-    }
-
 }

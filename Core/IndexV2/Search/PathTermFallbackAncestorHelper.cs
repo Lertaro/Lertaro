@@ -126,21 +126,10 @@ internal static class PathTermFallbackAncestorHelper
         {
             if (disabledIds != null && disabledIds.Contains(snapshot.AliasProviderId(e)))
                 continue;
-            // A grid entry answers the same "can this row carry that term" question, but through the
-            // grid tier rather than by matching text: its payload is UTF-16 code units, not a string.
+            // A legacy grid entry answers nothing here: it is not text, and nothing decodes one any more
+            // (its readings are decided live), so the mask walk skips it as the alias reader does.
             if (snapshot.AliasKind(e) == AliasEntryKind.Grid)
-            {
-                for (var i = 0; i < termPatterns.Length; i++)
-                {
-                    var bit = 1 << i;
-                    if ((unresolved & bit) == 0 || (mask & bit) != 0)
-                        continue;
-                    if (SearchMatcherGridAliases.TryMatchEntry(
-                            snapshot, termPatterns[i], termPatterns[i].GetTotalTermLength(), e, worker.Slab, gate: false, out _))
-                        mask |= bit;
-                }
                 continue;
-            }
             var aliasUtf8 = snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)
                 continue;

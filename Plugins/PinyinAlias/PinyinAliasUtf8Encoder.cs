@@ -6,8 +6,7 @@ namespace Lertaro.Plugins.PinyinAlias;
 // (IAliasLiveMatcherProvider; see PinyinTermMatcher), the only alias this provider emits is the
 // Simplified spelling of a Traditional name -- which is what makes a Simplified query reach a
 // Traditional candidate through the string-alias tier. The spelled-out pinyin half this file used to
-// concatenate ahead of it is gone; PinyinAliasUtf8PinyinEncoder remains only until the grid
-// machinery it mirrored is deleted.
+// concatenate ahead of it is gone with the index-side reading storage it fed.
 internal static class PinyinAliasUtf8Encoder
 {
     public static void Encode(string text, AliasByteSink dest, bool convertEnabled, Func<string, string> simplify)

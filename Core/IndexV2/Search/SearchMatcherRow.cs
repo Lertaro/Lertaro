@@ -1,7 +1,6 @@
 using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Fzf;
 
-using Lertaro.Core.IndexV2.Alias;
 using Lertaro.Core.IndexV2.Persistence;
 namespace Lertaro.Core.IndexV2.Search;
 
@@ -76,18 +75,18 @@ internal static class SearchMatcherRow
             var mixedTerm = MixedQueryMatcher.TrySegmentPattern(pattern);
             if (mixedTerm != null)
             {
-                // A grid entry is spelled out for this lane, which matches an alias as text (see
-                // SearchMatcherGridAliases.CollectMixedSegments).
-                var segments = new List<string>(4);
-                var (start, end) = snapshot.AliasEntryRange(uid);
-                for (var e = start; e < end; e++)
+                // This lane matches an alias as TEXT (it maps the positions it took back onto the source),
+                // so it reads the alias strings GetAliases already decoded -- which is also every entry
+                // worth reading here, since that helper skipped anything that is not an alias string.
+                foreach (var (alias, providerId) in aliasScratch)
                 {
-                    if (snapshot.AliasProviderId(e) != mixedTerm.ProviderId)
+                    if (providerId != mixedTerm.ProviderId)
                         continue;
 
-                    SearchMatcherGridAliases.CollectMixedSegments(snapshot, e, mixedTerm.ProviderId, segments);
-                    foreach (var segment in segments)
+                    foreach (var segment in alias.Split('|'))
                     {
+                        if (segment.Length == 0)
+                            continue;
                         if (!MixedQueryMatcher.TryMatch(mixedTerm, name.AsSpan(), name, segment, out var mm))
                             continue;
                         var candidate = new FzfPatternResult(mm.Score, mm.MinBegin, mm.MaxEnd, mm.MaxEnd, mm.ValidOffsetFound);
@@ -106,12 +105,6 @@ internal static class SearchMatcherRow
 
     // For delta rows (renamed/added), which carry their own precomputed alias array.
     internal static bool TryMatchNameOrAliases(FzfPattern pattern, string name, string[]? aliases, byte[]? providerIds, int queryLen, FzfSlab slab, out FzfPatternResult result)
-        => TryMatchNameOrAliases(pattern, name, aliases, providerIds, Array.Empty<GridAlias>(), queryLen, slab, out result);
-
-    // Overload for the delta/live rows, whose aliases may include reading grids (see
-    // AliasGeneration.Generate). Grid entries are decided by the same code the snapshot's baked grids go
-    // through, which is what keeps a row's answer the same before and after it is compacted.
-    internal static bool TryMatchNameOrAliases(FzfPattern pattern, string name, string[]? aliases, byte[]? providerIds, GridAlias[] grids, int queryLen, FzfSlab slab, out FzfPatternResult result)
     {
         var live = PinyinNameEvaluator.ForPattern(pattern);
         if (live.HasProviders)
@@ -123,7 +116,7 @@ internal static class SearchMatcherRow
             return true;
         if (pattern.HasExclusions && !pattern.ExclusionsPass(name))
             return false;
-        if (aliases == null && grids.Length == 0)
+        if (aliases == null)
             return false;
 
         var disabledIds = SearchContext.DisabledAliasIds;
@@ -155,22 +148,6 @@ internal static class SearchMatcherRow
             }
         }
 
-        foreach (var grid in grids)
-        {
-            if (disabledIds != null && disabledIds.Contains(grid.ProviderId))
-                continue;
-            if (!SearchMatcherGridAliases.TryMatchPayload(
-                    pattern, queryLen, grid.Payload, AliasProviderRegistry.GetSyllableSeparator(grid.ProviderId), slab, gate: true, out var gridMatch))
-                continue;
-
-            var weightedGrid = pattern.WeightAliasMatch(gridMatch, queryLen);
-            if (!matched || weightedGrid.Score > result.Score)
-            {
-                matched = true;
-                result = weightedGrid;
-            }
-        }
-
         if (!matched && providerIds != null)
         {
             // TrySegmentPattern already excluded a disabled provider from consideration.
@@ -178,8 +155,7 @@ internal static class SearchMatcherRow
             if (mixedTerm != null)
             {
                 // This lane matches an alias as TEXT (it maps the positions it took back onto the source),
-                // so a row whose reading aliases are stored as a grid has to spell them out -- see
-                // SearchMatcherGridAliases.TryMaterializeDefaults.
+                // so it reads the row's own '|'-joined spellings.
                 var segments = new List<string>(4);
                 for (var j = 0; j < aliases.Length && j < providerIds.Length; j++)
                 {
@@ -190,14 +166,6 @@ internal static class SearchMatcherRow
                         if (segment.Length > 0)
                             segments.Add(segment);
                     }
-                }
-                foreach (var grid in grids)
-                {
-                    if (grid.ProviderId != mixedTerm.ProviderId)
-                        continue;
-
-                    SearchMatcherGridAliases.TryMaterializeDefaults(
-                        grid.Payload, null, AliasProviderRegistry.GetSyllableSeparator(grid.ProviderId), segments);
                 }
 
                 foreach (var segment in segments)

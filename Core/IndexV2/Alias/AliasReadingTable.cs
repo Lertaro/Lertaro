@@ -1,64 +1,41 @@
-using System.Collections.Concurrent;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 
 namespace Lertaro.Core.IndexV2.Alias;
 
-// The reading vocabulary one snapshot's grids are written against: every reading that a payload cannot
-// carry inline lives here once, and the payloads reference it by id.
+// The snapshot's reading vocabulary: its <c>AliasReadings</c> section, one shared reading text per id.
 //
-// That is where a reading's bytes stop being repeated per position per name. Today a position spells its
-// reading out in UTF-16 (a 3-4 character syllable costs 1 byte of length + 6-8 bytes of text, on every
-// position of every name that spells 学), while an id costs one or two bytes and the text exists once per
-// snapshot. Measured on the query-time harness's 1201-name corpus (scratch\pinmeasure): the alias sections
-// go from 37,761 B to 17,083 B of payload plus a 1,261 B table, i.e. 0.49x, and the whole snapshot drops
-// 10.8%. Same names, same queries, same answers -- recall and result rows are bit-identical to before.
+// It was written for the per-name reading grids a snapshot used to bake: a grid payload could carry a
+// reading either as one literal ASCII code unit or as an id into this table, which is what turned a
+// syllable from 7-9 bytes per occurrence into one or two. Nothing bakes a grid any more -- a provider's
+// readings are decided live (see <see cref="IAliasLiveMatcherProvider"/>) -- so the writer emits an EMPTY
+// table, and a legacy snapshot's vocabulary is still bound and validated at open but read by nobody.
 //
-// A single ASCII code unit is deliberately NOT an entry: the passed-through characters that make up most
-// positions of a long name are exactly those ("第01集" is four syllables and one such position each), and
-// an id would add an entry while saving nothing, since AliasGridFormat writes that unit inline as one
-// byte. Everything else -- a syllable, a lone surrogate, a rare unmapped character -- is shared.
-//
-// Ids are assigned by ordinal sort of the reading text, so re-baking the same names produces the same
-// bytes; the alias pre-pass was written to keep rebuilds byte-identical (see SnapshotWriter) and this is
-// the one part of it that could quietly break that.
+// The section stays because the file format stays. Real drives hold multi-gigabyte .idx files, a version
+// bump means every one of them is re-indexed, and the offsets of the sections after this one are derived
+// from its length -- so v12 keeps writing and reading it exactly as before.
 internal sealed class AliasReadingTable
 {
     private char[] _chars = [];
     private int[] _start = [];
     private int[] _length = [];
-    // Writer-side only: reading text -> id, for the encoder. A table bound from a payload never needs it.
-    private Dictionary<string, int>? _ids;
 
-    public int Count { get; private set; } = 0;
+    // The bounds of this section's own encoding. Both are far above anything a real vocabulary reaches
+    // (a few hundred readings, each a handful of characters), so a payload that needs them can only be
+    // corruption -- and a corrupt count has to fail the bind before it becomes an allocation the payload
+    // cannot possibly fill.
+    private const int MaxEntries = 1_044_480;
+    private const int MaxReadingUnits = 256;
 
-    /// <summary>A table with no entries, for a snapshot whose provider produced none.</summary>
+    public int Count { get; private set; }
+
+    /// <summary>A table with no entries: what the writer still emits for every snapshot.</summary>
     public static readonly AliasReadingTable Empty = new();
 
     public ReadOnlySpan<char> Reading(int id) => _chars.AsSpan(_start[id], _length[id]);
 
     /// <summary>
-    /// Whether a payload must reference this reading by id rather than carry it inline: anything that is
-    /// not exactly one ASCII code unit.
-    /// </summary>
-    public static bool IsEligible(ReadOnlySpan<char> reading)
-        => reading.Length != 1 || reading[0] >= 0x80;
-
-    /// <summary>The id of <paramref name="reading"/>, for the encoder that built this table.</summary>
-    internal bool TryGetId(ReadOnlySpan<char> reading, out int id)
-    {
-        if (_ids == null)
-        {
-            id = -1;
-            return false;
-        }
-
-        var lookup = _ids.GetAlternateLookup<ReadOnlySpan<char>>();
-        return lookup.TryGetValue(reading, out id);
-    }
-
-    /// <summary>
-    /// Binds the table payload <see cref="Builder.WritePayload"/> wrote. Read-only afterwards, so one
-    /// instance serves every thread and every query on its snapshot.
+    /// Binds the table payload <see cref="WritePayload"/> wrote. Read-only afterwards, so one instance
+    /// serves every thread and every query on its snapshot.
     /// </summary>
     public bool TryBind(ReadOnlySpan<byte> payload)
     {
@@ -66,8 +43,8 @@ internal sealed class AliasReadingTable
         var offset = 0;
         // An entry costs at least two bytes (its width flag and its unit count), so a count that large can
         // only come from corruption -- and must not become an allocation the payload cannot possibly fill.
-        if (!AliasGridFormat.TryReadVarint(payload, ref offset, out var entries)
-            || entries < 0 || entries > AliasGridFormat.MaxReadingsPerPosition * AliasGridFormat.MaxPositions
+        if (!TryReadVarint(payload, ref offset, out var entries)
+            || entries < 0 || entries > MaxEntries
             || entries > payload.Length / 2)
             return false;
 
@@ -81,7 +58,7 @@ internal sealed class AliasReadingTable
                 return false;
 
             var ascii = payload[offset++];
-            if (ascii > 1 || !AliasGridFormat.TryReadVarint(payload, ref offset, out var units) || units <= 0 || units > AliasGridFormat.MaxReadingUnits)
+            if (ascii > 1 || !TryReadVarint(payload, ref offset, out var units) || units <= 0 || units > MaxReadingUnits)
                 return false;
 
             var width = ascii == 1 ? 1 : 2;
@@ -110,56 +87,8 @@ internal sealed class AliasReadingTable
         _chars = chars;
         _start = start;
         _length = length;
-        _ids = null;
         Count = entries;
         return true;
-    }
-
-    /// <summary>
-    /// Collects the eligible readings of a whole snapshot, then freezes them into a table in ordinal
-    /// order. One instance per rebuild; <see cref="Add"/> is called from the alias pre-pass's threads.
-    /// </summary>
-    internal sealed class Builder
-    {
-        private readonly ConcurrentDictionary<string, byte> _readings = new(StringComparer.Ordinal);
-
-        public void Add(string reading)
-        {
-            if (IsEligible(reading))
-                _readings.TryAdd(reading, 0);
-        }
-
-        public AliasReadingTable Build()
-        {
-            var ordered = _readings.Keys.ToArray();
-            Array.Sort(ordered, StringComparer.Ordinal);
-
-            var table = new AliasReadingTable
-            {
-                _ids = new Dictionary<string, int>(ordered.Length, StringComparer.Ordinal),
-                _start = new int[ordered.Length],
-                _length = new int[ordered.Length],
-            };
-
-            var chars = new char[Math.Max(16, ordered.Length * 4)];
-            var charCount = 0;
-            for (var i = 0; i < ordered.Length; i++)
-            {
-                var reading = ordered[i];
-                if (chars.Length < charCount + reading.Length)
-                    Array.Resize(ref chars, Math.Max(charCount + reading.Length, chars.Length * 2));
-
-                reading.CopyTo(0, chars, charCount, reading.Length);
-                table._ids[reading] = i;
-                table._start[i] = charCount;
-                table._length[i] = reading.Length;
-                charCount += reading.Length;
-            }
-
-            table._chars = chars;
-            table.Count = ordered.Length;
-            return table;
-        }
     }
 
     /// <summary>
@@ -172,7 +101,7 @@ internal sealed class AliasReadingTable
     public void WritePayload(AliasByteSink dest)
     {
         var start = dest.BeginSegment();
-        AliasGridFormat.AppendVarint(dest, Count);
+        AppendVarint(dest, Count);
         for (var i = 0; i < Count; i++)
         {
             var reading = Reading(i);
@@ -187,7 +116,7 @@ internal sealed class AliasReadingTable
             }
 
             dest.Append(asciiOnly ? (byte)1 : (byte)0);
-            AliasGridFormat.AppendVarint(dest, reading.Length);
+            AppendVarint(dest, reading.Length);
             foreach (var c in reading)
             {
                 dest.Append((byte)c);
@@ -196,5 +125,32 @@ internal sealed class AliasReadingTable
             }
         }
         dest.EndSegment(start);
+    }
+
+    // This section's varint codec: 7 bits per byte, high bit set while more bytes follow.
+    private static void AppendVarint(AliasByteSink dest, int value)
+    {
+        while (value >= 0x80)
+        {
+            dest.Append((byte)(value | 0x80));
+            value >>= 7;
+        }
+        dest.Append((byte)value);
+    }
+
+    private static bool TryReadVarint(ReadOnlySpan<byte> payload, ref int offset, out int value)
+    {
+        value = 0;
+        var shift = 0;
+        while (true)
+        {
+            if (offset >= payload.Length || shift > 28)
+                return false;
+            var b = payload[offset++];
+            value |= (b & 0x7F) << shift;
+            if ((b & 0x80) == 0)
+                return true;
+            shift += 7;
+        }
     }
 }

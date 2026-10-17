@@ -5,7 +5,7 @@ namespace Lertaro.Plugins.PinyinAlias.Tests;
 
 // The live matching capability (IAliasLiveMatcherProvider): the matcher factory, the reading sets
 // that feed the bake-time prefilter mask, and the single-reading spellings the mixed-alphabet lane
-// matches as text. The file keeps its historical name until the grid-machinery rename lands.
+// matches as text.
 [TestClass]
 public sealed class PinyinAliasLiveProviderTests
 {

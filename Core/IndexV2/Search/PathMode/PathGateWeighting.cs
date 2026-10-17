@@ -143,18 +143,10 @@ internal sealed class PathGateWeighting
         {
             if (disabledIds != null && disabledIds.Contains(_snapshot.AliasProviderId(e)))
                 continue;
-            // Mirrors PathGate.TryMatchSegmentRow's grid branch: the grid tier decides the entry, ungated,
-            // and this only needs whether it matched at all.
+            // Mirrors PathGate.TryMatchSegmentRow: a legacy grid entry is inert bytes nothing decodes any
+            // more, so it is skipped here exactly as the snapshot's own alias reader skips it.
             if (_snapshot.AliasKind(e) == AliasEntryKind.Grid)
-            {
-                if (SearchMatcherGridAliases.TryMatchEntry(
-                        _snapshot, pattern, pattern.GetTotalTermLength(), e, worker.Slab, gate: false, out _))
-                {
-                    weight = ComputeSegmentNameWeight(uid, nameUtf8, worker, pattern);
-                    return true;
-                }
                 continue;
-            }
             var aliasUtf8 = _snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)
                 continue;
@@ -225,19 +217,6 @@ internal sealed class PathGateWeighting
                     continue;
                 if (!provider.CanHandle(segment))
                     continue;
-
-                // Same reading-based decision PathGate makes for the same segment, through the same code a
-                // baked grid entry goes through; only the weight comes from the segment's own text.
-                if (provider is IAliasGridProvider gridProvider)
-                {
-                    if (SearchMatcherGridAliases.TryMatchProvider(
-                            gridProvider, segment, pattern, worker.Slab, gate: false, out _))
-                    {
-                        weight = HighlightMask.ComputeWeight(segment, pattern);
-                        return true;
-                    }
-                    continue;
-                }
 
                 foreach (var alias in provider.GetAliases(segment))
                 {

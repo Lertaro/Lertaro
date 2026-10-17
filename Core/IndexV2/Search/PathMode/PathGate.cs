@@ -177,19 +177,11 @@ internal sealed class PathGate
         {
             if (disabledIds != null && disabledIds.Contains(_snapshot.AliasProviderId(e)))
                 continue;
-            // A reading grid is not an alias string; it is decided by the grid tier, which materializes
-            // the one reading the query's terms need and reports that match's raw score -- the same
-            // ungated, first-match-wins contract the string branch below keeps.
+            // A legacy snapshot can still hold reading-grid entries. Nothing decodes one any more -- the
+            // readings they stood for are decided live -- so the payload is inert bytes this tier skips,
+            // exactly as Snapshot.GetAliases skips it.
             if (_snapshot.AliasKind(e) == AliasEntryKind.Grid)
-            {
-                if (SearchMatcherGridAliases.TryMatchEntry(
-                        _snapshot, _segmentPatterns[q], _segmentPatterns[q].GetTotalTermLength(), e, worker.Slab, gate: false, out var gridMatch))
-                {
-                    score = gridMatch.Score;
-                    return true;
-                }
                 continue;
-            }
             var aliasUtf8 = _snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)
                 continue;
@@ -255,20 +247,6 @@ internal sealed class PathGate
                     continue;
                 if (!provider.CanHandle(segment))
                     continue;
-
-                // A provider that can spell out its readings is decided from them, exactly like the grid an
-                // index would have baked for the same segment: its alias strings are that reading space
-                // enumerated and capped.
-                if (provider is IAliasGridProvider gridProvider)
-                {
-                    if (SearchMatcherGridAliases.TryMatchProvider(
-                            gridProvider, segment, _segmentPatterns[q], worker.Slab, gate: false, out var gridMatch))
-                    {
-                        score = gridMatch.Score;
-                        return true;
-                    }
-                    continue;
-                }
 
                 foreach (var alias in provider.GetAliases(segment))
                 {
