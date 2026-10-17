@@ -23,6 +23,14 @@ public sealed class AutoCADFileDialogAdapterTests
         Assert.IsFalse(adapter.RestoreFocus(IntPtr.Zero));
         Assert.IsFalse(adapter.GetDockBounds(IntPtr.Zero, out var rect));
         Assert.AreEqual(default(AdapterRect), rect);
+
+        // Guarded like GetDockBounds: EnumChildWindows with a null parent does not enumerate nothing, it
+        // enumerates the desktop's own children, so an unguarded answer here would be some other window's
+        // file list.
+        Assert.IsFalse(adapter.TryGetFileListBounds(IntPtr.Zero, out var list));
+        Assert.AreEqual(default(AdapterRect), list);
+        Assert.IsFalse(adapter.TryGetTargetFieldBounds(IntPtr.Zero, out var field));
+        Assert.AreEqual(default(AdapterRect), field);
     }
 
     [TestMethod]

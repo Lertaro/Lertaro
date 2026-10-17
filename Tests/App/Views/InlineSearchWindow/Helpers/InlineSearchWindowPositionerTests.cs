@@ -104,10 +104,34 @@ public sealed class InlineSearchWindowPositionerTests
         Assert.AreEqual(-12, InlineSearchWindowPositioner.CalculatePhysTop(false, dock, null, 12));
     }
 
+    // AutoCAD's 图形另存为, measured off a live one with the same probe at 96 DPI: dialog 148,51..974,528,
+    // its shell file list (SysListView32 "FolderView") 285,115..695,433, and the 文件名 edit row
+    // 365,466..851,480. Its adapter now answers the list, which is the whole difference between a card that
+    // hangs inside the dialog below its caption and one that starts at the dialog's top edge -- the corner
+    // where it sat across 关闭, the report this came from.
+    [TestMethod]
+    public void ACardOverTheAutoCADDialogStartsBelowItsCaption()
+    {
+        var dock = Box(148, 51, 974, 528);
+        var fileList = Box(285, 115, 695, 433);
+        var nameRow = Box(365, 466, 851, 480);
+
+        var left = InlineSearchWindowPositioner.CalculatePhysLeft(false, dock, fileList, nameRow, 413, 12);
+        var top = InlineSearchWindowPositioner.CalculatePhysTop(false, dock, fileList, 12);
+
+        // 115 - 12: the visible top edge on the list's own top, 64px of caption left untouched.
+        Assert.AreEqual(103, top);
+        // 695 - 413 + 12: the visible right corner on the list's right, not on the dialog's.
+        Assert.AreEqual(294, left);
+
+        // Without the list, the field rung still keeps the card off the caption's right corner.
+        Assert.AreEqual(450, InlineSearchWindowPositioner.CalculatePhysLeft(false, dock, null, nameRow, 413, 12));
+    }
+
     [TestMethod]
     public void AnUnansweredDialogLosesNothingThatAPlainWindowHas()
     {
-        // A dialog whose adapter cannot see a file list -- AutoCAD, Bandizip, WinRAR -- or whose answer has
+        // A dialog whose adapter cannot see a file list -- Bandizip, WinRAR -- or whose answer has
         // not landed yet now takes the same edge a file manager's window does, so the state is one rule away
         // from correct rather than in a different corner. 1440 - 640 + 12, with the card's visible right edge
         // on the dialog's own.

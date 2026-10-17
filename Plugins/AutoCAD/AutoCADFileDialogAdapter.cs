@@ -112,6 +112,52 @@ public sealed class AutoCADFileDialogAdapter : IFileDialogAdapter
         return false;
     }
 
+    /// <summary>
+    /// The dialog's file list -- the shell view AutoCAD hosts inside its own template -- which is what the
+    /// card hangs from when there is no room under the dialog.
+    /// </summary>
+    /// <remarks>
+    /// Without this answer the card falls back to the dialog's own top-right corner, which for a dialog this
+    /// size sits in the caption and covers 关闭. Plain Win32 on purpose: the list is a real child window with
+    /// a real rectangle, and this is asked again every time the dialog moves, so reaching into AutoCAD with
+    /// UI Automation for it would be a cost paid on every one of those passes.
+    /// </remarks>
+    public bool TryGetFileListBounds(IntPtr hwnd, out AdapterRect bounds) =>
+        TryGetDescendantBounds(hwnd, out bounds, ("SysListView32", 1), ("SHELLDLL_DefView", 0));
+
+    /// <summary>
+    /// The 文件名 row, used only when no file list could be found -- the rung under the list in the
+    /// positioner's own order. Reported because AutoCAD's Open dialog is a template this process has not
+    /// measured, and a card over a dialog whose list it cannot see should still line up with the row the user
+    /// is feeding rather than with the caption.
+    /// </summary>
+    public bool TryGetTargetFieldBounds(IntPtr hwnd, out AdapterRect bounds) =>
+        TryGetDescendantBounds(hwnd, out bounds, ("Edit", 1001));
+
+    private static bool TryGetDescendantBounds(IntPtr hwnd, out AdapterRect bounds, params (string ClassName, int ControlId)[] candidates)
+    {
+        // Guarded because EnumChildWindows takes NULL as "the desktop", which would answer with some other
+        // window's list on a dialog that has already gone.
+        if (hwnd == IntPtr.Zero)
+        {
+            bounds = default;
+            return false;
+        }
+
+        foreach (var (className, controlId) in candidates)
+        {
+            var child = FindDescendant(hwnd, className, controlId);
+            if (child != IntPtr.Zero && GetWindowRect(child, out var rect) && rect.Right > rect.Left && rect.Bottom > rect.Top)
+            {
+                bounds = new AdapterRect { Left = rect.Left, Top = rect.Top, Right = rect.Right, Bottom = rect.Bottom };
+                return true;
+            }
+        }
+
+        bounds = default;
+        return false;
+    }
+
     public bool RestoreFocus(IntPtr hwnd)
     {
         try
