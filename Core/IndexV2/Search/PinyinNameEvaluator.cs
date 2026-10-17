@@ -8,9 +8,19 @@ namespace Lertaro.Core.IndexV2.Search;
 // Decides one query against one candidate NAME with the WinShun-style live matcher: every plain
 // positive term is tried literally first (the user's own precision) and, when that fails, against a
 // live provider's reading NFA (each character consumes any non-empty prefix of one of its readings;
-// see IAliasLiveMatcherProvider). The score is the reference's additive table -- literal 30/18/4,
-// pinyin -12-if-rare + 26/16/4, whole-name 60/45/40, coverage 25*n/len -- so the frequency signal and
-// the literal-over-pinyin preference both live in one number the scan can rank by.
+// see IAliasLiveMatcherProvider). What matched literally keeps fzf's own score; only what had to be read
+// is scored by the reference's additive table (pinyin -12-if-rare + 26/16/4,
+// whole-name-spelled-out 40, coverage 25*n/len), so the
+// frequency signal reaches the number the scan ranks by while a search no reading was needed for is
+// ranked exactly as it was before matching went live. A term the readings CAN decide is matched literally
+// only as a run, even with fuzzy matching on: letting it scatter across the name's own letters is what
+// made one pinyin query answer differently in the two modes.
+//
+// The old alias-fallback quality gate is not re-added here. Its span half is vacuous now -- every
+// character of a walk consumes at least one letter, so a matched run is never wider than the word -- and
+// its score half cannot be expressed in this table: a mid-name abbreviation is worth 4 points whether it
+// is 截图's own "jietu" or a coincidence, so any floor above 4 deletes genuine hits. Coincidental reads
+// are demoted instead, by the tier and position keys the windows already rank on.
 //
 // This replaces FzfPattern.TryMatch as the name tier wherever a live provider is registered: the
 // result is still an FzfPatternResult, so FzfResultRank and every window consume it unchanged. The
@@ -26,10 +36,10 @@ internal sealed class PinyinNameEvaluator
     private static readonly ConditionalWeakTable<FzfPattern, PinyinNameEvaluator> Cache = new();
 
     private readonly FzfPattern _pattern;
-    private readonly FzfTerm[] _words; // distinct plain positive terms, in first-appearance order
     private readonly Dictionary<string, int> _wordIndex;
     private readonly ProviderTable[] _providers;
     private readonly FzfTerm? _loneWord; // the single plain positive term, when there is exactly one
+    private readonly bool[] _eligible; // per word: some provider can actually decide it by reading
 
     private sealed class ProviderTable
     {
@@ -38,14 +48,14 @@ internal sealed class PinyinNameEvaluator
         public required IAliasTermMatcher?[] Common { get; init; }
     }
 
-    private PinyinNameEvaluator(FzfPattern pattern, FzfTerm[] words, Dictionary<string, int> wordIndex,
-        ProviderTable[] providers, FzfTerm? loneWord)
+    private PinyinNameEvaluator(FzfPattern pattern, Dictionary<string, int> wordIndex,
+        ProviderTable[] providers, FzfTerm? loneWord, bool[] eligible)
     {
         _pattern = pattern;
-        _words = words;
         _wordIndex = wordIndex;
         _providers = providers;
         _loneWord = loneWord;
+        _eligible = eligible;
     }
 
     public bool HasProviders => _providers.Length != 0;
@@ -114,12 +124,17 @@ internal sealed class PinyinNameEvaluator
                 });
         }
 
-        return new PinyinNameEvaluator(pattern, list, index, tables.ToArray(), lone);
+        var eligible = new bool[list.Length];
+        foreach (var table in tables)
+            for (var i = 0; i < list.Length; i++)
+                eligible[i] |= table.Full[i] != null;
+
+        return new PinyinNameEvaluator(pattern, index, tables.ToArray(), lone, eligible);
     }
 
     /// <summary>
-    /// Decides the whole query against <paramref name="name"/>. On true the match carries the additive
-    /// score and the span, ready for <c>FzfResultRank.ForDefaultScheme</c>.
+    /// Decides the whole query against <paramref name="name"/>. On true the match carries the score and
+    /// the span, ready for <c>FzfResultRank.ForDefaultScheme</c>.
     /// </summary>
     public bool TryScore(ReadOnlySpan<char> name, FzfSlab? slab, out FzfPatternResult match)
     {
@@ -127,6 +142,41 @@ internal sealed class PinyinNameEvaluator
         if (name.IsEmpty || !HasProviders)
             return false;
 
+        if (name.IndexOf('|') < 0)
+            return ScoreWhole(name, slab, out match);
+
+        // A '|' inside the text is a reading separator to every alias tier, so a candidate that carries
+        // one for real -- a browser tab title like "example.com | 代理" -- is decided one segment at a
+        // time, exactly as FzfPattern.TryMatch does, and never across the boundary.
+        var best = default(FzfPatternResult);
+        var matched = false;
+        var start = 0;
+        while (start < name.Length)
+        {
+            var len = name.Slice(start).IndexOf('|');
+            if (len < 0)
+                len = name.Length - start;
+            if (ScoreWhole(name.Slice(start, len), slab, out var segment))
+            {
+                if (segment.ValidOffsetFound)
+                    segment = new FzfPatternResult(segment.Score, segment.MinBegin + start,
+                        segment.MinEnd + start, segment.MaxEnd + start, true);
+                if (!matched || segment.Score > best.Score)
+                {
+                    best = segment;
+                    matched = true;
+                }
+            }
+            start += len + 1;
+        }
+
+        match = best;
+        return matched;
+    }
+
+    private bool ScoreWhole(ReadOnlySpan<char> name, FzfSlab? slab, out FzfPatternResult match)
+    {
+        match = default;
         var disabled = SearchContext.DisabledAliasIds;
         if (_pattern.OrGroups != null)
         {
@@ -181,9 +231,10 @@ internal sealed class PinyinNameEvaluator
         var minEnd = int.MaxValue;
         var maxEnd = 0;
         var valid = false;
-        var loneLiteral = false;
-        var lonePinyinStart = -1;
-        var lonePinyinEnd = -1;
+        var literalTerms = 0;
+        var readTerms = 0;
+        var loneReadingStart = -1;
+        var loneReadingEnd = -1;
 
         foreach (var set in sets)
         {
@@ -193,16 +244,24 @@ internal sealed class PinyinNameEvaluator
                 if (term.Text.Length == 0)
                     continue;
 
-                var literal = FzfAlgorithm.Match(term.Kind, name, term.Text, term.CaseSensitive,
-                    FzfScoringScheme.Default, slab);
+                // Whether this word is one the readings can decide -- and so whether its literal side has
+                // to ask for a run even with fuzzy matching on. Letting a readable word scatter across the
+                // name's own letters is what made one pinyin query answer differently in the two modes.
+                var wordIndex = -1;
+                var readable = !term.Inverse &&
+                    term.Kind is FzfTermKind.Exact or FzfTermKind.Fuzzy &&
+                    _wordIndex.TryGetValue(term.Text, out wordIndex) && _eligible[wordIndex];
+                var literal = FzfAlgorithm.Match(
+                    readable && term.Kind == FzfTermKind.Fuzzy ? FzfTermKind.Exact : term.Kind,
+                    name, term.Text, term.CaseSensitive, FzfScoringScheme.Default, slab);
                 if (literal.IsMatch)
                 {
                     if (term.Inverse)
                         return false; // the excluded text is present; the whole query fails
-                    total += LiteralBonus(literal.Start, name);
+                    total += literal.Score;
                     covered += term.Text.Length;
                     Accumulate(literal.Start, literal.End, ref minBegin, ref minEnd, ref maxEnd, ref valid);
-                    loneLiteral = IsLone(term);
+                    literalTerms++;
                     satisfied = true;
                     break;
                 }
@@ -214,24 +273,28 @@ internal sealed class PinyinNameEvaluator
                     break;
                 }
 
-                if (term.Kind is not (FzfTermKind.Exact or FzfTermKind.Fuzzy) ||
-                    !_wordIndex.TryGetValue(term.Text, out var wi))
+                if (!readable)
                     continue;
 
                 foreach (var table in _providers)
                 {
                     if (disabled != null && disabled.Contains(table.ProviderId))
                         continue;
-                    var matcher = table.Full[wi];
+                    var matcher = table.Full[wordIndex];
                     if (matcher == null || !matcher.TryFind(name, default, out var start, out var end))
                         continue;
 
-                    var common = table.Common[wi] is { } commonMatcher && commonMatcher.TryFind(name, default, out _, out _);
+                    var common = table.Common[wordIndex] is { } commonMatcher &&
+                        commonMatcher.TryFind(name, default, out _, out _);
                     total += PinyinBonus(start, name, common);
                     covered += end - start;
                     Accumulate(start, end, ref minBegin, ref minEnd, ref maxEnd, ref valid);
-                    lonePinyinStart = IsLone(term) ? start : lonePinyinStart;
-                    lonePinyinEnd = IsLone(term) ? end : lonePinyinEnd;
+                    if (IsLone(term))
+                    {
+                        loneReadingStart = start;
+                        loneReadingEnd = end;
+                    }
+                    readTerms++;
                     satisfied = true;
                     break;
                 }
@@ -243,39 +306,30 @@ internal sealed class PinyinNameEvaluator
                 return false;
         }
 
-        // Whole-name bonuses for a single-word query, in the reference's branch order.
-        if (_loneWord is { } lone)
+        // A word the name literally says is scored by fzf, term by term, so a query nothing had to read
+        // totals exactly what the old name tier returned -- which is the whole point of keeping the two
+        // tables apart: ordinary searches keep the ordering the windows were tuned on, and the reference's
+        // additive table only decides what is only reachable through its readings.
+        if (literalTerms == 0)
         {
-            if (lonePinyinStart >= 0)
+            if (readTerms > 0)
+                total += 25 * Math.Min(covered, name.Length) / name.Length;
+
+            // The reference's remaining two bonuses belong to a single word that spelled the whole name,
+            // extension included, from its first character.
+            if (_loneWord != null && loneReadingStart == 0)
             {
                 var stem = StemLength(name);
-                if (lonePinyinStart == 0 && lonePinyinEnd - lonePinyinStart >= stem)
-                    total += 40; // the whole name (without extension), spelled as pinyin
-            }
-            else if (loneLiteral)
-            {
-                if (name.Equals(lone.Text, StringComparison.OrdinalIgnoreCase))
-                    total += 60;
-                else
-                {
-                    var stem = StemLength(name);
-                    if (stem < name.Length && name[..stem].Equals(lone.Text, StringComparison.OrdinalIgnoreCase))
-                        total += 45;
-                }
+                if (loneReadingEnd - loneReadingStart >= stem)
+                    total += 40;
             }
         }
 
-        total += 25 * Math.Min(covered, name.Length) / name.Length;
         result = new FzfPatternResult(total, minBegin, minEnd, maxEnd, valid);
         return true;
     }
 
     private bool IsLone(FzfTerm term) => _loneWord is { } lone && term.Text == lone.Text && term.Kind == lone.Kind;
-
-    // The reference's literal bonuses; the position is the matched occurrence's start (its up-to-four
-    // probe for a later word-start occurrence is folded into MatchShape.IsBoundary's own boundaries).
-    private static int LiteralBonus(int start, ReadOnlySpan<char> name)
-        => start == 0 ? 30 : MatchShape.IsBoundary(name, start) ? 18 : 4;
 
     // Pinyin: -12 when the term only matches through a less common reading (the common-only matcher
     // misses it), 0 when it does not; then the same position ladder scaled for a spelling.
