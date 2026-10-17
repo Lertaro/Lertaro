@@ -172,6 +172,22 @@ public sealed class CommandRunnerTests
     }
 
     [TestMethod]
+    public void ResolveParameter_LongerPercentToken_IsLeftAloneAndNeverReadsTheClipboard()
+    {
+        // %cd, %systemroot% and %signore are other programs' own tokens: a letter or digit after %s or %c
+        // means no placeholder, so nothing is substituted and the clipboard stays shut. The positional
+        // %sN form keeps no such guard -- its digits ARE the token.
+        var reads = 0;
+        PluginSdk.Services.ClipboardService.GetTextFunc = () => { reads++; return "unused"; };
+
+        var result = CommandRunner.ResolveParameter(
+            MakeCommand("--pretty=%cd --root=%systemroot% --fmt=%signore"), "a b");
+
+        Assert.AreEqual("--pretty=%cd --root=%systemroot% --fmt=%signore", result);
+        Assert.AreEqual(0, reads);
+    }
+
+    [TestMethod]
     public void ResolveParameter_ClipboardHoldsNoText_PlaceholderVanishes()
     {
         PluginSdk.Services.ClipboardService.GetTextFunc = () => null;

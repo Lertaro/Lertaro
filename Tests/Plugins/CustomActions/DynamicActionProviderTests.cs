@@ -209,6 +209,19 @@ public sealed class DynamicActionProviderTests
     }
 
     [TestMethod]
+    public void BuildArguments_LongerPercentToken_IsLeftAloneAndNeverReadsTheClipboard()
+    {
+        // A letter after %s or %c means it is some other program's own token, not a placeholder here --
+        // and a template with no placeholder must not open the clipboard either.
+        var reads = 0;
+        ClipboardService.GetTextFunc = () => { reads++; return "unused"; };
+
+        Assert.AreEqual("--pretty=%cd --dir %cd% --root=%systemroot%",
+            DynamicActionProvider.BuildArguments("--pretty=%cd --dir %cd% --root=%systemroot%", [@"C:\c.txt"]));
+        Assert.AreEqual(0, reads);
+    }
+
+    [TestMethod]
     public void BuildArguments_ClipboardTextContainingAPlaceholder_IsSubstitutedExactlyOnce()
     {
         // Clipboard text naming "{}", dropped in for %c, must not then be expanded by the {} pass.

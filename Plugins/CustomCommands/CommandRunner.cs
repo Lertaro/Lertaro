@@ -69,6 +69,9 @@ internal static class CommandRunner
         // whole input as a single quoted argument (empty input -> nothing). %c or {c} -> the clipboard's
         // text as a single quoted argument, nothing when it holds none. We quote each value ourselves
         // so it stays a single argument — users must NOT quote placeholders themselves.
+        // A bare %s or %c is only a placeholder when no letter or digit follows, so a template holding
+        // another program's own token (--pretty=%cd, %systemroot%) survives; the brace forms already end
+        // at }. The positional %sN keeps no such guard -- those digits are the token itself.
         var allArgs = string.IsNullOrEmpty(argSuffix) ? string.Empty : ArgQuoting.Quote(argSuffix);
 
         // ponytail: the clipboard is read where the arguments are resolved, which for an instant-answer
@@ -78,7 +81,7 @@ internal static class CommandRunner
         string? clipboard = null;
         var clipboardRead = false;
 
-        return Regex.Replace(resolvedParam, @"%s(\d+)|\{(\d+)\}|%c|\{c\}|%s|\{\}", m =>
+        return Regex.Replace(resolvedParam, @"%s(\d+)|\{(\d+)\}|%c(?![0-9A-Za-z])|\{c\}|%s(?![0-9A-Za-z])|\{\}", m =>
         {
             if (m.Value is "%c" or "{c}")
             {

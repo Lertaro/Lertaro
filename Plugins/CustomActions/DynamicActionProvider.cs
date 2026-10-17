@@ -124,6 +124,9 @@ public class DynamicActionProvider : IDynamicActionProvider
     /// the one path. Users must NOT wrap the placeholder in quotes. %c and {c} expand to the clipboard's
     /// text as one quoted argument, and vanish when it holds none. Every placeholder is replaced in a
     /// single pass, so text brought in by one of them is never expanded a second time by another.
+    /// A percent form is only a placeholder when no letter or digit follows it, which is what keeps a
+    /// template carrying another program's own token (%cd for git, %systemroot% for a shell variable)
+    /// intact. The brace forms need no such guard: the closing brace already ends them.
     /// </summary>
     internal static string BuildArguments(string? parameter, IReadOnlyList<string> paths)
     {
@@ -135,7 +138,7 @@ public class DynamicActionProvider : IDynamicActionProvider
         string? clipboard = null;
         var clipboardRead = false;
 
-        return Regex.Replace(parameter, @"%c|\{c\}|%s|\{\}", m =>
+        return Regex.Replace(parameter, @"%c(?![0-9A-Za-z])|\{c\}|%s(?![0-9A-Za-z])|\{\}", m =>
         {
             if (m.Value is not ("%c" or "{c}")) return allPaths;
             if (!clipboardRead)
