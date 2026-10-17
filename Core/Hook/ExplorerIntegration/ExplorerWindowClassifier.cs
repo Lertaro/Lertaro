@@ -142,7 +142,10 @@ internal sealed class ExplorerWindowClassifier
                         {
                             if (!string.IsNullOrEmpty(activePath))
                             {
-                                if (_dialogTracker.LastActiveExplorerPath != activePath)
+                                // The desktop reports a path like any Explorer window, but it is not a file manager, so it must not become
+                                // the folder the user was working in -- Quick Switch reads this memory when no provider window is
+                                // known. Judged from the window, never by comparing paths.
+                                if (!isDesktop && _dialogTracker.LastActiveExplorerPath != activePath)
                                     _dialogTracker.SetLastActiveExplorerPath(activePath);
 
                                 // Remember the provider while it is the active window: that is when its scope
