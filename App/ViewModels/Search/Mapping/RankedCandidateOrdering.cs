@@ -13,19 +13,22 @@ internal static class RankedCandidateOrdering
     //
     //   * IsCurated / Priority -- favorites and history ("you use this"), which outrank any textual match.
     //   * TypeRank              -- the user's own result-type order (quick window only).
-    //   * Match.Shape           -- whole word > start of a word > inside a word > scattered letters, so
-    //                              "code-atlas" beats "AutofillStates" for "atlas" (see MatchShape).
-    //   * RecencyBand           -- created or changed today > this week > this month > older.
-    //   * Depth                 -- shallower path first, so a project folder beats the same word deep in a
-    //                              game or package tree. Both from RankSignals, index rows only.
-    //   * Match.Start           -- "left-side match priority": leftmost wins among the rest.
+    //   * Match.Start           -- "left-side match priority": the query hitting furthest left in the name
+    //                              leads the match keys. It used to sit behind Shape/RecencyBand/Depth, and
+    //                              on a broad query the display cap then filled with rows that merely
+    //                              matched a whole word or were touched today, cutting off the row the user
+    //                              was looking for (reported as a plain drop in hit rate).
     //   * Match.Weight          -- then coverage*contiguity.
     //   * Match.Tier            -- then the WEAKEST match key: a literal name hit beats a shorthand alias
     //                              hit beats a full transliteration (英文 > 简拼 > 全拼). Placed last so it
-    //                              only separates rows that already agree on shape, position and coverage;
+    //                              only separates rows that already agree on position and coverage;
     //                              see AliasMatchRules.TierFor.
     //   * files before folders  -- only when the match is otherwise equal.
     //   * path length, path     -- then the stable, deterministic tail.
+    //
+    // Match.Shape, RecencyBand and Depth are still computed and carried on the candidate (RankSignals for
+    // index rows) but deliberately order nothing since that report -- a consumer that wants them has them,
+    // and none of them may push a left-hand hit off the screen.
     //
     // SearchResultRelevance packs the same match keys into RankSortKey for the full window and the engine.
     //

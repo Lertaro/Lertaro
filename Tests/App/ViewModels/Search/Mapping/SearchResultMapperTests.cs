@@ -23,10 +23,11 @@ public sealed class RankAndDedupeTests
         int depth = 0) =>
         new(Result(path, isDir), isCurated, priority, typeRank, new MatchRank(tier, start, weight, shape), normalizedPath ?? path, band, depth);
 
-    // The reported case: for "atlas", the whole word in "code-atlas" (start 5) must beat a-t-l-a-s
-    // scattered across "AutofillStates" (start 0), and a word-start hit like "atlasing" too.
+    // The report that set this priority: on a broad query, letting shape or recency outrank position pushed
+    // the leftmost hit past the display cap and the row the user wanted disappeared. So a hit at index 0 of
+    // "AutofillStates" leads a whole-word hit five characters in, whatever the shape or weight says.
     [TestMethod]
-    public void RankAndDedupe_BetterShapeBeatsEarlierStartAndHigherWeight()
+    public void RankAndDedupe_EarlierStartBeatsBetterShapeAndWeight()
     {
         var candidates = new List<SearchResultMapper.RankedCandidate>
         {
@@ -37,15 +38,16 @@ public sealed class RankAndDedupeTests
 
         var ranked = SearchResultMapper.RankAndDedupe(candidates);
 
+        // Start leads; among the two rows hitting at 0, coverage*contiguity decides.
         CollectionAssert.AreEqual(
-            new[] { @"D:\code-atlas", @"C:\atlasing", @"C:\AutofillStates" },
+            new[] { @"C:\atlasing", @"C:\AutofillStates", @"D:\code-atlas" },
             ranked.Select(r => r.FullPath).ToArray());
     }
 
-    // Second half of the reported case: within a shape, the shallow project folder beats names that start
-    // with the word but sit deep in game and package trees.
+    // Depth and recency are still computed and carried, but since that report they order nothing: a shallow
+    // folder no longer beats a deeper row the query hit further left.
     [TestMethod]
-    public void RankAndDedupe_ShallowerPathBeatsEarlierStart_WithinAShape()
+    public void RankAndDedupe_EarlierStartBeatsShallowerPath()
     {
         var candidates = new List<SearchResultMapper.RankedCandidate>
         {
@@ -53,32 +55,7 @@ public sealed class RankAndDedupeTests
             Candidate("shallow", start: 5, weight: 0.5, depth: 3),
         };
 
-        Assert.AreEqual("shallow", SearchResultMapper.RankAndDedupe(candidates)[0].FullPath);
-    }
-
-    [TestMethod]
-    public void RankAndDedupe_RecencyBandBeatsDepth()
-    {
-        var candidates = new List<SearchResultMapper.RankedCandidate>
-        {
-            Candidate("old-shallow", band: RankSignals.BandOlder, depth: 1),
-            Candidate("today-deep", band: RankSignals.BandToday, depth: 9),
-        };
-
-        Assert.AreEqual("today-deep", SearchResultMapper.RankAndDedupe(candidates)[0].FullPath);
-    }
-
-    // A Chrome profile file rewritten every minute must not ride recency past a real word match.
-    [TestMethod]
-    public void RankAndDedupe_ShapeBeatsRecencyAndDepth()
-    {
-        var candidates = new List<SearchResultMapper.RankedCandidate>
-        {
-            Candidate("AutofillStates", shape: MatchRank.ShapeScattered, band: RankSignals.BandToday, depth: 1),
-            Candidate("code-atlas", band: RankSignals.BandOlder, depth: 12),
-        };
-
-        Assert.AreEqual("code-atlas", SearchResultMapper.RankAndDedupe(candidates)[0].FullPath);
+        Assert.AreEqual("deep", SearchResultMapper.RankAndDedupe(candidates)[0].FullPath);
     }
 
     [TestMethod]
