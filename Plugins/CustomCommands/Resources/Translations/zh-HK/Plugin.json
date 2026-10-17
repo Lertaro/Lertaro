@@ -11,7 +11,7 @@
   "CustomCommands_Config_TitleLabel": "標題",
   "CustomCommands_Config_PathLabel": "路徑（程式或檔案）",
   "CustomCommands_Config_ParameterLabel": "參數",
-  "CustomCommands_Config_ParameterDesc": "支援參數替換:\n· %s1、%s2 …（或 {1}、{2} …）:第 1、2 … 個參數\n· %s（或 {}）:把全部輸入作為一個參數\n· 只有使用預留位置時才會用到輸入內容；沒有用到預留位置則按設定的參數原樣執行\n· 預留位置會自動加引號，請勿自行加上引號",
+  "CustomCommands_Config_ParameterDesc": "支援參數替換:\n· %s1、%s2 …（或 {1}、{2} …）:第 1、2 … 個參數\n· %s（或 {}）:把全部輸入作為一個參數\n· %c（或 {c}）:把剪貼簿文字作為一個參數\n· 只有使用預留位置時才會用到輸入內容；沒有用到預留位置則按設定的參數原樣執行\n· 預留位置會自動加引號，請勿自行加上引號",
   "CustomCommands_Config_IconLabel": "圖示（SVG Path 資料）",
   "CustomCommands_Config_WorkingDirLabel": "工作目錄",
   "CustomCommands_Config_RunSilentlyLabel": "靜默執行",

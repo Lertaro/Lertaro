@@ -108,6 +108,6 @@ Under **Settings → Plugins → File Filters → Configure**, you can bind a tr
 
 Under **Settings → Plugins → Custom Commands → Configure**, wrap complex scripts, tools, or applications into concise commands:
 
-- **Parameter Placeholders**: Supports positional placeholders `%s1`, `%s2`... and full query capture `%s`.
+- **Parameter Placeholders**: Supports positional placeholders `%s1`, `%s2`... and full query capture `%s`, plus the clipboard text as `%c` (or `{c}`).
 - **Run in current directory**: Overrides the fixed working directory with the cascading menu's source directory, the inline window's directory, or the last browsed directory for quick search. An unavailable directory stops execution. Disabled by default to preserve existing configurations.
 - **Quick Navigation Integration**: Check "Show in Quick Navigation" to pin the command directly into the [**Quick Navigation**](./hotkeys#_3-quick-navigation-mouse-triggers) menu, with optional `/` submenu paths (e.g. `DevTools/RestartService`).

@@ -11,7 +11,7 @@
   "CustomCommands_Config_TitleLabel": "標題",
   "CustomCommands_Config_PathLabel": "路徑 (程式或檔案)",
   "CustomCommands_Config_ParameterLabel": "引數",
-  "CustomCommands_Config_ParameterDesc": "支援引數替換:\n· %s1、%s2 …(或 {1}、{2} …):第 1、2 … 個引數\n· %s(或 {}):把全部輸入作為一個引數\n· 僅透過佔位符使用輸入;未使用佔位符則按配置的引數原樣執行\n· 佔位符會自動加引號,請勿自行包引號",
+  "CustomCommands_Config_ParameterDesc": "支援引數替換:\n· %s1、%s2 …(或 {1}、{2} …):第 1、2 … 個引數\n· %s(或 {}):把全部輸入作為一個引數\n· %c(或 {c}):把剪貼簿文字作為一個引數\n· 僅透過佔位符使用輸入;未使用佔位符則按配置的引數原樣執行\n· 佔位符會自動加引號,請勿自行包引號",
   "CustomCommands_Config_IconLabel": "圖示 (SVG Path 資料)",
   "CustomCommands_Config_WorkingDirLabel": "工作目錄",
   "CustomCommands_Config_RunSilentlyLabel": "靜默執行",

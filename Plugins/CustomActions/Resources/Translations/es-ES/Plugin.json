@@ -6,7 +6,7 @@
   "CustomActions_Config_EnabledLabel": "Activado",
   "CustomActions_Config_TitleLabel": "Título",
   "CustomActions_Config_PathLabel": "Ruta (Programa o Archivo)",
-  "CustomActions_Config_ParameterLabel": "Parámetros (%s o {} = ruta seleccionada; se entrecomilla automáticamente, no añadas comillas tú mismo; si se deja vacío, se usa la ruta entrecomillada como único parámetro)",
+  "CustomActions_Config_ParameterLabel": "Parámetros (%s o {} = ruta seleccionada, %c o {c} = texto del portapapeles; se entrecomilla automáticamente, no añadas comillas tú mismo; si se deja vacío, se usa la ruta entrecomillada como único parámetro)",
   "CustomActions_Config_IconLabel": "Icono (Datos de Ruta SVG)",
   "CustomActions_Config_WorkingDirLabel": "Directorio de Trabajo",
   "CustomActions_Config_RunSilentlyLabel": "Ejecutar en Segundo Plano",

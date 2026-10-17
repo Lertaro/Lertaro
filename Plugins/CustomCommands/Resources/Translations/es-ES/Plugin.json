@@ -11,7 +11,7 @@
   "CustomCommands_Config_TitleLabel": "Título",
   "CustomCommands_Config_PathLabel": "Ruta (Programa o Archivo)",
   "CustomCommands_Config_ParameterLabel": "Parámetros",
-  "CustomCommands_Config_ParameterDesc": "Admite sustitución de parámetros:\n· %s1, %s2 … (o {1}, {2} …): el 1.º, 2.º … argumento\n· %s (o {}): toda la entrada como un único argumento\n· La entrada solo se usa mediante marcadores de posición; si no hay ninguno, los parámetros configurados se ejecutan tal cual\n· Los marcadores de posición se entrecomillan automáticamente; no añadas comillas tú mismo",
+  "CustomCommands_Config_ParameterDesc": "Admite sustitución de parámetros:\n· %s1, %s2 … (o {1}, {2} …): el 1.º, 2.º … argumento\n· %s (o {}): toda la entrada como un único argumento\n· %c (o {c}): el texto del portapapeles como un único argumento\n· La entrada solo se usa mediante marcadores de posición; si no hay ninguno, los parámetros configurados se ejecutan tal cual\n· Los marcadores de posición se entrecomillan automáticamente; no añadas comillas tú mismo",
   "CustomCommands_Config_IconLabel": "Icono (Datos de Ruta SVG)",
   "CustomCommands_Config_WorkingDirLabel": "Directorio de Trabajo",
   "CustomCommands_Config_RunSilentlyLabel": "Ejecutar en Segundo Plano",

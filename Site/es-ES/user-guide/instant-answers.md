@@ -110,5 +110,5 @@ Cada comando puede activar **Ejecutar en el directorio actual** para sustituir e
 
 En **Configuración → Plugins → Comandos personalizados → Configurar**, convierte scripts complejos, herramientas de consola o aplicaciones en comandos concisos:
 
-- **Marcadores de posición de parámetros**: Admite marcadores posicionales `%s1`, `%s2`... y captura completa de consulta `%s`.
+- **Marcadores de posición de parámetros**: Admite marcadores posicionales `%s1`, `%s2`..., captura completa de consulta `%s` y texto del portapapeles `%c` (o `{c}`).
 - **Integración con Navegación rápida**: Marca "Mostrar en Navegación rápida" para fijar el comando en el menú de [**Navegación rápida**](./hotkeys#_3-navegacion-rapida-activadores-de-raton), con rutas de submenú usando `/` (p. ej. `HerramientasDev/ReiniciarServicio`).
