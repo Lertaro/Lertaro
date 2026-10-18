@@ -54,3 +54,108 @@ Not lazy about: input validation at trust boundaries, error handling that preven
 - **Ctrl+G（Quick Switch）是本 App 最重要的功能之一，不能再坏**：任何涉及活动路径提供者、对话框跟随、
   `GlobalHotkeyDetector`、`ExplorerActivePathPoller`、`ExplorerTracker.LastActiveExplorerPath` 的改动，
   都必须验证"在文件管理器里换目录后按 Ctrl+G 立刻跳到当前目录"，且**两个文件管理器同时开着**时也要成立。
+---
+
+# Lertaro 本机工程规则（2026-10-19 写入；新对话请先读完这一节再动手）
+
+## 环境与命令（固定，不要临时换）
+- SDK 只用共享工具链：`D:\Projects\Code\_tools\dotnet10\dotnet.exe`（裸 `dotnet` 解析到无 SDK 的 runtime）。
+- 先设 `$env:NUGET_CONFIG_FILE='D:\Projects\Code\_tools\nuget.config'`。
+- 构建：`... build Lertaro.slnx --nologo -v:q`（默认 Debug）。
+- 测试：**`Lertaro.slnx` 不含任何测试工程**，`dotnet test Lertaro.slnx` 是**空跑**（exit 0 无意义，绝不能当作"测试通过"）。
+  真实测试工程在 `Tests\**\*.csproj`（30 个，例如 `Tests/Core/Core.csproj`、`Tests/App/App.csproj`、`Tests/Plugins/PinyinAlias/PinyinAlias.csproj`）。
+  跑单个：`... test Tests\Core\Core.csproj --nologo -v:q`（不加 `--no-build`；要过滤用 `--filter 'FullyQualifiedName~关键字'`）。
+- **本机 `dotnet test` 目前跑不起来**（2026-10-19 实测，已核实）：testhost 对**父进程 `vstest.console`** 调
+  `OpenProcess(..., SYNCHRONIZE)` 时被拒 → `Win32Exception (5) 拒绝访问` @ `ProcessManager.OpenProcess`。
+  注意：崩溃栈里的 `testhost.x86` 是**符号误导** ✗，架构是 x64，与架构无关；也**不是** shell 完整性级别的问题 ✗。
+  用 `explorer.exe` 拉 `.vbs` 绕开工具进程树**也没成功** ✗（无输出、无 trx）。
+  因此：**不要声称"测试通过"**；`dotnet build Lertaro.slnx` 也**不包含 `Tests/**`**，测试工程从未被编译过 ✗。
+  可行验证 = 构建 exit 0 + 部署后人工验证；要跑测试需先解决 testhost 的该问题（待查：是否 SRP/EDR 拦截或 job/句柄限制）。
+- **`Tests/**` 与 fork 的偏差**：`Tests/Core/Hook/Ipc/OpenedFolderSnapshotPublisherTests.cs` 在 `1bff6429` 上引用
+  `OrderByWindowRank` / `WindowRanks`，而 fork 的 `OpenedFolderSnapshotPublisher` 里没有这两个成员 ✗（fork 用桌面窗口过滤替代）。
+  要让测试真正可用，必须先让 `Tests/**` 编译通过（对齐 fork 实现），否则任何"跑测试"都是空谈。
+
+## 部署（本机便携安装 `D:\App protable\Lertaro`）
+- `Deploy-Local.ps1 -Full` 只 publish App，**不会重建、也不会拷贝 `Plugins/`**。
+  改到任何插件时必须：① 逐个 `dotnet build Plugins\**\*.csproj -c Release`；② 把 `App\bin\Release\net10.0-windows\Plugins\*.dll` 复制进 `publish\x64\Lertaro\Plugins\`；③ 再跑部署。
+  否则安装里仍是旧 DLL（已踩过，用哈希对比才发现）。
+- 启动 App 一律 `Start-Process -FilePath 'explorer.exe' -ArgumentList ('"' + $exe + '"')`（脱离工具进程树、普通完整性级别）。
+- 停进程**只能按可执行文件完整路径**判定，禁止按名字或命令行子串批量终止。
+- 改完直接部署，不必请示；部署后必须核对：安装 ProductVersion、服务 Status、install 与 publish 哈希、app.log 有无异常。
+
+## 搜索语义（已与 owner 逐条确认，**不要擅自"优化"**）
+- 排序梯子：`exact`（名字去扩展名==查询）→ `Contiguity`（连续度）→ `Start`（左侧位置）→ `IsCurated/Priority`（收藏/历史，**只在同样结果时优先**）→ `Tier` → `TypeRank` → `IsDir` → `NameOrderComparer`。
+- `NameOrderComparer`：数字 < 字母 < 符号；字母内**大写在前**；数字按数值（a2 < a10）。
+- LINQ 里只能有一个 `OrderBy`，其余必须 `ThenBy`（`OrderBy` 会重置前面的排序）。
+- 引擎键 `SearchResultRelevance.HighKey`：`exact(1) | start(6) | contiguity(10) | weight(10) | tier(4) | folder(1)`；快速窗是流式渲染、按此键排序，所以 `exact` 必须进键。
+- 空格 = 分词 + **AND**；空格本身不可匹配；多词查询的匹配**不得**算作连续（含空格即非连续）。
+- 混拼：只有完整读音或声母可作非末段；**只有韵母不参与**（`AliasMatchRules.AllowsMatchSpan*` + `PinyinTermMatcher`）。
+- 内联卡片在以上规则之外再加三层目录邻近：当前目录 → 其子目录 → 全局。
+
+## 版本、提交与发行
+- 版本号在 `App/App.csproj`；`CHANGELOG.md` 一条一行、中英对应；**每个版本**必须含「+ 自动更新只检查本仓库的发行」与「+ 保留鼠标平滑滚动」。
+- `git commit` / `git push` 必须 owner 明确授权；部署、构建、测试不需要。
+- 回滚：`git reset --hard 1bff6429`（回滚后**也要重编插件**）；二进制备份 `D:\App protable\Lertaro.bak-5917`（5.9.1.7）。
+
+## 工作方式
+- 先拿事实再改（加计时/日志/单测复现），每改一处立刻构建；测试见上文（`Tests/**` 单跑，本机 testhost 目前需用 explorer 起的独立进程）。
+- PowerShell 按行号改文件切坏过多次：优先整段/子串替换，改完必须打印上下文核对。
+- 状态可疑就回退到上一个可用状态，不要在坏状态上叠加改动。
+- 临时文件只放 `%TEMP%`；删除前先列内容核实绝对路径。
+
+## 当前待办（2026-10-19 写入；做完一条就删掉这条，别让清单烂掉）
+
+**起点状态**：`HEAD 1bff6429` + 若干未提交改动（排序 ✓ 混拼 ✓ 探针 ✗），全量测试 exit=0，本机已部署且可用。
+**回滚点**：`git reset --hard 1bff6429`（回滚后必须重编插件再部署）。
+
+1. **把查询探针挪到能看见的地方**：删掉 `Core/IndexV2/Search/IndexV2Searcher.cs` 里临时加的 `[QueryTerms]`，
+   改到 `App/ViewModels/Search/Dispatch/SearchDispatchController.cs` 的搜索入口，记录 `raw='...'` 与
+   `FzfPattern.Parse(query)` 解析出的词表，必须落在 **app.log**（放 Core 会进服务日志，看不到）。
+2. **查清 `lert exe` 失效**：`ler exe` 正常；`le exe` 被当成 `lexe`（空格被吃）；`lert/lerta/lertar exe` 只命中 `exe`。
+   特征：3 字母的词可用、4 字母起失效 → 疑似某处有长度阈值或多词被拼接。**先拿日志事实，再改一处**。
+3. **新规则：查询含空格 ⇒ 匹配强制非连续**（多词查询的 Contiguity 不得算满分）。改 `HighlightMask.ComputeRank` + 一条单测。
+4. **移除所有临时探针**（`IndexV2Searcher` / `SearchDispatchController` 的日志）。
+5. **把插件构建写进 `Deploy-Local.ps1`**：逐个 `Plugins\**\*.csproj -c Release` 构建 + 同步
+   `App\bin\Release\net10.0-windows\Plugins\*.dll` → `publish\x64\Lertaro\Plugins\`（现在靠手工，已踩过坑）。
+6. **提交**（需 owner 明确授权）**并重发 fork `5.9.7.1`**（注意：本机 testhost 不可用，本轮所有"测试通过"均为空跑，发版前需用 explorer 起的独立进程真跑一次 `Tests/**`）（原发布被 owner 手动删过；版本号仍用 5.9.7.1）。
+
+## 流程骨架（从改一行到可以发版；每一步都要给出**证据**，没有证据就写"未验证"）
+
+0. **环境自检（每次新会话第一件事，只做一次）**
+   `... build Tests\Core\Core.csproj --nologo -v:q` → 必须 exit 0（证明测试工程能编）。
+   然后跑一次带 trx 的测试：
+   `... test Tests\Core\Core.csproj --nologo -v:q --logger trx --results-directory %TEMP%\lertaro-trx`
+   **只看 trx 的内容，不看 exit code**，三态判据（2026-10-19 实测）：
+   · **无 trx / 无测试文件** → 命令根本没进测试阶段 ✗（参数或路径问题）
+   · **trx 存在但 `total=0`，`ResultSummary/@outcome=Error`（"中止"）** → **testhost 起不来** ✗
+     （本机当前状态：`Win32Exception (5) 拒绝访问` @ `ProcessManager.OpenProcess`，testhost 对 `vstest.console` 取的句柄打不开）
+     → 明确写"本机测试环境不可用、未验证" + 给人工验证清单；**不要静默降级，也不要说"测试通过"**
+   · **`total>0` 且 `failed=0`** → 真通过 ✓（这才是唯一可引用的"通过"证据）
+   ⚠️ `dotnet test Lertaro.slnx` 与上面无关：`Lertaro.slnx` 没有测试工程，它是**空跑**，exit 0 永远不是证据。
+
+1. **改动落点**：先 grep 到"真正的入口"（哪一行决定了这个行为），把 `文件:行号` 写进回复里。说不出入口就还没到能改的程度。
+
+2. **改动**：最小改一处；有语义的地方（排序/匹配/范围）先写一条会红的单测，再改到它绿。
+
+3. **编译**：`... build Lertaro.slnx -c Release --nologo -v:q` → exit 0（这是**唯一**能证明"代码能编"的证据）。
+   改到插件时另加：逐个 `Plugins\**\*.csproj -c Release` 构建 → 失败数必须为 0。
+
+4. **测试**：按第 0 步的方式跑**受影响的测试工程**（`Tests/**`），给出 `total/passed/failed`。
+   跑不起来 → 明确写"本机 testhost 不可用，未验证"，并说明用什么代替（人工步骤清单）。
+
+5. **部署**：插件三件套（Release 构建 → 同步进 `publish\...\Plugins` → `Deploy-Local.ps1 -Full`）。
+   证据：部署日志末行、App pid、服务 Status、安装 `ProductVersion`、install 与 publish 的 DLL 哈希是否一致。
+
+6. **人工验证**：把"用户该看到什么"写成 3~5 条可勾选的观察项（具体到查询词与文件名），交给 owner 确认。
+
+7. **提交/发版（需 owner 明确授权）**：`App.csproj` 版本号 → `CHANGELOG.md` 中英各一条（含两条常驻行）→ tag → 等 CI → 用**下载资产的内部版本号**做决定性验收。
+
+8. **收尾**：删掉临时探针与 `%TEMP%` 草稿；把踩到的坑写回本文件（按**流程位置**写，不要按事故追加）。
+
+## 待办补记（来自另一对话的实测，本机环境特有）
+
+- 本机 `dotnet test` 起不来的可能原因：**本会话的沙箱/作业对象限制**（另一对话环境不同、可能正常）→ 所以第 0 步必须**实测一次**再下结论，别假定不可用。
+- `Deploy-Local.ps1` 应改为**自校验**：把"插件编译 + DLL 同步 + 哈希比对 + 服务 Status"做成脚本自己的 exit code（脚本不会遗忘，人会）。
+- `~/.dsh/AGENTS.md` 里那份"测试命令固定用法"应**只留指针**指向本文件，避免两处规则分叉（该文件的修改需 owner 确认）。
+- 工作区可能带着另一对话的**接缝修复**（`Core/Hook/Ipc/OpenedFolderSnapshotPublisher.cs` 的 `OrderByWindowRank/WindowRanks`）。
+  它能让 `Tests/Core` 编译通过；**接受它，或先 `git checkout --` 退回再改** —— 不要在两份状态上叠改。
