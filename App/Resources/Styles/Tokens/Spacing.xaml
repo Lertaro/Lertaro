@@ -12,11 +12,15 @@
     <!-- List rows, buttons, tooltips, and other controls that live inside a window/card -->
     <CornerRadius x:Key="CornerRadiusControl">6</CornerRadius>
 
-    <!-- Top-level card window outer chrome (search/settings/quick-look) -->
-    <CornerRadius x:Key="CornerRadiusWindow">10</CornerRadius>
+    <!-- Top-level card window outer chrome (search/settings/quick-look). This is 8 and not a free choice:
+         on Windows 11 the window manager owns the real contour, and DWMWCP_ROUND is a fixed 8 DIP that no
+         attribute value can widen. Painting anything larger only puts a second, rounder curve inside the
+         window's own cut, and the 1 DIP WindowBorderBrush stroke drawn on it cannot follow that: its arcs
+         break off at each corner. WindowSurface and PluginWindow already standardised on this contour. -->
+    <CornerRadius x:Key="CornerRadiusWindow">8</CornerRadius>
     <!-- Header/footer bands sit one BorderThickness inside the window's own CornerRadiusWindow so
          their rounded corners stay flush with the outer border rather than showing a visible seam. -->
-    <CornerRadius x:Key="CornerRadiusWindowTop">9,9,0,0</CornerRadius>
-    <CornerRadius x:Key="CornerRadiusWindowBottom">0,0,9,9</CornerRadius>
+    <CornerRadius x:Key="CornerRadiusWindowTop">7,7,0,0</CornerRadius>
+    <CornerRadius x:Key="CornerRadiusWindowBottom">0,0,7,7</CornerRadius>
 
 </ResourceDictionary>

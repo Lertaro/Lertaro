@@ -26,12 +26,12 @@
          layered window painted into it, and an opaque window has no pixels out there to paint into: so
          the halo and the effect that needed it are both gone. The CornerRadius stays: the window manager
          rounds the real window on Windows 11, and this radius is what rounds the card anywhere it cannot. -->
-    <Border x:Name="Surface" CornerRadius="10" Background="{DynamicResource ContentBg}"
+    <Border x:Name="Surface" CornerRadius="{StaticResource CornerRadiusWindow}" Background="{DynamicResource ContentBg}"
             BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1">
         <!-- ClipToBounds ignores CornerRadius (a WPF limitation, not a bug here): helpers:RoundedClip
              builds a real rounded-rect Clip instead: child content flush to the edge would otherwise show
              square corners poking past this Border's own rounded paint. -->
-        <Border CornerRadius="10" helpers:RoundedClip.IsEnabled="True">
+        <Border CornerRadius="{StaticResource CornerRadiusWindow}" helpers:RoundedClip.IsEnabled="True">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="38"/>

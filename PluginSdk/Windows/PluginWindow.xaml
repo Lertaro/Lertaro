@@ -61,10 +61,10 @@
          the layered window painted around itself, and an opaque window has no pixels out there to paint
          into. The CornerRadius stays: the window manager rounds the real window on Windows 11, and this
          radius is what rounds the card anywhere it cannot. -->
-    <Border x:Name="Surface" CornerRadius="10" Background="{DynamicResource ContentBg}"
+    <Border x:Name="Surface" CornerRadius="8" Background="{DynamicResource ContentBg}"
             helpers:PluginWindowClip.IsEnabled="True"
             BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1">
-        <Border CornerRadius="10" helpers:PluginWindowClip.IsEnabled="True">
+        <Border CornerRadius="8" helpers:PluginWindowClip.IsEnabled="True">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="38"/>

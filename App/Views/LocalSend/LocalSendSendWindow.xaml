@@ -26,8 +26,8 @@
     </Window.Resources>
     <!-- The card IS the window. The 8 DIP margin this used to carry was a transparent halo for a shadow the
          layered window could paint into; an opaque window has no such pixels, so nothing is left to reserve. -->
-    <Border CornerRadius="12" Background="{DynamicResource ContentBg}" BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1">
-        <Border CornerRadius="12" helpers:RoundedClip.IsEnabled="True">
+    <Border CornerRadius="{StaticResource CornerRadiusWindow}" Background="{DynamicResource ContentBg}" BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1">
+        <Border CornerRadius="{StaticResource CornerRadiusWindow}" helpers:RoundedClip.IsEnabled="True">
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="40"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                 <Border Grid.Row="0" Background="{DynamicResource HeaderBg}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">

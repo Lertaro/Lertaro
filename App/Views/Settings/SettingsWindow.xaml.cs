@@ -243,9 +243,12 @@ public partial class SettingsWindow : Window
 
         BtnMaximize.Content = maximized ? "" : "";
 
-        MainBorder.CornerRadius = maximized ? new CornerRadius(0) : new CornerRadius(10);
+        // Restored from the token the markup set rather than a number repeated here, so the two cannot
+        // drift apart the next time the contour changes.
+        var resting = (CornerRadius)FindResource("CornerRadiusWindow");
+        MainBorder.CornerRadius = maximized ? new CornerRadius(0) : resting;
         MainBorder.BorderThickness = new Thickness(maximized ? 0 : 1);
-        ClippingBorder.CornerRadius = maximized ? new CornerRadius(0) : new CornerRadius(10);
+        ClippingBorder.CornerRadius = maximized ? new CornerRadius(0) : resting;
     }
 
     private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();

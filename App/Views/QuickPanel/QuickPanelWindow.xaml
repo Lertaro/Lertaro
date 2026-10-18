@@ -46,9 +46,9 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <Border CornerRadius="10" Background="{DynamicResource CardBackground}"
+    <Border CornerRadius="{StaticResource CornerRadiusWindow}" Background="{DynamicResource CardBackground}"
             BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1">
-        <Border CornerRadius="10" helpers:RoundedClip.IsEnabled="True">
+        <Border CornerRadius="{StaticResource CornerRadiusWindow}" helpers:RoundedClip.IsEnabled="True">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>

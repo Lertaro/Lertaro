@@ -49,10 +49,14 @@ public class SearchWindowChromeHandler
                 // No halo in the normal state either: the window is opaque and IS the card, so a margin
                 // here would only inset the visible card inside its own window rectangle (which is what
                 // the transparent window used it for).
-                _window.MainBorder.CornerRadius = new CornerRadius(10);
+                // The radius comes back from the same token the markup set, not from a number repeated
+                // here: this used to say 10 while the XAML said whatever the token said, and the two only
+                // happened to agree until the token moved.
+                var resting = (CornerRadius)_window.FindResource("CornerRadiusWindow");
+                _window.MainBorder.CornerRadius = resting;
                 _window.MainBorder.Margin = new Thickness(0);
                 _window.MainBorder.BorderThickness = new Thickness(1);
-                _window.ClippingBorder.CornerRadius = new CornerRadius(10);
+                _window.ClippingBorder.CornerRadius = resting;
             }
         }
     }
