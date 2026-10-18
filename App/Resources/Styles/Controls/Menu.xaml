@@ -8,7 +8,20 @@
     </ResourceDictionary.MergedDictionaries>
 
     <!-- ═══════════ Modern ContextMenu Styles ═══════════ -->
+
+    <!-- No dotted focus rectangle on any menu surface, which is what the framework default paints. A menu
+         host is the element that ends up with keyboard focus (the tray menu asks for it outright so the
+         arrows reach its rows, a ContextMenu takes it when it opens), and the adornment then draws a ring
+         around the whole list of rows, inside the card at its own margin, which reads as a bug rather than
+         as a cue. The rows keep their own indicator: IsHighlighted drives the accent bar and hover
+         fill, so nothing loses the "where am I" signal. Matches what this app already does for list rows,
+         text boxes and the search window's buttons. -->
+    <Style TargetType="{x:Type Menu}">
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    </Style>
+
     <Style TargetType="{x:Type ContextMenu}">
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Background" Value="{DynamicResource MenuBackground}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource MenuBorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
@@ -38,7 +51,7 @@
     <Style TargetType="{x:Type MenuItem}">
         <Setter Property="Height" Value="{x:Static services:UiMetrics.MenuItemHeight}"/>
         <Setter Property="Foreground" Value="{DynamicResource MenuText}"/>
-        
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">

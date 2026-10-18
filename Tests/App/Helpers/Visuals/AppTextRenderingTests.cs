@@ -43,6 +43,30 @@ public sealed class AppTextRenderingTests
         }
     }
 
+    // A menu host is the element that holds keyboard focus (the tray menu asks for it outright so the
+    // arrow keys reach its rows), and the framework's default adornment for that focus is a dotted
+    // rectangle drawn around the whole row list, inside the card's own padding. Menus already carry their
+    // own indicator, since IsHighlighted drives the accent bar and hover fill, so the rectangle adds
+    // nothing. Checked on the style rather than on a live element: a focused control is exactly the thing
+    // a headless test cannot reproduce.
+    [TestMethod]
+    public void MenuSurfacesAreDeclaredWithoutTheDefaultFocusRectangle()
+    {
+        var styles = new ResourceDictionary
+        {
+            Source = new Uri("/Lertaro.App;component/Resources/Styles/Controls/Menu.xaml", UriKind.Relative)
+        };
+
+        foreach (var surface in new[] { typeof(Menu), typeof(ContextMenu), typeof(MenuItem) })
+        {
+            var style = (Style)styles[surface];
+            // Single, not FirstOrDefault: a style that stopped setting the property has to fail here
+            // rather than compare against a null the loop never found.
+            var setter = style.Setters.Cast<Setter>().Single(s => s.Property == FrameworkElement.FocusVisualStyleProperty);
+            Assert.IsNull(setter.Value, $"{surface.Name} must not paint the framework focus rectangle");
+        }
+    }
+
     // Leaving the default alone must not mean losing the choice: a surface that wants Display still gets
     // it by asking, and it inherits down to the text and its runs.
     [StaTestMethod]
