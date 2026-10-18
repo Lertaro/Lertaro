@@ -54,10 +54,6 @@ internal static class HighlightMask
         var rank = RankFromMarks(marks);
         // The mask is a union across terms, so it cannot say HOW any one of them matched; Mark reports the
         // strongest tier any term reached and the folded shape, which is what decides the ordering.
-        // A query with a space is several terms that each had to match somewhere: the mask paints all of them,
-        // which can look like one contiguous run. Owner's rule: that must never count as a contiguous hit.
-        if (rank.IsMatch && pattern.TermSets.Length > 1)
-            return rank with { Tier = tier, Shape = shape, Contiguity = 0 };
         return rank.IsMatch ? rank with { Tier = tier, Shape = shape } : rank;
     }
 

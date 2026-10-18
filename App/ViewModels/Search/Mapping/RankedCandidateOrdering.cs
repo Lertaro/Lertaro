@@ -51,19 +51,21 @@ internal static class RankedCandidateOrdering
                      // Owner's final ladder (2026-10-19): contiguity, left position, coverage, tier, name length,
                      // history/favorites, folder-first, natural name order. Coverage is weight/contiguity because
                      // weight is already coverage*contiguity and contiguity is carried separately.
-                     .OrderByDescending(c => c.Match.Contiguity)
-                     .ThenBy(c => c.Match.Start)
-                     // Owner chose (A) on 2026-10-19: history and favorites outrank coverage, so a row the user
-                     // opened before leads even a better-covered ordinary row. Only contiguity and position
-                     // still come first.
+                     // Owner's ladder (2026-10-19, after the save point): tier, then a hit that is both contiguous
+                     // AND at the left edge, then contiguity, then history/favorites, coverage, type order, name
+                     // length, folder-first and natural name order.
+                     // Owner's ladder (2026-10-19, final): a left-contiguous hit, then contiguity, history,
+                     // coverage, tier, type order, folder-first, natural name order, and name length last.
+                     .OrderByDescending(c => c.Match.Start == 0 && c.Match.Contiguity >= 1)
+                     .ThenByDescending(c => c.Match.Contiguity)
                      .ThenByDescending(c => c.IsCurated)
                      .ThenBy(c => c.Priority)
                      .ThenByDescending(c => c.Match.Contiguity > 0 ? c.Match.Weight / c.Match.Contiguity : 0)
                      .ThenBy(c => c.Match.Tier)
                      .ThenBy(c => c.TypeRank)
-                     .ThenBy(c => c.Result.Name.Length)
                      .ThenBy(c => c.Result.IsDir)
-                     .ThenBy(c => c.Result.Name, NameOrderComparer.Instance))
+                     .ThenBy(c => c.Result.Name, NameOrderComparer.Instance)
+                     .ThenBy(c => c.Result.Name.Length))
         {
             if (usedPaths.Add(candidate.NormalizedPath))
                 ranked.Add(candidate);

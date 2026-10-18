@@ -84,11 +84,13 @@ Not lazy about: input validation at trust boundaries, error handling that preven
 - 改完直接部署，不必请示；部署后必须核对：安装 ProductVersion、服务 Status、install 与 publish 哈希、app.log 有无异常。
 
 ## 搜索语义（已与 owner 逐条确认，**不要擅自"优化"**）
-- 排序梯子：`exact`（名字去扩展名==查询）→ `Contiguity`（连续度）→ `Start`（左侧位置）→ `IsCurated/Priority`（收藏/历史，**只在同样结果时优先**）→ `Tier` → `TypeRank` → `IsDir` → `NameOrderComparer`。
+- 排序梯子（2026-10-19 定稿，**两侧同序**）：`左侧连续`（Start==0 且连续度>=1）→ `Contiguity` → `IsCurated/Priority`（收藏/历史，**已确认排在覆盖率之前**）→ `覆盖率`（Weight/Contiguity）→ `Tier` → `TypeRank` → `IsDir` → `NameOrderComparer` → `Name.Length`（**名字长度在最后**）。
+- 引擎键 `SearchResultRelevance.HighKey` 同步为：`contiguity(10) | start(6) | coverage(10) | tier(4) | folder(1)`。
+- ⚠️ 多词查询**不再**强制 `Contiguity=0`（那会把空格查询的位置/覆盖率信号全抹平）：空格也按左侧优先排序。
 - `NameOrderComparer`：数字 < 字母 < 符号；字母内**大写在前**；数字按数值（a2 < a10）。
 - LINQ 里只能有一个 `OrderBy`，其余必须 `ThenBy`（`OrderBy` 会重置前面的排序）。
-- 引擎键 `SearchResultRelevance.HighKey`：`exact(1) | start(6) | contiguity(10) | weight(10) | tier(4) | folder(1)`；快速窗是流式渲染、按此键排序，所以 `exact` 必须进键。
-- 空格 = 分词 + **AND**；空格本身不可匹配；多词查询的匹配**不得**算作连续（含空格即非连续）。
+
+- 空格 = 分词 + **AND**；空格本身不可匹配；多词查询**保留**位置/覆盖率信号，按左侧优先排序。
 - 混拼：只有完整读音或声母可作非末段；**只有韵母不参与**（`AliasMatchRules.AllowsMatchSpan*` + `PinyinTermMatcher`）。
 - 内联卡片在以上规则之外再加三层目录邻近：当前目录 → 其子目录 → 全局。
 
@@ -198,7 +200,15 @@ lertar exe      ✗ 不中
 
 **附**：查询语法**没有通配符** ✗（`*` `?` 会被当普通字符）。位置语义（完全一样 → 前缀 → 包含 → 散落）是**自动**的，不需要写通配符。
 
-
 7. **多词查询按输入顺序匹配**（owner 2026-10-19 要求）：`le app` 只能命中"le 在 app 之前"的名字，`apple` ✗ 不再命中。
    落点：`Core/SearchIndex/Fzf/FzfPattern` 或多词收口处校验各词 `MinBegin` 递增；约 20~40 行 + 单测。
    副作用（owner 已知悉）：`mp3 歌` 这类顺序写反的查询会失效。
+## 已知行为：多词查询里的某个词可能被"剥词"（2026-10-19 记录，**暂不修**）
+
+实测：`szz mp` 会返回 `D:\…\世的牽掛版本8.mp3`（名字与路径里**没有任何 `z`** ✗，不可能靠 `szz` 命中），
+而单独搜 `szz` 能正确找到 `S:\…\树枝折断声.mp3` ✓。
+推测 `DispatchSearch` 里 `FileFilterScopeResolver` 或 `PluginTriggerQuery.Strip` 把 `szz` 当成了过滤器/插件触发词剥掉，
+真正搜索的只剩 `mp` → 于是任何 `.mp3` 都命中。
+
+owner 判定（2026-10-19）：`szz` 单独搜能用、影响面小 → **暂不修**，不要再重开排查 ✗。
+若以后要修：触发词/过滤器关键字应只在"**它是查询里唯一的前缀词**"时生效，而不是任意位置的首词。
