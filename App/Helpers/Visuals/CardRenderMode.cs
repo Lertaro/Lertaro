@@ -13,10 +13,12 @@ namespace Lertaro.App.Helpers.Visuals;
 /// 170-258ms under hardware composition. That interval is the whole complaint: an opaque WPF window has no
 /// pixels until its render thread presents a frame, and what fills the window meanwhile is the class
 /// background, which is black. Software composition was faster in every shape measured here, not merely
-/// cheaper-looking, and it removes the two mechanisms that open the interval at all: the Direct3D device and
+/// cheaper-looking, and it takes away the two costs that make that interval long: the Direct3D device and
 /// surface created on a window's first show, and the surface recreated whenever the size or the DPI context
-/// changes -- which a card summoned onto a second monitor at another scale does on every summon. It also keeps
-/// ClearType, which is more than can be said for the layered-window route this app abandoned.
+/// changes -- which a card summoned onto a second monitor at another scale does on every summon. It shortens
+/// the interval rather than removing it: the first present is gated on the window being on screen either way
+/// (see WindowParking.ShowThenPlace). It also keeps ClearType, which is more than can be said for the
+/// layered-window route this app abandoned.
 ///
 /// This is deliberately not gated on <c>EnableHardwareAcceleration</c>: that setting is an opt-out for the
 /// windows the user sits inside (Settings, the full search window, QuickLook), and it cannot be the reason a

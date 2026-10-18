@@ -40,7 +40,10 @@ internal static class WindowParking
     /// The gap this closes is the summon itself. An opaque window has no pixels until its render thread presents
     /// a frame, and the frame is not ready when Show returns: measured on a card-shaped tree, content reached
     /// the screen 170-258ms after a Show at the place it belongs, against 30ms after this order
-    /// (scratch/blackprobe). The render cost is the same in both -- this only moves it where nobody can see it.
+    /// (scratch/blackprobe). What the parked interval buys is the window's cold layout and drawing data; the
+    /// present itself is gated on being on screen, so the gap does not go to zero by waiting longer -- holds of
+    /// 0, 30, 60, 100, 150, 200 and 260ms all landed 22-31ms before their first frame. This turns a visible
+    /// gap of about ten frames into one or two, which is the whole of what it does.
     ///
     /// The y-only park is deliberate and depends on the caller having placed the card at its target x first:
     /// a window that intersects no monitor takes the scale of the nearest one, and keeping the target's column
