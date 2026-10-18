@@ -60,8 +60,15 @@ internal sealed class InlineSearchWindowSummonSupport
         // the transparent window used to show nothing. ApplyCardHeight is safe this early by its own
         // measurement comment (it charges the search bar and banner at their natural sizes until WPF has
         // arranged them).
-        window.CardSizing.ApplyCardHeight();
+        //
+        // And sized after the dock width, which is the half that matters now that the card is reused: the
+        // search bar and the path banner report the arranged widths the PREVIOUS host left behind, a card
+        // measured against those lands at the wrong height, and the correction becomes a resize the user
+        // watches. PositionWindowImmediate is what puts the new width on the window and lays it out, and
+        // ApplyCardHeight re-positions through the positioner, so the target the reveal lands on is the one
+        // computed from the real width and the real height together.
         window.Positioner.PositionWindowImmediate();
+        window.CardSizing.ApplyCardHeight();
         // Shown at the parking row and landed a render pass later: the dock-then-Show order this replaces left
         // the card on screen for 170-258ms with nothing painted in it, which is the black frame.
         window.Positioner.Reveal();
