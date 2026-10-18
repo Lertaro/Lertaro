@@ -151,6 +151,7 @@ public static class ExplorerSearchHelper
         // request was about.
         var orderedDirect = direct
             .OrderBy(row => row.Match.Start)
+            .ThenByDescending(row => row.Match.Contiguity)
             .ThenBy(row => row.Result.IsDir ? 0 : 1)
             .ThenBy(row => row.Match.Tier)
             .ThenBy(row => row.Result.Name, NaturalNameComparer.Instance)

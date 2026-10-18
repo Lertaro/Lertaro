@@ -39,12 +39,16 @@ internal static class RankedCandidateOrdering
         var usedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var ranked = new List<SearchResultMapper.RankedCandidate>();
         foreach (var candidate in candidates
-                     .OrderByDescending(c => c.IsCurated)
-                     .ThenBy(c => c.Priority)
-                     .ThenBy(c => c.TypeRank)
-                     .ThenBy(c => c.Match.Start)
+                     // Owner's rule: history and favorites sit AFTER the match rule, not above it -- at
+                     // otherwise equal match quality a row you opened before wins, but it cannot outrank a
+                     // much better left-side or contiguous hit just because it is in the history.
+                     .OrderBy(c => c.Match.Start)
+                     .ThenByDescending(c => c.Match.Contiguity)
                      .ThenByDescending(c => c.Match.Weight)
                      .ThenBy(c => c.Match.Tier)
+                     .ThenByDescending(c => c.IsCurated)
+                     .ThenBy(c => c.Priority)
+                     .ThenBy(c => c.TypeRank)
                      .ThenBy(c => c.Result.IsDir)
                      .ThenBy(c => c.NormalizedPath.Length)
                      .ThenBy(c => c.NormalizedPath, StringComparer.OrdinalIgnoreCase))

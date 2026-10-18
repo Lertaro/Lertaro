@@ -71,6 +71,10 @@ internal static class SearchResultRelevance
         // above it fills the list with rows that merely matched a whole word or were touched today. Shape, recency
         // and depth keep their weight as tiebreakers among rows that start at the same position.
         //   start(7) | shape(3) | band(2) | depth(5) | weight(10) | tier(4) | folder(1)
-        return (start << 25) | (shape << 22) | (recency << 20) | (folders << 15) | (weightPoint << 5) | (tier << 1) | (isDir ? 1u : 0u);
+        // Owner's rule: leftmost, then how contiguous the hit is, then coverage, then how the match was found;
+        // shape/recency/depth no longer take part (they were what buried the row the user was looking for).
+        //   start(7) | contiguity(10) | weight(10) | tier(4) | folder(1)
+        var contiguityPoint = (uint)Math.Round((1 - Math.Clamp(rank.Contiguity, 0, 1)) * 1023);
+        return (start << 25) | (contiguityPoint << 15) | (weightPoint << 5) | (tier << 1) | (isDir ? 1u : 0u);
     }
 }

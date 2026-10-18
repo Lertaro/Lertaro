@@ -254,6 +254,6 @@ internal static class HighlightMask
         var consecutiveness = (double)sumOfSquares / ((long)matchedLength * matchedLength);
         // Tier is filled in by ComputeRank, which knows which path produced the mask; the mask alone
         // cannot say how any term matched.
-        return new MatchRank(MatchRank.TierFull, leftmost, percentage * consecutiveness);
+        return new MatchRank(MatchRank.TierFull, leftmost, percentage * consecutiveness, MatchRank.ShapeWholeWord, consecutiveness);
     }
 }
