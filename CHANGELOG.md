@@ -11,7 +11,10 @@
 
 ```
 * 合并上游 v5.9.7（拼音读音改为实时匹配、读音表按词频、索引快照 v13，剪贴板文本与截图，内联卡片定位与焦点修复）
-+ 完整搜索窗也按左侧命中优先排序（形状、时间、深度降为同起点的次键）
+* 排序改为：左侧连续 → 连续度 → 收藏/历史 → 覆盖率 → 档位 → 类型顺序 → 目录优先 → 名字序 → 名字长度
++ 完整搜索窗也按左侧命中优先排序（形状、时间、深度不再参与）
++ 多词查询保留左侧与覆盖率信号，不再算作连续命中
++ 混拼查询里只有韵母的片段不参与匹配
 + 自动更新只检查本仓库的发行
 + 保留鼠标平滑滚动
 ```
@@ -20,18 +23,13 @@
 
 ```
 * Merged upstream v5.9.7 (live pinyin reading matching, frequency-ordered reading table, index snapshot v13, clipboard text and screenshots, inline card locate and focus fixes)
-+ The full search window orders by left-side match position too (shape, recency and depth become tiebreakers)
+* Ranked by left-contiguous hit, contiguity, history, coverage, tier, type order, folder, natural name order, then name length
++ The full search window orders by left-side match position too (shape, recency and depth no longer take part)
++ A spaced query keeps its left-side and coverage signal instead of counting as a contiguous hit
++ A final-only piece no longer takes part in a mixed pinyin query
 + Auto-update only checks this repository's releases
 + Keeps the smooth wheel scrolling
 ```
-# 多词查询不再算作连续命中，同档内短名优先
-# 混拼查询里只有韵母的片段不参与匹配
-# 完全匹配进入排序键，流式结果也能置顶
-
-# A multi-term query no longer counts as a contiguous hit; the shorter name wins at equal rank
-# A final-only piece no longer takes part in a mixed pinyin query
-# An exact name match now enters the sort key, so the streamed list puts it first
-
 
 ## v5.9.6.1
 
