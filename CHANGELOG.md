@@ -11,6 +11,7 @@
 
 ```
 * 合并上游 v5.9.7（拼音读音改为实时匹配、读音表按词频、索引快照 v13，剪贴板文本与截图，内联卡片定位与焦点修复）
++ 完整搜索窗也按左侧命中优先排序（形状、时间、深度降为同起点的次键）
 + 自动更新只检查本仓库的发行
 + 保留鼠标平滑滚动
 ```
@@ -19,6 +20,7 @@
 
 ```
 * Merged upstream v5.9.7 (live pinyin reading matching, frequency-ordered reading table, index snapshot v13, clipboard text and screenshots, inline card locate and focus fixes)
++ The full search window orders by left-side match position too (shape, recency and depth become tiebreakers)
 + Auto-update only checks this repository's releases
 + Keeps the smooth wheel scrolling
 ```
