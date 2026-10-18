@@ -68,7 +68,7 @@ internal sealed class InlineSearchWindowSummonSupport
         // ApplyCardHeight re-positions through the positioner, so the target the reveal lands on is the one
         // computed from the real width and the real height together.
         window.Positioner.PositionWindowImmediate();
-        window.CardSizing.ApplyCardHeight();
+        window.CardSizing.ApplyCardHeight(forSummon: true);
         // Shown at the parking row and landed a render pass later: the dock-then-Show order this replaces left
         // the card on screen for 170-258ms with nothing painted in it, which is the black frame.
         window.Positioner.Reveal();

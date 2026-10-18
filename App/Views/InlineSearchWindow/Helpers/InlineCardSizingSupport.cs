@@ -152,12 +152,21 @@ internal sealed class InlineCardSizingSupport
     /// is what lets a taller card extend upward within it (the positioner pins the card's bottom edge; see
     /// InlineSearchWindowPositioner). The results area's own height belongs to
     /// InlineSearchWindowLayoutManager, which is re-queued rather than duplicated here.
+    ///
+    /// forSummon: the one pass that must not wait for a settled search. See the guard below.
     /// </remarks>
-    internal void ApplyCardHeight()
+    internal void ApplyCardHeight(bool forSummon = false)
     {
         // Searching produces intermediate result snapshots. Their full-budget layout is not a stable size,
         // so wait for IsSearching=false and resize once from the settled result set.
-        if (_window.ViewModel.IsSearching) return;
+        //
+        // A summon is exempt, and it has to be: the summon clears the box, that clear starts the empty-query
+        // search, so an unconditional veto here also vetoes the only sizing pass that runs before the card is
+        // on screen -- leaving it at whatever height the previous session ended with, and at the XAML's own
+        // 550 DIP on the process's first summon. That slab is what read as a black frame. CurrentLayout()
+        // answers correctly for a summon regardless: the cleared list has no rows, so the card is sized to the
+        // empty state and the settled search corrects it like any later pass.
+        if (_window.ViewModel.IsSearching && !forSummon) return;
 
         // Re-derived on every size pass, before anything is measured from it: the screen, its DPI and the
         // window this card is docked to can all change while it is open (the dialog is dragged to a smaller
