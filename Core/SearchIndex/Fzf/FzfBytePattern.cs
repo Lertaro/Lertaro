@@ -78,11 +78,7 @@ internal sealed class FzfBytePattern
     public static FzfMatchResult Match(FzfTermKind kind, ReadOnlySpan<byte> text, byte[] pattern, bool caseSensitive, FzfScoringScheme scheme, FzfSlab slab, FzfByteBuffers buffers) => kind switch
     {
         FzfTermKind.Fuzzy => FzfByteMatcher.FuzzyMatchV2(text, pattern, caseSensitive, scheme, slab, buffers),
-        FzfTermKind.Exact => FzfByteExactMatcher.ExactMatch(text, pattern, caseSensitive, scheme, boundaryCheck: false),
-        FzfTermKind.ExactBoundary => FzfByteExactMatcher.ExactMatch(text, pattern, caseSensitive, scheme, boundaryCheck: true),
-        FzfTermKind.Prefix => FzfByteExactMatcher.PrefixMatch(text, pattern, caseSensitive, scheme),
-        FzfTermKind.Suffix => FzfByteExactMatcher.SuffixMatch(text, pattern, caseSensitive, scheme),
-        FzfTermKind.Equal => FzfByteExactMatcher.EqualMatch(text, pattern, caseSensitive, scheme),
+        FzfTermKind.Exact => FzfByteExactMatcher.ExactMatch(text, pattern, caseSensitive, scheme),
         _ => FzfMatchResult.NoMatch
     };
 
