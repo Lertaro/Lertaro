@@ -62,7 +62,9 @@ internal sealed class InlineSearchWindowSummonSupport
         // arranged them).
         window.CardSizing.ApplyCardHeight();
         window.Positioner.PositionWindowImmediate();
-        window.Show();
+        // Shown at the parking row and landed a render pass later: the dock-then-Show order this replaces left
+        // the card on screen for 170-258ms with nothing painted in it, which is the black frame.
+        window.Positioner.Reveal();
         window.ViewModel.EnsureServiceMonitoringActive();
 
         var foreground = ExplorerNativeHooks.GetForegroundWindow();

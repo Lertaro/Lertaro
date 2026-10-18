@@ -83,7 +83,10 @@ internal sealed class NotificationWindowManager(
         // first pass; re-laying out when the first frame is up is left as the correction it now is, not as the
         // visible jump the window would otherwise make from the bottom edge of the screen.
         window.UpdateLayout();
-        Restack(animated: false);
+        // The pass that brings the card down out of the parking row waits for a render pass at its size: landing
+        // it from this same call leaves the card on screen for the length of that pass with nothing painted in
+        // it, which is the black rectangle. See WindowParking.
+        WindowParking.AfterFrame(window, () => Restack(animated: false));
         // Re-laid out when the first frame is up, and animated this time. A card's height is not final until it
         // has actually been arranged: the body text re-wraps against the pixel-rounded content width and can come
         // out a line taller than the pre-render measure said -- the sampler saw exactly that, a 196px slide

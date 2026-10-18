@@ -229,6 +229,10 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     public void ShowWindow(string? initialQuery, bool caretAtEnd = false) => _controller.ShowWindow(initialQuery, caretAtEnd);
     // See _suppressPositioning: the warm-up is over once a summon has taken the window over.
     internal void AllowPositioning() => _suppressPositioning = false;
+    // Re-armed for the length of the parked frame (see WindowParking.ShowThenPlace): the window is WS_VISIBLE
+    // there, so the IsVisible-gated callers are awake again, and any one of them placing it would put an
+    // unpainted card where the user is looking -- which is exactly what the parked show exists to avoid.
+    internal void SuppressPositioning() => _suppressPositioning = true;
     public void PositionWindow()
     {
         if (_suppressPositioning) return;

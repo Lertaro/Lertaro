@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Lertaro.App.Helpers;
+using Lertaro.App.Helpers.Visuals;
 using Lertaro.App.Services;
 using Lertaro.App.Services.Theme;
 using Lertaro.Core;
@@ -68,15 +69,24 @@ internal sealed class QuickSearchWindowShowSupport
         window.ApplyResultsLayoutImmediate();
         window.Topmost = false;
         window.Topmost = true;
+        window.WindowState = WindowState.Normal;
+        // Placed at its target first, then shown from the parking row above it: the x is what gives this window
+        // the DPI context of the monitor the summon belongs to, so the frame is composed for that scale, and
+        // the move down into place changes neither its size nor its scale.
         _controller.PositionWindow();
 
         // No fade-in, deliberately: the whole window is opaque now, and fading means showing the content at
         // zero opacity for the length of the animation, which on an opaque window is a black rectangle
         // rather than a see-through one (NotificationWindowManager reached the same conclusion for cards).
         // What is left of this window's motion is everything that never touches the Window's own opacity.
-        window.Show();
-        window.WindowState = WindowState.Normal;
-        _controller.PositionWindow();
+        window.SuppressPositioning();
+        WindowParking.ShowThenPlace(window, RevealAtPlacedPosition);
+
+        void RevealAtPlacedPosition()
+        {
+            window.AllowPositioning();
+            window.PositionWindow();
+        }
 
         _controller.ForegroundWatcher.Start();
         // Selecting the kept text is what makes it usable instead of in the way: the next keystroke
