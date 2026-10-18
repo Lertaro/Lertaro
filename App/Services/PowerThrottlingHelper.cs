@@ -38,7 +38,7 @@ public static class PowerThrottlingHelper
 
     // windowId is just a stable per-surface key ("quick", "inline", ...) -- a HashSet rather than a raw
     // counter so a stray extra Hide call (or a Show call that fires twice for the same surface, e.g. a
-    // redundant EnsureWindowCreated()) is a harmless no-op instead of drifting the count out of balance,
+    // redundant Summon()) is a harmless no-op instead of drifting the count out of balance,
     // which would otherwise leave throttling stuck either on or off until the next process restart.
     public static void WindowShowing(string windowId)
     {

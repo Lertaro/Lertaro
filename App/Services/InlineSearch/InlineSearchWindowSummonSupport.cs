@@ -1,3 +1,5 @@
+using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Threading;
 using Lertaro.App.ViewModels.Search;
 using Lertaro.Core;
@@ -6,39 +8,52 @@ using Lertaro.Core.Hook.InlineSearch;
 
 namespace Lertaro.App.Services;
 
-// Split out purely to keep InlineSearchManager under the repo's per-file line limit. This class owns
-// window creation only and delegates the resulting state back to its one InlineSearchManager owner.
-internal sealed class InlineSearchWindowCreationSupport
+// Split out purely to keep InlineSearchManager under the repo's per-file line limit. This class owns getting
+// the card onto the screen and delegates the resulting state back to its one InlineSearchManager owner.
+//
+// It used to own making the card too, and made a new one for every summon. That is what the summon's own
+// latency was spent on: a fresh window brings its view model, its visual tree and its first composition with
+// it, measured at 170-258ms during which the window is already on screen with nothing painted in it
+// (scratch/blackprobe). The window is now built once and kept; a summon is a re-docking and a Show.
+internal sealed class InlineSearchWindowSummonSupport
 {
     private readonly InlineSearchManager _manager;
 
-    public InlineSearchWindowCreationSupport(InlineSearchManager manager) => _manager = manager;
+    public InlineSearchWindowSummonSupport(InlineSearchManager manager) => _manager = manager;
 
-    public void EnsureWindowCreated()
+    /// <summary>Brings the card up for whichever window the tracker is on now.</summary>
+    public void Summon()
     {
         PowerThrottlingHelper.WindowShowing("inline");
         // Cancels any idle trim armed by CloseInlineSearch: trimming just before a summon is strictly
         // worse than not trimming, since those pages are about to be needed again. Mirrors the quick
         // window's own WindowShowing call.
         IdleWorkingSetTrimmer.WindowShowing();
-        if (_manager.Window != null) return;
 
         var tracker = _manager.ExplorerTracker;
-        var viewModel = new QuickSearchViewModel();
 
-        // Show from the mirror immediately. IsInlineWindowOnScreen below asks the Hook's paced poller
-        // for a fresh path; its normal PathCaptured event repairs this scope and re-runs the current query.
-        viewModel.SearchScope = tracker.ActivePath;
-        viewModel.IsInlineSearchContext = true;
+        // The card is already on screen: this is a keystroke after the first one, and re-summoning would wipe
+        // what the user has typed into it. The create-per-summon version got the same early exit by existing.
+        if (_manager.Window is { IsVisible: true }) return;
 
-        var window = new InlineSearchWindow(viewModel, _manager);
-        _manager.Window = window;
+        _manager.Window ??= Create();
+        var window = _manager.Window;
+
         _manager.CurrentHostHwnd = tracker.ActiveHwnd;
         _manager.KeyboardHook.IsInlineSearchVisible = true;
         _manager.KeyboardHook.IsInlineWindowOnScreen = true;
         _manager.MouseHook.Start();
 
-        new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
+        window.HostOnto(tracker.ActiveHwnd);
+        // Everything a brand-new card would have come with, since this one came back instead: the folder it is
+        // reading, an empty box, and no half-open actions menu.
+        window.BeginSession();
+        // Show from the mirror immediately. IsInlineWindowOnScreen above asks the Hook's paced poller
+        // for a fresh path; its normal PathCaptured event repairs this scope and re-runs the current query.
+        window.ViewModel.SearchScope = tracker.ActivePath;
+        window.UpdateSearchDisplay(string.Empty);
+
+        new WindowInteropHelper(window).EnsureHandle();
         // Sized before it is shown, not from its Loaded handler like every later pass: the window is opaque
         // now, so the card's height has to be the window's height before the first frame or the frame that
         // goes up is the XAML's own 550 DIP with a small card pinned inside one edge of it -- a slab where
@@ -84,6 +99,17 @@ internal sealed class InlineSearchWindowCreationSupport
             }), DispatcherPriority.Input);
         }
 
-        Logger.Log($"[InlineSearchManager] Created and shown new InlineSearchWindow. Scope: {viewModel.SearchScope}", LogLevel.Debug);
+        Logger.Log($"[InlineSearchManager] Card shown. Scope: {window.ViewModel.SearchScope}", LogLevel.Debug);
+    }
+
+    // The one place the card's own view model is built, so the scope it starts reading from and the inline
+    // context flag cannot be set for a summon and missed for the next one.
+    private InlineSearchWindow Create()
+    {
+        var viewModel = new QuickSearchViewModel
+        {
+            IsInlineSearchContext = true
+        };
+        return new InlineSearchWindow(viewModel, _manager);
     }
 }

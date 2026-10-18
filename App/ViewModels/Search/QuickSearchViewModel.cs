@@ -217,7 +217,7 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
     public bool HasMultipleLaunchSources => LaunchSources.Count > 1;
 
     // Quick window only: InlineSearchWindow shares this same ViewModel class (see
-    // InlineSearchManager.EnsureWindowCreated setting IsInlineSearchContext), so without this check the
+    // InlineSearchWindowSummonSupport setting IsInlineSearchContext), so without this check the
     // clock would also take over its placeholder even though it's usually mid-task in some other app's
     // window, not an idle "glance at the time" moment the way the Quick window's popup can be.
     public Visibility ClockVisibility => !IsInlineSearchContext && UserSettings.Load().SearchWindow.ShowClock ? Visibility.Visible : Visibility.Collapsed;
