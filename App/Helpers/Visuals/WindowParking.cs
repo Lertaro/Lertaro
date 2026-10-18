@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
+using Lertaro.Core;
 
 namespace Lertaro.App.Helpers.Visuals;
 
@@ -50,7 +51,31 @@ internal static class WindowParking
     {
         window.Top = OffScreen;
         window.Show();
-        AfterFrame(window, place);
+        AfterFrame(window, () =>
+        {
+            place();
+            WatchFirstFrame(window);
+        });
+    }
+
+    /// <summary>Logs how long the window stays on screen with nothing in it -- the black rectangle, in ms.</summary>
+    /// <remarks>
+    /// Subscribe after the window has been placed, not before: ContentRendered is never raised while a window is
+    /// in the parking row (measured: 32 of 32 shows parked at -32000 timed out), so from here its delay is the
+    /// gap the user sees, and on a machine whose compositor fills an unpainted client area with the window
+    /// class's black brush, that number is the complaint. Nothing else in this repo can measure it: the
+    /// compositor on the development machine shows the desktop through instead, so a gap and a park look alike.
+    /// </remarks>
+    private static void WatchFirstFrame(Window window)
+    {
+        var placedAt = Environment.TickCount64;
+        void OnContentRendered(object? sender, EventArgs e)
+        {
+            window.ContentRendered -= OnContentRendered;
+            Logger.Log($"[WindowPark] {window.GetType().Name} first frame "
+                + $"{Environment.TickCount64 - placedAt}ms after it was placed", LogLevel.Info);
+        }
+        window.ContentRendered += OnContentRendered;
     }
 
     /// <summary>Runs <paramref name="action"/> after WPF has had a render pass at the window's current size.</summary>
@@ -92,7 +117,20 @@ internal static class WindowParking
             window.SourceInitialized -= OnSourceInitialized;
             var top = window.Top;
             window.Top = OffScreen;
-            AfterFrame(window, () => window.Top = top);
+            var shownAt = Environment.TickCount64;
+            AfterFrame(window, () =>
+            {
+                // Info, and it says whether the park held: an owned dialog is placed by WPF at show time, so
+                // if anything re-applies that placement behind our back, this is the only place that can tell.
+                // The two look identical on a machine whose compositor shows the desktop through an unpainted
+                // window instead of the class background, which is why this is not left to be inferred.
+                var held = window.Top <= OffScreen;
+                window.Top = top;
+                var restoredAt = Environment.TickCount64;
+                Logger.Log($"[WindowPark] {window.GetType().Name} restored after "
+                    + $"{restoredAt - shownAt}ms, parkHeld={held}", LogLevel.Info);
+                WatchFirstFrame(window);
+            });
         }
 
         window.SourceInitialized += OnSourceInitialized;
