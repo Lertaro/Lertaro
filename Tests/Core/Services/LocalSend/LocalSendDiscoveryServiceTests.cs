@@ -73,6 +73,28 @@ public sealed class LocalSendDiscoveryServiceTests
     }
 
     [TestMethod]
+    public void AddDiscoveredDevice_KeepsTwoUserSessionsOfOneMachineApart()
+    {
+        // Two Windows users logged in at once are two targets, and the row merge must never make one of
+        // them disappear: each session keeps its own localsend.pfx under its own per-user data directory, so
+        // the fingerprints differ, and the server that finds 53317 taken moves to the next port. Dropping
+        // either of those two from the key would leave one row whose popup only ever reaches whichever
+        // session announced last.
+        using var discovery = new LocalSendDiscoveryService { LocalInfo = new LocalSendDeviceInfo { Fingerprint = "local" } };
+        discovery.AddDiscoveredDevice(new LocalSendDeviceInfo { Alias = "Apple", IpAddress = "192.168.1.20", Fingerprint = "apple", Port = 53317 });
+        discovery.AddDiscoveredDevice(new LocalSendDeviceInfo { Alias = "Grape", IpAddress = "192.168.1.20", Fingerprint = "grape", Port = 53318 });
+
+        Assert.HasCount(2, discovery.DiscoveredDevices);
+
+        // The port alone has to be enough: one identity answering on two ports is two sessions, not one
+        // device that moved.
+        discovery.AddDiscoveredDevice(new LocalSendDeviceInfo { Alias = "Apple again", IpAddress = "192.168.1.20", Fingerprint = "apple", Port = 53319 });
+
+        Assert.HasCount(3, discovery.DiscoveredDevices);
+        Assert.AreEqual(3, discovery.DiscoveredDevices.Select(device => device.Port).Distinct().Count());
+    }
+
+    [TestMethod]
     public void AddDiscoveredDevice_WithoutAFingerprintIsKnownOnlyByItsAddress()
     {
         using var discovery = new LocalSendDiscoveryService { LocalInfo = new LocalSendDeviceInfo { Fingerprint = "local" } };

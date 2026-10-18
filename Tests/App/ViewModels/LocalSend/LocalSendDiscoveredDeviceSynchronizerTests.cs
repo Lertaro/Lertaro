@@ -10,6 +10,8 @@ public sealed class LocalSendDiscoveredDeviceSynchronizerTests
     [TestMethod]
     public void Synchronize_KeepsDevicesWithDifferentPortsOrFingerprints()
     {
+        // Three rows that a fingerprint-only key would collapse: two user sessions on one machine share an
+        // address and differ only by port, and the send has to be able to pick which one pops the dialog.
         var items = new ObservableCollection<LocalSendSendDeviceItem>();
         var devices = new[]
         {

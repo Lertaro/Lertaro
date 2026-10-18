@@ -50,9 +50,19 @@ public sealed class LocalSendDeviceInfo
     /// The identity a device keeps when it moves. <see cref="Fingerprint"/> is the hash of the peer's
     /// self-signed certificate, so it survives the DHCP lease that does not: one device answering on a new
     /// address re-registers under this same key and the newest address simply replaces the old, which is how
-    /// upstream LocalSend keys its device map. The port stays in the key because one certificate can be
-    /// serving a second instance elsewhere, and the IP stays in only when the peer answered with no
-    /// fingerprint at all, which leaves nothing else to tell two rows apart.
+    /// upstream LocalSend keys its device map.
+    ///
+    /// The port stays in the key because one machine is not one target. Two Windows users logged in at once
+    /// run two Lertaro instances -- the single-instance mutex is Local\, so it is scoped to a session -- and
+    /// each holds its own certificate under its own per-user data directory, with its own port once the
+    /// first took 53317. That already separates them twice over; the port is the half that keeps working
+    /// when the peer is not Lertaro, because LocalSend itself persists one certificate per user profile, so
+    /// two of its instances on one machine share a fingerprint and differ only by port. Key on the
+    /// fingerprint alone and a send goes to whichever session announced last, while the dialog the transfer
+    /// is waiting on belongs to the other user's desktop.
+    ///
+    /// The IP stays in only when the peer answered with no fingerprint at all, which leaves nothing else to
+    /// tell two rows apart.
     /// </summary>
     [JsonIgnore]
     public string DiscoveryKey => string.IsNullOrEmpty(Fingerprint)
