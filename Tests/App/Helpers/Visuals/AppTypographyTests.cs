@@ -121,7 +121,7 @@ public sealed class AppTypographyTests
         Assert.AreEqual(AppTypography.UiFont, header.FontFamily);
         Assert.AreEqual(FontWeights.Normal, header.FontWeight);
         Assert.AreEqual("zh-cn", header.Language.IetfLanguageTag);
-        Assert.AreEqual(12, header.FontSize);
+        Assert.AreEqual(13, header.FontSize);
         Assert.AreEqual(AppTypography.IconFont, icon.FontFamily);
         var arrow = Assert.ContainsSingle(TextBlocks(item).Where(text => text.Name == "Arrow"));
         Assert.AreEqual(AppTypography.IconFont, arrow.FontFamily);
@@ -210,9 +210,10 @@ public sealed class AppTypographyTests
     }
 
     // Section 四's font-size ladder. The cases that matter are the three ends of it: a computed size
-    // between two rungs (rounded up, because the computed size is the smallest the text stays legible at),
-    // a size below the first rung (a deliberate floor, only made whole -- rounding it up to 12 would
-    // enlarge the path text of a scaled-down row), and a size past the top (nothing to round up to).
+    // between two rungs, a size below the first rung (a deliberate floor, so it is only made whole rather
+    // than pushed up to 12, but made whole means rounded up -- the computed value is the smallest size the
+    // text stays legible at, so rounding down would put it under that floor), and a size past the top rung
+    // (nothing left to round up to, so only a whole number is asked for).
     [TestMethod]
     [DataRow(12.0, 12.0, DisplayName = "on a rung stays there")]
     [DataRow(12.8, 14.0, DisplayName = "just over the first rung rounds up")]
@@ -221,42 +222,72 @@ public sealed class AppTypographyTests
     [DataRow(24.0, 24.0, DisplayName = "a mid rung is kept")]
     [DataRow(28.1, 32.0, DisplayName = "past the second to last rung")]
     [DataRow(36.0, 36.0, DisplayName = "the top rung is kept")]
-    [DataRow(9.0, 9.0, DisplayName = "the scaled path text floor is untouched")]
-    [DataRow(11.5, 12.0, DisplayName = "below the ladder is only made whole")]
-    [DataRow(37.4, 37.0, DisplayName = "past the top there is only a whole number")]
+    [DataRow(9.0, 9.0, DisplayName = "a whole size below the ladder is untouched")]
+    [DataRow(9.4, 10.0, DisplayName = "below the ladder rounds up, never down onto the floor")]
+    [DataRow(11.2, 12.0, DisplayName = "just under the first rung still reaches it")]
+    [DataRow(11.5, 12.0, DisplayName = "a half point below the ladder is made whole")]
+    [DataRow(37.4, 38.0, DisplayName = "past the top there is only a whole number, rounded up")]
     public void SnapFontSizePutsAComputedSizeOnTheLadder(double computed, double expected) =>
         Assert.AreEqual(expected, AppTypography.SnapFontSize(computed), 0.001);
+
+    // The ladder is the only place a computed size becomes a rendered one, so it is also the only place a
+    // fraction could still escape. Stepped through in tenths rather than trusted from the two Ceiling calls.
+    [TestMethod]
+    public void SnapFontSizeNeverReturnsAFraction()
+    {
+        var offenders = new List<double>();
+        for (var tenth = 60; tenth <= 480; tenth++)
+        {
+            var size = tenth / 10.0;
+            var snapped = AppTypography.SnapFontSize(size);
+            if (snapped != Math.Round(snapped)) offenders.Add(size);
+        }
+
+        Assert.AreEqual(0, offenders.Count, $"non-whole results for: {string.Join(", ", offenders)}");
+    }
 
     [TestMethod]
     public void SnapFontSizeLeavesAnUnsetSizeAlone() =>
         Assert.IsTrue(double.IsNaN(AppTypography.SnapFontSize(double.NaN)), "a NaN size (an unset FontSize) must stay NaN rather than become a number");
 
     // Section 四's whole-number rule, read back off the source instead of trusting the sweep that applied
-    // it: four half-point sizes survived that sweep and one of them was pinned by a test here. A size set
-    // in XAML never passes through SnapFontSize, so nothing else keeps it off a half pixel.
+    // it: the first sweep claimed 19 of these were gone, and four half-point sizes were still in the tree
+    // plus one pinned by a test here -- all of them written as style setters, which is the spelling the
+    // sweep's own search did not use. A size set literally never passes through SnapFontSize, so nothing
+    // else keeps it off a half pixel. Scans both markup and code, because the size that survived longest
+    // sat in a preview provider written in C#.
     [TestMethod]
-    public void XamlFontSizesAreWholeNumbers()
+    public void FontSizesInTheSourceAreWholeNumbers()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir != null && !File.Exists(Path.Combine(dir.FullName, "AGENTS.md"))) dir = dir.Parent;
         Assert.IsNotNull(dir, "could not locate the repository root");
 
-        // Both spellings a literal survives in: the attribute on an element, and a style setter's Value.
-        // A build-time markup extension ({Binding}, {TemplateBinding}) is resolved by SnapFontSize at
-        // runtime, so it is the ladder's business, not this one.
+        // Every spelling a literal size survives in: the attribute on an element, a style setter's Value,
+        // the object initializer, and SetValue on the dependency property. A build-time markup extension
+        // ({Binding}, {TemplateBinding}) is resolved at runtime by SnapFontSize, so it is the ladder's
+        // business, not this one.
+        string[] patterns =
+        [
+            @"FontSize=""([^""]+)""|Property=""FontSize""[^>]*?Value=""([^""]+)""",
+            @"FontSize\s*=\s*([0-9][0-9.]*)",
+            @"FontSizeProperty\s*,\s*([0-9][0-9.]*)"
+        ];
         var offenders = new List<string>();
-        foreach (var folder in new[] { "App", "PluginSdk", "Plugins" })
-            foreach (var file in Directory.EnumerateFiles(Path.Combine(dir!.FullName, folder), "*.xaml", SearchOption.AllDirectories))
+        foreach (var folder in new[] { "App", "PluginSdk", "Plugins", "Core" })
+            foreach (var file in Directory.EnumerateFiles(Path.Combine(dir!.FullName, folder), "*.*", SearchOption.AllDirectories)
+                         .Where(f => f.EndsWith(".xaml", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)))
             {
                 if (file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")
                     || file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}")) continue;
                 var text = File.ReadAllText(file);
-                foreach (Match match in Regex.Matches(text, @"FontSize=""([^""]+)""|Property=""FontSize""[^>]*?Value=""([^""]+)"""))
-                {
-                    var value = match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
-                    if (value.StartsWith('{') || !double.TryParse(value, CultureInfo.InvariantCulture, out var size) || size == Math.Round(size)) continue;
-                    offenders.Add($"{Path.GetRelativePath(dir.FullName, file)} = {size}");
-                }
+                foreach (var pattern in patterns)
+                    foreach (Match match in Regex.Matches(text, pattern))
+                    {
+                        var value = match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
+                        if (value.StartsWith('{') || !double.TryParse(value, CultureInfo.InvariantCulture, out var size) || size == Math.Round(size)) continue;
+                        offenders.Add($"{Path.GetRelativePath(dir.FullName, file)} = {size}");
+                    }
             }
 
         Assert.AreEqual(0, offenders.Count, $"fractional font sizes: {string.Join(", ", offenders)}");

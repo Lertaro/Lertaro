@@ -94,6 +94,10 @@
 								<DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}, Path=Title}" Value="Lertaro">
 									<Setter Property="FontSize" Value="{Binding ScaledTextFontSize}"/>
 								</DataTrigger>
+								<!-- Compact reads one rung under the normal 13. This value used to be 12.5, and
+								     rounding that up, which is what every other size in the app does, would land
+								     on 13 and make the trigger do nothing. Whole numbers are the rule; the upward
+								     direction is the part that has to give way here. -->
 								<DataTrigger Binding="{Binding IsCompact}" Value="True">
 									<Setter Property="FontSize" Value="12"/>
 								</DataTrigger>

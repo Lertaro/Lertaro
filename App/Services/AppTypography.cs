@@ -74,21 +74,25 @@ internal static class AppTypography
     // size is the smallest the text was designed to stay legible at.
     internal static readonly double[] FontSizeLadder = [12, 14, 16, 18, 20, 24, 28, 32, 36];
 
-    /// <summary>Quantises a computed font size onto <see cref="FontSizeLadder"/>.</summary>
+    /// <summary>Quantises a computed font size onto <see cref="FontSizeLadder"/>. The result is always a
+    /// whole number, which is the point: nothing downstream may render text at a fractional em.</summary>
     /// <remarks>
     /// Below the ladder's first rung the sizes are floors rather than choices -- the 9 DIP path text of a
-    /// scaled-down result row is deliberately small -- so those are only made whole, never enlarged. Past
-    /// the top rung there is nothing left to round up to and a whole number is all that is asked.
+    /// scaled-down result row is deliberately small -- so those are only made whole, and made whole means
+    /// rounded up: the computed value is the smallest size the text was designed to stay legible at, so
+    /// rounding down would put it under that floor. Past the top rung there is nothing left to round up to,
+    /// and a whole number is all that is asked. Only a size that is not a number at all (an unset FontSize
+    /// arriving as NaN) passes through untouched.
     /// </remarks>
     internal static double SnapFontSize(double size)
     {
         if (!double.IsFinite(size)) return size;
-        if (size < FontSizeLadder[0]) return Math.Round(size, MidpointRounding.AwayFromZero);
+        if (size < FontSizeLadder[0]) return Math.Ceiling(size);
         foreach (var rung in FontSizeLadder)
         {
             if (size <= rung) return rung;
         }
-        return Math.Round(size, MidpointRounding.AwayFromZero);
+        return Math.Ceiling(size);
     }
 
     private static void OnRootLoaded(object sender, RoutedEventArgs e)

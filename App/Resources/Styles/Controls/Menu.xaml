@@ -39,7 +39,7 @@
         <Setter Property="Height" Value="{x:Static services:UiMetrics.MenuItemHeight}"/>
         <Setter Property="Foreground" Value="{DynamicResource MenuText}"/>
         
-        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontSize" Value="13"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -206,8 +206,8 @@
          icon/shortcut/submenu-arrow columns this plain-text row never needs. Height uses
          MinSectionHeaderHeight (a compact label height, not a full clickable row's MenuItemHeight):
          this row has no icon/hover chrome to fill out, so the full row height just read as excess
-         padding around small text. FontSize a notch below the item text's own 12, and below the same 12
-         a header would get in the full-size actions list, so the size gap reads clearly at this menu's
+         padding around small text. FontSize sits two rungs under the item text's own 13, and a full rung
+         under the 12 a header would get in the full-size actions list, so the size gap reads clearly here
          own smaller scale. Margin left at 8px, matching where a normal row's own icon starts (Bg's own
          2px margin + the icon ContentPresenter's own 6px margin in the default MenuItem style above). -->
     <Style x:Key="QuickNavGroupHeaderStyle" TargetType="{x:Type MenuItem}">
