@@ -1,12 +1,12 @@
 
 namespace Lertaro.Core.SearchIndex.Fzf;
 
-// Byte-path exact/prefix/suffix/equal matchers + CalculateScore -- see FzfByteMatcher. ASCII-only by
+// Byte-path exact matcher + CalculateScore -- see FzfByteMatcher. ASCII-only by
 // contract (callers gate on Ascii.IsValid for both text and pattern), so byte comparisons with the
 // ASCII case tables are exactly equivalent to the char path.
 internal static class FzfByteExactMatcher
 {
-    public static FzfMatchResult ExactMatch(ReadOnlySpan<byte> text, byte[] pattern, bool caseSensitive, FzfScoringScheme scheme, bool boundaryCheck)
+    public static FzfMatchResult ExactMatch(ReadOnlySpan<byte> text, byte[] pattern, bool caseSensitive, FzfScoringScheme scheme)
     {
         if (pattern.Length == 0 || pattern.Length > text.Length)
             return FzfMatchResult.NoMatch;
@@ -23,15 +23,12 @@ internal static class FzfByteExactMatcher
 
             var i = offset + index;
             var bonus = BonusAt(text, i, scheme);
-            if (!boundaryCheck || IsBoundaryMatch(text, i, i + pattern.Length, bonus))
+            if (bonus > bestBonus)
             {
-                if (bonus > bestBonus)
-                {
-                    bestPos = i;
-                    bestBonus = bonus;
-                    if (bonus >= FzfAlgorithm.BonusBoundary)
-                        break;
-                }
+                bestPos = i;
+                bestBonus = bonus;
+                if (bonus >= FzfAlgorithm.BonusBoundary)
+                    break;
             }
 
             offset = i + 1;
@@ -41,52 +38,7 @@ internal static class FzfByteExactMatcher
             return FzfMatchResult.NoMatch;
 
         var end = bestPos + pattern.Length;
-        var score = boundaryCheck
-            ? FzfAlgorithm.ScoreMatch * pattern.Length + FzfAlgorithm.BonusBoundaryWhite * (pattern.Length + 1) + bestBonus
-            : CalculateScore(text, pattern, bestPos, end, caseSensitive, scheme);
-        return new FzfMatchResult(bestPos, end, score);
-    }
-
-    public static FzfMatchResult PrefixMatch(ReadOnlySpan<byte> text, byte[] pattern, bool caseSensitive, FzfScoringScheme scheme)
-    {
-        if (pattern.Length == 0)
-            return new FzfMatchResult(0, 0, 0);
-        var start = IsAsciiWhite(pattern[0]) ? 0 : LeadingWhitespaces(text);
-        if (text.Length - start < pattern.Length || !RegionEquals(text, start, pattern, caseSensitive))
-            return FzfMatchResult.NoMatch;
-
-        var end = start + pattern.Length;
-        return new FzfMatchResult(start, end, CalculateScore(text, pattern, start, end, caseSensitive, scheme));
-    }
-
-    public static FzfMatchResult SuffixMatch(ReadOnlySpan<byte> text, byte[] pattern, bool caseSensitive, FzfScoringScheme scheme)
-    {
-        var trimmedLength = pattern.Length == 0 || !IsAsciiWhite(pattern[^1])
-            ? text.Length - TrailingWhitespaces(text)
-            : text.Length;
-        if (pattern.Length == 0)
-            return new FzfMatchResult(trimmedLength, trimmedLength, 0);
-
-        var start = trimmedLength - pattern.Length;
-        if (start < 0 || !RegionEquals(text, start, pattern, caseSensitive))
-            return FzfMatchResult.NoMatch;
-
-        return new FzfMatchResult(start, trimmedLength, CalculateScore(text, pattern, start, trimmedLength, caseSensitive, scheme));
-    }
-
-    public static FzfMatchResult EqualMatch(ReadOnlySpan<byte> text, byte[] pattern, bool caseSensitive, FzfScoringScheme scheme)
-    {
-        if (pattern.Length == 0)
-            return FzfMatchResult.NoMatch;
-        var start = IsAsciiWhite(pattern[0]) ? 0 : LeadingWhitespaces(text);
-        var trailing = IsAsciiWhite(pattern[^1]) ? 0 : TrailingWhitespaces(text);
-        if (text.Length - start - trailing != pattern.Length || !RegionEquals(text, start, pattern, caseSensitive))
-            return FzfMatchResult.NoMatch;
-
-        return new FzfMatchResult(
-            start,
-            start + pattern.Length,
-            (FzfAlgorithm.ScoreMatch + FzfAlgorithm.BonusBoundaryWhite) * pattern.Length + (FzfAlgorithm.BonusFirstCharMultiplier - 1) * FzfAlgorithm.BonusBoundaryWhite);
+        return new FzfMatchResult(bestPos, end, CalculateScore(text, pattern, bestPos, end, caseSensitive, scheme));
     }
 
     public static int CalculateScore(ReadOnlySpan<byte> text, byte[] pattern, int start, int end, bool caseSensitive, FzfScoringScheme scheme)
@@ -197,14 +149,5 @@ internal static class FzfByteExactMatcher
                 return false;
         }
         return true;
-    }
-
-    private static bool IsBoundaryMatch(ReadOnlySpan<byte> text, int start, int end, int startBonus)
-    {
-        if (startBonus < FzfAlgorithm.BonusBoundary)
-            return false;
-        if (start > 0 && FzfCharTables.GetClass(text[start - 1]) > (byte)FzfAlgorithm.CharClass.Delimiter)
-            return false;
-        return end >= text.Length || FzfCharTables.GetClass(text[end]) <= (byte)FzfAlgorithm.CharClass.Delimiter;
     }
 }
