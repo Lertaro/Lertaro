@@ -1,5 +1,7 @@
 using System.Globalization;
+using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -119,7 +121,7 @@ public sealed class AppTypographyTests
         Assert.AreEqual(AppTypography.UiFont, header.FontFamily);
         Assert.AreEqual(FontWeights.Normal, header.FontWeight);
         Assert.AreEqual("zh-cn", header.Language.IetfLanguageTag);
-        Assert.AreEqual(12.5, header.FontSize);
+        Assert.AreEqual(12, header.FontSize);
         Assert.AreEqual(AppTypography.IconFont, icon.FontFamily);
         var arrow = Assert.ContainsSingle(TextBlocks(item).Where(text => text.Name == "Arrow"));
         Assert.AreEqual(AppTypography.IconFont, arrow.FontFamily);
@@ -229,4 +231,35 @@ public sealed class AppTypographyTests
     [TestMethod]
     public void SnapFontSizeLeavesAnUnsetSizeAlone() =>
         Assert.IsTrue(double.IsNaN(AppTypography.SnapFontSize(double.NaN)), "a NaN size (an unset FontSize) must stay NaN rather than become a number");
+
+    // Section 四's whole-number rule, read back off the source instead of trusting the sweep that applied
+    // it: four half-point sizes survived that sweep and one of them was pinned by a test here. A size set
+    // in XAML never passes through SnapFontSize, so nothing else keeps it off a half pixel.
+    [TestMethod]
+    public void XamlFontSizesAreWholeNumbers()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !File.Exists(Path.Combine(dir.FullName, "AGENTS.md"))) dir = dir.Parent;
+        Assert.IsNotNull(dir, "could not locate the repository root");
+
+        // Both spellings a literal survives in: the attribute on an element, and a style setter's Value.
+        // A build-time markup extension ({Binding}, {TemplateBinding}) is resolved by SnapFontSize at
+        // runtime, so it is the ladder's business, not this one.
+        var offenders = new List<string>();
+        foreach (var folder in new[] { "App", "PluginSdk", "Plugins" })
+            foreach (var file in Directory.EnumerateFiles(Path.Combine(dir!.FullName, folder), "*.xaml", SearchOption.AllDirectories))
+            {
+                if (file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")
+                    || file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}")) continue;
+                var text = File.ReadAllText(file);
+                foreach (Match match in Regex.Matches(text, @"FontSize=""([^""]+)""|Property=""FontSize""[^>]*?Value=""([^""]+)"""))
+                {
+                    var value = match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
+                    if (value.StartsWith('{') || !double.TryParse(value, CultureInfo.InvariantCulture, out var size) || size == Math.Round(size)) continue;
+                    offenders.Add($"{Path.GetRelativePath(dir.FullName, file)} = {size}");
+                }
+            }
+
+        Assert.AreEqual(0, offenders.Count, $"fractional font sizes: {string.Join(", ", offenders)}");
+    }
 }

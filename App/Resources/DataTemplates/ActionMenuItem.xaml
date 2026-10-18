@@ -95,7 +95,7 @@
 									<Setter Property="FontSize" Value="{Binding ScaledTextFontSize}"/>
 								</DataTrigger>
 								<DataTrigger Binding="{Binding IsCompact}" Value="True">
-									<Setter Property="FontSize" Value="12.5"/>
+									<Setter Property="FontSize" Value="12"/>
 								</DataTrigger>
 							</Style.Triggers>
 						</Style>
