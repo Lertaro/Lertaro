@@ -58,7 +58,21 @@ Get-ChildItem -LiteralPath $root -Recurse -Force | ForEach-Object {
 - **上次静默更新失败**：更新程序会把结论（状态、失败原因与回滚目录）写到安装目录旁的 `update-result.json`。Lertaro 会在下次启动时把这个原因提示一次，同一份结论不会重复提示；若提示反复出现，可以删除该文件，或手动覆盖安装新版本。
 - **数据目录以下的链接一律拒绝**：只有数据目录自身这条链路允许是链接，它内部的子目录不允许（详见[**设置 → 关于**](./settings/about)）。
 
-## 7. 日志查看与提交 Issue
+## 7. 启动后立刻退出
+
+- **安装完成却从未出现窗口**：在 Windows 10 22H2（内部版本 19045）及更早的系统中，如果 CPU 支持硬件 CET（Intel 12 代及更新、AMD Zen 3 及更新），而该系统尚未完整支持用户模式 CET，.NET 会在 Lertaro 自身代码运行之前中止启动。事件查看器会记录一条 **.NET Runtime** 错误：*"Your Windows doesn't fully support CET. Please install all available Windows updates"*，而 Lertaro 自己的日志一条都不会写入，因为进程在日志系统启动前就已经退出。
+- **安装版会自动处理**：安装向导会读取系统内部版本，并在 Windows 10 22H2 及更早的系统中清除该安装目录下三个程序的用户模式影子堆栈策略。它只作用于这三个文件，不影响计算机上的其他程序；重新运行安装程序即可再次写入。
+- **便携版**：安装程序无法覆盖便携版目录，请以管理员身份打开 PowerShell，把示例路径替换为你自己的目录后执行以下三条命令。
+
+```powershell
+Set-ProcessMitigation -Name 'D:\Lertaro\Lertaro.App.exe' -Disable UserShadowStack
+Set-ProcessMitigation -Name 'D:\Lertaro\Lertaro.Service.exe' -Disable UserShadowStack
+Set-ProcessMitigation -Name 'D:\Lertaro\lff.exe' -Disable UserShadowStack
+```
+
+- **为系统安装全部可用更新**是上面那条 .NET 错误自己给出的建议，同样可能解决该问题。若仍然无法启动，请按下一节收集日志并提交 Issue。
+
+## 8. 日志查看与提交 Issue
 
 若上述步骤均未能解决你的问题，请进入[**设置 → 运行状态**](./settings/service-status)查看详细的运行日志：
 

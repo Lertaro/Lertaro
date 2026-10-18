@@ -58,7 +58,21 @@ Get-ChildItem -LiteralPath $root -Recurse -Force | ForEach-Object {
 - **The last silent update failed**: The updater writes its verdict — status, reason and rollback directory — to `update-result.json` next to the installation. Lertaro shows that reason once on the next start and does not repeat the same verdict; if the notice keeps appearing, delete that file or install the new version manually over the current installation.
 - **Links below the data root are always refused**: Only the data directory's own chain may be resolved as a link; subdirectories inside it may not be links.
 
-## 7. Inspecting Logs & Submitting Issues
+## 7. The App Closes Immediately After Launch
+
+- **Install finished, no window ever appears**: On Windows 10 22H2 (build 19045) and older, a CPU with hardware CET (Intel 12th generation or newer, AMD Zen 3 or newer) makes .NET abort before Lertaro's own code runs, because those builds don't fully support user-mode CET. The Event Viewer records a **.NET Runtime** entry reading *"Your Windows doesn't fully support CET. Please install all available Windows updates"*, and no Lertaro log is written at all — the process dies before logging begins.
+- **Installer builds fix this automatically**: Setup reads the Windows build number and, on Windows 10 22H2 and older, clears the user-mode shadow-stack policy for the three executables in that install folder. Nothing else on the machine is affected, and re-running Setup re-applies it.
+- **Portable builds**: Setup can't reach a portable folder, so open PowerShell as Administrator, replace the path with your own folder, and run these three commands once.
+
+```powershell
+Set-ProcessMitigation -Name 'D:\Lertaro\Lertaro.App.exe' -Disable UserShadowStack
+Set-ProcessMitigation -Name 'D:\Lertaro\Lertaro.Service.exe' -Disable UserShadowStack
+Set-ProcessMitigation -Name 'D:\Lertaro\lff.exe' -Disable UserShadowStack
+```
+
+- **Applying every available Windows update** is the other remedy, and is what the .NET message above asks for. If the app still closes immediately afterwards, collect the logs as described in the next section and open an issue.
+
+## 8. Inspecting Logs & Submitting Issues
 
 If the problem persists, visit [**Settings → Service Status**](./settings/service-status) to inspect live logs:
 

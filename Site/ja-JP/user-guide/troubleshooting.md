@@ -58,7 +58,21 @@ Get-ChildItem -LiteralPath $root -Recurse -Force | ForEach-Object {
 - **前回のサイレント更新が失敗した**：更新プログラムは結論（状態・失敗理由・ロールバック先）をインストール先の隣の `update-result.json` に書き込みます。Lertaro は次回起動時にその理由を一度だけ表示し、同じ結論を繰り返し表示しません。表示が繰り返される場合は、そのファイルを削除するか、新しいバージョンを手動で上書きインストールしてください。
 - **データディレクトリより下のリンクは一律に拒否**：リンクとして解決できるのはデータディレクトリ自身の連鎖だけで、その内部のサブディレクトリはリンクにできません（[**設定 → バージョン情報**](./settings/about) を参照）。
 
-## 7. ログの確認と Issue の報告
+## 7. 起動直後にアプリが終了する
+
+- **インストールが終わってもウィンドウが表示されない**: Windows 10 22H2（ビルド 19045）以前では、ハードウェア CET に対応した CPU（Intel 第 12 世代以降、AMD Zen 3 以降）を載せていても、そのシステムがユーザーモード CET を完全にはサポートしないため、.NET が Lertaro 自身のコードを実行する前に終了します。イベント ビューアーには **.NET Runtime** のエラーとして *"Your Windows doesn't fully support CET. Please install all available Windows updates"* が記録されますが、ログ機構が起動する前にプロセスが終わるため、Lertaro のログは一切残りません。
+- **インストーラー版は自動で対処します**: インストールウィザードが Windows のビルド番号を確認し、Windows 10 22H2 以前では、そのインストールフォルダー内の 3 つの実行ファイルについてユーザーモードのシャドウ スタック設定を無効化します。他のプログラムには影響せず、ウィザードを再実行すれば同じ設定が再び適用されます。
+- **ポータブル版**: ウィザードが及ばないため、PowerShell を管理者権限で開き、パスを実際のフォルダーに置き換えて次の 3 つのコマンドを実行してください。
+
+```powershell
+Set-ProcessMitigation -Name 'D:\Lertaro\Lertaro.App.exe' -Disable UserShadowStack
+Set-ProcessMitigation -Name 'D:\Lertaro\Lertaro.Service.exe' -Disable UserShadowStack
+Set-ProcessMitigation -Name 'D:\Lertaro\lff.exe' -Disable UserShadowStack
+```
+
+- **上の .NET エラーが求める通り、利用可能な Windows Update をすべて適用する**のも別の解決策です。それでも即座に終了する場合は、次の節の手順でログを収集して Issue を登録してください。
+
+## 8. ログの確認と Issue の報告
 
 上記の手順で解決しない場合は、[**設定 → サービス状態**](./settings/service-status) でログを確認してください。
 
