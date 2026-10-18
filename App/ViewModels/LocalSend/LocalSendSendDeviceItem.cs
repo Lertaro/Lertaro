@@ -19,9 +19,22 @@ public sealed class LocalSendSendDeviceItem : INotifyPropertyChanged
     public LocalSendDeviceInfo Device { get; private set; }
 
     public string Alias => Device.Alias;
-    public string IpAddress => Device.IpAddress;
     public string? DeviceModel => Device.DeviceModel;
     public bool UsesHttps => Device.Https;
+
+    /// <summary>
+    /// The address and port a send to this row would use.
+    /// </summary>
+    /// <remarks>
+    /// The port belongs on the row because one machine is not one target: two users logged in at once are
+    /// two rows with the same address, and only the one holding this port opens the dialog the transfer
+    /// waits on. Without it the two rows read identically whenever neither alias was changed.
+    /// </remarks>
+    public string EndpointText => Device.IpAddress.Contains(':')
+        // The same bracketing LocalSendApiRoute.BuildUri puts into the URL: a bare fe80::42:53317 reads as
+        // a malformed address rather than as an address with a port on it.
+        ? $"[{Device.IpAddress}]:{Device.Port}"
+        : $"{Device.IpAddress}:{Device.Port}";
 
     /// <summary>
     /// Whether this peer should be labelled as an unencrypted target: it announced plain HTTP while this
@@ -73,7 +86,7 @@ public sealed class LocalSendSendDeviceItem : INotifyPropertyChanged
     {
         Device = newDev;
         OnPropertyChanged(nameof(Alias));
-        OnPropertyChanged(nameof(IpAddress));
+        OnPropertyChanged(nameof(EndpointText));
         OnPropertyChanged(nameof(DeviceModel));
         OnPropertyChanged(nameof(UsesHttps));
         OnPropertyChanged(nameof(ShowInsecureLabel));

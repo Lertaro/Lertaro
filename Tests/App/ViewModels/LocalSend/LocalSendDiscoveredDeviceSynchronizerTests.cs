@@ -39,7 +39,7 @@ public sealed class LocalSendDiscoveredDeviceSynchronizerTests
 
         Assert.HasCount(1, items);
         Assert.AreSame(row, items[0]);
-        Assert.AreEqual("192.168.1.55", items[0].IpAddress);
+        Assert.AreEqual("192.168.1.55:53317", items[0].EndpointText);
         Assert.AreEqual("123456", row.Pin);
     }
 }
