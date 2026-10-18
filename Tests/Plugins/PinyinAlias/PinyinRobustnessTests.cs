@@ -204,15 +204,15 @@ public sealed class PinyinRobustnessTests
         Assert.IsFalse(Reaches("笔ab记", Messy, fuzzy: false), "exact matching wants one continuous run");
     }
 
-    // Exclusions: the excluded text vetoes on the name itself, and a satisfied-by-absence exclusion
-    // lets the pinyin part carry the query.
+    // Exclusions: the excluded text vetoes on the name itself, and an exclusion the name does not
+    // trigger lets the pinyin part carry the query.
     [TestMethod]
     public void Exclusions_ApplyToBothNames()
     {
-        Assert.IsFalse(Reaches("fdbjf !简单", Ticket, fuzzy: false));
-        Assert.IsFalse(Reaches("fdbjf !简单", Ticket, fuzzy: true));
-        Assert.IsTrue(Reaches("!zzzz fdbjf", Ticket, fuzzy: false));
-        Assert.IsTrue(Reaches("!zzzz fdbjf", Messy, fuzzy: true));
+        Assert.IsFalse(Reaches("fdbjf :简单", Ticket, fuzzy: false));
+        Assert.IsFalse(Reaches("fdbjf :简单", Ticket, fuzzy: true));
+        Assert.IsTrue(Reaches(":zzzz fdbjf", Ticket, fuzzy: false));
+        Assert.IsTrue(Reaches(":zzzz fdbjf", Messy, fuzzy: true));
     }
 
     // A found row must light something up (an empty mask is NoMatch to the App's item gate), and a
