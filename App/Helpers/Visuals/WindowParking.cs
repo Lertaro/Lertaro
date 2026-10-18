@@ -1,5 +1,6 @@
 using System;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Threading;
 
 namespace Lertaro.App.Helpers.Visuals;
@@ -64,5 +65,36 @@ internal static class WindowParking
         window.Dispatcher.BeginInvoke(
             new Action(() => window.Dispatcher.BeginInvoke(action, DispatcherPriority.Loaded)),
             DispatcherPriority.Render);
+    }
+
+    /// <summary>Lifts a window WPF positions by itself into the parking row for the length of its first render
+    /// pass, and drops it back where it belongs once that pass is through. Call before Show or ShowDialog.</summary>
+    /// <remarks>
+    /// The other order is for the cards, which are placed by the app; a CenterOwner dialog or a CenterScreen
+    /// window has no caller-side position to keep, and a dialog cannot be placed from its caller anyway because
+    /// ShowDialog does not return until it is answered. So the parking is done from SourceInitialized, where
+    /// WPF has already worked the startup location out (measured: a CenterOwner dialog reports its centered
+    /// 542x353 inside that handler, while before Show it is NaN), and the restore is queued from here so the
+    /// modal loop is what runs it.
+    ///
+    /// Only the vertical coordinate moves, for the same reason ShowThenPlace parks on y alone: the x keeps the
+    /// window in the monitor column whose scale it was placed for.
+    /// </remarks>
+    internal static void ParkUntilPainted(Window window)
+    {
+        // A window that already has a handle has been shown once, will not raise SourceInitialized again, and
+        // has a warm visual tree to show -- this is a first-show gate, and checking here is what stops a
+        // caller re-showing a cached window from stacking a handler that can never fire.
+        if (new WindowInteropHelper(window).Handle != IntPtr.Zero) return;
+
+        void OnSourceInitialized(object? sender, EventArgs e)
+        {
+            window.SourceInitialized -= OnSourceInitialized;
+            var top = window.Top;
+            window.Top = OffScreen;
+            AfterFrame(window, () => window.Top = top);
+        }
+
+        window.SourceInitialized += OnSourceInitialized;
     }
 }

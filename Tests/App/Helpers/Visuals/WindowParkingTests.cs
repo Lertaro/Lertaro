@@ -65,4 +65,46 @@ public sealed class WindowParkingTests
 
         CollectionAssert.AreEqual(new[] { "landed", "idle" }, order);
     }
+
+    [StaTestMethod]
+    public void ParkUntilPainted_LiftsAWindowWpfPlacedAndBringsItBack()
+    {
+        var window = new Window { Left = 700, Top = 300 };
+
+        WindowParking.ParkUntilPainted(window);
+        window.Show();
+
+        try
+        {
+            Assert.AreEqual(WindowParking.OffScreen, window.Top,
+                "the window is in the parking row at the instant it becomes visible");
+            Assert.AreEqual(700, window.Left, "and only vertically: the x is what keeps its monitor's scale");
+        }
+        finally
+        {
+            // Pump past Loaded so the restore pass runs, or the test leaves a window parked off screen.
+            var frame = new DispatcherFrame();
+            window.Dispatcher.BeginInvoke(DispatcherPriority.SystemIdle,
+                new Action(() => frame.Continue = false));
+            Dispatcher.PushFrame(frame);
+            Assert.AreEqual(300, window.Top, "and it is back where WPF put it once the render queue has been through");
+            window.Close();
+        }
+    }
+
+    [StaTestMethod]
+    public void ParkUntilPainted_SaysNothingToAWindowThatAlreadyHasAHandle()
+    {
+        var window = new Window { Left = 700, Top = 300 };
+        window.Show();
+        window.Hide();
+
+        // A re-shown cached window has already painted once and will never raise SourceInitialized again, so a
+        // handler registered here would just stack up on every reopen and park nothing.
+        WindowParking.ParkUntilPainted(window);
+        window.Show();
+
+        Assert.AreEqual(300, window.Top, "the second show goes up where it was put, unparked");
+        window.Close();
+    }
 }
