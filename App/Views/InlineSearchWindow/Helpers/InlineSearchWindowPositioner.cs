@@ -114,9 +114,17 @@ public class InlineSearchWindowPositioner
     internal void Reveal()
     {
         _revealPending = true;
+        var shownAt = Environment.TickCount64;
         WindowParking.ShowThenPlace(_window, () =>
         {
             _revealPending = false;
+            // Info, like the summon sizing pass: this is the instant the card becomes something the user can
+            // see, and the gap it reports is the thing being argued about.
+            Logger.Log(
+                $"[InlineCardReveal] landed +{Environment.TickCount64 - shownAt}ms "
+                + $"at={_window.Left:F0},{_window.Top:F0} height={_window.Height:F0} width={_window.Width:F0} "
+                + $"searching={_window.ViewModel.IsSearching} results={_window.ViewModel.Results.Count}",
+                LogLevel.Info);
             // Nothing was ever computed for this card (no host window yet) -- lay it out the ordinary way,
             // which now applies because the reveal is over.
             if (_hasTarget) ApplyTarget(new WindowInteropHelper(_window).Handle);

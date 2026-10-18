@@ -184,6 +184,9 @@ internal sealed class InlineCardSizingSupport
         // not clipped by the window bounds.
         var layout = CurrentLayout();
         var shellHeight = CardHeight(layout.AreaRows) + (CardMargin * 3);
+        // The summon pass speaks at Info: it is the frame the user sees or does not see, and the level setting
+        // applies at process start, so a diagnostic that only arrives when somebody remembered to change it is
+        // not a diagnostic. Every later pass stays at Debug.
         Logger.Log(
             "[InlineCardSize] "
             + $"forSummon={forSummon} searching={_window.ViewModel.IsSearching} "
@@ -191,7 +194,7 @@ internal sealed class InlineCardSizingSupport
             + $"results={_window.ViewModel.Results.Count} frozen={_searchAreaRows?.ToString() ?? "null"} "
             + $"panel={_window.ResultsPanelControl.Visibility} banner={_window.PathPreviewBorder.Visibility} "
             + $"visibleContent={HasVisibleContent} height={_window.Height:F0}->{shellHeight:F0}",
-            LogLevel.Debug);
+            forSummon ? LogLevel.Info : LogLevel.Debug);
         if (Math.Abs(_window.Height - shellHeight) <= 0.5)
         {
             // Nothing to resize. This early return is what keeps a streaming search cheap: the results
