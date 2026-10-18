@@ -44,7 +44,7 @@ internal static class AliasHighlightPositions
         // than on the term's kind, because pinyin is read the same in both matching modes -- the same row
         // has to paint the same characters with fuzzy matching on and off.
         //
-        // The reading grid's witness is painted by this same rule: a materialized witness is an alias
+        // The rule is what the deleted reading-grid tier taught: its materialized witness was an alias
         // string like any other, and the loose greedy scatter it used to be painted with lit characters
         // belonging to neither the term nor the spelling that matched it (a 184-character name's "fangdan"
         // lit four unrelated positions elsewhere in the name).

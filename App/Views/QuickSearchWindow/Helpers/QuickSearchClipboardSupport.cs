@@ -10,7 +10,7 @@ internal sealed class QuickSearchClipboardSupport
     internal bool TryGetNewText(out string text)
     {
         text = string.Empty;
-        if (!TryReadClipboardText(out var clipboardText)) return false;
+        if (!ClipboardTextHelper.TryReadText(out var clipboardText)) return false;
 
         var searchText = SearchTextPasteFormatter.FormatForSearch(clipboardText);
         var previousText = _lastClipboardText;
@@ -26,21 +26,4 @@ internal sealed class QuickSearchClipboardSupport
             && !string.Equals(clipboardText, previousText, StringComparison.Ordinal);
 
     internal static bool ShouldReadClipboard(string? initialQuery) => initialQuery is null;
-
-    private static bool TryReadClipboardText(out string? text)
-    {
-        text = null;
-        try
-        {
-            if (!System.Windows.Clipboard.ContainsText()) return true;
-            text = System.Windows.Clipboard.GetText();
-            return true;
-        }
-        catch (Exception)
-        {
-            // The clipboard can be temporarily owned by another process. A failed read must not erase
-            // the remembered value, or the next successful read would look like a new clipboard copy.
-            return false;
-        }
-    }
 }

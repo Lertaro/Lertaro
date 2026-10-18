@@ -11,7 +11,7 @@
   "CustomCommands_Config_TitleLabel": "Title",
   "CustomCommands_Config_PathLabel": "Path (Program or File)",
   "CustomCommands_Config_ParameterLabel": "Parameters",
-  "CustomCommands_Config_ParameterDesc": "Supports parameter substitution:\n· %s1, %s2 … (or {1}, {2} …): the 1st, 2nd … argument\n· %s (or {}): all input as a single argument\n· Input is used only via placeholders; with none, the configured parameters run as-is\n· Placeholders are auto-quoted; do not add quotes yourself",
+  "CustomCommands_Config_ParameterDesc": "Supports parameter substitution:\n· %s1, %s2 … (or {1}, {2} …): the 1st, 2nd … argument\n· %s (or {}): all input as a single argument\n· %c (or {c}): the clipboard text as a single argument\n· Input is used only via placeholders; with none, the configured parameters run as-is\n· Placeholders are auto-quoted; do not add quotes yourself",
   "CustomCommands_Config_IconLabel": "Icon (SVG Path Data)",
   "CustomCommands_Config_WorkingDirLabel": "Working Directory",
   "CustomCommands_Config_RunSilentlyLabel": "Run Silently",

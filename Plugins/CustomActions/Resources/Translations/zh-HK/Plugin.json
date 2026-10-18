@@ -6,7 +6,7 @@
   "CustomActions_Config_EnabledLabel": "已啟用",
   "CustomActions_Config_TitleLabel": "標題",
   "CustomActions_Config_PathLabel": "路徑（程式或檔案）",
-  "CustomActions_Config_ParameterLabel": "參數（用 %s 或 {} 代表選取的路徑，會自動加引號，請勿自行加上引號；留空則直接把加好引號的路徑作為參數）",
+  "CustomActions_Config_ParameterLabel": "參數（用 %s 或 {} 代表選取的路徑，用 %c 或 {c} 代表剪貼簿文字，會自動加引號，請勿自行加上引號；留空則直接把加好引號的路徑作為參數）",
   "CustomActions_Config_IconLabel": "圖示（SVG Path 資料）",
   "CustomActions_Config_WorkingDirLabel": "工作目錄",
   "CustomActions_Config_RunSilentlyLabel": "靜默執行",

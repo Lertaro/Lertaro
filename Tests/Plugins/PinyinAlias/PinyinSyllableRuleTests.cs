@@ -3,12 +3,16 @@ using Lertaro.Core.SearchIndex;
 
 namespace Lertaro.Plugins.PinyinAlias.Tests;
 
-// The rule a typed term has to obey to be a spelling of a candidate: every piece of it either spells one
-// character's reading out in full, abbreviates that character to its initial, or is the half-typed start
-// of the LAST character it names. 评价 (ping'jia) is the worked example, straight from the ticket.
+// The WinShun reading rule the architecture now follows: a match is a CONTIGUOUS run of name
+// characters in which every character consumes at least one letter -- an ASCII character consumes
+// itself (case folded), a Han character consumes any non-empty PREFIX of any of its readings (its
+// initial, the whole syllable, or a half-typed run, anywhere in the term). 评价 (ping'jia) is the
+// worked example: prefixes only, always starting where a reading starts, and a piece in the middle
+// of a term may stop anywhere -- there is no "end of the term" restriction on a prefix.
 //
-// This is the decision, not a ranking detail, so it is asserted through the real pipeline (real provider,
-// real baked snapshot, real searcher) in BOTH matching modes: pinyin is not a fuzzy/exact choice.
+// This is the decision, not a ranking detail, so it is asserted through the real pipeline (real
+// provider, real baked snapshot, real searcher) in BOTH matching modes: pinyin is not a
+// fuzzy/exact choice.
 [TestClass]
 public sealed class PinyinSyllableRuleTests
 {
@@ -35,61 +39,72 @@ public sealed class PinyinSyllableRuleTests
     }
 
     [TestMethod]
-    // Every one of these is a concatenation of whole readings and initials: "pj" abbreviates both
-    // characters, "pingj" spells the first out and abbreviates the second, "pjia" does the reverse.
+    // Every one of these is a concatenation of prefixes of adjacent characters' readings, walked
+    // left to right: "pj" abbreviates both characters, "pjia" abbreviates one and spells out the
+    // other, "pij" stops 评's spelling halfway and then abbreviates 价 -- allowed anywhere.
     [DataRow("pj")]
     [DataRow("pingj")]
     [DataRow("pjia")]
     [DataRow("ping")]
-    [DataRow("p")]
-    [DataRow("j")]
     [DataRow("jia")]
     [DataRow("pingjia")]
     [DataRow("pingji")]
-    public void SpellingsThatStartWhereAReadingStarts_ReachTheName(string query)
+    [DataRow("pij")]
+    [DataRow("piji")]
+    [DataRow("pinj")]
+    [DataRow("pijia")]
+    public void PrefixSpellings_ReachTheName(string query)
     {
         CollectionAssert.Contains(Search(query, fuzzy: false, Name), Name, $"'{query}' with fuzzy off");
         CollectionAssert.Contains(Search(query, fuzzy: true, Name), Name, $"'{query}' with fuzzy on");
     }
 
     [TestMethod]
-    // "ing"/"ia" open inside a reading, "ja" skips jia's middle, and "piji" is the shape that needs the
-    // whole rule: "pi" is a real prefix of ping and "ji" a real prefix of jia, but a character is
-    // abbreviated to its initial or spelled out, never left half-typed with more to come.
+    // "ing"/"ia" open inside a reading (every piece has to start at its reading's first character),
+    // "ja" is not a prefix of jia at all, single letters are literal-only (a pinyin word needs at
+    // least two characters), and "zhengp" names no character of 评价.
     [DataRow("ing")]
     [DataRow("ia")]
     [DataRow("ja")]
-    [DataRow("piji")]
-    [DataRow("pij")]
-    [DataRow("pinj")]
-    [DataRow("pijia")]
-    public void SpellingsThatStartInsideAReadingOrLeaveOneHalfTyped_ReachNothing(string query)
+    [DataRow("p")]
+    [DataRow("j")]
+    [DataRow("zhengp")]
+    public void SpellingsThatOpenInsideAReadingOrAreTooShort_ReachNothing(string query)
     {
         Assert.IsEmpty(Search(query, fuzzy: false, Name), $"'{query}' with fuzzy off");
         Assert.IsEmpty(Search(query, fuzzy: true, Name), $"'{query}' with fuzzy on");
     }
 
     [TestMethod]
-    // Skipping characters is not the same as skipping their readings: a multi-character name is named by
-    // whichever of its characters the user spelled, in order.
-    [DataRow("gl", "管理用户证书.txt")]
-    [DataRow("gsh", "管理用户证书.txt")]
-    [DataRow("glzs", "管理用户证书.txt")]
-    [DataRow("guanlishu", "管理用户证书.txt")]
-    [DataRow("glyhzshu", "管理用户证书.txt")]
-    public void CharactersTheUserDidNotName_MayBeSkipped(string query, string name)
+    // One contiguous run per term: a token cannot skip a name character, so every character in the
+    // run has to be able to consume the next letter.
+    [DataRow("gl")] // 管理 -- one initial per adjacent character
+    [DataRow("zhengsh")] // 证书: whole reading plus a half-typed tail
+    [DataRow("glyhzshu")] // 管理用户证书 as six adjacent pieces
+    [DataRow("guanliyonghu")]
+    public void ContiguousRuns_ReachTheCertificate(string query)
     {
-        CollectionAssert.Contains(Search(query, fuzzy: false, name), name, $"{query} with fuzzy off");
-        CollectionAssert.Contains(Search(query, fuzzy: true, name), name, $"{query} with fuzzy on");
+        CollectionAssert.Contains(Search(query, fuzzy: false, Certificate), Certificate, $"{query} with fuzzy off");
+        CollectionAssert.Contains(Search(query, fuzzy: true, Certificate), Certificate, $"{query} with fuzzy on");
     }
 
     [TestMethod]
-    // 贝 spells "bei", and its middle "i" is not a piece of its own: neither "bi" nor "fbi" (an f, then
-    // that spliced "bi") may reach it. The old boundary-only reading did exactly that -- it pinned where a
-    // match STARTS and let every later character fall anywhere, so "b" opened 贝 and "i" came out of the
-    // same reading's middle. 笔/比/必 are spelled "bi" for real, which is why the initials alias alone
-    // cannot tell them from 贝 and why the rule has to be about readings.
-    public void APieceMayNotBeSplicedOutOfAReadingItDoesNotStart()
+    // These LOOK like abbreviations but are not: a middle character that cannot consume the next
+    // letter (理 cannot give "s", 用 cannot give "z") breaks the run -- the old grid rule, which let
+    // tokens skip name characters, accepted exactly this shape.
+    [DataRow("gsh")]
+    [DataRow("glzs")]
+    [DataRow("guanlishu")]
+    public void RunsThatWouldNeedSkipping_ReachNothing(string query)
+    {
+        Assert.IsEmpty(Search(query, fuzzy: false, Certificate), $"{query} with fuzzy off");
+        Assert.IsEmpty(Search(query, fuzzy: true, Certificate), $"{query} with fuzzy on");
+    }
+
+    [TestMethod]
+    // 贝 spells "bei": "ei" is not a prefix of bei, and its middle "i" is not the head of any piece.
+    // 笔/比/必 really are spelled "bi".
+    public void APieceMayNotBeSplicedOutOfAReading()
     {
         const string Bei = "4分贝.pdf";
         const string Bi = "4分笔.pdf";
@@ -116,23 +131,15 @@ public sealed class PinyinSyllableRuleTests
     }
 
     [TestMethod]
-    // The highlight tells the same story as the decision, character for character. This is the ticket's
-    // `bac`: 北岸村 is a real spelling of it (three initials), 邦出版 is not -- and the painting used to
-    // light 邦出 as well, because it re-searched the materialized alias (which carries EVERY syllable of
-    // the name) and let the term align somewhere other than the reading choice that matched.
-    //
-    // "XX邦出版手册.pdf" + "bangc" is the same defect from the other side: the loose re-search found
-    // nothing, so a row the engine had matched rendered with an empty mask -- and an empty mask is NoMatch
-    // to the App's item gate.
+    // The highlight tells the same story as the decision: it lights exactly the characters the
+    // contiguous run consumed.
     [DataRow("北岸村邦出版.pdf", "bac", "0,1,2")]
     [DataRow("北岸村邦出版.pdf", "ba", "0,1")]
-    [DataRow("北岸村邦出版.pdf", "bcb", "0,2,3")]
     [DataRow("北岸村邦出版.pdf", "bangc", "3,4")]
     [DataRow("邦出版.txt", "ban", "0")]
     [DataRow("邦出版.txt", "bcb", "0,1,2")]
     [DataRow("XX邦出版手册.pdf", "ba", "2")]
     [DataRow("XX邦出版手册.pdf", "bangc", "2,3")]
-    [DataRow("bac邦出版.txt", "bcb", "0,2,3")]
     public void HighlightLightsTheSyllablesTheWitnessConsumed(string name, string query, string expected)
     {
         var wanted = expected.Split(',').Select(int.Parse).ToList();

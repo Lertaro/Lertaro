@@ -1,12 +1,13 @@
 namespace Lertaro.Plugins.PinyinAlias.Tests;
 
-// End-to-end guard for the bug this whole format change exists for: a query that is not a syllable
-// sequence used to match the full-pinyin alias by straddling a syllable boundary, dragging a screenful
-// of unrelated entries into the results.
+// The seam corpus: entries whose readings would line up as "gsh" only ACROSS a syllable boundary
+// (…zhen|shu, …xiang|she…). Under the live matcher a token is a contiguous run of adjacent
+// characters, each consuming a prefix of one of its readings, so the seam letters can never line up
+// -- while every legitimate spelling of the corpus still reaches its name.
 //
 // Corpus is generic Windows/technical terminology only -- no real file names, no personal paths (repo
-// rule 15). What matters is the shape: each entry ends one syllable in "g"/"n" and starts the next
-// with "sh", which is the seam "gsh" used to hide in.
+// rule 15). The matcher under test is the provider's own word factory, exactly what the search
+// pipeline consults.
 [TestClass]
 public sealed class PinyinCrossSyllableRegressionTests
 {
@@ -26,26 +27,17 @@ public sealed class PinyinCrossSyllableRegressionTests
         "日常识别",       // …chang|shi…
     };
 
-    // Matching as the search pipeline does it: the query, plus whatever spellings the provider offers
-    // for it, against the provider's own generated aliases.
     private static bool Matches(string query, string text)
     {
-        var forms = Provider.GetQueryForms(query).ToList();
-        foreach (var alias in Provider.GetAliases(text))
-        {
-            if (alias.Contains(query, StringComparison.Ordinal))
-                return true;
-            if (forms.Any(f => alias.Contains(f, StringComparison.Ordinal)))
-                return true;
-        }
-        return false;
+        var matcher = Provider.CreateMatcher(query, commonOnly: false);
+        return matcher != null && matcher.TryFind(text, default, out _, out _);
     }
 
     [TestMethod]
     public void CrossSyllableQuery_MatchesNothing()
     {
-        // "gsh" is not a syllable sequence, so it gets no delimited spelling and cannot reach the full
-        // pinyin. It is not in the initials alias of any of these either.
+        // "gsh" needs three adjacent characters whose readings start g / s / h -- none of these
+        // entries has that run ("…g" is always followed by a character that cannot consume 's').
         var hits = SeamCorpus.Where(t => Matches("gsh", t)).ToList();
 
         Assert.IsEmpty(hits, $"still matched: {string.Join(", ", hits)}");
@@ -62,7 +54,8 @@ public sealed class PinyinCrossSyllableRegressionTests
 
     [TestMethod]
     public void HalfTypedMultiSyllableQuery_StillMatches() =>
-        // Search-as-you-type passes through this on the way to "zhengshu".
+        // Search-as-you-type passes through this on the way to "zhengshu": a half-typed tail is a
+        // valid prefix of 书's reading.
         Assert.IsTrue(Matches("zhengsh", "管理用户证书"));
 
     [TestMethod]
@@ -73,17 +66,17 @@ public sealed class PinyinCrossSyllableRegressionTests
     }
 
     [TestMethod]
-    public void InitialsQuery_StillMatchesViaTheInitialsAlias()
+    public void InitialsQuery_StillMatches()
     {
-        // Untouched by the change: one character per source character, so every position in it is
-        // already a boundary and nothing can hide inside it.
+        // One character per position, all adjacent: the initials shape is the same walk with
+        // one-letter pieces.
         Assert.IsTrue(Matches("glyhzs", "管理用户证书"));
         Assert.IsTrue(Matches("gjgxsz", "高级共享设置"));
     }
 
     [TestMethod]
     public void DigitsFollowedByPinyin_StillMatch() =>
-        // The boundary is only placed between two adjacent transliterated characters, so a name mixing
-        // digits with CJK keeps its alias unsplit and stays reachable by typing what you can see.
+        // Digits pass through as themselves, so a name mixing digits with CJK stays reachable by
+        // typing what you can see.
         Assert.IsTrue(Matches("01ji", "第01集"));
 }

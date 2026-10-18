@@ -11,7 +11,7 @@
   "CustomCommands_Config_TitleLabel": "标题",
   "CustomCommands_Config_PathLabel": "路径 (程序或文件)",
   "CustomCommands_Config_ParameterLabel": "参数",
-  "CustomCommands_Config_ParameterDesc": "支持参数替换:\n· %s1、%s2 …(或 {1}、{2} …):第 1、2 … 个参数\n· %s(或 {}):把全部输入作为一个参数\n· 仅通过占位符使用输入;未使用占位符则按配置的参数原样运行\n· 占位符会自动加引号,请勿自行包引号",
+  "CustomCommands_Config_ParameterDesc": "支持参数替换:\n· %s1、%s2 …(或 {1}、{2} …):第 1、2 … 个参数\n· %s(或 {}):把全部输入作为一个参数\n· %c(或 {c}):把剪贴板文本作为一个参数\n· 仅通过占位符使用输入;未使用占位符则按配置的参数原样运行\n· 占位符会自动加引号,请勿自行包引号",
   "CustomCommands_Config_IconLabel": "图标 (SVG Path 数据)",
   "CustomCommands_Config_WorkingDirLabel": "工作目录",
   "CustomCommands_Config_RunSilentlyLabel": "静默执行",

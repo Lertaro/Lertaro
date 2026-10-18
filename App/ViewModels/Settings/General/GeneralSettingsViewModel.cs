@@ -28,6 +28,7 @@ public class GeneralSettingsViewModel : ViewModelBase
     private bool _keepSearchText;
     private bool _enableEverythingIpc;
     private bool _showOpenedFoldersInInlineSearch;
+    private int _inlineSearchWindowWidthPercent;
     private bool _hideTrayIcon;
     private bool _openFoldersInNewExplorerTabs;
     private string _globalTokenPrefix;
@@ -69,6 +70,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         _keepSearchText = userSettings.SearchWindow.KeepSearchText;
         _enableEverythingIpc = userSettings.EnableEverythingIpc;
         _showOpenedFoldersInInlineSearch = userSettings.ShowOpenedFoldersInInlineSearch;
+        _inlineSearchWindowWidthPercent = userSettings.InlineSearchWindowWidthPercent ?? UiMetrics.DefaultInlineCardWidthPercent;
         _hideTrayIcon = userSettings.HideTrayIcon;
         _openFoldersInNewExplorerTabs = userSettings.DefaultFileManager.OpenFoldersInNewExplorerTabs;
         _globalTokenPrefix = userSettings.GlobalTokenPrefix;
@@ -198,6 +200,28 @@ public class GeneralSettingsViewModel : ViewModelBase
         set => SetProperty(ref _showOpenedFoldersInInlineSearch, value);
     }
 
+    /// <summary>How wide the inline card may get, as a percent of the window it docks to.</summary>
+    /// <remarks>
+    /// The box takes 20-100, but the number is a request rather than a size: the placement bounds the result
+    /// by the anchored window and its screen, so 40 over a maximized window and 40 over a 400px dialog come
+    /// out different widths. Saving the default back stores null, not 40 -- see GeneralSettingsApplier --
+    /// because null keeps the floor an untouched card has always had on a small window.
+    /// </remarks>
+    public int InlineSearchWindowWidthPercent
+    {
+        get => _inlineSearchWindowWidthPercent;
+        set
+        {
+            if (value < UiMetrics.MinInlineCardWidthPercent || value > UiMetrics.MaxInlineCardWidthPercent)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(value),
+                    $"Width must be between {UiMetrics.MinInlineCardWidthPercent} and {UiMetrics.MaxInlineCardWidthPercent} percent.");
+            }
+            SetProperty(ref _inlineSearchWindowWidthPercent, value);
+        }
+    }
+
     public bool HideTrayIcon
     {
         get => _hideTrayIcon;
@@ -265,6 +289,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         _keepSearchText,
         _enableEverythingIpc,
         _showOpenedFoldersInInlineSearch,
+        _inlineSearchWindowWidthPercent,
         _hideTrayIcon,
         _openFoldersInNewExplorerTabs,
         _globalTokenPrefix,

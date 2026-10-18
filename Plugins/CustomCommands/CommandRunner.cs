@@ -9,9 +9,9 @@ namespace Lertaro.Plugins.CustomCommands;
 // argSuffix is always empty there, so every placeholder just resolves to nothing).
 internal static class CommandRunner
 {
-    // Parses argSuffix into quote-aware individual arguments and resolves %sN/{N} (positional) and
-    // %s/{} (all-arguments) placeholders in cmd.Parameter. Moved out of the instant-answer provider
-    // unchanged so both callers stay byte-for-byte consistent with each other.
+    // Parses argSuffix into quote-aware individual arguments and resolves %sN/{N} (positional),
+    // %s/{} (all-arguments) and %c/{c} (clipboard) placeholders in cmd.Parameter. Moved out of the
+    // instant-answer provider unchanged so both callers stay byte-for-byte consistent with each other.
     public static string ResolveParameter(CustomCommandsInstantProvider.CommandItem cmd, string argSuffix)
     {
         var resolvedParam = cmd.Parameter ?? "";
@@ -66,11 +66,33 @@ internal static class CommandRunner
         // contains "%s" or "{}") is never scanned again. Positional ones come first in the alternation:
         // %s1/{1} .. %sn/{n} -> the n-th argument (1-based), and %s1 can't match inside %s10.
         // Out-of-range indices resolve to an empty string. Then "all arguments as one": %s or {} -> the
-        // whole input as a single quoted argument (empty input -> nothing). We quote each value ourselves
+        // whole input as a single quoted argument (empty input -> nothing). %c or {c} -> the clipboard's
+        // text as a single quoted argument, nothing when it holds none. We quote each value ourselves
         // so it stays a single argument — users must NOT quote placeholders themselves.
+        // A bare %s or %c is only a placeholder when no letter or digit follows, so a template holding
+        // another program's own token (--pretty=%cd, %systemroot%) survives; the brace forms already end
+        // at }. The positional %sN keeps no such guard -- those digits are the token itself.
         var allArgs = string.IsNullOrEmpty(argSuffix) ? string.Empty : ArgQuoting.Quote(argSuffix);
-        return Regex.Replace(resolvedParam, @"%s(\d+)|\{(\d+)\}|%s|\{\}", m =>
+
+        // ponytail: the clipboard is read where the arguments are resolved, which for an instant-answer
+        // row is when the row is built rather than when the user activates it. Copying something else in
+        // between therefore does not change what gets passed. Reading it at launch instead would mean
+        // moving this substitution into the host's executor, which does not know this placeholder syntax.
+        string? clipboard = null;
+        var clipboardRead = false;
+
+        return Regex.Replace(resolvedParam, @"%s(\d+)|\{(\d+)\}|%c(?![0-9A-Za-z])|\{c\}|%s(?![0-9A-Za-z])|\{\}", m =>
         {
+            if (m.Value is "%c" or "{c}")
+            {
+                if (!clipboardRead)
+                {
+                    clipboard = PluginSdk.Services.ClipboardService.GetText();
+                    clipboardRead = true;
+                }
+                return string.IsNullOrEmpty(clipboard) ? string.Empty : ArgQuoting.Quote(clipboard);
+            }
+
             if (!m.Groups[1].Success && !m.Groups[2].Success)
                 return allArgs;
 

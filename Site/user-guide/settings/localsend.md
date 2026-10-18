@@ -20,3 +20,4 @@ Lertaro includes a built-in transmission engine natively compatible with the ope
 - **Hotkey Activation**: Press the default global shortcut **`Ctrl+S`** (rebindable under [**Settings → Hotkeys**](./hotkeys-page)) to summon the standalone LocalSend sender window.
 - **Mode Switching**: Toggle between **[Send Files / Folders]** and **[Send Text]** modes at the top of the sender window.
 - **Drag-and-Drop Staging**: Drag files directly from Lertaro search results, Quick Panel workspaces, or File Explorer into the sender window. The radar automatically discovers all online devices on the LAN; click any target device card to transmit at wire speed.
+- **Clipboard Image**: **[Add Image From Clipboard]** writes the screenshot or picture the clipboard now holds out as a temporary PNG and adds it to the list, so it never has to be saved to disk first.

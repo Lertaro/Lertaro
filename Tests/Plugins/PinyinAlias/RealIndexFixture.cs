@@ -57,8 +57,8 @@ internal sealed class RealIndexFixture : IDisposable
     }
 
     /// <summary>Alias entries of one name: whether it has any at all, and how many are readable strings.
-    /// A grid entry is not readable, which is how these tests tell the two encodings apart from outside
-    /// Core (nothing else about a baked grid is public).</summary>
+    /// A legacy reading-grid entry is not readable, which is how these tests see the baked shape from
+    /// outside Core (nothing else about a baked alias entry is public).</summary>
     public (bool HasAliases, int ReadableStrings) AliasCounts(string name)
     {
         using var snapshot = Snapshot.Open(_path);

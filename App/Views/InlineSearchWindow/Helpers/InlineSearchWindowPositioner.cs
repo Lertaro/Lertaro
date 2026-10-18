@@ -9,7 +9,6 @@ namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 public class InlineSearchWindowPositioner
 {
     private const double DefaultWindowWidth = 465;
-    private const double DockedWidthRatio = 2.0 / 3.0;
     private const double DesktopWidthRatio = 0.2;
 
     private readonly Lertaro.App.InlineSearchWindow _window;
@@ -142,11 +141,19 @@ public class InlineSearchWindowPositioner
                 : IntPtr.Zero;
         var (targetDpiScaleX, targetDpiScaleY) = InlineCardSpace.DpiScaleFor(targetMonitor);
 
-        var desktopWidth = tracker.IsDesktop
-            ? (_window.IsVisible && hwnd != IntPtr.Zero ? Screen.FromHandle(hwnd) : Screen.FromPoint(mousePosition)).WorkingArea.Width / targetDpiScaleX
-            : 0;
+        // The screen this card has to share with the window it is docked to, read once: it bounds the width
+        // below and clamps the placement further down, and the two have to agree about how wide the card may
+        // get before it runs off the monitor.
+        var workingArea = InlineCardSpace.WorkingAreaFor(_window, mousePosition);
+
+        // The desktop has no window whose width could be the 100% the user's percent is taken of, so it keeps
+        // its own fixed share and stays out of that setting's reach.
+        var desktopWidth = tracker.IsDesktop ? workingArea.Width / targetDpiScaleX : 0;
         var desiredWidth = hasValidRect && !tracker.IsDesktop
-            ? CalculateDockedWidth((rect.Right - rect.Left) / targetDpiScaleX)
+            ? InlineCardMetrics.ResolveDockedWidth(
+                (rect.Right - rect.Left) / targetDpiScaleX,
+                workingArea.Width / targetDpiScaleX,
+                UserSettings.Load().InlineSearchWindowWidthPercent)
             : desktopWidth > 0
                 ? CalculateDesktopWidth(desktopWidth)
                 : DefaultWindowWidth;
@@ -213,8 +220,6 @@ public class InlineSearchWindowPositioner
         double targetPhysLeft = 0;
         double targetPhysTop = 0;
 
-        var workingArea = InlineCardSpace.WorkingAreaFor(_window, mousePosition);
-
         if (tracker.IsDesktop)
         {
             targetPhysLeft = workingArea.Right - physWindowWidth + physXamlMargin;
@@ -247,8 +252,8 @@ public class InlineSearchWindowPositioner
                 var maxTop = (hangsBelow ? screen.Bounds.Bottom : workingArea.Bottom)
                     - physWindowHeight + physXamlMarginY;
 
-                // Guarded like the top clamp below: a target window spanning two monitors makes the card
-                // (2/3 of it) wider than one monitor's working area, and Math.Clamp THROWS when min > max.
+                // Guarded like the top clamp below: a card wider than one monitor's working area makes min
+                // exceed max there, and Math.Clamp THROWS when min > max.
                 targetPhysLeft = Math.Clamp(targetPhysLeft, minLeft, Math.Max(minLeft, maxLeft));
 
                 // One clamp for all three placements. Measured with the window's height, which is the same
@@ -366,8 +371,6 @@ public class InlineSearchWindowPositioner
     /// dock position the last positioning pass applied, which is exactly what a displacement is relative to.
     /// </remarks>
     public void RememberUserDrag() => _dragOffset.RememberDrag();
-
-    internal static double CalculateDockedWidth(double targetWindowWidth) => targetWindowWidth * DockedWidthRatio;
 
     /// <summary>
     /// Where the card's window starts horizontally, in physical pixels.

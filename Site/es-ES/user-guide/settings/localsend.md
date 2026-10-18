@@ -20,3 +20,4 @@ Lertaro incluye un motor de transmisión inalámbrica local nativamente compatib
 - **Invocación por atajo**: Pulsa el atajo global predeterminado **`Ctrl+S`** (reasignable en [**Configuración → Atajos de teclado**](./hotkeys-page)) para abrir la ventana de envío de LocalSend.
 - **Modos de envío**: Alterna entre los modos **[Enviar archivos / carpetas]** y **[Enviar texto]** en la parte superior.
 - **Envío por arrastre**: Arrastra archivos directamente desde los resultados de Lertaro, el Panel rápido o el Explorador hacia la ventana. El radar detecta automáticamente los dispositivos en línea; pulsa sobre el destinatario para transferir los archivos.
+- **Imagen del portapapeles**: **[Añadir imagen desde el portapapeles]** guarda la captura o imagen copiada como un PNG temporal y la añade a la lista, sin necesidad de guardarla antes en el disco.

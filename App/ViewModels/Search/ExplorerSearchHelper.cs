@@ -144,11 +144,11 @@ public static class ExplorerSearchHelper
             .OrderBy(row => DirectoryProximity.Tier(row.Result.FullPath, contextDirectory))
             .Select(row => row.Result);
 
-        // Direct children: strongest match first (shape, then start), then folders before files, then tier ->
-        // Explorer name order. The match keys lead because that is the weight the user asked for: how well and
-        // how far left in the name the query hit outweighs whether the row is a folder or a file, so a file
-        // whose match beats every matched folder's is the section's first row. Folders still lead files at
-        // equal match shape and position, which is the grouping the earlier request was about.
+        // Direct children: leftmost hit first (Match.Start), then folders before files, then tier ->
+        // Explorer name order. Start leads for the same reason it leads RankedCandidateOrdering: on a broad
+        // query, letting shape or depth outrank position pushed the row the user was looking for past the
+        // display cap. Folders still lead files at an equal position, which is the grouping the earlier
+        // request was about.
         var orderedDirect = direct
             .OrderBy(row => row.Match.Start)
             .ThenBy(row => row.Result.IsDir ? 0 : 1)

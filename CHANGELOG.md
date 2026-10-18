@@ -5,6 +5,24 @@
 符号：* 核心功能　+ 小功能添加　# 修复。只写"改了什么"。
 -->
 
+## v5.9.7.1
+
+## 更新内容
+
+```
+* 合并上游 v5.9.7（拼音读音改为实时匹配、读音表按词频、索引快照 v13，剪贴板文本与截图，内联卡片定位与焦点修复）
++ 自动更新只检查本仓库的发行
++ 保留鼠标平滑滚动
+```
+
+## What's changed
+
+```
+* Merged upstream v5.9.7 (live pinyin reading matching, frequency-ordered reading table, index snapshot v13, clipboard text and screenshots, inline card locate and focus fixes)
++ Auto-update only checks this repository's releases
++ Keeps the smooth wheel scrolling
+```
+
 ## v5.9.6.1
 
 ## 更新内容

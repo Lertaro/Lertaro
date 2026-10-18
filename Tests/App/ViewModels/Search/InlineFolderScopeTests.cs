@@ -29,8 +29,11 @@ public sealed class InlineFolderScopeTests
             OneFileAndTwoFolders(), "report", scope: null, contextDirectory: null,
             isInlineWindow: true, folderScope: true);
 
-        // "report" is a whole word in report-final and only a word start in Reports, hence this order.
-        CollectionAssert.AreEqual(
+        // What this scope guarantees is that the file is dropped and both folders survive. Which folder
+        // leads is position-then-coverage ("report" sits at index 0 of both names), and that is
+        // RankAndDedupe_EarlierStartBeatsBetterShapeAndWeight's contract, not this one's -- pinning it
+        // here made a filtering test break when the ordering priority moved.
+        CollectionAssert.AreEquivalent(
             new[] { @"C:\Desktop\report-final", @"C:\Reports" },
             result.Select(row => row.FullPath).ToList());
     }

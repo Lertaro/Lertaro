@@ -77,6 +77,7 @@ public static class SettingsSearchIndex
         new("General_OrFirstPrecedence", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowOrFirstPrecedence", "General_SysTitle"),
         new("General_KeepSearchText", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowKeepSearchText", "General_SysTitle"),
         new("General_ShowOpenedFoldersInInlineSearch", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowShowOpenedFoldersInInlineSearch", "General_SysTitle"),
+        new("General_InlineSearchWindowWidth", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowInlineSearchWidth", "General_SysTitle"),
         new("General_GlobalTokenPrefix", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowGlobalTokenPrefix", "General_SysTitle"),
         new("General_LogLevel", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowLogLevel", "General_SysTitle"),
         new("General_LangSelect", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowLangSelect", "General_SysTitle"),

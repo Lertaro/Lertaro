@@ -6,7 +6,7 @@
   "CustomActions_Config_EnabledLabel": "已启用",
   "CustomActions_Config_TitleLabel": "标题",
   "CustomActions_Config_PathLabel": "路径 (程序或文件)",
-  "CustomActions_Config_ParameterLabel": "参数 (用 %s 或 {} 代表选中路径,会自动加引号,请勿自行包引号;留空则直接把加好引号的路径作为参数)",
+  "CustomActions_Config_ParameterLabel": "参数 (用 %s 或 {} 代表选中路径,用 %c 或 {c} 代表剪贴板文本,会自动加引号,请勿自行包引号;留空则直接把加好引号的路径作为参数)",
   "CustomActions_Config_IconLabel": "图标 (SVG Path 数据)",
   "CustomActions_Config_WorkingDirLabel": "工作目录",
   "CustomActions_Config_RunSilentlyLabel": "静默执行",

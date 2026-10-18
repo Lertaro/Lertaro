@@ -64,7 +64,7 @@
                                     </StackPanel>
                                     <TextBlock FontSize="10.5" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"><Run Text="#"/><Run Text="{Binding FingerprintTag, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding DeviceModel, Mode=OneWay}"/></TextBlock>
                                 </StackPanel>
-                                <TextBlock Grid.Column="2" Text="{Binding IpAddress}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                <TextBlock Grid.Column="2" Text="{Binding EndpointText}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,12,0"/>
                                 <TextBox Grid.Column="3" Text="{Binding Pin, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ThemeTextBoxStyle}" Height="26" VerticalAlignment="Center"
                                          AutomationProperties.Name="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_TargetPin]}"/>
                             </Grid>

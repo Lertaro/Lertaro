@@ -248,4 +248,54 @@ public sealed class InlineCardMetricsTests
         Assert.AreEqual(648 * InlineCardMetrics.AnchoredWindowHeightShare,
             InlineCardMetrics.AvailableCardHeight(1152, 648, 0, 400, fullCardHeight: 495), 0.001);
     }
+
+    // The docked width, in DIP, with every number below read as if both the window and its screen were 96 DPI.
+    // A fullscreen host on a 1920 screen is the shape that started this: the old fixed two thirds of the
+    // window was 1280 of it, which lay across everything the user was trying to look at.
+    [TestMethod]
+    public void ResolveDockedWidth_DefaultOnAFullscreenWindow_TakesFortyPercent() =>
+        Assert.AreEqual(768, InlineCardMetrics.ResolveDockedWidth(1920, 1920, null), 0.001);
+
+    [TestMethod]
+    public void ResolveDockedWidth_DefaultOnANarrowWindow_KeepsAFifthOfTheScreen() =>
+        // 40% of a 600-wide window is 240, but nothing was chosen, so the card still takes a fifth of the
+        // screen -- which fits inside that window, and is what it has always measured on a dialog this size.
+        Assert.AreEqual(384, InlineCardMetrics.ResolveDockedWidth(600, 1920, null), 0.001);
+
+    [TestMethod]
+    public void ResolveDockedWidth_APercentIsTakenOfTheWindowTheCardDocksTo() =>
+        Assert.AreEqual(600, InlineCardMetrics.ResolveDockedWidth(1200, 1920, 50), 0.001);
+
+    [TestMethod]
+    public void ResolveDockedWidth_APercentTooSmallIsLiftedToTheFloor() =>
+        // 20% of 1200 is 240; a sixth of the screen is 320, and the larger of the two is the floor.
+        Assert.AreEqual(320, InlineCardMetrics.ResolveDockedWidth(1200, 1920, 20), 0.001);
+
+    [TestMethod]
+    public void ResolveDockedWidth_APercentTooLargeIsHeldToNinetyPercentOfTheScreen() =>
+        Assert.AreEqual(1728, InlineCardMetrics.ResolveDockedWidth(1920, 1920, 100), 0.001);
+
+    [TestMethod]
+    public void ResolveDockedWidth_NeverWiderThanTheWindowItDocksTo() =>
+        // The floor (a sixth of the screen, 320) does not fit inside a 300-wide window. The window wins: a
+        // card that overhangs the window it belongs to is the thing this setting exists to stop.
+        Assert.AreEqual(300, InlineCardMetrics.ResolveDockedWidth(300, 1920, 100), 0.001);
+
+    [TestMethod]
+    public void ResolveDockedWidth_NumbersOutsideTheBoxAreReadAsTheNearestEdge()
+    {
+        // user-settings.json is hand-editable, so the 20-100 the settings box takes is enforced here too: 150
+        // reads as 100 and 5 as 20, and both then pass the screen's own bounds.
+        Assert.AreEqual(1728, InlineCardMetrics.ResolveDockedWidth(1920, 1920, 150), 0.001);
+        Assert.AreEqual(384, InlineCardMetrics.ResolveDockedWidth(1920, 1920, 5), 0.001);
+    }
+
+    // The desktop card keeps its own share and never reaches this math. A screen width of 0 is the degenerate
+    // read -- nothing was measurable for the monitor -- and then only the window's own shares bound the card.
+    [TestMethod]
+    public void ResolveDockedWidth_WithNoScreenReadable_UsesOnlyTheWindowsOwnShares()
+    {
+        Assert.AreEqual(480, InlineCardMetrics.ResolveDockedWidth(1200, 0, null), 0.001);
+        Assert.AreEqual(240, InlineCardMetrics.ResolveDockedWidth(1200, 0, 20), 0.001);
+    }
 }

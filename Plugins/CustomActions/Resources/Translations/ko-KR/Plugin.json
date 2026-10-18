@@ -6,7 +6,7 @@
   "CustomActions_Config_EnabledLabel": "사용됨",
   "CustomActions_Config_TitleLabel": "제목",
   "CustomActions_Config_PathLabel": "경로 (프로그램 또는 파일)",
-  "CustomActions_Config_ParameterLabel": "매개변수 (%s 또는 {} = 선택한 경로; 자동으로 따옴표가 붙으므로 직접 따옴표를 추가하지 마세요; 비워두면 따옴표로 묶인 경로 자체가 매개변수로 사용됩니다)",
+  "CustomActions_Config_ParameterLabel": "매개변수 (%s 또는 {} = 선택한 경로, %c 또는 {c} = 클립보드 텍스트; 자동으로 따옴표가 붙으므로 직접 따옴표를 추가하지 마세요; 비워두면 따옴표로 묶인 경로 자체가 매개변수로 사용됩니다)",
   "CustomActions_Config_IconLabel": "아이콘 (SVG Path 데이터)",
   "CustomActions_Config_WorkingDirLabel": "작업 디렉터리",
   "CustomActions_Config_RunSilentlyLabel": "무음으로 실행",

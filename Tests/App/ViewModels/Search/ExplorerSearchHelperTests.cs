@@ -15,10 +15,10 @@ public sealed class ExplorerSearchHelperTests
     private static ExplorerSearchHelper.RankedRow Row(string path, int tier = MatchRank.TierName, int start = 0, double weight = 1.0, bool isDir = false, int shape = MatchRank.ShapeWholeWord) =>
         new(Item(path, isDir), new MatchRank(tier, start, weight, shape));
 
-    // Within a direct-children group, how the query sits in the name leads: a whole word later in the
-    // name beats scattered letters from the start.
+    // Within a direct-children group the leftmost hit leads: shape is computed but no longer ranks, so the
+    // scattered a-t-l-a-s from index 0 of the name beats a whole word five characters in.
     [TestMethod]
-    public void OrderByDirectoryTier_DirectChildren_ShapeComesBeforeStart()
+    public void OrderByDirectoryTier_DirectChildren_StartComesBeforeShape()
     {
         var result = ExplorerSearchHelper.OrderByDirectoryTier(
             [
@@ -28,7 +28,7 @@ public sealed class ExplorerSearchHelperTests
             @"C:\Root");
 
         CollectionAssert.AreEqual(
-            new[] { @"C:\Root\code-atlas", @"C:\Root\AutofillStates" },
+            new[] { @"C:\Root\AutofillStates", @"C:\Root\code-atlas" },
             result.Select(item => item.FullPath).ToArray());
     }
 

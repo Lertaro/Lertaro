@@ -196,13 +196,6 @@ public static class PinyinEngine
     public static byte[] GetSyllableUtf8(int id) => SyllableUtf8[id];
 
     /// <summary>
-    /// Every syllable this table can produce. Read-only; shared. Lets the query side recognise which
-    /// letter runs are whole syllables, which is what makes a typed query expressible in the same
-    /// syllable-delimited shape the generated aliases use.
-    /// </summary>
-    public static IReadOnlyList<string> AllSyllables => Syllables;
-
-    /// <summary>
     /// Vectorized pre-gate: the char table covers exactly [12295, 12295+28647), so a string with no
     /// char in that range can be rejected by the SIMD-backed BCL range scan without per-char table
     /// lookups. A true result still needs the precise <see cref="IsChinese"/> check per char.

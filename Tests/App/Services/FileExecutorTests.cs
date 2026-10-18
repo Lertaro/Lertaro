@@ -256,6 +256,13 @@ public sealed class BuildDefaultFileManagerArgumentsTests
             FileExecutor.BuildDefaultFileManagerArguments(@"C:\Program Files", "/L=%s /R={}"));
 
     [TestMethod]
+    public void BuildDefaultFileManagerArguments_PercentFollowedByLetters_IsLeftAlone() =>
+        // "%s" only substitutes when no letter or digit follows it, so a shell variable written into the
+        // template survives whole -- the same guard CustomActions applies to its parameter.
+        Assert.AreEqual("/R=%systemroot% --open=C:\\a",
+            FileExecutor.BuildDefaultFileManagerArguments(@"C:\a", "/R=%systemroot% --open=%s"));
+
+    [TestMethod]
     public void BuildDefaultFileManagerArguments_EmptyTemplate_QuotesPathAsSoleArgument() =>
         Assert.AreEqual(@"""C:\Program Files""", FileExecutor.BuildDefaultFileManagerArguments(@"C:\Program Files", ""));
 

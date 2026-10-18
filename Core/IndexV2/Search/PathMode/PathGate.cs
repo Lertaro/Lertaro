@@ -148,9 +148,19 @@ internal sealed class PathGate
             if (worker.Scratch.Length < nameUtf8.Length)
                 worker.Scratch = new char[Math.Max(nameUtf8.Length, worker.Scratch.Length * 2)];
             var written = Encoding.UTF8.GetChars(nameUtf8, worker.Scratch);
-            if (_segmentPatterns[q].TryMatch(worker.Scratch.AsSpan(0, written), out var match, FzfScoringScheme.Default, worker.Slab))
+            var segmentName = worker.Scratch.AsSpan(0, written);
+            if (_segmentPatterns[q].TryMatch(segmentName, out var match, FzfScoringScheme.Default, worker.Slab))
             {
                 score = match.Score;
+                return true;
+            }
+
+            // The live reading tier: a CJK segment carries a pinyin term the same way a file name
+            // does (see PinyinNameEvaluator), with the reference's additive score.
+            var live = PinyinNameEvaluator.ForPattern(_segmentPatterns[q]);
+            if (live.HasProviders && live.TryScore(segmentName, worker.Slab, out var liveMatch))
+            {
+                score = liveMatch.Score;
                 return true;
             }
         }
@@ -167,19 +177,6 @@ internal sealed class PathGate
         {
             if (disabledIds != null && disabledIds.Contains(_snapshot.AliasProviderId(e)))
                 continue;
-            // A reading grid is not an alias string; it is decided by the grid tier, which materializes
-            // the one reading the query's terms need and reports that match's raw score -- the same
-            // ungated, first-match-wins contract the string branch below keeps.
-            if (_snapshot.AliasKind(e) == AliasEntryKind.Grid)
-            {
-                if (SearchMatcherGridAliases.TryMatchEntry(
-                        _snapshot, _segmentPatterns[q], _segmentPatterns[q].GetTotalTermLength(), e, worker.Slab, gate: false, out var gridMatch))
-                {
-                    score = gridMatch.Score;
-                    return true;
-                }
-                continue;
-            }
             var aliasUtf8 = _snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)
                 continue;
@@ -226,6 +223,16 @@ internal sealed class PathGate
         }
         if (!AliasProviderRegistry.HasNonAscii(segment))
             return false;
+
+        // The live reading tier decides a CJK segment from its own readings (see PinyinNameEvaluator)
+        // before the string-alias fallback below.
+        var segmentLive = PinyinNameEvaluator.ForPattern(_segmentPatterns[q]);
+        if (segmentLive.HasProviders && segmentLive.TryScore(segment, worker.Slab, out var segmentLiveMatch))
+        {
+            score = segmentLiveMatch.Score;
+            return true;
+        }
+
         var disabledIds = SearchContext.DisabledAliasIds;
         foreach (var provider in AliasProviderRegistry.GetActiveProviders())
         {
@@ -235,20 +242,6 @@ internal sealed class PathGate
                     continue;
                 if (!provider.CanHandle(segment))
                     continue;
-
-                // A provider that can spell out its readings is decided from them, exactly like the grid an
-                // index would have baked for the same segment: its alias strings are that reading space
-                // enumerated and capped.
-                if (provider is IAliasGridProvider gridProvider)
-                {
-                    if (SearchMatcherGridAliases.TryMatchProvider(
-                            gridProvider, segment, _segmentPatterns[q], worker.Slab, gate: false, out var gridMatch))
-                    {
-                        score = gridMatch.Score;
-                        return true;
-                    }
-                    continue;
-                }
 
                 foreach (var alias in provider.GetAliases(segment))
                 {

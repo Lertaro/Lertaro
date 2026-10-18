@@ -3,9 +3,9 @@ using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.CustomActions.Tests;
 
-// PluginSettingsService.GetSettingFunc is a shared static delegate, and DynamicActionProvider caches
-// what it loads in a static field -- [DoNotParallelize] plus resetting both in TestInitialize keeps
-// tests in this class from seeing each other's configured actions.
+// PluginSettingsService.GetSettingFunc and ClipboardService.GetTextFunc are shared static delegates,
+// and DynamicActionProvider caches what it loads in a static field -- [DoNotParallelize] plus resetting
+// all of that in TestInitialize keeps tests in this class from seeing each other's configuration.
 [TestClass]
 [DoNotParallelize]
 public sealed class DynamicActionProviderTests
@@ -14,6 +14,7 @@ public sealed class DynamicActionProviderTests
     public void Reset()
     {
         PluginSettingsService.GetSettingFunc = null;
+        ClipboardService.GetTextFunc = null;
         DynamicActionProvider.InvalidateCache();
     }
 
@@ -175,6 +176,60 @@ public sealed class DynamicActionProviderTests
         // A file named with "{}", dropped in for %s, must not then be expanded again by the {} pass.
         Assert.AreEqual("--open \"C:\\odd {} name.txt\"",
             DynamicActionProvider.BuildArguments("--open %s", [@"C:\odd {} name.txt"]));
+
+    [TestMethod]
+    public void BuildArguments_ClipboardPlaceholders_SubstituteTheQuotedTextReadOnce()
+    {
+        var reads = 0;
+        ClipboardService.GetTextFunc = () => { reads++; return "copied text"; };
+
+        var arguments = DynamicActionProvider.BuildArguments("--from %c --to {c}", [@"C:\c.txt"]);
+
+        Assert.AreEqual("--from \"copied text\" --to \"copied text\"", arguments);
+        Assert.AreEqual(1, reads);
+    }
+
+    [TestMethod]
+    public void BuildArguments_NoClipboardPlaceholder_NeverReadsTheClipboard()
+    {
+        var reads = 0;
+        ClipboardService.GetTextFunc = () => { reads++; return "unused"; };
+
+        DynamicActionProvider.BuildArguments("--open %s --also {}", [@"C:\c.txt"]);
+
+        Assert.AreEqual(0, reads);
+    }
+
+    [TestMethod]
+    public void BuildArguments_ClipboardHoldsNoText_PlaceholderVanishes()
+    {
+        ClipboardService.GetTextFunc = () => null;
+
+        Assert.AreEqual("[]", DynamicActionProvider.BuildArguments("[%c]", [@"C:\c.txt"]));
+    }
+
+    [TestMethod]
+    public void BuildArguments_LongerPercentToken_IsLeftAloneAndNeverReadsTheClipboard()
+    {
+        // A letter after %s or %c means it is some other program's own token, not a placeholder here --
+        // and a template with no placeholder must not open the clipboard either.
+        var reads = 0;
+        ClipboardService.GetTextFunc = () => { reads++; return "unused"; };
+
+        Assert.AreEqual("--pretty=%cd --dir %cd% --root=%systemroot%",
+            DynamicActionProvider.BuildArguments("--pretty=%cd --dir %cd% --root=%systemroot%", [@"C:\c.txt"]));
+        Assert.AreEqual(0, reads);
+    }
+
+    [TestMethod]
+    public void BuildArguments_ClipboardTextContainingAPlaceholder_IsSubstitutedExactlyOnce()
+    {
+        // Clipboard text naming "{}", dropped in for %c, must not then be expanded by the {} pass.
+        ClipboardService.GetTextFunc = () => "a {} b";
+
+        Assert.AreEqual("--paste \"a {} b\"",
+            DynamicActionProvider.BuildArguments("--paste %c", [@"C:\c.txt"]));
+    }
 
     [TestMethod]
     public void ClearSession_InvalidatesCache_SoLaterConfigChangeIsPickedUp()

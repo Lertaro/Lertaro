@@ -248,7 +248,21 @@ internal static class SearchMatcher
         var written = Encoding.UTF8.GetChars(utf8, worker.Scratch);
         var name = worker.Scratch.AsSpan(0, written);
 
-        if (ctx.Pattern.TryMatch(name, out var match, FzfScoringScheme.Default, worker.Slab))
+        // The live tier first: a registered live provider decides the query from the name's own
+        // readings -- each term literally, then against the reading NFA, with the reference's
+        // additive score (see PinyinNameEvaluator). Without one, or when the pattern has no eligible
+        // word, the long-standing whole-pattern match runs exactly as before, so a pinyin-free
+        // install is unchanged.
+        var live = PinyinNameEvaluator.ForPattern(ctx.Pattern);
+        if (live.HasProviders)
+        {
+            if (live.TryScore(name, worker.Slab, out var liveMatch))
+            {
+                worker.Hits.Add(new UniqueMatch(uid, liveMatch, FzfResultRank.ForDefaultScheme(uid, name, liveMatch).SortKey));
+                return;
+            }
+        }
+        else if (ctx.Pattern.TryMatch(name, out var match, FzfScoringScheme.Default, worker.Slab))
         {
             worker.Hits.Add(new UniqueMatch(uid, match, FzfResultRank.ForDefaultScheme(uid, name, match).SortKey));
             return;
@@ -264,7 +278,12 @@ internal static class SearchMatcher
         {
             worker.Hits.Add(new UniqueMatch(uid, best, FzfResultRank.ForDefaultScheme(uid, name, best).SortKey));
         }
-        else if (ctx.MixedTerm != null && snapshot.HasAliases(uid) && SearchMatcherAliasExtensions.TryMatchMixed(snapshot, ctx, uid, name, out var mixedBest))
+        // The mixed lane needs no baked entry when the provider spells its readings out on demand: a live
+        // provider bakes nothing for a name that needs no Simplified spelling, so HasAliases alone would
+        // switch this tier off for exactly the CJK names it exists for.
+        else if (ctx.MixedTerm != null
+            && (snapshot.HasAliases(uid) || ctx.MixedTerm.Provider is PluginSdk.Abstractions.Plugins.IAliasLiveMatcherProvider)
+            && SearchMatcherAliasExtensions.TryMatchMixed(snapshot, ctx, uid, name, out var mixedBest))
         {
             worker.Hits.Add(new UniqueMatch(uid, mixedBest, FzfResultRank.ForDefaultScheme(uid, name, mixedBest).SortKey));
         }

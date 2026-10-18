@@ -11,7 +11,7 @@
   "CustomCommands_Config_TitleLabel": "タイトル",
   "CustomCommands_Config_PathLabel": "パス（プログラムまたはファイル）",
   "CustomCommands_Config_ParameterLabel": "パラメーター",
-  "CustomCommands_Config_ParameterDesc": "パラメーターの置換に対応しています:\n· %s1、%s2 …（または {1}、{2} …）: 1番目、2番目 … の引数\n· %s（または {}）: 入力全体を1つの引数として扱う\n· 入力はプレースホルダーを通じてのみ使用されます。プレースホルダーがない場合、設定したパラメーターがそのまま実行されます\n· プレースホルダーは自動的に引用符で囲まれます。自分で引用符を追加しないでください",
+  "CustomCommands_Config_ParameterDesc": "パラメーターの置換に対応しています:\n· %s1、%s2 …（または {1}、{2} …）: 1番目、2番目 … の引数\n· %s（または {}）: 入力全体を1つの引数として扱う\n· %c（または {c}）: クリップボードのテキストを1つの引数として扱う\n· 入力はプレースホルダーを通じてのみ使用されます。プレースホルダーがない場合、設定したパラメーターがそのまま実行されます\n· プレースホルダーは自動的に引用符で囲まれます。自分で引用符を追加しないでください",
   "CustomCommands_Config_IconLabel": "アイコン（SVG パスデータ）",
   "CustomCommands_Config_WorkingDirLabel": "作業ディレクトリ",
   "CustomCommands_Config_RunSilentlyLabel": "サイレント実行",

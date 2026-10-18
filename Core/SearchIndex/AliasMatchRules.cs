@@ -47,9 +47,9 @@ internal static class AliasMatchRules
         // sits right after that '|' and is a boundary in exactly the sense that matters.
         //
         // A character the provider did NOT transliterate counts too, and has to: the delimiter is emitted
-        // only BETWEEN two transliterated characters (see PinyinAliasFormat.NeedsSeparatorBefore, and the
-        // grid provider's own NeedsSeparatorBefore) precisely because a passed-through character is already
-        // a visible boundary -- nothing can hide inside it. So a reading that follows one opens on a real
+        // only BETWEEN two transliterated characters (see PinyinAliasFormat.NeedsSeparatorBefore) precisely
+        // because a passed-through character is already a visible boundary -- nothing can hide inside it.
+        // So a reading that follows one opens on a real
         // boundary that no separator points at. Missing that rejected the one alias a mixed name had:
         // "、gao<SEP>xiao" in the ticket's 188-character name matched every alias but the one carrying 高效,
         // because '高' happens to follow the name's own "、".

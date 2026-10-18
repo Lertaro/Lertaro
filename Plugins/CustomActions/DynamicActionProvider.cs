@@ -121,13 +121,33 @@ public class DynamicActionProvider : IDynamicActionProvider
     /// <summary>
     /// %s and {} expand to every selected path, each quoted so it stays one argument, joined by spaces --
     /// a single invocation receives all files (e.g. tool "a" "b" "c"). For a single selection this is just
-    /// the one path. Users must NOT wrap the placeholder in quotes. Both placeholders are replaced in one
-    /// pass, so a path that itself contains "{}" or "%s" is never expanded a second time.
+    /// the one path. Users must NOT wrap the placeholder in quotes. %c and {c} expand to the clipboard's
+    /// text as one quoted argument, and vanish when it holds none. Every placeholder is replaced in a
+    /// single pass, so text brought in by one of them is never expanded a second time by another.
+    /// A percent form is only a placeholder when no letter or digit follows it, which is what keeps a
+    /// template carrying another program's own token (%cd for git, %systemroot% for a shell variable)
+    /// intact. The brace forms need no such guard: the closing brace already ends them.
     /// </summary>
     internal static string BuildArguments(string? parameter, IReadOnlyList<string> paths)
     {
         var allPaths = string.Join(" ", paths.Select(ArgQuoting.Quote));
-        return string.IsNullOrWhiteSpace(parameter) ? allPaths : Regex.Replace(parameter, @"%s|\{\}", _ => allPaths);
+        if (string.IsNullOrWhiteSpace(parameter)) return allPaths;
+
+        // The clipboard is a cross-process read, so it is taken from the host only for a template that
+        // names the placeholder -- and only once, however many times that template repeats it.
+        string? clipboard = null;
+        var clipboardRead = false;
+
+        return Regex.Replace(parameter, @"%c(?![0-9A-Za-z])|\{c\}|%s(?![0-9A-Za-z])|\{\}", m =>
+        {
+            if (m.Value is not ("%c" or "{c}")) return allPaths;
+            if (!clipboardRead)
+            {
+                clipboard = ClipboardService.GetText();
+                clipboardRead = true;
+            }
+            return string.IsNullOrEmpty(clipboard) ? string.Empty : ArgQuoting.Quote(clipboard);
+        });
     }
 
     private static void RunMulti(ActionItem cmd, IReadOnlyList<ISearchResult> results)

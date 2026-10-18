@@ -43,7 +43,7 @@ CMD expands `%CD%` in a startup command before changing directory. If elevation 
 
 ### Direct URL Navigation
 
-Type or paste any URL beginning with `http://` or `https://` and press `Enter` to open it immediately in your default browser. Entering a valid protocol-less web address such as `example.com` generates two instant results in the Quick Search Window: `https://...` and `http://...`. The protocol-less guess only applies to a hard-coded whitelist of common top-level domains (over a hundred suffixes such as `.com`, `.cn`, and `.io`, plus `xn--` internationalized domains) and is not configurable; suffixes that double as common file extensions are deliberately left out, and anything else stays a file search, so `abc.txt` produces no browser row. Add the protocol yourself to open a URL the list does not cover. Each result uses the two-line browser-open presentation, the query text is not modified, and an address that already includes a protocol produces one result.
+Type or paste any URL beginning with `http://` or `https://` and press `Enter` to open it immediately in your default browser. Entering a valid protocol-less web address such as `example.com` generates two browser instant results in the Quick Search Window: `https://...` and `http://...`. The protocol-less guess only applies to a hard-coded whitelist of common top-level domains (over a hundred suffixes such as `.com`, `.cn`, and `.io`, plus `xn--` internationalized domains) and is not configurable; suffixes that double as common file extensions are deliberately left out, and anything else stays a file search, so `abc.txt` produces no browser row. Add the protocol yourself to open a URL the list does not cover. Browser rows use the two-line browser-open presentation, the query text is not modified, and an address that already includes a protocol produces a single browser row. A `ping <host>` row is appended after them: pressing `Enter` or clicking it runs the command in a command interpreter window, using the interpreter chosen for the system command runner. The host is taken from the address with its protocol, credentials, port and path stripped, and IPv4, IPv6 and internationalized domains (converted to punycode) all work.
 
 ### Clipboard text in the Quick Search Window
 
@@ -108,6 +108,6 @@ Under **Settings → Plugins → File Filters → Configure**, you can bind a tr
 
 Under **Settings → Plugins → Custom Commands → Configure**, wrap complex scripts, tools, or applications into concise commands:
 
-- **Parameter Placeholders**: Supports positional placeholders `%s1`, `%s2`... and full query capture `%s`.
+- **Parameter Placeholders**: Supports positional placeholders `%s1`, `%s2`... and full query capture `%s`, plus the clipboard text as `%c` (or `{c}`).
 - **Run in current directory**: Overrides the fixed working directory with the cascading menu's source directory, the inline window's directory, or the last browsed directory for quick search. An unavailable directory stops execution. Disabled by default to preserve existing configurations.
 - **Quick Navigation Integration**: Check "Show in Quick Navigation" to pin the command directly into the [**Quick Navigation**](./hotkeys#_3-quick-navigation-mouse-triggers) menu, with optional `/` submenu paths (e.g. `DevTools/RestartService`).

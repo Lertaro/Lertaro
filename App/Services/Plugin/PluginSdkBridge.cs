@@ -96,6 +96,10 @@ internal static class PluginSdkBridge
         // Wire up the history service delegate for plugins using Core SearchHistoryStore
         PluginSdk.Services.HistoryService.GetHistoryEntriesFunc = SearchHistoryStore.GetEntries;
 
+        // A plugin asking for the clipboard gets the same read the quick window's auto-fill does, rather
+        // than opening the clipboard itself on whichever thread it happens to be running.
+        PluginSdk.Services.ClipboardService.GetTextFunc = ReadClipboardText;
+
         // Wire up the search query modification delegate for plugins
         PluginSdk.Services.SearchQueryService.ChangeQueryFunc = (query, requery) => System.Windows.Application.Current?.Dispatcher.Invoke(() =>
             {
@@ -241,6 +245,16 @@ internal static class PluginSdkBridge
 
         // Trigger CoreDirectoryIndexManager singleton instantiation to bind SDK DirectoryIndexerService delegates
         _ = CoreDirectoryIndexManager.Instance;
+    }
+
+    // ClipboardTextHelper needs an STA apartment, so the read is handed to the UI thread; called from
+    // there it just runs inline. With no running launcher to hand it to (a plugin hosted outside the
+    // app) it is attempted on the calling thread, where a clipboard WPF cannot open reads as no text.
+    private static string? ReadClipboardText()
+    {
+        string? ReadOnce() => ClipboardTextHelper.TryReadText(out var text) ? text : null;
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        return dispatcher == null ? ReadOnce() : dispatcher.Invoke(ReadOnce);
     }
 
     private static bool IsFavoritePath(string path)

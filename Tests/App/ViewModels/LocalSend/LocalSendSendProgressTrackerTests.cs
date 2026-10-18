@@ -38,6 +38,23 @@ public sealed class LocalSendSendProgressTrackerTests
     }
 
     [TestMethod]
+    public void UpdateProgress_DoesNotReopenAFileTheReceiverAlreadyConfirmed()
+    {
+        var tracker = new LocalSendSendProgressTracker();
+        tracker.PrepareText("hello", "Text");
+        tracker.UpdateProgress(new LocalSendSendProgressArgs("Text", 5, 5, 1, 1), "Waiting");
+        tracker.MarkConfirmed(new LocalSendFileConfirmationArgs("file", "Text", 1, 1), "Completed");
+
+        // The confirmation is dispatched normally while a coalesced tick sits in the background queue behind
+        // it, so this order is what a fast transfer really produces -- and the tick must not win.
+        tracker.UpdateProgress(new LocalSendSendProgressArgs("Text", 5, 5, 1, 1), "Waiting");
+
+        Assert.AreEqual("Completed", tracker.Items[0].StatusText);
+        Assert.AreEqual(100d, tracker.Items[0].ProgressPercentage);
+        Assert.AreEqual(1, tracker.ConfirmedCount);
+    }
+
+    [TestMethod]
     public void UpdateProgress_ChecksumStageCanReachOneHundredPercent()
     {
         var tracker = new LocalSendSendProgressTracker();

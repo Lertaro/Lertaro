@@ -95,6 +95,13 @@ internal static class PathTermFallbackAncestorHelper
             var hit = ascii
                 ? termBytePatterns[i].TryMatch(nameUtf8, out _, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers)
                 : termPatterns[i].TryMatch(worker.Scratch.AsSpan(0, written), out _, FzfScoringScheme.Default, worker.Slab);
+            if (!hit && !ascii)
+            {
+                // The live reading tier decides the same question for a pinyin word the literal pass
+                // cannot reach (see PinyinNameEvaluator).
+                var live = PinyinNameEvaluator.ForPattern(termPatterns[i]);
+                hit = live.HasProviders && live.TryScore(worker.Scratch.AsSpan(0, written), worker.Slab, out _);
+            }
             if (hit)
                 mask |= bit;
         }
@@ -119,21 +126,6 @@ internal static class PathTermFallbackAncestorHelper
         {
             if (disabledIds != null && disabledIds.Contains(snapshot.AliasProviderId(e)))
                 continue;
-            // A grid entry answers the same "can this row carry that term" question, but through the
-            // grid tier rather than by matching text: its payload is UTF-16 code units, not a string.
-            if (snapshot.AliasKind(e) == AliasEntryKind.Grid)
-            {
-                for (var i = 0; i < termPatterns.Length; i++)
-                {
-                    var bit = 1 << i;
-                    if ((unresolved & bit) == 0 || (mask & bit) != 0)
-                        continue;
-                    if (SearchMatcherGridAliases.TryMatchEntry(
-                            snapshot, termPatterns[i], termPatterns[i].GetTotalTermLength(), e, worker.Slab, gate: false, out _))
-                        mask |= bit;
-                }
-                continue;
-            }
             var aliasUtf8 = snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)
                 continue;
@@ -180,7 +172,15 @@ internal static class PathTermFallbackAncestorHelper
                 var bit = 1 << i;
                 if (((already | mask) & bit) != 0)
                     continue;
-                if (termPatterns[i].TryMatch(segment, out _, FzfScoringScheme.Default, worker.Slab))
+                var hit = termPatterns[i].TryMatch(segment, out _, FzfScoringScheme.Default, worker.Slab);
+                if (!hit)
+                {
+                    // Same live reading tier as the per-name mask: a pinyin word the literal pass
+                    // cannot reach still counts for this segment (see PinyinNameEvaluator).
+                    var live = PinyinNameEvaluator.ForPattern(termPatterns[i]);
+                    hit = live.HasProviders && live.TryScore(segment, worker.Slab, out _);
+                }
+                if (hit)
                     mask |= bit;
             }
         }

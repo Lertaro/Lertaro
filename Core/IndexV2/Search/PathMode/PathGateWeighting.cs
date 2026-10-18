@@ -126,6 +126,15 @@ internal sealed class PathGateWeighting
                 weight = HighlightMask.ComputeWeight(name, pattern);
                 return true;
             }
+
+            // Same live reading tier PathGate answers with; the weight still comes from the segment's
+            // own name through the shared mask computation.
+            var live = PinyinNameEvaluator.ForPattern(pattern);
+            if (live.HasProviders && live.TryScore(name, worker.Slab, out _))
+            {
+                weight = ComputeSegmentNameWeight(uid, nameUtf8, worker, pattern);
+                return true;
+            }
         }
 
         var disabledIds = SearchContext.DisabledAliasIds;
@@ -134,18 +143,6 @@ internal sealed class PathGateWeighting
         {
             if (disabledIds != null && disabledIds.Contains(_snapshot.AliasProviderId(e)))
                 continue;
-            // Mirrors PathGate.TryMatchSegmentRow's grid branch: the grid tier decides the entry, ungated,
-            // and this only needs whether it matched at all.
-            if (_snapshot.AliasKind(e) == AliasEntryKind.Grid)
-            {
-                if (SearchMatcherGridAliases.TryMatchEntry(
-                        _snapshot, pattern, pattern.GetTotalTermLength(), e, worker.Slab, gate: false, out _))
-                {
-                    weight = ComputeSegmentNameWeight(uid, nameUtf8, worker, pattern);
-                    return true;
-                }
-                continue;
-            }
             var aliasUtf8 = _snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)
                 continue;
@@ -198,6 +195,15 @@ internal sealed class PathGateWeighting
         }
         if (!AliasProviderRegistry.HasNonAscii(segment))
             return false;
+
+        // Same live reading tier PathGate answers with; the weight still comes from the segment's own text.
+        var segmentLive = PinyinNameEvaluator.ForPattern(pattern);
+        if (segmentLive.HasProviders && segmentLive.TryScore(segment, worker.Slab, out _))
+        {
+            weight = HighlightMask.ComputeWeight(segment, pattern);
+            return true;
+        }
+
         var disabledIds = SearchContext.DisabledAliasIds;
         foreach (var provider in AliasProviderRegistry.GetActiveProviders())
         {
@@ -207,19 +213,6 @@ internal sealed class PathGateWeighting
                     continue;
                 if (!provider.CanHandle(segment))
                     continue;
-
-                // Same reading-based decision PathGate makes for the same segment, through the same code a
-                // baked grid entry goes through; only the weight comes from the segment's own text.
-                if (provider is IAliasGridProvider gridProvider)
-                {
-                    if (SearchMatcherGridAliases.TryMatchProvider(
-                            gridProvider, segment, pattern, worker.Slab, gate: false, out _))
-                    {
-                        weight = HighlightMask.ComputeWeight(segment, pattern);
-                        return true;
-                    }
-                    continue;
-                }
 
                 foreach (var alias in provider.GetAliases(segment))
                 {

@@ -69,6 +69,10 @@ public class UserSettings
     public bool HideTrayIcon { get; set; } = false;
     public bool EnableEverythingIpc { get; set; } = false;
     public bool ShowOpenedFoldersInInlineSearch { get; set; } = true;
+    // The inline card's width as a percent of the window it docks to. Null means the user never chose one,
+    // which keeps the wider default floor that a plain 40% would not reach on a small window -- the rule
+    // itself lives with the rest of the card's geometry in App's InlineCardMetrics.ResolveDockedWidth.
+    public int? InlineSearchWindowWidthPercent { get; set; }
     public string GlobalTokenPrefix { get; set; } = ":";
     public string LogLevel { get; set; } = "Info";
     public string PreferredLanguage { get; set; } = GetDefaultSystemLanguage();

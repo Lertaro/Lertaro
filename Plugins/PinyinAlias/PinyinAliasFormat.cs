@@ -1,11 +1,12 @@
 namespace Lertaro.Plugins.PinyinAlias;
 
-// The one place that owns the shape of a generated full-pinyin alias. Both alias generation paths (the
-// string one in PinyinAliasCombinationGenerator and the byte one in PinyinAliasUtf8Encoder, which must
-// stay byte-identical) and the query side (PinyinQuerySegmenter) read the delimiter from here.
+// The one place that owns the shape of a generated full-pinyin spelling. The spelling materialization
+// (PinyinAliasCombinationGenerator) and the host's alias-side reading (PinyinAliasProvider's
+// MapAliasToSourceIndices, which has to consume a boundary exactly where it was written) both take the
+// delimiter from here.
 internal static class PinyinAliasFormat
 {
-    // Syllable delimiter for the full-pinyin alias. A control character for the same reason
+    // Syllable delimiter for the full-pinyin spelling. A control character for the same reason
     // PinyinAliasCombinationGenerator's PipePlaceholder is one: it cannot occur in a real name, so it
     // never collides with source text that already passes through verbatim (adjacent transliterated
     // characters are split -- "的士" becomes "di<SEP>shi" -- while digits and dots pass through intact),
@@ -15,21 +16,16 @@ internal static class PinyinAliasFormat
     // It also costs nothing on the hot path: being below 128 it keeps the alias pure ASCII, so the
     // byte-native matcher (Ascii.IsValid -> FzfBytePattern) still applies.
     //
-    // Only the FULL-pinyin alias carries it. The initials alias is one character per source character,
-    // so every position in it is already a boundary -- and the host detects that alias by its length
-    // matching the source text (see PinyinAliasProvider.MapAliasToSourceIndices), which a delimiter
-    // would break.
+    // Only the FULL-pinyin spelling carries it. The initials spelling is one character per source
+    // character, so every position in it is already a boundary -- and the host detects that alias by its
+    // length matching the source text (see PinyinAliasProvider.MapAliasToSourceIndices), which a
+    // delimiter would break.
     public const char SyllableSeparator = (char)2;
-
-    // Longest syllable the table can produce ("zhuang", "chuang", ...). Bounds the query segmenter's
-    // per-position scan; a value that is too small would silently stop long syllables being recognised,
-    // so it is asserted against the real table in the plugin's tests rather than assumed.
-    public const int MaxSyllableLength = 6;
 
     /// <summary>
     /// Whether a syllable boundary belongs before the syllable produced by <paramref name="index"/>:
-    /// between two adjacent characters that were both transliterated. Shared by the string and byte
-    /// generation paths, which must produce identical output.
+    /// between two adjacent characters that were both transliterated. Every path that writes a full
+    /// spelling uses it, and <c>MapAliasToSourceIndices</c> consumes what it wrote.
     /// </summary>
     /// <remarks>
     /// Deliberately NOT emitted where a transliterated character meets a passed-through one. A name

@@ -61,10 +61,7 @@ public static class SnapshotWriter
         var aliasStarts = new List<int>();
         var aliasEntryOffsets = new List<uint> { 0 };
         var aliasProviderIds = new List<byte>();
-        var aliasEntryKinds = new List<byte>();
         var aliasBlob = new MemoryStream();
-        // The snapshot's reading vocabulary, written into its own section (see AliasReadingTable).
-        var aliasReadingsSink = new AliasByteSink();
         var totalFiles = 0;
         var totalDirs = 0;
 
@@ -96,20 +93,9 @@ public static class SnapshotWriter
         var uniqueCount = uniqueNames.Count;
 
         // Alias generation is per-name-independent and dominates full-rebuild CPU on CJK-heavy
-        // volumes, so it runs as a parallel pre-pass (byte-native via GetAliasesUtf8, no alias
-        // strings materialized); the blob writes below stay strictly serial in uid order, so the
-        // resulting snapshot bytes are identical to what the old inline serial loop produced.
-        //
-        // The reading vocabulary first: a grid payload references its readings by id (see
-        // AliasReadingTable), so the table has to exist before any payload is encoded. Collected in a
-        // pass of its own -- reading sets only, no enumeration, no alias strings -- and built in ordinal
-        // order so the same names always produce the same ids, and therefore the same bytes.
-        var readingTableBuilder = new AliasReadingTable.Builder();
-        Parallel.For(0, uniqueCount, uid => AliasGenerationUtf8.CollectReadings(uniqueNames[uid], readingTableBuilder));
-        var readingTable = readingTableBuilder.Build();
-        readingTable.WritePayload(aliasReadingsSink);
-        var aliasReadings = aliasReadingsSink.SegmentCount > 0 ? aliasReadingsSink.Segment(0).ToArray() : Array.Empty<byte>();
-
+        // volumes, so it runs as a parallel pass (byte-native via GetAliasesUtf8, no alias strings
+        // materialized); the blob writes below stay strictly serial in uid order, so the resulting
+        // snapshot bytes are identical to what the old inline serial loop produced.
         var uniqueMasks = new ulong[uniqueCount];
         var aliasResults = new AliasGenerationUtf8.Result?[uniqueCount];
         Parallel.For(0, uniqueCount, uid =>
@@ -117,7 +103,7 @@ public static class SnapshotWriter
             // Union of name + alias chars: over-admits, never rejects a real match -- the
             // structural equivalent of the old engine bucketing rows under alias chars.
             var mask = FzfAlgorithm.GetCharMask(uniqueNames[uid]);
-            aliasResults[uid] = AliasGenerationUtf8.Generate(uniqueNames[uid], ref mask, readingTable);
+            aliasResults[uid] = AliasGenerationUtf8.Generate(uniqueNames[uid], ref mask);
             uniqueMasks[uid] = mask;
         });
 
@@ -135,7 +121,6 @@ public static class SnapshotWriter
                     offset += res.SegmentLengths[s];
                     aliasEntryOffsets.Add(checked((uint)aliasBlob.Length));
                     aliasProviderIds.Add(res.ProviderIds[s]);
-                    aliasEntryKinds.Add(res.Kinds[s]);
                 }
             }
             masks.Add(uniqueMasks[uid]);
@@ -216,7 +201,6 @@ public static class SnapshotWriter
             ChildrenLength = children.Length,
             AliasEntryCount = aliasProviderIds.Count,
             AliasBlobLength = (int)aliasBlob.Length,
-            AliasReadingsLength = (int)aliasReadings.Length,
             OrphanCount = orphanRows.Count,
             TotalFiles = totalFiles,
             TotalDirs = totalDirs,
@@ -269,9 +253,7 @@ public static class SnapshotWriter
                 SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.AliasStarts, MemoryMarshal.AsBytes(CollectionsMarshal.AsSpan(aliasStarts)));
                 SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.AliasEntryOffsets, MemoryMarshal.AsBytes(CollectionsMarshal.AsSpan(aliasEntryOffsets)));
                 SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.AliasProviderIds, CollectionsMarshal.AsSpan(aliasProviderIds));
-                SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.AliasEntryKinds, CollectionsMarshal.AsSpan(aliasEntryKinds));
                 SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.AliasBlob, aliasBlob.GetBuffer().AsSpan(0, (int)aliasBlob.Length));
-                SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.AliasReadings, aliasReadings);
                 SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.OrphanRows, MemoryMarshal.AsBytes(CollectionsMarshal.AsSpan(orphanRows)));
                 SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.OrphanFrns, MemoryMarshal.AsBytes(CollectionsMarshal.AsSpan(orphanFrns)));
                 SnapshotWriterOps.WriteSection(stream, offsets, SnapshotSection.UniqueAsciiBits, MemoryMarshal.AsBytes(asciiBits));

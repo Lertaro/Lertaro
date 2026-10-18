@@ -6,7 +6,7 @@
   "CustomActions_Config_EnabledLabel": "Enabled",
   "CustomActions_Config_TitleLabel": "Title",
   "CustomActions_Config_PathLabel": "Path (Program or File)",
-  "CustomActions_Config_ParameterLabel": "Parameters (%s or {} = selected path; auto-quoted, don't add quotes yourself; left empty, the quoted path itself is used as the parameter)",
+  "CustomActions_Config_ParameterLabel": "Parameters (%s or {} = selected path, %c or {c} = clipboard text; auto-quoted, don't add quotes yourself; left empty, the quoted path itself is used as the parameter)",
   "CustomActions_Config_IconLabel": "Icon (SVG Path Data)",
   "CustomActions_Config_WorkingDirLabel": "Working Directory",
   "CustomActions_Config_RunSilentlyLabel": "Run Silently",

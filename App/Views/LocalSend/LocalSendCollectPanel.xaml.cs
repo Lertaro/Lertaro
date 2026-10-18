@@ -1,6 +1,9 @@
 using System.Windows;
+using Lertaro.App.Helpers;
 using Lertaro.App.Services;
+using Lertaro.App.Services.Notifications;
 using Lertaro.App.ViewModels.LocalSend;
+using Lertaro.PluginSdk.Abstractions;
 using WpfDragEventArgs = System.Windows.DragEventArgs;
 using WpfUserControl = System.Windows.Controls.UserControl;
 using WpfButton = System.Windows.Controls.Button;
@@ -34,6 +37,24 @@ public partial class LocalSendCollectPanel : WpfUserControl
             Title = TranslationManager.Instance["Settings_LocalSend_ChooseFolder"]
         };
         if (dialog.ShowDialog() == true && !string.IsNullOrEmpty(dialog.FolderName)) ViewModel?.AddPaths([dialog.FolderName]);
+    }
+
+    // A screenshot has no path, and the send reads only paths, so the clipboard's pixels have to become a
+    // file before anything can be added here.
+    private void AddClipboardImage_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel is not { } vm) return;
+        if (ClipboardImageHelper.TryWriteTempPng() is not { } path)
+        {
+            NotificationService.Show(new NotificationRequest
+            {
+                Message = TranslationManager.Instance["Settings_LocalSend_ClipboardHasNoImage"],
+                Position = NotificationPosition.BottomNotice,
+            }, typeof(LocalSendCollectPanel).Assembly);
+            return;
+        }
+
+        vm.AddPaths([path]);
     }
 
     private void RemoveItem_Click(object sender, RoutedEventArgs e)

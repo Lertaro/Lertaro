@@ -26,16 +26,43 @@ internal static class SearchMatcherAliasExtensions
         var matched = false;
         var (start, end) = snapshot.AliasEntryRange(uid);
         string? nameStr = null;
-        // Segments of one entry: a string entry's '|'-split spellings, or a grid entry's materialized
-        // single-reading spellings. Unlike every other alias tier, this lane matches an alias as TEXT (it
-        // maps the positions it took back onto the source), so a grid entry has to be spelled out.
+        // Segments of one entry: its '|'-split spellings. This lane matches an alias as TEXT (it maps the
+        // positions it took back onto the source), so the entry has to be decoded here -- unlike the
+        // tiers above, which decide against the alias's raw bytes.
         var segments = MixedSegments;
+
+        // A live provider's readings are not in the snapshot at all, so the spelling this lane matches
+        // is materialized from the provider (AppendSpellings); the entry loop below then adds whatever
+        // string entries the same provider still bakes (the Simplified spelling).
+        if (mixedTerm.Provider is PluginSdk.Abstractions.Plugins.IAliasLiveMatcherProvider liveProvider)
+        {
+            nameStr = name.ToString();
+            segments.Clear();
+            liveProvider.AppendSpellings(nameStr, segments);
+            foreach (var segment in segments)
+            {
+                if (!MixedQueryMatcher.TryMatch(mixedTerm, name, nameStr, segment, out var liveMm))
+                    continue;
+                var liveCandidate = new FzfPatternResult(liveMm.Score, liveMm.MinBegin, liveMm.MaxEnd, liveMm.MaxEnd, liveMm.ValidOffsetFound);
+                if (!matched || liveCandidate.Score > best.Score)
+                {
+                    matched = true;
+                    best = liveCandidate;
+                }
+            }
+        }
+
         for (var e = start; e < end; e++)
         {
             if (snapshot.AliasProviderId(e) != mixedTerm.ProviderId)
                 continue;
 
-            SearchMatcherGridAliases.CollectMixedSegments(snapshot, e, mixedTerm.ProviderId, segments);
+            segments.Clear();
+            foreach (var segment in Encoding.UTF8.GetString(snapshot.AliasUtf8(e)).Split('|'))
+            {
+                if (segment.Length > 0)
+                    segments.Add(segment);
+            }
             foreach (var segment in segments)
             {
                 nameStr ??= name.ToString();
@@ -71,17 +98,6 @@ internal static class SearchMatcherAliasExtensions
         {
             if (disabledIds != null && disabledIds.Contains(snapshot.AliasProviderId(e)))
                 continue;
-
-            if (snapshot.AliasKind(e) == AliasEntryKind.Grid)
-            {
-                var gridMatch = SearchMatcherGridAliases.TryMatchEntry(snapshot, ctx, e, worker);
-                if (gridMatch != null && (!matched || gridMatch.Value.Score > best.Score))
-                {
-                    matched = true;
-                    best = gridMatch.Value;
-                }
-                continue;
-            }
 
             var aliasUtf8 = snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)

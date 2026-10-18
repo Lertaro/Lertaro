@@ -97,6 +97,15 @@ public sealed class SettingsSearchIndexTests
     }
 
     [TestMethod]
+    public void TheInlineCardWidthSettingIsSearchable()
+    {
+        var entry = SettingsSearchIndex.Entries.SingleOrDefault(e => e.LabelKey == "General_InlineSearchWindowWidth");
+
+        Assert.IsNotNull(entry, "the inline card's width setting has no search index entry");
+        Assert.AreEqual("TabSystem/RowInlineSearchWidth", entry!.TargetElementName);
+    }
+
+    [TestMethod]
     public void ThePluginRuntimeStatusTabIsSearchable()
     {
         var entry = SettingsSearchIndex.Entries.SingleOrDefault(e => e.LabelKey == "Plugins_TabRuntimeStatus");

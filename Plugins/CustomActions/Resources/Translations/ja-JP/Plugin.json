@@ -6,7 +6,7 @@
   "CustomActions_Config_EnabledLabel": "有効",
   "CustomActions_Config_TitleLabel": "タイトル",
   "CustomActions_Config_PathLabel": "パス（プログラムまたはファイル）",
-  "CustomActions_Config_ParameterLabel": "パラメーター（%s または {} = 選択したパス。自動で引用符が付くため自分で引用符を追加しないでください。空欄の場合、引用符付きのパスそのものがパラメーターとして使われます）",
+  "CustomActions_Config_ParameterLabel": "パラメーター（%s または {} = 選択したパス、%c または {c} = クリップボードのテキスト。自動で引用符が付くため自分で引用符を追加しないでください。空欄の場合、引用符付きのパスそのものがパラメーターとして使われます）",
   "CustomActions_Config_IconLabel": "アイコン（SVG パスデータ）",
   "CustomActions_Config_WorkingDirLabel": "作業ディレクトリ",
   "CustomActions_Config_RunSilentlyLabel": "サイレント実行",

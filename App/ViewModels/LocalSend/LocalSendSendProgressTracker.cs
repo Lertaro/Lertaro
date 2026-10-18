@@ -43,7 +43,12 @@ internal sealed class LocalSendSendProgressTracker
 
     internal void UpdateProgress(LocalSendSendProgressArgs args, string waitingText)
     {
-        if (!TryGet(args.FileIndex, out var item)) return;
+        // A tick coalesced on the way to the UI thread can arrive after the same file's confirmation has
+        // already been painted, because the confirmation is dispatched normally while the progress queue
+        // runs at background priority. Reopening a finished row is the one thing a late tick must never do:
+        // it would sit reading "waiting for confirmation" forever, since neither a second tick nor a second
+        // confirmation is ever coming for that file.
+        if (!TryGet(args.FileIndex, out var item) || item.IsConfirmed) return;
         item.ShowProgress = true;
         var limit = args.Stage == LocalSendTransferStage.CalculatingChecksum ? 100 : 99;
         item.ProgressPercentage = args.TotalBytes > 0 ? Math.Min(limit, (double)args.BytesSent / args.TotalBytes * 100) : 0;

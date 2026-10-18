@@ -4,7 +4,7 @@ using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.PinyinAlias;
 
-public class PinyinAliasProvider : IAliasGridProvider, ITranslationProvider, IConfigurable
+public class PinyinAliasProvider : IAliasLiveMatcherProvider, ITranslationProvider, IConfigurable
 {
     public string Name => TranslationService.Get("Plugins_PinyinAliasPluginName");
 
@@ -17,11 +17,18 @@ public class PinyinAliasProvider : IAliasGridProvider, ITranslationProvider, ICo
     // 5: a name whose full pinyin overran the combination path's per-variant cap baked NO alias at all,
     // leaving it unreachable by every pinyin query; it now falls back to the single-reading spelling, so
     // snapshots baked before this are missing aliases for exactly those names.
-    // 6: the host stores this provider's readings as a grid rather than as spelled-out aliases, so a
-    // name's own reading is reachable even where the enumeration was cut off (市 is "fu" alphabetically
-    // first and "shi" in 创意市集, and only the grid offers both). Snapshots baked before this hold the
-    // capped enumeration, which is why this exists rather than being a pure query-side change.
-    public int Version => 6;
+    // 6: at that bump the host began storing this provider's readings as a per-position grid rather than as
+    // spelled-out aliases, so a name's own reading stayed reachable even where the enumeration had been cut
+    // off (市 is "fu" alphabetically first and "shi" in 创意市集, and only the grid offered both). Snapshots
+    // baked before it held the capped enumeration, which is why this exists rather than being a pure
+    // query-side change.
+    // 7: matching left the index entirely. The provider decides a query term LIVE against the
+    // candidate's readings (IAliasLiveMatcherProvider; see PinyinTermMatcher), so no reading-derived
+    // aliases are baked at all any more -- the only alias this provider still emits is the Simplified
+    // spelling of a Traditional name, and the grid form the previous bump wrote is gone with it. A snapshot
+    // stamped with an older version holds spelled-out pinyin aliases that no query consults, and the
+    // readings those baked aliases described now reach matching through the live matcher instead.
+    public int Version => 7;
 
     public IReadOnlyList<string> SupportedCultures => TranslationService.GetSupportedCultures(System.Reflection.Assembly.GetExecutingAssembly());
 
@@ -29,20 +36,18 @@ public class PinyinAliasProvider : IAliasGridProvider, ITranslationProvider, ICo
 
     public IReadOnlyList<(char Start, char End)> OutputRanges { get; } = new[] { ('a', 'z') };
 
-    // Only the FULL-pinyin alias carries syllable boundaries; the initials alias is one character per
-    // source character and has no internal structure (see PinyinAliasFormat). Core uses this to reject a
-    // precise match that begins mid-syllable, which is what stops "ex" being read as the tail of "xue"
-    // plus the head of "xi".
+    // Kept for the string aliases this provider still emits (the Simplified spelling) -- the reading
+    // matching itself went live and needs no separator. The Simplified alias is flat, so the alignment
+    // rule is a no-op on it; other providers are unaffected.
     public char SyllableSeparator => PinyinAliasFormat.SyllableSeparator;
     private static readonly Dictionary<string, Dictionary<string, string>> Cache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly object LockObj = new();
 
     // Live-path result cache: FuzzyMatcher.IsMatch, HighlightMask, and PathGate's live fallback all
-    // regenerate aliases for the SAME texts on every keystroke (e.g. an instant-result plugin
-    // fuzzy-scanning thousands of titles per keypress). Two bounded generations, swapped when the
-    // current one fills, keep memory capped with LRU-ish retention -- measured ~20x on that path.
-    // Values are immutable arrays, safe to hand to any number of callers. The bulk indexing path
-    // uses GetAliasesUtf8 instead and never touches this cache.
+    // regenerate the Simplified spelling for the SAME texts on every keystroke (e.g. an instant-result
+    // plugin fuzzy-scanning thousands of titles per keypress). Two bounded generations, swapped when
+    // the current one fills, keep memory capped with LRU-ish retention -- measured ~20x on that path.
+    // Values are immutable arrays, safe to hand to any number of callers.
     private const int ResultCacheCap = 4096;
     private static readonly object ResultCacheLock = new();
     private static Dictionary<string, string[]> _resultCacheCur = new(StringComparer.Ordinal);
@@ -117,6 +122,8 @@ public class PinyinAliasProvider : IAliasGridProvider, ITranslationProvider, ICo
         }
     }
 
+    // The Simplified spelling is the only alias this provider emits: the readings are decided live from
+    // the matcher (CreateMatcher), so nothing about them is baked or matched as text.
     public IEnumerable<string> GetAliases(string text)
     {
         if (string.IsNullOrEmpty(text))
@@ -144,9 +151,7 @@ public class PinyinAliasProvider : IAliasGridProvider, ITranslationProvider, ICo
             }
         }
 
-        var generated = PinyinAliasCombinationGenerator.GenerateAliases(text)
-            .Concat(SimplifiedForms(text, convert, HanConversion.ToSimplified))
-            .ToArray();
+        var generated = SimplifiedForms(text, convert, HanConversion.ToSimplified).ToArray();
 
         lock (ResultCacheLock)
         {
@@ -162,23 +167,17 @@ public class PinyinAliasProvider : IAliasGridProvider, ITranslationProvider, ICo
     }
 
     // "alias" here is one single combination already (caller splits '|'-joined alternatives first).
-    // Query-side counterpart of the syllable boundaries GetAliases emits: "zhengshu" is offered back
-    // as "zheng<SEP>shu" so it still reaches 证书, while a term that is not a syllable sequence at all
-    // ("gsh") yields nothing and is left with only the initials alias to match -- which is the whole
-    // point, since that term only ever reached the full pinyin by straddling a syllable boundary.
-    //
-    // The Simplified spelling rides along as one more OR alternative, which is what lets a Traditional
-    // query ("電腦") reach a Simplified name ("电脑") directly. It is not syllable-structured, so it is
-    // treated as a flat alias by the alignment rule, exactly like the initials alias. The reverse
-    // direction needs nothing here: a Simplified query is already the spelling the Traditional name's
-    // alias set now carries.
+    // With the readings matched live, the one query-side form this provider still offers is the
+    // Simplified spelling, which is what lets a Traditional query ("電腦") reach a Simplified name
+    // ("电脑") through the string-alias tier. It is not syllable-structured, so it is treated as a flat
+    // alias by the alignment rule, exactly like before. The reverse direction needs nothing here: a
+    // Simplified query is already the spelling the Traditional name's alias set carries.
     public IEnumerable<string> GetQueryForms(string term)
     {
         if (string.IsNullOrEmpty(term))
             return Array.Empty<string>();
 
-        return PinyinQuerySegmenter.Segment(term)
-            .Concat(SimplifiedForms(term, ConvertEnabled, HanConversion.ToSimplified));
+        return SimplifiedForms(term, ConvertEnabled, HanConversion.ToSimplified);
     }
 
     public int[]? MapAliasToSourceIndices(string text, string alias)
@@ -260,10 +259,10 @@ public class PinyinAliasProvider : IAliasGridProvider, ITranslationProvider, ICo
         for (var sourceIndex = 0; sourceIndex < text.Length && aliasPos < alias.Length; sourceIndex++)
         {
             // Consume the syllable boundary this position is generated with. It maps to the character
-            // it introduces, so a query form that spans it (PinyinQuerySegmenter emits exactly that
-            // shape) still highlights both syllables it sits between. Demanding it where one is due --
-            // rather than skipping whatever happens to be there -- keeps this returning null for an
-            // alias that did not come from this provider for this text, which is what the contract says.
+            // it introduces, so a query form that spans it still highlights both syllables it sits
+            // between. Demanding it where one is due -- rather than skipping whatever happens to be
+            // there -- keeps this returning null for an alias that did not come from this provider
+            // for this text, which is what the contract says.
             if (PinyinAliasFormat.NeedsSeparatorBefore(text, sourceIndex))
             {
                 if (aliasPos >= alias.Length || alias[aliasPos] != PinyinAliasFormat.SyllableSeparator)
@@ -294,28 +293,31 @@ public class PinyinAliasProvider : IAliasGridProvider, ITranslationProvider, ICo
         return aliasPos == alias.Length ? map : null;
     }
 
-    // Byte-native mirror of GetAliases, used by the host's bulk indexing path; extracted to
-    // PinyinAliasUtf8Encoder (composition, not a partial class) purely to keep this file under the
-    // repo's per-file line limit.
+    // Byte-native mirror of GetAliases, used by the host's bulk indexing path; the Simplified-only
+    // shape lives in PinyinAliasUtf8Encoder.
     public void GetAliasesUtf8(string text, AliasByteSink dest) =>
         PinyinAliasUtf8Encoder.Encode(text, dest, ConvertEnabled, HanConversion.ToSimplified);
 
-    // IAliasGridProvider. Deliberately delegates to the very same per-position readings the string and
-    // byte generation paths already build their aliases from, so the grid cannot disagree with either
-    // about what a character reads as: the two encodings are the same alias space, and the host picks
-    // between them per name. GetSyllableLists' returned array is thread-static scratch -- the host
-    // copies what it needs before calling back in, which is the lifetime the interface documents.
+    // IAliasLiveMatcherProvider. One immutable NFA per (term, commonOnly): built once per query term
+    // and shared across every candidate on every thread. Null for a term this provider cannot decide
+    // (fewer than 2 or more than 63 characters, non-ASCII, or no letters), which the caller answers
+    // with literal matching alone.
+    public IAliasTermMatcher? CreateMatcher(string foldedTerm, bool commonOnly)
+    {
+        var matcher = new PinyinTermMatcher(foldedTerm, commonOnly);
+        return matcher.IsValid ? matcher : null;
+    }
+
+    // IAliasLiveMatcherProvider. The readings still feed the bake-time prefilter mask and nothing
+    // else now: matching itself goes through CreateMatcher's own table walk, so this exists solely so
+    // SnapshotWriter's char mask can admit a pinyin query's letters for a CJK name.
     public string[][] GetReadingSets(string text) => PinyinAliasCombinationGenerator.GetSyllableLists(text);
 
-    public bool NeedsSeparatorBefore(string text, int index) => PinyinAliasFormat.NeedsSeparatorBefore(text, index);
-
-    // The pinyin half of GetAliasesUtf8, separated so the host can weigh it against the grid and keep
-    // whichever is smaller for a given name. The Simplified spelling is not a spelling of the readings,
-    // so it goes out through GetStandaloneAliasesUtf8 and survives either way.
-    public void GetReadingAliasesUtf8(string text, AliasByteSink dest) => PinyinAliasUtf8PinyinEncoder.Encode(text, dest);
-
-    public void GetStandaloneAliasesUtf8(string text, AliasByteSink dest) =>
-        PinyinAliasUtf8Encoder.AppendSimplified(text, dest, ConvertEnabled, HanConversion.ToSimplified);
+    // IAliasLiveMatcherProvider. The mixed-alphabet lane (电nao) matches an alias as TEXT and maps the
+    // positions it took back onto the source, so it needs one concrete spelling: the same
+    // single-reading spelling the index used to bake for it.
+    public void AppendSpellings(string text, List<string> dest) =>
+        PinyinAliasCombinationGenerator.AppendDefaultSpellings(text, dest);
 
     // The one configurable surface this assembly has -- see PinyinAliasConfigSchema.
     public PluginConfigSchema GetConfigSchema() => PinyinAliasConfigSchema.Create();

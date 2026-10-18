@@ -4,10 +4,13 @@ using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.PinyinAlias.Tests;
 
+// The provider's own surface after the live switch: the only alias it still emits is the Simplified
+// spelling of a Traditional name (the readings are decided by CreateMatcher -- see
+// PinyinAliasLiveProviderTests and PinyinTermMatcherTests), and the query-side form mirrors that.
+//
 // GetAliases' result cache is process-wide and keyed only by text, and PinyinAliasSimplifiedConversionTests
 // flips the conversion setting behind it, so this class clears the cache and pins the setting back to its
-// default (no GetSettingFunc means the call site's own default) before every test. Without that, a cache
-// entry baked under the other setting could answer a test here.
+// default (no GetSettingFunc means the call site's own default) before every test.
 [TestClass]
 [DoNotParallelize]
 public sealed class PinyinAliasProviderTests
@@ -43,11 +46,19 @@ public sealed class PinyinAliasProviderTests
     }
 
     [TestMethod]
-    public void GetAliases_ChineseText_ReturnsNonEmptyResults()
+    public void GetAliases_SimplifiedName_ReturnsNothing()
     {
-        var aliases = Provider.GetAliases("中国").ToList();
+        // The readings are matched live now; a name that is already Simplified contributes no alias.
+        Assert.IsEmpty(Provider.GetAliases("中国"));
+    }
 
-        Assert.IsNotEmpty(aliases);
+    [TestMethod]
+    public void GetAliases_TraditionalName_ReturnsItsSimplifiedSpelling()
+    {
+        var aliases = Provider.GetAliases("電腦").ToList();
+
+        Assert.HasCount(1, aliases);
+        Assert.AreEqual("电脑", aliases[0]);
     }
 
     [TestMethod]
@@ -61,6 +72,16 @@ public sealed class PinyinAliasProviderTests
 
     [TestMethod]
     public void GetAliases_EmptyText_ReturnsEmpty() => Assert.IsEmpty(Provider.GetAliases(""));
+
+    [TestMethod]
+    public void GetQueryForms_SimplifiedSpellingOnly()
+    {
+        // A pinyin word gets no rewriting any more (the live matcher reads the typed letters
+        // directly), and a Simplified word is a no-op; only a Traditional term gains its form.
+        Assert.IsEmpty(Provider.GetQueryForms("zhong"));
+        Assert.IsEmpty(Provider.GetQueryForms("创意"));
+        CollectionAssert.AreEqual(new[] { "电脑" }, Provider.GetQueryForms("電腦").ToList());
+    }
 
     [TestMethod]
     public void MapAliasToSourceIndices_InitialsAlias_ReturnsIdentityMapping()
@@ -98,38 +119,10 @@ public sealed class PinyinAliasProviderTests
     [TestMethod]
     public void MapAliasToSourceIndices_UnmatchableAlias_ReturnsNull() => Assert.IsNull(Provider.MapAliasToSourceIndices("中国", "xyz123"));
 
-    // Regression test for a real bug: a browser tab title like "example.com | 代理" has a literal '|'
-    // before the Chinese portion. Before the fix, that '|' passed straight through into the generated
-    // alias, got misread by every downstream consumer as an alternative-reading boundary, and the
-    // Chinese portion's highlight (and, depending on positioning, its match) silently disappeared.
-    [TestMethod]
-    public void GetAliases_TextWithLiteralPipe_NeverContainsLiteralPipeCharacter()
-    {
-        var aliases = Provider.GetAliases("id | 中").ToList();
-
-        foreach (var alias in aliases)
-            Assert.DoesNotContain("|", alias);
-    }
-
-    [TestMethod]
-    public void MapAliasToSourceIndices_TextWithLiteralPipe_StillMapsChinesePortionToItsSourceChar()
-    {
-        var text = "id | 中";
-        var fullAlias = Provider.GetAliases(text).First(a => a.EndsWith("zhong", StringComparison.Ordinal));
-
-        var map = Provider.MapAliasToSourceIndices(text, fullAlias);
-
-        Assert.IsNotNull(map);
-        // "中" is the last character of `text` (source index 5) -- every position of the trailing
-        // "zhong" syllable in the alias must map back to that one source character.
-        for (var i = map.Length - 5; i < map.Length; i++)
-            Assert.AreEqual(5, map[i]);
-    }
-
     [TestMethod]
     public void GetAliasesUtf8_MatchesGetAliases()
     {
-        var text = "中国人民";
+        var text = "電腦";
         var expected = Provider.GetAliases(text).ToList();
 
         var sink = new AliasByteSink();
@@ -138,43 +131,13 @@ public sealed class PinyinAliasProviderTests
         CollectionAssert.AreEquivalent(expected, DecodeSegments(sink));
     }
 
-    // The host derives "is this the full reading or the initials shorthand" purely from which alias
-    // carries the declared separator (see AliasMatchRules.TierFor). That makes the two facts asserted here
-    // a CONTRACT, not an implementation detail: if the initials alias ever gained a separator, every
-    // initials match would be scored as a full reading and the ranking would silently invert.
+    // The host reads "does this alias carry the declared separator" to tell a full reading from an
+    // initials shorthand (see AliasMatchRules.TierFor); the Simplified alias is flat either way, but
+    // the declaration also drives the alias-side reading of every string tier this provider feeds.
     [TestMethod]
     public void DeclaresTheSyllableSeparatorItsFullReadingActuallyUses()
     {
         Assert.AreEqual(PinyinAliasFormat.SyllableSeparator, Provider.SyllableSeparator);
         Assert.AreNotEqual('\0', Provider.SyllableSeparator, "the host reads '\\0' as 'this provider has no structure'");
-    }
-
-    [TestMethod]
-    public void InitialsAliasCarriesNoSeparator_FullReadingDoes()
-    {
-        var aliases = Provider.GetAliases("证书").ToList();
-
-        // The full reading marks every syllable boundary; the initials alias is one letter per character.
-        var full = aliases.Single(a => a.Contains(PinyinAliasFormat.SyllableSeparator));
-        Assert.Contains(PinyinAliasFormat.SyllableSeparator, full);
-
-        var initials = aliases.Except(new[] { full }).ToList();
-        Assert.IsNotEmpty(initials, "the provider must also offer an initials alias");
-        foreach (var alias in initials)
-            Assert.DoesNotContain(PinyinAliasFormat.SyllableSeparator, alias);
-    }
-
-    [TestMethod]
-    public void InitialsAliasIsExactlyOneCharacterPerSourceCharacter()
-    {
-        // Same fact from the other side: that shape is what makes every position in it a boundary.
-        var text = "证书";
-        var initials = Provider.GetAliases(text)
-            .Where(a => !a.Contains(PinyinAliasFormat.SyllableSeparator))
-            .ToList();
-
-        Assert.IsNotEmpty(initials);
-        foreach (var alias in initials)
-            Assert.HasCount(text.Length, alias);
     }
 }

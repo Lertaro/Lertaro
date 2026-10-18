@@ -18,13 +18,13 @@
 
 ## 2. PinyinAlias —— 非 ASCII 别名转写引擎
 
-`PinyinAlias` 插件专门为中文文件名提供拼音全拼与首字母缩写检索支持，同时实现了 `IAliasProvider` 与 `ITranslationProvider` 两个接口。
+`PinyinAlias` 插件专门为中文文件名提供拼音全拼与首字母缩写检索支持，同时实现了 `IAliasLiveMatcherProvider`（`IAliasProvider` 的扩展）与 `ITranslationProvider` 两个接口。
 
 ### 核心实现要点
 
 - **输入/输出字母表边界（`InputRanges` / `OutputRanges`）**：输入边界只声明一段 CJK 表意文字区间（U+3007–U+9FFD），输出范围则是小写 `a`–`z`。宿主利用该边界智能将“大cj”等混合查询切分为字面匹配与拼音别名匹配。
 - **快速预检过滤（`CanHandle(text)`）**：在生成别名前先扫描文本中是否存在中文字符，对于纯英文字符串直接返回 `false`，完全跳过后续开销。
-- **多音字组合与别名构建（`GetAliases(text)`）**：先构建字符级音节表，对于含多音字的文件名（如“重”、“长”），自动生成各常见读音组合并使用 `|` 管道符连接（上限 32 种组合以防爆炸），供搜索引擎作为候选集并行匹配。
+- **读音实时匹配（`IAliasLiveMatcherProvider`）**：读音不再写进索引。插件为每个查询词构造一个不可变的位并行匹配器（2–63 个 ASCII 字母/数字），宿主用它逐个字符扫描候选名：每个字符可以吃掉该字任一读音的非空前缀，因此命中必是一段连续片段，多音字名字也不额外占用。`GetAliases(text)` 现在只输出繁转简写法。
 - **内嵌多语言与线程安全缓存**：通过 `ITranslationProvider` 提供插件显示名称与描述的多语言本地化，并在内部使用带 `lock` 保护的字典缓存解析后的 JSON 翻译，避免每次查询重复解析。
 
 ## 3. FlowLauncherBridge —— 跨生态桥接与隔离运行时
