@@ -10,8 +10,7 @@
         ShowInTaskbar="False"
         Topmost="True"
         UseLayoutRounding="True"
-        SnapsToDevicePixels="True"
-        TextOptions.TextFormattingMode="Display">
+        SnapsToDevicePixels="True">
 
     <Window.Resources>
         <ResourceDictionary>

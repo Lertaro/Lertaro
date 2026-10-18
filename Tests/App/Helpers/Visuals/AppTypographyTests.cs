@@ -176,7 +176,7 @@ public sealed class AppTypographyTests
     {
         var typeface = new Typeface(AppTypography.MonospaceFont, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
         double Width(string value) => new FormattedText(value, CultureInfo.GetCultureInfo("zh-CN"),
-            FlowDirection.LeftToRight, typeface, 11, Brushes.Black, null, TextFormattingMode.Display, 1).WidthIncludingTrailingWhitespace;
+            FlowDirection.LeftToRight, typeface, 11, Brushes.Black, null, TextFormattingMode.Ideal, 1).WidthIncludingTrailingWhitespace;
 
         Assert.AreEqual(Width("iiii"), Width("WWWW"), 0.01, "Latin log columns must use fixed-width advances");
         Assert.IsGreaterThan(Width("INFO "), Width("INFO 中文日志"));
@@ -185,7 +185,6 @@ public sealed class AppTypographyTests
     [StaTestMethod]
     public void LogDocumentUsesTheSharedFontAndLanguageWithoutChangingCopiedText()
     {
-        RuntimeHelpers.RunClassConstructor(typeof(Lertaro.App.App).TypeHandle);
         var root = new Window();
         AppTypography.Initialize(root.Resources, "zh-TW");
         var page = new ServiceSettingsPage();

@@ -21,15 +21,6 @@ namespace Lertaro.App;
 
 public partial class App : Application
 {
-    // Set before InitializeComponent creates controls, including plugin content and popup controls.
-    static App()
-    {
-        System.Windows.Media.TextOptions.TextFormattingModeProperty.OverrideMetadata(
-            typeof(FrameworkElement), new FrameworkPropertyMetadata(System.Windows.Media.TextFormattingMode.Display));
-        System.Windows.Media.TextOptions.TextFormattingModeProperty.OverrideMetadata(
-            typeof(FrameworkContentElement), new FrameworkPropertyMetadata(System.Windows.Media.TextFormattingMode.Display));
-    }
-
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
     private static extern bool AllowSetForegroundWindow(int dwProcessId);

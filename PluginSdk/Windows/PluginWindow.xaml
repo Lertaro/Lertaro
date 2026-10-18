@@ -6,8 +6,7 @@
         WindowStartupLocation="CenterScreen" ShowInTaskbar="False"
         WindowStyle="None" Background="{DynamicResource CardBackground}"
         TextElement.Foreground="{DynamicResource TextPrimary}"
-        UseLayoutRounding="True" SnapsToDevicePixels="True"
-        TextOptions.TextFormattingMode="Display">
+        UseLayoutRounding="True" SnapsToDevicePixels="True">
 
     <!-- The window is opaque, which is what lets its text be antialiased sub-pixel; the chrome is what
          keeps an opaque borderless window behaving: an invisible resize border instead of the OS's chunky

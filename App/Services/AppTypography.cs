@@ -64,11 +64,14 @@ internal static class AppTypography
         }
     }
 
-    // The font sizes this app renders at, rounded up to the next rung. Whole numbers matter now for a
-    // reason that has nothing to do with tidiness: the app renders with Display metrics, which snap every
-    // glyph advance to a whole pixel, so a fractional size puts that snapping on screen as uneven spacing
-    // between letters -- soft text's other half, and the half a window kind cannot fix. Rounded UP rather
-    // than to nearest because the computed size is the smallest the text was designed to stay legible at.
+    // The font sizes this app renders at, rounded up to the next rung. This used to carry a clarity
+    // argument: the app forced TextFormattingMode.Display, which snaps every glyph advance to a whole
+    // pixel, so a fractional size showed up as uneven spacing between letters. That forcing is gone (the
+    // six places that measure a run with FormattedText all use the plain constructor, which is Ideal, so
+    // the app was laying text out on metrics its own measuring code never asked for), and what is left
+    // here is a size vocabulary: one ladder for every computed size, so two rows that should look alike
+    // do, and nothing renders at a fractional em. Rounded UP rather than to nearest because the computed
+    // size is the smallest the text was designed to stay legible at.
     internal static readonly double[] FontSizeLadder = [12, 14, 16, 18, 20, 24, 28, 32, 36];
 
     /// <summary>Quantises a computed font size onto <see cref="FontSizeLadder"/>.</summary>

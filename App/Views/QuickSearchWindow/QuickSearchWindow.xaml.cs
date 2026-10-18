@@ -100,12 +100,13 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     // "not a candidate" -- the controller's own park after a hide has the full account of why.
     internal const double ParkedOffScreen = -32000;
 
-    // What section 五 asked for, and why there is nothing here to set: Display metrics are the app's own
-    // default for every element (App.xaml.cs overrides TextFormattingModeProperty's metadata, with a test
-    // guarding it), layout rounding and pixel snapping likewise (AppTypography.OnRootLoaded), and
-    // TextRenderingMode stays Auto because Auto on a surface that can carry sub-pixel antialiasing *is*
-    // ClearType. The one thing that had to change for all of that to reach the text the user reads was
-    // this window's own override, which is gone -- see the constructor.
+    // Section 五 asked what this window should set, and the answer is: nothing. TextRenderingMode stays
+    // Auto, which is the mode that follows the system's own font-smoothing choice rather than overriding
+    // it, and layout rounding and pixel snapping come from AppTypography.OnRootLoaded. TextFormattingMode
+    // is no longer forced either -- App.xaml.cs used to override its metadata to Display, and this window
+    // had an Ideal override against that, deleted on the reasoning that the app default already covered
+    // it. With the app default back at WPF's own Ideal, that deletion is what put the box back where its
+    // override wanted it, so the two removals agree rather than cancel.
 
     public ShellMenuPresenter? MenuPresenter => _menuPresenter;
     public QuickSearchViewModel ViewModel => _viewModel;
