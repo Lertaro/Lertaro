@@ -246,7 +246,7 @@ begin
   // Logged, not shown: a machine without PowerShell (or with it blocked by policy) can't be repaired
   // from here, and the same commands are written out in the troubleshooting guide for that case.
   if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
-       '-NoProfile -NonInteractive -Command "' + Command + '"', '',
+       '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' + Command + '"', '',
        SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then
     Log('Could not disable the user-mode shadow stack for ' + ExpandConstant('{app}') +
       ' (PowerShell exit code ' + IntToStr(ResultCode) + '). Lertaro may still fail to start with' +
