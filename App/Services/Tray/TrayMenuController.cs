@@ -2,19 +2,28 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 using Lertaro.Core;
+using Lertaro.App.Services.ShellMenu.ActionFlyout;
 using Lertaro.App.Services.ShellMenu.QuickNav;
-using ContextMenu = System.Windows.Controls.ContextMenu;
 using MenuItem = System.Windows.Controls.MenuItem;
+using Menu = System.Windows.Controls.Menu;
+using KeyEventArgs = System.Windows.Input.KeyEventArgs;
+using Application = System.Windows.Application;
 using HorizontalAlignment = System.Windows.HorizontalAlignment;
 
 namespace Lertaro.App.Services.Tray;
 
 // Split out to keep TrayIconService focused on the native icon; this owns only the WPF menu surface.
+// The surface is an opaque Popup hosting a Menu, not a ContextMenu. WPF builds the popup inside every
+// ContextMenu itself, with AllowsTransparency hardcoded to true at the moment the popup is created, in a
+// private field and with no overridable factory, so re-templating the menu cannot reach it. A layered
+// window cannot render subpixel antialiasing, which is why every row of the old tray menu read gray.
 internal sealed class TrayMenuController : IDisposable
 {
     private readonly Action _visibilityChanged;
-    private ContextMenu? _menu;
+    private Menu? _menu;
+    private Popup? _popup;
     private MenuItem? _showWindow;
     private MenuItem? _send;
     private MenuItem? _toggleHotkeys;
@@ -38,8 +47,8 @@ internal sealed class TrayMenuController : IDisposable
         EnsureInitialized();
         _showWindowOverride = null;
         _showWindow!.Visibility = Visibility.Visible;
-        CloseAnchor();
-        // The anchor is a 1x1 window nothing is ever drawn in: it exists only so the menu has a placement
+        CloseMenu();
+        // The anchor is a 1x1 window nothing is ever drawn in: it exists only so the popup has a placement
         // target and an owner to lose activation through. It cannot stay layered, and it has no card to be
         // opaque with — a transparent background would paint black, so it takes the menu's own brush and its
         // one pixel sits under the menu it anchors.
@@ -54,16 +63,7 @@ internal sealed class TrayMenuController : IDisposable
         _anchor.SetResourceReference(Window.BackgroundProperty, "MenuBackground");
         _anchor.Show();
         _anchor.Activate();
-        _menu!.PlacementTarget = _anchor;
-        _menu.Placement = PlacementMode.MousePoint;
-        RoutedEventHandler? closed = null;
-        closed = (_, _) =>
-        {
-            _menu.Closed -= closed;
-            CloseAnchor();
-        };
-        _menu.Closed += closed;
-        _menu.IsOpen = true;
+        OpenMenu(_anchor);
     }
 
     public void ShowAt(UIElement target, Action? onShowWindow, bool hideShowWindow)
@@ -71,9 +71,8 @@ internal sealed class TrayMenuController : IDisposable
         EnsureInitialized();
         _showWindowOverride = onShowWindow;
         _showWindow!.Visibility = hideShowWindow ? Visibility.Collapsed : Visibility.Visible;
-        _menu!.PlacementTarget = target;
-        _menu.Placement = PlacementMode.MousePoint;
-        _menu.IsOpen = true;
+        CloseMenu();
+        OpenMenu(target);
     }
 
     private void EnsureInitialized()
@@ -83,9 +82,32 @@ internal sealed class TrayMenuController : IDisposable
         _send!.Visibility = UserSettings.Load().LocalSend.Enabled ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    private void OpenMenu(UIElement target)
+    {
+        var popup = _popup!;
+        popup.PlacementTarget = target;
+        popup.Placement = PlacementMode.MousePoint;
+        popup.IsOpen = true;
+        // Focus has to land inside the popup, or the arrow keys and Escape keep going to whatever window
+        // the click left behind. A ContextMenu used to do this for itself the moment it opened.
+        _menu!.Focus();
+    }
+
     private void Initialize()
     {
-        _menu = new ContextMenu();
+        // The rows still take the app's implicit MenuItem style, so they read and measure like every other
+        // menu; only the host changes. Menu has no Orientation, so the shared panel resource replaces its
+        // horizontal item panel with a column. The popup, its chrome and the menu are built once and
+        // reopened: the Border holds the Menu as its child, and rebinding that per show would try to
+        // reparent an element that still belongs to the previous chrome.
+        _menu = new Menu
+        {
+            Background = System.Windows.Media.Brushes.Transparent,
+            ItemsPanel = (ItemsPanelTemplate)Application.Current.FindResource("VerticalMenuItemsPanel")
+        };
+        Grid.SetIsSharedSizeScope(_menu, true);
+        _menu.PreviewKeyDown += OnMenuKeyDown;
+
         _showWindow = Item("\uE721", () =>
         {
             var action = _showWindowOverride;
@@ -97,7 +119,7 @@ internal sealed class TrayMenuController : IDisposable
         _settings = Item("\uE713", () => App.ShowSettingsWindow());
         _about = Item("\uE946", () => App.ShowSettingsWindow("About"));
         _cleanExit = Item("\uE74D", () => TrayCleanExitHelper.CleanExit());
-        _exit = Item("\uF3B1", () => System.Windows.Application.Current.Shutdown());
+        _exit = Item("\uF3B1", () => Application.Current.Shutdown());
 
         _menu.Items.Add(_showWindow);
         _menu.Items.Add(_send);
@@ -109,13 +131,69 @@ internal sealed class TrayMenuController : IDisposable
         _menu.Items.Add(QuickNavigationMenu.CreateSeparator());
         _menu.Items.Add(_cleanExit);
         _menu.Items.Add(_exit);
+
+        var chrome = new Border
+        {
+            Style = (Style)Application.Current.FindResource("MenuPopupChrome"),
+            Child = _menu
+        };
+        // StaysOpen false is what used to dismiss the ContextMenu on a click anywhere outside it, and the
+        // same mouse capture does it here. No PopupAnimation: on an opaque surface a fade dims the menu
+        // instead of fading it in.
+        _popup = new Popup
+        {
+            StaysOpen = false,
+            Child = chrome
+        };
+        _popup.Closed += (_, _) => CloseAnchor();
         UpdateTexts();
     }
 
-    private static MenuItem Item(string glyph, Action action)
+    private void OnMenuKeyDown(object sender, KeyEventArgs e)
+    {
+        if (_popup is not { IsOpen: true } || _menu == null) return;
+        var key = ActionFlyoutItems.IsHighlightedKey;
+        if (key == null) return;
+        // Walked here rather than through the shared GetActiveMenuState because that one recurses into an
+        // open submenu this flat menu never has, and it gates only on IsEnabled: LocalSend's row is
+        // Collapsed, not disabled, when the feature is off, so the shared walk would let Enter launch a
+        // window the user turned off from an invisible row.
+        var items = _menu.Items.OfType<MenuItem>().Where(mi => mi.IsEnabled && mi.Visibility != Visibility.Collapsed).ToList();
+        var highlighted = items.FindIndex(mi => (bool)mi.GetValue(key.DependencyProperty));
+        switch (e.Key)
+        {
+            case Key.Escape:
+                e.Handled = true;
+                CloseMenu();
+                break;
+            case Key.Down or Key.Up when items.Count > 0:
+                var next = e.Key == Key.Down
+                    ? highlighted < 0 ? 0 : (highlighted + 1) % items.Count
+                    : highlighted <= 0 ? items.Count - 1 : highlighted - 1;
+                if (highlighted >= 0) items[highlighted].SetValue(key, false);
+                items[next].SetValue(key, true);
+                items[next].BringIntoView();
+                e.Handled = true;
+                break;
+            case Key.Enter or Key.Space when highlighted >= 0:
+                e.Handled = true;
+                // Raising the routed event is how the action flyout invokes a row too; the item's own Click
+                // handler then closes the menu and runs the action.
+                items[highlighted].RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+                break;
+        }
+    }
+
+    private MenuItem Item(string glyph, Action action)
     {
         var item = new MenuItem { Icon = glyph.Length == 0 ? null : CreateIcon(glyph, "MenuText") };
-        item.Click += (_, _) => action();
+        item.Click += (_, _) =>
+        {
+            // Close before running: a ContextMenu closed itself on a click, a Popup does not, and an item
+            // that opens a window must not leave the menu sitting on top of it.
+            CloseMenu();
+            action();
+        };
         return item;
     }
 
@@ -169,6 +247,13 @@ internal sealed class TrayMenuController : IDisposable
 
     private void OnLanguageChanged(object? sender, PropertyChangedEventArgs e) => UpdateTexts();
 
+    private void CloseMenu()
+    {
+        if (_popup is { IsOpen: true } popup)
+            popup.IsOpen = false;
+        CloseAnchor();
+    }
+
     private void CloseAnchor()
     {
         try { _anchor?.Close(); } catch { }
@@ -178,6 +263,6 @@ internal sealed class TrayMenuController : IDisposable
     public void Dispose()
     {
         TranslationManager.Instance.PropertyChanged -= OnLanguageChanged;
-        CloseAnchor();
+        CloseMenu();
     }
 }

@@ -182,6 +182,24 @@
 
     <Style x:Key="{x:Static MenuItem.SeparatorStyleKey}" TargetType="{x:Type Separator}" BasedOn="{StaticResource {x:Type Separator}}"/>
 
+    <!-- The shape of a menu hosted in its own opaque Popup rather than in a ContextMenu: a Menu laid out
+         as a vertical column (Menu has no Orientation, so its horizontal item panel has to be replaced),
+         inside the same one-pixel bordered card the ContextMenu template used to paint. Square on
+         purpose, because nothing rounds a Popup's own HWND and an opaque popup paints its uncovered
+         client area black, so a painted radius would read as four black wedges. Extracted here since
+         ActionFlyout and the quick-nav right-click menu each build this in code today; the tray menu is
+         the first caller to use it instead of a third copy. -->
+    <ItemsPanelTemplate x:Key="VerticalMenuItemsPanel">
+        <StackPanel/>
+    </ItemsPanelTemplate>
+
+    <Style x:Key="MenuPopupChrome" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource MenuBackground}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource MenuBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="6"/>
+    </Style>
+
     <!-- Non-interactive group-header row for the quick-navigation cascader's root menu (one per
          IQuickNavigationProvider), matching the actions list/flyout's own section-header look
          (ActionMenuItemTemplate's SectionHeaderVisibility block) without pulling in that template's
