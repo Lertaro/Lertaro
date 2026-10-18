@@ -86,19 +86,8 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         // Parked off screen right away, because startup shows this window to create its handle and does not
         // hide it until Loaded -- and an opaque window WPF has not painted yet is a black rectangle. Every
         // later show places it first, so nothing has to undo this.
-        //
-        // BOTH values, never Top alone: a window whose Left is still unset is created with CW_USEDEFAULT
-        // for x, and Windows then ignores y as well -- which puts the window at the cascade position near
-        // the top of the screen, visibly and unpainted. NotificationWindowManager's own park has both for
-        // the same reason, and its comment records an outside sampler catching a card at that position.
-        Left = ParkedOffScreen;
-        Top = ParkedOffScreen;
+        WindowParking.Park(this);
     }
-
-    // Where this app puts a window it never wants looked at. -32000 rather than merely off the edge of a
-    // screen: it is where Windows itself parks windows it has disabled, and the value enumerators treat as
-    // "not a candidate" -- the controller's own park after a hide has the full account of why.
-    internal const double ParkedOffScreen = -32000;
 
     // Section 五 asked what this window should set, and the answer is: nothing. TextRenderingMode stays
     // Auto, which is the mode that follows the system's own font-smoothing choice rather than overriding

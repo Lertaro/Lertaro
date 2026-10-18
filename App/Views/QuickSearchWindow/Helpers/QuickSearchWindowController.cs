@@ -4,6 +4,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Lertaro.App.Services;
 using Lertaro.App.Services.ShellIcons;
+using Lertaro.App.Helpers.Visuals;
 using Lertaro.Core;
 using Lertaro.App.ViewModels.Search;
 namespace Lertaro.App.Views.QuickSearchWindow.Helpers;
@@ -257,13 +258,11 @@ public class QuickSearchWindowController
             _window.Hide();
             // Hiding really does take the window off screen (WS_VISIBLE is cleared, and hit-testing can no
             // longer reach it), but Win32 still answers GetWindowRect with the rectangle it last occupied --
-            // which is a live-looking, on-screen, captioned window to any enumerator that leaves out the
-            // IsWindowVisible check. PixPin's element picker is one of them: it drew its selection box
-            // exactly where the previous summon had been. -32000 is where Windows itself parks windows it
-            // has disabled, and the value such enumerators recognise as "not a candidate". ShowWindow runs
-            // PositionWindow twice around the Show, so nothing has to undo this.
-            _window.Left = Lertaro.App.QuickSearchWindow.ParkedOffScreen;
-            _window.Top = Lertaro.App.QuickSearchWindow.ParkedOffScreen;
+            // which is a live-looking, on-screen window to any enumerator that leaves out the IsWindowVisible
+            // check. PixPin's element picker is one of them: it drew its selection box exactly where the
+            // previous summon had been. ShowWindow positions twice around the Show, so nothing has to undo
+            // this.
+            WindowParking.Park(_window);
             PowerThrottlingHelper.WindowHidden("quick");
 
             InlineSearchManager.Instance.KeyboardHook.IsQuickSearchWindowVisible = false;
