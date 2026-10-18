@@ -144,6 +144,32 @@ public sealed class AppTypographyTests
         Assert.AreEqual("ko-kr", icon.Language.IetfLanguageTag);
     }
 
+    // The rectangles that survived in the settings page were on plain CheckBox and Button instances: no
+    // style of this app touches them, so nothing was ever going to null the property per style. Checked as
+    // a local value rather than as the resolved property, because a theme style is not applied to a window
+    // that was never measured -- an assertion on the resolved value would pass here even if the handler did
+    // nothing at all.
+    [StaTestMethod]
+    public void PlainControlsAreGivenNoFocusRectangle()
+    {
+        var root = new Window();
+        AppTypography.Initialize(root.Resources, "zh-CN");
+        var check = new CheckBox { Content = "纳入此驱动器" };
+        var button = new Button { Content = "重建索引" };
+        var combo = new ComboBox();
+        var panel = new StackPanel();
+        panel.Children.Add(check);
+        panel.Children.Add(button);
+        panel.Children.Add(combo);
+        root.Content = panel;
+
+        foreach (var control in new System.Windows.Controls.Control[] { check, button, combo })
+        {
+            control.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
+            Assert.IsNull(control.ReadLocalValue(FrameworkElement.FocusVisualStyleProperty), control.GetType().Name);
+        }
+    }
+
     [StaTestMethod]
     public void ExplicitRootWeightIsNotReplacedByTheChineseDefault()
     {

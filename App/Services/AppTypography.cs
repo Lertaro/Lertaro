@@ -4,6 +4,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Markup;
 using FontFamily = System.Windows.Media.FontFamily;
+using Control = System.Windows.Controls.Control;
 using ContextMenu = System.Windows.Controls.ContextMenu;
 using ToolTip = System.Windows.Controls.ToolTip;
 
@@ -39,6 +40,28 @@ internal static class AppTypography
         foreach (var type in new[] { typeof(Window), typeof(Popup), typeof(ContextMenu), typeof(ToolTip) })
             EventManager.RegisterClassHandler(type, FrameworkElement.LoadedEvent,
                 new RoutedEventHandler(OnRootLoaded));
+
+        // The dotted focus rectangle is not this app's visual language: every surface it styles already
+        // nulls FocusVisualStyle by hand (list rows, text boxes, the search window's buttons, the sidebar,
+        // the menus), so the rectangles that survive are on controls nobody wrote a style for rather than
+        // on a cue anyone chose. Asked for once on every Control, because a per-type implicit style cannot
+        // do this job: a control carrying an explicit keyed style ignores the implicit style entirely and
+        // still takes the theme's rectangle for whatever property that style leaves alone.
+        // What this gives up is real, and chosen: keyboard focus stops being visible on plain controls.
+        // One RegisterClassHandler is all that has to go to bring the indication back.
+        EventManager.RegisterClassHandler(typeof(Control), FrameworkElement.LoadedEvent,
+            new RoutedEventHandler(OnControlLoaded));
+    }
+
+    private static void OnControlLoaded(object sender, RoutedEventArgs e)
+    {
+        // Loaded bubbles, so every control in the route hears it; act on the one that actually loaded.
+        if (!ReferenceEquals(sender, e.OriginalSource)) return;
+        var control = (Control)sender;
+        // A local value means someone set it deliberately for this instance, which outranks the theme and
+        // is not ours to overwrite.
+        if (control.ReadLocalValue(FrameworkElement.FocusVisualStyleProperty) != DependencyProperty.UnsetValue) return;
+        control.SetValue(FrameworkElement.FocusVisualStyleProperty, null);
     }
 
     internal static void UpdateLanguage(ResourceDictionary resources, string? culture)
