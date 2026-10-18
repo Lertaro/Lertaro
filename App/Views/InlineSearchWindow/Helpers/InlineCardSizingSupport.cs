@@ -189,6 +189,7 @@ internal sealed class InlineCardSizingSupport
             + $"forSummon={forSummon} searching={_window.ViewModel.IsSearching} "
             + $"areaRows={layout.AreaRows} shown={layout.ShownItems} rowBudget={_rowBudget} rowCap={RowCap} "
             + $"results={_window.ViewModel.Results.Count} frozen={_searchAreaRows?.ToString() ?? "null"} "
+            + $"panel={_window.ResultsPanelControl.Visibility} banner={_window.PathPreviewBorder.Visibility} "
             + $"visibleContent={HasVisibleContent} height={_window.Height:F0}->{shellHeight:F0}",
             LogLevel.Debug);
         if (Math.Abs(_window.Height - shellHeight) <= 0.5)
@@ -229,7 +230,13 @@ internal sealed class InlineCardSizingSupport
     /// </remarks>
     internal double CardHeight(int rows)
     {
-        if (HasVisibleContent)
+        // And only for a card that has rows to draw. Reserving the budget on the strength of the panel's
+        // Visibility alone is what made the first summon flash: the panel is still Visible from the previous
+        // session while the cleared list holds nothing, so the shell was sized to eight empty rows, the next
+        // pass collapsed the panel and shrank it to the search bar, and the settled rows grew it again --
+        // three heights in a few hundred ms, read straight out of the app's own log (550->324->36->324 with
+        // results=0,0,58). An empty list is a search bar, whatever the bindings said a pass earlier.
+        if (HasVisibleContent && rows > 0)
             rows = Math.Max(rows, _rowBudget);
 
         return InlineCardMetrics.ResultsAreaHeight(rows) + ChromeHeight();
