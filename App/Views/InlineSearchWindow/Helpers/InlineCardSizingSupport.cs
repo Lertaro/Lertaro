@@ -1,5 +1,6 @@
 using System.Windows;
 using Lertaro.App.Services;
+using Lertaro.Core;
 
 namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 
@@ -166,7 +167,13 @@ internal sealed class InlineCardSizingSupport
         // 550 DIP on the process's first summon. That slab is what read as a black frame. CurrentLayout()
         // answers correctly for a summon regardless: the cleared list has no rows, so the card is sized to the
         // empty state and the settled search corrects it like any later pass.
-        if (_window.ViewModel.IsSearching && !forSummon) return;
+        if (_window.ViewModel.IsSearching && !forSummon)
+        {
+            // Said out loud because a veto here is the difference between the card arriving at the size this
+            // session's content has and arriving at whatever height it last settled to.
+            Logger.Log("[InlineCardSize] skipped: search in flight and this is not a summon pass", LogLevel.Debug);
+            return;
+        }
 
         // Re-derived on every size pass, before anything is measured from it: the screen, its DPI and the
         // window this card is docked to can all change while it is open (the dialog is dragged to a smaller
@@ -175,7 +182,15 @@ internal sealed class InlineCardSizingSupport
 
         // Card plus its margin on both sides, plus a further margin so the drop shadow above the card is
         // not clipped by the window bounds.
-        var shellHeight = CardHeight(CurrentLayout().AreaRows) + (CardMargin * 3);
+        var layout = CurrentLayout();
+        var shellHeight = CardHeight(layout.AreaRows) + (CardMargin * 3);
+        Logger.Log(
+            "[InlineCardSize] "
+            + $"forSummon={forSummon} searching={_window.ViewModel.IsSearching} "
+            + $"areaRows={layout.AreaRows} shown={layout.ShownItems} rowBudget={_rowBudget} rowCap={RowCap} "
+            + $"results={_window.ViewModel.Results.Count} frozen={_searchAreaRows?.ToString() ?? "null"} "
+            + $"visibleContent={HasVisibleContent} height={_window.Height:F0}->{shellHeight:F0}",
+            LogLevel.Debug);
         if (Math.Abs(_window.Height - shellHeight) <= 0.5)
         {
             // Nothing to resize. This early return is what keeps a streaming search cheap: the results
