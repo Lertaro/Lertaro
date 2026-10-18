@@ -25,6 +25,22 @@ public sealed class FuzzyMatcherTests
     public void ComputeMatchWeight_UpperCaseQuery_MatchesLowerCaseText() =>
         Assert.AreEqual(FuzzyMatcher.ComputeMatchWeight("wxfef.doc", "wx"), FuzzyMatcher.ComputeMatchWeight("wxfef.doc", "WX"));
 
+    // The only spelling that lifts the folding above: an inline option inside a "/.../" clause overrides
+    // RegexClauses.BaseOptions' IgnoreCase. The lookaround form of the same requirement is rejected by
+    // NonBacktracking, so it lands on the backtracking fallback -- both engines have to answer alike.
+    [TestMethod]
+    public void IsMatch_RegexClauseInlineCaseOption_IsCaseSensitiveOnBothEngines()
+    {
+        Assert.IsTrue(FuzzyMatcher.IsMatch("/(?-i)Report/", "Report"));
+        Assert.IsFalse(FuzzyMatcher.IsMatch("/(?-i)Report/", "report"));
+        Assert.IsFalse(FuzzyMatcher.IsMatch("/(?-i)Report/", "REPORT"));
+        Assert.IsTrue(FuzzyMatcher.IsMatch("/(?-i)(?=Report)Report/", "Report"));
+        Assert.IsFalse(FuzzyMatcher.IsMatch("/(?-i)(?=Report)Report/", "report"));
+    }
+
+    [TestMethod]
+    public void IsMatch_RegexClauseWithoutInlineOption_IgnoresCase() => Assert.IsTrue(FuzzyMatcher.IsMatch("/Report/", "report"));
+
     [TestMethod]
     public void IsMatch_NoSubsequence_ReturnsFalse() => Assert.IsFalse(FuzzyMatcher.IsMatch("xyz", "readme.md"));
 
