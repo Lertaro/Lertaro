@@ -154,6 +154,11 @@ public partial class InlineSearchWindow : Window, ISearchWindow
 
         this.SourceInitialized += (s, e) =>
         {
+            // Composed on the CPU, like every card the user only ever summons (see CardRenderMode). Here, not
+            // in the constructor: the handle does not exist yet there, and the mode is a property of the
+            // composition target the handle brings with it.
+            CardRenderMode.Apply(this);
+
             var helper = new System.Windows.Interop.WindowInteropHelper(this);
             var hwnd = helper.Handle;
             if (hwnd != IntPtr.Zero)

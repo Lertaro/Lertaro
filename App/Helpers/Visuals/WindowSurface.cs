@@ -28,11 +28,16 @@ public static class WindowSurface
 {
     public static void Apply(Window window, Border surface)
     {
-        // Rounded by the window manager, which needs a handle to be told about, hence the event rather
-        // than a call here: it fires before the first paint, so the corners never visibly change.
+        // Both of these need the handle, which does not exist at the point a window declares its surface, and
+        // SourceInitialized is where the compositor has a target for the window but has not drawn a frame yet.
         window.SourceInitialized += (_, _) =>
+        {
+            // Composed on the CPU: these windows exist to appear for a few seconds, so what is worth optimising
+            // is the frame they arrive with (see CardRenderMode).
+            CardRenderMode.Apply(window);
             // DWMWCP_ROUND uses an 8 DIP outer radius, independent of the theme's painted radius. Keep
             // surfaces on this contour; older Windows keeps square corners.
             surface.CornerRadius = new CornerRadius(DwmWindowCorners.ApplyRound(window) ? 8 : 0);
+        };
     }
 }

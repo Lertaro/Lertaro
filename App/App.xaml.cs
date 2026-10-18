@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Media;
 using Lertaro.App.Services;
 using Lertaro.App.Services.AppWindow;
 using Lertaro.App.Services.Pipe;
@@ -107,6 +108,13 @@ public partial class App : Application
             return;
         }
         AppTypography.Initialize(Resources, TranslationManager.Instance.CurrentCulture);
+        // The other process-wide rendering decision, and made here because it has to be made before any window
+        // exists: this is what the settings page's "enable hardware acceleration (requires restart)" switch has
+        // always said it does. Until now it only took the hardware off the quick window's own composition
+        // target, and since that window is now software-composed whatever the switch says (see CardRenderMode),
+        // the switch would otherwise govern nothing at all.
+        if (!settings.EnableHardwareAcceleration)
+            RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.SoftwareOnly;
         Logger.MinimumLevel = SettingsOptionGenerator.ParseLogLevel(settings.LogLevel);
         // Everything this process matches outside the search pipeline -- plugin catalog items,
         // favorites, shell-menu filtering, display highlighting -- reads this rather than the
