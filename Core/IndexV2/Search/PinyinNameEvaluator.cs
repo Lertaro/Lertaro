@@ -231,6 +231,13 @@ internal sealed class PinyinNameEvaluator
         if (name.IsEmpty || !HasProviders)
             return false;
 
+        // The readings decide WORDS. A `/.../` clause describes the name's own characters, which no
+        // reading of it can supply, so the clause is answered here, off the whole name, before its '|'
+        // segments are scored -- the same line FzfPattern.TryMatchAlias draws for the alias tiers, and the
+        // one the exclusion side of this class already honors.
+        if (_pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, name))
+            return false;
+
         if (name.IndexOf('|') < 0)
             return ScoreWhole(name, slab, out match, out witness);
 
