@@ -22,12 +22,30 @@ public static class DwmWindowCorners
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 
+    /// <summary>Asks the window manager to round this window.</summary>
+    /// <returns>Whether the attribute was set by this call. False means either that the OS has never heard
+    /// of it, or that the window has no handle yet and the request was deferred to SourceInitialized.</returns>
     public static bool ApplyRound(Window window)
+    {
+        var hwnd = new WindowInteropHelper(window).Handle;
+        if (hwnd == IntPtr.Zero)
+        {
+            // No handle yet, which is precisely the state a window is in from its own constructor: the
+            // handle is created on first show. Applied there it was a silent no-op, and a window that had
+            // dropped its painted radius for this call came out square, because the OS default contour for
+            // a chromeless window is square. Deferred instead, it fires before the first paint, so the
+            // corners never visibly change.
+            window.SourceInitialized += (_, _) => Set(new WindowInteropHelper(window).Handle);
+            return false;
+        }
+
+        return Set(hwnd);
+    }
+
+    private static bool Set(IntPtr hwnd)
     {
         // No gate on the version: the attribute simply fails on an OS that has never heard of it, and one
         // fewer platform check is one fewer thing to keep in step with the next Windows release.
-        var hwnd = new WindowInteropHelper(window).Handle;
-        if (hwnd == IntPtr.Zero) return false;
         var preference = DwmwcpRound;
         return DwmSetWindowAttribute(hwnd, DwmwaWindowCornerPreference, ref preference, sizeof(int)) >= 0;
     }
