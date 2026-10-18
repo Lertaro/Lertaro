@@ -155,6 +155,14 @@ public sealed class LocalSendDiscoveryService : IDisposable
         device.IpAddress = LocalSendServerHelper.CleanIpAddress(device.IpAddress);
         var key = device.DiscoveryKey;
         var isNew = !_discoveredDevices.TryGetValue(key, out var previous);
+        // A dual-stack peer answers from both of its addresses in every announcement burst, so the newest
+        // answer is not automatically the address to keep: the same family means the lease really did move
+        // and the row has to follow it, while a different family is only the other half of the same machine.
+        // Should the address the row is on actually die, the validation pass drops the row and the next
+        // announcement puts it back on whichever answer comes first.
+        if (!isNew && previous != null && !ShouldTakeAddress(previous.IpAddress, device.IpAddress))
+            device.IpAddress = previous.IpAddress;
+
         device.LastSeen = DateTime.UtcNow;
         _discoveredDevices[key] = device;
 
@@ -170,6 +178,17 @@ public sealed class LocalSendDiscoveryService : IDisposable
             Logger.Log($"[LocalSendDiscovery] {device.Alias} moved from {previous.IpAddress} to {device.IpAddress} (port {device.Port})", LogLevel.Debug);
         }
         DeviceListChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Whether an announcement from <paramref name="arrived"/> should move the row off <paramref name="known"/>.</summary>
+    internal static bool ShouldTakeAddress(string known, string arrived)
+    {
+        // Anything the parser does not recognise is taken at face value: refusing a new address because one
+        // of the two strings is odd would strand the row on an address it may no longer reach.
+        if (!IPAddress.TryParse(known, out var current) || !IPAddress.TryParse(arrived, out var incoming))
+            return true;
+
+        return current.AddressFamily == incoming.AddressFamily;
     }
 
     public async Task DiscoverDevicesAsync()

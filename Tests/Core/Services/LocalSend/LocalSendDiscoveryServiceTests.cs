@@ -49,6 +49,30 @@ public sealed class LocalSendDiscoveryServiceTests
     }
 
     [TestMethod]
+    public void AddDiscoveredDevice_KeepsTheStackTheRowIsAlreadyOn()
+    {
+        using var discovery = new LocalSendDiscoveryService { LocalInfo = new LocalSendDeviceInfo { Fingerprint = "local" } };
+        discovery.AddDiscoveredDevice(new LocalSendDeviceInfo { Alias = "Peer", IpAddress = "192.168.1.20", Fingerprint = "peer", Port = 53317 });
+
+        // The same machine answering from its IPv6 side is not a move, and following it would flip the row
+        // and the send target once per announcement burst.
+        discovery.AddDiscoveredDevice(new LocalSendDeviceInfo { Alias = "Peer", IpAddress = "fe80::42", Fingerprint = "peer", Port = 53317 });
+
+        Assert.AreEqual("192.168.1.20", discovery.DiscoveredDevices.Single().IpAddress);
+
+        discovery.AddDiscoveredDevice(new LocalSendDeviceInfo { Alias = "Peer", IpAddress = "192.168.1.77", Fingerprint = "peer", Port = 53317 });
+
+        Assert.AreEqual("192.168.1.77", discovery.DiscoveredDevices.Single().IpAddress);
+    }
+
+    [TestMethod]
+    public void ShouldTakeAddress_WithoutParsableAddressesTakesTheNewOne()
+    {
+        Assert.IsTrue(LocalSendDiscoveryService.ShouldTakeAddress(string.Empty, "fe80::42"));
+        Assert.IsTrue(LocalSendDiscoveryService.ShouldTakeAddress("not an address", "192.168.1.9"));
+    }
+
+    [TestMethod]
     public void AddDiscoveredDevice_WithoutAFingerprintIsKnownOnlyByItsAddress()
     {
         using var discovery = new LocalSendDiscoveryService { LocalInfo = new LocalSendDeviceInfo { Fingerprint = "local" } };
