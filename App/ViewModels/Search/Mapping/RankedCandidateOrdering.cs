@@ -48,24 +48,19 @@ internal static class RankedCandidateOrdering
                      // matches the name order below (letters before digits before symbols, uppercase first).
                      // Owner's rule: favorites and history lead EVERYTHING, even an exact name match -- a row the
                      // user opened before is what they are looking for. Match quality orders only the rest.
-                     .OrderByDescending(c => exact != null && string.Equals(Path.GetFileNameWithoutExtension(c.Result.Name), exact, StringComparison.OrdinalIgnoreCase))
-                     // Owner's rule (unchanged from before): exact name, then a prefix hit, then a hit somewhere
-                     // inside, then scattered letters -- case-insensitive. That is contiguity before position,
-                     // because a contiguous hit anywhere must beat a scattered one that happens to start at 0.
-                     .ThenByDescending(c => c.Match.Contiguity)
+                     // Owner's final ladder (2026-10-19): contiguity, left position, coverage, tier, name length,
+                     // history/favorites, folder-first, natural name order. Coverage is weight/contiguity because
+                     // weight is already coverage*contiguity and contiguity is carried separately.
+                     .OrderByDescending(c => c.Match.Contiguity)
                      .ThenBy(c => c.Match.Start)
-                     // Owner's rule: left-side position first, then a CONTIGUOUS hit, and only then the rest --
-                     // history and favorites come here, below contiguity, so they lead ordinary rows that match
-                     // equally well but cannot outrank a tighter hit at the same position.
-                     // Owner's rule: history and favorites only win among rows whose match is equally good -- a better
-                     // left-side or contiguous hit beats a row that merely happens to be in the history.
+                     // Owner chose (A) on 2026-10-19: history and favorites outrank coverage, so a row the user
+                     // opened before leads even a better-covered ordinary row. Only contiguity and position
+                     // still come first.
                      .ThenByDescending(c => c.IsCurated)
                      .ThenBy(c => c.Priority)
+                     .ThenByDescending(c => c.Match.Contiguity > 0 ? c.Match.Weight / c.Match.Contiguity : 0)
                      .ThenBy(c => c.Match.Tier)
                      .ThenBy(c => c.TypeRank)
-                     // Owner's rule, same tier only: the shorter name wins, so "ab" ranks "abc" above "abab" and "a"
-                     // ranks "a1" above "aaa". This is the coverage intent without the "short name beats a much
-                     // better-placed match" problem -- position and contiguity are already decided above.
                      .ThenBy(c => c.Result.Name.Length)
                      .ThenBy(c => c.Result.IsDir)
                      .ThenBy(c => c.Result.Name, NameOrderComparer.Instance))

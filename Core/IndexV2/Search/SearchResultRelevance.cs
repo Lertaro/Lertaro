@@ -95,6 +95,11 @@ internal static class SearchResultRelevance
         // Matched length, not the coverage share: coverage favours short names, so a file called "aa" beat every
         // longer name that merely started with the same letter.
         var lengthPoint = (uint)(1023 - Math.Clamp(rank.MatchedLength, 0, 1023));
-        return (exactName ? 1u : 0u) << 31 | (start << 25) | (contiguityPoint << 15) | (weightPoint << 5) | (tier << 1) | (isDir ? 1u : 0u);
+                // Owner's final ladder, same order as the App side: contiguity, left position, coverage, tier, folder.
+        // Coverage is weight/contiguity (weight is already coverage*contiguity).
+        var coveragePoint = rank.Contiguity > 0
+            ? (uint)Math.Round((1 - Math.Clamp(rank.Weight / rank.Contiguity, 0, 1)) * WeightMax)
+            : WeightMax;
+        return (contiguityPoint << 22) | (start << 16) | (coveragePoint << 5) | (tier << 1) | (isDir ? 1u : 0u);
     }
 }
