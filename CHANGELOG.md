@@ -24,6 +24,14 @@
 + Auto-update only checks this repository's releases
 + Keeps the smooth wheel scrolling
 ```
+# 多词查询不再算作连续命中，同档内短名优先
+# 混拼查询里只有韵母的片段不参与匹配
+# 完全匹配进入排序键，流式结果也能置顶
+
+# A multi-term query no longer counts as a contiguous hit; the shorter name wins at equal rank
+# A final-only piece no longer takes part in a mixed pinyin query
+# An exact name match now enters the sort key, so the streamed list puts it first
+
 
 ## v5.9.6.1
 

@@ -173,7 +173,7 @@ internal static class NameSearch
             var (band, depth) = cuts
                 ? RowSignals(snapshot, delta, rank.EntryIndex, nowUnix, depthByParent!)
                 : (RankSignals.BandOlder, 0);
-            var high = SearchResultRelevance.HighKey(match, IsEntryDirectory(snapshot, delta, rank.EntryIndex), band, depth);
+            var high = SearchResultRelevance.HighKey(match, IsEntryDirectory(snapshot, delta, rank.EntryIndex), band, depth, SearchResultRelevance.IsExactName(name, pattern));
             ranks[i] = rank with { SortKey = ((ulong)high << 32) | (rank.SortKey & 0xFFFF_FFFFUL) };
         }
         FzfRankRadixSorter.Sort(ranks);

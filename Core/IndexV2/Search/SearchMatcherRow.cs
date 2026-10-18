@@ -55,7 +55,7 @@ internal static class SearchMatcherRow
                 continue;
 
             // A precise query must not match a full transliteration mid-syllable -- see AliasMatchRules.
-            if (!AliasMatchRules.AllowsMatch(pattern, separator, alias, aliasMatch.MinBegin))
+            if (!AliasMatchRules.AllowsMatchSpan(pattern.RequiresAlignedAliases, separator, alias, aliasMatch.MinBegin, aliasMatch.MinEnd))
                 continue;
 
             if (aliasPattern.IsAcceptableAliasMatch(aliasMatch, queryLen, alias, FzfScoringScheme.Default, slab))
@@ -134,7 +134,7 @@ internal static class SearchMatcherRow
                 continue;
 
             // A precise query must not match a full transliteration mid-syllable -- see AliasMatchRules.
-            if (!AliasMatchRules.AllowsMatch(pattern, separator, aliases[j], aliasMatch.MinBegin))
+            if (!AliasMatchRules.AllowsMatchSpan(pattern.RequiresAlignedAliases, separator, aliases[j], aliasMatch.MinBegin, aliasMatch.MinEnd))
                 continue;
 
             if (aliasPattern.IsAcceptableAliasMatch(aliasMatch, queryLen, aliases[j], FzfScoringScheme.Default, slab))

@@ -186,6 +186,82 @@ internal static class AliasMatchRules
     public static bool AllowsMatch(bool precise, char separator, ReadOnlySpan<char> alias, int matchStart)
         => !precise || IsBoundaryAligned(separator, alias, matchStart);
 
+    /// <summary>
+    /// Whether a PRECISE alias match may stand: the span must start on a syllable boundary and, apart from the
+    /// syllable it stops in, every syllable it touches must be consumed whole or as that syllable's initial.
+    /// </summary>
+    /// <remarks>
+    /// The start-only rule let "lany" reach 洛天依 (luo/tian/yi): "an" came from inside tian -- a final, not a
+    /// prefix -- while the letters around it were a valid initial and a valid prefix. Only the LAST syllable a
+    /// term stops in may be half-typed, because that is the cursor sitting there.
+    /// </remarks>
+    internal static bool AllowsMatchSpan(bool precise, char separator, ReadOnlySpan<char> alias, int start, int end)
+    {
+        if (!precise) return true;
+        if (!IsBoundaryAligned(separator, alias, start)) return false;
+        if (separator == '\0' || end <= start) return true;
+
+        var position = start;
+        while (position < end)
+        {
+            var offset = alias.Slice(position).IndexOf(separator);
+            var syllableEnd = offset < 0 ? alias.Length : position + offset;
+            var stopsHere = syllableEnd >= end;
+            var consumed = Math.Min(end, syllableEnd) - position;
+            if (!stopsHere)
+            {
+                var length = syllableEnd - position;
+                var initial = InitialLength(alias.Slice(position, length));
+                if (consumed != length && consumed != initial) return false;
+            }
+
+            if (offset < 0) break;
+            position = syllableEnd + 1;
+        }
+
+        return true;
+    }
+
+    /// <summary>Byte twin of <see cref="AllowsMatchSpan"/>: pinyin aliases are ASCII, and this is their hot path.</summary>
+    internal static bool AllowsMatchSpanUtf8(bool precise, char separator, ReadOnlySpan<byte> alias, int start, int end)
+    {
+        if (!precise) return true;
+        if (!IsBoundaryAligned(separator, alias, start)) return false;
+        var sep = (byte)separator;
+        if (separator == '\0' || end <= start) return true;
+
+        var position = start;
+        while (position < end)
+        {
+            var offset = alias.Slice(position).IndexOf(sep);
+            var syllableEnd = offset < 0 ? alias.Length : position + offset;
+            var stopsHere = syllableEnd >= end;
+            var consumed = Math.Min(end, syllableEnd) - position;
+            if (!stopsHere)
+            {
+                var length = syllableEnd - position;
+                var first = char.ToLowerInvariant((char)alias[position]);
+                var initial = length > 1 && first is 'z' or 'c' or 's' && char.ToLowerInvariant((char)alias[position + 1]) == 'h' ? 2 : 1;
+                if (consumed != length && consumed != initial) return false;
+            }
+
+            if (offset < 0) break;
+            position = syllableEnd + 1;
+        }
+
+        return true;
+    }
+
+    // Leading consonants of a pinyin syllable: zh/ch/sh take two letters, everything else one. Vowel-initial
+    // syllables have no initial of their own, so a single leading letter stands in for it.
+    private static int InitialLength(ReadOnlySpan<char> syllable)
+    {
+        if (syllable.IsEmpty) return 0;
+        var first = char.ToLowerInvariant(syllable[0]);
+        if (first is 'z' or 'c' or 's' && syllable.Length > 1 && char.ToLowerInvariant(syllable[1]) == 'h') return 2;
+        return 1;
+    }
+
     /// <summary>Byte twin of <see cref="AllowsMatch(bool, char, ReadOnlySpan{char}, int)"/>.</summary>
     public static bool AllowsMatchUtf8(bool precise, char separator, ReadOnlySpan<byte> aliasUtf8, int matchStart)
         => !precise || IsBoundaryAligned(separator, aliasUtf8, matchStart);

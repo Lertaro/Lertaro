@@ -55,15 +55,32 @@ internal static class SearchResultRelevance
 
         // The engine's own span/length tie-breakers stay in the low 32 bits, below every key above.
         var low = result.RankSortKey & 0x0000_0000_FFFF_FFFFUL;
-        result.RankSortKey = ((ulong)HighKey(rank, result.IsDir, band, RankSignals.PathDepth(result.Path)) << 32) | low;
+        result.RankSortKey = ((ulong)HighKey(rank, result.IsDir, band, RankSignals.PathDepth(result.Path), IsExactName(result.Name, pattern)) << 32) | low;
     }
 
-    public static uint HighKey(MatchRank rank, bool isDir, int band, int depth)
+    /// <summary>
+    /// Whether the name IS the query (extension ignored). The streamed list is ordered by this key, so without
+    /// it a history row that happened to arrive first outranked a file literally named after the query.
+    /// </summary>
+    public static bool IsExactName(string name, FzfPattern pattern)
+    {
+        if (pattern.OrGroups != null || pattern.TermSets.Length != 1)
+            return false;
+        var terms = pattern.TermSets[0].Terms;
+        if (terms.Length != 1 || terms[0].Inverse || terms[0].AliasForm)
+            return false;
+        var query = terms[0].Text;
+        if (query.Length == 0)
+            return false;
+        var stem = Path.GetFileNameWithoutExtension(name);
+        return string.Equals(stem, query, StringComparison.OrdinalIgnoreCase);
+    }
+    public static uint HighKey(MatchRank rank, bool isDir, int band, int depth, bool exactName = false)
     {
         var shape = (uint)Math.Clamp(rank.Shape, 0, MatchRank.ShapeNoName);
         var recency = (uint)Math.Clamp(band, 0, RankSignals.BandOlder);
         var folders = (uint)Math.Clamp(depth, 0, DepthCap);
-        var start = (uint)Math.Clamp(rank.Start, 0, MatchRank.StartCap);
+        var start = (uint)Math.Clamp(rank.Start, 0, 63);
         var weightPoint = (uint)Math.Round((1 - Math.Clamp(rank.Weight, 0, 1)) * WeightMax);
         var tier = (uint)Math.Clamp(rank.Tier, 0, 0xF);
         // "Left-side match priority" leads, same as the App-side ladder (RankedCandidateOrdering): the row whose
@@ -75,6 +92,9 @@ internal static class SearchResultRelevance
         // shape/recency/depth no longer take part (they were what buried the row the user was looking for).
         //   start(7) | contiguity(10) | weight(10) | tier(4) | folder(1)
         var contiguityPoint = (uint)Math.Round((1 - Math.Clamp(rank.Contiguity, 0, 1)) * 1023);
-        return (start << 25) | (contiguityPoint << 15) | (weightPoint << 5) | (tier << 1) | (isDir ? 1u : 0u);
+        // Matched length, not the coverage share: coverage favours short names, so a file called "aa" beat every
+        // longer name that merely started with the same letter.
+        var lengthPoint = (uint)(1023 - Math.Clamp(rank.MatchedLength, 0, 1023));
+        return (exactName ? 1u : 0u) << 31 | (start << 25) | (contiguityPoint << 15) | (weightPoint << 5) | (tier << 1) | (isDir ? 1u : 0u);
     }
 }

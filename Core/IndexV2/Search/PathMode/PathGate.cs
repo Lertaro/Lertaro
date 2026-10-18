@@ -189,7 +189,7 @@ internal sealed class PathGate
             {
                 var aliasBytePattern = separator == '\0' ? _segmentBytePatterns[q] : _segmentAliasBytePatterns[q];
                 if (aliasBytePattern.TryMatchSegmented(aliasUtf8, out var aliasMatch, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers)
-                    && AliasMatchRules.AllowsMatchUtf8(_segmentPatterns[q], separator, aliasUtf8, aliasMatch.MinBegin))
+                    && AliasMatchRules.AllowsMatchSpanUtf8(_segmentPatterns[q].RequiresAlignedAliases, separator, aliasUtf8, aliasMatch.MinBegin, aliasMatch.MinEnd))
                 {
                     score = aliasMatch.Score;
                     return true;
@@ -201,7 +201,7 @@ internal sealed class PathGate
                     worker.AliasScratch = new char[Math.Max(aliasUtf8.Length, worker.AliasScratch.Length * 2)];
                 var written = Encoding.UTF8.GetChars(aliasUtf8, worker.AliasScratch);
                 if (aliasPattern.TryMatch(worker.AliasScratch.AsSpan(0, written), out var aliasMatch, FzfScoringScheme.Default, worker.Slab)
-                    && AliasMatchRules.AllowsMatch(_segmentPatterns[q], separator, worker.AliasScratch.AsSpan(0, written), aliasMatch.MinBegin))
+                    && AliasMatchRules.AllowsMatchSpan(_segmentPatterns[q].RequiresAlignedAliases, separator, worker.AliasScratch.AsSpan(0, written), aliasMatch.MinBegin, aliasMatch.MinEnd))
                 {
                     score = aliasMatch.Score;
                     return true;
@@ -248,7 +248,7 @@ internal sealed class PathGate
                     var aliasPattern = provider.SyllableSeparator == '\0' ? _segmentPatterns[q] : _segmentAliasPatterns[q];
                     if (!aliasPattern.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default, worker.Slab))
                         continue;
-                    if (!AliasMatchRules.AllowsMatch(_segmentPatterns[q], provider.SyllableSeparator, alias, aliasMatch.MinBegin))
+                    if (!AliasMatchRules.AllowsMatchSpan(_segmentPatterns[q].RequiresAlignedAliases, provider.SyllableSeparator, alias, aliasMatch.MinBegin, aliasMatch.MinEnd))
                         continue;
 
                     score = aliasMatch.Score;

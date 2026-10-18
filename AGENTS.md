@@ -108,16 +108,19 @@ Not lazy about: input validation at trust boundaries, error handling that preven
 **起点状态**：`HEAD 1bff6429` + 若干未提交改动（排序 ✓ 混拼 ✓ 探针 ✗），全量测试 exit=0，本机已部署且可用。
 **回滚点**：`git reset --hard 1bff6429`（回滚后必须重编插件再部署）。
 
-1. **把查询探针挪到能看见的地方**：删掉 `Core/IndexV2/Search/IndexV2Searcher.cs` 里临时加的 `[QueryTerms]`，
-   改到 `App/ViewModels/Search/Dispatch/SearchDispatchController.cs` 的搜索入口，记录 `raw='...'` 与
-   `FzfPattern.Parse(query)` 解析出的词表，必须落在 **app.log**（放 Core 会进服务日志，看不到）。
-2. **查清 `lert exe` 失效**：`ler exe` 正常；`le exe` 被当成 `lexe`（空格被吃）；`lert/lerta/lertar exe` 只命中 `exe`。
-   特征：3 字母的词可用、4 字母起失效 → 疑似某处有长度阈值或多词被拼接。**先拿日志事实，再改一处**。
-3. **新规则：查询含空格 ⇒ 匹配强制非连续**（多词查询的 Contiguity 不得算满分）。改 `HighlightMask.ComputeRank` + 一条单测。
-4. **移除所有临时探针**（`IndexV2Searcher` / `SearchDispatchController` 的日志）。
+1. ✅ **已完成**：探针已挪到 `App/ViewModels/Search/Dispatch/SearchDispatchController.cs`（`DispatchSearch` 里），
+   并改为**写 `%TEMP%\lertaro-queryterms.txt`**（App 的 logger 把 Info 过滤掉了，`app.log` 一直是 0 KB ✗）。
+   实测结论：`raw=lert exe → parsed=[lert] | [exe]` ✓ **解析正确、空格没被吃** ✗。旧探针（`IndexV2Searcher`）已删 ✓。
+2. ✅ **已解决（2026-10-19 复测）**：`lert exe` / `lerta exe` / `lertar exe` 现在都能正确命中 `Lertaro.App.exe`。
+   实际原因是**排序**而不是匹配 ✗：多词查询的掩码被当成"连续命中"，含 `exe` 的行把含 `lert` 的行压到很后面，
+   看起来就像"只有 exe 生效"。待办 ③（多词 ⇒ 强制非连续）修好后自动恢复 ✓。
+   「已知异常」一节保留作历史记录 ✓，**不要再按它重开排查** ✗。
+3. ✅ **已完成（2026-10-19）**：`HighlightMask.ComputeRank` 里 `pattern.TermSets.Length > 1` 时把 `Contiguity` 置 0；
+   同档内再加"名字长度优先"（`RankedCandidateOrdering`）→ `ab` 时 `abc` 在 `abab` 前 ✓、`a` 时 `a1` 在 `aaa` 前 ✓。
+4. ✅ **已完成**：探针全部移除（`IndexV2Searcher` ✓ `SearchDispatchController` ✓）。
 5. **把插件构建写进 `Deploy-Local.ps1`**：逐个 `Plugins\**\*.csproj -c Release` 构建 + 同步
    `App\bin\Release\net10.0-windows\Plugins\*.dll` → `publish\x64\Lertaro\Plugins\`（现在靠手工，已踩过坑）。
-6. **提交**（需 owner 明确授权）**并重发 fork `5.9.7.1`**（注意：本机 testhost 不可用，本轮所有"测试通过"均为空跑，发版前需用 explorer 起的独立进程真跑一次 `Tests/**`）（原发布被 owner 手动删过；版本号仍用 5.9.7.1）。
+6. 🔄 **进行中**：提交 + 重发 fork `5.9.7.1`（owner 已授权「收口」）（注意：本机 testhost 不可用，本轮所有"测试通过"均为空跑，发版前需用 explorer 起的独立进程真跑一次 `Tests/**`）（原发布被 owner 手动删过；版本号仍用 5.9.7.1）。
 
 ## 流程骨架（从改一行到可以发版；每一步都要给出**证据**，没有证据就写"未验证"）
 
@@ -159,3 +162,43 @@ Not lazy about: input validation at trust boundaries, error handling that preven
 - `~/.dsh/AGENTS.md` 里那份"测试命令固定用法"应**只留指针**指向本文件，避免两处规则分叉（该文件的修改需 owner 确认）。
 - 工作区可能带着另一对话的**接缝修复**（`Core/Hook/Ipc/OpenedFolderSnapshotPublisher.cs` 的 `OrderByWindowRank/WindowRanks`）。
   它能让 `Tests/Core` 编译通过；**接受它，或先 `git checkout --` 退回再改** —— 不要在两份状态上叠改。
+
+## 已修复（保留作历史）：`<4+ 字母的词> + e 开头的短词` 多词查询"失效"（2026-10-19 由待办③顺带修好）
+
+owner 判定：太反常、影响面小、其它组合都正常 → **先记录，不动代码**。
+
+**现象**：`lert exe` 这类查询只有 `exe` 生效，`lert` 那半被吞掉；`lert` 后面接更多字也一样。
+
+**已验证的矩阵**（同一台机、同一版）：
+```
+lert            ✓ 单独能中
+ler exe         ✓ 能中
+ler ro          ✓ 能中
+le aro          ✓ 能中
+lert ro         ✓ 能中          ← 第一词 4 字母没问题
+lert e          ✗ **不中**
+lert ex         ✗ 不中
+lert exe        ✗ 不中
+lerta exe       ✗ 不中
+lertar exe      ✗ 不中
+```
+
+**已排除**（有证据）：
+- 解析阶段没问题：探针显示 `raw=lert exe → parsed=[lert] | [exe]` ✓，`raw=le exe → [le] | [exe]` ✓（**空格没被吃** ✗）；
+- 第一词长度没问题（`lert ro` 能中 ✓）；
+- 不是 `--no-build`/测试环境问题（与本条无关）。
+
+**待定的一步**（下次接手第一件事）：搜 `ler e`
+- 能中 ✓ → 阈值在"第一词 4 字母 + e 开头的短词"这个**组合**；
+- 不能中 ✗ → 就是"**单字母第二词**"本身。
+
+**最可疑落点**：`MixedQueryMatcher.TrySegmentPattern`（`Core/IndexV2/Search/SearchMatcherRow.cs:75` 的兜底分支）
+把两个词**跨空格拼起来**（`lert e` → `lerte`），拼出来的串又恰好像拼音片段 → 被吞进别名通道 → 英文名没有别名 → 只剩 `exe` 命中。
+`lert ro` 之所以正常，是因为 `lertro` 不像可用片段、退回普通 AND。
+
+**附**：查询语法**没有通配符** ✗（`*` `?` 会被当普通字符）。位置语义（完全一样 → 前缀 → 包含 → 散落）是**自动**的，不需要写通配符。
+
+
+7. **多词查询按输入顺序匹配**（owner 2026-10-19 要求）：`le app` 只能命中"le 在 app 之前"的名字，`apple` ✗ 不再命中。
+   落点：`Core/SearchIndex/Fzf/FzfPattern` 或多词收口处校验各词 `MinBegin` 递增；约 20~40 行 + 单测。
+   副作用（owner 已知悉）：`mp3 歌` 这类顺序写反的查询会失效。

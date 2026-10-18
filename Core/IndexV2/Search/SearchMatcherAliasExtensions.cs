@@ -132,8 +132,8 @@ internal static class SearchMatcherAliasExtensions
                 // The alias's own provider is the only one that knows where its boundaries fall, and for a
                 // baked alias that provider is reachable only by its id.
                 var aligned = isAsciiAlias
-                    ? AliasMatchRules.AllowsMatchUtf8(ctx.Pattern, separator, aliasUtf8, aliasMatch.MinBegin)
-                    : AliasMatchRules.AllowsMatch(ctx.Pattern, separator, worker.AliasScratch.AsSpan(0, decodedLength), aliasMatch.MinBegin);
+                    ? AliasMatchRules.AllowsMatchSpanUtf8(ctx.Pattern.RequiresAlignedAliases, separator, aliasUtf8, aliasMatch.MinBegin, aliasMatch.MinEnd)
+                    : AliasMatchRules.AllowsMatchSpan(ctx.Pattern.RequiresAlignedAliases, separator, worker.AliasScratch.AsSpan(0, decodedLength), aliasMatch.MinBegin, aliasMatch.MinEnd);
                 if (!aligned)
                     continue;
 
