@@ -117,11 +117,13 @@ internal sealed class InlineCardSizingSupport
             return layout;
         }
 
-        // Do not expose the full search budget to the visual tree while a query is in flight. The old
-        // result area remains allocated until the final snapshot arrives; otherwise WPF first arranges
-        // nine rows and then immediately arranges the smaller settled result set, which is the visible
-        // large-list flash when deleting a no-results query.
-        var areaRows = _searchAreaRows ?? layout.AreaRows;
+        // Do not expose the full search budget to the visual tree while a query is in flight. What the card is
+        // sized to instead is the area it was already showing (frozen below), so a card mid-typing does not
+        // resize on every batch -- or, when it has nothing on screen to keep still, the rows that have actually
+        // arrived. Falling back to the budget there is the 324 DIP empty box; falling back to the frozen zero
+        // is the search-bar strip that held for the whole 459ms of its own search (first batch at +60ms, shell
+        // resized only at the settle -- read out of the live log).
+        var areaRows = _searchAreaRows ?? layout.ShownItems;
         return new InlineCardMetrics.CardLayout(Math.Min(layout.ShownItems, areaRows), areaRows);
     }
 
@@ -133,7 +135,11 @@ internal sealed class InlineCardSizingSupport
             return;
         }
 
-        _searchAreaRows = ComputeResultLayout(_window.ViewModel.Results, isSearching: false).AreaRows;
+        // A zero-row area is not something to keep still: freezing it pins the card to the search bar for the
+        // whole search, which is what the summoned card was doing for 459ms while its first batch sat in the
+        // collection since +60ms. Letting it stay null sends the sizing to the rows as they arrive instead.
+        var frozen = ComputeResultLayout(_window.ViewModel.Results, isSearching: false).AreaRows;
+        if (frozen > 0) _searchAreaRows = frozen;
     }
 
     private InlineCardMetrics.CardLayout ComputeResultLayout(
