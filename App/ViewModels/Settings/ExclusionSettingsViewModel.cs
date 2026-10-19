@@ -1,286 +1,543 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Windows.Data;
 using System.Windows.Input;
+
 using Lertaro.App.Helpers;
+using Lertaro.App.Services;
+using Lertaro.App.ViewModels.Settings.General;
 using Lertaro.Core;
 
 namespace Lertaro.App.ViewModels.Settings;
 
+/// <summary>
+/// One list for paths, globs and regexes, each carrying a low/normal/high/exclude effect. The kind is not
+/// a user choice: it is derived from the spelling so typing <c>build\</c> or <c>/^\./</c> is enough.
+/// </summary>
 public class ExclusionSettingsViewModel : ViewModelBase
 {
     private readonly UserSettings _userSettings;
-    private string _newExcludedPath = string.Empty;
-    private string _newIgnoredGlob = string.Empty;
-    private string _newIgnoredRegex = string.Empty;
-    private string _excludedPathsText = string.Empty;
-    private string _ignoredGlobsText = string.Empty;
-    private string _ignoredRegexesText = string.Empty;
+    private readonly ListCollectionView _view;
+
+    private string _newRuleText = string.Empty;
+    private string _newRuleEffect = nameof(IndexRuleEffect.Normal);
+    private string _newRuleDetection = string.Empty;
+    private string _newRuleResolvedPath = string.Empty;
+    private string _newRuleError = string.Empty;
+    private string _conflictSummary = string.Empty;
+    private string _conflictDetails = string.Empty;
+    private string _statusMessage = string.Empty;
+    private string _bulkText = string.Empty;
+    private string _filter = "All";
+    private string _countSummary = string.Empty;
+    private bool _hasConflicts;
 
     public ExclusionSettingsViewModel(UserSettings userSettings)
     {
         _userSettings = userSettings;
-        foreach (var path in _userSettings.ExcludedPaths.Where(x => !string.IsNullOrWhiteSpace(x)))
-            ExcludedPaths.Add(new ExclusionRuleItem(path));
 
-        foreach (var glob in _userSettings.IgnoredPathGlobs.Where(x => !string.IsNullOrWhiteSpace(x)))
-            IgnoredGlobs.Add(new ExclusionRuleItem(glob));
+        foreach (var rule in IndexRuleMigration.Ensure(_userSettings))
+        {
+            if (string.IsNullOrWhiteSpace(rule.Pattern))
+                continue;
+            Rules.Add(new ExclusionRuleItem(IndexRuleSyntax.Clean(rule.Pattern), rule.Effect));
+        }
 
-        foreach (var regex in _userSettings.IgnoredPathRegexes.Where(x => !string.IsNullOrWhiteSpace(x)))
-            IgnoredRegexes.Add(new ExclusionRuleItem(regex));
+        _view = new ListCollectionView(Rules)
+        {
+            CustomSort = new IndexRuleSortComparer(),
+            Filter = FilterRule,
+        };
+
+        EffectOptions =
+        [
+            new LabeledOption(nameof(IndexRuleEffect.Exclude), T("Exclusions_EffectExclude")),
+            new LabeledOption(nameof(IndexRuleEffect.Low), T("Exclusions_EffectLow")),
+            new LabeledOption(nameof(IndexRuleEffect.Normal), T("Exclusions_EffectNormal")),
+            new LabeledOption(nameof(IndexRuleEffect.High), T("Exclusions_EffectHigh")),
+        ];
+
+        FilterOptions =
+        [
+            new LabeledOption("All", T("Exclusions_FilterAll")),
+            new LabeledOption(nameof(IndexRuleEffect.Exclude), T("Exclusions_EffectExclude")),
+            new LabeledOption(nameof(IndexRuleEffect.Low), T("Exclusions_EffectLow")),
+            new LabeledOption(nameof(IndexRuleEffect.Normal), T("Exclusions_EffectNormal")),
+            new LabeledOption(nameof(IndexRuleEffect.High), T("Exclusions_EffectHigh")),
+        ];
+
+        AddRuleCommand = new RelayCommand(AddRule, CanAddRule);
+        SelectFilterCommand = new RelayCommand<string>(value => Filter = string.IsNullOrEmpty(value) ? "All" : value);
+        RemoveRuleCommand = new RelayCommand<ExclusionRuleItem>(RemoveRule);
+        EditRuleCommand = new RelayCommand<ExclusionRuleItem>(BeginEdit);
+        SaveRuleCommand = new RelayCommand<ExclusionRuleItem>(SaveEdit);
+        CancelRuleCommand = new RelayCommand<ExclusionRuleItem>(item => item.IsEditing = false);
+        ApplyBulkTextCommand = new RelayCommand(() => ApplyBulkText());
+        ExportBulkTextCommand = new RelayCommand(RefreshBulkText);
 
         RefreshBulkText();
-
-        AddPathCommand = new RelayCommand(AddPath, CanAddPath);
-        AddGlobCommand = new RelayCommand(AddGlob, CanAddGlob);
-        AddRegexCommand = new RelayCommand(AddRegex, CanAddRegex);
-        ApplyPathsTextCommand = new RelayCommand(() => ApplyBulkText(ExcludedPaths, ExcludedPathsText));
-        ApplyGlobsTextCommand = new RelayCommand(() => ApplyBulkText(IgnoredGlobs, IgnoredGlobsText));
-        ApplyRegexesTextCommand = new RelayCommand(() => ApplyBulkText(IgnoredRegexes, IgnoredRegexesText));
-        ExportPathsTextCommand = new RelayCommand(() => ExcludedPathsText = JoinLines(ExcludedPaths));
-        ExportGlobsTextCommand = new RelayCommand(() => IgnoredGlobsText = JoinLines(IgnoredGlobs));
-        ExportRegexesTextCommand = new RelayCommand(() => IgnoredRegexesText = JoinLines(IgnoredRegexes));
-        RemovePathCommand = new RelayCommand<ExclusionRuleItem>(RemovePath);
-        RemoveGlobCommand = new RelayCommand<ExclusionRuleItem>(RemoveGlob);
-        RemoveRegexCommand = new RelayCommand<ExclusionRuleItem>(RemoveRegex);
-        EditPathCommand = new RelayCommand<ExclusionRuleItem>(EditPath);
-        EditGlobCommand = new RelayCommand<ExclusionRuleItem>(EditGlob);
-        EditRegexCommand = new RelayCommand<ExclusionRuleItem>(EditRegex);
-        SavePathCommand = new RelayCommand<ExclusionRuleItem>(item => SaveEdit(ExcludedPaths, item), item => CanSaveEdit(ExcludedPaths, item));
-        SaveGlobCommand = new RelayCommand<ExclusionRuleItem>(item => SaveEdit(IgnoredGlobs, item), item => CanSaveEdit(IgnoredGlobs, item));
-        SaveRegexCommand = new RelayCommand<ExclusionRuleItem>(item => SaveEdit(IgnoredRegexes, item), item => CanSaveEdit(IgnoredRegexes, item));
-        CancelPathCommand = new RelayCommand<ExclusionRuleItem>(CancelEdit);
-        CancelGlobCommand = new RelayCommand<ExclusionRuleItem>(CancelEdit);
-        CancelRegexCommand = new RelayCommand<ExclusionRuleItem>(CancelEdit);
-        SelectSubTabCommand = new RelayCommand<string>(tab => SelectedSubTab = tab);
+        RecomputeConflicts();
+        RefreshCounts();
     }
 
-    // Sub-tab navigation for the "Exclusions" tab nested inside the merged Index settings page.
-    private string _selectedSubTab = "Path";
-    public string SelectedSubTab
+    public ObservableCollection<ExclusionRuleItem> Rules { get; } = new();
+
+    public ICollectionView RulesView => _view;
+
+    public IReadOnlyList<LabeledOption> EffectOptions { get; }
+
+    public IReadOnlyList<LabeledOption> FilterOptions { get; }
+
+    public ICommand AddRuleCommand { get; }
+    public ICommand SelectFilterCommand { get; }
+    public ICommand RemoveRuleCommand { get; }
+    public ICommand EditRuleCommand { get; }
+    public ICommand SaveRuleCommand { get; }
+    public ICommand CancelRuleCommand { get; }
+    public ICommand ApplyBulkTextCommand { get; }
+    public ICommand ExportBulkTextCommand { get; }
+
+    public string NewRuleText
     {
-        get => _selectedSubTab;
-        set => SetProperty(ref _selectedSubTab, value);
-    }
-    public ICommand SelectSubTabCommand { get; }
-
-    public ObservableCollection<ExclusionRuleItem> ExcludedPaths { get; } = new();
-    public ObservableCollection<ExclusionRuleItem> IgnoredGlobs { get; } = new();
-    public ObservableCollection<ExclusionRuleItem> IgnoredRegexes { get; } = new();
-
-    public ICommand AddPathCommand { get; }
-    public ICommand AddGlobCommand { get; }
-    public ICommand AddRegexCommand { get; }
-    public ICommand ApplyPathsTextCommand { get; }
-    public ICommand ApplyGlobsTextCommand { get; }
-    public ICommand ApplyRegexesTextCommand { get; }
-    public ICommand ExportPathsTextCommand { get; }
-    public ICommand ExportGlobsTextCommand { get; }
-    public ICommand ExportRegexesTextCommand { get; }
-    public ICommand RemovePathCommand { get; }
-    public ICommand RemoveGlobCommand { get; }
-    public ICommand RemoveRegexCommand { get; }
-    public ICommand EditPathCommand { get; }
-    public ICommand EditGlobCommand { get; }
-    public ICommand EditRegexCommand { get; }
-    public ICommand SavePathCommand { get; }
-    public ICommand SaveGlobCommand { get; }
-    public ICommand SaveRegexCommand { get; }
-    public ICommand CancelPathCommand { get; }
-    public ICommand CancelGlobCommand { get; }
-    public ICommand CancelRegexCommand { get; }
-
-    public string NewExcludedPath
-    {
-        get => _newExcludedPath;
+        get => _newRuleText;
         set
         {
-            if (SetProperty(ref _newExcludedPath, value))
-                CommandManager.InvalidateRequerySuggested();
+            if (!SetProperty(ref _newRuleText, value))
+                return;
+            UpdatePreview();
+            CommandManager.InvalidateRequerySuggested();
         }
     }
 
-    public string NewIgnoredGlob
+    public string NewRuleEffect
     {
-        get => _newIgnoredGlob;
+        get => _newRuleEffect;
         set
         {
-            if (SetProperty(ref _newIgnoredGlob, value))
-                CommandManager.InvalidateRequerySuggested();
+            if (!SetProperty(ref _newRuleEffect, value))
+                return;
+            UpdatePreview();
+            CommandManager.InvalidateRequerySuggested();
         }
     }
 
-    public string NewIgnoredRegex
+    public string NewRuleDetection
     {
-        get => _newIgnoredRegex;
-        set
+        get => _newRuleDetection;
+        private set => SetProperty(ref _newRuleDetection, value);
+    }
+
+    public string NewRuleResolvedPath
+    {
+        get => _newRuleResolvedPath;
+        private set
         {
-            if (SetProperty(ref _newIgnoredRegex, value))
-                CommandManager.InvalidateRequerySuggested();
+            if (SetProperty(ref _newRuleResolvedPath, value))
+                OnPropertyChanged(nameof(HasNewRuleResolvedPath));
         }
     }
 
-    public string ExcludedPathsText
+    public bool HasNewRuleResolvedPath => NewRuleResolvedPath.Length > 0;
+
+    public string NewRuleError
     {
-        get => _excludedPathsText;
-        set => SetProperty(ref _excludedPathsText, value);
+        get => _newRuleError;
+        private set
+        {
+            if (SetProperty(ref _newRuleError, value))
+                OnPropertyChanged(nameof(HasNewRuleError));
+        }
     }
 
-    public string IgnoredGlobsText
+    public bool HasNewRuleError => NewRuleError.Length > 0;
+
+    public bool HasConflicts
     {
-        get => _ignoredGlobsText;
-        set => SetProperty(ref _ignoredGlobsText, value);
+        get => _hasConflicts;
+        private set => SetProperty(ref _hasConflicts, value);
     }
 
-    public string IgnoredRegexesText
+    public string ConflictSummary
     {
-        get => _ignoredRegexesText;
-        set => SetProperty(ref _ignoredRegexesText, value);
+        get => _conflictSummary;
+        private set => SetProperty(ref _conflictSummary, value);
+    }
+
+    public string ConflictDetails
+    {
+        get => _conflictDetails;
+        private set => SetProperty(ref _conflictDetails, value);
+    }
+
+    public string StatusMessage
+    {
+        get => _statusMessage;
+        private set
+        {
+            if (SetProperty(ref _statusMessage, value))
+                OnPropertyChanged(nameof(HasStatusMessage));
+        }
+    }
+
+    public bool HasStatusMessage => StatusMessage.Length > 0;
+
+    public string BulkText
+    {
+        get => _bulkText;
+        set => SetProperty(ref _bulkText, value);
+    }
+
+    public string CountSummary
+    {
+        get => _countSummary;
+        private set => SetProperty(ref _countSummary, value);
+    }
+
+    public string Filter
+    {
+        get => _filter;
+        set
+        {
+            if (!SetProperty(ref _filter, value))
+                return;
+            StatusMessage = string.Empty;
+            _view.Refresh();
+        }
     }
 
     public void Save()
     {
-        ApplyBulkText(ExcludedPaths, ExcludedPathsText);
-        ApplyBulkText(IgnoredGlobs, IgnoredGlobsText);
-        ApplyBulkText(IgnoredRegexes, IgnoredRegexesText);
-
-        _userSettings.ExcludedPaths = NormalizeItems(ExcludedPaths);
-        _userSettings.IgnoredPathGlobs = NormalizeItems(IgnoredGlobs);
-        _userSettings.IgnoredPathRegexes = NormalizeItems(IgnoredRegexes);
-        RefreshBulkText();
-    }
-
-    private bool CanAddPath() => !string.IsNullOrWhiteSpace(NewExcludedPath);
-    private bool CanAddGlob() => !string.IsNullOrWhiteSpace(NewIgnoredGlob);
-    private bool CanAddRegex() => !string.IsNullOrWhiteSpace(NewIgnoredRegex);
-
-    private void AddPath()
-    {
-        AddUnique(ExcludedPaths, NewExcludedPath);
-        NewExcludedPath = string.Empty;
-        RefreshBulkText();
-    }
-
-    private void AddGlob()
-    {
-        AddUnique(IgnoredGlobs, NewIgnoredGlob);
-        NewIgnoredGlob = string.Empty;
-        RefreshBulkText();
-    }
-
-    private void AddRegex()
-    {
-        AddUnique(IgnoredRegexes, NewIgnoredRegex);
-        NewIgnoredRegex = string.Empty;
-        RefreshBulkText();
-    }
-
-    private static void AddUnique(ObservableCollection<ExclusionRuleItem> items, string value)
-    {
-        var normalized = value.Trim().Trim('"');
-        if (string.IsNullOrWhiteSpace(normalized))
-            return;
-
-        if (items.Any(x => x.Value.Equals(normalized, StringComparison.OrdinalIgnoreCase)))
-            return;
-
-        items.Add(new ExclusionRuleItem(normalized));
-    }
-
-    private void RemovePath(ExclusionRuleItem item)
-    {
-        if (item != null)
-        {
-            ExcludedPaths.Remove(item);
+        // Bulk edits are explicit: when a line cannot be parsed nothing is applied and the text stays in the
+        // box, so a typo can never silently drop rules from the saved configuration.
+        var bulkApplied = ApplyBulkText();
+        _userSettings.IndexRules = Rules
+            .Select(rule => new IndexRuleSetting { Pattern = rule.Value, Effect = rule.Effect })
+            .ToList();
+        // Keep the in-memory legacy lists in step with the rules so an immediate settings snapshot and a
+        // downgrade both see the excluding subset.
+        IndexRuleMigration.MirrorLegacy(_userSettings);
+        if (bulkApplied)
             RefreshBulkText();
+    }
+
+    private bool FilterRule(object candidate) => candidate is ExclusionRuleItem item
+        && (Filter == "All" || item.Effect.ToString().Equals(Filter, StringComparison.OrdinalIgnoreCase));
+
+    private bool CanAddRule()
+    {
+        if (!TryReadNewRule(out var parsed, out _))
+            return false;
+        return !Rules.Any(rule => rule.Value.Equals(parsed.Text, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private bool TryReadNewRule(out ParsedIndexRule parsed, out IndexRuleError error)
+    {
+        parsed = default;
+        var (text, effect) = SplitEffectPrefix(NewRuleText, ParseEffect(NewRuleEffect));
+        if (!IndexRuleSyntax.TryParse(text, effect, out parsed, out error))
+            return false;
+        if (parsed.Kind == IndexRuleKind.Path
+            && !IndexRuleSyntax.TryResolvePath(parsed.Pattern, out _, out error))
+        {
+            return false;
+        }
+        return true;
+    }
+
+    private void UpdatePreview()
+    {
+        NewRuleResolvedPath = string.Empty;
+
+        if (IndexRuleSyntax.Clean(NewRuleText).Length == 0)
+        {
+            NewRuleDetection = string.Empty;
+            NewRuleError = string.Empty;
+            return;
+        }
+
+        if (!TryReadNewRule(out var parsed, out var error))
+        {
+            NewRuleDetection = string.Empty;
+            NewRuleError = ErrorText(error);
+            return;
+        }
+
+        NewRuleDetection = string.Format(T("Exclusions_DetectedTemplate"), KindText(parsed.Kind));
+        NewRuleError = string.Empty;
+
+        if (parsed.Kind == IndexRuleKind.Path
+            && IndexRuleSyntax.TryResolvePath(parsed.Pattern, out var resolved, out _))
+        {
+            NewRuleResolvedPath = string.Format(T("Exclusions_ResolvedTemplate"), resolved);
         }
     }
 
-    private void RemoveGlob(ExclusionRuleItem item)
+    private void AddRule()
     {
-        if (item != null)
-        {
-            IgnoredGlobs.Remove(item);
-            RefreshBulkText();
-        }
-    }
-
-    private void RemoveRegex(ExclusionRuleItem item)
-    {
-        if (item != null)
-        {
-            IgnoredRegexes.Remove(item);
-            RefreshBulkText();
-        }
-    }
-
-    private void EditPath(ExclusionRuleItem item) => BeginEdit(ExcludedPaths, item);
-
-    private void EditGlob(ExclusionRuleItem item) => BeginEdit(IgnoredGlobs, item);
-
-    private void EditRegex(ExclusionRuleItem item) => BeginEdit(IgnoredRegexes, item);
-
-    private static void BeginEdit(ObservableCollection<ExclusionRuleItem> items, ExclusionRuleItem? item)
-    {
-        if (item == null || !items.Contains(item))
+        if (!TryReadNewRule(out var parsed, out _))
             return;
 
-        foreach (var other in items.Where(other => other != item))
-            other.IsEditing = false;
-        item.EditValue = item.Value;
-        item.IsEditing = true;
+        var text = parsed.Text;
+
+        if (Rules.Any(rule => rule.Value.Equals(text, StringComparison.OrdinalIgnoreCase)))
+        {
+            StatusMessage = T("Exclusions_Duplicate");
+            return;
+        }
+
+        StatusMessage = string.Empty;
+        Rules.Add(new ExclusionRuleItem(text, parsed.Effect));
+        NewRuleText = string.Empty;
+        NewRuleDetection = string.Empty;
+        NewRuleResolvedPath = string.Empty;
+        NewRuleError = string.Empty;
+
+        _view.Refresh();
+        RefreshBulkText();
+        RecomputeConflicts();
+        RefreshCounts();
+
+        if (Filter != "All" && !parsed.Effect.ToString().Equals(Filter, StringComparison.OrdinalIgnoreCase))
+            StatusMessage = string.Format(T("Exclusions_MovedTemplate"), EffectText(parsed.Effect));
     }
-    private static bool CanSaveEdit(ObservableCollection<ExclusionRuleItem> items, ExclusionRuleItem? item)
+
+    private void RemoveRule(ExclusionRuleItem? item)
     {
         if (item == null)
-            return false;
-
-        var value = NormalizeRule(item.EditValue);
-        return value.Length > 0 && !items.Any(other => other != item
-            && other.Value.Equals(value, StringComparison.OrdinalIgnoreCase));
-    }
-    private void SaveEdit(ObservableCollection<ExclusionRuleItem> items, ExclusionRuleItem item)
-    {
-        if (!CanSaveEdit(items, item))
             return;
 
-        item.Value = NormalizeRule(item.EditValue);
+        Rules.Remove(item);
+        _view.Refresh();
+        RefreshBulkText();
+        RecomputeConflicts();
+        RefreshCounts();
+    }
+
+    private void BeginEdit(ExclusionRuleItem? item)
+    {
+        if (item == null || !Rules.Contains(item))
+            return;
+
+        foreach (var other in Rules.Where(other => other != item))
+            other.IsEditing = false;
+
+        item.EditValue = item.Value;
+        item.EditEffect = item.Effect;
+        item.IsEditing = true;
+    }
+
+    private void SaveEdit(ExclusionRuleItem? item)
+    {
+        if (item == null || !item.IsEditing)
+            return;
+
+        if (!IndexRuleSyntax.TryParse(item.EditValue, item.EditEffect, out var parsed, out var error))
+        {
+            StatusMessage = ErrorText(error);
+            return;
+        }
+
+        if (parsed.Kind == IndexRuleKind.Path && !IndexRuleSyntax.TryResolvePath(parsed.Pattern, out _, out error))
+        {
+            StatusMessage = ErrorText(error);
+            return;
+        }
+
+        if (Rules.Any(other => other != item && other.Value.Equals(parsed.Text, StringComparison.OrdinalIgnoreCase)))
+        {
+            StatusMessage = T("Exclusions_Duplicate");
+            return;
+        }
+
+        var effectChanged = item.Effect != parsed.Effect;
+        item.Value = parsed.Text;
+        item.Effect = parsed.Effect;
+        item.RefreshKind();
         item.IsEditing = false;
+        StatusMessage = string.Empty;
+
+        _view.Refresh();
         RefreshBulkText();
-    }
-    private static void CancelEdit(ExclusionRuleItem item) => item?.IsEditing = false;
-    private static string NormalizeRule(string value) => value.Trim().Trim('"');
+        RecomputeConflicts();
+        RefreshCounts();
 
-    private void RefreshBulkText()
+        if (effectChanged && Filter != "All" && !parsed.Effect.ToString().Equals(Filter, StringComparison.OrdinalIgnoreCase))
+            StatusMessage = string.Format(T("Exclusions_MovedTemplate"), EffectText(parsed.Effect));
+    }
+
+    private void RecomputeConflicts()
     {
-        ExcludedPathsText = JoinLines(ExcludedPaths);
-        IgnoredGlobsText = JoinLines(IgnoredGlobs);
-        IgnoredRegexesText = JoinLines(IgnoredRegexes);
-    }
-
-    private static string JoinLines(ObservableCollection<ExclusionRuleItem> items) => string.Join(Environment.NewLine, items.Select(x => x.Value));
-
-    private static List<string> NormalizeItems(ObservableCollection<ExclusionRuleItem> items) => items
-            .Select(x => x.Value.Trim())
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+        var settings = Rules
+            .Select(rule => new IndexRuleSetting { Pattern = rule.Value, Effect = rule.Effect })
             .ToList();
+        var conflicts = IndexRuleConflictDetector.Detect(settings);
 
-    private static List<string> ParseLines(string text) => (text ?? string.Empty)
-            .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None)
-            .Select(x => x.Trim().Trim('"'))
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        foreach (var rule in Rules)
+        {
+            rule.IsConflict = false;
+            rule.ConflictTooltip = string.Empty;
+        }
 
-    private static void SyncCollection(ObservableCollection<ExclusionRuleItem> target, IReadOnlyList<string> values)
-    {
-        target.Clear();
-        foreach (var value in values)
-            target.Add(new ExclusionRuleItem(value));
+        var details = new List<string>();
+        foreach (var conflict in conflicts)
+        {
+            var priority = Rules[conflict.PriorityIndex];
+            priority.IsConflict = true;
+            priority.ConflictTooltip = string.Format(T("Exclusions_ConflictTooltip"), conflict.ExcludePattern);
+            details.Add($"• {conflict.PriorityPattern}  ←  {conflict.ExcludePattern}");
+        }
+
+        HasConflicts = conflicts.Count > 0;
+        ConflictSummary = conflicts.Count == 0
+            ? string.Empty
+            : string.Format(T("Exclusions_ConflictSummary"), conflicts.Count);
+        ConflictDetails = string.Join(Environment.NewLine, details);
     }
 
-    private void ApplyBulkText(ObservableCollection<ExclusionRuleItem> target, string text)
+    private void RefreshCounts()
     {
-        SyncCollection(target, ParseLines(text));
+        var excluded = Rules.Count(rule => rule.Effect == IndexRuleEffect.Exclude);
+        var low = Rules.Count(rule => rule.Effect == IndexRuleEffect.Low);
+        var high = Rules.Count(rule => rule.Effect == IndexRuleEffect.High);
+        var normal = Rules.Count - excluded - low - high;
+        CountSummary = string.Format(T("Exclusions_CountSummary"), Rules.Count, excluded, low, normal, high);
+    }
+
+    private void RefreshBulkText() => BulkText = string.Join(Environment.NewLine, Rules.Select(FormatBulkLine));
+
+    private bool ApplyBulkText()
+    {
+        var parsed = new List<ExclusionRuleItem>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var invalidLines = new List<int>();
+        var lineNumber = 0;
+
+        foreach (var line in (BulkText ?? string.Empty).Split(["\r\n", "\n", "\r"], StringSplitOptions.None))
+        {
+            lineNumber++;
+            var (text, effect) = ParseBulkLine(line);
+            if (text.Length == 0)
+                continue;
+            if (!IndexRuleSyntax.TryParse(text, effect, out var rule, out _))
+            {
+                invalidLines.Add(lineNumber);
+                continue;
+            }
+
+            if (rule.Kind == IndexRuleKind.Path && !IndexRuleSyntax.TryResolvePath(rule.Pattern, out _, out _))
+            {
+                invalidLines.Add(lineNumber);
+                continue;
+            }
+
+            if (!seen.Add(rule.Text))
+                continue;
+
+            parsed.Add(new ExclusionRuleItem(rule.Text, effect));
+        }
+
+        // All or nothing: a half-applied paste is harder to notice than a refused one.
+        if (invalidLines.Count > 0)
+        {
+            StatusMessage = string.Format(T("Exclusions_BulkInvalid"), string.Join(", ", invalidLines));
+            return false;
+        }
+
+        Rules.Clear();
+        foreach (var rule in parsed)
+            Rules.Add(rule);
+
+        StatusMessage = string.Empty;
+        _view.Refresh();
+        RecomputeConflicts();
+        RefreshCounts();
         RefreshBulkText();
+        return true;
     }
+
+    private static (string Text, IndexRuleEffect Effect) ParseBulkLine(string line) =>
+        SplitEffectPrefix(line, IndexRuleEffect.Normal);
+
+    /// <summary>
+    /// Splits the optional effect prefix used by both the bulk box and the input box: `!` exclude, `-` low,
+    /// `+` high; a leading `\` escapes the prefix character. A fallback is used when no prefix is present.
+    /// </summary>
+    private static (string Text, IndexRuleEffect Effect) SplitEffectPrefix(string? line, IndexRuleEffect fallback)
+    {
+        var text = (line ?? string.Empty).Trim();
+        var effect = fallback;
+
+        if (text.StartsWith('!'))
+        {
+            effect = IndexRuleEffect.Exclude;
+            text = text[1..];
+        }
+        else if (text.StartsWith('-'))
+        {
+            effect = IndexRuleEffect.Low;
+            text = text[1..];
+        }
+        else if (text.StartsWith('+'))
+        {
+            effect = IndexRuleEffect.High;
+            text = text[1..];
+        }
+
+        // Only strip the escape when it actually escapes a prefix character, so UNC paths such as
+        // `\\server\share` keep both leading separators.
+        if (text.Length >= 2 && text[0] == '\\' && text[1] is '!' or '-' or '+' or '\\')
+            text = text[1..];
+
+        return (text.Trim(), effect);
+    }
+
+    private static string FormatBulkLine(ExclusionRuleItem rule)
+    {
+        var prefix = rule.Effect switch
+        {
+            IndexRuleEffect.Exclude => "!",
+            IndexRuleEffect.Low => "-",
+            IndexRuleEffect.High => "+",
+            _ => string.Empty,
+        };
+
+        var text = rule.Value.StartsWith('!') || rule.Value.StartsWith('-')
+            || rule.Value.StartsWith('+') || rule.Value.StartsWith('\\')
+            ? "\\" + rule.Value
+            : rule.Value;
+
+        return prefix + text;
+    }
+
+    private static IndexRuleEffect ParseEffect(string? value) => Enum.TryParse<IndexRuleEffect>(value, ignoreCase: true, out var effect)
+        ? effect
+        : IndexRuleEffect.Normal;
+
+    private static string KindText(IndexRuleKind kind) => T(kind switch
+    {
+        IndexRuleKind.Path => "Exclusions_KindPath",
+        IndexRuleKind.Regex => "Exclusions_KindRegex",
+        _ => "Exclusions_KindGlob",
+    });
+
+    private static string EffectText(IndexRuleEffect effect) => T(effect switch
+    {
+        IndexRuleEffect.Exclude => "Exclusions_EffectExclude",
+        IndexRuleEffect.Low => "Exclusions_EffectLow",
+        IndexRuleEffect.High => "Exclusions_EffectHigh",
+        _ => "Exclusions_EffectNormal",
+    });
+
+    private static string ErrorText(IndexRuleError error) => T(error switch
+    {
+        IndexRuleError.Empty => "Exclusions_ErrorEmpty",
+        IndexRuleError.EmptyRegex => "Exclusions_ErrorEmptyRegex",
+        IndexRuleError.InvalidRegex => "Exclusions_ErrorInvalidRegex",
+        IndexRuleError.UnresolvedEnvironmentVariable => "Exclusions_ErrorUnresolvedEnvironment",
+        IndexRuleError.VirtualPathWithoutFileSystem => "Exclusions_ErrorVirtualPath",
+        IndexRuleError.InvalidPath => "Exclusions_ErrorInvalidPath",
+        _ => "Exclusions_ErrorEmpty",
+    });
+
+    private static string T(string key) => TranslationManager.Instance[key];
 }

@@ -59,10 +59,11 @@ public static class SettingsSearchIndex
         new("Network_IndexStatus", "Index", vm => vm.LocalDrive.SelectedTab = "Folders", "TabFolders/RowFolderRebuild", "Settings_FolderIndex"),
         new("Network_RebuildBtn", "Index", vm => vm.LocalDrive.SelectedTab = "Folders", "TabFolders/RowFolderRebuild", "Settings_FolderIndex"),
         new("Folder_AddBtn", "Index", vm => vm.LocalDrive.SelectedTab = "Folders", "TabFolders/RowFolderRebuild", "Settings_FolderIndex"),
-        new("Settings_Exclusions", "Index", vm => { vm.LocalDrive.SelectedTab = "Exclusions"; vm.Exclusions.SelectedSubTab = "Path"; }, "TabExclusions/SubTabExclusionsPath"),
-        new("Exclusions_TabPath", "Index", vm => { vm.LocalDrive.SelectedTab = "Exclusions"; vm.Exclusions.SelectedSubTab = "Path"; }, "TabExclusions/SubTabExclusionsPath", "Settings_Exclusions"),
-        new("Exclusions_TabGlob", "Index", vm => { vm.LocalDrive.SelectedTab = "Exclusions"; vm.Exclusions.SelectedSubTab = "Glob"; }, "TabExclusions/SubTabExclusionsGlob", "Settings_Exclusions"),
-        new("Exclusions_TabRegex", "Index", vm => { vm.LocalDrive.SelectedTab = "Exclusions"; vm.Exclusions.SelectedSubTab = "Regex"; }, "TabExclusions/SubTabExclusionsRegex", "Settings_Exclusions"),
+        new("Settings_Exclusions", "Index", vm => { vm.LocalDrive.SelectedTab = "Exclusions"; vm.Exclusions.Filter = "All"; }, "TabExclusions/SubTabExclusionsAll"),
+        new("Exclusions_SearchExclude", "Index", vm => { vm.LocalDrive.SelectedTab = "Exclusions"; vm.Exclusions.Filter = "Exclude"; }, "TabExclusions/SubTabExclusionsExclude", "Settings_Exclusions"),
+        new("Exclusions_SearchLow", "Index", vm => { vm.LocalDrive.SelectedTab = "Exclusions"; vm.Exclusions.Filter = "Low"; }, "TabExclusions/SubTabExclusionsLow", "Settings_Exclusions"),
+        new("Exclusions_SearchNormal", "Index", vm => { vm.LocalDrive.SelectedTab = "Exclusions"; vm.Exclusions.Filter = "Normal"; }, "TabExclusions/SubTabExclusionsNormal", "Settings_Exclusions"),
+        new("Exclusions_SearchHigh", "Index", vm => { vm.LocalDrive.SelectedTab = "Exclusions"; vm.Exclusions.Filter = "High"; }, "TabExclusions/SubTabExclusionsHigh", "Settings_Exclusions"),
 
         // General
         new("Settings_General", "General"),
