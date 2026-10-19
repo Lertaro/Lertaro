@@ -190,13 +190,18 @@ internal sealed class SearchDispatchController
         // Per search, not per paint: the mapper below is the render callback, and it asks every instant
         // provider and search-action plugin on each call. See SearchResultMapper.InstantPassCache.
         var instantPass = new SearchResultMapper.InstantPassCache();
+        var rankRules = ExclusionRuleSet.From(UserSettings.Load());
+        // The engine truncates before the App can rank, so a high-priority row that matches weakly could
+        // never arrive at all. Only high rules pay for the wider window; the default rule set has none.
+        if (rankRules.HasHighPriorityRules)
+            fileLimit = Math.Max(fileLimit, SearchViewModel.TokenQuickSearchFileLimit);
         engineCall(
             searchQuery,
             hasScope ? null : _getSearchScope(),
             _getIsInlineSearchContext(),
             fileLimit,
             appLimit,
-            (resp, contextDir) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope || filenameLike, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass),
+            (resp, contextDir) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope || filenameLike, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass, priorityResolver: rankRules.GetPriority),
             state => _setIsSearching(state),
             (results, status, final) => ApplySearchResults(originalValue, searchQuery, results, status, final),
             HandleLocalServiceUnavailable,

@@ -143,6 +143,10 @@ internal sealed class SearchExecutionEngine : IDisposable
         }
 
         var token = cts.Token;
+        // High-priority whole paths are searched separately too: the engine truncates by name relevance
+        // before this client can apply the priority, so an ordinary name inside a promoted folder would
+        // otherwise never reach the ranking. Resolved once per search; the rule set caches per settings.
+        var priorityRoots = ExclusionRuleSet.From(UserSettings.Load()).HighPriorityRoots;
         var sourceTracker = InlineSearchManager.Instance.ExplorerTracker;
         var commandDirectory = isInlineSearchContext
             ? (!string.IsNullOrWhiteSpace(searchScope) ? searchScope : sourceTracker.ActivePath ?? sourceTracker.LastActiveExplorerPath)
@@ -169,14 +173,14 @@ internal sealed class SearchExecutionEngine : IDisposable
                     var contextDirectory = commandDirectory;
                     if (!string.IsNullOrEmpty(contextDirectory))
                     {
-                        await RenderInlineSearchAsync(query, contextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable, bypassExclusions, folderScope).ConfigureAwait(false);
+                        await RenderInlineSearchAsync(query, contextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable, bypassExclusions, folderScope, priorityRoots).ConfigureAwait(false);
                         return;
                     }
                 }
 
                 var streamingScope = tracker.IsActiveWindowExplorer ? searchScope : null;
                 var streamingContextDirectory = commandDirectory;
-                await _streamRenderer.RenderAsync(query, streamingScope, streamingContextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable: onLocalServiceUnavailable, bypassExclusions: bypassExclusions, resultMapperConsumesBatches: resultMapperConsumesBatches, onReceivedCountUpdated: onReceivedCountUpdated, scopeDirective: scopeDirective, foldersOnly: folderScope).ConfigureAwait(false);
+                await _streamRenderer.RenderAsync(query, streamingScope, streamingContextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable: onLocalServiceUnavailable, bypassExclusions: bypassExclusions, resultMapperConsumesBatches: resultMapperConsumesBatches, onReceivedCountUpdated: onReceivedCountUpdated, scopeDirective: scopeDirective, foldersOnly: folderScope, priorityRoots: priorityRoots).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -246,7 +250,8 @@ internal sealed class SearchExecutionEngine : IDisposable
         CancellationToken token,
         Action? onLocalServiceUnavailable,
         bool bypassExclusions,
-        bool folderScope)
+        bool folderScope,
+        IReadOnlyList<string> priorityRoots)
     {
         var localMatches = new List<AppSearchResult>();
         // The engine-side folder filter never sees these rows: history remembers files too, so the scope has
@@ -292,7 +297,7 @@ internal sealed class SearchExecutionEngine : IDisposable
 
         await _streamRenderer.RenderAsync(query, null, contextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token,
             GetLocalSnapshot, () => Volatile.Read(ref localUpdateVersion), localSearchTask, onLocalServiceUnavailable, bypassExclusions,
-            foldersOnly: folderScope).ConfigureAwait(false);
+            foldersOnly: folderScope, priorityRoots: priorityRoots).ConfigureAwait(false);
     }
 
     private void EmitInstantResults(

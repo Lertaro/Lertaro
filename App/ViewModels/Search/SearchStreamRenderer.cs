@@ -30,6 +30,10 @@ internal sealed class SearchStreamRenderer
 
     private const int DrainRenderIntervalMs = 25;
 
+    // Per-directory row budget for the high-priority re-searches. Large enough that a promoted folder's
+    // best matches are never lost, small enough that the extra index work stays invisible while typing.
+    private const int PriorityRootResultLimit = 50;
+
     private readonly SearchService _searchService;
     private readonly Func<int> _getSearchVersion;
 
@@ -57,7 +61,8 @@ internal sealed class SearchStreamRenderer
         bool resultMapperConsumesBatches = false,
         Action<int>? onReceivedCountUpdated = null,
         FileFilterScopeDirective? scopeDirective = null,
-        bool foldersOnly = false)
+        bool foldersOnly = false,
+        IReadOnlyList<string>? priorityRoots = null)
     {
         var streamedResponse = new List<SearchResult>();
         object responseLock = new();
@@ -68,8 +73,11 @@ internal sealed class SearchStreamRenderer
         var streamDone = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         // Scoped searches answer from N per-folder engine queries, so the same file can arrive from two
-        // overlapping configured folders -- dedupe by path at accumulation.
-        var seenPaths = scopeDirective is { Folders.Count: > 0 } ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : null;
+        // overlapping configured folders -- dedupe by path at accumulation. High-priority re-searches add a
+        // second source on top of the main query, so they need the same guard.
+        var dedupePaths = scopeDirective is { Folders.Count: > 0 } || priorityRoots is { Count: > 0 }
+            ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            : null;
         var scopePatterns = scopeDirective is { Folders.Count: > 0 }
             ? FilterPatternHelper.SplitOrNullIfMatchAll(scopeDirective.FilterPattern)
             : null;
@@ -94,7 +102,7 @@ internal sealed class SearchStreamRenderer
 
             lock (responseLock)
             {
-                if (seenPaths != null && !seenPaths.Add(result.Path))
+                if (dedupePaths != null && !dedupePaths.Add(result.Path))
                     return;
                 streamedResponse.Add(result);
                 streamedCount++;
@@ -209,9 +217,17 @@ internal sealed class SearchStreamRenderer
             }
         }, pumpToken);
 
+        // Started beside the main query rather than after it: each is scoped to one promoted folder, and
+        // the client only needs the union before its final sort. Skipped when the caller narrowed the
+        // search itself (path mode, explicit folder scope): those scopes are what the user asked for.
+        // Owned outside the try so a failing main query still drains it instead of leaving the pipe open.
+        var priorityTask = priorityRoots is { Count: > 0 } && !bypassExclusions && scopeDirective is not { Folders.Count: > 0 }
+            ? ScopedSearchRunner.RunPriorityRootsAsync(
+                _searchService, priorityRoots, query, PriorityRootResultLimit, appLimit, Accumulate, token)
+            : null;
+
         try
         {
-
             if (scopeDirective is { Folders.Count: > 0 })
             {
                 await ScopedSearchRunner.RunAsync(_searchService, scopeDirective, query, fileLimit, appLimit, Accumulate,
@@ -231,6 +247,10 @@ internal sealed class SearchStreamRenderer
             }
 
             token.ThrowIfCancellationRequested();
+
+            if (priorityTask != null)
+                await priorityTask.ConfigureAwait(false);
+
             if (localSearchTask != null)
             {
                 try
@@ -244,6 +264,17 @@ internal sealed class SearchStreamRenderer
         }
         finally
         {
+            if (priorityTask != null)
+            {
+                try
+                {
+                    await priorityTask.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                }
+            }
+
             streamDone.TrySetResult();
             try
             {

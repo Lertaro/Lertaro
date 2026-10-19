@@ -86,7 +86,7 @@ public static class SearchResultMapper
     private static readonly IReadOnlyDictionary<string, int> EmptyUsage =
         new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-    internal static List<AppSearchResult> BuildQuickResults(List<SearchResult>? fileResults, string query, string? scope, string? contextDirectory, bool isInlineWindow, string? rawQuery = null, bool skipDisplayCap = false, FileFilterScopeDirective? fileFilterScope = null, bool folderScope = false, InstantPassCache? instantPass = null)
+    internal static List<AppSearchResult> BuildQuickResults(List<SearchResult>? fileResults, string query, string? scope, string? contextDirectory, bool isInlineWindow, string? rawQuery = null, bool skipDisplayCap = false, FileFilterScopeDirective? fileFilterScope = null, bool folderScope = false, InstantPassCache? instantPass = null, Func<string, bool, IndexRuleEffect>? priorityResolver = null)
     {
         var uiResults = new List<AppSearchResult>();
         // One pass over the plugin providers per search, not per paint. This method IS a paint callback --
@@ -295,7 +295,7 @@ public static class SearchResultMapper
         if (folderScope)
             candidates.RemoveAll(c => !c.Result.IsDir);
 
-        var ranked = RankAndDedupe(candidates, query);
+        var ranked = RankAndDedupe(candidates, query, priorityResolver);
         // Capped here (not deferred to the caller) because this display cap has to respect whatever
         // header/grouping layout the caller (or InlineListSearchHelper.MergeLocalMatches, downstream)
         // builds around these rows -- e.g. the inline window's "Current Folder"/"Global Search" split
@@ -358,13 +358,13 @@ public static class SearchResultMapper
     // Shared by both search groups the inline window shows (its own "Current Folder" matches via
     // ExplorerSearchHelper, and this "Global Search" tier below) so a file scores the same way regardless
     // of which of the two it happens to land in. The ladder itself lives in RankedCandidateOrdering.
-    internal static List<AppSearchResult> RankAndDedupe(List<RankedCandidate> candidates, string? query = null)
-        => RankedCandidateOrdering.Order(candidates, query).Select(c => c.Result).ToList();
+    internal static List<AppSearchResult> RankAndDedupe(List<RankedCandidate> candidates, string? query = null, Func<string, bool, IndexRuleEffect>? priorityResolver = null)
+        => RankedCandidateOrdering.Order(candidates, query, priorityResolver).Select(c => c.Result).ToList();
 
     // The same ordering, keeping the rank alongside each row -- for callers that need to consult it again
     // after ordering (the inline window's directory-proximity pass does).
-    internal static List<RankedCandidate> RankCandidates(List<RankedCandidate> candidates, string? query = null)
-        => RankedCandidateOrdering.Order(candidates, query);
+    internal static List<RankedCandidate> RankCandidates(List<RankedCandidate> candidates, string? query = null, Func<string, bool, IndexRuleEffect>? priorityResolver = null)
+        => RankedCandidateOrdering.Order(candidates, query, priorityResolver);
 
     public static AppSearchResult CreateUiResult(SearchResult item, string query, int index, bool isApplication, string? scope)
         => SearchResultHelper.CreateUiResult(item, query, index, isApplication, scope);

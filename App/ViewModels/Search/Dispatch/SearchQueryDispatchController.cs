@@ -161,7 +161,11 @@ internal sealed class SearchQueryDispatchController
         // order already established, so the total cost of painting twenty times is the cost of painting
         // once. Built here rather than on the first mapper call because the content append has to reach it
         // even when the file search never answers. See StreamingResultAccumulator.
-        var accumulator = new StreamingResultAccumulator(cleanQuery, new Dictionary<string, int>());
+        var rankRules = ExclusionRuleSet.From(UserSettings.Load());
+        var accumulator = new StreamingResultAccumulator(
+            cleanQuery,
+            new Dictionary<string, int>(),
+            priorityResolver: rankRules.GetPriority);
         var prioritiesApplied = false;
         _accumulator = accumulator;
         _searchSettled = false;

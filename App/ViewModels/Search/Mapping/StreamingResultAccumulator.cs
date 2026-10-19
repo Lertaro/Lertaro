@@ -28,6 +28,7 @@ internal sealed class StreamingResultAccumulator
 
     private readonly string _query;
     private readonly Lazy<string?> _queriedDirectory;
+    private readonly Func<string, bool, IndexRuleEffect>? _priorityResolver;
     private IComparer<SearchResult> _rankComparer;
 
     private int _consumed;
@@ -57,15 +58,17 @@ internal sealed class StreamingResultAccumulator
         IReadOnlyList<SearchResultMapper.RankedCandidate>? seedCandidates = null,
         Func<string, string?>? resolveQueriedDirectory = null,
         IReadOnlyDictionary<string, int>? historyUsage = null,
-        IReadOnlySet<string>? favoritePaths = null)
+        IReadOnlySet<string>? favoritePaths = null,
+        Func<string, bool, IndexRuleEffect>? priorityResolver = null)
     {
         _query = query;
+        _priorityResolver = priorityResolver;
         // Constructed on input, consumed by the background mapper. Directory.Exists can block on a
         // remote path; even an empty content-prefix paint on the UI thread must not resolve it.
         _queriedDirectory = new Lazy<string?>(() => (resolveQueriedDirectory ?? SearchResultMapper.GetQueriedDirectory)(query));
         // Captured once for the whole query rather than re-read per paint: the ranking must not shift
         // underneath rows that are already on screen just because the user opened something mid-search.
-        _rankComparer = new SearchResultRankComparer(historySnapshot, historyUsage, favoritePaths);
+        _rankComparer = new SearchResultRankComparer(historySnapshot, historyUsage, favoritePaths, priorityResolver);
 
         if (seedCandidates == null)
             return;
@@ -108,7 +111,7 @@ internal sealed class StreamingResultAccumulator
         IReadOnlySet<string>? favoritePaths = null)
     {
         if (_consumed == 0 && _ranked.Count == 0)
-            _rankComparer = new SearchResultRankComparer(priorities, usageCounts, favoritePaths);
+            _rankComparer = new SearchResultRankComparer(priorities, usageCounts, favoritePaths, _priorityResolver);
     }
 
     /// <summary>How many of the arrivals handed in so far have been mapped.</summary>
