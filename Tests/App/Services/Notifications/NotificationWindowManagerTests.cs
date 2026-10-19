@@ -76,22 +76,33 @@ public sealed class NotificationWindowManagerTests
             var first = Item("first");
             windows.Present(first);
             windows.Present(Item("later"));
+            LandCards();
             var original = windows.Countdown().First();
             var survivor = windows.Countdown().Last();
             var slide = survivor.Moving;
-            var top = survivor.Window.Top;
+            var height = survivor.Window.ActualHeight;
             original.RemainingMs = 1;
             first.Complete(NotificationResult.Failed(NotificationFailure.Replaced));
             var replacement = Item("updated");
             replacement.Sequence = first.Sequence;
 
             windows.Present(replacement);
+            LandCards();
 
             Assert.AreEqual(2, windows.Count);
             Assert.AreSame(original, windows.Countdown().First(r => r.Item == replacement));
             Assert.AreEqual(8000, original.RemainingMs);
             Assert.AreEqual(slide, survivor.Moving);
-            Assert.AreEqual(top, survivor.Window.Top, 0.1);
+            // The stack, not the pixel: a card's height is corrected once its first frame is up (Present
+            // re-stacks on ContentRendered), so the survivor's absolute Top is expected to move by that
+            // correction. What must hold is that the survivor still sits in the gap above the card that took
+            // the replaced slot -- nothing was rebuilt, dropped, or left floating.
+            var replacementRunner = windows.Countdown().First(r => r.Item == replacement);
+            Assert.AreEqual(
+                replacementRunner.Window.Top - NotificationWindowManager.CardGapDip,
+                survivor.Window.Top + survivor.Window.ActualHeight,
+                0.1);
+            Assert.AreEqual(height, survivor.Window.ActualHeight, 0.1);
             Assert.IsEmpty(gone);
             original.Window.Close();
             Assert.AreSame(replacement, Assert.ContainsSingle(gone));
@@ -171,6 +182,7 @@ public sealed class NotificationWindowManagerTests
                 Title = $"card {i}", Message = string.Join("\n", Enumerable.Repeat("long body", 40))
             }, "plugin", "Plugin")).ToArray();
             for (var i = 0; i < 10; i++) queue.Feed();
+            LandCards();
 
             Assert.AreEqual(3, windows.Count);
             Assert.IsTrue(queue.HasWaiting);
@@ -186,11 +198,13 @@ public sealed class NotificationWindowManagerTests
             windows.Reanchor();
             Assert.AreEqual(1, windows.Count);
             for (var i = 0; i < 10; i++) queue.Feed();
+            LandCards();
             Assert.AreEqual(1, windows.Count);
 
             area = new System.Windows.Rect(-100, -200, 800, 1800);
             windows.Reanchor();
             for (var i = 0; i < 10; i++) queue.Feed();
+            LandCards();
             Assert.AreEqual(5, windows.Count);
             Assert.AreEqual(1234, windows.Countdown().Single(r => r.Item == items[1]).RemainingMs);
             Assert.IsTrue(items.All(item => !item.Completion.IsCompleted));
@@ -258,12 +272,14 @@ public sealed class NotificationWindowManagerTests
             var first = Submit();
             var next = Submit();
             queue.Feed();
+            LandCards();
             Assert.AreEqual(1, windows.Count);
             Assert.IsFalse(next.Completion.IsCompleted);
             windows.Countdown().Single().Window.Close();
             Assert.AreEqual(NotificationResult.Success, first.Completion.Result);
             Assert.AreEqual(0, windows.Count);
             queue.Feed();
+            LandCards();
             Assert.AreSame(next, windows.Countdown().Single().Item);
         }
         finally
@@ -280,6 +296,7 @@ public sealed class NotificationWindowManagerTests
         try
         {
             windows.Present(Item("drag me"));
+            LandCards();
             var runner = windows.Countdown().Single();
             var card = (Lertaro.App.Views.Notifications.NotificationCardWindow)runner.Window;
             Assert.IsNotNull(runner.Moving);
@@ -300,8 +317,19 @@ public sealed class NotificationWindowManagerTests
         }
     }
 
-    private static NotificationRequest Request(string text) => new() { Title = text, Message = text };
+    // Present() lands its card through WindowParking.AfterFrame, so the placement pass runs two dispatcher
+    // frames after the window is shown rather than inside the call. A test that reads a placed window -- or a
+    // queue whose capacity only becomes known once the stack has been measured -- has to run those frames.
+    private static void LandCards()
+    {
+        var frame = new System.Windows.Threading.DispatcherFrame(false);
+        System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(
+            System.Windows.Threading.DispatcherPriority.Background,
+            new Action(() => frame.Continue = false));
+        System.Windows.Threading.Dispatcher.PushFrame(frame);
+    }
 
+    private static NotificationRequest Request(string text) => new() { Title = text, Message = text };
     private static NotificationItem Item(string text) =>
         new(Request(text), "plugin", "Plugin", NotificationPosition.CardStack, 8, null);
 }
