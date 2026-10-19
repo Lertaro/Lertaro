@@ -3,6 +3,8 @@ namespace Lertaro.Core.SearchIndex;
 // One candidate's match quality, as the search windows rank it. Shape says how the query sits in the
 // text (whole word, start of a word, inside a word, scattered letters -- see MatchShape), Start is the
 // index of the leftmost matched character, Weight is the coverage-and-contiguity measure (HighlightMask),
+// MatchedLength is how many characters the query actually consumed (an absolute count, so a long contiguous
+// run beats a short name that merely covers a large share of itself),
 // and Tier says how the match was found at all (see AliasMatchRules.TierFor).
 //
 // Rank order is Shape, then Start, then Weight, then Tier -- with every window slotting the row's recency
@@ -15,7 +17,10 @@ namespace Lertaro.Core.SearchIndex;
 //
 // The windows differ only in what they put ABOVE this: the quick/full windows use user settings (history,
 // result-type order), and the inline window layers directory proximity on top (see DirectoryProximity).
-public readonly record struct MatchRank(int Tier, int Start, double Weight, int Shape = MatchRank.ShapeWholeWord)
+// Contiguity is carried separately from Weight because the owner's ordering rule is "leftmost, then how
+// contiguous the hit is, then how much of the name it covers": the packed weight is coverage*contiguity, so
+// a long name with one solid run used to lose to a short name full of scattered letters.
+public readonly record struct MatchRank(int Tier, int Start, double Weight, int Shape = MatchRank.ShapeWholeWord, double Contiguity = 0, int MatchedLength = 0)
 {
     // How the match was found, best first. A candidate's own name is the strongest evidence that the
     // query really describes it; an initials/shorthand alias means the user abbreviated; a full
@@ -39,7 +44,7 @@ public readonly record struct MatchRank(int Tier, int Start, double Weight, int 
 
     // Start == int.MaxValue marks "this text did not match the whole query" -- distinct from a match at
     // index 0, which is the best possible Start.
-    public static MatchRank NoMatch => new(int.MaxValue, int.MaxValue, 0, ShapeNoName);
+    public static MatchRank NoMatch => new(int.MaxValue, int.MaxValue, 0, ShapeNoName, 0, 0);
 
     public bool IsMatch => Start != int.MaxValue;
 
