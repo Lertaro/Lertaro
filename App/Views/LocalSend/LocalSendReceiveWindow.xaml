@@ -15,12 +15,13 @@
         Topmost="True">
 
     <!-- The window is opaque, which is what lets its text be antialiased sub-pixel; the chrome is what makes
-         an opaque borderless window behave: WindowChrome's own resize border in place of the OS's chunky
-         frame, which is also what gives ResizeMode="CanResizeWithGrip" a grip the pointer can actually
-         reach. CaptionHeight is 0 deliberately: this window drags from its own title bar
+         an opaque borderless window behave, with a resize border of 0 so the edge does not claim the pointer
+         away from the content against it. The grip is what resizes this window, and its hit area is declared
+         in ResizeGrip.xaml.
+         CaptionHeight is 0 deliberately: this window drags from its own title bar
          (TitleBar_MouseLeftButtonDown), so the chrome must not claim a caption area of its own. -->
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
 
     <Window.Resources>

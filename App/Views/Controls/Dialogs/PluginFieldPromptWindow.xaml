@@ -18,11 +18,12 @@
         PreviewKeyDown="Window_PreviewKeyDown">
 
     <!-- The window is opaque, which is what lets its text be antialiased sub-pixel; the chrome is what
-         keeps an opaque borderless window behaving: an invisible resize border instead of the OS's chunky
-         frame. CaptionHeight is 0 deliberately: this dialog drags from its own title bar handler, so the
-         chrome must not claim a caption area of its own. -->
+         keeps an opaque borderless window behaving, with a resize border of 0 so the edge does not claim the
+         pointer away from the content against it. The bottom-right grip is the only thing that resizes it;
+         see ResizeGrip.xaml. CaptionHeight is 0 deliberately: this dialog drags from its own title bar
+         handler, so the chrome must not claim a caption area of its own. -->
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
 
     <!-- MaxWidth above doubles as the wrap width. SizeToContent still shrinks a short prompt to its

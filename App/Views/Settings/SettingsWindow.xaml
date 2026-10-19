@@ -17,11 +17,13 @@
         SizeChanged="SettingsWindow_SizeChanged">
 
     <!-- The window is opaque, which is what lets its text be antialiased sub-pixel; the chrome is what makes
-         an opaque borderless window behave: WindowChrome's own resize border in place of the OS's chunky
-         frame, and maximize that respects the work area. CaptionHeight is 0 deliberately: this window
-         drags from its own title bar, so the chrome must not claim a caption area of its own. -->
+         an opaque borderless window behave: maximize that respects the work area, and a resize border of 0,
+         because that band covers the 6px overlay scrollbar of every list and editor pressed against a window
+         edge. The bottom-right grip is the only thing that resizes it; see ResizeGrip.xaml. CaptionHeight is 0
+         deliberately: this window drags from its own title bar, so the chrome must not claim a caption area
+         of its own. -->
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
 
     <Window.Resources>

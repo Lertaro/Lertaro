@@ -19,11 +19,12 @@
         PreviewKeyDown="Window_PreviewKeyDown"
         ShowActivated="False">
     <!-- The panel is opaque, which is what lets its text be antialiased sub-pixel; the chrome is what makes
-         an opaque borderless window behave: an invisible resize border instead of the OS's chunky frame.
-         CaptionHeight is 0 because this window drags itself (see QuickPanelWindow) rather than through a
-         caption area. -->
+         an opaque borderless window behave, with a resize border of 0 rather than the band that used to cover
+         the 6px overlay scrollbar along its edges. The bottom-right grip is the only thing that resizes it;
+         see ResizeGrip.xaml. CaptionHeight is 0 because this window drags itself (see QuickPanelWindow)
+         rather than through a caption area. -->
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
     <Window.Resources>
         <ResourceDictionary>
