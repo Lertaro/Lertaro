@@ -1,5 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib"
                     xmlns:converters="clr-namespace:Lertaro.App.Converters">
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="../Tokens/Colors.xaml"/>
@@ -19,6 +20,19 @@
                 <ControlTemplate TargetType="{x:Type ScrollBar}">
                     <Grid x:Name="Bg" SnapsToDevicePixels="true" Background="Transparent">
                         <Track x:Name="PART_Track" IsDirectionReversed="true" IsEnabled="{TemplateBinding IsEnabled}">
+                            <!-- The thumb is sized by proportion alone, so a result list of tens of thousands of
+                                 rows leaves it under a pixel: the scrollbar is visible, but there is nothing to
+                                 click and drag. Track floors the thumb at half of this key, so 40 is a 20px thumb.
+                                 The position comes out right too: at full scroll the thumb ends on the bottom edge
+                                 of the track instead of hanging past it, which is exactly what setting
+                                 Thumb.MinHeight by hand fails to do, because Track still positions the thumb with
+                                 the proportional length.
+
+                                 Only the vertical key is overridden: one Track instance serves both orientations
+                                 of a bar, and the horizontal thumb keeps its own proportional sizing. -->
+                            <Track.Resources>
+                                <sys:Double x:Key="{x:Static SystemParameters.VerticalScrollBarButtonHeightKey}">40</sys:Double>
+                            </Track.Resources>
                             <Track.DecreaseRepeatButton>
                                 <RepeatButton Command="{x:Static ScrollBar.PageUpCommand}" Focusable="false">
                                     <RepeatButton.Template>
