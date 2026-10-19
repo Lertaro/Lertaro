@@ -4,7 +4,7 @@
 
 ## 适用范围与核对基线
 
-本文写的是 `feat-search-reimpl` 分支的语法（`bf43109e`，`origin/feat/search-regex` 指向同一提交），该分支仍未合入 main。核对基线：main = `9a6b9769`，分支侧 22 个提交未进 main，main 另有 45 个提交不在分支上，合并基 `3081efed`。引用任何 `:term`、`/regex/` 结论前先确认在哪条线上。
+本文写的是 `feat-search-reimpl` 分支的语法，该分支仍未合入 main。核对基线：分支刚 rebase 到 main = `a09f8b95`（领先 23 个提交、落后 0），合并基就是 `a09f8b95`。引用任何 `:term`、`/regex/` 结论前先确认在哪条线上。文末附录的 `file:line` 是 rebase 前对分支工作树逐条核过的，rebase 后未重核（截至 `a09f8b95`）——核对不上时以文件与函数名为准。
 
 只在 `feat-search-reimpl` 上成立的语法：
 
