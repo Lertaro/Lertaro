@@ -96,6 +96,9 @@ Not lazy about: input validation at trust boundaries, error handling that preven
 
 ## 版本、提交与发行
 - 版本号在 `App/App.csproj`；`CHANGELOG.md` 一条一行、中英对应；**每个版本**必须含「+ 自动更新只检查本仓库的发行」与「+ 保留鼠标平滑滚动」。
+  - ⚠️ **往已有的 `## v…` 段追加条目时，必须落在该段的代码块内部**（``` 之间），不能追加到块外。
+    `fork-release-notes.yml` 会**原样投影**那一段，块外内容会变成正文里散落的文字（2026-10-19 踩过）。
+    改完必须打印该段前后 30 行，确认每个条目都在块内、中英条目一一对应。
 - `git commit` / `git push` 必须 owner 明确授权；部署、构建、测试不需要。
 - 回滚：`git reset --hard 1bff6429`（回滚后**也要重编插件**）；二进制备份 `D:\App protable\Lertaro.bak-5917`（5.9.1.7）。
 

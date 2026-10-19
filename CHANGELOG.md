@@ -5,6 +5,25 @@
 符号：* 核心功能　+ 小功能添加　# 修复。只写"改了什么"。
 -->
 
+## v5.9.7.2
+
+## 更新内容
+
+```
+* 排序改为：左侧连续 → 连续度 → 收藏/历史 → 类型顺序 → 覆盖率 → 档位 → 目录优先 → 名字序 → 名字长度
++ 自动更新只检查本仓库的发行
++ 保留鼠标平滑滚动
+```
+
+## What's changed
+
+```
+* Ranked by left-contiguous hit, contiguity, history, type order, coverage, tier, folder, natural name order, then name length
++ Auto-update only checks this repository's releases
++ Keeps the smooth wheel scrolling
+```
+
+
 ## v5.9.7.1
 
 ## 更新内容

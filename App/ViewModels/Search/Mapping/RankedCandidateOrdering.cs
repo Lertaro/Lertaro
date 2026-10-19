@@ -60,9 +60,10 @@ internal static class RankedCandidateOrdering
                      .ThenByDescending(c => c.Match.Contiguity)
                      .ThenByDescending(c => c.IsCurated)
                      .ThenBy(c => c.Priority)
+                     // Owner: the result-type order sits right after history/favorites, above coverage and tier.
+                     .ThenBy(c => c.TypeRank)
                      .ThenByDescending(c => c.Match.Contiguity > 0 ? c.Match.Weight / c.Match.Contiguity : 0)
                      .ThenBy(c => c.Match.Tier)
-                     .ThenBy(c => c.TypeRank)
                      .ThenBy(c => c.Result.IsDir)
                      .ThenBy(c => c.Result.Name, NameOrderComparer.Instance)
                      .ThenBy(c => c.Result.Name.Length))
