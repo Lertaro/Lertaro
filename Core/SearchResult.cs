@@ -39,15 +39,39 @@ public sealed class SearchResultRankComparer : IComparer<SearchResult>
     private readonly IReadOnlyDictionary<string, int> _historySnapshot;
     private readonly IReadOnlyDictionary<string, int>? _usageCounts;
     private readonly IReadOnlySet<string>? _favoritePaths;
+    private readonly Func<string, bool, IndexRuleEffect>? _priorityResolver;
+    private readonly Dictionary<string, IndexRuleEffect>? _priorityCache;
 
     public SearchResultRankComparer(
         IReadOnlyDictionary<string, int> historySnapshot,
         IReadOnlyDictionary<string, int>? usageCounts = null,
-        IReadOnlySet<string>? favoritePaths = null)
+        IReadOnlySet<string>? favoritePaths = null,
+        Func<string, bool, IndexRuleEffect>? priorityResolver = null)
     {
         _historySnapshot = historySnapshot;
         _usageCounts = usageCounts;
         _favoritePaths = favoritePaths;
+        _priorityResolver = priorityResolver;
+        _priorityCache = priorityResolver != null ? new Dictionary<string, IndexRuleEffect>(StringComparer.OrdinalIgnoreCase) : null;
+    }
+
+    // Smallest wins in the ascending sort: high first, low last.
+    public static int PriorityRank(IndexRuleEffect effect) => effect switch
+    {
+        IndexRuleEffect.High => 0,
+        IndexRuleEffect.Low => 2,
+        _ => 1,
+    };
+
+    private IndexRuleEffect ResolvePriority(string path, bool isDirectory)
+    {
+        if (_priorityResolver == null)
+            return IndexRuleEffect.Normal;
+        if (_priorityCache!.TryGetValue(path, out var cached))
+            return cached;
+        var priority = _priorityResolver(path, isDirectory);
+        _priorityCache[path] = priority;
+        return priority;
     }
 
     // Histories with five or more opens get band 0; one to four opens band 1; no history band 2. A
@@ -74,10 +98,21 @@ public sealed class SearchResultRankComparer : IComparer<SearchResult>
         var leftPath = NormalizeForLookup(left.Path);
         var rightPath = NormalizeForLookup(right.Path);
 
+        int compare;
+        // Result type is grouped above this comparer; within one type, a low-priority folder (build
+        // output, Windows.old) must not outrank a normal hit merely by matching the text better.
+        if (_priorityResolver != null)
+        {
+            compare = PriorityRank(ResolvePriority(leftPath, left.IsDir))
+                .CompareTo(PriorityRank(ResolvePriority(rightPath, right.IsDir)));
+            if (compare != 0)
+                return compare;
+        }
+
         // Match quality first: contiguity, shape, left-contiguous (tie-break), start, coverage and tier
         // are packed into the high 32 bits by SearchResultRelevance. The low bits are the engine's own
         // fzf tie-breakers and are deliberately kept below every window-level key.
-        var compare = (left.RankSortKey >> 32).CompareTo(right.RankSortKey >> 32);
+        compare = (left.RankSortKey >> 32).CompareTo(right.RankSortKey >> 32);
         if (compare != 0)
             return compare;
 

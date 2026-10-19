@@ -44,6 +44,7 @@ internal static class UserSettingsPersistence
     private static UserSettings LoadFromDisk()
     {
         var settings = LoadFromPath(SettingsPath, out _);
+        IndexRuleMigration.Ensure(settings);
         LegacyPluginSettingsMigration.Upgrade(SettingsPath, settings);
         if (settings.PluginSettingsStorageVersion != 1) throw new InvalidDataException("Unsupported plugin settings storage version.");
         settings.PluginSettings = PluginSettingsStore.Load(SettingsPath);
@@ -82,6 +83,7 @@ internal static class UserSettingsPersistence
             if (settings?.DisabledPluginAssemblies is null) return null;
             LegacyPluginSettingsMigration.ReadLegacy(json, settings);
             NormalizeHotkeys(settings);
+            IndexRuleMigration.Ensure(settings);
             return settings;
         }
         catch (Exception ex)
@@ -109,6 +111,7 @@ internal static class UserSettingsPersistence
         {
             if (!SavePluginSettings(settings)) return false;
             settings.PluginSettingsStorageVersion = 1;
+            IndexRuleMigration.MirrorLegacy(settings);
             var json = JsonSerializer.Serialize(settings, WriteOptions);
             // Persist even an unchanged object: another process may have removed/replaced the file.
             if (!TryPersist(json, SettingsPath))

@@ -26,6 +26,14 @@ public class UserSettings
         "node_modules"
     };
     public List<string> IgnoredPathRegexes { get; set; } = new();
+
+    /// <summary>
+    /// The unified index rules. Null means "this settings file predates the field" and is the migration
+    /// signal: <see cref="IndexRuleMigration.Ensure"/> derives the list from the three legacy fields
+    /// above exactly once, in memory. An empty list is a deliberate "no rules" and is never remigrated.
+    /// The legacy fields are kept and rewritten on save so an older build still excludes what it can.
+    /// </summary>
+    public List<IndexRuleSetting>? IndexRules { get; set; }
     public List<string> BlacklistedProcesses { get; set; } = new();
     public bool EnableHistory { get; set; } = true;
     public bool EnableKeywordHistory { get; set; } = true;
@@ -144,10 +152,12 @@ public class UserSettings
     /// User-chosen priority order for the quick window's search-result "types" -- each
     /// ISearchableItemProvider (Applications, Settings, File Filters, any third-party plugin) plus one
     /// synthetic entry for raw file-index results (SearchResultTypePriority.FilesTypeId), most-preferred
-    /// first. One hard group per type, applied before any match-quality key (RankedCandidate.TypeRank in
-    /// RankedCandidateOrdering), so e.g. Applications always outrank Files whatever matched the query text
-    /// better; inside one type the engine's own ladder (contiguity, whole-word/word-start shape, leftmost,
-    /// coverage, tier, then favorites/history) decides. An id not listed here yet
+    /// first. Applied inside each index-priority band (high/low/normal, see IndexRules), before any
+    /// match-quality key (RankedCandidate.TypeRank in RankedCandidateOrdering), so e.g. Applications
+    /// outrank Files of the same priority whatever matched the query text better; a file in a
+    /// high-priority folder still comes first. Inside one type the engine's own ladder (contiguity,
+    /// whole-word/word-start shape, leftmost, coverage, tier, then favorites/history) decides. An id not
+    /// listed here yet
     /// falls back to int.MaxValue, same convention as QuickNavigationProviderOrder above. Quick window
     /// only, same scope as the feature it replaces -- the inline window's own ranking
     /// (ExplorerSearchHelper) never consults this list.
