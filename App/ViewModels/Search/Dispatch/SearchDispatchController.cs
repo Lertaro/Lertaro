@@ -171,6 +171,13 @@ internal sealed class SearchDispatchController
         // (a folder scope says nothing about applications), so no app budget is needed at all.
         var hasTokens = _queryTokens.Count > 0;
         var hasScope = scopeDirective != null;
+        // A filename-like query (contains a dot, e.g. "plan.md") is a request for a specific file, not a
+        // broad substring sweep. The ordinary 51-row budget is deliberately a cheap prefix for broad
+        // queries; using it here truncates the candidate set BEFORE the (now unified) ranking can see the
+        // other files with that name, which is why the full window found them and the quick one did not.
+        // The dot query gets the token path's wider budget (the same 1000-row ceiling) while the display
+        // cap remains in place. A user who wants the whole set can still use the full window / "more".
+        var filenameLike = LooksLikeFileNameQuery(searchQuery);
         // Folders only, and only for the card over a dialog whose target field takes nothing but a folder --
         // a Browse-For-Folder picker. Over an Open/Save dialog the name box wants a file, so the card has to
         // keep finding files; typed into an Explorer window's own search box this card IS that window's search.
@@ -178,7 +185,7 @@ internal sealed class SearchDispatchController
         // A folder scope drops most of what the engine answers before it reaches the list, so the ordinary
         // 51-row budget would leave about ten folders on a mixed query. Same widening the token and scoped
         // paths above already use, for the same reason: the rows the card may keep have to arrive first.
-        var fileLimit = hasTokens || hasScope || folderScope ? SearchViewModel.TokenQuickSearchFileLimit : 51;
+        var fileLimit = hasTokens || hasScope || folderScope || filenameLike ? SearchViewModel.TokenQuickSearchFileLimit : 51;
         var appLimit = hasScope ? 0 : hasTokens ? SearchViewModel.FullSearchAppLimit : 51;
         // Per search, not per paint: the mapper below is the render callback, and it asks every instant
         // provider and search-action plugin on each call. See SearchResultMapper.InstantPassCache.
@@ -189,7 +196,7 @@ internal sealed class SearchDispatchController
             _getIsInlineSearchContext(),
             fileLimit,
             appLimit,
-            (resp, contextDir) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass),
+            (resp, contextDir) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope || filenameLike, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass),
             state => _setIsSearching(state),
             (results, status, final) => ApplySearchResults(originalValue, searchQuery, results, status, final),
             HandleLocalServiceUnavailable,
@@ -388,5 +395,18 @@ internal sealed class SearchDispatchController
     {
         var prefix = UserSettings.Load().GlobalTokenPrefix;
         return !string.IsNullOrEmpty(prefix) ? prefix[0] : ':';
+    }
+
+    // A query that names a file rather than sweeping a substring. Kept deliberately narrow: a leading
+    // operator/dot is not a name, and a dot anywhere else is the one signal a filename query always has
+    // (the extension). This only chooses the candidate budget; ranking and display are unchanged.
+    internal static bool LooksLikeFileNameQuery(string? query)
+    {
+        var text = query?.Trim();
+        if (string.IsNullOrEmpty(text) || text.Length < 3)
+            return false;
+        if (text[0] is '!' or '^' or '\'' or '-' or ':' or '.')
+            return false;
+        return text.Contains('.');
     }
 }

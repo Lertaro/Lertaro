@@ -1,201 +1,158 @@
 using Lertaro.Core.IndexV2.Search;
 using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Fzf;
-using Lertaro.PluginSdk.Abstractions;
 
 namespace Lertaro.Core.Tests.IndexV2.Search;
 
-// How a name-mode result's RankSortKey is assembled. Key order, strongest first:
-//   match shape > recency band > path depth > start position > quality weight > tier > files before folders
-// Small key = better, which is how SearchResultRankComparer reads it.
+// How a name-mode result's RankSortKey is assembled. The high 32 bits use exactly the same quality
+// sequence as the quick window (MatchRank.CompareQuality): left-contiguous, contiguity, start, coverage,
+// tier. History is compared after these bits by SearchResultRankComparer, not packed here.
 [TestClass]
 public sealed class SearchResultRelevanceTests
 {
     [TestMethod]
-    public void Apply_EarlierMatchInLongerName_RanksAboveLaterMatchInShorterName()
+    public void Apply_LeftContiguousHitRanksAboveLaterStart()
     {
-        var leftmost = Ranked(@"C:\data\wxfef.doc", "wxfef.doc", "wx");
-        var later = Ranked(@"C:\data\iwxfe.mp", "iwxfe.mp", "wx");
+        var atStart = Ranked(@"C:\data\atlas.txt", "atlas.txt", "atlas");
+        var later = Ranked(@"C:\data\code-atlas", "code-atlas", "atlas");
 
-        // Coverage alone favours the shorter name; the start position must overrule it.
-        Assert.IsLessThan(later, leftmost);
-    }
-
-    // The reported case: for "atlas", "code-atlas" is the whole word the user typed; "AutofillStates"
-    // only holds a-t-l-a-s as scattered letters, even though they start at 0.
-    [TestMethod]
-    public void Apply_WholeWordLaterInName_RanksAboveScatteredMatchAtStart()
-    {
-        var wholeWord = Ranked(@"D:\dev\mcptools\code-atlas", "code-atlas", "atlas", isDir: true);
-        var scattered = Ranked(@"C:\data\AutofillStates", "AutofillStates", "atlas");
-
-        Assert.IsLessThan(scattered, wholeWord);
+        Assert.IsLessThan(later, atStart);
     }
 
     [TestMethod]
-    public void Apply_Shapes_RankWholeWordThenWordStartThenInsideWordThenScattered()
+    public void Apply_ContiguityRanksAboveAnEarlierScatteredHit()
     {
-        var ordered = new[] { "code-atlas", "atlasing", "metatlas.txt", "annotatescrollbar.js" }
-            .Select(name => Ranked($@"C:\data\{name}", name, "atlas"))
-            .ToArray();
+        var contiguousLater = Ranked(@"C:\data\xxatlas", "xxatlas", "atlas");
+        var scatteredAtStart = Ranked(@"C:\data\axtlaxs", "axtlaxs", "atlas");
 
-        for (var i = 1; i < ordered.Length; i++)
-            Assert.IsLessThan(ordered[i], ordered[i - 1]);
+        Assert.IsLessThan(scatteredAtStart, contiguousLater);
     }
 
     [TestMethod]
-    public void Apply_FileBeatsFolder_WhenTheMatchIsOtherwiseEqual()
+    public void Apply_StartRanksAboveCoverage()
     {
-        var file = Ranked(@"C:\data\atlas", "atlas", "atlas");
-        var folder = Ranked(@"C:\data\atlas", "atlas", "atlas", isDir: true);
+        var earlyLong = Ranked(@"C:\data\xatlasxxxxx", "xatlasxxxxx", "atlas");
+        var later = Ranked(@"C:\data\xxxxxatlas", "xxxxxatlas", "atlas");
 
-        Assert.IsLessThan(folder, file);
-    }
-
-    // The reported case, second half: on this machine dozens of names start with "atlas" deep in game,
-    // engine and package trees. Among equally good word matches the shallow project folder must win, even
-    // though its match starts later in the name.
-    [TestMethod]
-    public void Apply_ShallowerPath_RanksAboveDeeperPath_EvenWithALaterStart()
-    {
-        var shallow = Ranked(@"D:\Projects\code-atlas", "code-atlas", "atlas", isDir: true);
-        var deep = Ranked(@"Z:\Games\Hacknet\Content\Locales\de-de\DLC\Missions\Atlas.xml", "Atlas.xml", "atlas");
-
-        Assert.IsLessThan(deep, shallow);
+        Assert.IsLessThan(later, earlyLong);
     }
 
     [TestMethod]
-    public void Apply_RecentlyChanged_RanksAboveShallowerButOlder()
+    public void Apply_CoverageRanksAboveTier()
     {
-        var now = DateTime.Now;
-        var recentDeep = Ranked(@"C:\a\b\c\d\atlas.txt", "atlas.txt", "atlas", modified: now.AddHours(-2));
-        var oldShallow = Ranked(@"C:\atlas.txt", "atlas.txt", "atlas", modified: now.AddYears(-1));
+        var fullCoverage = Key(start: 0, coverage: 1, contiguity: 1, tier: MatchRank.TierFull);
+        var lowCoverage = Key(start: 0, coverage: 0.5, contiguity: 1, tier: MatchRank.TierName);
 
-        Assert.IsLessThan(oldShallow, recentDeep);
-    }
-
-    // A file Chrome rewrites every minute must not ride recency past a real word match.
-    [TestMethod]
-    public void Apply_ScatteredMatchChangedToday_StillRanksBelowOldWholeWord()
-    {
-        var now = DateTime.Now;
-        var scatteredToday = Ranked(@"C:\Chrome\AutofillStates", "AutofillStates", "atlas", modified: now);
-        var wholeWordOld = Ranked(@"C:\a\b\c\d\e\code-atlas", "code-atlas", "atlas", modified: now.AddYears(-3));
-
-        Assert.IsLessThan(scatteredToday, wholeWordOld);
+        Assert.IsLessThan(lowCoverage, fullCoverage);
     }
 
     [TestMethod]
-    public void Apply_NameMatch_RanksAboveAncestorOnlyMatch()
+    public void Apply_NoNameFallback_CarriesPathCoverage()
     {
-        var nameMatch = Ranked(@"C:\unrelated\xwxfef.txt", "xwxfef.txt", "wx");
-        var ancestorOnly = Ranked(@"C:\wx_documents\report.txt", "report.txt", "wx");
+        var low = Key(MatchRank.NoNameFallback(0.2));
+        var high = Key(MatchRank.NoNameFallback(0.4));
 
-        Assert.IsLessThan(ancestorOnly, nameMatch);
-    }
-
-    // These assert the key layout directly, because a real match cannot be made to produce an arbitrary
-    // tier or an arbitrary combination of keys.
-    [TestMethod]
-    public void KeyLayout_ShapeOutranksStartWeightAndTier()
-    {
-        var wholeWordLate = Key(start: 200, weight: 0.01, tier: MatchRank.TierFull, shape: MatchRank.ShapeWholeWord, isDir: true);
-        var wordStartPerfect = Key(start: 0, weight: 1, tier: MatchRank.TierName, shape: MatchRank.ShapeWordStart);
-
-        Assert.IsLessThan(wordStartPerfect, wholeWordLate);
-    }
-
-    // Tier is the WEAKEST match key: it only separates rows that already agree on shape, start and weight.
-    [TestMethod]
-    public void KeyLayout_ShapeOutranksRecencyAndDepth()
-    {
-        var wholeWordOldDeep = Key(start: 0, weight: 1, tier: MatchRank.TierName, band: RankSignals.BandOlder, depth: 31);
-        var wordStartTodayShallow = Key(start: 0, weight: 1, tier: MatchRank.TierName, shape: MatchRank.ShapeWordStart, band: RankSignals.BandToday);
-
-        Assert.IsLessThan(wordStartTodayShallow, wholeWordOldDeep);
+        Assert.IsLessThan(low, high);
     }
 
     [TestMethod]
-    public void KeyLayout_RecencyOutranksDepth()
+    public void KeyLayout_ShapeOutranksLeftContiguous()
     {
-        var weekDeep = Key(start: 0, weight: 1, tier: MatchRank.TierName, band: RankSignals.BandWeek, depth: 20);
-        var monthShallow = Key(start: 0, weight: 1, tier: MatchRank.TierName, band: RankSignals.BandMonth, depth: 1);
+        var leftWordStart = Key(start: 0, coverage: 0.5, contiguity: 1, shape: MatchRank.ShapeWordStart);
+        var laterWholeWord = Key(start: 5, coverage: 1, contiguity: 1, shape: MatchRank.ShapeWholeWord);
 
-        Assert.IsLessThan(monthShallow, weekDeep);
+        Assert.IsLessThan(leftWordStart, laterWholeWord);
     }
 
     [TestMethod]
-    public void KeyLayout_DepthOutranksStartWeightAndTier()
+    public void KeyLayout_LeftContiguousBreaksAShapeTie()
     {
-        var shallowLate = Key(start: 100, weight: 0.01, tier: MatchRank.TierFull, depth: 2, isDir: true);
-        var deepPerfect = Key(start: 0, weight: 1, tier: MatchRank.TierName, depth: 3);
+        var leftWordStart = Key(start: 0, coverage: 0.5, contiguity: 1, shape: MatchRank.ShapeWordStart);
+        var laterWordStart = Key(start: 5, coverage: 1, contiguity: 1, shape: MatchRank.ShapeWordStart);
 
-        Assert.IsLessThan(deepPerfect, shallowLate);
-    }
-
-    // Past the 5-bit cap, depth stops separating rows rather than spilling into the bits above it.
-    [TestMethod]
-    public void KeyLayout_DepthPastTheCapTiesInsteadOfOverflowing()
-    {
-        Assert.AreEqual(Key(start: 0, weight: 1, tier: 0, depth: 31), Key(start: 0, weight: 1, tier: 0, depth: 400));
-        Assert.IsLessThan(Key(start: 0, weight: 1, tier: 0, shape: MatchRank.ShapeWordStart), Key(start: 0, weight: 1, tier: 0, depth: 400));
-    }
-
-    // Every other field is clamped the same way: past its own cap a row ties with the capped value and
-    // never reaches the field above it, which would silently reorder whole groups of results.
-    [TestMethod]
-    public void KeyLayout_EveryOtherFieldSaturatesInsteadOfOverflowing()
-    {
-        Assert.AreEqual(Key(start: 127, weight: 1, tier: 0), Key(start: 400, weight: 1, tier: 0));
-        Assert.AreEqual(Key(start: 0, weight: 1, tier: 0), Key(start: 0, weight: 9, tier: 0));
-        Assert.AreEqual(Key(start: 0, weight: 0, tier: 0), Key(start: 0, weight: -9, tier: 0));
-        Assert.AreEqual(Key(start: 0, weight: 1, tier: 0xF), Key(start: 0, weight: 1, tier: 40));
-        Assert.AreEqual(Key(start: 0, weight: 1, tier: 0, shape: MatchRank.ShapeNoName), Key(start: 0, weight: 1, tier: 0, shape: 99));
-        Assert.AreEqual(Key(start: 0, weight: 1, tier: 0, band: RankSignals.BandOlder), Key(start: 0, weight: 1, tier: 0, band: 99));
+        Assert.IsLessThan(laterWordStart, leftWordStart);
     }
 
     [TestMethod]
-    public void KeyLayout_StartOutranksTier()
+    public void KeyLayout_ShapeOutranksStartAndCoverage()
     {
-        // start 3 / tier 0 (literal)  vs  start 0 / tier 2 (full pinyin): the earlier start wins.
-        var laterLiteral = Key(start: 3, weight: 1, tier: MatchRank.TierName);
-        var earlierFull = Key(start: 0, weight: 1, tier: MatchRank.TierFull);
+        var wholeLater = Key(start: 5, coverage: 0.5, contiguity: 1, shape: MatchRank.ShapeWholeWord);
+        var insideEarlier = Key(start: 0, coverage: 1, contiguity: 1, shape: MatchRank.ShapeInsideWord);
 
-        Assert.IsLessThan(laterLiteral, earlierFull);
+        Assert.IsLessThan(insideEarlier, wholeLater);
     }
 
     [TestMethod]
-    public void KeyLayout_WeightOutranksTier()
+    public void KeyLayout_ShapeOrderIsWholeWordThenWordStartThenInsideThenScattered()
     {
-        // Same start; the better weight wins even though its tier is the worst.
-        var betterWeightWorseTier = Key(start: 0, weight: 0.9, tier: MatchRank.TierFull);
-        var worseWeightBestTier = Key(start: 0, weight: 0.1, tier: MatchRank.TierName);
+        var whole = Key(start: 0, coverage: 1, contiguity: 1, shape: MatchRank.ShapeWholeWord);
+        var wordStart = Key(start: 0, coverage: 1, contiguity: 1, shape: MatchRank.ShapeWordStart);
+        var inside = Key(start: 0, coverage: 1, contiguity: 1, shape: MatchRank.ShapeInsideWord);
+        var scattered = Key(start: 0, coverage: 1, contiguity: 1, shape: MatchRank.ShapeScattered);
 
-        Assert.IsLessThan(worseWeightBestTier, betterWeightWorseTier);
+        Assert.IsLessThan(wordStart, whole);
+        Assert.IsLessThan(inside, wordStart);
+        Assert.IsLessThan(scattered, inside);
     }
 
     [TestMethod]
-    public void KeyLayout_TierBreaksTiesOnEqualStartAndWeight()
+    public void KeyLayout_ContiguityOutranksShape()
     {
-        var literal = Key(start: 0, weight: 0.5, tier: MatchRank.TierName);
-        var initials = Key(start: 0, weight: 0.5, tier: MatchRank.TierInitials);
-        var full = Key(start: 0, weight: 0.5, tier: MatchRank.TierFull);
+        var wholeLoose = Key(start: 0, coverage: 1, contiguity: 0.5, shape: MatchRank.ShapeWholeWord);
+        var scatteredTight = Key(start: 0, coverage: 1, contiguity: 1, shape: MatchRank.ShapeScattered);
+
+        Assert.IsLessThan(wholeLoose, scatteredTight);
+    }
+
+    [TestMethod]
+    public void KeyLayout_StartUsesAllSevenBits()
+    {
+        Assert.IsLessThan(Key(64, 1, 1), Key(63, 1, 1));
+        Assert.IsLessThan(Key(100, 1, 1), Key(64, 1, 1));
+        Assert.IsLessThan(Key(127, 1, 1), Key(126, 1, 1));
+        Assert.AreEqual(Key(127, 1, 1), Key(200, 1, 1), "past StartCap the packed key saturates, it does not overflow");
+    }
+
+    [TestMethod]
+    public void KeyLayout_ContiguityOutranksStart()
+    {
+        var contiguousLater = Key(start: 5, coverage: 0.5, contiguity: 1);
+        var scatteredAtStart = Key(start: 0, coverage: 1, contiguity: 0.5);
+
+        Assert.IsLessThan(scatteredAtStart, contiguousLater);
+    }
+
+    [TestMethod]
+    public void KeyLayout_StartOutranksCoverage()
+    {
+        var earlyLowCoverage = Key(start: 1, coverage: 0.2, contiguity: 1);
+        var laterHighCoverage = Key(start: 5, coverage: 1, contiguity: 1);
+
+        Assert.IsLessThan(laterHighCoverage, earlyLowCoverage);
+    }
+
+    [TestMethod]
+    public void KeyLayout_TierBreaksTies()
+    {
+        var literal = Key(start: 0, coverage: 0.5, contiguity: 1, tier: MatchRank.TierName);
+        var initials = Key(start: 0, coverage: 0.5, contiguity: 1, tier: MatchRank.TierInitials);
+        var full = Key(start: 0, coverage: 0.5, contiguity: 1, tier: MatchRank.TierFull);
 
         Assert.IsLessThan(initials, literal);
         Assert.IsLessThan(full, initials);
     }
 
     [TestMethod]
-    public void KeyLayout_TierOutranksFolderBit()
+    public void Compare_FilesBeforeFolders_WhenTheMatchIsOtherwiseEqual()
     {
-        var literalFolder = Key(start: 0, weight: 0.5, tier: MatchRank.TierName, isDir: true);
-        var initialsFile = Key(start: 0, weight: 0.5, tier: MatchRank.TierInitials);
+        var file = new SearchResult { Name = "atlas", Path = @"C:\data\atlas" };
+        var folder = new SearchResult { Name = "atlas", Path = @"C:\data\atlas", IsDir = true };
+        var pattern = FzfPattern.Parse("atlas");
+        SearchResultRelevance.Apply(file, pattern);
+        SearchResultRelevance.Apply(folder, pattern);
 
-        Assert.IsLessThan(initialsFile, literalFolder);
+        Assert.IsLessThan(0, SearchResultRankComparer.Instance.Compare(file, folder));
     }
-
-    private static uint Key(int start, double weight, int tier, int shape = MatchRank.ShapeWholeWord, bool isDir = false, int band = RankSignals.BandOlder, int depth = 0) =>
-        SearchResultRelevance.HighKey(new MatchRank(tier, start, weight, shape), isDir, band, depth);
 
     [TestMethod]
     public void Apply_EmptyPattern_LeavesRankUnchanged()
@@ -221,11 +178,14 @@ public sealed class SearchResultRelevanceTests
         Assert.AreEqual(0xDEAD_BEEFUL, result.RankSortKey & 0xFFFF_FFFFUL);
     }
 
-    private static ulong Ranked(string path, string name, string query, bool isDir = false, DateTime? modified = null)
+    private static uint Key(MatchRank rank) => SearchResultRelevance.HighKey(rank);
+
+    private static uint Key(int start, double coverage, double contiguity, int tier = 0, int shape = MatchRank.ShapeWholeWord) =>
+        SearchResultRelevance.HighKey(new MatchRank(tier, start, coverage, contiguity, shape));
+
+    private static ulong Ranked(string path, string name, string query)
     {
-        var result = new SearchResult { Name = name, Path = path, IsDir = isDir };
-        if (modified is { } time)
-            result.Metadata = new FileMetadata(0, time, time, time);
+        var result = new SearchResult { Name = name, Path = path };
         SearchResultRelevance.Apply(result, FzfPattern.Parse(query));
         return result.RankSortKey;
     }

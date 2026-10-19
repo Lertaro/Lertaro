@@ -210,7 +210,8 @@ public static class TextHighlighter
     private static string? FindDriveFilter(string query)
     {
         string? drive = null;
-        foreach (var token in query.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        var normalized = SearchTextNormalizer.Normalize(query);
+        foreach (var token in normalized.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
         {
             if (token.Length >= 2 && char.IsLetter(token[0]) && token[1] == Path.VolumeSeparatorChar)
                 drive = token[0].ToString();

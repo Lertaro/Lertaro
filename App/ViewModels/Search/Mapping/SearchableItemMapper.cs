@@ -92,14 +92,9 @@ public static class SearchableItemMapper
             }
         }
 
-        // Generous safety cap only -- the real top-N selection happens after this merges with the
-        // other candidate categories in BuildQuickResults. Same primary keys as the final ranking (match
-        // shape, start, then weight) so the cap cannot drop a candidate the merge would have ranked higher.
-        var matches = matched
-            .OrderBy(m => m.Match.Shape)
-            .ThenBy(m => m.Match.Start)
-            .ThenByDescending(m => m.Match.Weight)
-            .Take(50);
+        // The final merge/order applies the shared quality ladder; there is no separate 50-item cut here,
+        // because a cut by a different key can drop a row the real ladder would have kept.
+        var matches = matched.OrderBy(m => m.Match, MatchRankQualityComparer.Instance);
         foreach (var (entry, match, provider, activeQuery) in matches)
         {
             candidates.Add(BuildCandidate(entry, provider, activeQuery, match));
@@ -116,7 +111,7 @@ public static class SearchableItemMapper
         // Keyword-only hits have no title highlight evidence, so retain zero weight as a fallback.
         return queryWords.Length > 0 && queryWords.All(token => entry.KeywordWords.Any(
                 word => word.StartsWith(token, StringComparison.OrdinalIgnoreCase)))
-            ? new MatchRank(MatchRank.TierFull, 0, 0)
+            ? new MatchRank(MatchRank.TierFull, 0, 0, 0, MatchRank.ShapeScattered)
             : MatchRank.NoMatch;
     }
 

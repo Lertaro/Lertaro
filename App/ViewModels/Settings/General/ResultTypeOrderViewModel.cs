@@ -11,11 +11,12 @@ namespace Lertaro.App.ViewModels.Settings.General;
 
 // Lets the user reorder the quick window's search-result "types" -- each enabled
 // ISearchableItemProvider (Applications, Settings, File Filters, any third-party plugin) plus one
-// synthetic "Files" entry for raw file-index results -- as a hard tier above match-quality weight
-// (see SearchResultMapper.RankedCandidate.TypeRank), and optionally give each type a single-character
-// trigger that exclusively filters to just that type (see BuildQuickResults' triggeredTypeId).
-// History/Favorites stay hardcoded top-priority and are deliberately NOT part of this list. Save()
-// commits _userSettings.ResultTypeOrder/ResultTypeTriggers.
+// synthetic "Files" entry for raw file-index results -- as ONE hard group per type, applied before any
+// match-quality key (see RankedCandidateOrdering: type, then the engine's own ladder inside the type),
+// and optionally give each type a single-character trigger that exclusively filters to just that type
+// (see BuildQuickResults' triggeredTypeId). Favorites and history keep their existing hardcoded
+// placement INSIDE each type (after match quality, before history band) and are deliberately NOT part of
+// this list. Save() commits _userSettings.ResultTypeOrder/ResultTypeTriggers.
 public class ResultTypeOrderViewModel : ViewModelBase
 {
     private readonly System.ComponentModel.PropertyChangedEventHandler _translationHandler;

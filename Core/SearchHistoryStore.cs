@@ -16,6 +16,7 @@ public static class SearchHistoryStore
     private static readonly object Gate = new();
     private static Dictionary<string, List<StoredEntry>>? _buckets;
     private static Dictionary<string, int>? _priorityCache;
+    private static Dictionary<string, int>? _countCache;
 
     /// <summary>What <see cref="Snapshot"/> returns before the store has any entries at all.</summary>
     private static readonly IReadOnlyDictionary<string, int> EmptyPriorities =
@@ -88,6 +89,7 @@ public static class SearchHistoryStore
 
             PersistNoLock();
             _priorityCache = BuildPriorityCache(buckets);
+            _countCache = BuildCountCache(buckets);
         }
 
         Changed?.Invoke();
@@ -164,6 +166,7 @@ public static class SearchHistoryStore
             _buckets = BuildBuckets(validated);
             PersistNoLock();
             _priorityCache = BuildPriorityCache(_buckets);
+            _countCache = BuildCountCache(_buckets);
         }
 
         Changed?.Invoke();
@@ -184,6 +187,29 @@ public static class SearchHistoryStore
         }
     }
 
+    /// <summary>
+    /// Path -> how many times it was opened (the stored count, not the bucket position). The ranking
+    /// windows use this to give a path with five or more opens a stronger history band; paths with one to
+    /// four opens only break ties after every match key.
+    /// </summary>
+    public static IReadOnlyDictionary<string, int> UsageCounts()
+    {
+        lock (Gate)
+        {
+            EnsureCacheNoLock();
+            return _countCache ?? EmptyPriorities;
+        }
+    }
+
+    private static Dictionary<string, int> BuildCountCache(Dictionary<string, List<StoredEntry>> buckets)
+    {
+        var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var list in buckets.Values)
+            foreach (var entry in list)
+                counts[entry.Path] = entry.Count;
+        return counts;
+    }
+
     internal static bool ExistsForKind(
         string path,
         HistoryEntryKind kind,
@@ -202,6 +228,7 @@ public static class SearchHistoryStore
 
         _buckets = LoadNoLock();
         _priorityCache = BuildPriorityCache(_buckets);
+        _countCache = BuildCountCache(_buckets);
     }
 
     private static Dictionary<string, List<StoredEntry>> LoadNoLock() => LoadFromFiles(HistoryPath, BackupPath);

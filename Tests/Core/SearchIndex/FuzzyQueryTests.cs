@@ -77,7 +77,7 @@ public sealed class FuzzyQueryTests
         var expected = MatchRank.NoNameFallback(HighlightMask.ComputeWeight(path, FzfPattern.Parse("report")));
 
         Assert.AreEqual(expected, FuzzyQuery.Parse("report").FallbackRank(path));
-        Assert.IsTrue(FuzzyQuery.Parse("report").FallbackRank(path).Weight > 0, "the path still explains part of the query");
+        Assert.IsTrue(FuzzyQuery.Parse("report").FallbackRank(path).Coverage > 0, "the path still explains part of the query");
     }
 
     [TestMethod]

@@ -47,6 +47,11 @@ internal sealed class FzfPattern
     // the check entirely for the far more common query that has none.
     public bool HasExclusions { get; }
 
+    // Whether any set has a positive term at all. A query made only of `!term`s matches every candidate
+    // that lacks the excluded text but has nothing to paint; callers use this to give it a synthetic rank
+    // instead of mistaking the empty mask for a failed match.
+    public bool HasPositiveTerms => EffectiveSets.Any(set => set.Terms.Any(term => !term.Inverse));
+
     // Non-null only for an AND-first query that actually mixes '|' with spaces. When set, this is the
     // authoritative shape and TryMatch/TryMatchSingle evaluate it instead of TermSets.
     public FzfTermGroup[]? OrGroups { get; }

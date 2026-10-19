@@ -38,7 +38,11 @@ internal static class SnapshotFormat
     // rebuilt from scratch (see UsnIndexerCacheExtensions), which is the cheaper of the two options --
     // keeping a column whose only consumer was deleted means a layout bug stays invisible until it
     // silently misreads a user's index.
-    public const int Version = 13;
+    // Bumped 13 -> 14: UniqueMasks now also carry the folded (full-width -> half-width, NFC) spelling of
+    // each name, so a half-width query can pass the prefilter for a full-width name. A v13 mask only
+    // admitted the raw characters; without a rebuild those names would be rejected before the folded
+    // matcher ran. Old snapshots are rejected at open and rebuilt by the existing stale-snapshot path.
+    public const int Version = 14;
     public const int SectionAlignment = 16;
 
     internal sealed class Meta

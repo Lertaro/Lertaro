@@ -244,8 +244,9 @@ public sealed class HanVariantSearchTests
     {
         var aliases = new FakeHanVariantProvider().GetAliases("電腦云").ToList();
 
-        Assert.IsFalse(FuzzyQuery.Parse("电脑").BestMatch("電腦云", null).IsMatch,
-            "the control: nothing in the Simplified query is in the Traditional title");
+        // The registered provider's own GetAliases already offers the Simplified spelling even when the
+        // caller passes no alternate text; the explicit list below exercises the same path.
+        Assert.IsTrue(FuzzyQuery.Parse("电脑").BestMatch("電腦云", null).IsMatch);
         Assert.IsTrue(FuzzyQuery.Parse("电脑").BestMatch("電腦云", aliases).IsMatch);
     }
 

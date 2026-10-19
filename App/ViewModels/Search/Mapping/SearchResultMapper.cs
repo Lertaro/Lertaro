@@ -65,21 +65,26 @@ public static class SearchResultMapper
     // ponytail: a 1 s lifetime, not invalidation hooks. Ceiling: a just-opened item can be a second late in
     // gaining its history priority. Upgrade path: bump a version counter in SearchHistoryStore and compare here.
     private static IReadOnlyDictionary<string, int>? _recentHistory;
+    private static IReadOnlyDictionary<string, int>? _recentUsage;
     private static long _recentHistoryAt;
     private const long RecentPassLifetimeMs = 1000;
 
 
-    private static IReadOnlyDictionary<string, int> RecentHistory()
+    private static (IReadOnlyDictionary<string, int> Priorities, IReadOnlyDictionary<string, int> Usage) RecentHistory()
     {
         var now = Environment.TickCount64;
         if (_recentHistory == null || now - _recentHistoryAt > RecentPassLifetimeMs)
         {
             _recentHistory = SearchHistoryStore.Snapshot();
+            _recentUsage = SearchHistoryStore.UsageCounts();
             _recentHistoryAt = now;
         }
 
-        return _recentHistory;
+        return (_recentHistory, _recentUsage ?? EmptyUsage);
     }
+
+    private static readonly IReadOnlyDictionary<string, int> EmptyUsage =
+        new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
     internal static List<AppSearchResult> BuildQuickResults(List<SearchResult>? fileResults, string query, string? scope, string? contextDirectory, bool isInlineWindow, string? rawQuery = null, bool skipDisplayCap = false, FileFilterScopeDirective? fileFilterScope = null, bool folderScope = false, InstantPassCache? instantPass = null)
     {
@@ -116,23 +121,26 @@ public static class SearchResultMapper
             SearchResultHelper.IsPathInsideScope(normalizedPath, f)
             && !string.Equals(normalizedPath, f, StringComparison.OrdinalIgnoreCase));
 
-        var historySnapshot = RecentHistory();
+        var recentHistory = RecentHistory();
+        var historySnapshot = recentHistory.Priorities;
+        var historyUsage = recentHistory.Usage;
 
-        // Quick-window-only: a user-orderable hard tier between history priority and match-quality
-        // weight (RankedCandidate.TypeRank) -- lets e.g. Applications always outrank Files regardless
-        // of which matched the query text better, without a small weight bonus getting lost against a
-        // much better textual match. Empty by default (every candidate's Rank falls back to the same
-        // int.MaxValue), so an untouched order list is a complete no-op. See SearchResultTypePriority.
+        // Quick-window-only: the user-orderable result-type grouping (RankedCandidate.TypeRank) is the
+        // outermost key in RankedCandidateOrdering -- rows of an earlier type come first, and match quality
+        // (contiguity/shape/left/start/coverage/tier) only decides the order INSIDE one type. Every
+        // file-backed row (index files, favorites, history, Windows' Recent) shares FilesTypeRank so those
+        // rows stay one group; the inline window never consults the list at all.
         var typeOrder = isInlineWindow ? new List<string>() : UserSettings.Load().ResultTypeOrder;
+        var filesTypeRank = SearchResultTypePriority.Rank(SearchResultTypePriority.FilesTypeId, typeOrder);
 
         // Quick-window-only exclusive filter: if the first character the user actually typed matches a
         // configured per-type trigger (UserSettings.ResultTypeTriggers), only that type's candidates
-        // enter the ranked competition below -- Favorites/history are unaffected, they're hardcoded
-        // top-priority regardless. rawQuery (not the sort/exclusion-token-stripped query) is what's
-        // probed since it's the one guaranteed to still have whatever the user actually typed first,
-        // including a literal space -- see PluginSearchResultMapper.AddInstantResults' own use of it
-        // above for the same reason. query itself already arrives with the trigger character stripped
-        // (ResultTypeTriggerHandler.StripTrigger removes it before the file-index engine ever
+        // enter the ranked competition below -- history and Windows Recent are skipped when a type
+        // trigger is active; favorites still join the list. rawQuery (not the sort/exclusion-token-stripped
+        // query) is what's probed since it's the one guaranteed to still have whatever the user actually
+        // typed first, including a literal space -- see PluginSearchResultMapper.AddInstantResults' own
+        // use of it above for the same reason. query itself already arrives with the trigger character
+        // stripped (ResultTypeTriggerHandler.StripTrigger removes it before the file-index engine ever
         // sees it), so it's used as-is below for matching/highlighting -- the trigger character never
         // shows up highlighted and never pollutes the fuzzy match, with no second stripping needed here.
         string? triggeredTypeId = null;
@@ -153,10 +161,10 @@ public static class SearchResultMapper
         }
 
         // Favorites, history-matched files, searchable items (apps/settings), and remaining file
-        // results all compete on ONE list now: history priority first (an explicit "you've opened
-        // this before" signal -- items with no history sort after every item that has one), then
-        // match-quality weight -- instead of every favorite always beating every app always beating
-        // every file regardless of which one actually matched the query text better.
+        // results all compete on ONE list now: the type grouping first (one hard group per type), then,
+        // inside a type, match quality, then favorites, then history band (5+ opens / 1-4 / none).
+        // History never overrules a better textual match, and quality never outranks a type the user put
+        // earlier.
         var candidates = new List<RankedCandidate>();
 
         // Parsed once for this whole result set. The file loop below runs once per file result (thousands
@@ -171,13 +179,13 @@ public static class SearchResultMapper
         // downstream path dedupe. An explicit type trigger retains its strict result domain.
         if (triggeredTypeId == null)
         {
-            var historyCandidates = HistorySearchCandidateMapper.Collect(fuzzy, scope);
+            var historyCandidates = HistorySearchCandidateMapper.Collect(fuzzy, scope, filesTypeRank);
             if (normalizedScopeFolders != null)
                 historyCandidates = historyCandidates.Where(c => InFileFilterScope(c.NormalizedPath)).ToList();
             candidates.AddRange(historyCandidates);
 
             // Windows' Recent Items: what was opened in any app, ranked right below the user's own picks.
-            var recentCandidates = WindowsRecentCandidateMapper.Collect(fuzzy, scope);
+            var recentCandidates = WindowsRecentCandidateMapper.Collect(fuzzy, scope, filesTypeRank);
             if (normalizedScopeFolders != null)
                 recentCandidates = recentCandidates.Where(c => InFileFilterScope(c.NormalizedPath)).ToList();
             candidates.AddRange(recentCandidates);
@@ -193,11 +201,10 @@ public static class SearchResultMapper
                 if (!match.IsMatch || !Helpers.FavoritePathResolver.IsPathAvailable(fav.Path))
                     continue;
 
-                // A favorite is curated by the user regardless of whether it also has USAGE history --
-                // that's a stronger signal than "matched the query text well" or "happens to be an
-                // application", so it stays ahead of both. TypeRank never actually differentiates a
-                // favorite from anything else (IsCurated already does), so it's given the Files id here
-                // simply as the closest match to what a favorited path actually is.
+                // A favorite is curated by the user regardless of whether it also has USAGE history.
+                // It keeps its old place INSIDE its type group -- after match quality, before history -- so
+                // it cannot overrule a much better textual match; the type list never applies to it, it
+                // only inherits the Files rank like every other file-backed row.
                 var normalizedFavPath = Helpers.FavoritePathResolver.NormalizeForComparison(fav.Path);
                 if (normalizedScopeFolders != null && !InFileFilterScope(normalizedFavPath))
                     continue;
@@ -208,11 +215,13 @@ public static class SearchResultMapper
                 if (HistorySearchCandidateMapper.IsExcludedFromSearch(favoriteRow))
                     continue;
                 var priority = historySnapshot.TryGetValue(normalizedFavPath, out var hp) ? hp : int.MaxValue;
+                var usage = historyUsage.TryGetValue(normalizedFavPath, out var uc) ? uc : 0;
                 candidates.Add(new RankedCandidate(
                     favoriteRow,
-                    IsCurated: true,
-                    priority,
-                    SearchResultTypePriority.Rank(SearchResultTypePriority.FilesTypeId, typeOrder),
+                    IsFavorite: true,
+                    HistoryCount: usage,
+                    HistoryPriority: priority,
+                    filesTypeRank,
                     match,
                     normalizedFavPath));
             }
@@ -237,10 +246,12 @@ public static class SearchResultMapper
                 // lookup key has to skip it here too or an app's history priority would never resolve.
                 var lookupPath = result.IsApplication ? result.FullPath.Trim() : SearchResultHelper.NormalizePath(result.FullPath);
                 var hasHistory = historySnapshot.TryGetValue(lookupPath, out var priority);
+                var usage = historyUsage.TryGetValue(lookupPath, out var uc) ? uc : 0;
                 candidates.Add(new RankedCandidate(
                     result,
-                    IsCurated: hasHistory,
-                    hasHistory ? priority : int.MaxValue,
+                    IsFavorite: false,
+                    HistoryCount: usage,
+                    HistoryPriority: hasHistory ? priority : int.MaxValue,
                     SearchResultTypePriority.Rank(typeId, typeOrder),
                     match,
                     SearchResultHelper.NormalizePath(result.FullPath)));
@@ -253,12 +264,11 @@ public static class SearchResultMapper
         // other type gets, not just whatever a trigger-polluted query happened to match.
         if (fileResults != null && (triggeredTypeId == null || triggeredTypeId == SearchResultTypePriority.FilesTypeId))
         {
-            var nowUtc = DateTime.UtcNow;
             foreach (var result in fileResults)
             {
                 var lookupPath = result.Path.Length > 3 && result.Path[^1] == '\\' ? result.Path.TrimEnd('\\') : result.Path;
                 var hasHistory = historySnapshot.TryGetValue(lookupPath, out var priority);
-                var (band, depth) = RankedCandidateOrdering.SignalsOf(result.Metadata, result.Path, nowUtc);
+                var usage = historyUsage.TryGetValue(lookupPath, out var uc) ? uc : 0;
                 // A row the index returned whose own NAME does not match the query at all -- it was reached
                 // through a transliteration of that name -- ranks by how much of its whole path the query
                 // explains, which is the rank the full window's row key has always given it
@@ -270,13 +280,12 @@ public static class SearchResultMapper
                     match = fuzzy.FallbackRank(result.Path);
                 candidates.Add(new RankedCandidate(
                     SearchResultHelper.CreateUiResult(result, query, 0, isApplication: false, scope),
-                    IsCurated: hasHistory,
-                    hasHistory ? priority : int.MaxValue,
-                    SearchResultTypePriority.Rank(SearchResultTypePriority.FilesTypeId, typeOrder),
+                    IsFavorite: false,
+                    HistoryCount: usage,
+                    HistoryPriority: hasHistory ? priority : int.MaxValue,
+                    filesTypeRank,
                     match,
-                    SearchResultHelper.NormalizePath(result.Path),
-                    band,
-                    depth));
+                    SearchResultHelper.NormalizePath(result.Path)));
             }
         }
 
@@ -330,11 +339,21 @@ public static class SearchResultMapper
         return uiResults;
     }
 
-    // TypeRank: this candidate's position in UserSettings.ResultTypeOrder -- see RankedCandidateOrdering,
-    // which owns the ordering ladder these candidates are fed through. RecencyBand and Depth are only
-    // filled for index rows (RankedCandidateOrdering.SignalsOf); every other candidate keeps the best
-    // value of each, so an app or setting is never demoted for having no file times or folder depth.
-    internal readonly record struct RankedCandidate(AppSearchResult Result, bool IsCurated, int Priority, int TypeRank, MatchRank Match, string NormalizedPath, int RecencyBand = 0, int Depth = 0);
+    // IsFavorite: an explicit user pick. HistoryCount is how many times the path was opened (0 when not
+    // in history); HistoryPriority is the learned-keyword order for this query. TypeRank is the row's
+    // position in the user's result-type order (int.MaxValue when the type is not listed); it groups the
+    // rows before any quality key is consulted. IsHistoryOnly marks a row that exists only because a
+    // history keyword matched: its name did not match, so the ladder must not treat the keyword rank as a
+    // name match.
+    internal readonly record struct RankedCandidate(
+        AppSearchResult Result,
+        bool IsFavorite,
+        int HistoryCount,
+        int HistoryPriority,
+        int TypeRank,
+        MatchRank Match,
+        string NormalizedPath,
+        bool IsHistoryOnly = false);
 
     // Shared by both search groups the inline window shows (its own "Current Folder" matches via
     // ExplorerSearchHelper, and this "Global Search" tier below) so a file scores the same way regardless

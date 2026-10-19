@@ -53,65 +53,80 @@ public class ShellMenuSession : IDisposable
     private ShellContextMenuNativeMethods.IShellFolder? _parentFolder;
     private ShellContextMenuNativeMethods.IContextMenu? _contextMenu;
     private bool _disposed;
+    // The apartment this session was built on. Pinned for the session's whole life because the COM
+    // objects are apartment-bound; null once the session is closed or its worker is abandoned.
+    private Dispatcher? _worker;
 
     public const uint CMD_FIRST = 1;
     public const uint CMD_LAST = 30000;
 
-    private ShellMenuSession() { }
+    private ShellMenuSession(Dispatcher worker) => _worker = worker;
 
-    public static ShellMenuSession? Create(string path) => TryInvoke(() => CreateCore(path));
-
-    private static ShellMenuSession? CreateCore(string path)
+    public static ShellMenuSession? Create(string path)
     {
-        var session = new ShellMenuSession();
+        var worker = ShellMenuStaWorker.Acquire();
+        if (worker == null)
+            return null;
+
+        var session = new ShellMenuSession(worker);
         try
         {
-            var hr = ShellContextMenuNativeMethods.SHParseDisplayName(path, IntPtr.Zero, out session._pidl, 0, out _);
-            if (hr < 0)
-            {
-                Logger.Log($"[ShellMenuSession] SHParseDisplayName failed for: {path} (HR: {hr})", LogLevel.Error);
-                session.Dispose();
-                return null;
-            }
-
-            var iidIShellFolder = new Guid("000214E6-0000-0000-C000-000000000046");
-            var relativePidl = IntPtr.Zero;
-            hr = ShellContextMenuNativeMethods.SHBindToParent(session._pidl, ref iidIShellFolder, out session._parentFolderPtr, ref relativePidl);
-            if (hr < 0)
-            {
-                Logger.Log($"[ShellMenuSession] SHBindToParent failed (HR: {hr})", LogLevel.Error);
-                session.Dispose();
-                return null;
-            }
-
-            var parentFolder = (ShellContextMenuNativeMethods.IShellFolder)Marshal.GetObjectForIUnknown(session._parentFolderPtr);
-            session._parentFolder = parentFolder;
-
-            var iidIContextMenu = new Guid("000214E4-0000-0000-C000-000000000046");
-            uint reserved = 0;
-            parentFolder.GetUIObjectOf(IntPtr.Zero, 1, new IntPtr[] { relativePidl }, ref iidIContextMenu, ref reserved, out session._contextMenuPtr);
-            session._contextMenu = (ShellContextMenuNativeMethods.IContextMenu)Marshal.GetObjectForIUnknown(session._contextMenuPtr);
-
-            session._hMenu = ShellContextMenuNativeMethods.CreatePopupMenu();
-            if (session._hMenu == IntPtr.Zero)
-            {
-                session.Dispose();
-                return null;
-            }
-
-            session._contextMenu.QueryContextMenu(session._hMenu, 0, CMD_FIRST, CMD_LAST, 0x00000000);
-
-            return session;
+            if (session.Invoke(() => session.CreateCore(path)))
+                return session;
         }
         catch (Exception ex)
         {
             Logger.Log($"[ShellMenuSession] Create failed: {ex.Message}", LogLevel.Error);
-            session.Dispose();
-            return null;
+        }
+
+        session.Dispose();
+        return null;
+    }
+
+    private bool CreateCore(string path)
+    {
+        try
+        {
+            var hr = ShellContextMenuNativeMethods.SHParseDisplayName(path, IntPtr.Zero, out _pidl, 0, out _);
+            if (hr < 0)
+            {
+                Logger.Log($"[ShellMenuSession] SHParseDisplayName failed for: {path} (HR: {hr})", LogLevel.Error);
+                return false;
+            }
+
+            var iidIShellFolder = new Guid("000214E6-0000-0000-C000-000000000046");
+            var relativePidl = IntPtr.Zero;
+            hr = ShellContextMenuNativeMethods.SHBindToParent(_pidl, ref iidIShellFolder, out _parentFolderPtr, ref relativePidl);
+            if (hr < 0)
+            {
+                Logger.Log($"[ShellMenuSession] SHBindToParent failed (HR: {hr})", LogLevel.Error);
+                return false;
+            }
+
+            var parentFolder = (ShellContextMenuNativeMethods.IShellFolder)Marshal.GetObjectForIUnknown(_parentFolderPtr);
+            _parentFolder = parentFolder;
+
+            var iidIContextMenu = new Guid("000214E4-0000-0000-C000-000000000046");
+            uint reserved = 0;
+            parentFolder.GetUIObjectOf(IntPtr.Zero, 1, new IntPtr[] { relativePidl }, ref iidIContextMenu, ref reserved, out _contextMenuPtr);
+            _contextMenu = (ShellContextMenuNativeMethods.IContextMenu)Marshal.GetObjectForIUnknown(_contextMenuPtr);
+
+            _hMenu = ShellContextMenuNativeMethods.CreatePopupMenu();
+            if (_hMenu == IntPtr.Zero)
+                return false;
+
+            _contextMenu.QueryContextMenu(_hMenu, 0, CMD_FIRST, CMD_LAST, 0x00000000);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[ShellMenuSession] Create failed: {ex.Message}", LogLevel.Error);
+            return false;
         }
     }
 
-    public List<ShellMenuItem> EnumerateItems(IntPtr hMenu = default) => TryInvoke(() => EnumerateItemsCore(hMenu)) ?? new List<ShellMenuItem>();
+    public List<ShellMenuItem> EnumerateItems(IntPtr hMenu = default) => Invoke(() => EnumerateItemsCore(hMenu)) ?? new List<ShellMenuItem>();
 
     private List<ShellMenuItem> EnumerateItemsCore(IntPtr hMenu)
     {
@@ -203,7 +218,7 @@ public class ShellMenuSession : IDisposable
     }
 
 
-    public void InvokeCommand(uint commandId, IntPtr ownerHwnd) => TryInvoke(() => { InvokeCommandCore(commandId, ownerHwnd); return true; });
+    public void InvokeCommand(uint commandId, IntPtr ownerHwnd) => Invoke(() => { InvokeCommandCore(commandId, ownerHwnd); return true; });
 
     private void InvokeCommandCore(uint commandId, IntPtr ownerHwnd)
     {
@@ -225,21 +240,47 @@ public class ShellMenuSession : IDisposable
         }
     }
 
-    public void Dispose() => TryInvoke(() => { DisposeCore(); return true; });
-
-    private static T? TryInvoke<T>(Func<T> callback)
+    public void Dispose()
     {
-        var dispatcher = ShellMenuStaWorker.StaDispatcher;
-        if (dispatcher == null)
+        var worker = Interlocked.Exchange(ref _worker, null);
+        if (worker == null)
+            return;
+
+        var operation = worker.InvokeAsync(() => { DisposeCore(); return true; });
+        if (operation.Wait(TimeSpan.FromMilliseconds(ShellMenuStaWorker.InvokeTimeoutMs)) != DispatcherOperationStatus.Completed)
+        {
+            // The apartment is wedged too: its COM objects cannot be released safely from any other
+            // thread, so the worker is abandoned (never returned to the pool) along with them.
+            Logger.Log($"[ShellMenuSession] STA dispatcher call timed out after {ShellMenuStaWorker.InvokeTimeoutMs}ms while closing; abandoning that STA worker.", LogLevel.Error);
+            return;
+        }
+
+        ShellMenuStaWorker.Release(worker);
+    }
+
+    // Runs callback on this session's pinned apartment, or returns default when the session is closed
+    // or its worker stopped answering. A timeout means a shell extension is wedged: the worker is
+    // abandoned for good, and because the pool is fixed, no new thread is created to replace it.
+    private T? Invoke<T>(Func<T> callback)
+    {
+        var worker = _worker;
+        if (worker == null)
             return default;
 
-        var operation = dispatcher.InvokeAsync(callback);
+        var operation = worker.InvokeAsync(callback);
         if (operation.Wait(TimeSpan.FromMilliseconds(ShellMenuStaWorker.InvokeTimeoutMs)) == DispatcherOperationStatus.Completed)
             return operation.Result;
 
-        Logger.Log($"[ShellMenuSession] STA dispatcher call timed out after {ShellMenuStaWorker.InvokeTimeoutMs}ms; a shell extension appears hung. Killing the worker thread and starting a fresh one.", LogLevel.Error);
-        ShellMenuStaWorker.KillWedgedStaWorker(dispatcher);
+        MarkWedged(worker);
         return default;
+    }
+
+    private void MarkWedged(Dispatcher worker)
+    {
+        if (Interlocked.CompareExchange(ref _worker, null, worker) != worker)
+            return; // another caller already closed this session
+
+        Logger.Log($"[ShellMenuSession] STA dispatcher call timed out after {ShellMenuStaWorker.InvokeTimeoutMs}ms; a shell extension appears hung. Abandoning that STA worker; the native shell menu is skipped for this session.", LogLevel.Error);
     }
 
     private void DisposeCore()

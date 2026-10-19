@@ -25,11 +25,10 @@ public sealed class NameSearchTests
         Assert.IsLessThan(0, SearchResultRankComparer.Instance.Compare(wholeName, ancestorCompleted));
     }
 
-    // The reported case: "atlas" returned "atlas" folders, then "atlasing", then "atlas*" files, and lost
-    // "code-atlas" to the limit -- behind names that only hold a-t-l-a-s scattered. The engine's cut must
-    // keep rows in the same order the windows rank them: whole words first, scattered letters last.
+    // A whole-word hit later in the name ("code-atlas") beats a word-start hit at the left edge
+    // ("atlasing*"); the exact/left-contiguous "atlas" still leads both.
     [TestMethod]
-    public void SearchStreaming_LimitKeepsWholeWordHitsAheadOfPrefixAndScatteredMatches()
+    public void SearchStreaming_LimitKeepsWholeWordHitsAheadOfWordStarts()
     {
         var records = new List<FileRecord>
         {
@@ -54,11 +53,10 @@ public sealed class NameSearchTests
         Assert.IsTrue(names.Skip(2).All(name => name.StartsWith("atlasing", StringComparison.Ordinal)), string.Join(", ", names));
     }
 
-    // Second half of the reported case: dozens of names starting with "atlas" sat deep in game and engine
-    // trees, and "code-atlas" -- a shallow folder whose match starts later -- still lost the limit cut.
-    // Among equally good word matches the engine must cut by depth before start position.
+    // Second half of the reported case: every "Atlas*" file starts at 0 and is contiguous; the later
+    // "code-atlas" is not left-contiguous and must not take the cut.
     [TestMethod]
-    public void SearchStreaming_LimitKeepsTheShallowWholeWordHitAheadOfDeeperOnes()
+    public void SearchStreaming_LimitKeepsTheLeftContiguousHitAheadOfALaterWholeWord()
     {
         var records = new List<FileRecord>
         {
@@ -76,19 +74,19 @@ public sealed class NameSearchTests
 
         IndexV2Searcher.SearchStreaming(fixture.Index, "atlas", 3, results.Add, CancellationToken.None);
 
-        Assert.AreEqual("code-atlas", results.Order(SearchResultRankComparer.Instance).First().Name);
+        Assert.IsTrue(results.Order(SearchResultRankComparer.Instance).First().Name.StartsWith("Atlas", StringComparison.Ordinal));
     }
 
-    // Recency outranks depth: something changed today wins the cut over an older, shallower match.
+    // Coverage is a match key; recency and depth are not. A shorter left-contiguous name with the same
+    // matched length wins over a longer one.
     [TestMethod]
-    public void SearchStreaming_LimitKeepsTheRecentlyChangedHitAheadOfOlderShallowOnes()
+    public void SearchStreaming_LimitKeepsHigherCoverageAheadOfLongerNames()
     {
-        var today = FileTimeHelper.ToUnixSeconds(DateTime.UtcNow.AddHours(-1));
         var records = new List<FileRecord>
         {
             LiveIndexFixture.Root(),
-            new(2, 1, "Work", FileRecordFlags.Directory),
-            new(3, 2, "atlas-notes.txt", FileRecordFlags.None, creationTimeUnixSeconds: today, lastWriteTimeUnixSeconds: today),
+            new(2, 1, "atlas-notes.txt", FileRecordFlags.None),
+            new(3, 1, "atlas1.txt", FileRecordFlags.None),
         };
         ulong id = 10;
         for (var i = 0; i < 20; i++)
@@ -98,7 +96,23 @@ public sealed class NameSearchTests
 
         IndexV2Searcher.SearchStreaming(fixture.Index, "atlas", 3, results.Add, CancellationToken.None);
 
-        Assert.AreEqual("atlas-notes.txt", results.Order(SearchResultRankComparer.Instance).First().Name);
+        Assert.AreEqual("atlas0.txt", results.Order(SearchResultRankComparer.Instance).First().Name);
+    }
+
+    [TestMethod]
+    public void SearchStreaming_HalfWidthQueryMatchesFullWidthName()
+    {
+        using var fixture = LiveIndexFixture.Build("Z", new[]
+        {
+            LiveIndexFixture.Root(),
+            new FileRecord(2, 1, "ｆａｓｔ.txt", FileRecordFlags.None),
+        });
+        var results = new List<SearchResult>();
+
+        IndexV2Searcher.SearchStreaming(fixture.Index, "fast", 10, results.Add, CancellationToken.None);
+
+        Assert.HasCount(1, results);
+        Assert.AreEqual("ｆａｓｔ.txt", results[0].Name);
     }
 
     [TestMethod]

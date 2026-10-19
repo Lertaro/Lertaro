@@ -7,9 +7,12 @@ internal static class FzfPatternParser
 {
     public static FzfPattern Parse(string query)
     {
+        // Fold full-width IME output and NFD before operators, spaces and drive prefixes are parsed, so a
+        // full-width colon or space cannot change the query's meaning.
+        query = SearchTextNormalizer.Normalize(query);
         string? targetDrive = null;
         var terms = new List<string>();
-        foreach (var rawTerm in query.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        foreach (var rawTerm in query.Trim().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
         {
             if (rawTerm.Length >= 2 && char.IsLetter(rawTerm[0]) && rawTerm[1] == Path.VolumeSeparatorChar)
             {
@@ -42,6 +45,7 @@ internal static class FzfPatternParser
     // path that every consumer of FzfPattern already understands.
     private static FzfPattern Build(string? targetDrive, string query)
     {
+        query = SearchTextNormalizer.Normalize(query);
         var sets = ParseTermSets(query);
 
         if (!SearchContext.AndFirstPrecedence)
@@ -60,14 +64,14 @@ internal static class FzfPatternParser
         if (string.IsNullOrWhiteSpace(query))
             return Array.Empty<FzfTermSet>();
 
-        query = query.Replace("\\ ", "\t");
+        query = query.Replace("\\ ", "\u0001");
         var sets = new List<FzfTermSet>();
         var current = new List<FzfTerm>();
         var afterBar = false;
 
-        foreach (var rawToken in MergeQuotedPhrases(query.Split(' ', StringSplitOptions.RemoveEmptyEntries)))
+        foreach (var rawToken in MergeQuotedPhrases(query.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)))
         {
-            var token = rawToken.Replace('\t', ' ');
+            var token = rawToken.Replace('\u0001', ' ');
             if (current.Count > 0 && !afterBar && token == "|")
             {
                 afterBar = true;
@@ -104,13 +108,13 @@ internal static class FzfPatternParser
         if (string.IsNullOrWhiteSpace(query))
             return Array.Empty<FzfTermGroup>();
 
-        query = query.Replace("\\ ", "\t");
+        query = query.Replace("\\ ", "\u0001");
         var currentGroup = new List<FzfTermSet>();
         var currentSet = new List<FzfTerm>();
 
-        foreach (var rawToken in MergeQuotedPhrases(query.Split(' ', StringSplitOptions.RemoveEmptyEntries)))
+        foreach (var rawToken in MergeQuotedPhrases(query.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)))
         {
-            var token = rawToken.Replace('\t', ' ');
+            var token = rawToken.Replace('\u0001', ' ');
             if (token == "|")
             {
                 sawPipe = true;

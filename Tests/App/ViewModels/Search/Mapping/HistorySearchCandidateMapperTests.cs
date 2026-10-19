@@ -17,8 +17,25 @@ public sealed class HistorySearchCandidateMapperTests
 
         Assert.HasCount(1, results);
         Assert.AreEqual(@"C:\Apps\BCompare.exe", results[0].Result.FullPath);
-        Assert.IsTrue(results[0].IsCurated);
-        Assert.IsLessThan(0, results[0].Priority);
+        Assert.IsTrue(results[0].IsHistoryOnly);
+        Assert.IsFalse(results[0].IsFavorite);
+        Assert.IsLessThan(0, results[0].HistoryPriority);
+        Assert.AreEqual(1, results[0].HistoryCount);
+    }
+
+    // A history row is a file path, so it has to carry the caller's Files rank rather than a group of its
+    // own: with the type order as the outermost key (RankedCandidateOrdering), int.MaxValue here would put
+    // every history row below every indexed file of the same type.
+    [TestMethod]
+    public void Collect_CarriesTheCallersFilesTypeRank()
+    {
+        var entries = new[] { Entry("bcomp", @"C:\Apps\BCompare.exe", HistoryEntryKind.File) };
+
+        var results = HistorySearchCandidateMapper.Collect(
+            FuzzyQuery.Parse("bc"), null, entries, _ => true, _ => false, typeRank: 3);
+
+        Assert.HasCount(1, results);
+        Assert.AreEqual(3, results[0].TypeRank);
     }
 
     [TestMethod]

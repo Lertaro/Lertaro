@@ -16,6 +16,26 @@ namespace Lertaro.App.ViewModels.Search.Dispatch;
 // under the repo's per-file line limit.
 internal sealed class SearchQueryDispatchController
 {
+    // The full window has no favorite-only rows, but an indexed favorite must still get the same
+    // favorite band the quick window gives it. Paths are normalized the way the ladder compares them.
+    private static IReadOnlySet<string> FavoritePaths()
+    {
+        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var favorite in UserSettings.Load().Favorites)
+        {
+            try
+            {
+                paths.Add(Lertaro.App.ViewModels.Search.SearchResultHelper.NormalizePath(
+                    Lertaro.App.Helpers.FavoritePathResolver.Resolve(favorite.Path)));
+            }
+            catch
+            {
+                // A malformed favorite is skipped here; the quick window's own favorite mapper reports it.
+            }
+        }
+        return paths;
+    }
+
     private readonly SearchExecutionEngine _searchEngine;
     private readonly SearchServiceStatusViewModel _serviceStatus;
     private readonly Func<List<AppSearchResult>> _getAllResults;
@@ -189,13 +209,16 @@ internal sealed class SearchQueryDispatchController
             {
                 if (fileResults == null)
                     return new List<AppSearchResult>();
-                // Only index matches are shown here, but they rank like the quick window's: what the user
-                // picked before for this text, then other history, then Windows' Recent Items, then match
-                // quality. Rank-only -- nothing the index did not return is added. Worked out here, on the
-                // render callback's thread, before the first batch is ranked.
+                // Only index matches are shown here, but they rank like the quick window's: match quality,
+                // then favorites, then history band (5+ opens / 1-4 / none), then learned-keyword priority.
+                // Rank-only -- nothing the index did not return is added. Worked out here, on the render
+                // callback's thread, before the first batch is ranked.
                 if (!prioritiesApplied)
                 {
-                    accumulator.UsePriorities(HistorySearchCandidateMapper.RankingPriorities(FuzzyQuery.Parse(cleanQuery)));
+                    accumulator.UsePriorities(
+                        HistorySearchCandidateMapper.RankingPriorities(FuzzyQuery.Parse(cleanQuery)),
+                        SearchHistoryStore.UsageCounts(),
+                        FavoritePaths());
                     prioritiesApplied = true;
                 }
                 return accumulator.AbsorbBatch(fileResults);

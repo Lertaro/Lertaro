@@ -1,71 +1,46 @@
-using System.IO;
+using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
-using Lertaro.PluginSdk.Abstractions;
 
 namespace Lertaro.App.ViewModels.Search.Mapping;
 
 // The one ordering ladder every result list shares: candidates in, best-first rows out.
 //
-// Split out of SearchResultMapper purely to keep that file under the repo's per-file line limit. It has no
-// state of its own -- it always operates on the candidate list its caller built.
+// Keys, strongest first:
+//   1. Result-type order -- the user's own order (quick window only; files are one type elsewhere). It is a
+//      hard grouping: a row of an earlier type beats a row of a later one whatever the textual match was,
+//      and every key below only decides the order INSIDE one type.
+//   2. Match quality -- contiguity, shape (whole word > word start > inside > scattered), left-contiguous
+//      (shape tie-break only), start, coverage, tier (MatchRank.CompareQuality).
+//   3. Favorites -- an explicit user pick, after quality but before history.
+//   4. History band -- 5+ opens (0), 1-4 opens (1), none (2). History never overrules a better match.
+//   5. History priority -- the learned-keyword order inside a band.
+//   6. Files before folders.
+//   7. Natural name order, then name length, path length, drive and path.
+//
+// The ladder used to compare type order after all six quality keys, which made the setting unreachable:
+// two rows of different types practically never tie on contiguity+shape+left+start+coverage+tier, so the
+// configured order could not move anything. Quality is the engine's own ranking and stays the inner order.
+//
+// Shape is part of MatchRank.CompareQuality; recency band and path depth are deliberately absent.
 internal static class RankedCandidateOrdering
 {
-    // User signals first, then match quality, then a stable tie-break:
-    //
-    //   * IsCurated / Priority -- favorites and history ("you use this"), which outrank any textual match.
-    //   * TypeRank              -- the user's own result-type order (quick window only).
-    //   * Match.Start           -- "left-side match priority": the query hitting furthest left in the name
-    //                              leads the match keys. It used to sit behind Shape/RecencyBand/Depth, and
-    //                              on a broad query the display cap then filled with rows that merely
-    //                              matched a whole word or were touched today, cutting off the row the user
-    //                              was looking for (reported as a plain drop in hit rate).
-    //   * Match.Weight          -- then coverage*contiguity.
-    //   * Match.Tier            -- then the WEAKEST match key: a literal name hit beats a shorthand alias
-    //                              hit beats a full transliteration (英文 > 简拼 > 全拼). Placed last so it
-    //                              only separates rows that already agree on position and coverage;
-    //                              see AliasMatchRules.TierFor.
-    //   * files before folders  -- only when the match is otherwise equal.
-    //   * path length, path     -- then the stable, deterministic tail.
-    //
-    // Match.Shape, RecencyBand and Depth are still computed and carried on the candidate (RankSignals for
-    // index rows) but deliberately order nothing since that report -- a consumer that wants them has them,
-    // and none of them may push a left-hand hit off the screen.
-    //
-    // SearchResultRelevance packs the same match keys into RankSortKey for the full window and the engine.
-    //
-    // The inline window layers directory proximity ABOVE all of this separately (see
-    // ExplorerSearchHelper.CreateLocalSnapshot), so a direct child wins even against a curated deeper row.
     public static List<SearchResultMapper.RankedCandidate> Order(List<SearchResultMapper.RankedCandidate> candidates, string? query = null)
     {
-        var exact = query?.Trim();
+        _ = query;
         var usedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var ranked = new List<SearchResultMapper.RankedCandidate>();
         foreach (var candidate in candidates
-                     // Owner's rule: history and favorites sit AFTER the match rule, not above it -- at
-                     // otherwise equal match quality a row you opened before wins, but it cannot outrank a
-                     // much better left-side or contiguous hit just because it is in the history.
-                     // Owner's rule: a name that IS the query comes first, then match quality, and among equal
-                     // matches the name order below (letters before digits before symbols, uppercase first).
-                     // Owner's rule: favorites and history lead EVERYTHING, even an exact name match -- a row the
-                     // user opened before is what they are looking for. Match quality orders only the rest.
-                     // Owner's final ladder (2026-10-19): contiguity, left position, coverage, tier, name length,
-                     // history/favorites, folder-first, natural name order. Coverage is weight/contiguity because
-                     // weight is already coverage*contiguity and contiguity is carried separately.
-                     // Owner's ladder (2026-10-19, after the save point): tier, then a hit that is both contiguous
-                     // AND at the left edge, then contiguity, then history/favorites, coverage, type order, name
-                     // length, folder-first and natural name order.
-                     // Owner's ladder (2026-10-19, final): a left-contiguous hit, then contiguity, history,
-                     // coverage, tier, type order, folder-first, natural name order, and name length last.
-                     .OrderByDescending(c => c.Match.Start == 0 && c.Match.Contiguity >= 1)
-                     .ThenByDescending(c => c.Match.Contiguity)
-                     .ThenByDescending(c => c.IsCurated)
-                     .ThenBy(c => c.Priority)
-                     .ThenByDescending(c => c.Match.Contiguity > 0 ? c.Match.Weight / c.Match.Contiguity : 0)
-                     .ThenBy(c => c.Match.Tier)
-                     .ThenBy(c => c.TypeRank)
+                     .OrderBy(c => c.TypeRank)
+                     .ThenBy(c => EffectiveMatch(c), MatchRankQualityComparer.Instance)
+                     .ThenBy(c => c.IsFavorite ? 0 : 1)
+                     .ThenBy(c => SearchResultRankComparer.HistoryBand(EffectiveHistoryCount(c)))
+                     .ThenBy(c => c.HistoryPriority)
                      .ThenBy(c => c.Result.IsDir)
-                     .ThenBy(c => c.Result.Name, NameOrderComparer.Instance)
-                     .ThenBy(c => c.Result.Name.Length))
+                     .ThenBy(c => c.Result.Name, SearchNameOrderComparer.Instance)
+                     .ThenBy(c => c.Result.Name.Length)
+                     .ThenBy(c => c.NormalizedPath.Length)
+                     .ThenBy(c => c.Result.Drive, StringComparer.OrdinalIgnoreCase)
+                     .ThenBy(c => c.NormalizedPath, StringComparer.OrdinalIgnoreCase))
         {
             if (usedPaths.Add(candidate.NormalizedPath))
                 ranked.Add(candidate);
@@ -73,45 +48,12 @@ internal static class RankedCandidateOrdering
         return ranked;
     }
 
-    // The recency band and path depth of one index row, as the engine's sort key reads them.
-    internal static (int Band, int Depth) SignalsOf(FileMetadata metadata, string path, DateTime nowUtc) =>
-        (RankSignals.RecencyBand(metadata.Created, metadata.Modified, nowUtc), RankSignals.PathDepth(path));
-}
+    private static MatchRank EffectiveMatch(SearchResultMapper.RankedCandidate candidate)
+        => candidate.IsHistoryOnly ? MatchRank.NoMatch : candidate.Match;
 
-// The tie-breaker the owner asked for once two rows match equally well: digits first, then letters (uppercase before
-// lowercase, so "A" < "a"), digits in numeric order ("a2" < "a10") ahead of letters ("a1" < "aa"), then
-internal sealed class NameOrderComparer : IComparer<string>
-{
-    public static readonly NameOrderComparer Instance = new();
-
-    public int Compare(string? x, string? y)
-    {
-        if (ReferenceEquals(x, y)) return 0;
-        if (x == null) return -1;
-        if (y == null) return 1;
-        int i = 0, j = 0;
-        while (i < x.Length && j < y.Length)
-        {
-            var cx = x[i];
-            var cy = y[j];
-            if (char.IsDigit(cx) && char.IsDigit(cy))
-            {
-                var si = i; while (i < x.Length && char.IsDigit(x[i])) i++;
-                var sj = j; while (j < y.Length && char.IsDigit(y[j])) j++;
-                var lx = long.Parse(x.AsSpan(si, i - si));
-                var ly = long.Parse(y.AsSpan(sj, j - sj));
-                if (lx != ly) return lx.CompareTo(ly);
-                continue;
-            }
-            var kx = ClassOf(cx);
-            var ky = ClassOf(cy);
-            if (kx != ky) return kx.CompareTo(ky);
-            if (cx != cy) return cx.CompareTo(cy);
-            i++;
-            j++;
-        }
-        return (x.Length - i).CompareTo(y.Length - j);
-    }
-
-    private static int ClassOf(char c) => char.IsDigit(c) ? 0 : char.IsLetter(c) ? 1 : 2;
+    // Older callers can supply the priority map without the count map; a path present there is weak
+    // (1-4) history, matching SearchResultRankComparer's own fallback.
+    private static int EffectiveHistoryCount(SearchResultMapper.RankedCandidate candidate)
+        => candidate.HistoryCount > 0 ? candidate.HistoryCount
+            : candidate.HistoryPriority != int.MaxValue ? 1 : 0;
 }

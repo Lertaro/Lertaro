@@ -12,17 +12,17 @@ public sealed class ExplorerSearchHelperTests
     private static AppSearchResult Item(string path, bool isDir = false) =>
         new() { FullPath = path, Name = System.IO.Path.GetFileName(path), ResultKind = "File", IsDir = isDir };
 
-    private static ExplorerSearchHelper.RankedRow Row(string path, int tier = MatchRank.TierName, int start = 0, double weight = 1.0, bool isDir = false, int shape = MatchRank.ShapeWholeWord) =>
-        new(Item(path, isDir), new MatchRank(tier, start, weight, shape));
+    private static ExplorerSearchHelper.RankedRow Row(string path, int tier = MatchRank.TierName, int start = 0, double coverage = 1.0, double contiguity = 1.0, bool isDir = false) =>
+        new(Item(path, isDir), new MatchRank(tier, start, coverage, contiguity));
 
-    // Within a direct-children group the leftmost hit leads: shape is computed but no longer ranks, so the
-    // scattered a-t-l-a-s from index 0 of the name beats a whole word five characters in.
+    // Within a direct-children group the shared quality ladder leads: a contiguous hit at index 0 beats
+    // a later start. Shape is no longer a ranking key.
     [TestMethod]
-    public void OrderByDirectoryTier_DirectChildren_StartComesBeforeShape()
+    public void OrderByDirectoryTier_DirectChildren_QualityLadderLeads()
     {
         var result = ExplorerSearchHelper.OrderByDirectoryTier(
             [
-                Row(@"C:\Root\AutofillStates", shape: MatchRank.ShapeScattered),
+                Row(@"C:\Root\AutofillStates"),
                 Row(@"C:\Root\code-atlas", start: 5),
             ],
             @"C:\Root");
@@ -110,8 +110,8 @@ public sealed class ExplorerSearchHelperTests
             result.Select(item => item.FullPath).ToArray());
     }
 
-    // Folder-first separates rows whose matches START at the same position, so it still holds when a file
-    // has the better match TIER -- but tier and start still order items WITHIN a group.
+    // Folder grouping is a tie-break after start; at the same start it leads regardless of tier, and tier
+    // only separates rows within the same group.
     [TestMethod]
     public void OrderByDirectoryTier_DirectChildren_FolderGroupLeadsRegardlessOfMatchTier()
     {

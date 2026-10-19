@@ -59,6 +59,44 @@ public sealed class SearchResultRankComparerTests
     }
 
     [TestMethod]
+    public void Compare_FiveOpensBeatOneOpenAtEqualMatchQuality()
+    {
+        var history = new Dictionary<string, int> { [@"c:\often"] = 0, [@"c:\once"] = 5 };
+        var usage = new Dictionary<string, int> { [@"c:\often"] = 5, [@"c:\once"] = 1 };
+        var comparer = new SearchResultRankComparer(history, usage);
+        var often = new SearchResult { Path = @"c:\often", Name = "often" };
+        var once = new SearchResult { Path = @"c:\once", Name = "once" };
+
+        Assert.IsLessThan(0, comparer.Compare(often, once));
+    }
+
+    [TestMethod]
+    public void Compare_HistoryDoesNotBeatABetterMatchKey()
+    {
+        var history = new Dictionary<string, int> { [@"c:\often"] = 0 };
+        var usage = new Dictionary<string, int> { [@"c:\often"] = 99 };
+        var comparer = new SearchResultRankComparer(history, usage);
+        // 0 is the best possible high key; the history row's high key is slightly worse.
+        var exact = new SearchResult { Path = @"c:\exact", Name = "exact", RankSortKey = 0 };
+        var often = new SearchResult { Path = @"c:\often", Name = "often", RankSortKey = 1UL << 32 };
+
+        Assert.IsLessThan(0, comparer.Compare(exact, often));
+    }
+
+    [TestMethod]
+    public void Compare_FavoriteBeatsHistoryAtEqualMatchQuality()
+    {
+        var history = new Dictionary<string, int> { [@"c:\history"] = 0 };
+        var usage = new Dictionary<string, int> { [@"c:\history"] = 55 };
+        var favorites = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { @"c:\favorite" };
+        var comparer = new SearchResultRankComparer(history, usage, favorites);
+        var favorite = new SearchResult { Path = @"c:\favorite", Name = "favorite" };
+        var historyRow = new SearchResult { Path = @"c:\history", Name = "history" };
+
+        Assert.IsLessThan(0, comparer.Compare(favorite, historyRow));
+    }
+
+    [TestMethod]
     public void Compare_NullHandling_NullSortsAfterNonNull()
     {
         var comparer = new SearchResultRankComparer(new Dictionary<string, int>());

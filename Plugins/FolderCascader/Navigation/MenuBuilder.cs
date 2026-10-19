@@ -85,8 +85,19 @@ public static class MenuBuilder
     // category than the one they happened to click "Add" from. A null result means the prompt was
     // cancelled or the host hasn't wired PluginPromptService up (an older host build) -- either way,
     // nothing gets added rather than silently adding an entry the user never confirmed.
+    // The folder this prompt acts on arrives from the search result the menu was BUILT with, so by the time
+    // the user actually picks the item it can already be one they left: the host only learns a mouse-summoned
+    // menu's folder a moment after the click. Asking the host here, at execute time, is what keeps "add
+    // current folder" naming the folder the user is looking at rather than the previous one. Nothing reported,
+    // or a path that is gone (unplugged drive, virtual folder) leaves the captured folder as the best answer.
+    internal static string FreshestFolder(string captured) =>
+        ExplorerPathService.GetLastActivePath() is { Length: > 0 } current && Directory.Exists(current)
+            ? current
+            : captured;
+
     internal static void PromptAndAddCurrentFolder(string folderPath, string subMenu)
     {
+        folderPath = FreshestFolder(folderPath);
         var nameField = new PluginConfigField
         {
             Key = "Name",

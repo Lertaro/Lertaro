@@ -21,6 +21,7 @@ internal static class SearchMatcherRow
         match = default;
         if (name.Length == 0)
             return false;
+        name = SearchTextNormalizer.Normalize(name);
         var live = PinyinNameEvaluator.ForPattern(pattern);
         if (live.HasProviders)
         {
@@ -106,6 +107,7 @@ internal static class SearchMatcherRow
     // For delta rows (renamed/added), which carry their own precomputed alias array.
     internal static bool TryMatchNameOrAliases(FzfPattern pattern, string name, string[]? aliases, byte[]? providerIds, int queryLen, FzfSlab slab, out FzfPatternResult result)
     {
+        name = SearchTextNormalizer.Normalize(name);
         var live = PinyinNameEvaluator.ForPattern(pattern);
         if (live.HasProviders)
         {

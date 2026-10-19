@@ -4,6 +4,7 @@ public static class SearchQueryParser
 {
     public static ParsedSearchQuery Parse(string query)
     {
+        query = Lertaro.Core.SearchIndex.SearchTextNormalizer.Normalize(query);
         var normalizedQuery = NormalizePathSeparators(query.Trim()).ToLowerInvariant();
         if (ContainsPathSeparator(normalizedQuery))
         {
@@ -29,7 +30,7 @@ public static class SearchQueryParser
 
         string? targetDrive = null;
 
-        var rawTerms = normalizedQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var rawTerms = normalizedQuery.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
 
         foreach (var rawTerm in rawTerms)
         {

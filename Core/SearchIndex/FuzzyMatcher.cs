@@ -41,6 +41,7 @@ public static class FuzzyMatcher
     {
         if (fzf.IsEmpty || string.IsNullOrEmpty(text))
             return false;
+        text = SearchTextNormalizer.Normalize(text);
         var live = PinyinNameEvaluator.ForPattern(fzf);
         if (live.HasProviders)
         {
@@ -175,14 +176,34 @@ public static class FuzzyMatcher
         if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(query))
             return MatchRank.NoMatch;
 
-        return HighlightMask.ComputeRank(text, FzfPattern.Parse(query));
+        return ComputeMatchRank(text, FzfPattern.Parse(query));
     }
 
     // Parsed-pattern overload -- same reason as ComputeHighlightMask's: the per-candidate string form
     // re-parses the query on every call, which measured over 6x slower across a candidate set once an
     // alias provider (pinyin) is registered, because Parse consults every provider's GetQueryForms.
     internal static MatchRank ComputeMatchRank(string? text, FzfPattern pattern)
-        => string.IsNullOrEmpty(text) ? MatchRank.NoMatch : HighlightMask.ComputeRank(text, pattern);
+    {
+        if (string.IsNullOrEmpty(text))
+            return MatchRank.NoMatch;
+
+        // HighlightMask paints positive terms independently, so a multi-term query whose name only
+        // satisfies one term would still produce a mask. The rank is a WHOLE-QUERY rank: ask the matcher
+        // first for the shapes where the mask cannot imply the same answer. A single positive term needs no
+        // extra pass -- its mask is empty exactly when it did not match.
+        if ((pattern.TermSets.Length > 1 || pattern.HasExclusions || pattern.OrGroups != null)
+            && !IsMatch(pattern, text))
+            return MatchRank.NoMatch;
+
+        var rank = HighlightMask.ComputeRank(text, pattern);
+        if (rank.IsMatch)
+            return rank;
+        if (!pattern.HasPositiveTerms)
+            return MatchRank.NoPositiveTerms;
+        // A positive match the mask cannot paint (an alias form, or a character the highlighter does not
+        // model) is still a match; a positive term that simply did not occur is not.
+        return IsMatch(pattern, text) ? MatchRank.NoPositiveTerms : MatchRank.NoMatch;
+    }
 
     // The percentage*consecutiveness measure alone, for the one rank that needs the weight of a text the
     // query did NOT match -- see FuzzyQuery.FallbackRank and MatchRank.NoNameFallback.
@@ -232,10 +253,9 @@ public static class FuzzyMatcher
         return best;
     }
 
-    // Stronger match wins, in the same order the windows rank by (see SearchResultRelevance): shape
-    // first, then start position, then quality weight, then tier last. Tier being weakest means
-    // 英文 > 简拼 > 全拼 only separates texts that already agree on how, where and how tightly they matched
-    // -- a tighter full-pinyin hit beats a looser literal one, which is the requested global weighting.
+    // Stronger match wins, using the exact ladder both windows rank by (see MatchRank.CompareQuality).
+    // Tier being weakest means 英文 > 简拼 > 全拼 only separates texts that already agree on how tightly,
+    // where and how completely they matched.
     internal static bool IsStronger(MatchRank candidate, MatchRank incumbent)
     {
         if (!candidate.IsMatch)
@@ -243,15 +263,13 @@ public static class FuzzyMatcher
         if (!incumbent.IsMatch)
             return true;
 
-        if (candidate.Shape != incumbent.Shape)
-            return candidate.Shape < incumbent.Shape;
-        if (candidate.Start != incumbent.Start)
-            return candidate.Start < incumbent.Start;
-        if (candidate.Weight != incumbent.Weight)
-            return candidate.Weight > incumbent.Weight;
-        return candidate.Tier < incumbent.Tier;
+        return MatchRank.CompareQuality(candidate, incumbent) < 0;
     }
 
     // A text already known to match: rank it without re-testing the match.
-    private static MatchRank Hit(FzfPattern pattern, string text) => HighlightMask.ComputeRank(text, pattern);
+    private static MatchRank Hit(FzfPattern pattern, string text)
+    {
+        var rank = HighlightMask.ComputeRank(text, pattern);
+        return rank.IsMatch ? rank : MatchRank.NoPositiveTerms;
+    }
 }

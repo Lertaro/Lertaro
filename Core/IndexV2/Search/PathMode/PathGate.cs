@@ -149,6 +149,12 @@ internal sealed class PathGate
                 worker.Scratch = new char[Math.Max(nameUtf8.Length, worker.Scratch.Length * 2)];
             var written = Encoding.UTF8.GetChars(nameUtf8, worker.Scratch);
             var segmentName = worker.Scratch.AsSpan(0, written);
+            var normalizedBuffer = worker.NormalizedScratch;
+            var normalizedLength = SearchTextNormalizer.NormalizeInto(segmentName, ref normalizedBuffer, out _);
+            if (normalizedBuffer != null)
+                worker.NormalizedScratch = normalizedBuffer;
+            if (normalizedLength > 0 && normalizedBuffer is { } normalized)
+                segmentName = normalized.AsSpan(0, normalizedLength);
             if (_segmentPatterns[q].TryMatch(segmentName, out var match, FzfScoringScheme.Default, worker.Slab))
             {
                 score = match.Score;
@@ -216,7 +222,8 @@ internal sealed class PathGate
     private bool TryMatchSegmentText(string segment, int q, SearchMatcher.Worker worker, out int score)
     {
         score = 0;
-        if (_segmentPatterns[q].TryMatch(segment, out var match, FzfScoringScheme.Default, worker.Slab))
+        var normalized = SearchTextNormalizer.Normalize(segment);
+        if (_segmentPatterns[q].TryMatch(normalized, out var match, FzfScoringScheme.Default, worker.Slab))
         {
             score = match.Score;
             return true;

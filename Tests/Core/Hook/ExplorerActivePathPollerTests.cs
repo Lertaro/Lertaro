@@ -80,6 +80,35 @@ public sealed class ExplorerActivePathPollerTests
     }
 
     [TestMethod]
+    public async Task ImmediateRequest_AnswersInsideTheReadInterval()
+    {
+        var hwnd = NextSentinel();
+        using var tracker = new ExplorerTracker(() => hwnd);
+        var path = @"C:\First";
+        tracker.SetActiveInlineAdapterDirectly(new ScopeAdapter(() => Volatile.Read(ref path)), hwnd);
+        var first = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var second = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        long firstAt = 0, secondAt = 0;
+        tracker.OnPathCaptured += (value, _, _) =>
+        {
+            if (value == @"C:\First") { firstAt = Stopwatch.GetTimestamp(); first.TrySetResult(); }
+            if (value == @"C:\Second") { secondAt = Stopwatch.GetTimestamp(); second.TrySetResult(); }
+        };
+        tracker.SetInlineWindowOnScreen(true);
+        await first.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Volatile.Write(ref path, @"C:\Second");
+
+        // A click that puts a menu on screen naming this folder cannot wait out MinHostReadMs.
+        tracker.RequestHostPathRead(immediate: true);
+        await second.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.IsLessThan(1500d, Stopwatch.GetElapsedTime(firstAt, secondAt).TotalMilliseconds,
+            "An immediate request has to answer inside the interval that a plain request waits out.");
+        Assert.AreEqual(path, tracker.ActivePath);
+        tracker.SetInlineWindowOnScreen(false);
+    }
+
+    [TestMethod]
     public void UpdateObservedPath_AfterHostChanged_DoesNotOverwriteNewScope()
     {
         var oldHwnd = NextSentinel();

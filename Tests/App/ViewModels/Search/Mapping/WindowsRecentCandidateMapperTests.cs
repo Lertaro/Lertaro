@@ -98,13 +98,15 @@ public sealed class WindowsRecentCandidateMapperTests
             _ => false, _ => true);
         var ordinary = new SearchResultMapper.RankedCandidate(
             new AppSearchResult { FullPath = @"C:\atlas", Name = "atlas" },
-            IsCurated: false, Priority: int.MaxValue, TypeRank: int.MaxValue,
-            new MatchRank(MatchRank.TierName, 0, 1.0), @"C:\atlas");
+            IsFavorite: false, HistoryCount: 0, HistoryPriority: int.MaxValue, TypeRank: int.MaxValue,
+            new MatchRank(MatchRank.TierName, 0, 1.0, 1.0), @"C:\atlas");
 
         var ranked = SearchResultMapper.RankAndDedupe([ordinary, .. recent, .. history]);
 
+        // History no longer leads: the ordinary exact name, then the Recent shortcut name, then the
+        // history-only row (whose own name did not match the query).
         CollectionAssert.AreEqual(
-            new[] { @"D:\Projects\code-atlas", @"D:\Projects\atlas-notes.txt", @"C:\atlas" },
+            new[] { @"C:\atlas", @"D:\Projects\atlas-notes.txt", @"D:\Projects\code-atlas" },
             ranked.Select(r => r.FullPath).ToList());
     }
 

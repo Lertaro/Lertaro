@@ -38,7 +38,7 @@ public class FlowQueryDispatcher
                 TrimmedQuery = trimmed,
                 ActionKeyword = firstWord,
                 Search = search,
-                SearchTerms = search.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                SearchTerms = search.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
             };
         }
 
@@ -48,7 +48,7 @@ public class FlowQueryDispatcher
             TrimmedQuery = trimmed,
             ActionKeyword = string.Empty,
             Search = trimmed,
-            SearchTerms = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            SearchTerms = trimmed.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
         };
     }
 
