@@ -19,11 +19,11 @@ public sealed class SearchSyntaxReservedTests
     [DataRow("*node_modules")]
     [DataRow("/\\.md$/")]
     [DataRow("?report")]
-    // NOTE: this list mirrors LeadingCharacters rather than the syntax table in Plan.md §2.2, which also
-    // lists the quote pair (' ") as grouping characters. Note the two disagree: a leading quote changes how
-    // the query is read (see FzfPatternParser.MergeQuotedPhrases) but is not refused to a configurable
-    // trigger, so a row for it here would fail. This test cannot tell the two sets apart -- if the grouping
-    // characters are ever promoted to reserved, this DataRow set and LeadingCharacters move together.
+    // NOTE: this list mirrors LeadingCharacters. The quote pair (' ") is deliberately absent from it: this
+    // grammar reads a leading quote as a literal character -- the phrase grouping that made it syntax lives on
+    // main and was retired here -- so there is no reading a configurable trigger could collide with, and a row
+    // for it here would fail. If quotes ever become syntax again, this DataRow set and LeadingCharacters move
+    // together.
     public void IsReserved_EverySyntaxCharacter_IsReserved(string value)
         => Assert.IsTrue(SearchSyntaxReserved.IsReserved(value[0]));
 

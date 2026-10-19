@@ -1,5 +1,4 @@
 using Lertaro.Core.SearchIndex;
-using Lertaro.Core.SearchIndex.Fzf;
 using Lertaro.Core.SearchIndex.Query;
 
 namespace Lertaro.Core.Tests.SearchIndex;
@@ -10,10 +9,7 @@ namespace Lertaro.Core.Tests.SearchIndex;
 public sealed class SearchTextNormalizerTests
 {
     [TestMethod]
-    public void Normalize_FullWidthAsciiAndIdeographicSpace()
-    {
-        Assert.AreEqual("FSCapture2024 ", SearchTextNormalizer.Normalize("ＦＳＣａｐｔｕｒｅ２０２４　"));
-    }
+    public void Normalize_FullWidthAsciiAndIdeographicSpace() => Assert.AreEqual("FSCapture2024 ", SearchTextNormalizer.Normalize("ＦＳＣａｐｔｕｒｅ２０２４　"));
 
     [TestMethod]
     public void NeedsNormalization_OnlyWhenFoldingCanChangeTheText()
@@ -25,22 +21,13 @@ public sealed class SearchTextNormalizerTests
     }
 
     [TestMethod]
-    public void FullWidthQuery_MatchesHalfWidthName()
-    {
-        Assert.IsTrue(FuzzyMatcher.IsMatch("ｆａｓｔ", "fast"));
-    }
+    public void FullWidthQuery_MatchesHalfWidthName() => Assert.IsTrue(FuzzyMatcher.IsMatch("ｆａｓｔ", "fast"));
 
     [TestMethod]
-    public void HalfWidthQuery_MatchesFullWidthName()
-    {
-        Assert.IsTrue(FuzzyMatcher.IsMatch("fast", "ｆａｓｔ"));
-    }
+    public void HalfWidthQuery_MatchesFullWidthName() => Assert.IsTrue(FuzzyMatcher.IsMatch("fast", "ｆａｓｔ"));
 
     [TestMethod]
-    public void IdeographicSpace_IsATermSeparator()
-    {
-        Assert.IsTrue(FuzzyMatcher.IsMatch("fast　stone", "FastStone Capture"));
-    }
+    public void IdeographicSpace_IsATermSeparator() => Assert.IsTrue(FuzzyMatcher.IsMatch("fast　stone", "FastStone Capture"));
 
     [TestMethod]
     public void TabAndNewline_AreTermSeparators()
@@ -82,10 +69,23 @@ public sealed class SearchTextNormalizerTests
         Assert.AreEqual(@"c:\fast", parsed.PathPatternLower);
     }
 
+    // A query of nothing but exclusions answers nothing (FzfPatternExclusionTests
+    // .TryMatch_ExclusionOnly_MatchesNothing), so the rank has to agree with the matcher instead of handing
+    // back a synthetic rank for a name that was never required to contain anything.
     [TestMethod]
-    public void InverseOnlyQuery_ProducesARankRatherThanNoMatch()
+    public void ExclusionOnlyQuery_RanksAsNoMatch()
     {
-        var rank = FuzzyMatcher.ComputeMatchRank("abc.txt", "!zzz");
+        var rank = FuzzyMatcher.ComputeMatchRank("abc.txt", ":zzz");
+
+        Assert.IsFalse(rank.IsMatch);
+    }
+
+    // The query shape that really does match without a paintable term is a regex clause: it is answered from
+    // the name, but no term of it can be highlighted, so it ranks rather than reporting no match.
+    [TestMethod]
+    public void RegexOnlyQuery_ProducesARankRatherThanNoMatch()
+    {
+        var rank = FuzzyMatcher.ComputeMatchRank("abc.exe", @"/\.exe$/");
 
         Assert.IsTrue(rank.IsMatch);
         Assert.IsFalse(rank.IsLeftContiguous);
@@ -94,7 +94,7 @@ public sealed class SearchTextNormalizerTests
     [TestMethod]
     public void ExcludedName_IsNotARankMatch()
     {
-        var rank = FuzzyMatcher.ComputeMatchRank("code-atlas.txt", "atlas !code");
+        var rank = FuzzyMatcher.ComputeMatchRank("code-atlas.txt", "atlas :code");
 
         Assert.IsFalse(rank.IsMatch);
     }

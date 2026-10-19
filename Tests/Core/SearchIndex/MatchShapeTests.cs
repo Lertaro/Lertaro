@@ -40,10 +40,11 @@ public sealed class MatchShapeTests
     [DataRow("annotatescrollbar.js")]
     public void Scattered(string name) => Assert.AreEqual(MatchRank.ShapeScattered, ShapeOf(name, "atlas"));
 
-    // Uncased scripts have no separators to find words by, so each character is its own word.
+    // An unspaced CJK run is ONE word for shape classification (MatchShape's ponytail note: position, not a
+    // segmenter), so a hit that starts mid-run is inside a word rather than a whole one.
     [TestMethod]
-    public void UncasedScript_ContiguousHitIsAWholeWord() =>
-        Assert.AreEqual(MatchRank.ShapeWholeWord, ShapeOf("网易云音乐", "音乐"));
+    public void UncasedScript_RunIsOneWordSoAMidRunHitSitsInsideIt() =>
+        Assert.AreEqual(MatchRank.ShapeInsideWord, ShapeOf("网易云音乐", "音乐"));
 
     // AND across words: the weaker word decides.
     [TestMethod]
@@ -73,26 +74,17 @@ public sealed class MatchShapeTests
     [DataRow("atlasing", 0, 5, MatchRank.ShapeWordStart)]
     [DataRow("metatlas.txt", 3, 8, MatchRank.ShapeInsideWord)]
     [DataRow("x_atlas", 2, 7, MatchRank.ShapeWholeWord)]
-    public void Classify_EnglishNameShapes(string name, int start, int end, int expected)
-    {
-        Assert.AreEqual(expected, MatchShape.Classify(name, start, end));
-    }
+    public void Classify_EnglishNameShapes(string name, int start, int end, int expected) => Assert.AreEqual(expected, MatchShape.Classify(name, start, end));
 
     [TestMethod]
-    public void Classify_WholeTextIsAWholeWord()
-    {
-        Assert.AreEqual(MatchRank.ShapeWholeWord, MatchShape.Classify("atlas", 0, 5));
-    }
+    public void Classify_WholeTextIsAWholeWord() => Assert.AreEqual(MatchRank.ShapeWholeWord, MatchShape.Classify("atlas", 0, 5));
 
     [TestMethod]
     [DataRow("屏幕截图.txt", 0, 4, MatchRank.ShapeWholeWord)]
     [DataRow("屏幕截图.txt", 0, 2, MatchRank.ShapeWordStart)]
     [DataRow("屏幕截图.txt", 2, 4, MatchRank.ShapeInsideWord)]
     [DataRow("屏幕截图.txt", 3, 4, MatchRank.ShapeInsideWord)]
-    public void Classify_UnspacedChineseRunUsesPosition(string name, int start, int end, int expected)
-    {
-        Assert.AreEqual(expected, MatchShape.Classify(name, start, end));
-    }
+    public void Classify_UnspacedChineseRunUsesPosition(string name, int start, int end, int expected) => Assert.AreEqual(expected, MatchShape.Classify(name, start, end));
 
     private static int ShapeOf(string name, string query)
     {
