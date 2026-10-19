@@ -24,12 +24,14 @@ namespace Lertaro.App.ViewModels.Search.Mapping;
 // Shape is part of MatchRank.CompareQuality; recency band and path depth are deliberately absent.
 internal static class RankedCandidateOrdering
 {
+    private const string ApplicationKind = "Application";
+
     public static List<SearchResultMapper.RankedCandidate> Order(List<SearchResultMapper.RankedCandidate> candidates, string? query = null)
     {
         _ = query;
         var usedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var ranked = new List<SearchResultMapper.RankedCandidate>();
-        foreach (var candidate in candidates
+        foreach (var candidate in ApplicationOwned(candidates)
                      .OrderBy(c => c.TypeRank)
                      .ThenBy(c => EffectiveMatch(c), MatchRankQualityComparer.Instance)
                      .ThenBy(c => c.IsFavorite ? 0 : 1)
@@ -50,6 +52,28 @@ internal static class RankedCandidateOrdering
 
     private static MatchRank EffectiveMatch(SearchResultMapper.RankedCandidate candidate)
         => candidate.IsHistoryOnly ? MatchRank.NoMatch : candidate.Match;
+
+    // One path, two views: an indexed shortcut row ("File") and a provider's application row describe
+    // the same on-disk .lnk. They tie on every text key, so the type order is what decides which one
+    // survives the path dedupe below -- and with Files configured ahead of applications that was the
+    // plain-file view: every Start Menu / Desktop app came back named "....lnk" with a file icon, and the
+    // application row (extension-free title, app icon, launch delegate) was dropped as a duplicate. Only
+    // the application row can actually launch the app, so it owns its path; the file row is just a second
+    // rendering of the same shortcut and yields before the sort rather than competing with it.
+    private static IEnumerable<SearchResultMapper.RankedCandidate> ApplicationOwned(List<SearchResultMapper.RankedCandidate> candidates)
+    {
+        var applicationPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var candidate in candidates)
+        {
+            if (string.Equals(candidate.Result.ResultKind, ApplicationKind, StringComparison.Ordinal))
+                applicationPaths.Add(candidate.NormalizedPath);
+        }
+
+        return applicationPaths.Count == 0
+            ? candidates
+            : candidates.Where(c => string.Equals(c.Result.ResultKind, ApplicationKind, StringComparison.Ordinal)
+                                    || !applicationPaths.Contains(c.NormalizedPath));
+    }
 
     // Older callers can supply the priority map without the count map; a path present there is weak
     // (1-4) history, matching SearchResultRankComparer's own fallback.

@@ -6,8 +6,8 @@ namespace Lertaro.App.Tests.ViewModels.Search.Mapping;
 [TestClass]
 public sealed class RankAndDedupeTests
 {
-    private static AppSearchResult Result(string path, bool isDir = false) =>
-        new() { FullPath = path, Name = path, IsDir = isDir };
+    private static AppSearchResult Result(string path, bool isDir = false, string? resultKind = null) =>
+        new() { FullPath = path, Name = path, IsDir = isDir, ResultKind = resultKind ?? string.Empty };
 
     private static SearchResultMapper.RankedCandidate Candidate(
         string path,
@@ -21,8 +21,9 @@ public sealed class RankAndDedupeTests
         int tier = MatchRank.TierName,
         bool isDir = false,
         string? normalizedPath = null,
-        bool isHistoryOnly = false) =>
-        new(Result(path, isDir), isFavorite, historyCount, historyPriority, typeRank,
+        bool isHistoryOnly = false,
+        string? resultKind = null) =>
+        new(Result(path, isDir, resultKind), isFavorite, historyCount, historyPriority, typeRank,
             new MatchRank(tier, start, coverage, contiguity), normalizedPath ?? path, isHistoryOnly);
 
     [TestMethod]
@@ -236,6 +237,33 @@ public sealed class RankAndDedupeTests
 
         Assert.HasCount(1, ranked);
         Assert.AreEqual(@"C:\strong", ranked[0].FullPath);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_ApplicationRowOwnsItsShortcutPath_EvenWhenFilesRankFirst()
+    {
+        const string shortcut = @"C:\Users\Linked\Desktop\屏幕标注截图录像ocr.lnk";
+
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(shortcut, typeRank: 0, resultKind: "File"),
+            Candidate(shortcut, typeRank: 1, resultKind: "Application"),
+        });
+
+        Assert.HasCount(1, ranked);
+        Assert.AreEqual("Application", ranked[0].ResultKind);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_FileRowSurvivesWhenNoApplicationRowClaimsThePath()
+    {
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\plain.txt", typeRank: 0, resultKind: "File"),
+            Candidate(@"C:\other.txt", typeRank: 0, resultKind: "File"),
+        });
+
+        Assert.HasCount(2, ranked);
     }
 
     [TestMethod]
