@@ -11,8 +11,8 @@ namespace Lertaro.App;
 public partial class SearchBoxControl : UserControl
 {
     // Raised when either the left- or right-docked status icon is right-clicked. Purely a passthrough --
-    // this control doesn't know what "reset" means for whichever window hosts it (only the quick popup
-    // window currently wires this up, to reset its own saved position).
+    // this control doesn't know what a right-click means for whichever window hosts it (the quick popup
+    // window resets its own saved position with it, the full search window centers itself).
     public event Action? IconRightClicked;
 
     // Raised when the icon is left-clicked, with the click's screen coordinates (physical pixels, same

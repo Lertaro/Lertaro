@@ -61,6 +61,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
         _inputHandler = new SearchWindowInputHandler(this);
         SearchBox.IconLeftClicked += (_, _) => TrayIconService.Instance?.ShowMenuAt(SearchBox, hideShowWindow: true);
         SearchBox.IconMiddleClicked += () => SearchWindowStayOpenSupport.Toggle(this);
+        SearchBox.IconRightClicked += _chromeHandler.CenterInWorkArea;
         this.PreviewKeyDown += Window_PreviewKeyDown;
         this.PreviewMouseDown += (_, e) => _inputHandler.HandleWindowPreviewMouseDown(e);
         this.StateChanged += SearchWindow_StateChanged;
