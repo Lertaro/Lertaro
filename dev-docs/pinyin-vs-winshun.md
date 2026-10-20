@@ -99,7 +99,7 @@ Qt 专属那一大类在这里不适用，不再逐条列：`startSystemMove`、
 
 无空格的拼音串是一个词，必须在名字里找一段连续位置；空格分隔的词彼此独立，顺序自由（`MultiTermTokens_AreIndependent`）。普通内容词与拼音词之间必须用空格隔开；同一个 token 里混排汉字与拼音字母走混合 lane，而这条 lane 只在模糊模式下认领多词查询里的混合词（`PinyinRobustnessTests.MixedAlphabetTerm_IsAFuzzyModeRescue`，`chuangysji Anna 电nao` 在精确模式不中）。
 
-原来说过"整个查询必须落在同一份拼写上才算名字层命中"，多词需要联合取证才能满足。这个约束随网格一起没了：现在每个词独立在同一条名字上判定，不存在"各词只能落在不同拼写上"的形态，`xinl gxiao jt fd 简单` 这类查询直接由名字层给出（`PinyinMultiBlockQueryTests` 的 DataRow）。名字层真的没接住的行才由 `PathTermFallback` 逐词补齐，rank 记 `ShapeNoName`/`NoNameFallback`（`MatchRank.cs:43,68`），永远排在任何真名字命中之后，且快速窗满页时不跑。
+原来说过"整个查询必须落在同一份拼写上才算名字层命中"，多词需要联合取证才能满足。这个约束随网格一起没了：现在每个词独立在同一条名字上判定，不存在"各词只能落在不同拼写上"的形态，`xinl gxiao jt fd 简单` 这类查询直接由名字层给出（`PinyinMultiBlockQueryTests` 的 DataRow）。名字层真的没接住的行才由 `PathTermFallback` 逐词补齐，rank 记 `ShapeNoName`/`NoNameFallback`（`MatchRank.cs:43,68`），永远排在任何真名字命中之后；它只在名字层没填满引擎这次 `limit` 时跑（`NameSearch.cs:101`）。默认快速查询经 `SearchService` 的 4 倍余量后，每块本地盘的这个 `limit` 是 204 条，与 App 显示的约 50 条不是一回事（见 search-ranking.md 的「候选预算与显示截断」）。
 
 ### 超长文件名
 

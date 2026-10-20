@@ -2,12 +2,13 @@
 
 ## 适用范围与核对基线
 
-本篇由搜索排序审查（基点 `99a5f854`，PR #406）与两窗一致性调查合并而成，是搜索排序与两窗差异主题的唯一权威文档。代码位置按当前 `main` = `9a6b9769` 核对。审查基点之后已落地的排序相关提交：`79de9469`（left-contiguous / contiguity / history / coverage / tier / name order 收口）、`99a5f854`（PR #406 合并）、`b57a57f4`（结果类型次序作为最外层键）、`ee75c500`（应用行独占快捷方式路径）、`ba6fea2c` / `714300ed` / `8c754217`（索引规则统一与按档位排序，见 `Core/ExclusionRuleSet.cs`、`Core/Settings/IndexRuleSetting.cs`）。审查方法为源码逐段核对、用真实 `PinyinAliasProvider` 和真实 Core 匹配 API 构造正反例、直接调用现有测试方法。审查中标注"修复前/待修/建议"的说法已逐条按 `9a6b9769` 的代码重新核对。审查没有跑真实大索引（200k/1M）的性能测量，只审逻辑与边界，不审延迟；审查时点没有在用户机器上复现，App 工程未在本机重建，App 侧结论来自 HEAD 源码。
+本篇由搜索排序审查（基点 `99a5f854`，PR #406）与两窗一致性调查合并而成，是搜索排序与两窗差异主题的唯一权威文档。代码位置按 `main` = `1986b835` 复核（排序相关代码自 `9a6b9769` 未改）。审查基点之后已落地的排序相关提交：`79de9469`（left-contiguous / contiguity / history / coverage / tier / name order 收口）、`99a5f854`（PR #406 合并）、`b57a57f4`（结果类型次序作为最外层键）、`ee75c500`（应用行独占快捷方式路径）、`ba6fea2c` / `714300ed` / `8c754217`（索引规则统一与按档位排序，见 `Core/ExclusionRuleSet.cs`、`Core/Settings/IndexRuleSetting.cs`）。审查方法为源码逐段核对、用真实 `PinyinAliasProvider` 和真实 Core 匹配 API 构造正反例、直接调用现有测试方法。审查中标注"修复前/待修/建议"的说法已逐条按 `9a6b9769` 的代码重新核对。审查没有跑真实大索引（200k/1M）的性能测量，只审逻辑与边界，不审延迟；审查时点没有在用户机器上复现，App 工程未在本机重建，App 侧结论来自 HEAD 源码。
 
 ## 结论速览
 
-- 快速窗口与完整窗口是两条管线，结果成员不同：历史、Windows Recent、收藏、可搜索项、插件即时结果只在快速窗口加行；2026-10-19 收口后两窗共用同一把排序梯子。
-- 现行梯子的键序（`9a6b9769`）：索引规则优先档 → 结果类型顺序（仅快速窗口配置）→ 六个匹配质量键（contiguity → shape → 左端连续 tie-break → start → coverage → tier）→ 收藏 → history band → history priority → 文件/文件夹 → 自然名序 → 名字长度 → 路径。
+- 快速窗口与完整窗口是两条管线，结果成员不同：历史、Windows Recent、收藏、可搜索项、插件即时结果只在快速窗口加行；2026-10-19 收口后两窗共用同一组匹配质量键（快速窗口经 `MatchRank.CompareQuality`，完整窗口打包进 `SearchResultRelevance.HighKey`），但整个梯子不完全相同——快速窗口在质量键之前多一层结果类型顺序，完整窗口没有类型层。
+- 现行梯子（`1986b835`）：进入排序的候选按 索引规则优先档 → 结果类型顺序（仅快速窗口；内联窗口传空顺序，等于没有）→ 六个匹配质量键（contiguity → shape → 左端连续 tie-break → start → coverage → tier）→ 收藏 → history band → history priority → 文件/文件夹 → 自然名序 → 名字长度 → 路径长度 → 盘 → 路径 排序。完整窗口没有结果类型顺序这一层，质量键打包进 `RankSortKey` 高 32 位，末尾多一个引擎低 32 位 tie-breaker。
+- 快速窗口的截断分两层：引擎候选预算（默认 App 51 → 管道 204；token/文件过滤范围/内联文件夹专用范围/filename-like/有高档规则 1000 → 4000）和显示上限（默认 50 条候选行；token 50 条总计；文件过滤范围与 filename-like 不截）。详见「候选预算与显示截断」。
 - “屏幕截图”命中 `D:\tools\smalltools\FastStone Capture\FSCapture.exe` 的来源是快速窗口独有的学习型搜索历史行：历史行用历史 keyword 匹配查询，不要求文件路径或文件名包含查询文字。别名层与拼音层不可能产生这个结果。
 - 审查发现的 8 个排序/解析缺陷（F1-F8）全部已落地修复；审查时点搜索相关 192 个用例中 12 条红，收口后全部转绿或改写为新梯子的断言。
 
@@ -17,7 +18,7 @@
 
 | 来源 | 快速窗口 | 完整窗口 |
 | --- | --- | --- |
-| 索引命中 | 有（前 51 行） | 有（全量） |
+| 索引命中 | 有（候选预算见下文，显示约 50 条） | 有（全量） |
 | 搜索历史 | 加行 | 只排序 |
 | Windows Recent | 加行 | 只排序 |
 | 收藏夹 | 加行 | 只对索引行排序（favorite band；不新增行） |
@@ -25,9 +26,9 @@
 | 插件即时结果 | 加行 | 无 |
 | 内容 provider | 无 | 有 |
 
-完整窗口“只显示索引行”是写在注释和测试里的设计：`SearchQueryDispatchController` 用 `HistorySearchCandidateMapper.RankingPriorities(...)` 把历史降级成排序输入，`RankingPriorities` 的注释原文为 "The full window ranks only rows the index returned… No existence probes"；行为由 `Tests/App/ViewModels/Search/Mapping/HistorySearchCandidateMapperTests.cs` 钉住。
+完整窗口的**排序域**只有索引返回的行：`SearchQueryDispatchController` 用 `HistorySearchCandidateMapper.RankingPriorities(...)` 把历史降级成排序输入，`RankingPriorities` 的注释原文为 "The full window ranks only rows the index returned… No existence probes"；行为由 `Tests/App/ViewModels/Search/Mapping/HistorySearchCandidateMapperTests.cs` 钉住。内容 provider（`IFullSearchFileResultProvider`）的行仍然会显示，但它们由 `StreamingResultAccumulator.QueueContentPrefix` 放在列表前缀，不进入排序（`ContentPrefixCount`）。
 
-候选预算与上限（`App/ViewModels/Search/Dispatch/SearchDispatchController.cs:188`、`SearchViewModel.cs:22,28`）：快速窗口无 token 的普通宽查询给引擎的 `fileLimit` 是 51（引擎再把候选放大到 `51*4*40` 的 headroom，`NameSearch.cs` 的 scanKeep = limit * 40），显示上限约 50；token、作用域、文件夹作用域、filename-like 查询（`LooksLikeFileNameQuery`：含点且非前导操作符）用 `TokenQuickSearchFileLimit` = 1000 且 `skipDisplayCap=true`。完整窗口是 `int.MaxValue`（`SearchQueryDispatchController.cs:204`）。
+候选预算与上限（`SearchDispatchController.cs:188-204`、`SearchViewModel.cs:22,28`）：快速窗口普通查询给 `SearchService` 的 `fileLimit` 是 51，`SearchService` 对本地/网络源乘 4 得到 204 条候选（给排除过滤留余量，`SearchService.cs:48-51`），App 排序后显示约 50 条。带 token、文件过滤范围、内联文件夹专用范围、filename-like 查询（`LooksLikeFileNameQuery`：至少 3 字符、首字符不是 `! ^ ' - : .`、且含点），或存在任意高档规则时，App 的请求上限提到 `TokenQuickSearchFileLimit` = 1000（管道侧 4000）。完整窗口是 `int.MaxValue`（`SearchQueryDispatchController.cs:204`）。`skipDisplayCap` 的确切条件和各路径的最终显示上限见下文「候选预算与显示截断」。
 
 显示侧过滤：完整窗口有侧栏（类型/大小/修改时间，选中项跨查询保留）和列排序（本次运行内记忆），`ViewMode="Grid"` 有列头；快速窗口是 `ViewMode="List"`，无侧栏、无列排序。
 
@@ -45,7 +46,7 @@
 
 ## 现行排序梯子
 
-两窗共用同一组键。六个匹配质量键由 `MatchRank.CompareQuality`（`Core/SearchIndex/MatchRank.cs:75`）定义，这是唯一的质量比较：
+两窗共用同一组键。六个匹配质量键由 `MatchRank.CompareQuality`（`Core/SearchIndex/MatchRank.cs:75`）定义，这是唯一的质量顺序；完整窗口用 `SearchResultRelevance.HighKey` 把同一顺序打包成键：
 
 ```text
 contiguity（匹配字符形成连续段的比例）
@@ -57,6 +58,8 @@ contiguity（匹配字符形成连续段的比例）
 ```
 
 `Shape` 在 2026-10-19 第二轮按 owner 要求重新实现（`MatchShape`），位置在 contiguity 之后、start/coverage 之前；whole word 可以压过更靠左的 word start（`code-atlas` 是用户输入的整个词，`atlasing0` 只是以它开头）。左端连续只在 shape 相同时生效。`RankSignals`（recency band / path depth）、`MatchedLength`、`IsExactName` 保持删除。`MatchRank` 有 Tier / Start / Coverage / Contiguity / Shape 五个字段。
+
+快速窗口的列表顶部还有一块不参与排序的前缀：`BuildQuickResults` 先把插件即时结果与插件搜索动作行放进 `uiResults`（`SearchResultMapper.cs:95-98`），进入排序的候选排在它们之后。下面的梯子只描述进入 `RankedCandidateOrdering` 的候选。
 
 快速窗口梯子（`App/ViewModels/Search/Mapping/RankedCandidateOrdering.cs`）：
 
@@ -71,15 +74,41 @@ contiguity（匹配字符形成连续段的比例）
 → 自然名序 → 名字长度 → 路径长度 → 盘 → 路径
 ```
 
-排序前先由 `ApplicationOwned` 让应用行独占它的路径：任何被 provider 标成 Application 的路径，其 File 行先出局，不再参与类型比较（见坑与教训）。历史新增行带 `IsHistoryOnly`，由 `EffectiveMatch` 换成 `NoMatch` 参与排序。
+排序前先由 `ApplicationOwned` 让应用行独占它的路径：任何被 provider 标成 Application 的路径，其 File 行先出局，不再参与类型比较（见坑与教训）。排完序后按 `NormalizedPath` 去重，首个（排名最高的）胜出。历史新增行带 `IsHistoryOnly`，由 `EffectiveMatch` 换成 `NoMatch` 参与排序。
 
-完整窗口梯子（`Core/SearchResult.cs` 的 `SearchResultRankComparer` + `Core/IndexV2/Search/SearchResultRelevance.cs`）：六个质量键打包进 `RankSortKey` 高 32 位，布局为 `contiguity(8) | shape(3) | not-left-contiguous(1) | start(7) | coverage(9) | tier(4)`，比较顺序是优先档 → 高 32 位 → 收藏 → history band → history priority → 文件/文件夹 → 自然名序 → 名字长度 → 路径长度 → 盘 → 路径 → 低 32 位（引擎自身的 fzf tie-breaker，永远排在窗口级键之下）。比较器的注释说明结果类型分组发生在该比较器之上；`RankedCandidateOrdering` 的注释说明类型顺序只在快捷窗口生效，其余窗口里文件只是一种类型。`HighKey` 同时被 `NameSearch` 的候选截断和最终键使用，防止两阶段各自发展出不同的键语义。
+注意这个梯子只在“进入排序的候选”内部成立：即时行前缀、以及内联窗口随后的邻近度分组都在它之外（见下文）。同一优先档内部，快速窗口先比类型再比质量；收藏与 history 只在同一档位内起作用，不能跨档位把低档行拉回来。
 
-优先档与类型为什么放最外层。结果类型优先级设置曾经“失效”：`UserSettings.ResultTypeOrder` 存得住，`SearchResultTypePriority.Rank` 也算出了 `TypeRank` 送进比较器，但梯子把 `TypeRank` 放在六项质量键之后，任何两个类型不同的结果几乎不可能在这六项上全部相等，类型顺序永远轮不到出手。用户选择的修法是类型顺序作为最外层硬分组，组内再跑完整引擎梯子（`b57a57f4`）。后果（有意）：类型排在前面的行可以压过匹配更精确的行，收藏不再能跨类型越级。`8c754217` 又把索引规则优先档提到类型分组之前，作为硬分组：high 规则压过任何类型的 normal 行，low 规则输给所有 normal 行；若优先档放在类型组内部，高优先级的文件仍然爬不到应用组上面。这两个键先后各被放在内侧过一次，每次都让一个用户设置不可达。
+完整窗口梯子（`Core/SearchResult.cs` 的 `SearchResultRankComparer` + `Core/IndexV2/Search/SearchResultRelevance.cs`）：六个质量键打包进 `RankSortKey` 高 32 位，布局为 `contiguity(8) | shape(3) | not-left-contiguous(1) | start(7) | coverage(9) | tier(4)`，比较顺序是优先档 → 高 32 位 → 收藏 → history band → history priority → 文件/文件夹 → 自然名序 → 名字长度 → 路径长度 → 盘 → 路径 → 低 32 位（引擎自身的 fzf tie-breaker，永远排在窗口级键之下）。完整窗口**没有结果类型顺序这一层，也没有按类型分组**：`StreamingResultAccumulator` 用同一个比较器增量合并索引行，内容 provider 的行作为前缀不参与排序。`Core/SearchResult.cs:102` 的注释说“结果类型分组发生在该比较器之上”，那是改造前的说法，与当前实现不符；`RankedCandidateOrdering` 的注释“类型顺序只在快捷窗口生效”才对。`HighKey` 同时被 `NameSearch` 的候选截断和最终键使用，防止两阶段各自发展出不同的键语义。
+
+内联窗口的全局段走同一个 `RankedCandidateOrdering`，但 `SearchResultMapper` 对 `isInlineWindow` 传入空的结果类型顺序，所有 `TypeRank` 同值，等于没有类型层；渲染前 `InlineListSearchHelper.MergeLocalMatches` 再按目录邻近度把当前文件夹段提到全局段之前。当前文件夹段（直达子项与文件夹内更深的行）不单独查档位：`ExplorerSearchHelper.RankMatches` 调用 `RankCandidates` 时不传 priority resolver，直达子项在 `CreateLocalSnapshot` 里按邻近度/历史/匹配排序后取前 50（`limit = 50`）。所以内联窗口的最终列表里，档位不是全局第一键，目录邻近度在它之上。
+
+优先档与类型为什么放最外层（这一节讲快速窗口；完整窗口没有类型层，优先档之后直接是质量键）。结果类型优先级设置曾经“失效”：`UserSettings.ResultTypeOrder` 存得住，`SearchResultTypePriority.Rank` 也算出了 `TypeRank` 送进比较器，但梯子把 `TypeRank` 放在六项质量键之后，任何两个类型不同的结果几乎不可能在这六项上全部相等，类型顺序永远轮不到出手。用户选择的修法是类型顺序作为快速窗口的硬分组，组内再跑完整引擎梯子（`b57a57f4`）。后果（有意）：类型排在前面的行可以压过匹配更精确的行，收藏不再能跨类型越级。`8c754217` 又把索引规则优先档提到类型分组之前，作为硬分组：high 规则压过任何类型的 normal 行，low 规则输给所有 normal 行；若优先档放在类型组内部，高优先级的文件仍然爬不到应用组上面。这两个键先后各被放在内侧过一次，每次都让一个用户设置不可达。
 
 历史只做 tie-breaker：band 在 tier 之后、收藏在 band 之前，历史永远排在匹配质量之后，不再压过更好的左端连续命中。打开次数由 `SearchHistoryStore.UsageCounts()` 提供，`SearchResultMapper`、完整窗口、`AppSearchPipeService` 都传入；旧调用方只给 priority map 时，路径在其中即按弱历史（1-4）处理。索引行本身是收藏时，完整窗口给同样的 favorite band。
 
 名字不匹配的行使用共享兜底秩：`MatchRank.NoNameFallback(pathCoverage)` 给祖先目录补全出来的行（`ShapeNoName`）按“查询覆盖整条路径的比例”排序，引擎的 `SearchResultRelevance.Apply` 与快捷窗口梯子从此用同一个秩，`StartCap` 也随之提升到 `MatchRank` 上共用。纯排除查询产生的行用显式的 `MatchRank.NoPositiveTerms`（见下文 IsMatch/Rank 分裂）。
+
+## 候选预算与显示截断
+
+快速窗口的截断分两层：引擎先按候选预算截，App 排序后再按显示上限截。两层的数字不同，不能混。
+
+引擎侧（`SearchService` → 本地管道/网络源 → `NameSearch`）：
+
+- App 给 `SearchService` 的 `fileLimit`：默认 51；带 token、文件过滤范围、内联文件夹专用范围、filename-like 查询，或存在高档规则时是 1000（`SearchDispatchController.cs:188-197`）。完整窗口是 `int.MaxValue`（`SearchQueryDispatchController.cs:204`）。
+- `SearchService` 对小于 `int.MaxValue/4` 的有界限额乘 4，给排除过滤留余量（`SearchService.cs:48-51`）：51 → 204，1000 → 4000。本地管道的多盘协调器再按同一个上限做一次全局 `Take`（`SearchCoordinator.cs:68`），网络源也共享同一上限（`NetworkIndexerSearchExtensions.cs:45-66`）。需要实时扫描的目录另按 10000 条枚举（`SearchService.cs:194`），不在这条链内。
+- 每块本地盘的 `NameSearch` 用管道限额 `L`：保留 `min(max(L,8)*8, 全部行)` 条候选，模式查询再按 `keep*5`（即 `L*40`）扫描（`NameSearch.cs:42-46`），最后发出上限仍是 `L` 条（`:80`）。默认查询的 51 经这条链变成每盘扫描上限 8160；1000 变成 160000。
+- 多盘协调器的全局 `Take` 用不带优先级/历史的 `SearchResultRankComparer.Instance`（`SearchCoordinator.cs:68`），所以优先级始终在引擎截断之后才参与。
+
+App 侧（`SearchResultMapper.BuildQuickResults`，`SearchResultMapper.cs:298-339`）：
+
+- 快速窗口的插件即时结果与搜索动作行先作为固定前缀放进列表，不占下面的候选名额（`SearchResultMapper.cs:95-98`）。
+- 候选池不只是索引行：历史、Windows Recent、收藏、可搜项也进同一个 `RankedCandidateOrdering` 列表（`SearchResultMapper.cs:180-290`），按同一把梯子竞争下面的 50 个名额，来源本身不保留名额。
+- `skipDisplayCap` 只在 token、文件过滤范围、filename-like 查询时为真（`SearchDispatchController.cs:204`）。为真时 mapper 不截断；否则，若「即时行 + 候选行」少于 10，全部显示；否则候选行最多显示 50 条，即时行不占这 50 个名额。候选超过 50 条时追加一行「N more」动作行（`SearchResultHelper.AddShowMoreResult`），点击进完整窗口。
+- token 模式虽然跳过 mapper 的截断，文件行在截断前还会经过 `QueryTokenDispatcher`（可过滤/重排），随后 `QueryTokenResultComposer.Compose` 按 `DisplayLimit = 50` 再截一次，即时行与文件行共用这 50 个名额（`QueryTokenResultComposer.cs:6,21-32`；超过 50 时同样追加 N more 行）。文件过滤范围与 filename-like 没有这道后置截断：文件过滤范围对每个配置文件夹各发一次带 4000 上限的搜索，filename-like 显示引擎与历史/收藏/可搜项合并后的全部候选。
+- 内联窗口的文件夹专用范围（`folderScope`）只加宽预算；没有 token/文件过滤范围/filename-like 时仍按 50 条截。当前文件夹段另有 50 条上限（`ExplorerSearchHelper.CreateLocalSnapshot` 的 `limit = 50`），全局段来自同一个快速窗口结果。
+- 完整窗口对索引行没有 App 侧显示上限；索引侧也不截断（`int.MaxValue`）。内容 provider 的 `FullSearchFileRowLimit = 2000` 与首批 60 条是另一套预算（`SearchQueryDispatchController.cs:69-70`），不属于索引排序。
+
+尺寸速记：默认 App 51 → 管道 204 → 每盘扫描上限 8160 → 显示 50；token/文件过滤范围/filename-like 1000 → 4000 → 显示 50（token）或不截（文件过滤范围/filename-like）；内联文件夹范围与「有高档规则」的普通查询也走 1000 → 4000，但显示仍按 50 条截。
 
 ## 学习型历史别名（“屏幕截图”→ FSCapture.exe 案）
 
@@ -170,8 +199,8 @@ query="atlas !code" name="code-atlas.txt"
 ## 有意保留的差异
 
 - 非索引来源（历史、Recent、收藏、可搜索项、插件即时结果）只在快捷窗口加行；内容 provider 行只在完整窗口（provider 集合不同）。
-- 快捷窗口的 51 行索引预算与约 50 行显示上限：普通宽查询仍只显示引擎前 51 行的重排，是完整窗口列表的前缀。含点的 filename-like 查询与 `:c-` 这类 token 用 1000 的候选预算并跳过显示上限；超过 1000 的极端集合仍只有完整窗口能列全。
-- 快捷窗口的收藏新增行、结果类型顺序和列排序是用户自己的动作/设置；完整窗口没有收藏新增行，但索引行若本身就是收藏会得到同样的 favorite band。
+- 快捷窗口的预算与显示上限：普通宽查询 App 要 51、管道 204、每盘扫描上限 8160，排序后显示 50 条候选行（即时行额外）；token/文件过滤范围/filename-like 要 1000、管道 4000；token 最终仍截 50 条，文件过滤范围与 filename-like 不截。更大的集合只有完整窗口能列全：它的索引侧没有截断，App 也不对索引行设显示上限（内容 provider 的 2000 条上限另算）。推导见上文「候选预算与显示截断」。
+- 快捷窗口独有的收藏新增行与结果类型顺序是用户自己的动作/设置；列排序只属于完整窗口（快速窗口是列表视图，没有列头）。完整窗口没有收藏新增行，但索引行若本身就是收藏会得到同样的 favorite band。
 - 只剥一次触发字符：连打两个触发字符时，“显示更多”交接的文本会被完整窗口再剥一次（边缘情形）。
 - recency band 与 path depth 不参与排序；shape 位于 contiguity 之后、whole word 可压过更靠左的 word start，左端连续只在 shape 相同时生效（owner 选择的 A 方案）。
 - 通用 NFKC 不做，只做全角 ASCII→半角 + U+3000→空格 + NFC；单字母拼音、64 字母拼音、512 码点上限是既有限制。
@@ -190,7 +219,7 @@ query="atlas !code" name="code-atlas.txt"
 - 键位置决定设置可达性：类型顺序放在六项质量键之后，不同类型的行几乎不可能在质量键上打平，设置页的“结果类型优先级”实际失效；优先档若放在类型分组之内，高优先级文件仍爬不到应用组上面。给用户可见设置排键位时，用“这个键什么时候轮得到出手”验证。
 - 行来源混进打分：历史行拿 keyword 的匹配秩当文件名的匹配秩参与排序；造行的行必须携带来源标记（`IsHistoryOnly`），梯子按 `NoMatch` 消费它。
 - 同一路径的两种表示不该由偏好键裁决：`.lnk` 的索引 File 行与 provider 的 Application 行文本键全等，去重后谁活下来由类型顺序决定；Files 配在 Applications 前面时，开始菜单/桌面应用全部显示成“带 `.lnk` 后缀 + 文件图标”（实测 `Order([file(rank 0), app(rank 1)])` 只返回 File 行）。只有应用行能启动程序，所以应用行独占其路径（`ApplicationOwned`），类型偏好决定“先看哪一类”，不决定“同一个路径被表示成什么”。历史/收藏不受影响：可搜索条目自己会按 lookupPath 拿 history band/priority，被丢掉的文件历史行本来就是同一路径的重复。
-- 统一排序不解决“候选有没有被取到”：固定 51 的候选预算让排在后面的同名/近名文件根本到不了统一排序器，工单里那种带点名的查询（如 `plan.md`）表现为”只有一条”。修复：filename-like 查询用 1000 预算并跳过显示上限。
+- 统一排序不解决“候选有没有被取到”：默认 51 的 App 限额（管道 204）让排在后面的同名/近名文件根本到不了统一排序器，工单里那种带点名的查询（如 `plan.md`）表现为“只有一条”。修复：filename-like 查询用 1000 预算（管道 4000）并跳过显示上限；token 查询也加宽到 1000，但显示仍由 composer 截到 50。
 - `IsMatch` 与 `Rank` 是两个判断：只用 `Rank` 的候选源会绕过匹配门（`atlas !code` 把被排除的 Recent 项加回来），只用 `IsMatch` 又打不出秩。加行来源必须走 `BestMatch`；“没有正词”要有一个显式的秩，借用 `NoMatch` 会把本可展示的行整个丢掉。
 - 全角残留（U+3000、全角字母数字、NFD 组合形式）是中文输入法下“明明打了空格/看起来一样却搜不到”的主因；折叠必须同时接入查询解析、索引候选与高亮边界（位置映射回原文），并升快照版本号让旧 prefilter 重建。
 - 排序比较器里做整数解析：`long.Parse` 在 `OrderBy` 内被直接调用且没有 try/catch，20 位数字段（时间戳/哈希/序号）抛 `OverflowException` 会把整次快速窗口排序打断；按数字段长度加 Ordinal 比较即可，还顺带避开 `char.IsDigit` 接受非 ASCII 数字时的 culture 差异。
