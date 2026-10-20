@@ -102,6 +102,49 @@ public static class Win32Helper
         return containers;
     }
 
+    /// <summary>
+    /// The union of a lister's VISIBLE file displays. Details/List draws into "dopus.filedisplay" and
+    /// Thumbnails/Tiles/Large Icons into "dopus.iconfiledisplay", and the view mode a pane is not in keeps its
+    /// window hidden, so only the visible ones count -- a dual-display lister answers with the area spanning
+    /// both panes, which is where the card belongs.
+    /// </summary>
+    /// <remarks>
+    /// Measured on a live lister, top to bottom: window frame 196, client area 227 (the system title bar band
+    /// in between), two toolbar rows 227..266 and 266..298, each pane's own path row 299..330, and the file
+    /// display 331..1027. Every one of those bands is a different window, which is why the card asks for this
+    /// one by class rather than taking the lister's frame and subtracting something.
+    /// </remarks>
+    public static bool TryGetFileDisplayBounds(IntPtr listerHwnd, out RECT bounds)
+    {
+        var union = default(RECT);
+        var found = false;
+        EnumChildWindows(listerHwnd, (hWnd, lParam) =>
+        {
+            var className = GetClassName(hWnd);
+            if (!className.Equals("dopus.filedisplay", StringComparison.OrdinalIgnoreCase)
+                && !className.Equals("dopus.iconfiledisplay", StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (!IsWindowVisible(hWnd) || !TryGetWindowRect(hWnd, out var rect)) return true;
+
+            if (!found)
+            {
+                union = rect;
+                found = true;
+            }
+            else
+            {
+                union.Left = Math.Min(union.Left, rect.Left);
+                union.Top = Math.Min(union.Top, rect.Top);
+                union.Right = Math.Max(union.Right, rect.Right);
+                union.Bottom = Math.Max(union.Bottom, rect.Bottom);
+            }
+            return true;
+        }, IntPtr.Zero);
+
+        bounds = union;
+        return found;
+    }
+
     public static IntPtr FindWindowExRecursively(IntPtr parent, IntPtr childAfter, string className, string? windowName)
     {
         var child = FindWindowEx(parent, childAfter, className, windowName);

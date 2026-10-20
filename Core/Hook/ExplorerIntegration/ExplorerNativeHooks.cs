@@ -106,6 +106,45 @@ public static class ExplorerNativeHooks
         public int Left, Top, Right, Bottom;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct POINT
+    {
+        public int X, Y;
+    }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool ClientToScreen(IntPtr hWnd, ref POINT lpPoint);
+
+    /// <summary>
+    /// Where a window's client area starts on screen, in physical pixels -- the bottom edge of whatever the
+    /// system drew above it (its title bar, with the caption buttons at the right).
+    /// </summary>
+    /// <remarks>
+    /// Safe from the thread that places the inline card: both calls read window information win32k already
+    /// holds and neither sends a message into the owning process, which is the difference between these and
+    /// the WM_GETTEXT reads that a host with a busy UI thread can park a caller behind for seconds.
+    /// False for no window, a client area with no height (an iconic one), or a failed read, so a caller that
+    /// has no answer for the window simply does not apply the value.
+    /// </remarks>
+    public static bool TryGetClientTopOnScreen(IntPtr hwnd, out int top)
+    {
+        top = 0;
+        if (hwnd == IntPtr.Zero) return false;
+        if (!GetClientRect(hwnd, out var client) || client.Bottom <= 0) return false;
+
+        // The client area's own top-left, translated: (0,0) in client coordinates is that corner.
+        var origin = new POINT { X = 0, Y = 0 };
+        if (!ClientToScreen(hwnd, ref origin)) return false;
+
+        top = origin.Y;
+        return true;
+    }
+
     public const uint EVENT_OBJECT_FOCUS = 0x8005;
     public const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
     public const uint EVENT_OBJECT_NAMECHANGE = 0x800C;

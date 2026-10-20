@@ -249,10 +249,22 @@ public class DirectoryOpusInlineSearchAdapter : IInlineSearchAdapter
         rect = default;
         if (hwnd == IntPtr.Zero) return false;
 
-        // Dock over the whole lister window's bottom-right corner (same as the Total Commander plugin).
+        var listerHwnd = GetListerWindow(hwnd);
+
+        // Dock to the file displays the lister is showing: the card covers the file area and scrolls it, so
+        // that is the corner it hangs from. His reference for this is 1451,331 on a live lister, which is the
+        // file display's own top-right corner (1090,331,1452,1027) and not the window's.
+        if (Win32Helper.TryGetFileDisplayBounds(listerHwnd, out var files))
+        {
+            rect = new AdapterRect { Left = files.Left, Top = files.Top, Right = files.Right, Bottom = files.Bottom };
+            return true;
+        }
+
+        // With no file display to name, the whole lister window -- and the App keeps the card below its title
+        // bar (InlineSearchWindowPositioner.CalculatePhysTop), because the top of this rect is the caption the
+        // system drew with the lister's close button at its right end (measured: frame 196, client area 227).
         // Extended frame bounds excludes the drop shadow, matching the visible edge; GetWindowRect is the
         // fallback for a window DWM will not answer for.
-        var listerHwnd = GetListerWindow(hwnd);
         if (DwmGetWindowAttribute(listerHwnd, DWMWA_EXTENDED_FRAME_BOUNDS, out var nativeRect, Marshal.SizeOf<Win32Helper.RECT>()) != 0 &&
             !Win32Helper.TryGetWindowRect(listerHwnd, out nativeRect))
         {

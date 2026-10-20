@@ -310,7 +310,17 @@ public class InlineSearchWindowPositioner
                 // inside: AvailableCardHeight caps the card at AnchoredWindowHeightShare of the window it
                 // covers, so starting at the top is what leaves its bottom edge free -- and for a plain
                 // window it is the same edge a row count cannot move.
-                targetPhysTop = CalculatePhysTop(hangsBelow, rect, fileList, physXamlMarginY);
+                //
+                // The window's client area goes along as the floor, so a card that has nothing finer to hang
+                // from starts below the title bar rather than across it -- and only when it lies over the
+                // window, since a card hanging below covers no part of it. Read here rather than in the
+                // geometry probe below: this is win32k's own window data, not a call into the host's process,
+                // so this thread may ask it directly.
+                double? physClientTop = hangsBelow ? null
+                    : Core.Hook.ExplorerNativeHooks.TryGetClientTopOnScreen(tracker.ActiveHwnd, out var clientTop)
+                        ? clientTop : null;
+                targetPhysTop = CalculatePhysTop(
+                    hangsBelow, rect, fileList, physXamlMarginY, physClientTop);
 
                 var minLeft = workingArea.Left - physXamlMargin;
                 var minTop = workingArea.Top - physXamlMarginY;
@@ -342,7 +352,8 @@ public class InlineSearchWindowPositioner
                     + $"dpi={targetDpiScaleX:F2} window={windowWidth:F0}x{windowHeight:F0} "
                     + $"below={hangsBelow} boundsBottom={screen.Bounds.Bottom} work={workingArea.Left},{workingArea.Top},{workingArea.Right},{workingArea.Bottom} "
                     + $"bound={minTop:F0}..{maxTop:F0} at={targetPhysLeft:F0},{targetPhysTop:F0} "
-                    + $"host={hostKey} drag={_dragOffset.IsSetFor(hostKey)}",
+                    + $"host={hostKey} drag={_dragOffset.IsSetFor(hostKey)} "
+                    + $"floor={(physClientTop is { } floor ? $"{floor:F0}" : "none")}",
                     LogLevel.Debug);
             }
             else
@@ -476,16 +487,28 @@ public class InlineSearchWindowPositioner
     }
 
     /// <summary>Where the card's window starts vertically, in physical pixels.</summary>
+    /// <remarks>
+    /// <paramref name="physClientTop"/> is the anchored window's client area, where it has one: a card lying
+    /// over a window may not start above it, because above it is the title bar the system drew, and the host's
+    /// close button sits at the right end of that -- measured on Directory Opus's lister, whose frame starts at
+    /// 213 while its client area starts at 244, the card's corner landing on the button. It can only refuse a
+    /// position, never impose one: an anchor already inside the client area (a dialog's file list, a file
+    /// manager's pane) is below it and is kept, and a host that draws its own caption inside the client area
+    /// answers with that same top edge, which leaves the rule inert for it -- there is no system title bar
+    /// there to keep clear. Null when the window has no client area to ask about.
+    /// </remarks>
     internal static double CalculatePhysTop(
         bool hangsBelow,
         Core.Hook.ExplorerTracker.RECT dock,
         Core.Hook.ExplorerTracker.RECT? fileList,
-        double physXamlMarginY)
+        double physXamlMarginY,
+        double? physClientTop = null)
     {
         if (hangsBelow)
             return dock.Bottom - physXamlMarginY;
 
-        return (fileList.HasValue ? fileList.Value.Top : dock.Top) - physXamlMarginY;
+        var top = (fileList.HasValue ? fileList.Value.Top : dock.Top) - physXamlMarginY;
+        return physClientTop.HasValue ? Math.Max(top, physClientTop.Value - physXamlMarginY) : top;
     }
 
     private static bool SameRect(Core.Hook.ExplorerTracker.RECT? a, Core.Hook.ExplorerTracker.RECT? b) =>
