@@ -6,279 +6,267 @@ namespace Lertaro.App.Tests.ViewModels.Search.Mapping;
 [TestClass]
 public sealed class RankAndDedupeTests
 {
-    private static AppSearchResult Result(string path, bool isDir = false) => new() { FullPath = path, Name = path, IsDir = isDir };
+    private static AppSearchResult Result(string path, bool isDir = false, string? resultKind = null) =>
+        new() { FullPath = path, Name = path, IsDir = isDir, ResultKind = resultKind ?? string.Empty };
 
     private static SearchResultMapper.RankedCandidate Candidate(
         string path,
-        bool isCurated = false,
-        int priority = int.MaxValue,
+        bool isFavorite = false,
+        int historyCount = 0,
+        int historyPriority = int.MaxValue,
         int typeRank = int.MaxValue,
-        double weight = 0,
-        string? normalizedPath = null,
         int start = 0,
+        double coverage = 1.0,
+        double contiguity = 1.0,
         int tier = MatchRank.TierName,
-        int shape = MatchRank.ShapeWholeWord,
         bool isDir = false,
-        int band = 0,
-        int depth = 0) =>
-        new(Result(path, isDir), isCurated, priority, typeRank, new MatchRank(tier, start, weight, shape), normalizedPath ?? path, band, depth);
+        string? normalizedPath = null,
+        bool isHistoryOnly = false,
+        string? resultKind = null) =>
+        new(Result(path, isDir, resultKind), isFavorite, historyCount, historyPriority, typeRank,
+            new MatchRank(tier, start, coverage, contiguity), normalizedPath ?? path, isHistoryOnly);
 
-    // The report that set this priority: on a broad query, letting shape or recency outrank position pushed
-    // the leftmost hit past the display cap and the row the user wanted disappeared. So a hit at index 0 of
-    // "AutofillStates" leads a whole-word hit five characters in, whatever the shape or weight says.
     [TestMethod]
-    public void RankAndDedupe_EarlierStartBeatsBetterShapeAndWeight()
+    public void RankAndDedupe_LeftContiguousBeatsLaterStart()
     {
-        var candidates = new List<SearchResultMapper.RankedCandidate>
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
-            Candidate(@"C:\AutofillStates", shape: MatchRank.ShapeScattered, start: 0, weight: 0.4),
-            Candidate(@"C:\atlasing", shape: MatchRank.ShapeWordStart, start: 0, weight: 0.6),
-            Candidate(@"D:\code-atlas", shape: MatchRank.ShapeWholeWord, start: 5, weight: 0.5),
-        };
+            Candidate(@"C:\later", start: 5),
+            Candidate(@"C:\at-start"),
+        });
 
-        var ranked = SearchResultMapper.RankAndDedupe(candidates);
+        Assert.AreEqual(@"C:\at-start", ranked[0].FullPath);
+    }
 
-        // Start leads; among the two rows hitting at 0, coverage*contiguity decides.
+    [TestMethod]
+    public void RankAndDedupe_ContiguityBeatsEarlierScattered()
+    {
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\scattered", start: 0, coverage: 1.0, contiguity: 0.4),
+            Candidate(@"C:\contiguous", start: 5, coverage: 0.5, contiguity: 1.0),
+        });
+
+        Assert.AreEqual(@"C:\contiguous", ranked[0].FullPath);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_StartBeatsCoverage()
+    {
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\later-high-coverage", start: 5, coverage: 1.0),
+            Candidate(@"C:\early-low-coverage", start: 1, coverage: 0.2),
+        });
+
+        Assert.AreEqual(@"C:\early-low-coverage", ranked[0].FullPath);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_CoverageBeatsTier()
+    {
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\low-coverage-literal", tier: MatchRank.TierName, coverage: 0.5),
+            Candidate(@"C:\full-pinyin", tier: MatchRank.TierFull, coverage: 1.0),
+        });
+
+        Assert.AreEqual(@"C:\full-pinyin", ranked[0].FullPath);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_TierBreaksEqualStartAndCoverage()
+    {
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\full", tier: MatchRank.TierFull),
+            Candidate(@"C:\initials", tier: MatchRank.TierInitials),
+            Candidate(@"C:\literal", tier: MatchRank.TierName),
+        });
+
         CollectionAssert.AreEqual(
-            new[] { @"C:\atlasing", @"C:\AutofillStates", @"D:\code-atlas" },
+            new[] { @"C:\literal", @"C:\initials", @"C:\full" },
             ranked.Select(r => r.FullPath).ToArray());
     }
 
-    // Depth and recency are still computed and carried, but since that report they order nothing: a shallow
-    // folder no longer beats a deeper row the query hit further left.
     [TestMethod]
-    public void RankAndDedupe_EarlierStartBeatsShallowerPath()
+    public void RankAndDedupe_FavoriteBeatsNonFavoriteAtEqualQuality()
     {
-        var candidates = new List<SearchResultMapper.RankedCandidate>
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
-            Candidate("deep", start: 0, weight: 0.6, depth: 11),
-            Candidate("shallow", start: 5, weight: 0.5, depth: 3),
-        };
+            Candidate(@"C:\plain"),
+            Candidate(@"C:\favorite", isFavorite: true),
+        });
 
-        Assert.AreEqual("deep", SearchResultMapper.RankAndDedupe(candidates)[0].FullPath);
+        Assert.AreEqual(@"C:\favorite", ranked[0].FullPath);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_QualityBeatsFavorite()
+    {
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\favorite", isFavorite: true, start: 5, coverage: 0.3),
+            Candidate(@"C:\plain", coverage: 1.0),
+        });
+
+        Assert.AreEqual(@"C:\plain", ranked[0].FullPath);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_FiveOpensBeatOneOpenAtEqualQuality()
+    {
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\once", historyCount: 1),
+            Candidate(@"C:\often", historyCount: 5),
+        });
+
+        Assert.AreEqual(@"C:\often", ranked[0].FullPath);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_HistoryCannotBeatBetterQuality()
+    {
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\often", historyCount: 5, start: 5, coverage: 0.3),
+            Candidate(@"C:\exact", historyCount: 0, coverage: 1.0),
+        });
+
+        Assert.AreEqual(@"C:\exact", ranked[0].FullPath);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_HistoryOnlyRowDoesNotUseKeywordMatchAsANameMatch()
+    {
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            // A learned keyword match would otherwise look like a perfect name hit at start 0.
+            Candidate(@"C:\ghost", start: 0, coverage: 1.0, contiguity: 1.0, isHistoryOnly: true),
+            Candidate(@"C:\real", start: 5, coverage: 0.5, contiguity: 1.0),
+        });
+
+        Assert.AreEqual(@"C:\real", ranked[0].FullPath);
+        Assert.AreEqual(@"C:\ghost", ranked[1].FullPath);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_HistoryOnlyRowsStillSortAgainstEachOtherByHistoryBand()
+    {
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\ghost-once", isHistoryOnly: true, historyCount: 1),
+            Candidate(@"C:\ghost-often", isHistoryOnly: true, historyCount: 5),
+        });
+
+        Assert.AreEqual(@"C:\ghost-often", ranked[0].FullPath);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_TypeGroupBeatsABetterMatch()
+    {
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\files-perfect", typeRank: 2, start: 0, coverage: 1.0, contiguity: 1.0),
+            Candidate(@"C:\apps-weak", typeRank: 1, start: 9, coverage: 0.2, contiguity: 0.4),
+        });
+
+        Assert.AreEqual(@"C:\apps-weak", ranked[0].FullPath);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_InsideOneTypeTheEngineQualityDecides()
+    {
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\later", typeRank: 1, start: 5, coverage: 0.5),
+            Candidate(@"C:\at-start", typeRank: 1),
+        });
+
+        Assert.AreEqual(@"C:\at-start", ranked[0].FullPath);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_TypeGroupBeatsAFavoriteOfALaterType()
+    {
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\app", typeRank: 0),
+            Candidate(@"C:\favorite", isFavorite: true, typeRank: 3),
+        });
+
+        Assert.AreEqual(@"C:\app", ranked[0].FullPath);
     }
 
     [TestMethod]
     public void RankAndDedupe_FileBeatsFolder_WhenTheMatchIsOtherwiseEqual()
     {
-        var candidates = new List<SearchResultMapper.RankedCandidate>
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
-            Candidate(@"C:\a", weight: 0.5, isDir: true),
-            Candidate(@"C:\b", weight: 0.5),
-        };
+            Candidate(@"C:\folder", isDir: true),
+            Candidate(@"C:\file"),
+        });
 
-        var ranked = SearchResultMapper.RankAndDedupe(candidates);
-
-        Assert.AreEqual(@"C:\b", ranked[0].FullPath);
+        Assert.AreEqual(@"C:\file", ranked[0].FullPath);
     }
 
     [TestMethod]
-    public void RankAndDedupe_CuratedBeatsUncuratedRegardlessOfWeight()
+    public void RankAndDedupe_NaturalNameOrderThenLength()
     {
-        var candidates = new List<SearchResultMapper.RankedCandidate>
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
-            Candidate(@"C:\uncurated", isCurated: false, weight: 100),
-            Candidate(@"C:\curated", isCurated: true, weight: 0),
-        };
-
-        var ranked = SearchResultMapper.RankAndDedupe(candidates);
-
-        Assert.AreEqual(@"C:\curated", ranked[0].FullPath);
-    }
-
-    [TestMethod]
-    public void RankAndDedupe_AmongCurated_LowerPriorityValueWinsFirst()
-    {
-        var candidates = new List<SearchResultMapper.RankedCandidate>
-        {
-            Candidate(@"C:\second", isCurated: true, priority: 5),
-            Candidate(@"C:\first", isCurated: true, priority: 1),
-        };
-
-        var ranked = SearchResultMapper.RankAndDedupe(candidates);
-
-        Assert.AreEqual(@"C:\first", ranked[0].FullPath);
-    }
-
-    [TestMethod]
-    public void RankAndDedupe_SamePriority_LowerTypeRankWinsNext()
-    {
-        var candidates = new List<SearchResultMapper.RankedCandidate>
-        {
-            Candidate(@"C:\typeB", typeRank: 2),
-            Candidate(@"C:\typeA", typeRank: 1),
-        };
-
-        var ranked = SearchResultMapper.RankAndDedupe(candidates);
-
-        Assert.AreEqual(@"C:\typeA", ranked[0].FullPath);
-    }
-
-    [TestMethod]
-    public void RankAndDedupe_SameTypeRank_HigherWeightWinsNext()
-    {
-        var candidates = new List<SearchResultMapper.RankedCandidate>
-        {
-            Candidate(@"C:\lowWeight", weight: 0.3),
-            Candidate(@"C:\highWeight", weight: 0.9),
-        };
-
-        var ranked = SearchResultMapper.RankAndDedupe(candidates);
-
-        Assert.AreEqual(@"C:\highWeight", ranked[0].FullPath);
-    }
-
-    // Left-side match priority sits ABOVE weight, so a match beginning earlier wins even when the
-    // competing (shorter-named) match has the larger coverage weight -- the same rule the full window's
-    // relevance key applies.
-    [TestMethod]
-    public void RankAndDedupe_EarlierStartBeatsHigherWeight()
-    {
-        var candidates = new List<SearchResultMapper.RankedCandidate>
-        {
-            Candidate(@"C:\iwxfe.mp", start: 1, weight: 0.25),
-            Candidate(@"C:\wxfef.doc", start: 0, weight: 0.22),
-        };
-
-        var ranked = SearchResultMapper.RankAndDedupe(candidates);
-
-        Assert.AreEqual(@"C:\wxfef.doc", ranked[0].FullPath);
-    }
-
-    // Tier is the WEAKEST key: an earlier start wins even when a later match was found through a better
-    // tier (英文 > 简拼 > 全拼 only separates rows that already agree on position and coverage).
-    [TestMethod]
-    public void RankAndDedupe_EarlierStartBeatsBetterTier()
-    {
-        var candidates = new List<SearchResultMapper.RankedCandidate>
-        {
-            Candidate(@"C:\later-literal", tier: MatchRank.TierName, start: 5, weight: 0.1),
-            Candidate(@"C:\earlier-full", tier: MatchRank.TierFull, start: 0, weight: 0.1),
-        };
-
-        var ranked = SearchResultMapper.RankAndDedupe(candidates);
-
-        Assert.AreEqual(@"C:\earlier-full", ranked[0].FullPath);
-    }
-
-    // Same start, so weight decides -- again before tier.
-    [TestMethod]
-    public void RankAndDedupe_HigherWeightBeatsBetterTier()
-    {
-        var candidates = new List<SearchResultMapper.RankedCandidate>
-        {
-            Candidate(@"C:\weak-literal", tier: MatchRank.TierName, start: 0, weight: 0.1),
-            Candidate(@"C:\tight-full", tier: MatchRank.TierFull, start: 0, weight: 0.9),
-        };
-
-        var ranked = SearchResultMapper.RankAndDedupe(candidates);
-
-        Assert.AreEqual(@"C:\tight-full", ranked[0].FullPath);
-    }
-
-    // With start and weight equal, tier finally separates: literal > initials > full pinyin.
-    [TestMethod]
-    public void RankAndDedupe_TierBreaksTiesOnEqualStartAndWeight()
-    {
-        var candidates = new List<SearchResultMapper.RankedCandidate>
-        {
-            Candidate(@"C:\alias-full", tier: MatchRank.TierFull, start: 0, weight: 1.0),
-            Candidate(@"C:\alias-initials", tier: MatchRank.TierInitials, start: 0, weight: 1.0),
-            Candidate(@"C:\literal", tier: MatchRank.TierName, start: 0, weight: 1.0),
-        };
-
-        var ranked = SearchResultMapper.RankAndDedupe(candidates);
+            Candidate(@"C:\a10"),
+            Candidate(@"C:\a2"),
+            Candidate(@"C:\a2-long"),
+        });
 
         CollectionAssert.AreEqual(
-            new[] { @"C:\literal", @"C:\alias-initials", @"C:\alias-full" },
+            new[] { @"C:\a2", @"C:\a2-long", @"C:\a10" },
             ranked.Select(r => r.FullPath).ToArray());
     }
 
     [TestMethod]
-    public void RankAndDedupe_SameWeight_ShorterNormalizedPathWinsNext()
+    public void RankAndDedupe_DuplicateNormalizedPath_KeepsTheBetterOne()
     {
-        var candidates = new List<SearchResultMapper.RankedCandidate>
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
-            Candidate(@"C:\a\much\longer\path.txt", weight: 0.5, normalizedPath: @"C:\a\much\longer\path.txt"),
-            Candidate(@"C:\short.txt", weight: 0.5, normalizedPath: @"C:\short.txt"),
-        };
-
-        var ranked = SearchResultMapper.RankAndDedupe(candidates);
-
-        Assert.AreEqual(@"C:\short.txt", ranked[0].FullPath);
-    }
-
-    [TestMethod]
-    public void RankAndDedupe_AllTiedExceptPath_SortsAlphabetically()
-    {
-        var candidates = new List<SearchResultMapper.RankedCandidate>
-        {
-            Candidate(@"C:\zebra.txt", normalizedPath: @"C:\zebra.txt"),
-            Candidate(@"C:\apple.txt", normalizedPath: @"C:\apple.txt"),
-        };
-
-        var ranked = SearchResultMapper.RankAndDedupe(candidates);
-
-        Assert.AreEqual(@"C:\apple.txt", ranked[0].FullPath);
-        Assert.AreEqual(@"C:\zebra.txt", ranked[1].FullPath);
-    }
-
-    [TestMethod]
-    public void RankAndDedupe_AlphabeticalTiebreakIsCaseInsensitive()
-    {
-        var candidates = new List<SearchResultMapper.RankedCandidate>
-        {
-            Candidate(@"C:\Bravo.txt", normalizedPath: @"C:\Bravo.txt"),
-            Candidate(@"C:\alpha.txt", normalizedPath: @"C:\alpha.txt"),
-        };
-
-        var ranked = SearchResultMapper.RankAndDedupe(candidates);
-
-        Assert.AreEqual(@"C:\alpha.txt", ranked[0].FullPath);
-    }
-
-    [TestMethod]
-    public void RankAndDedupe_DuplicateNormalizedPath_KeepsOnlyHigherRankedOne()
-    {
-        var candidates = new List<SearchResultMapper.RankedCandidate>
-        {
-            Candidate(@"C:\dup-weak", isCurated: false, normalizedPath: @"C:\same"),
-            Candidate(@"C:\dup-strong", isCurated: true, normalizedPath: @"C:\same"),
-        };
-
-        var ranked = SearchResultMapper.RankAndDedupe(candidates);
+            Candidate(@"C:\weak", normalizedPath: @"C:\same"),
+            Candidate(@"C:\strong", isFavorite: true, normalizedPath: @"C:\same"),
+        });
 
         Assert.HasCount(1, ranked);
-        Assert.AreEqual(@"C:\dup-strong", ranked[0].FullPath);
+        Assert.AreEqual(@"C:\strong", ranked[0].FullPath);
     }
 
     [TestMethod]
-    public void RankAndDedupe_DuplicateNormalizedPathIsCaseInsensitive()
+    public void RankAndDedupe_ApplicationRowOwnsItsShortcutPath_EvenWhenFilesRankFirst()
     {
-        var candidates = new List<SearchResultMapper.RankedCandidate>
-        {
-            Candidate(@"C:\a", normalizedPath: @"C:\SAME"),
-            Candidate(@"C:\b", normalizedPath: @"C:\same"),
-        };
+        const string shortcut = @"C:\Users\Linked\Desktop\屏幕标注截图录像ocr.lnk";
 
-        var ranked = SearchResultMapper.RankAndDedupe(candidates);
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(shortcut, typeRank: 0, resultKind: "File"),
+            Candidate(shortcut, typeRank: 1, resultKind: "Application"),
+        });
 
         Assert.HasCount(1, ranked);
+        Assert.AreEqual("Application", ranked[0].ResultKind);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_FileRowSurvivesWhenNoApplicationRowClaimsThePath()
+    {
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\plain.txt", typeRank: 0, resultKind: "File"),
+            Candidate(@"C:\other.txt", typeRank: 0, resultKind: "File"),
+        });
+
+        Assert.HasCount(2, ranked);
     }
 
     [TestMethod]
     public void RankAndDedupe_EmptyInput_ReturnsEmptyList() =>
         Assert.IsEmpty(SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>()));
-
-    [TestMethod]
-    public void RankAndDedupe_FullPriorityChain_OrdersByEachTierInTurn()
-    {
-        // curated+lowest-priority should win even though it has the worst weight and longest path.
-        var winner = Candidate(@"C:\winner-very-long-path-name.txt", isCurated: true, priority: 0, typeRank: 5, weight: 0.1, normalizedPath: @"C:\winner-very-long-path-name.txt");
-        var loser = Candidate(@"C:\z.txt", isCurated: false, priority: 0, typeRank: 0, weight: 1.0, normalizedPath: @"C:\z.txt");
-
-        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate> { loser, winner });
-
-        Assert.AreEqual(winner.Result.FullPath, ranked[0].FullPath);
-    }
 }

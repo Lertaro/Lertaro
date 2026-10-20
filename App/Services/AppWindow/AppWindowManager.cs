@@ -3,6 +3,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Threading;
 using Lertaro.App.Helpers;
+using Lertaro.App.Helpers.Visuals;
 using Lertaro.App.Views.QuickSearchWindow.Helpers;
 using Lertaro.Core;
 
@@ -44,7 +45,12 @@ public static class AppWindowManager
             }
 
             if (!_settingsWindow.IsVisible)
+            {
+                // First show only (see ParkUntilPainted): the settings tree is the biggest in the app, and an
+                // opaque borderless window is the class background until that first frame is presented.
+                WindowParking.ParkUntilPainted(_settingsWindow);
                 _settingsWindow.Show();
+            }
 
             if (_settingsWindow.WindowState == WindowState.Minimized)
                 _settingsWindow.WindowState = WindowState.Normal;
@@ -74,7 +80,12 @@ public static class AppWindowManager
             _settingsWindow.JumpToEntry(entryIndex);
 
             if (!_settingsWindow.IsVisible)
+            {
+                // First show only (see ParkUntilPainted): the settings tree is the biggest in the app, and an
+                // opaque borderless window is the class background until that first frame is presented.
+                WindowParking.ParkUntilPainted(_settingsWindow);
                 _settingsWindow.Show();
+            }
 
             if (_settingsWindow.WindowState == WindowState.Minimized)
                 _settingsWindow.WindowState = WindowState.Normal;
@@ -268,7 +279,10 @@ public static class AppWindowManager
             IdleWorkingSetTrimmer.WindowShowing();
 
         if (!window.IsVisible)
+        {
+            WindowParking.ParkUntilPainted(window);
             window.Show();
+        }
         if (window.WindowState == WindowState.Minimized)
             window.WindowState = WindowState.Normal;
         if (bringToFront)

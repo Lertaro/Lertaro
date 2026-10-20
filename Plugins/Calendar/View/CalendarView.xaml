@@ -2,7 +2,6 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:Lertaro.Plugins.Calendar.View"
-             TextOptions.TextFormattingMode="Display"
              UseLayoutRounding="True"
              MinWidth="760" MaxHeight="790">
     <UserControl.Resources>
@@ -137,7 +136,7 @@
                                         </Border>
 
                                         <TextBlock x:Name="SubLabel" Grid.Row="1" Text="{Binding SubLabel}"
-                                                   FontSize="12.5" Margin="0,1,0,0"
+                                                   FontSize="13" Margin="0,1,0,0"
                                                    HorizontalAlignment="Center"
                                                    Foreground="{DynamicResource TextSecondary}"/>
                                     </Grid>

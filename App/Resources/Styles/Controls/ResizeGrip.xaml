@@ -1,22 +1,23 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework">
 
-    <!-- How far the drawing sits from the window's bottom-right corner. The default clears the 8 DIP
-         transparent margin that most of these windows leave around their visible card by 2 DIP, which is
-         what puts the lines just inside the card; a window whose corner is further in overrides this in its
-         own resources (see QuickLookWindow and the two LocalSend windows). A DynamicResource rather than a
-         StaticResource, so that per-window override wins: a template's own dictionary would resolve a
-         static lookup to this value before the window ever got a say. -->
-    <Thickness x:Key="ResizeGripInset">4,4,10,10</Thickness>
+    <!-- How far the drawing sits from the window's bottom-right corner. These windows are opaque and their
+         window rectangle IS the visible card, so the lines belong a couple of DIP inside the real corner;
+         the inset used to clear an 8 DIP transparent halo that no longer exists. A window whose corner is
+         further in overrides this in its own resources (see QuickLookWindow).
+         A DynamicResource rather than a StaticResource, so that per-window override wins: a template's own
+         dictionary would resolve a static lookup to this value before the window ever got a say. -->
+    <Thickness x:Key="ResizeGripInset">2,2,4,4</Thickness>
 
     <!-- The resize grip WPF draws for ResizeMode="CanResizeWithGrip", restyled.
 
          It is not a control of ours: Window creates a System.Windows.Controls.ResizeGrip (a Control, not
          a Thumb) and sizes it against the bottom-right corner whenever ResizeMode is CanResizeWithGrip,
          and that type takes its look from a theme style keyed by its own type. An implicit style here
-         therefore replaces the theme's without any of that machinery being touched, which matters because
-         the grip is also the only thing that hit-tests for CanResizeWithGrip (Window.HandleWmNcHitTestMsg
-         checks nothing else), so a window that dropped the type would stop resizing altogether.
+         therefore replaces the theme's without any of that machinery being touched - and it has to keep
+         the type, because the grip is what these windows resize by (see the direction setter below), so a
+         window that dropped it would stop resizing altogether.
 
          Three stepped lines rather than the theme's dotted triangle: the theme's grip is a small field of
          dots that reads as decoration at this size, and the corner rule Windows itself draws is
@@ -24,11 +25,11 @@
          sits against.
 
          ALIGNMENT IS THE POINT. The element Window creates spans the window's bottom-right corner, window
-         rect included, so a template rooted in a plain Grid puts its drawing wherever that Grid's own
-         alignment puts it. The root here is aligned bottom-right and inset by ResizeGripInset, which lands
-         the lines just inside the visible card rather than in the transparent margin outside it. That
-         margin is where a resize band would need WindowChrome to work, and it does not for a transparent
-         window, so a grip drawn out there is one the pointer cannot reach.
+         rect included, so what a template puts inside it decides where the lines actually land. The style
+         aligns the grip itself bottom-right and the Path inside it is inset by ResizeGripInset, which lands
+         the lines just inside the visible card rather than in the transparent margin outside it. That margin
+         is where a resize band would need WindowChrome to work, and it does not for a transparent window,
+         so a grip drawn out there is one the pointer cannot reach.
 
          KEYLESS, AND IT HAS TO LIVE HERE rather than in a window's own dictionary. Resources/Styles.xaml
          is merged once by App.xaml, so this style is in Application.Resources and every window that asks
@@ -40,12 +41,25 @@
     <Style TargetType="{x:Type ResizeGrip}">
         <Setter Property="HorizontalAlignment" Value="Right"/>
         <Setter Property="VerticalAlignment" Value="Bottom"/>
+        <!-- Declaring the direction is what makes this grip a handle at all. WindowChrome answers WM_NCHITTEST
+             by asking the element under the pointer for this value BEFORE it looks at ResizeBorderThickness, and
+             measured with a window parked off screen (WM_NCHITTEST at the grip's own centre) a ResizeGrip left
+             at None answers HTCLIENT: the corner resized only because the 6px chrome border happened to cover the
+             same corner. That border is also what swallowed the 6px overlay scrollbar pressed against the right
+             edge of every one of these windows, which is why they now set it to 0 and this is the only thing
+             left that resizes them. -->
+        <Setter Property="shell:WindowChrome.ResizeGripDirection" Value="BottomRight"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type ResizeGrip}">
-                    <Path Stroke="{DynamicResource WindowChromeText}" StrokeThickness="1" Opacity="0.5"
-                          Margin="{DynamicResource ResizeGripInset}"
-                          Data="M 12,0 L 0,12 M 12,4 L 4,12 M 12,8 L 8,12"/>
+                    <!-- The transparent Grid makes the whole grip box the target instead of just the three
+                         stroked diagonals. The Path still stretches as the root's child exactly the way it did
+                         as the root, so the drawing itself does not move. -->
+                    <Grid Background="Transparent">
+                        <Path Stroke="{DynamicResource WindowChromeText}" StrokeThickness="1" Opacity="0.5"
+                              Margin="{DynamicResource ResizeGripInset}"
+                              Data="M 12,0 L 0,12 M 12,4 L 4,12 M 12,8 L 8,12"/>
+                    </Grid>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

@@ -1,13 +1,25 @@
 using System.Text.RegularExpressions;
 
 using Lertaro.Core.Indexer.NetworkDrive.Walk;
+using Lertaro.PluginSdk.Helpers;
+
 namespace Lertaro.Core;
 
 public sealed class ExclusionRuleSet
 {
+    private const int MaxPriorityAncestorDepth = 64;
+
+    private static readonly RegexOptions CompiledOptions =
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled;
+
     private readonly string[] _excludedRoots;
     private readonly NetworkGlobPattern[] _ignoredGlobs;
     private readonly Regex[] _ignoredRegexes;
+
+    private readonly EffectivePathRule[] _priorityPaths;
+    private readonly EffectiveGlobRule[] _priorityGlobs;
+    private readonly EffectiveRegexRule[] _priorityRegexes;
+
     private readonly string? _root;
 
     /// <summary>
@@ -22,23 +34,119 @@ public sealed class ExclusionRuleSet
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> _ancestorVerdicts =
         new(StringComparer.OrdinalIgnoreCase);
 
-    private ExclusionRuleSet(string[] excludedRoots, NetworkGlobPattern[] ignoredGlobs, Regex[] ignoredRegexes, string? root = null)
+    // Same lifetime and rationale: a directory's priority is decided once and reused by every file under
+    // it, which is what keeps the ranking key affordable on a result set of a hundred thousand rows.
+    // Values pack the inherited path and pattern components; see Encode/Decode.
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> _priorityVerdicts =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly record struct EffectivePathRule(string Root, IndexRuleEffect Effect);
+    private readonly record struct EffectiveGlobRule(NetworkGlobPattern Pattern, IndexRuleEffect Effect);
+    private readonly record struct EffectiveRegexRule(Regex Pattern, IndexRuleEffect Effect);
+
+    private ExclusionRuleSet(IReadOnlyList<IndexRuleSetting> rules, string? root = null)
     {
-        _excludedRoots = excludedRoots;
-        _ignoredGlobs = ignoredGlobs;
-        _ignoredRegexes = ignoredRegexes;
         _root = root;
+
+        var excludedRoots = new List<string>();
+        var ignoredGlobs = new List<NetworkGlobPattern>();
+        var ignoredRegexes = new List<Regex>();
+        var priorityPaths = new List<EffectivePathRule>();
+        var priorityGlobs = new List<EffectiveGlobRule>();
+        var priorityRegexes = new List<EffectiveRegexRule>();
+
+        foreach (var rule in rules)
+        {
+            if (!IndexRuleSyntax.TryParse(rule.Pattern, rule.Effect, out var parsed, out var error))
+            {
+                Logger.Log($"[ExclusionRuleSet] Ignoring invalid rule '{rule.Pattern}': {error}", LogLevel.Warn);
+                continue;
+            }
+
+            switch (parsed.Kind)
+            {
+                case IndexRuleKind.Path:
+                {
+                    if (!IndexRuleSyntax.TryResolvePath(parsed.Pattern, out var resolved, out error))
+                    {
+                        Logger.Log($"[ExclusionRuleSet] Ignoring unresolved path rule '{rule.Pattern}': {error}", LogLevel.Warn);
+                        continue;
+                    }
+
+                    var normalizedRoot = NormalizePath(resolved, isDirectory: true);
+                    if (_root != null && !normalizedRoot.StartsWith(_root, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    if (parsed.Effect == IndexRuleEffect.Exclude)
+                        excludedRoots.Add(normalizedRoot);
+                    else
+                        priorityPaths.Add(new EffectivePathRule(normalizedRoot.TrimEnd(Path.DirectorySeparatorChar), parsed.Effect));
+                    break;
+                }
+
+                case IndexRuleKind.Glob:
+                {
+                    var glob = GlobMatcher.Compile(UserPathResolver.Expand(parsed.Pattern));
+                    if (glob.IsEmpty)
+                        continue;
+
+                    if (parsed.Effect == IndexRuleEffect.Exclude)
+                        ignoredGlobs.Add(glob);
+                    else
+                        priorityGlobs.Add(new EffectiveGlobRule(glob, parsed.Effect));
+                    break;
+                }
+
+                default:
+                {
+                    Regex regex;
+                    try
+                    {
+                        regex = new Regex(parsed.Pattern, CompiledOptions, TimeSpan.FromMilliseconds(50));
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        Logger.Log($"[ExclusionRuleSet] Invalid regex rule '{rule.Pattern}': {ex.Message}", LogLevel.Warn);
+                        continue;
+                    }
+
+                    if (parsed.Effect == IndexRuleEffect.Exclude)
+                        ignoredRegexes.Add(regex);
+                    else
+                        priorityRegexes.Add(new EffectiveRegexRule(regex, parsed.Effect));
+                    break;
+                }
+            }
+        }
+
+        _excludedRoots = excludedRoots
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        _ignoredGlobs = ignoredGlobs.ToArray();
+        _ignoredRegexes = ignoredRegexes.ToArray();
+        _priorityPaths = priorityPaths.ToArray();
+        _priorityGlobs = priorityGlobs.ToArray();
+        _priorityRegexes = priorityRegexes.ToArray();
+        HighPriorityRoots = _priorityPaths
+            .Where(rule => rule.Effect == IndexRuleEffect.High)
+            .Select(rule => rule.Root)
+            .Where(root => root.Length > 3 && !string.Equals(Path.GetPathRoot(root), root, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
         // A glob only cares which spelling a separator took if it can say something about one: GlobToRegex
         // normalizes the pattern's separators and compiles each to a class matching either spelling, so a
         // plain `*\Cache\*` answers the same on both forms. Inside a character class the characters go out
         // verbatim, and a user regex reaches the matcher untouched -- both are the cases that keep the
         // converted form in play. Everything else gets to skip building it per result.
         _anyPatternCanTellSeparatorsApart =
-            ignoredGlobs.Any(g => g.RawPattern.Contains('/', StringComparison.Ordinal) || g.RawPattern.Contains('[', StringComparison.Ordinal))
-            || ignoredRegexes.Any(r => r.ToString().Contains('/', StringComparison.Ordinal));
+            _ignoredGlobs.Any(g => g.RawPattern.Contains('/') || g.RawPattern.Contains('['))
+            || _ignoredRegexes.Any(r => r.ToString().Contains('/'));
     }
 
-    public static ExclusionRuleSet Empty { get; } = new(Array.Empty<string>(), Array.Empty<NetworkGlobPattern>(), Array.Empty<Regex>());
+    public static ExclusionRuleSet Empty { get; } = new(Array.Empty<IndexRuleSetting>());
 
     private static ExclusionRuleSet? _cachedRules;
     private static UserSettings? _cachedSettingsSource;
@@ -62,19 +170,14 @@ public sealed class ExclusionRuleSet
                 return _cachedRules;
             }
 
-            _cachedRules = new ExclusionRuleSet(
-                BuildExcludedRoots(settings.ExcludedPaths),
-                BuildIgnoredGlobs(settings.IgnoredPathGlobs),
-                BuildIgnoredRegexes(settings.IgnoredPathRegexes));
+            _cachedRules = new ExclusionRuleSet(IndexRuleMigration.Ensure(settings));
             _cachedSettingsSource = settings;
             return _cachedRules;
         }
     }
 
     public static ExclusionRuleSet From(UserSettings settings, string root) => new(
-        BuildExcludedRoots(settings.ExcludedPaths, NormalizePath(root, isDirectory: true)),
-        BuildIgnoredGlobs(settings.IgnoredPathGlobs),
-        BuildIgnoredRegexes(settings.IgnoredPathRegexes),
+        IndexRuleMigration.Ensure(settings),
         NormalizePath(root, isDirectory: true));
 
     public bool IsExcluded(SearchResult result, string? exemptRoot = null)
@@ -99,9 +202,205 @@ public sealed class ExclusionRuleSet
             !string.IsNullOrEmpty(exemptRoot) ? NormalizePath(exemptRoot, isDirectory: true) : null);
     }
 
+    /// <summary>
+    /// The low/high priority of a result. Files inherit the nearest rule-bearing ancestor; at one level,
+    /// high beats low beats normal. No matching rule is normal, and a normal path rule replaces a shallower
+    /// path rule so a subdirectory can opt back into the default (pattern rules still merge along the chain).
+    /// </summary>
+    public IndexRuleEffect GetPriority(SearchResult result) => result == null
+        ? IndexRuleEffect.Normal
+        : GetPriority(result.Path, result.IsDir);
+
+    /// <summary>Whether any high-priority rule exists. Callers use it to widen the candidate window:</summary>
+    /// <remarks>
+    /// High-priority rows must be able to outrank everything else, but the engine truncates before the App
+    /// ranks. Without high rules the extra rows would only cost time, so the widening is gated on them.
+    /// </remarks>
+    public bool HasHighPriorityRules =>
+        _priorityPaths.Any(rule => rule.Effect == IndexRuleEffect.High)
+        || _priorityGlobs.Any(rule => rule.Effect == IndexRuleEffect.High)
+        || _priorityRegexes.Any(rule => rule.Effect == IndexRuleEffect.High);
+
+    /// <summary>
+    /// Directories whose contents a high path rule promotes. The quick window searches each of them on
+    /// its own so a high-priority file cannot be crowded out of the shared candidate pool before ranking.
+    /// </summary>
+    /// <remarks>
+    /// Only whole paths can be turned into a scoped search: globs and regexes describe a name shape, not a
+    /// subtree, so their rows still depend on the regular pool. Drive roots are skipped -- promoting a whole
+    /// volume says nothing and would make every query scan it twice.
+    /// </remarks>
+    public IReadOnlyList<string> HighPriorityRoots { get; }
+
+    public IndexRuleEffect GetPriority(string path, bool isDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return IndexRuleEffect.Normal;
+        if (_priorityPaths.Length == 0 && _priorityGlobs.Length == 0 && _priorityRegexes.Length == 0)
+            return IndexRuleEffect.Normal;
+
+        var normalized = NormalizeIndexedPath(path, isDirectory).TrimEnd(Path.DirectorySeparatorChar);
+        if (normalized.Length == 0)
+            return IndexRuleEffect.Normal;
+
+        // Own-level patterns matter (a `*.exe` high rule must beat a low folder), but a path rule on an
+        // ancestor is a deliberate folder-level decision and the nearest one wins over shallower paths.
+        var matched = OwnPriority(normalized);
+        var parent = Path.GetDirectoryName(normalized);
+        if (!string.IsNullOrEmpty(parent))
+            matched = Stronger(matched, InheritedPriority(parent));
+
+        return matched ?? IndexRuleEffect.Normal;
+    }
+
+    private IndexRuleEffect? OwnPriority(string path) =>
+        Stronger(PathPriorityAt(path), PatternPriorityAt(path));
+
+    /// <summary>
+    /// Merged priority a child of <paramref name="directory"/> inherits: the nearest path rule at or above
+    /// it plus the best pattern hit along the chain. Cached per directory, because every file below it
+    /// shares the answer.
+    /// </summary>
+    private IndexRuleEffect? InheritedPriority(string directory)
+    {
+        var undecided = new List<string>();
+        IndexRuleEffect? pathPart = null;
+        IndexRuleEffect? patternPart = null;
+
+        var current = directory;
+        var depth = 0;
+        while (true)
+        {
+            if (_priorityVerdicts.TryGetValue(current, out var known))
+            {
+                Decode(known, out pathPart, out patternPart);
+                break;
+            }
+
+            undecided.Add(current);
+
+            var parent = Path.GetDirectoryName(current);
+            if (string.IsNullOrEmpty(parent) || parent.Length >= current.Length || ++depth >= MaxPriorityAncestorDepth)
+                break;
+            current = parent;
+        }
+
+        // Fill from the topmost undecided level down, so each level sees what its parent contributed.
+        for (var i = undecided.Count - 1; i >= 0; i--)
+        {
+            var level = undecided[i];
+            pathPart = PathPriorityAt(level) ?? pathPart;
+            patternPart = Stronger(patternPart, PatternPriorityAt(level));
+            _priorityVerdicts[level] = Encode(pathPart, patternPart);
+        }
+
+        return Stronger(pathPart, patternPart);
+    }
+
+    // Packs two "effect or none" values into one int so the dictionary can cache a miss (-1 was not enough:
+    // a path rule and a pattern rule contribute independently).
+    private static int Encode(IndexRuleEffect? path, IndexRuleEffect? pattern) =>
+        ((path == null ? 4 : (int)path.Value) << 3) | (pattern == null ? 4 : (int)pattern.Value);
+
+    private static void Decode(int code, out IndexRuleEffect? path, out IndexRuleEffect? pattern)
+    {
+        var pathCode = code >> 3;
+        var patternCode = code & 7;
+        path = pathCode == 4 ? null : (IndexRuleEffect)pathCode;
+        pattern = patternCode == 4 ? null : (IndexRuleEffect)patternCode;
+    }
+
+    /// <summary>Exact path rules at one level; null when no path rule names it.</summary>
+    private IndexRuleEffect? PathPriorityAt(string fullPath)
+    {
+        IndexRuleEffect? matched = null;
+        foreach (var rule in _priorityPaths)
+        {
+            if (fullPath.Equals(rule.Root, StringComparison.OrdinalIgnoreCase))
+                matched = Stronger(matched, rule.Effect);
+        }
+        return matched;
+    }
+
+    /// <summary>
+    /// Glob and regex rules at one level, ignoring path rules and ancestors. Priority regexes test only the
+    /// leaf and the search-root-relative path, never the absolute path: otherwise every rule would also see
+    /// the drive and parent names.
+    /// </summary>
+    private IndexRuleEffect? PatternPriorityAt(string fullPath)
+    {
+        if (_priorityGlobs.Length == 0 && _priorityRegexes.Length == 0)
+            return null;
+
+        IndexRuleEffect? matched = null;
+        var name = Path.GetFileName(fullPath);
+        var relative = GetPriorityRelativePath(fullPath);
+        var withSeparator = fullPath + Path.DirectorySeparatorChar;
+        var relativeWithSeparator = relative.Length == 0 ? relative : relative + Path.DirectorySeparatorChar;
+
+        foreach (var rule in _priorityGlobs)
+        {
+            if (rule.Pattern.IsMatch(fullPath)
+                || rule.Pattern.IsMatch(withSeparator)
+                || (relative.Length > 0 && (rule.Pattern.IsMatch(relative) || rule.Pattern.IsMatch(relativeWithSeparator)))
+                || rule.Pattern.IsMatch(name))
+            {
+                matched = Stronger(matched, rule.Effect);
+            }
+        }
+
+        foreach (var rule in _priorityRegexes)
+        {
+            if (rule.Pattern.IsMatch(name)
+                || (relative.Length > 0 && (rule.Pattern.IsMatch(relative) || rule.Pattern.IsMatch(relativeWithSeparator))))
+            {
+                matched = Stronger(matched, rule.Effect);
+            }
+        }
+
+        return matched;
+    }
+
+    private static IndexRuleEffect? Stronger(IndexRuleEffect? current, IndexRuleEffect? candidate)
+    {
+        if (candidate == null)
+            return current;
+        if (current == null)
+            return candidate;
+        return PriorityStrength(candidate.Value) > PriorityStrength(current.Value) ? candidate : current;
+    }
+
+    private static int PriorityStrength(IndexRuleEffect effect) => effect switch
+    {
+        IndexRuleEffect.High => 2,
+        IndexRuleEffect.Low => 1,
+        _ => 0,
+    };
+
+    private static bool IsSameOrUnder(string path, string root)
+    {
+        if (path.Equals(root, StringComparison.OrdinalIgnoreCase))
+            return true;
+        var prefix = root.EndsWith(Path.DirectorySeparatorChar) ? root : root + Path.DirectorySeparatorChar;
+        return path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string GetPriorityRelativePath(string fullPath)
+    {
+        if (_root != null && fullPath.StartsWith(_root, StringComparison.OrdinalIgnoreCase))
+            return fullPath[_root.Length..].Trim(Path.DirectorySeparatorChar);
+
+        // A bare drive root has no relative part; returning "C:\" would let a `^C:` regex match it.
+        var pathRoot = Path.GetPathRoot(fullPath);
+        if (pathRoot == null)
+            return fullPath;
+        return fullPath.Length > pathRoot.Length
+            ? fullPath[pathRoot.Length..].Trim(Path.DirectorySeparatorChar)
+            : "";
+    }
+
     private bool IsExcludedNormalized(string normalized, string? normalizedExempt)
     {
-
         // 1. Check excluded roots on the full normalized path
         foreach (var excludedRoot in _excludedRoots)
         {
@@ -234,62 +533,6 @@ public sealed class ExclusionRuleSet
         }
 
         return false;
-    }
-
-    private static string[] BuildExcludedRoots(IReadOnlyList<string> paths)
-        => BuildExcludedRoots(paths, root: null);
-
-    private static string[] BuildExcludedRoots(IReadOnlyList<string> paths, string? root)
-    {
-        if (paths.Count == 0)
-            return Array.Empty<string>();
-
-        return paths
-            .Where(path => !string.IsNullOrWhiteSpace(path))
-            .Select(path => NormalizePath(Environment.ExpandEnvironmentVariables(path), isDirectory: true))
-            .Where(path => root == null || path.StartsWith(root, StringComparison.OrdinalIgnoreCase))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-    }
-
-    private static NetworkGlobPattern[] BuildIgnoredGlobs(IReadOnlyList<string> globs)
-    {
-        if (globs.Count == 0)
-            return Array.Empty<NetworkGlobPattern>();
-
-        return globs
-            .Where(pattern => !string.IsNullOrWhiteSpace(pattern))
-            .Select(pattern => GlobMatcher.Compile(pattern.Trim()))
-            .Where(pattern => !pattern.IsEmpty)
-            .ToArray();
-    }
-
-    private static Regex[] BuildIgnoredRegexes(IReadOnlyList<string> regexes)
-    {
-        if (regexes.Count == 0)
-            return Array.Empty<Regex>();
-
-        var compiled = new List<Regex>();
-        foreach (var pattern in regexes)
-        {
-            if (string.IsNullOrWhiteSpace(pattern))
-                continue;
-
-            try
-            {
-                compiled.Add(new Regex(
-                    pattern.Trim(),
-                    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-                    TimeSpan.FromMilliseconds(50)));
-            }
-            catch (ArgumentException ex)
-            {
-                Logger.Log($"[ExclusionRuleSet] Invalid exclude regex '{pattern}': {ex.Message}", LogLevel.Warn);
-            }
-        }
-
-        return compiled.ToArray();
     }
 
     private static string NormalizePath(string path, bool isDirectory)

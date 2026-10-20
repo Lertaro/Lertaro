@@ -1,72 +1,90 @@
-using System.IO;
+using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
-using Lertaro.PluginSdk.Abstractions;
 
 namespace Lertaro.App.ViewModels.Search.Mapping;
 
 // The one ordering ladder every result list shares: candidates in, best-first rows out.
 //
-// Split out of SearchResultMapper purely to keep that file under the repo's per-file line limit. It has no
-// state of its own -- it always operates on the candidate list its caller built.
+// Keys, strongest first:
+//   1. Folder priority -- low (build output, Windows.old) sorts below normal, high above it. It is the
+//      hard grouping: a high rule beats a normal row of ANY result type, and a low rule loses to every
+//      normal one -- otherwise a high-priority file would still sit under a pile of normal applications.
+//   2. Result-type order -- the user's own order (quick window only; files are one type elsewhere). It
+//      groups the rows inside one priority band.
+//   3. Match quality -- contiguity, shape (whole word > word start > inside > scattered), left-contiguous
+//      (shape tie-break only), start, coverage, tier (MatchRank.CompareQuality).
+//   4. Favorites -- an explicit user pick, after quality but before history.
+//   5. History band -- 5+ opens (0), 1-4 opens (1), none (2). History never overrules a better match.
+//   6. History priority -- the learned-keyword order inside a band.
+//   7. Files before folders.
+//   8. Natural name order, then name length, path length, drive and path.
+//
+// The ladder used to compare type order before priority and all six quality keys first, which made
+// either setting unreachable: two rows of different types practically never tie on the quality keys, and
+// a high-priority file could never climb above an application group. Priority is the outer grouping now;
+// type and quality only decide the order inside one band.
+//
+// Shape is part of MatchRank.CompareQuality; recency band and path depth are deliberately absent.
 internal static class RankedCandidateOrdering
 {
-    // User signals first, then match quality, then a stable tie-break:
-    //
-    //   * IsCurated / Priority -- favorites and history ("you use this"), which outrank any textual match.
-    //   * TypeRank              -- the user's own result-type order (quick window only).
-    //   * Match.Start           -- "left-side match priority": the query hitting furthest left in the name
-    //                              leads the match keys. It used to sit behind Shape/RecencyBand/Depth, and
-    //                              on a broad query the display cap then filled with rows that merely
-    //                              matched a whole word or were touched today, cutting off the row the user
-    //                              was looking for (reported as a plain drop in hit rate).
-    //   * Match.Weight          -- then coverage*contiguity.
-    //   * Match.Tier            -- then the WEAKEST match key: a literal name hit beats a shorthand alias
-    //                              hit beats a full transliteration (英文 > 简拼 > 全拼). Placed last so it
-    //                              only separates rows that already agree on position and coverage;
-    //                              see AliasMatchRules.TierFor.
-    //   * files before folders  -- only when the match is otherwise equal.
-    //   * path length, path     -- then the stable, deterministic tail.
-    //
-    // Match.Shape, RecencyBand and Depth are still computed and carried on the candidate (RankSignals for
-    // index rows) but deliberately order nothing since that report -- a consumer that wants them has them,
-    // and none of them may push a left-hand hit off the screen.
-    //
-    // SearchResultRelevance packs the same match keys into RankSortKey for the full window and the engine.
-    //
-    // The inline window layers directory proximity ABOVE all of this separately (see
-    // ExplorerSearchHelper.CreateLocalSnapshot), so a direct child wins even against a curated deeper row.
-    public static List<SearchResultMapper.RankedCandidate> Order(List<SearchResultMapper.RankedCandidate> candidates, string? query = null)
+    private const string ApplicationKind = "Application";
+
+    public static List<SearchResultMapper.RankedCandidate> Order(
+        List<SearchResultMapper.RankedCandidate> candidates,
+        string? query = null,
+        Func<string, bool, IndexRuleEffect>? priorityResolver = null)
     {
-        var exact = query?.Trim();
+        _ = query;
         var usedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var ranked = new List<SearchResultMapper.RankedCandidate>();
-        foreach (var candidate in candidates
-                     // Owner's rule: history and favorites sit AFTER the match rule, not above it -- at
-                     // otherwise equal match quality a row you opened before wins, but it cannot outrank a
-                     // much better left-side or contiguous hit just because it is in the history.
-                     // Owner's rule: a name that IS the query comes first, then match quality, and among equal
-                     // matches the name order below (letters before digits before symbols, uppercase first).
-                     // Owner's rule: favorites and history lead EVERYTHING, even an exact name match -- a row the
-                     // user opened before is what they are looking for. Match quality orders only the rest.
-                     // Owner's final ladder (2026-10-19): contiguity, left position, coverage, tier, name length,
-                     // history/favorites, folder-first, natural name order. Coverage is weight/contiguity because
-                     // weight is already coverage*contiguity and contiguity is carried separately.
-                     // Owner's ladder (2026-10-19, after the save point): tier, then a hit that is both contiguous
-                     // AND at the left edge, then contiguity, then history/favorites, coverage, type order, name
-                     // length, folder-first and natural name order.
-                     // Owner's ladder (2026-10-19, final): a left-contiguous hit, then contiguity, history,
-                     // coverage, tier, type order, folder-first, natural name order, and name length last.
-                     .OrderByDescending(c => c.Match.Start == 0 && c.Match.Contiguity >= 1)
-                     .ThenByDescending(c => c.Match.Contiguity)
-                     .ThenByDescending(c => c.IsCurated)
-                     .ThenBy(c => c.Priority)
-                     // Owner: the result-type order sits right after history/favorites, above coverage and tier.
+        // Per call, so a search decides each directory once; the resolver itself caches ancestors.
+        var priorities = new Dictionary<string, IndexRuleEffect>(StringComparer.OrdinalIgnoreCase);
+        IndexRuleEffect Priority(SearchResultMapper.RankedCandidate candidate)
+        {
+            // Fork: favorites and history ride the index-rule priority system instead of a separate key order.
+            // They are the rows the owner asked to see first, so they take the High band and everything upstream
+            // already does with High (type order, match quality, the engine cut) applies inside that band.
+            // HistoryCount > 0, not HistoryPriority: the Windows "Recent Items" rows carry a non-MaxValue
+            // HistoryPriority but a zero count, and they must not be lifted to the top by this rule.
+            if (candidate.IsFavorite || EffectiveHistoryCount(candidate) > 0)
+                return IndexRuleEffect.High;
+            if (priorityResolver == null)
+                return IndexRuleEffect.Normal;
+            var path = candidate.NormalizedPath.TrimEnd('\\');
+            if (priorities.TryGetValue(path, out var known))
+                return known;
+            var priority = priorityResolver(path, candidate.Result.IsDir);
+            priorities[path] = priority;
+            return priority;
+        }
+
+        foreach (var candidate in ApplicationOwned(candidates)
+                     // Fork grouping (the owner's rule): three bands, in this order --
+                     //   0. favorites and rows the user actually searched for before,
+                     //   1. Windows "Recent Items" rows (recently opened, never searched from here),
+                     //   2. ordinary results (apps, files, settings -- ordered by the result-type order).
+                     // The band leads: a favorite or a row the user already searched for must be visible on
+                     // the first keystroke, before any ordinary result, and a recently-opened row likewise
+                     // comes before ordinary results. The left edge then orders the rows INSIDE a band.
+                     .OrderBy(c => Band(c) == 0 ? 0 : 1)
+                     .ThenBy(c => EffectiveMatch(c).Start)
+                     .ThenByDescending(c => EffectiveMatch(c).Coverage)
+                     .ThenByDescending(c => EffectiveHistoryCount(c))
+                     .ThenBy(c => EffectiveHistoryCount(c) > 0 ? c.HistoryPriority : int.MaxValue)
+                     .ThenBy(c => SearchResultRankComparer.PriorityRank(Priority(c)))
+                     // The user's result-type order, then -- inside one type -- a Windows "Recent Items" row
+                     // before the ordinary rows of that same type. Recent files carry the Files type rank, so
+                     // they lead the Files group exactly where the user put Files and never above an earlier
+                     // type.
                      .ThenBy(c => c.TypeRank)
-                     .ThenByDescending(c => c.Match.Contiguity > 0 ? c.Match.Weight / c.Match.Contiguity : 0)
-                     .ThenBy(c => c.Match.Tier)
+                     .ThenBy(c => Band(c) == 1 ? 0 : 1)
+                     .ThenBy(c => EffectiveMatch(c), MatchRankQualityComparer.Instance)
                      .ThenBy(c => c.Result.IsDir)
-                     .ThenBy(c => c.Result.Name, NameOrderComparer.Instance)
-                     .ThenBy(c => c.Result.Name.Length))
+                     .ThenBy(c => c.Result.Name, SearchNameOrderComparer.Instance)
+                     .ThenBy(c => c.Result.Name.Length)
+                     .ThenBy(c => c.NormalizedPath.Length)
+                     .ThenBy(c => c.Result.Drive, StringComparer.OrdinalIgnoreCase)
+                     .ThenBy(c => c.NormalizedPath, StringComparer.OrdinalIgnoreCase))
         {
             if (usedPaths.Add(candidate.NormalizedPath))
                 ranked.Add(candidate);
@@ -74,45 +92,47 @@ internal static class RankedCandidateOrdering
         return ranked;
     }
 
-    // The recency band and path depth of one index row, as the engine's sort key reads them.
-    internal static (int Band, int Depth) SignalsOf(FileMetadata metadata, string path, DateTime nowUtc) =>
-        (RankSignals.RecencyBand(metadata.Created, metadata.Modified, nowUtc), RankSignals.PathDepth(path));
-}
+    private static MatchRank EffectiveMatch(SearchResultMapper.RankedCandidate candidate)
+        => candidate.IsHistoryOnly ? MatchRank.NoMatch : candidate.Match;
 
-// The tie-breaker the owner asked for once two rows match equally well: digits first, then letters (uppercase before
-// lowercase, so "A" < "a"), digits in numeric order ("a2" < "a10") ahead of letters ("a1" < "aa"), then
-internal sealed class NameOrderComparer : IComparer<string>
-{
-    public static readonly NameOrderComparer Instance = new();
-
-    public int Compare(string? x, string? y)
+    // One path, two views: an indexed shortcut row ("File") and a provider's application row describe
+    // the same on-disk .lnk. They tie on every text key, so the type order is what decides which one
+    // survives the path dedupe below -- and with Files configured ahead of applications that was the
+    // plain-file view: every Start Menu / Desktop app came back named "....lnk" with a file icon, and the
+    // application row (extension-free title, app icon, launch delegate) was dropped as a duplicate. Only
+    // the application row can actually launch the app, so it owns its path; the file row is just a second
+    // rendering of the same shortcut and yields before the sort rather than competing with it.
+    private static IEnumerable<SearchResultMapper.RankedCandidate> ApplicationOwned(List<SearchResultMapper.RankedCandidate> candidates)
     {
-        if (ReferenceEquals(x, y)) return 0;
-        if (x == null) return -1;
-        if (y == null) return 1;
-        int i = 0, j = 0;
-        while (i < x.Length && j < y.Length)
+        var applicationPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var candidate in candidates)
         {
-            var cx = x[i];
-            var cy = y[j];
-            if (char.IsDigit(cx) && char.IsDigit(cy))
-            {
-                var si = i; while (i < x.Length && char.IsDigit(x[i])) i++;
-                var sj = j; while (j < y.Length && char.IsDigit(y[j])) j++;
-                var lx = long.Parse(x.AsSpan(si, i - si));
-                var ly = long.Parse(y.AsSpan(sj, j - sj));
-                if (lx != ly) return lx.CompareTo(ly);
-                continue;
-            }
-            var kx = ClassOf(cx);
-            var ky = ClassOf(cy);
-            if (kx != ky) return kx.CompareTo(ky);
-            if (cx != cy) return cx.CompareTo(cy);
-            i++;
-            j++;
+            if (string.Equals(candidate.Result.ResultKind, ApplicationKind, StringComparison.Ordinal))
+                applicationPaths.Add(candidate.NormalizedPath);
         }
-        return (x.Length - i).CompareTo(y.Length - j);
+
+        return applicationPaths.Count == 0
+            ? candidates
+            : candidates.Where(c => string.Equals(c.Result.ResultKind, ApplicationKind, StringComparison.Ordinal)
+                                    || !applicationPaths.Contains(c.NormalizedPath));
     }
 
-    private static int ClassOf(char c) => char.IsDigit(c) ? 0 : char.IsLetter(c) ? 1 : 2;
+    // How often the user actually searched for / opened this path from this app. A Windows "Recent Items"
+    // row used to be counted as 1 here (it carries a priority but no count), which gave it the same weight as
+    // a row searched once and floated it above ordinary results; band 1 keeps it in its own group instead.
+    private static int EffectiveHistoryCount(SearchResultMapper.RankedCandidate candidate)
+        => candidate.HistoryCount;
+
+    // The owner's bands, in rank order:
+    //   0 -- a favorite, or a row the user actually searched for from this app before;
+    //   1 -- a Windows "Recent Items" row: recently opened in the OS, never searched here;
+    //   2 -- an ordinary result (app, file, setting, ...).
+    // HistoryPriority alone cannot tell 1 from 2 (a Recent Items row is built with a small priority but a
+    // zero count), so a zero count paired with a real priority is what marks band 1.
+    private static int Band(SearchResultMapper.RankedCandidate candidate)
+    {
+        if (candidate.IsFavorite || candidate.HistoryCount > 0)
+            return 0;
+        return candidate.HistoryPriority != int.MaxValue ? 1 : 2;
+    }
 }

@@ -339,7 +339,7 @@ internal sealed class PinyinNameEvaluator
     // Pinyin: -12 when the term only matches through a less common reading (the common-only matcher
     // misses it), 0 when it does not; then the same position ladder scaled for a spelling.
     private static int PinyinBonus(int start, ReadOnlySpan<char> name, bool common)
-        => (common ? 0 : -12) + (start == 0 ? 26 : MatchShape.IsBoundary(name, start) ? 16 : 4);
+        => (common ? 0 : -12) + (start == 0 ? 26 : TextBoundary.IsBoundary(name, start) ? 16 : 4);
 
     // Length of the name without its extension ("报告" for "报告.txt"); the whole name when there is
     // no extension to strip.

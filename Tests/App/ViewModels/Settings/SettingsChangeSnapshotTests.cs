@@ -7,26 +7,27 @@ namespace Lertaro.App.Tests.ViewModels.Settings;
 public sealed class SettingsChangeSnapshotTests
 {
     [TestMethod]
-    public void CaptureExclusions_CopiesCurrentListsFromSettings()
+    public void CaptureExclusions_CopiesCurrentRulesFromSettings()
     {
         var settings = new UserSettings
         {
-            ExcludedPaths = new List<string> { @"C:\a" },
-            IgnoredPathGlobs = new List<string> { "*.tmp" },
-            IgnoredPathRegexes = new List<string> { "^cache" },
+            IndexRules = new List<IndexRuleSetting>
+            {
+                new() { Pattern = @"C:\a", Effect = IndexRuleEffect.Exclude },
+                new() { Pattern = "*.tmp", Effect = IndexRuleEffect.Low },
+            },
         };
 
         var snapshot = SettingsChangeSnapshot.CaptureExclusions(settings);
 
-        CollectionAssert.AreEqual(new[] { @"C:\a" }, snapshot.Paths.ToList());
-        CollectionAssert.AreEqual(new[] { "*.tmp" }, snapshot.Globs.ToList());
-        CollectionAssert.AreEqual(new[] { "^cache" }, snapshot.Regexes.ToList());
+        CollectionAssert.AreEqual(new[] { @"C:\a", "*.tmp" }, snapshot.Rules.Select(r => r.Pattern).ToList());
+        CollectionAssert.AreEqual(new[] { IndexRuleEffect.Exclude, IndexRuleEffect.Low }, snapshot.Rules.Select(r => r.Effect).ToList());
     }
 
     [TestMethod]
     public void ExclusionsChanged_IdenticalSnapshots_ReturnsFalse()
     {
-        var settings = new UserSettings { ExcludedPaths = new List<string> { @"C:\a" } };
+        var settings = new UserSettings { IndexRules = new List<IndexRuleSetting> { new() { Pattern = @"C:\a", Effect = IndexRuleEffect.Exclude } } };
         var snapshot1 = SettingsChangeSnapshot.CaptureExclusions(settings);
         var snapshot2 = SettingsChangeSnapshot.CaptureExclusions(settings);
 
@@ -36,10 +37,19 @@ public sealed class SettingsChangeSnapshotTests
     [TestMethod]
     public void ExclusionsChanged_DifferentPaths_ReturnsTrue()
     {
-        var oldSnapshot = SettingsChangeSnapshot.CaptureExclusions(new UserSettings { ExcludedPaths = new List<string> { @"C:\a" } });
-        var newSnapshot = SettingsChangeSnapshot.CaptureExclusions(new UserSettings { ExcludedPaths = new List<string> { @"C:\b" } });
+        var oldSnapshot = SettingsChangeSnapshot.CaptureExclusions(new UserSettings { IndexRules = new List<IndexRuleSetting> { new() { Pattern = @"C:\a", Effect = IndexRuleEffect.Exclude } } });
+        var newSnapshot = SettingsChangeSnapshot.CaptureExclusions(new UserSettings { IndexRules = new List<IndexRuleSetting> { new() { Pattern = @"C:\b", Effect = IndexRuleEffect.Exclude } } });
 
         Assert.IsTrue(SettingsChangeSnapshot.ExclusionsChanged(oldSnapshot, newSnapshot));
+    }
+
+    [TestMethod]
+    public void ExclusionsChanged_PriorityOnlyChange_ReturnsFalse()
+    {
+        var oldSnapshot = SettingsChangeSnapshot.CaptureExclusions(new UserSettings { IndexRules = new List<IndexRuleSetting> { new() { Pattern = "build\\", Effect = IndexRuleEffect.Low } } });
+        var newSnapshot = SettingsChangeSnapshot.CaptureExclusions(new UserSettings { IndexRules = new List<IndexRuleSetting> { new() { Pattern = "build\\", Effect = IndexRuleEffect.High } } });
+
+        Assert.IsFalse(SettingsChangeSnapshot.ExclusionsChanged(oldSnapshot, newSnapshot));
     }
 
     [TestMethod]

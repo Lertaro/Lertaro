@@ -7,8 +7,7 @@
         MinWidth="480" MinHeight="160" MaxWidth="620" MaxHeight="800"
         SizeToContent="WidthAndHeight"
         WindowStartupLocation="CenterOwner"
-        Background="Transparent"
-        AllowsTransparency="True"
+        Background="{DynamicResource ContentBg}"
         WindowStyle="None"
         ResizeMode="CanResizeWithGrip"
         TextElement.Foreground="{DynamicResource TextPrimary}"
@@ -17,6 +16,15 @@
         Loaded="Window_Loaded"
         Activated="Window_Activated"
         PreviewKeyDown="Window_PreviewKeyDown">
+
+    <!-- The window is opaque, which is what lets its text be antialiased sub-pixel; the chrome is what
+         keeps an opaque borderless window behaving, with a resize border of 0 so the edge does not claim the
+         pointer away from the content against it. The bottom-right grip is the only thing that resizes it;
+         see ResizeGrip.xaml. CaptionHeight is 0 deliberately: this dialog drags from its own title bar
+         handler, so the chrome must not claim a caption area of its own. -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
 
     <!-- MaxWidth above doubles as the wrap width. SizeToContent still shrinks a short prompt to its
          own content, but a field with a long description has no reason to stop before the cap, so the
@@ -37,9 +45,13 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <Border CornerRadius="10" Background="{DynamicResource ContentBg}"
-            BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1" Margin="8">
-        <Border CornerRadius="10" helpers:RoundedClip.IsEnabled="True">
+    <!-- The card IS the window: the 8 DIP margin it carried was a transparent halo holding the drop shadow
+         the layered window painted around itself, and an opaque window has no pixels out there to paint
+         into. The CornerRadius stays: the window manager rounds the real window on Windows 11, and this
+         radius is what rounds the card anywhere it cannot. -->
+    <Border x:Name="Surface" CornerRadius="{StaticResource CornerRadiusWindow}" Background="{DynamicResource ContentBg}"
+            BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1">
+        <Border CornerRadius="{StaticResource CornerRadiusWindow}" helpers:RoundedClip.IsEnabled="True">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="38"/>
@@ -59,7 +71,7 @@
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
                             <Image x:Name="TitleBarLogo" Width="16" Height="16" Margin="0,0,8,0"/>
                             <TextBlock x:Name="TxtTitle" Text="Lertaro"
-                                       FontSize="12.5" FontWeight="SemiBold"
+                                       FontSize="13" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center"/>
                         </StackPanel>
                         <Button Content="&#xE8BB;" Style="{StaticResource CloseButton}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0" Click="BtnClose_Click"/>

@@ -26,8 +26,9 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
     private readonly SearchWindowChromeHandler _chromeHandler;
     private readonly SearchWindowInputHandler _inputHandler;
     private readonly ShellMenuPresenter _menuPresenter;
-    // Must match SearchWindow.xaml's MainBorder Margin.
-    public Thickness VisibleContentInset => new(8);
+    // The window is the card: the 8 DIP transparent halo this used to publish is gone with the layered
+    // window that needed it, so anything docking against this window targets the real visible edge.
+    public Thickness VisibleContentInset => new(0);
 
     // Whether to reopen the preview once this window has a first result to show it for. Applied then
     // rather than now because there is nothing to preview yet, and because the quick window this is
@@ -45,6 +46,9 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
         // close it as usual.
         SystemMenuBlocker.Attach(this, blockClose: false);
         ThemedWindowIconHelper.Apply(this);
+        // The corners are the window's own shape now rather than a painting inside a transparent one.
+        // Windows 11 rounds the real window; older Windows keeps the painted radius above.
+        DwmWindowCorners.ApplyRound(this);
 
         // XAML's Height/Width are just the design-time/factory-reset default -- the real size (user's
         // last resize, or the General settings page value) comes from UiMetrics, mirroring how
@@ -57,6 +61,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
         _inputHandler = new SearchWindowInputHandler(this);
         SearchBox.IconLeftClicked += (_, _) => TrayIconService.Instance?.ShowMenuAt(SearchBox, hideShowWindow: true);
         SearchBox.IconMiddleClicked += () => SearchWindowStayOpenSupport.Toggle(this);
+        SearchBox.IconRightClicked += _chromeHandler.CenterInWorkArea;
         this.PreviewKeyDown += Window_PreviewKeyDown;
         this.PreviewMouseDown += (_, e) => _inputHandler.HandleWindowPreviewMouseDown(e);
         this.StateChanged += SearchWindow_StateChanged;

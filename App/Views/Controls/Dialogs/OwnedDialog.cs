@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Interop;
+using Lertaro.App.Helpers.Visuals;
 
 using Application = System.Windows.Application;
 
@@ -81,6 +82,11 @@ internal static class OwnedDialog
     /// </remarks>
     public static void ShowModal(Window dialog)
     {
+        // Every custom dialog in the app is built here and shown from here, so this is the one place its first
+        // frame can be kept out of sight: an opaque borderless dialog is the window class's black until the
+        // render thread presents, and a dialog made of a plugin-file list is a heavy first tree.
+        WindowParking.ParkUntilPainted(dialog);
+
         var owner = dialog.Owner;
         if (owner == null)
         {

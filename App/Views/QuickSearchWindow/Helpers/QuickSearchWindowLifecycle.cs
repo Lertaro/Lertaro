@@ -23,25 +23,30 @@ public class QuickSearchWindowLifecycle
         _handleTaskbarCreated = handleTaskbarCreated;
     }
 
-    // Fires as soon as the Win32 HWND exists, before WPF's first layout/render pass -- the earliest
-    // point CompositionTarget.RenderMode can be set. This window is created once at startup and only
-    // ever Hidden, never Closed -- its DirectX composition surface stays alive for the whole process
-    // lifetime, which NVIDIA Advanced Optimus treats as "GPU in use" and refuses to hot-switch around
-    // (GitHub #82). Forcing software rendering on just this one window's HwndTarget avoids that,
-    // without touching SettingsWindow/SearchWindow/etc. (which are properly closed and don't trigger
-    // this). Setting it here rather than in HandleLoaded (which runs after the window has already
-    // been shown once) matters: by Loaded, WPF may already have created the hardware D3D device for
-    // this HwndTarget, and RenderMode only governs FUTURE frames, not retroactively releasing one
-    // that's already backing this window. Opt-out setting since it costs this window its hardware
-    // acceleration.
+    // Fires as soon as the Win32 HWND exists, before WPF's first layout/render pass -- which is the only point
+    // RenderMode can still be set usefully: by HandleLoaded, WPF may already have created the hardware D3D
+    // device for this window's HwndTarget, and RenderMode governs future frames, not one that is already
+    // backing the window.
     public void HandleSourceInitialized()
     {
-        if (!UserSettings.Load().EnableHardwareAcceleration
-            && PresentationSource.FromVisual(_window) is HwndSource hwndSource
-            && hwndSource.CompositionTarget is HwndTarget hwndTarget)
-        {
-            hwndTarget.RenderMode = RenderMode.SoftwareOnly;
-        }
+        // The window is the card itself, so its rounded corners are the window's real shape rather than a
+        // painting inside it -- the same call the notification windows make through WindowSurface. On
+        // Windows 10 the attribute does not exist, the call fails, and the corners stay square, which is
+        // this project's accepted fallback.
+        DwmWindowCorners.ApplyRound(_window);
+
+        // Composed on the CPU. This window is created once at startup and only ever Hidden, never Closed, so
+        // its DirectX composition surface stays alive for the whole process lifetime, which NVIDIA Advanced
+        // Optimus treats as "GPU in use" and refuses to hot-switch around (GitHub #82). The other half is the
+        // summon: a hardware target has to create and resize a surface, and a card that is being shown across a
+        // DPI boundary does that while it is already on screen. Software composition was measured never to be
+        // slower for a card (scratch/blackprobe) and it keeps ClearType, which is more than the layered-window
+        // route this app gave up can say.
+        //
+        // It is deliberately not gated on EnableHardwareAcceleration any more: that setting is an opt-out for
+        // the windows the user sits inside (Settings, the full search window, QuickLook), and it cannot be the
+        // reason a 200ms unpainted gap opens on the ones they only ever summon. It still governs those.
+        CardRenderMode.Apply(_window);
     }
 
     public void HandleLoaded()
@@ -70,13 +75,11 @@ public class QuickSearchWindowLifecycle
             });
         }
 
-        if (ThemeManager.Instance.ActiveTheme != null)
-        {
-            WindowEffectHelper.ApplyThemeEffects(_window, ThemeManager.Instance.ActiveTheme);
-        }
-
         // Position the window
 
+        // A no-op here: the warm-up window is guarded against being positioned at all until a summon takes
+        // it over (see QuickSearchWindow._suppressPositioning, which records what went wrong when it was
+        // not). The summon positions the window twice around its own Show.
         _window.PositionWindow();
 
         // Focus search box or hide on first launch

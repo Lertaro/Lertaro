@@ -6,8 +6,7 @@
         Title="Lertaro"
         Width="440" MinHeight="180" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
-        Background="Transparent"
-        AllowsTransparency="True"
+        Background="{DynamicResource ContentBg}"
         WindowStyle="None"
         ResizeMode="NoResize"
         TextElement.Foreground="{DynamicResource TextPrimary}"
@@ -23,15 +22,16 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <Border CornerRadius="10" Background="{DynamicResource ContentBg}"
-            BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1" Margin="8">
-        <Border.Effect>
-            <DropShadowEffect BlurRadius="20" ShadowDepth="2" Opacity="0.2" Color="{DynamicResource ShadowColor}"/>
-        </Border.Effect>
+    <!-- The card IS the window: the 8 DIP margin it carried was a transparent halo for the drop shadow a
+         layered window painted into it, and an opaque window has no pixels out there to paint into: so
+         the halo and the effect that needed it are both gone. The CornerRadius stays: the window manager
+         rounds the real window on Windows 11, and this radius is what rounds the card anywhere it cannot. -->
+    <Border x:Name="Surface" CornerRadius="{StaticResource CornerRadiusWindow}" Background="{DynamicResource ContentBg}"
+            BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1">
         <!-- ClipToBounds ignores CornerRadius (a WPF limitation, not a bug here): helpers:RoundedClip
              builds a real rounded-rect Clip instead: child content flush to the edge would otherwise show
              square corners poking past this Border's own rounded paint. -->
-        <Border CornerRadius="10" helpers:RoundedClip.IsEnabled="True">
+        <Border CornerRadius="{StaticResource CornerRadiusWindow}" helpers:RoundedClip.IsEnabled="True">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="38"/>
@@ -46,7 +46,7 @@
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
                             <Image x:Name="TitleBarLogo" Width="16" Height="16" Margin="0,0,8,0"/>
                             <TextBlock x:Name="TxtTitle" Text="Lertaro"
-                                        FontSize="12.5" FontWeight="SemiBold"
+                                        FontSize="13" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center"/>
                         </StackPanel>
                         <!-- Title Bar (no close button needed for simple alert message boxes) -->
@@ -70,7 +70,7 @@
                     <ScrollViewer Grid.Column="1" MaxHeight="400" VerticalScrollBarVisibility="Auto"
                                   VerticalAlignment="Center" Margin="14,0,0,0">
                         <TextBlock x:Name="TxtMessage"
-                                   TextWrapping="Wrap" FontSize="13.5" LineHeight="20"
+                                   TextWrapping="Wrap" FontSize="14" LineHeight="20"
                                    Foreground="{DynamicResource TextPrimary2}"/>
                     </ScrollViewer>
                 </Grid>

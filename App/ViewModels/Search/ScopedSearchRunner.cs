@@ -40,6 +40,38 @@ internal static class ScopedSearchRunner
         }
     }
 
+    /// <summary>
+    /// Searches each high-priority directory on its own and adds what it finds to the same result stream.
+    /// </summary>
+    /// <remarks>
+    /// The engine truncates the shared candidate pool by name relevance before the App can apply priority,
+    /// so a promoted folder with ordinary names ("Readme.txt") could never reach the ranking. These rows are
+    /// additive and unordered; the App re-ranks the merged set, where the priority rules put them first.
+    /// Failures are swallowed per folder: a broken rule must not cost the query its normal results.
+    /// </remarks>
+    public static async Task RunPriorityRootsAsync(
+        SearchService searchService,
+        IReadOnlyList<string> roots,
+        string query,
+        int perRootLimit,
+        int appLimit,
+        Action<SearchResult> onResult,
+        CancellationToken token)
+    {
+        var tasks = roots.Select(root => RunFolderAsync(
+            searchService, root, query, perRootLimit, appLimit, onResult,
+            onLocalSearchFailed: static () => { }, bypassExclusions: false, fileNameFilter: null, token)).ToArray();
+
+        try
+        {
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Same rule as the folder fan-out above.
+        }
+    }
+
     private static async Task RunFolderAsync(
         SearchService searchService,
         string folder,
@@ -49,7 +81,7 @@ internal static class ScopedSearchRunner
         Action<SearchResult> onResult,
         Action onLocalSearchFailed,
         bool bypassExclusions,
-        string fileNameFilter,
+        string? fileNameFilter,
         CancellationToken token)
     {
         try

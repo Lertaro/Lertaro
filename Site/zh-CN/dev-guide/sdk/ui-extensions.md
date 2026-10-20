@@ -201,10 +201,10 @@ public interface ITheme
     bool IsDark { get; }
     ResourceDictionary GetResources();
 
-    // 小于 1.0 时，经由宿主分层表面辅助方法构建的窗口会成为分层的半透明窗口，其圆角需要
-    // 自己绘制并裁剪；等于 1.0 时窗口保持不透明，由窗口管理器负责圆角，并保住 ClearType。
-    // 这个选择在窗口的构造函数里只做一次，因为 AllowsTransparency 在句柄存在之后就无法改变。
-    // 目前它作用在两个通知窗口上；窗口还在屏幕上时切换主题并不会重建它。
+    // 不再作用于任何窗口。设置了 AllowsTransparency 的窗口就是分层窗口，而分层窗口无法渲染
+    // ClearType，所以本应用的窗口一律不透明，也不再读取任何主题的不透明度。成员保留是因为
+    // 第三方主题实现了它，其取值会被忽略。
+    [Obsolete("Window transparency is no longer supported; this value is ignored.")]
     double WindowOpacity => 1.0;
 }
 ```

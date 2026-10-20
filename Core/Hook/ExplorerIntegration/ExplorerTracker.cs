@@ -424,7 +424,7 @@ public class ExplorerTracker : IDisposable
     // process, because entering it is not free for the target: a host that answers a path query by running a
     // script on its own UI thread loses the tooltip/preview it was in the middle of showing. Pointer
     // movement inside the host is never an answer -- see ExplorerHostReadFloor.
-    public void RequestHostPathRead() => _pathPoller.RequestHostPathRead();
+    public void RequestHostPathRead(bool immediate = false) => _pathPoller.RequestHostPathRead(immediate);
     public void SetInlineWindowOnScreen(bool onScreen) => _pathPoller.SetInlineWindowOnScreen(onScreen);
     public void UpdatePath(string path, bool isDesktop, bool? isDialog = null)
     {

@@ -58,7 +58,21 @@ Get-ChildItem -LiteralPath $root -Recurse -Force | ForEach-Object {
 - **La última actualización silenciosa falló**: El actualizador escribe su veredicto —estado, motivo y carpeta de reversión— en `update-result.json`, junto a la instalación. Lertaro muestra ese motivo una vez en el siguiente arranque y no repite el mismo veredicto; si el aviso aparece una y otra vez, elimina ese archivo o instala la nueva versión manualmente sobre la actual.
 - **Los vínculos por debajo del directorio de datos se rechazan siempre**: Solo la propia cadena del directorio de datos puede resolverse como vínculo; los subdirectorios de su interior no pueden serlo (ver [**Configuración → Acerca de**](./settings/about)).
 
-## 7. Consulta de registros y reporte de errores
+## 7. La aplicación se cierra justo después de iniciarla
+
+- **La instalación termina y no aparece ninguna ventana**: en Windows 10 22H2 (compilación 19045) y anteriores, un procesador con CET por hardware (Intel de 12.ª generación o posterior, AMD Zen 3 o posterior) hace que .NET aborte antes de ejecutar código propio de Lertaro, porque esas versiones del sistema no admiten por completo el CET en modo de usuario. El Visor de eventos registra una entrada de **.NET Runtime** con el texto *"Your Windows doesn't fully support CET. Please install all available Windows updates"*, y Lertaro no escribe ningún registro: el proceso termina antes de que el registro comience.
+- **El paquete de instalación lo repara él solo**: el asistente lee el número de compilación de Windows y, en Windows 10 22H2 y anteriores, elimina la directiva de pila de sombra en modo de usuario de los tres ejecutables de esa carpeta de instalación. No afecta a nada más del equipo, y volver a ejecutar el asistente la aplica de nuevo.
+- **Edición portátil**: el instalador no alcanza la carpeta portátil, así que abre PowerShell como administrador, sustituye la ruta por tu propia carpeta y ejecuta una vez estos tres comandos.
+
+```powershell
+Set-ProcessMitigation -Name 'D:\Lertaro\Lertaro.App.exe' -Disable UserShadowStack
+Set-ProcessMitigation -Name 'D:\Lertaro\Lertaro.Service.exe' -Disable UserShadowStack
+Set-ProcessMitigation -Name 'D:\Lertaro\lff.exe' -Disable UserShadowStack
+```
+
+- **Aplicar todas las actualizaciones de Windows disponibles** es la otra solución, y es justo lo que pide el mensaje de .NET. Si la aplicación sigue cerrándose de inmediato, recoge los registros como se describe en la sección siguiente y abre una incidencia.
+
+## 8. Consulta de registros y reporte de errores
 
 Si el problema persiste, revisa los registros en [**Configuración → Estado del servicio**](./settings/service-status):
 

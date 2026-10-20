@@ -13,84 +13,88 @@
         <ResourceDictionary Source="Styles.xaml"/>
     </ResourceDictionary.MergedDictionaries>
 
-    <DataTemplate x:Key="RuleItemTemplate">
+    <DataTemplate x:Key="IndexRuleItemTemplate">
         <Border BorderBrush="{DynamicResource SettingsRowBorderBrush}" BorderThickness="0,0,0,1" Padding="0,9">
             <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <Grid Grid.ColumnSpan="3">
-                    <Grid.Style><Style TargetType="Grid"><Style.Triggers><DataTrigger Binding="{Binding IsEditing}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Grid.Style>
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <TextBlock Text="&#xE8B7;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="14" Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="13" Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="&#xE70F;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_EditTooltip]}" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.EditPathCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
-                        <Button Content="&#xE74D;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_RemoveTooltip]}" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.RemovePathCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                <!-- Display row -->
+                <Grid>
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="24"/><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock FontFamily="{DynamicResource AppIconFontFamily}" FontSize="14" Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Text" Value="&#xE8A5;"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Kind}" Value="Path">
+                                        <Setter Property="Text" Value="&#xE8B7;"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <TextBlock Grid.Column="1" Text="{Binding EffectText}" FontSize="12" VerticalAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding EffectValue}" Value="Exclude">
+                                        <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding EffectValue}" Value="High">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding EffectValue}" Value="Low">
+                                        <Setter Property="Foreground" Value="{DynamicResource TextSecondary2}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <TextBlock Grid.Column="2" Text="{Binding Value}" FontSize="13" Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <TextBlock Text="&#xE7BA;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="13" Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center" Margin="0,0,4,0"
+                                   ToolTip="{Binding ConflictTooltip}" Visibility="{Binding IsConflict, Converter={StaticResource BoolToVis}}"/>
+                        <Button Content="&#xE70F;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_EditTooltip]}" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.EditRuleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                        <Button Content="&#xE74D;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_RemoveTooltip]}" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.RemoveRuleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
                     </StackPanel>
                 </Grid>
-                <Grid Grid.ColumnSpan="3">
-                    <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsEditing}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Grid.Style>
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <TextBlock Text="&#xE8B7;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="14" Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Column="1" Text="{Binding EditValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
-                    <StackPanel Grid.Column="2" Orientation="Horizontal">
-                        <Button Content="&#xE73E;" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.SavePathCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
-                        <Button Content="&#xE711;" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.CancelPathCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
-                    </StackPanel>
-                </Grid>
-            </Grid>
-        </Border>
-    </DataTemplate>
 
-    <DataTemplate x:Key="GlobItemTemplate">
-        <Border BorderBrush="{DynamicResource SettingsRowBorderBrush}" BorderThickness="0,0,0,1" Padding="0,9">
-            <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <Grid Grid.ColumnSpan="3">
-                    <Grid.Style><Style TargetType="Grid"><Style.Triggers><DataTrigger Binding="{Binding IsEditing}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Grid.Style>
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <TextBlock Text="&#xE8A5;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="14" Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="13" Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="&#xE70F;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_EditTooltip]}" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.EditGlobCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
-                        <Button Content="&#xE74D;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_RemoveTooltip]}" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.RemoveGlobCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
-                    </StackPanel>
-                </Grid>
-                <Grid Grid.ColumnSpan="3">
-                    <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsEditing}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Grid.Style>
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <TextBlock Text="&#xE8A5;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="14" Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Column="1" Text="{Binding EditValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
-                    <StackPanel Grid.Column="2" Orientation="Horizontal">
-                        <Button Content="&#xE73E;" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.SaveGlobCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
-                        <Button Content="&#xE711;" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.CancelGlobCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
-                    </StackPanel>
-                </Grid>
-            </Grid>
-        </Border>
-    </DataTemplate>
-
-    <DataTemplate x:Key="RegexItemTemplate">
-        <Border BorderBrush="{DynamicResource SettingsRowBorderBrush}" BorderThickness="0,0,0,1" Padding="0,9">
-            <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <Grid Grid.ColumnSpan="3">
-                    <Grid.Style><Style TargetType="Grid"><Style.Triggers><DataTrigger Binding="{Binding IsEditing}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Grid.Style>
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <TextBlock Text="&#xE8A5;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="14" Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="13" Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="&#xE70F;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_EditTooltip]}" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.EditRegexCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
-                        <Button Content="&#xE74D;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_RemoveTooltip]}" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.RemoveRegexCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
-                    </StackPanel>
-                </Grid>
-                <Grid Grid.ColumnSpan="3">
-                    <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsEditing}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Grid.Style>
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <TextBlock Text="&#xE8A5;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="14" Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Column="1" Text="{Binding EditValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
-                    <StackPanel Grid.Column="2" Orientation="Horizontal">
-                        <Button Content="&#xE73E;" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.SaveRegexCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
-                        <Button Content="&#xE711;" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.CancelRegexCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                <!-- Edit row: text plus the effect dropdown, so moving a rule between levels needs no drag. -->
+                <Grid>
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="24"/><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="1" Text="&#xE8B7;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="14" Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Column="1" Margin="0,0,8,0" Height="28" Style="{StaticResource SettingsComboBox}"
+                              ItemsSource="{Binding DataContext.Exclusions.EffectOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                              SelectedValuePath="Value" DisplayMemberPath="Label"
+                              SelectedValue="{Binding EditEffectValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBox Grid.Column="2" Text="{Binding EditValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="3" Orientation="Horizontal">
+                        <Button Content="&#xE73E;" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.SaveRuleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+                        <Button Content="&#xE711;" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.CancelRuleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
                     </StackPanel>
                 </Grid>
             </Grid>

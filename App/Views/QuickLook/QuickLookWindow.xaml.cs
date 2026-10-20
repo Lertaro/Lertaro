@@ -13,9 +13,10 @@ namespace Lertaro.App.Views.QuickLook;
 
 public partial class QuickLookWindow : Window
 {
-    // Must match QuickLookWindow.xaml's WindowBorder Margin -- the invisible gap between the window's
-    // outer (transparent, drop-shadow) bounds and the actual visible card, on every side.
-    public const double ContentMargin = 12;
+    // The window is the card now: the 12 DIP the card used to sit inside the window was the transparent
+    // halo the layered window painted its drop shadow into. Whoever reads this for docking math
+    // (QuickLookManagerPositioning) therefore targets the window's own rectangle, which is the visible one.
+    public const double ContentMargin = 0;
 
     private string? _currentFilePath;
     private readonly PreviewOverlay _overlay;
@@ -46,6 +47,10 @@ public partial class QuickLookWindow : Window
     public QuickLookWindow()
     {
         InitializeComponent();
+        // The window kind is fixed for the life of the handle, so it is declared opaque in XAML. Rounding
+        // the real window is the whole of it: this window declares its own painted radius, and the nested
+        // RoundedClip that keeps content inside it must keep agreeing with it.
+        DwmWindowCorners.ApplyRound(this);
         SystemMenuBlocker.Attach(this);
         ThemedWindowIconHelper.Apply(this);
         _overlay = new PreviewOverlay(this, ContentArea);
@@ -162,9 +167,9 @@ public partial class QuickLookWindow : Window
                 _currentPreview = content;
                 if (content is HwndHost host)
                 {
-                    // Native (HwndHost) previews can't render in this layered window — host them in a
-                    // separate non-layered overlay laid over the content area. Owner requires the window
-                    // to be shown, so defer until it is visible.
+                    // Native (HwndHost) previews are hosted in a separate overlay window laid exactly over
+                    // the content area (see PreviewOverlay), not in this window's own visual tree. Owner
+                    // requires the window to be shown, so defer until it is visible.
                     if (IsVisible) _overlay.Show(host);
                     else _pendingHost = host;
                 }

@@ -12,8 +12,8 @@ internal static class HistorySearchCandidateMapper
 {
     private const int MaxCandidates = 50;
 
-    public static List<SearchResultMapper.RankedCandidate> Collect(FuzzyQuery fuzzy, string? scope) =>
-        Collect(fuzzy, scope, SearchHistoryStore.GetEntries(), SafeFileExists, SafeDirectoryExists);
+    public static List<SearchResultMapper.RankedCandidate> Collect(FuzzyQuery fuzzy, string? scope, int typeRank = int.MaxValue) =>
+        Collect(fuzzy, scope, SearchHistoryStore.GetEntries(), SafeFileExists, SafeDirectoryExists, typeRank);
 
     private static bool SafeFileExists(string path)
     {
@@ -34,7 +34,10 @@ internal static class HistorySearchCandidateMapper
         string? scope,
         IEnumerable<HistoryEntry> entries,
         Func<string, bool> fileExists,
-        Func<string, bool> directoryExists)
+        Func<string, bool> directoryExists,
+        // The caller's rank for the Files type: history rows ARE file paths, so they have to land in the
+        // same type group as the index's file rows instead of a group of their own.
+        int typeRank = int.MaxValue)
     {
         if (fuzzy.IsEmpty)
             return [];
@@ -48,9 +51,8 @@ internal static class HistorySearchCandidateMapper
             // even over something opened more often before.
             .ThenByDescending(candidate => candidate.Entry.Time)
             .ThenByDescending(candidate => candidate.Entry.Count)
-            // Shape is match quality, and history deliberately ranks use above match quality.
-            .ThenBy(candidate => candidate.Match.Shape)
-            .ThenByDescending(candidate => candidate.Match.Weight);
+            // Shape is gone; the shared quality ladder is the only textual order.
+            .ThenBy(candidate => candidate.Match, MatchRankQualityComparer.Instance);
         var candidates = new List<SearchResultMapper.RankedCandidate>(MaxCandidates);
         var candidatePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var normalizedScope = string.IsNullOrEmpty(scope) ? null : SearchResultHelper.NormalizePath(scope);
@@ -66,15 +68,17 @@ internal static class HistorySearchCandidateMapper
                 continue;
 
             // Negative priorities put a learned keyword match ahead of ordinary global history, whose
-            // priorities start at zero. Match position, recency, usage count, and match quality determine
-            // this list's order above.
+            // priorities start at zero. The row is marked history-only: the keyword matched, not the
+            // displayed name, so the quality ladder must not treat its perfect keyword rank as a name hit.
             candidates.Add(new SearchResultMapper.RankedCandidate(
                 result,
-                IsCurated: true,
-                Priority: candidates.Count - MaxCandidates,
-                TypeRank: int.MaxValue,
+                IsFavorite: false,
+                HistoryCount: entry.Count,
+                HistoryPriority: candidates.Count - MaxCandidates,
+                TypeRank: typeRank,
                 Match: match,
-                NormalizedPath: normalizedPath));
+                NormalizedPath: normalizedPath,
+                IsHistoryOnly: true));
         }
 
         return candidates;
@@ -201,8 +205,8 @@ internal static class HistorySearchCandidateMapper
     }
 
     // The full window ranks only rows the index returned, so it needs a path -> priority map rather than
-    // rows: learned keyword matches first, then any other history, then Windows Recent Items, then
-    // everything else -- the quick window's ladder. No existence probes: every row this is compared
+    // rows: learned-keyword order inside a history band, then Windows Recent Items. The priority is
+    // compared AFTER match quality and the history band. No existence probes: every row this is compared
     // against came from the index, so it exists, and a probe could stall on a network share.
     internal static IReadOnlyDictionary<string, int> RankingPriorities(
         FuzzyQuery fuzzy,
@@ -227,8 +231,8 @@ internal static class HistorySearchCandidateMapper
             var path = candidate.Result.FullPath;
             if (path.Length > 3 && path[^1] == '\\')
                 path = path.TrimEnd('\\');
-            if (!priorities.TryGetValue(path, out var priority) || candidate.Priority < priority)
-                priorities[path] = candidate.Priority;
+            if (!priorities.TryGetValue(path, out var priority) || candidate.HistoryPriority < priority)
+                priorities[path] = candidate.HistoryPriority;
         }
         return priorities;
     }

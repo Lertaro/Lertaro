@@ -36,8 +36,8 @@ internal static class WindowsRecentCandidateMapper
     // the machine running them happens to have opened recently.
     internal static Func<IReadOnlyList<Shortcut>> Source = Listing;
 
-    public static List<SearchResultMapper.RankedCandidate> Collect(FuzzyQuery fuzzy, string? scope) =>
-        fuzzy.IsEmpty ? [] : Collect(fuzzy, scope, Source(), ResolveCached, SafeFileExists, SafeDirectoryExists);
+    public static List<SearchResultMapper.RankedCandidate> Collect(FuzzyQuery fuzzy, string? scope, int typeRank = int.MaxValue) =>
+        fuzzy.IsEmpty ? [] : Collect(fuzzy, scope, Source(), ResolveCached, SafeFileExists, SafeDirectoryExists, typeRank);
 
     // For ranking rows the index already returned (the full window): those exist by construction, so the
     // targets are not probed.
@@ -50,15 +50,16 @@ internal static class WindowsRecentCandidateMapper
         IReadOnlyList<Shortcut> shortcuts,
         Func<Shortcut, string?> resolve,
         Func<string, bool> fileExists,
-        Func<string, bool> directoryExists)
+        Func<string, bool> directoryExists,
+        int typeRank = int.MaxValue)
     {
         if (fuzzy.IsEmpty || shortcuts.Count == 0)
             return [];
 
         var hits = shortcuts
-            .Select(shortcut => (Shortcut: shortcut, Match: fuzzy.Rank(shortcut.TargetName)))
+            .Select(shortcut => (Shortcut: shortcut, Match: fuzzy.BestMatch(shortcut.TargetName)))
             .Where(hit => hit.Match.IsMatch)
-            .OrderBy(hit => hit.Match.Shape)
+            .OrderBy(hit => hit.Match, MatchRankQualityComparer.Instance)
             .ThenByDescending(hit => hit.Shortcut.LastWriteUtc);
         var normalizedScope = string.IsNullOrEmpty(scope) ? null : SearchResultHelper.NormalizePath(scope);
         var candidates = new List<SearchResultMapper.RankedCandidate>(MaxCandidates);
@@ -89,9 +90,10 @@ internal static class WindowsRecentCandidateMapper
             // so this sits above every ordinary result, in the order built here.
             candidates.Add(new SearchResultMapper.RankedCandidate(
                 result,
-                IsCurated: false,
-                Priority: int.MaxValue - MaxCandidates + candidates.Count,
-                TypeRank: int.MaxValue,
+                IsFavorite: false,
+                HistoryCount: 0,
+                HistoryPriority: int.MaxValue - MaxCandidates + candidates.Count,
+                TypeRank: typeRank,
                 Match: match,
                 NormalizedPath: normalizedPath));
         }

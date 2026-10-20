@@ -202,10 +202,10 @@ public interface ITheme
     bool IsDark { get; }
     ResourceDictionary GetResources();
 
-    // 小於 1.0 時，經由宿主的階層式表面輔助方法建立的視窗會成為階層式、半透明的視窗，
-    // 其圓角必須改為繪製並裁剪；等於 1.0 時它保持不透明、由視窗管理員圓角，並保留
-    // ClearType。這個選擇在視窗的建構子中一次決定，因為 AllowsTransparency 在控制代碼
-    // 存在之後就無法再更改。目前只套用到通知視窗；視窗還在畫面上時切換主題並不會重建它。
+    // 不再作用於任何視窗。設定了 AllowsTransparency 的視窗就是階層式視窗，而階層式視窗無法
+    // 繪製 ClearType，所以本應用程式的視窗一律不透明，也不再讀取任何主題的不透明度。成員
+    // 保留是因為第三方主題實作了它，其值會被忽略。
+    [Obsolete("Window transparency is no longer supported; this value is ignored.")]
     double WindowOpacity => 1.0;
 }
 ```

@@ -23,10 +23,14 @@ internal sealed record WalkOptions(
             WorkerCount: 0,
             UseIgnoreFiles: true);
 
-    public static WalkOptions FromUserSettings(UserSettings settings) => From(
-        settings.ExcludedPaths,
-        settings.IgnoredPathGlobs,
-        settings.IgnoredPathRegexes);
+    public static WalkOptions FromUserSettings(UserSettings settings)
+    {
+        var paths = new List<string>();
+        var globs = new List<string>();
+        var regexes = new List<string>();
+        IndexRuleMigration.CollectExcludeLists(IndexRuleMigration.Ensure(settings), paths, globs, regexes);
+        return From(paths, globs, regexes);
+    }
 }
 
 internal readonly record struct NetworkDriveWalkStats(

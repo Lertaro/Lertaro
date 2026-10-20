@@ -5,14 +5,23 @@ namespace Lertaro.App.ViewModels.Settings;
 internal static class SettingsChangeSnapshot
 {
     public static ExclusionSnapshot CaptureExclusions(UserSettings settings) => new(
-        settings.ExcludedPaths.ToList(),
-        settings.IgnoredPathGlobs.ToList(),
-        settings.IgnoredPathRegexes.ToList());
+        IndexRuleMigration.Ensure(settings)
+            .Select(rule => new IndexRuleSnapshot(rule.Pattern, rule.Effect))
+            .ToList());
 
+    /// <summary>
+    /// Only the excluding subset matters to the index: low/normal/high rules never change what a network
+    /// walk skips, so moving between them must not trigger a rescan.
+    /// </summary>
     public static bool ExclusionsChanged(ExclusionSnapshot oldRules, ExclusionSnapshot newRules)
-        => StringListChanged(oldRules.Paths, newRules.Paths)
-        || StringListChanged(oldRules.Globs, newRules.Globs)
-        || StringListChanged(oldRules.Regexes, newRules.Regexes);
+        => !ExcludePatterns(oldRules).SequenceEqual(ExcludePatterns(newRules), StringComparer.OrdinalIgnoreCase);
+
+    private static IEnumerable<string> ExcludePatterns(ExclusionSnapshot snapshot) => snapshot.Rules
+        .Where(rule => rule.Effect == IndexRuleEffect.Exclude)
+        .Select(rule => IndexRuleSyntax.Clean(rule.Pattern))
+        .Where(pattern => pattern.Length > 0)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(pattern => pattern, StringComparer.OrdinalIgnoreCase);
 
     public static bool StringListChanged(IReadOnlyList<string> oldValues, IReadOnlyList<string> newValues) => !oldValues
         .Where(v => !string.IsNullOrWhiteSpace(v))
@@ -26,7 +35,6 @@ internal static class SettingsChangeSnapshot
             StringComparer.OrdinalIgnoreCase);
 }
 
-internal sealed record ExclusionSnapshot(
-    IReadOnlyList<string> Paths,
-    IReadOnlyList<string> Globs,
-    IReadOnlyList<string> Regexes);
+internal sealed record ExclusionSnapshot(IReadOnlyList<IndexRuleSnapshot> Rules);
+
+internal sealed record IndexRuleSnapshot(string Pattern, IndexRuleEffect Effect);

@@ -3,6 +3,7 @@ using Lertaro.Core;
 using Lertaro.Core.Hook;
 using Application = System.Windows.Application;
 using Lertaro.App.Views.InlineSearchWindow.Helpers;
+using Lertaro.App.Helpers.Visuals;
 
 using Lertaro.App.Services.ShellIcons;
 using Lertaro.Core.Wire;
@@ -21,7 +22,7 @@ public class InlineSearchManager : IDisposable
     private readonly ExplorerTracker _explorerTracker;
     private readonly KeyboardHookService _keyboardHook;
     private readonly MouseHookService _mouseHook;
-    private readonly InlineSearchWindowCreationSupport _windowCreation;
+    private readonly InlineSearchWindowSummonSupport _windowSummon;
     private string _searchText = string.Empty;
     private IntPtr _currentHostHwnd = IntPtr.Zero;
 
@@ -37,7 +38,7 @@ public class InlineSearchManager : IDisposable
         _explorerTracker = new ExplorerTracker();
         _keyboardHook = new KeyboardHookService(_explorerTracker);
         _mouseHook = new MouseHookService(IsPointInsideWindow);
-        _windowCreation = new InlineSearchWindowCreationSupport(this);
+        _windowSummon = new InlineSearchWindowSummonSupport(this);
 
         if (App.HookClient != null)
         {
@@ -68,7 +69,7 @@ public class InlineSearchManager : IDisposable
     {
         _explorerTracker.OnExplorerActivated += (hwnd, title, className, isDesktop) => Application.Current.Dispatcher.BeginInvoke(new Action(() =>
             {
-                if (_window != null && _currentHostHwnd == hwnd)
+                if (IsInlineSearchActive && _currentHostHwnd == hwnd)
                 {
                     return;
                 }
@@ -76,8 +77,7 @@ public class InlineSearchManager : IDisposable
                 if (_explorerTracker.IsActiveWindowDialog)
                 {
                     CloseInlineSearch("ExplorerActivated (Dialog)");
-                    EnsureWindowCreated();
-                    _window?.UpdateSearchDisplay(string.Empty);
+                    SummonWindow();
                     // The window exists and knows its folder, but the user has not typed yet -- start
                     // reading that folder now so the first character does not have to wait for the walk.
                     PrewarmActiveFolderListing();
@@ -94,7 +94,7 @@ public class InlineSearchManager : IDisposable
 
         _explorerTracker.OnPathCaptured += (path, _, _) => Application.Current.Dispatcher.BeginInvoke(new Action(() =>
             {
-                if (_window != null)
+                if (_window is { IsVisible: true })
                 {
                     // In a dialog host the baseline is the folder the user was last working in, resolved by the very
                     // same logic Ctrl+G uses, so "switch to the folder I came from" and "search from the folder I
@@ -125,12 +125,11 @@ public class InlineSearchManager : IDisposable
                 }
                 else if (_explorerTracker.IsActiveWindowDialog)
                 {
-                    EnsureWindowCreated();
-                    _window?.UpdateSearchDisplay(string.Empty);
+                    SummonWindow();
                 }
 
-                // Covers both branches above: a scope just changed, or a window was just created for a
-                // dialog host. Either way the folder is known before anything is typed.
+                // Covers both branches above: a scope just changed, or a card just summoned for a dialog
+                // host. Either way the folder is known before anything is typed.
                 PrewarmActiveFolderListing();
             }));
     }
@@ -168,7 +167,7 @@ public class InlineSearchManager : IDisposable
                 {
                     _searchText += ch;
                 }
-                EnsureWindowCreated();
+                SummonWindow();
                 _window?.UpdateSearchDisplay(_searchText);
             },
             onBackspacePressed: () =>
@@ -176,7 +175,7 @@ public class InlineSearchManager : IDisposable
                 if (_searchText.Length > 0)
                 {
                     _searchText = _searchText.Substring(0, _searchText.Length - 1);
-                    EnsureWindowCreated();
+                    SummonWindow();
                     _window?.UpdateSearchDisplay(_searchText);
                 }
             });
@@ -184,7 +183,7 @@ public class InlineSearchManager : IDisposable
         router.Wire();
     }
 
-    private void EnsureWindowCreated() => _windowCreation.EnsureWindowCreated();
+    private void SummonWindow() => _windowSummon.Summon();
 
     public bool IsExecuting { get; set; }
 
@@ -260,11 +259,16 @@ public class InlineSearchManager : IDisposable
         _searchText = string.Empty;
 
         var win = _window;
-        _window = null;
         _currentHostHwnd = IntPtr.Zero;
         win.ViewModel.Monitor.StopStatusTimer();
+        // Parked, not destroyed. A card built for every summon brings its view model, its visual tree and its
+        // first composition with it, and the user watches all of that (170-258ms of an on-screen window with
+        // nothing painted in it, scratch/blackprobe); dismissed, it also loses the folder listing it warmed.
+        // The parking coordinates are what keep window enumerators from reporting a hidden window's last
+        // rectangle -- see WindowParking.
+        win.RestoreKeyboardLayout();
         win.Hide();
-        win.Close();
+        WindowParking.Park(win);
         PowerThrottlingHelper.WindowHidden("inline");
 
         // Inline search closes whenever you leave Explorer, so release the icon cache and let the working
@@ -277,14 +281,14 @@ public class InlineSearchManager : IDisposable
         PathCacheMaintenance.ClearAllPathCaches();
         IdleWorkingSetTrimmer.WindowHidden();
 
-        Logger.Log($"[InlineSearchManager] InlineSearchWindow closed and destroyed. Reason: {reason}", LogLevel.Debug);
+        Logger.Log($"[InlineSearchManager] InlineSearchWindow dismissed and parked. Reason: {reason}", LogLevel.Debug);
     }
 
-    public bool IsInlineSearchActive => _window != null && _window.IsVisible;
+    public bool IsInlineSearchActive => _window is { IsVisible: true };
 
     public void FocusSearchBox()
     {
-        if (_window != null && _window.IsVisible)
+        if (_window is { IsVisible: true })
         {
             if (_explorerTracker.IsActiveWindowDialog
                 && _window.SearchBox.SearchTextBox.IsKeyboardFocusWithin
@@ -300,6 +304,10 @@ public class InlineSearchManager : IDisposable
     public void Dispose()
     {
         CloseInlineSearch("Dispose");
+        // The only place the card is destroyed: it outlives every summon now, and closing it is what releases
+        // its view model's search-service session and its watchdog timer.
+        _window?.Close();
+        _window = null;
         _keyboardHook.Dispose();
         _mouseHook.Dispose();
         _explorerTracker.Dispose();

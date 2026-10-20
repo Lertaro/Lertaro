@@ -58,7 +58,21 @@ Get-ChildItem -LiteralPath $root -Recurse -Force | ForEach-Object {
 - **지난 무음 업데이트 실패**: 업데이트 프로그램은 결과(상태, 실패 이유, 롤백 디렉토리)를 설치 경로 옆의 `update-result.json`에 기록합니다. Lertaro는 다음 시작 시 그 이유를 한 번만 표시하며 같은 결과를 반복해서 알리지 않습니다. 알림이 계속 나타나면 그 파일을 삭제하거나 새 버전을 수동으로 덮어쓰기 설치하세요.
 - **데이터 루트 아래의 링크는 항상 거부**: 링크로 해석되는 것은 데이터 디렉토리 자체의 체인뿐이며, 그 내부의 하위 디렉토리는 링크일 수 없습니다([**설정 → 정보**](./settings/about) 참고).
 
-## 7. 로그 확인 및 이슈 등록
+## 7. 실행 직후 바로 종료됨
+
+- **설치는 끝났지만 창이 나타나지 않음**: Windows 10 22H2(빌드 19045) 이전에서는 하드웨어 CET를 지원하는 CPU(Intel 12세대 이후, AMD Zen 3 이후)를 사용하더라도 해당 시스템이 사용자 모드 CET를 완전히 지원하지 않아, Lertaro 자체 코드가 실행되기 전에 .NET이 프로세스를 중단합니다. 이벤트 뷰어에는 **.NET Runtime** 오류로 *"Your Windows doesn't fully support CET. Please install all available Windows updates"*가 기록되지만, 로깅이 시작되기 전에 끝나므로 Lertaro 로그는 남지 않습니다.
+- **설치 프로그램은 자동으로 처리합니다**: 설치 마법사가 Windows 빌드 번호를 확인해 Windows 10 22H2 이전에서 설치 폴더의 세 실행 파일에 대해 사용자 모드 섀도 스택 정책을 해제합니다. 다른 프로그램에는 영향이 없으며, 설치 마법사를 다시 실행하면 같은 설정이 다시 적용됩니다.
+- **포터블 버전**: 설치 마법사의 대상이 아니므로 PowerShell을 관리자 권한으로 연 뒤 경로를 실제 폴더로 바꿔 다음 세 명령을 한 번 실행하세요.
+
+```powershell
+Set-ProcessMitigation -Name 'D:\Lertaro\Lertaro.App.exe' -Disable UserShadowStack
+Set-ProcessMitigation -Name 'D:\Lertaro\Lertaro.Service.exe' -Disable UserShadowStack
+Set-ProcessMitigation -Name 'D:\Lertaro\lff.exe' -Disable UserShadowStack
+```
+
+- **위 .NET 오류가 안내하는 대로 사용 가능한 Windows 업데이트를 모두 설치**하는 것도 다른 해결 방법입니다. 그래도 바로 종료된다면 다음 절의 방법으로 로그를 수집해 Issue를 등록해 주세요.
+
+## 8. 로그 확인 및 이슈 등록
 
 문제가 지속되면 [**설정 → 서비스 상태**](./settings/service-status)에서 실시간 로그를 확인하세요.
 

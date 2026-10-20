@@ -426,12 +426,14 @@ public sealed class HookProcess : IDisposable
             {
                 if (ShouldSuppressQuickNavTrigger()) return;
                 Logger.Log($"[HookProcess] OnMouseDoubleClick at ({x}, {y}). ActiveHwnd={_explorerTracker?.ActiveHwnd}, IsExplorerOrDesktopActive={_explorerTracker?.IsExplorerOrDesktopActive}", LogLevel.Debug);
+                RequestMenuTriggerPathRead();
                 _ipcServer.SendMessage(new IpcMessage { Id = IpcMessageId.MouseDoubleClick, MouseX = x, MouseY = y });
             };
             _mouseHook.OnMouseMiddleClick += (x, y) =>
             {
                 if (ShouldSuppressQuickNavTrigger()) return;
                 Logger.Log($"[HookProcess] OnMouseMiddleClick at ({x}, {y}). ActiveHwnd={_explorerTracker?.ActiveHwnd}, IsExplorerOrDesktopActive={_explorerTracker?.IsExplorerOrDesktopActive}", LogLevel.Debug);
+                RequestMenuTriggerPathRead();
                 _ipcServer.SendMessage(new IpcMessage { Id = IpcMessageId.MouseMiddleClick, MouseX = x, MouseY = y });
             };
             _mouseHook.Start();
@@ -456,6 +458,12 @@ public sealed class HookProcess : IDisposable
             CleanupHooks();
         }
     }
+
+    // A mouse-summoned quick-nav menu is built from whatever path the tracker already had, and a click inside
+    // an ALREADY-active window raises no foreground change that would refresh it -- so the menu would name the
+    // folder the user just left, which is what "add current folder" writes into its prompt. Ask for a read
+    // ahead of the click's own IPC message; it runs on the scheduler's thread, never on this hook callback.
+    private void RequestMenuTriggerPathRead() => _explorerTracker?.RequestHostPathRead(immediate: true);
 
     // A temporarily-disabled, blacklisted, or fullscreen foreground app suppresses quick-nav mouse
     // triggers, except recognized file dialogs and file managers which remain eligible.

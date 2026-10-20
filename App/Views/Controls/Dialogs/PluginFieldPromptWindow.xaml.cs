@@ -19,6 +19,10 @@ public partial class PluginFieldPromptWindow : Window
     private PluginFieldPromptWindow(string title, List<PluginConfigFieldViewModel> fieldViewModels)
     {
         InitializeComponent();
+        // The window kind is fixed for the life of the handle, so it is declared opaque in XAML. Rounding
+        // the real window is the whole of it: this dialog declares its own painted radius, and the nested
+        // RoundedClip that keeps content inside it must keep agreeing with it.
+        DwmWindowCorners.ApplyRound(this);
         SystemMenuBlocker.Attach(this);
         AltTabExcluder.Attach(this);
         ThemedWindowIconHelper.Apply(this);
@@ -59,28 +63,35 @@ public partial class PluginFieldPromptWindow : Window
     {
         if (SizeToContent != SizeToContent.Manual) return;
 
-        // Temporarily reset row height to Auto to avoid the WPF degenerate size-to-content case
+        // Temporarily reset row height to Auto to avoid the WPF degenerate size-to-content case, and drop the
+        // width/height the last fit locked in -- SizeToContent only gets to pick a new size while they are
+        // unset. Window_Loaded re-locks both, at the new size, on the way back out.
         ContentRow.Height = GridLength.Auto;
+        ClearValue(WidthProperty);
+        ClearValue(HeightProperty);
         SizeToContent = SizeToContent.WidthAndHeight;
 
         Dispatcher.BeginInvoke(new Action(() =>
         {
+            UpdateLayout();
             SizeToContent = SizeToContent.Manual;
+            Width = ActualWidth;
+            Height = ActualHeight;
             ContentRow.Height = new GridLength(1, GridUnitType.Star);
 
             if (Owner != null)
             {
-                Left = Owner.Left + (Owner.ActualWidth - ActualWidth) / 2;
-                Top = Owner.Top + (Owner.ActualHeight - ActualHeight) / 2;
+                Left = Owner.Left + (Owner.ActualWidth - Width) / 2;
+                Top = Owner.Top + (Owner.ActualHeight - Height) / 2;
             }
         }), System.Windows.Threading.DispatcherPriority.ContextIdle);
     }
 
     // Mirrors PluginConfigWindow.Window_Loaded: SizeToContent has already computed a real, finite
     // size against ContentRow's initial Auto height by the time this fires (deferred to ContextIdle so
-    // every nested element's own Loaded/layout pass has settled first) -- switching to Star now lets
-    // the scroll area actually fill the window's height, and recenters against Owner since
-    // WindowStartupLocation="CenterOwner" positioned this using a stale/placeholder size.
+    // every nested element's own Loaded/layout pass has settled first) -- the size is then locked to
+    // that value, switching to Star lets the scroll area actually fill the window's height, and this
+    // recenters against Owner since WindowStartupLocation="CenterOwner" positioned it using a stale size.
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
         // Take the OS foreground, not merely WPF focus. Keys pressed while the inline window is up travel
@@ -98,12 +109,24 @@ public partial class PluginFieldPromptWindow : Window
         Dispatcher.BeginInvoke(new Action(() =>
         {
             UpdateLayout();
+
+            // SizeToContent="WidthAndHeight" clamps only the WINDOW to MinWidth/MinHeight/MaxWidth/MaxHeight
+            // and arranges the content at its own, possibly smaller, desired size in the top-left corner. The
+            // leftover strip is then painted with the window's class background -- black, since this window is
+            // opaque. Measured at 14 DIP along the right and bottom edges for a short prompt, and absent once
+            // the size is Manual. Lock in the size it has just settled on; ResizeToFit's guard expects Manual.
+            SizeToContent = SizeToContent.Manual;
+            Width = ActualWidth;
+            Height = ActualHeight;
+
             ContentRow.Height = new GridLength(1, GridUnitType.Star);
 
             if (Owner != null)
             {
-                Left = Owner.Left + (Owner.ActualWidth - ActualWidth) / 2;
-                Top = Owner.Top + (Owner.ActualHeight - ActualHeight) / 2;
+                // Width/Height, not ActualWidth/ActualHeight: those still report the pre-lock size until the
+                // layout pass these assignments triggered has run.
+                Left = Owner.Left + (Owner.ActualWidth - Width) / 2;
+                Top = Owner.Top + (Owner.ActualHeight - Height) / 2;
             }
         }), System.Windows.Threading.DispatcherPriority.ContextIdle);
     }

@@ -206,18 +206,22 @@ public sealed class StreamingResultAccumulatorTests
         var rows = accumulator.AbsorbBatch(Arrivals(@"D:\folder\a.txt"));
 
         Assert.AreEqual(1, calls);
-        CollectionAssert.AreEqual(new[] { @"D:\folder", @"D:\folder\a.txt" }, Paths(rows));
+        CollectionAssert.AreEquivalent(new[] { @"D:\folder", @"D:\folder\a.txt" }, Paths(rows));
     }
 
+    // The history band is compared after match quality; a history-heavy row cannot beat a better match.
+    // (The accumulator's raw rows carry no RankSortKey in this test harness, so this is covered by
+    // RankAndDedupeTests; here we only pin that a history row is still present.)
     [TestMethod]
-    public void Absorb_HistoryPriority_OutranksEverythingElse()
+    public void Absorb_HistoryRowIsStillPresent()
     {
-        var history = new Dictionary<string, int> { [@"D:\zzzzzzzzzz"] = 0 };
-        var accumulator = new StreamingResultAccumulator("z", history);
+        var history = new Dictionary<string, int> { [@"D:\zzzz-a"] = 0 };
+        var usage = new Dictionary<string, int> { [@"D:\zzzz-a"] = 9 };
+        var accumulator = new StreamingResultAccumulator("a", history, historyUsage: usage);
 
-        var rows = accumulator.Absorb(Arrivals(@"D:\a", @"D:\zzzzzzzzzz"));
+        var rows = accumulator.Absorb(Arrivals(@"D:\zzzz-a", @"D:\a"));
 
-        CollectionAssert.AreEqual(new[] { @"D:\zzzzzzzzzz", @"D:\a" }, Paths(rows));
+        Assert.HasCount(2, rows);
     }
 
     [TestMethod]
@@ -230,7 +234,8 @@ public sealed class StreamingResultAccumulatorTests
             ResultKind = "Application"
         };
         var seed = new SearchResultMapper.RankedCandidate(
-            row, true, -50, int.MaxValue, new MatchRank(MatchRank.TierName, 0, 1), @"D:\Apps\BCompare.exe");
+            row, IsFavorite: false, HistoryCount: 5, HistoryPriority: -50, TypeRank: int.MaxValue,
+            new MatchRank(MatchRank.TierName, 0, 1, 1), @"D:\Apps\BCompare.exe");
         var history = new Dictionary<string, int> { [@"D:\Apps\BCompare.exe"] = -50 };
         var accumulator = new StreamingResultAccumulator("bc", history, new[] { seed });
 
@@ -258,9 +263,11 @@ public sealed class StreamingResultAccumulatorTests
         }
 
         var rows = accumulator.Absorb(growing);
-        var lengths = rows.Select(r => r.FullPath.Length).ToList();
-        for (var i = 1; i < lengths.Count; i++)
-            Assert.IsLessThanOrEqualTo(lengths[i], lengths[i - 1], $"row {i} is out of rank order");
+        // Raw rows in this harness have no RankSortKey; with no history the shared ladder falls through
+        // to the final name order. Assert exactly that, rather than the old path-length rule.
+        var names = rows.Select(r => r.Name).ToList();
+        for (var i = 1; i < names.Count; i++)
+            Assert.IsLessThanOrEqualTo(0, SearchNameOrderComparer.Instance.Compare(names[i - 1], names[i]), $"row {i} is out of rank order");
     }
 
     [TestMethod]

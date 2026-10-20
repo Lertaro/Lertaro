@@ -113,6 +113,9 @@ var
 
 const
   EnvironmentKey = 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment';
+  WindowsNtCurrentVersionKey = 'SOFTWARE\Microsoft\Windows NT\CurrentVersion';
+  // Windows 10 22H2 is the newest build that lacks user-mode CET
+  LastWindowsBuildWithoutUserCet = 19045;
 
 // Adds Dir to the MACHINE-wide PATH (HKLM, not HKCU) -- the installer already runs elevated
 // (PrivilegesRequired=admin above) and everything else it installs (Program Files location, the
@@ -189,6 +192,67 @@ begin
   Result := True;
 end;
 
+// Windows 10 22H2 (build 19045) and older never finished user-mode CET support, while the .NET SDK has
+// marked every apphost /CETCOMPAT since .NET 9. On a CPU with hardware CET (Intel 12th gen / AMD Zen 3
+// and newer) coreclr then aborts inside EEStartup with "Your Windows doesn't fully support CET. Please
+// install all available Windows updates" before a single line of managed code runs, so the app closes
+// within a second of launching and leaves no Lertaro log behind.
+// Clearing the user-mode shadow stack for our executables is the supported per-app workaround. That
+// policy belongs to Set-ProcessMitigation (it writes an Image File Execution Options value that is not
+// meant to be hand-built), and passing the full installed path rather than a bare file name scopes the
+// loosening to this installation instead of every process named lff.exe on the machine.
+procedure DisableUserShadowStackOnOldWindows;
+var
+  Build: string;
+  BuildNumber: Integer;
+  Command: string;
+  Exe: string;
+  I: Integer;
+  ResultCode: Integer;
+  ExeNames: array[0..2] of string;
+begin
+  // CurrentBuildNumber is the Windows 10+ name, CurrentBuild the older one. A build that can't be read
+  // falls through to the mitigation: skipping it costs a customer who cannot launch the app, while
+  // applying it on a machine without user-mode CET costs nothing.
+  if RegQueryStringValue(HKEY_LOCAL_MACHINE, WindowsNtCurrentVersionKey, 'CurrentBuildNumber', Build) or
+     RegQueryStringValue(HKEY_LOCAL_MACHINE, WindowsNtCurrentVersionKey, 'CurrentBuild', Build) then
+    BuildNumber := StrToIntDef(Build, 0)
+  else
+    BuildNumber := 0;
+
+  // Windows 11 starts at build 22000, so this is exactly "Windows 10 22H2 and older"
+  if BuildNumber > LastWindowsBuildWithoutUserCet then
+    exit;
+
+  ExeNames[0] := '{#AppExeName}';
+  ExeNames[1] := '{#ServiceExeName}';
+  ExeNames[2] := '{#CliExeName}';
+  for I := 0 to High(ExeNames) do
+  begin
+    Exe := ExpandConstant('{app}\' + ExeNames[I]);
+    // Set-ProcessMitigation refuses a path that doesn't exist yet, which is why this waits for the
+    // file copy instead of running in PrepareToInstall like the process kills do.
+    if FileExists(Exe) then
+    begin
+      // {app} is user-editable text, and a PowerShell single-quoted string escapes a quote by doubling
+      StringChangeEx(Exe, '''', '''''', False);
+      Command := Command + 'Set-ProcessMitigation -Name ''' + Exe + ''' -Disable UserShadowStack; ';
+    end;
+  end;
+
+  if Command = '' then
+    exit;
+
+  // Logged, not shown: a machine without PowerShell (or with it blocked by policy) can't be repaired
+  // from here, and the same commands are written out in the troubleshooting guide for that case.
+  if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+       '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' + Command + '"', '',
+       SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then
+    Log('Could not disable the user-mode shadow stack for ' + ExpandConstant('{app}') +
+      ' (PowerShell exit code ' + IntToStr(ResultCode) + '). Lertaro may still fail to start with' +
+      ' "Your Windows doesn''t fully support CET"; run the commands from the troubleshooting guide.');
+end;
+
 procedure InitializeWizard;
 begin
   DownloadPage := CreateDownloadPage(SetupMessage(msgWizardPreparing), CustomMessage('DotNetDownloading'), @OnDownloadProgress);
@@ -258,8 +322,12 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
-  if (CurStep = ssPostInstall) and WizardIsTaskSelected('addtopath') then
-    EnvAddPath(ExpandConstant('{app}'));
+  if CurStep = ssPostInstall then
+  begin
+    if WizardIsTaskSelected('addtopath') then
+      EnvAddPath(ExpandConstant('{app}'));
+    DisableUserShadowStackOnOldWindows;
+  end;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);

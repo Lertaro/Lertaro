@@ -97,4 +97,58 @@ public sealed class MenuBuilderPromptAndAddCurrentFolderTests
             PluginPromptService.PromptFunc = null;
         }
     }
+
+    [TestMethod]
+    public void PromptAndAddCurrentFolder_PrefersTheHostsCurrentFolderOverTheStaleCapturedOne()
+    {
+        using var stale = new TempDirectory();
+        using var current = new TempDirectory();
+        ExplorerPathService.GetLastActivePathFunc = () => current.Path;
+        IReadOnlyList<PluginConfigField>? promptedFields = null;
+        PluginPromptService.PromptFunc = (title, fields, initialValues) =>
+        {
+            promptedFields = fields;
+            return null; // cancel -- this test only cares about what was asked
+        };
+        try
+        {
+            // The menu was built while the tracker still pointed at `stale`, which is exactly how the folder
+            // the user just left used to end up in the prompt.
+            MenuBuilder.PromptAndAddCurrentFolder(stale.Path, "");
+
+            Assert.IsNotNull(promptedFields);
+            Assert.AreEqual(current.Path, promptedFields.Single(f => f.Key == "Path").DefaultValue);
+            Assert.AreEqual(Path.GetFileName(current.Path), promptedFields.Single(f => f.Key == "Name").DefaultValue);
+        }
+        finally
+        {
+            ExplorerPathService.GetLastActivePathFunc = null;
+            PluginPromptService.PromptFunc = null;
+        }
+    }
+
+    [TestMethod]
+    public void PromptAndAddCurrentFolder_HostsCurrentFolderGone_KeepsTheCapturedFolder()
+    {
+        using var captured = new TempDirectory();
+        ExplorerPathService.GetLastActivePathFunc = () => Path.Combine(captured.Path, "gone");
+        IReadOnlyList<PluginConfigField>? promptedFields = null;
+        PluginPromptService.PromptFunc = (title, fields, initialValues) =>
+        {
+            promptedFields = fields;
+            return null;
+        };
+        try
+        {
+            MenuBuilder.PromptAndAddCurrentFolder(captured.Path, "");
+
+            Assert.IsNotNull(promptedFields);
+            Assert.AreEqual(captured.Path, promptedFields.Single(f => f.Key == "Path").DefaultValue);
+        }
+        finally
+        {
+            ExplorerPathService.GetLastActivePathFunc = null;
+            PluginPromptService.PromptFunc = null;
+        }
+    }
 }

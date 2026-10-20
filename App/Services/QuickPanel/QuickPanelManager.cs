@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Lertaro.App.Converters;
+using Lertaro.App.Helpers.Visuals;
 using Lertaro.App.ViewModels.QuickPanel;
 using Lertaro.App.Views.QuickPanel;
 
@@ -227,7 +228,10 @@ public sealed partial class QuickPanelManager : IDisposable
         // and jump, which reads as a flicker every time the panel opens. A brand-new window has no old
         // location, but it does have a default one, and that is just as wrong to paint first.
         PositionAgainst(host);
-        _window.Show();
+        // And shown from the parking row, landed a render pass later: this window is built fresh for every open
+        // (see above), which is exactly the shape that spends its first composition on screen with nothing
+        // painted in it. Re-positioning on the landing pass costs nothing and keeps the host's rect current.
+        WindowParking.ShowThenPlace(_window, () => PositionAgainst(host));
 
         // After Show, and only then: the window has to exist as a real HWND before it can be given the
         // foreground. ShowActivated="False" means it comes up without focus by design, so this is what

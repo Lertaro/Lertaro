@@ -5,9 +5,18 @@
         xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
         xmlns:local="clr-namespace:Lertaro.App.Views.LocalSend"
         Title="LocalSend" Height="400" Width="480" MinWidth="420" MinHeight="320"
-        WindowStartupLocation="CenterScreen" Background="Transparent" AllowsTransparency="True"
+        WindowStartupLocation="CenterScreen" Background="{DynamicResource ContentBg}"
         WindowStyle="None" ResizeMode="CanResizeWithGrip" ShowInTaskbar="True" Topmost="True"
         TextElement.Foreground="{DynamicResource TextPrimary}">
+    <!-- The window is opaque, which is what lets its text be antialiased sub-pixel; the chrome is what makes
+         an opaque borderless window behave, with a resize border of 0 so the edge does not claim the pointer
+         away from the content against it. The grip is what resizes this window, and its hit area is declared
+         in ResizeGrip.xaml.
+         CaptionHeight is 0 deliberately: this window drags from its own title bar
+         (TitleBar_MouseLeftButtonDown), so the chrome must not claim a caption area of its own. -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -16,11 +25,10 @@
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Window.Resources>
-    <!-- No WindowChrome, deliberately: see the note in LocalSendReceiveWindow. On a transparent window it
-         cannot draw or grab its resize border and it takes the ResizeGrip's hit-testing with it, leaving a
-         grip that is painted but does not resize. -->
-    <Border CornerRadius="12" Background="{DynamicResource ContentBg}" BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1" Margin="8">
-        <Border CornerRadius="12" helpers:RoundedClip.IsEnabled="True">
+    <!-- The card IS the window. The 8 DIP margin this used to carry was a transparent halo for a shadow the
+         layered window could paint into; an opaque window has no such pixels, so nothing is left to reserve. -->
+    <Border CornerRadius="{StaticResource CornerRadiusWindow}" Background="{DynamicResource ContentBg}" BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1">
+        <Border CornerRadius="{StaticResource CornerRadiusWindow}" helpers:RoundedClip.IsEnabled="True">
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="40"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                 <Border Grid.Row="0" Background="{DynamicResource HeaderBg}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">

@@ -142,9 +142,18 @@ internal sealed class ExplorerActivePathPoller : IDisposable
 
     // Demand sources, forwarded to the floor. Both are called from threads that must not stall on this one:
     // the low-level keyboard hook (RequestHostPathRead) and the App's IPC link (SetInlineWindowOnScreen).
-    public void RequestHostPathRead()
+    //
+    // `immediate` is for a click that puts a menu on screen naming the folder it will act on ("add current
+    // folder"). Such a menu is built from whatever path the tracker already had, and a click inside an
+    // already-active window raises no foreground change to refresh it, so the interval below -- which exists
+    // to keep a host from being read in a loop -- may not answer with the folder the user has just left.
+    // The poll is still only scheduled: this is reached from the low-level mouse hook, where a blocking
+    // cross-process read past LowLevelHooksTimeout costs the hook.
+    public void RequestHostPathRead(bool immediate = false)
     {
-        _readFloor.RequestRead();
+        if (immediate) _readFloor.RequestForegroundRead();
+        else _readFloor.RequestRead();
+
         _scheduler.RunWhenQuiet();
     }
 

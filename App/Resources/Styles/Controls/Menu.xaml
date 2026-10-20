@@ -8,7 +8,20 @@
     </ResourceDictionary.MergedDictionaries>
 
     <!-- ═══════════ Modern ContextMenu Styles ═══════════ -->
+
+    <!-- No dotted focus rectangle on any menu surface, which is what the framework default paints. A menu
+         host is the element that ends up with keyboard focus (the tray menu asks for it outright so the
+         arrows reach its rows, a ContextMenu takes it when it opens), and the adornment then draws a ring
+         around the whole list of rows, inside the card at its own margin, which reads as a bug rather than
+         as a cue. The rows keep their own indicator: IsHighlighted drives the accent bar and hover
+         fill, so nothing loses the "where am I" signal. Matches what this app already does for list rows,
+         text boxes and the search window's buttons. -->
+    <Style TargetType="{x:Type Menu}">
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    </Style>
+
     <Style TargetType="{x:Type ContextMenu}">
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Background" Value="{DynamicResource MenuBackground}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource MenuBorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
@@ -38,8 +51,8 @@
     <Style TargetType="{x:Type MenuItem}">
         <Setter Property="Height" Value="{x:Static services:UiMetrics.MenuItemHeight}"/>
         <Setter Property="Foreground" Value="{DynamicResource MenuText}"/>
-        
-        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="FontSize" Value="13"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -89,21 +102,21 @@
                                            Foreground="{DynamicResource TextSecondary}"
                                            Margin="16,0,12,0"
                                            VerticalAlignment="Center"
-                                           FontSize="11.5"/>
+                                           FontSize="12"/>
                             </Grid>
                         </Border>
 
-                        <!-- Submenu Popup -->
+                        <!-- Submenu Popup. Opaque, so its rows render ClearType like the menu they hang off
+                             (a layered popup cannot). The painted corner and the fade go with it: an opaque
+                             popup paints its uncovered client area black, which a radius turns into four
+                             black wedges, and WPF coerces PopupAnimation to None once it is not transparent. -->
                         <Popup x:Name="PART_Popup"
                                Placement="Right"
-                               AllowsTransparency="True"
                                Focusable="False"
-                               IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
-                               PopupAnimation="Fade">
+                               IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}">
                             <Border Background="{DynamicResource MenuBackground}"
                                     BorderBrush="{DynamicResource MenuBorderBrush}"
                                     BorderThickness="1"
-                                    CornerRadius="{StaticResource CornerRadiusPopover}"
                                     Padding="4"
                                     SnapsToDevicePixels="True">
                                 <ScrollViewer x:Name="SubMenuScrollViewer" Focusable="false"
@@ -182,14 +195,32 @@
 
     <Style x:Key="{x:Static MenuItem.SeparatorStyleKey}" TargetType="{x:Type Separator}" BasedOn="{StaticResource {x:Type Separator}}"/>
 
+    <!-- The shape of a menu hosted in its own opaque Popup rather than in a ContextMenu: a Menu laid out
+         as a vertical column (Menu has no Orientation, so its horizontal item panel has to be replaced),
+         inside the same one-pixel bordered card the ContextMenu template used to paint. Square on
+         purpose, because nothing rounds a Popup's own HWND and an opaque popup paints its uncovered
+         client area black, so a painted radius would read as four black wedges. Extracted here since
+         ActionFlyout and the quick-nav right-click menu each build this in code today; the tray menu is
+         the first caller to use it instead of a third copy. -->
+    <ItemsPanelTemplate x:Key="VerticalMenuItemsPanel">
+        <StackPanel/>
+    </ItemsPanelTemplate>
+
+    <Style x:Key="MenuPopupChrome" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource MenuBackground}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource MenuBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="6"/>
+    </Style>
+
     <!-- Non-interactive group-header row for the quick-navigation cascader's root menu (one per
          IQuickNavigationProvider), matching the actions list/flyout's own section-header look
          (ActionMenuItemTemplate's SectionHeaderVisibility block) without pulling in that template's
          icon/shortcut/submenu-arrow columns this plain-text row never needs. Height uses
          MinSectionHeaderHeight (a compact label height, not a full clickable row's MenuItemHeight):
          this row has no icon/hover chrome to fill out, so the full row height just read as excess
-         padding around small text. FontSize a notch below the item text's own 12.5 (not the same 12 a
-         header would get in the full-size actions list) so the size gap reads clearly at this menu's
+         padding around small text. FontSize sits two rungs under the item text's own 13, and a full rung
+         under the 12 a header would get in the full-size actions list, so the size gap reads clearly here
          own smaller scale. Margin left at 8px, matching where a normal row's own icon starts (Bg's own
          2px margin + the icon ContentPresenter's own 6px margin in the default MenuItem style above). -->
     <Style x:Key="QuickNavGroupHeaderStyle" TargetType="{x:Type MenuItem}">

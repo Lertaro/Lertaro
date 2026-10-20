@@ -11,8 +11,8 @@ namespace Lertaro.App;
 public partial class SearchBoxControl : UserControl
 {
     // Raised when either the left- or right-docked status icon is right-clicked. Purely a passthrough --
-    // this control doesn't know what "reset" means for whichever window hosts it (only the quick popup
-    // window currently wires this up, to reset its own saved position).
+    // this control doesn't know what a right-click means for whichever window hosts it (the quick popup
+    // window resets its own saved position with it, the full search window centers itself).
     public event Action? IconRightClicked;
 
     // Raised when the icon is left-clicked, with the click's screen coordinates (physical pixels, same
@@ -150,7 +150,11 @@ public partial class SearchBoxControl : UserControl
         // below the single line of text -- raising the ratio (and shrinking vertical padding below to
         // match, so the bigger text still fits) is what actually closes that gap; padding alone can't,
         // since content is vertically centered and just absorbs whatever padding leaves behind.
-        FontSize = Math.Clamp(height * 0.4, 12.0, 36.0);
+        //
+        // Snapped onto the font-size ladder (section 四): 0.4 of an arbitrary bar height lands on a
+        // fractional size more often than not, and the app renders with Display metrics, which snap glyph
+        // advances to whole pixels -- a fractional size turns that into visibly uneven letter spacing.
+        FontSize = Services.AppTypography.SnapFontSize(Math.Clamp(height * 0.4, 12.0, 36.0));
 
         // Vertical Padding:
         // Keep horizontal padding fixed at 21, scale vertical padding dynamically (e.g. 70px -> 7px, 50px -> 5px)

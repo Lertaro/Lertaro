@@ -19,6 +19,8 @@ internal static class HighlightMask
     // segment weight, ...) reuse the same already-grown buffers instead of re-allocating every time.
     [ThreadStatic]
     private static FzfSlab? _threadSlab;
+    [ThreadStatic]
+    private static char[]? _threadNormalized;
 
     private static FzfSlab RentSlab() => _threadSlab ??= new FzfSlab();
 
@@ -28,8 +30,39 @@ internal static class HighlightMask
         if (fullText.Length == 0)
             return highlights;
 
-        var materialized = fullText;
-        Mark(fullText, pattern, highlights, ref materialized, RentSlab(), out _);
+        var text = Normalize(fullText, out var map);
+        var marks = text.Length <= 512 ? stackalloc bool[text.Length] : new bool[text.Length];
+        marks.Clear();
+        string? materialized = null;
+        Mark(text, pattern, marks, ref materialized, RentSlab(), out _);
+
+        for (var i = 0; i < marks.Length; i++)
+        {
+            if (!marks[i])
+                continue;
+
+            if (map == null)
+            {
+                highlights[i] = true;
+                continue;
+            }
+
+            var originalStart = map[i];
+            // Several normalized units can belong to one source grapheme (NFC composition); paint the
+            // whole source cluster, not a zero-width range when the next unit maps to the same index.
+            var originalEnd = fullText.Length;
+            for (var k = i + 1; k < map.Length; k++)
+            {
+                if (map[k] > originalStart)
+                {
+                    originalEnd = map[k];
+                    break;
+                }
+            }
+            for (var k = originalStart; k < originalEnd && k < highlights.Length; k++)
+                highlights[k] = true;
+        }
+
         return highlights;
     }
 
@@ -39,35 +72,42 @@ internal static class HighlightMask
     public static double ComputeWeight(ReadOnlySpan<char> fullText, FzfPattern pattern)
         => ComputeRank(fullText, pattern).Weight;
 
-    // Match shape + tier + start position + quality weight from ONE mask pass. Every ranking window needs
-    // all four (see MatchRank for their order), and computing them separately would build the same mask
+    // Match tier, shape, start position, coverage and contiguity from ONE mask pass. Every ranking
+    // window needs all of them (see MatchRank), and computing them separately would build the same mask
     // several times, the alias path being the expensive one.
     public static MatchRank ComputeRank(ReadOnlySpan<char> fullText, FzfPattern pattern)
     {
         if (fullText.Length == 0)
             return MatchRank.NoMatch;
 
-        var marks = fullText.Length <= 512 ? stackalloc bool[fullText.Length] : new bool[fullText.Length];
+        var text = Normalize(fullText, out var map);
+        var marks = text.Length <= 512 ? stackalloc bool[text.Length] : new bool[text.Length];
         marks.Clear();
         string? materialized = null;
-        var tier = Mark(fullText, pattern, marks, ref materialized, RentSlab(), out var shape);
+        var tier = Mark(text, pattern, marks, ref materialized, RentSlab(), out var shape);
         var rank = RankFromMarks(marks);
+        if (!rank.IsMatch)
+            return rank;
+
+        if (map != null && rank.Start < map.Length)
+            rank = rank with { Start = map[rank.Start] };
+
         // The mask is a union across terms, so it cannot say HOW any one of them matched; Mark reports the
-        // strongest tier any term reached and the folded shape, which is what decides the ordering.
-        return rank.IsMatch ? rank with { Tier = tier, Shape = shape } : rank;
+        // strongest tier and the folded shape, which is what decides the ordering.
+        return rank with { Tier = tier, Shape = shape };
     }
 
-    // Paints every matching term and returns the strongest tier reached (MatchRank.TierName ..
-    // TierFullRare). A term satisfied by the candidate's own text outranks one satisfied through a
-    // provider's alias, so the minimum wins; a multi-term query where one word is literal and another
-    // came from pinyin is ranked as a literal hit, which is the evidence that actually matters to the
-    // user. The floor is the weakest tier there is, not TierFull: a match that needed a character's rare
-    // reading has to be able to report that, and starting at TierFull would Math.Min it away.
-    //
-    // Shape folds the other way round from tier, following the query's own logic: within a set (an OR
-    // group) the best-shaped term counts, and across sets (AND) the worst set decides -- "code atlas"
-    // against "code-atlasing" is only as good as its weaker word. A set with nothing marked (the match came
-    // through a route the mask cannot paint) is treated as scattered rather than guessed better.
+    private static ReadOnlySpan<char> Normalize(ReadOnlySpan<char> text, out int[]? map)
+    {
+        var length = SearchTextNormalizer.NormalizeInto(text, ref _threadNormalized, out map);
+        return length == 0 ? text : _threadNormalized.AsSpan(0, length);
+    }
+
+    // Paints every matching term and returns the strongest tier reached and the folded shape.
+    // Tier takes the minimum; shape folds the other way round, following the query's own logic: within a
+    // set (an OR group) the best-shaped term counts, and across sets (AND) the worst set decides -- "code
+    // atlas" against "code-atlasing" is only as good as its weaker word. A set with nothing marked (the
+    // match came through a route the mask cannot paint) is treated as scattered rather than guessed better.
     private static int Mark(ReadOnlySpan<char> fullText, FzfPattern pattern, Span<bool> highlights, ref string? materialized, FzfSlab slab, out int shape)
     {
         var tier = MatchRank.TierFullRare;
@@ -76,11 +116,6 @@ internal static class HighlightMask
         {
             var setShape = MatchRank.ShapeNoName;
             var hasPositiveTerm = false;
-            // Highlight EVERY non-inverse term in the set that actually matches this candidate, not
-            // just whichever one happens to be tried first -- a candidate containing more than one of a
-            // multi-term OR set's terms (e.g. "我爱我家" containing both "我" and "爱" from "我 | 爱 |
-            // 你") shows the union of all of them, matching what a user scanning the OR query visually
-            // expects to see lit up, not just an arbitrary single winner.
             foreach (var term in set.Terms)
             {
                 if (term.Inverse)
@@ -127,9 +162,9 @@ internal static class HighlightMask
         return tier;
     }
 
-    // Returns the tier of the strongest tier this term matched through: TierName for the candidate's own
-    // text, otherwise the provider tier its alias supplied. `shape` is how the term sat in the text, or
-    // ShapeNoName when it did not match.
+    // Returns the strongest tier this term matched through and how it sat in the text. TierName is the
+    // candidate's own text; WordStart is the only defensible shape for a provider-supplied spelling,
+    // because that spelling was matched at a syllable boundary; Scattered is a fuzzy subsequence.
     private static int MarkTerm(ReadOnlySpan<char> fullText, string term, bool caseSensitive, FzfTermKind kind, Span<bool> highlights, ref string? materialized, FzfSlab slab, FzfPattern pattern, out int shape)
     {
         var comparison = caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
@@ -176,14 +211,19 @@ internal static class HighlightMask
         // row even for a plain literal match, where no alias provider is needed at all.
         var mixedTerm = MixedQueryMatcher.TrySegmentPattern(pattern);
         if (mixedTerm != null)
+        {
             AliasHighlightMarker.MarkViaMixedQuery(materialized, mixedTerm, highlights);
+            shape = MatchRank.ShapeWordStart;
+        }
         else
+        {
             shape = MatchRank.ShapeNoName;
+        }
+
         return MatchRank.TierFull;
     }
 
-    // Paints every occurrence and reports the best shape among them (ShapeNoName when there is none), so
-    // "metatlas_atlas" ranks by its whole-word "atlas", not by the first hit.
+    // Paints every occurrence and reports the best shape among them.
     private static bool MarkLiteralSpan(ReadOnlySpan<char> haystack, ReadOnlySpan<char> needle, StringComparison comparison, Span<bool> highlights, out int shape)
     {
         shape = MatchRank.ShapeNoName;
@@ -201,8 +241,8 @@ internal static class HighlightMask
             var absolute = startIdx + idx;
             for (var i = absolute; i < absolute + needle.Length && i < highlights.Length; i++)
                 highlights[i] = true;
-            shape = Math.Min(shape, MatchShape.Classify(haystack, absolute, absolute + needle.Length));
 
+            shape = Math.Min(shape, MatchShape.Classify(haystack, absolute, absolute + needle.Length));
             foundAny = true;
             startIdx = absolute + 1;
         }
@@ -211,13 +251,8 @@ internal static class HighlightMask
     }
 
     // The ranking measure for one candidate's mask: how much of the string the match covers, weighted by
-    // how contiguous that coverage is: weight = percentage * consecutiveness. Both factors are <= 1, so
-    // this only ever demotes a match relative to its raw score -- it's a ranking multiplier, never a
-    // gate; a candidate that already passed the real fzf match always stays a match regardless of this
-    // weight. Shape and start position are deliberately NOT folded in here: they are separate,
-    // higher-priority keys in every window's ordering (see MatchRank / SearchResultRelevance /
-    // RankAndDedupe), so a match beginning earlier wins even against a shorter name whose coverage share
-    // is larger.
+    // how contiguous that coverage is (coverage * contiguity). Shape is filled in by ComputeRank, which
+    // knows which path produced the mask; the mask alone cannot classify the term.
     private static MatchRank RankFromMarks(ReadOnlySpan<bool> mask)
     {
         if (mask.Length == 0)
@@ -250,10 +285,8 @@ internal static class HighlightMask
         if (matchedLength == 0)
             return MatchRank.NoMatch;
 
-        var percentage = (double)matchedLength / mask.Length;
-        var consecutiveness = (double)sumOfSquares / ((long)matchedLength * matchedLength);
-        // Tier is filled in by ComputeRank, which knows which path produced the mask; the mask alone
-        // cannot say how any term matched.
-        return new MatchRank(MatchRank.TierFull, leftmost, percentage * consecutiveness, MatchRank.ShapeWholeWord, consecutiveness);
+        var coverage = (double)matchedLength / mask.Length;
+        var contiguity = (double)sumOfSquares / ((long)matchedLength * matchedLength);
+        return new MatchRank(MatchRank.TierFull, leftmost, coverage, contiguity);
     }
 }

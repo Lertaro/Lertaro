@@ -9,13 +9,22 @@
         Height="720" Width="1280"
         MinHeight="560" MinWidth="880"
         WindowStartupLocation="CenterScreen"
-        Background="Transparent"
-        AllowsTransparency="True"
+        Background="{DynamicResource ContentBg}"
         WindowStyle="None"
         ResizeMode="CanResizeWithGrip"
         TextElement.Foreground="{DynamicResource TextPrimary}"
         StateChanged="Window_StateChanged"
         SizeChanged="SettingsWindow_SizeChanged">
+
+    <!-- The window is opaque, which is what lets its text be antialiased sub-pixel; the chrome is what makes
+         an opaque borderless window behave: maximize that respects the work area, and a resize border of 0,
+         because that band covers the 6px overlay scrollbar of every list and editor pressed against a window
+         edge. The bottom-right grip is the only thing that resizes it; see ResizeGrip.xaml. CaptionHeight is 0
+         deliberately: this window drags from its own title bar, so the chrome must not claim a caption area
+         of its own. -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
 
     <Window.Resources>
         <ResourceDictionary>
@@ -27,8 +36,10 @@
         </ResourceDictionary>
     </Window.Resources>
 
+    <!-- The card IS the window. The 8 DIP margin this used to carry was a transparent halo for a shadow the
+         layered window could paint into; an opaque window has no such pixels, so nothing is left to reserve. -->
     <Border x:Name="MainBorder" CornerRadius="{StaticResource CornerRadiusWindow}" Background="{DynamicResource ContentBg}"
-            BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1" Margin="8">
+            BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1">
         <!-- ClipToBounds ignores CornerRadius (a WPF limitation, not a bug here): helpers:RoundedClip
              builds a real rounded-rect Clip instead: child content flush to the edge would otherwise show
              square corners poking past this Border's own rounded paint. -->
@@ -109,12 +120,15 @@
                      flyout. StaysOpen is True: with StaysOpen="False" clicking a result inside the
                      popup would close it (losing the click) before SelectionChanged can fire; IsOpen is
                      instead driven explicitly (see SettingsWindow.xaml.cs) by text-empty/Escape/section
-                     changes/window deactivation. -->
+                     changes/window deactivation.
+
+                     Opaque, so the results themselves render ClearType like the sidebar they overlay
+                     (a layered popup cannot). The painted corner goes with it: an opaque popup paints the
+                     client area it does not cover black, so a radius would leave four black wedges. -->
                 <Popup x:Name="SearchResultsPopup" PlacementTarget="{Binding ElementName=SearchBoxBorder}"
-                       Placement="Bottom" Width="320" VerticalOffset="4" StaysOpen="True" AllowsTransparency="True"
-                       PopupAnimation="Fade">
+                       Placement="Bottom" Width="320" VerticalOffset="4" StaysOpen="True">
                     <Border Background="{DynamicResource ContentBg}" BorderBrush="{DynamicResource WindowBorderBrush}"
-                            BorderThickness="1" CornerRadius="{StaticResource CornerRadiusPopover}" Padding="0,4">
+                            BorderThickness="1" Padding="0,4">
                         <StackPanel>
                             <ListBox x:Name="LstSearchResults" MaxHeight="400"
                                      BorderThickness="0" Background="Transparent"

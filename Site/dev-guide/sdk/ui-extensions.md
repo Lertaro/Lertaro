@@ -203,12 +203,10 @@ public interface ITheme
     bool IsDark { get; }
     ResourceDictionary GetResources();
 
-    // Below 1.0 a window built through the host's layered-surface helper becomes a layered,
-    // translucent window whose corner has to be painted and clipped; at 1.0 it stays opaque,
-    // is rounded by the window manager, and keeps ClearType. The choice is made once, in the
-    // window's constructor, because AllowsTransparency cannot change after the handle exists.
-    // Applied to the notification windows today; a theme switch while a window is on screen
-    // does not rebuild it.
+    // Not applied to any window. A window with AllowsTransparency set is a layered window, and a
+    // layered window cannot render ClearType, so every window in this app is opaque and reads no
+    // theme's opacity. The member stays because themes implement it; its value is ignored.
+    [Obsolete("Window transparency is no longer supported; this value is ignored.")]
     double WindowOpacity => 1.0;
 }
 ```

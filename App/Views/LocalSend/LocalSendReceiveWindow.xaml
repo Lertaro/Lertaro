@@ -7,13 +7,22 @@
         Title="LocalSend"
         Height="390" Width="460" MinWidth="420" MinHeight="310"
         WindowStartupLocation="CenterScreen"
-        Background="Transparent"
-        AllowsTransparency="True"
+        Background="{DynamicResource ContentBg}"
         WindowStyle="None"
         ResizeMode="CanResizeWithGrip"
         TextElement.Foreground="{DynamicResource TextPrimary}"
         ShowInTaskbar="True"
         Topmost="True">
+
+    <!-- The window is opaque, which is what lets its text be antialiased sub-pixel; the chrome is what makes
+         an opaque borderless window behave, with a resize border of 0 so the edge does not claim the pointer
+         away from the content against it. The grip is what resizes this window, and its hit area is declared
+         in ResizeGrip.xaml.
+         CaptionHeight is 0 deliberately: this window drags from its own title bar
+         (TitleBar_MouseLeftButtonDown), so the chrome must not claim a caption area of its own. -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
 
     <Window.Resources>
         <ResourceDictionary>
@@ -23,15 +32,11 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <!-- No WindowChrome, deliberately. On an AllowsTransparency="True" window its resize border cannot be
-         drawn or grabbed, and setting one also takes the window's own hit-testing away from the
-         ResizeGrip: the grip was painted and did nothing, which is the whole of what
-         ResizeMode="CanResizeWithGrip" is supposed to provide. Its other job here, a draggable caption, is
-         already done by the title bar itself (TitleBar_MouseLeftButtonDown). -->
-
-    <Border CornerRadius="12" Background="{DynamicResource ContentBg}"
-            BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1" Margin="8">
-        <Border CornerRadius="12" helpers:RoundedClip.IsEnabled="True">
+    <!-- The card IS the window. The 8 DIP margin this used to carry was a transparent halo for a shadow the
+         layered window could paint into; an opaque window has no such pixels, so nothing is left to reserve. -->
+    <Border CornerRadius="{StaticResource CornerRadiusWindow}" Background="{DynamicResource ContentBg}"
+            BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1">
+        <Border CornerRadius="{StaticResource CornerRadiusWindow}" helpers:RoundedClip.IsEnabled="True">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="40"/>
@@ -72,13 +77,13 @@
                                 <TextBlock x:Name="TxtSender" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimary2}"/>
                                 <Ellipse x:Name="SenderSecureIndicator" Width="7" Height="7" Margin="5,0,0,0" VerticalAlignment="Center" Fill="{DynamicResource SuccessBrush}" Visibility="Collapsed"/>
                             </StackPanel>
-                            <TextBlock x:Name="TxtSummary" FontSize="11.5" Foreground="{DynamicResource TextSecondary}" Margin="0,2,0,0"/>
+                            <TextBlock x:Name="TxtSummary" FontSize="12" Foreground="{DynamicResource TextSecondary}" Margin="0,2,0,0"/>
                         </StackPanel>
 
                         <!-- Step 2 Progress Summary / Counter -->
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
-                            <TextBlock x:Name="TxtSpeed" FontSize="11.5" Foreground="{DynamicResource AccentBlue}" FontWeight="SemiBold" Margin="0,0,8,0"/>
-                            <TextBlock x:Name="TxtCounter" FontSize="11.5" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock x:Name="TxtSpeed" FontSize="12" Foreground="{DynamicResource AccentBlue}" FontWeight="SemiBold" Margin="0,0,8,0"/>
+                            <TextBlock x:Name="TxtCounter" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
                         </StackPanel>
 
                         <Button x:Name="BtnToggleSelectAll" Grid.Column="2" VerticalAlignment="Center"

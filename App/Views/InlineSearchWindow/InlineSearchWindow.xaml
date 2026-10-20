@@ -8,18 +8,21 @@
         Width="465" Height="550" SizeToContent="Manual"
         WindowStyle="None"
         ResizeMode="NoResize"
-        AllowsTransparency="True"
-        Background="Transparent"
+        Background="{DynamicResource CardBackground}"
         TextElement.Foreground="{DynamicResource TextPrimary}"
         ShowInTaskbar="False"
         Topmost="True"
         WindowStartupLocation="Manual"
         Focusable="True"
         ShowActivated="False">
-    <!-- Outer Grid to support bottom/top alignment of the visible panel inside the transparent window -->
+    <!-- The card IS the window: an opaque surface whose corners the window manager rounds (see the
+         code-behind). It used to be a transparent window with the card aligned to one edge inside it, and
+         the empty rest of it was simply invisible: with no per-pixel alpha to spend, nothing around the
+         card may be shown at all, so the window is sized to the card exactly (InlineCardSizingSupport) and
+         the alignment below only orders the rows. -->
     <Grid x:Name="RootGrid" VerticalAlignment="Bottom">
         <!-- Main card - inverted layout: results on top, search box at bottom -->
-        <Border x:Name="MainBorder" Margin="12" CornerRadius="8"
+        <Border x:Name="MainBorder" CornerRadius="{StaticResource CornerRadiusWindow}"
                 Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
                 VerticalAlignment="Bottom">
             <!-- ClipToBounds lives on this separate inner Border, not MainBorder itself: putting it on
@@ -29,7 +32,7 @@
                  helpers:RoundedClip.IsEnabled replaces plain ClipToBounds: ClipToBounds ignores
                  CornerRadius entirely (a WPF limitation), so child content flush to the edge (e.g. the
                  ContentBg row below) showed square corners poking past this Border's own rounded paint. -->
-            <Border x:Name="ClippingBorder" CornerRadius="8" helpers:RoundedClip.IsEnabled="True">
+            <Border x:Name="ClippingBorder" CornerRadius="{StaticResource CornerRadiusWindow}" helpers:RoundedClip.IsEnabled="True">
                 <Grid>
                     <Grid.RowDefinitions>
                         <!-- Path preview has its own row and cannot take space from the result list. -->
@@ -48,7 +51,7 @@
                          it needs. -->
                     <Border x:Name="PathPreviewBorder" Grid.Row="0" Background="{DynamicResource ActionsHeaderBg}"
                             BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="0,0,0,1"
-                            CornerRadius="7,7,0,0"
+                            CornerRadius="{StaticResource CornerRadiusWindowTop}"
                             Padding="14,8,14,8"
                             Visibility="Collapsed">
                         <TextBlock x:Name="PathPreviewTextBlock"
@@ -81,7 +84,7 @@
                                Visibility="{Binding ResultsSeparatorVisibility}"/>
                     <!-- 4. Search Box (Bottom Anchored) -->
                     <Border x:Name="SearchBoxBorder" Grid.Row="3" Background="{DynamicResource CardBackground}"
-                            CornerRadius="0,0,7,7"
+                            CornerRadius="{StaticResource CornerRadiusWindowBottom}"
                             Padding="12,8,12,8">
                         <local:SearchBoxControl x:Name="SearchBox" FontSize="14" Padding="0" IsIconOnLeft="False"
                                                 SearchText="{Binding SearchQuery, Mode=TwoWay}" IsServiceRunning="{Binding IsServiceConnected}"/>

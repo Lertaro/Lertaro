@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Lertaro.App.Helpers;
+using Lertaro.App.Helpers.Visuals;
 using Lertaro.App.Services;
 using Lertaro.App.Services.Theme;
 using Lertaro.Core;
@@ -34,6 +35,9 @@ internal sealed class QuickSearchWindowShowSupport
         }
 
         var window = _controller.Window;
+        // (B) The warm-up is over: from here the window is only ever on screen because a summon put it
+        // there, so positioning is allowed again (see QuickSearchWindow._suppressPositioning).
+        window.AllowPositioning();
         window.ViewModel.IsInlineSearchContext = false;
         App.HideInlineSearch();
         QuickLookManager.Instance.Reset();
@@ -65,23 +69,23 @@ internal sealed class QuickSearchWindowShowSupport
         window.ApplyResultsLayoutImmediate();
         window.Topmost = false;
         window.Topmost = true;
-        _controller.PositionWindow();
-
-        var fadeContent = window.Content as UIElement;
-        fadeContent?.BeginAnimation(UIElement.OpacityProperty, null);
-        fadeContent?.Opacity = 0;
-        window.Show();
         window.WindowState = WindowState.Normal;
+        // Placed at its target first, then shown from the parking row above it: the x is what gives this window
+        // the DPI context of the monitor the summon belongs to, so the frame is composed for that scale, and
+        // the move down into place changes neither its size nor its scale.
         _controller.PositionWindow();
 
-        if (fadeContent != null)
+        // No fade-in, deliberately: the whole window is opaque now, and fading means showing the content at
+        // zero opacity for the length of the animation, which on an opaque window is a black rectangle
+        // rather than a see-through one (NotificationWindowManager reached the same conclusion for cards).
+        // What is left of this window's motion is everything that never touches the Window's own opacity.
+        window.SuppressPositioning();
+        WindowParking.ShowThenPlace(window, RevealAtPlacedPosition);
+
+        void RevealAtPlacedPosition()
         {
-            var targetOpacity = ThemeManager.Instance.ActiveTheme?.WindowOpacity ?? 1.0;
-            var fadeIn = new DoubleAnimation(targetOpacity, (Duration)System.Windows.Application.Current.FindResource("DurationWindowFadeIn"))
-            {
-                EasingFunction = System.Windows.Application.Current.TryFindResource("EaseOutCubic") as IEasingFunction
-            };
-            fadeContent.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+            window.AllowPositioning();
+            window.PositionWindow();
         }
 
         _controller.ForegroundWatcher.Start();

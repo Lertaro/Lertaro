@@ -28,6 +28,7 @@ internal sealed class StreamingResultAccumulator
 
     private readonly string _query;
     private readonly Lazy<string?> _queriedDirectory;
+    private readonly Func<string, bool, IndexRuleEffect>? _priorityResolver;
     private IComparer<SearchResult> _rankComparer;
 
     private int _consumed;
@@ -55,15 +56,19 @@ internal sealed class StreamingResultAccumulator
         string query,
         IReadOnlyDictionary<string, int> historySnapshot,
         IReadOnlyList<SearchResultMapper.RankedCandidate>? seedCandidates = null,
-        Func<string, string?>? resolveQueriedDirectory = null)
+        Func<string, string?>? resolveQueriedDirectory = null,
+        IReadOnlyDictionary<string, int>? historyUsage = null,
+        IReadOnlySet<string>? favoritePaths = null,
+        Func<string, bool, IndexRuleEffect>? priorityResolver = null)
     {
         _query = query;
+        _priorityResolver = priorityResolver;
         // Constructed on input, consumed by the background mapper. Directory.Exists can block on a
         // remote path; even an empty content-prefix paint on the UI thread must not resolve it.
         _queriedDirectory = new Lazy<string?>(() => (resolveQueriedDirectory ?? SearchResultMapper.GetQueriedDirectory)(query));
         // Captured once for the whole query rather than re-read per paint: the ranking must not shift
         // underneath rows that are already on screen just because the user opened something mid-search.
-        _rankComparer = new SearchResultRankComparer(historySnapshot);
+        _rankComparer = new SearchResultRankComparer(historySnapshot, historyUsage, favoritePaths, priorityResolver);
 
         if (seedCandidates == null)
             return;
@@ -90,19 +95,23 @@ internal sealed class StreamingResultAccumulator
     }
 
     /// <summary>
-    /// Ranks this query's rows by <paramref name="priorities"/> (path to rank, smaller first) ahead of
-    /// match quality. Only takes effect before the first file batch: once rows are on screen, re-ranking
-    /// them would shift them under the user.
+    /// Ranks this query's rows by <paramref name="priorities"/> (path to learned-keyword rank) and
+    /// <paramref name="usageCounts"/> (path to open count). Both are compared AFTER match quality: a path
+    /// with five or more opens gets the strong history band, one to four the weak band. Only takes effect
+    /// before the first file batch: once rows are on screen, re-ranking them would shift them under the user.
     /// </summary>
     /// <remarks>
     /// Separate from the constructor because the full window builds its accumulator on the UI thread, and
     /// working the priorities out reads the history store and resolves Recent Items shortcuts -- work that
     /// belongs on the render callback's background thread, ahead of its first batch.
     /// </remarks>
-    public void UsePriorities(IReadOnlyDictionary<string, int> priorities)
+    public void UsePriorities(
+        IReadOnlyDictionary<string, int> priorities,
+        IReadOnlyDictionary<string, int>? usageCounts = null,
+        IReadOnlySet<string>? favoritePaths = null)
     {
         if (_consumed == 0 && _ranked.Count == 0)
-            _rankComparer = new SearchResultRankComparer(priorities);
+            _rankComparer = new SearchResultRankComparer(priorities, usageCounts, favoritePaths, _priorityResolver);
     }
 
     /// <summary>How many of the arrivals handed in so far have been mapped.</summary>

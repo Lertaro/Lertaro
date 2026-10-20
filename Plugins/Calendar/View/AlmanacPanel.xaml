@@ -2,7 +2,6 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:ClassModifier="internal"
-             TextOptions.TextFormattingMode="Display"
              UseLayoutRounding="True">
     <UserControl.Resources>
         <!-- The reference sheet is a table: every run sits centred in its box, a label band beside or

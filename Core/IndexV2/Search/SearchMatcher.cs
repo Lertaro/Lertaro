@@ -32,6 +32,7 @@ internal static class SearchMatcher
         public readonly List<UniqueMatch> Hits = new();
         public char[] Scratch = new char[256];
         public char[] AliasScratch = new char[256];
+        public char[] NormalizedScratch = new char[256];
     }
 
     internal sealed class QueryContext
@@ -247,6 +248,12 @@ internal static class SearchMatcher
             worker.Scratch = new char[Math.Max(utf8.Length, worker.Scratch.Length * 2)];
         var written = Encoding.UTF8.GetChars(utf8, worker.Scratch);
         var name = worker.Scratch.AsSpan(0, written);
+        var normalizedBuffer = worker.NormalizedScratch;
+        var normalizedLength = SearchTextNormalizer.NormalizeInto(name, ref normalizedBuffer, out _);
+        if (normalizedBuffer != null)
+            worker.NormalizedScratch = normalizedBuffer;
+        if (normalizedLength > 0 && normalizedBuffer is { } normalized)
+            name = normalized.AsSpan(0, normalizedLength);
 
         // The live tier first: a registered live provider decides the query from the name's own
         // readings -- each term literally, then against the reading NFA, with the reference's

@@ -332,7 +332,10 @@ public static class AppSearchPipeService
 
         SearchResultMapper.RemoveQueriedDirectoryItself(raw, query);
         token.ThrowIfCancellationRequested();
-        raw.Sort(new SearchResultRankComparer(SearchHistoryStore.Snapshot()));
+        raw.Sort(new SearchResultRankComparer(
+            SearchHistoryStore.Snapshot(),
+            SearchHistoryStore.UsageCounts(),
+            FavoritePaths()));
 
         var byPath = new Dictionary<string, SearchResult>(StringComparer.OrdinalIgnoreCase);
         var appResults = new List<AppSearchResult>(raw.Count);
@@ -364,6 +367,23 @@ public static class AppSearchPipeService
             if (written <= FlushEveryResultUntil || written % FlushEveryResults == 0)
                 await pipe.FlushAsync(token);
         }
+    }
+
+    private static IReadOnlySet<string> FavoritePaths()
+    {
+        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var favorite in UserSettings.Load().Favorites)
+        {
+            try
+            {
+                paths.Add(Lertaro.App.ViewModels.Search.SearchResultHelper.NormalizePath(
+                    Lertaro.App.Helpers.FavoritePathResolver.Resolve(favorite.Path)));
+            }
+            catch
+            {
+            }
+        }
+        return paths;
     }
 
     private static char GetGlobalTokenPrefixChar()

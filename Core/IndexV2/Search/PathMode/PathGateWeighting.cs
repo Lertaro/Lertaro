@@ -121,6 +121,12 @@ internal sealed class PathGateWeighting
                 worker.Scratch = new char[Math.Max(nameUtf8.Length, worker.Scratch.Length * 2)];
             var written = Encoding.UTF8.GetChars(nameUtf8, worker.Scratch);
             var name = worker.Scratch.AsSpan(0, written);
+            var normalizedBuffer = worker.NormalizedScratch;
+            var normalizedLength = SearchTextNormalizer.NormalizeInto(name, ref normalizedBuffer, out _);
+            if (normalizedBuffer != null)
+                worker.NormalizedScratch = normalizedBuffer;
+            if (normalizedLength > 0 && normalizedBuffer is { } normalized)
+                name = normalized.AsSpan(0, normalizedLength);
             if (pattern.TryMatch(name, out _, FzfScoringScheme.Default, worker.Slab))
             {
                 weight = HighlightMask.ComputeWeight(name, pattern);
@@ -188,9 +194,10 @@ internal sealed class PathGateWeighting
     {
         weight = 1.0;
         var pattern = _segmentPatterns[q];
-        if (pattern.TryMatch(segment, out _, FzfScoringScheme.Default, worker.Slab))
+        var normalized = SearchTextNormalizer.Normalize(segment);
+        if (pattern.TryMatch(normalized, out _, FzfScoringScheme.Default, worker.Slab))
         {
-            weight = pattern.IsEmpty ? 1.0 : HighlightMask.ComputeWeight(segment, pattern);
+            weight = pattern.IsEmpty ? 1.0 : HighlightMask.ComputeWeight(normalized, pattern);
             return true;
         }
         if (!AliasProviderRegistry.HasNonAscii(segment))

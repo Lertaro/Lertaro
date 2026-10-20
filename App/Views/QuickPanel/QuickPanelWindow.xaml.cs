@@ -13,11 +13,10 @@ public partial class QuickPanelWindow : Window,
     PluginSdk.Abstractions.IPluginSearchWindow,
     Services.AppWindow.IHasVisibleContentInset
 {
-    // Must match QuickPanelWindow.xaml's root Border Margin, which is the room its drop shadow needs.
-    // Without this the preview would dock against the transparent bounds and sit a shadow's width too
-    // far out -- which for a window parked in a corner is the difference between the right side fitting
-    // the preview and not.
-    public Thickness VisibleContentInset => new(8);
+    // The window is the card: the 8 DIP margin this used to publish was the transparent room its drop
+    // shadow needed, and an opaque window has no such pixels. Both the preview's docking and the corner
+    // now meet the real edge.
+    public Thickness VisibleContentInset => new(0);
 
     // The four methods ActionFlyout needs from whoever hosts it. Deliberately IPluginSearchWindow and
     // not ISearchWindow: that larger interface is built around an in-window actions pane, which is what
@@ -33,6 +32,9 @@ public partial class QuickPanelWindow : Window,
         var scrollSupport = new QuickPanelScrollSupport(GroupsScrollViewer, StickyGroupHeader);
         Loaded += (_, _) => Dispatcher.BeginInvoke(scrollSupport.Update, System.Windows.Threading.DispatcherPriority.Loaded);
         Helpers.Visuals.SystemMenuBlocker.Attach(this);
+        // The panel is the card, so its corners are the window's own shape; Windows 11 rounds the real
+        // window, older Windows keeps the painted radius in the XAML.
+        Helpers.Visuals.DwmWindowCorners.ApplyRound(this);
         DataContext = viewModel;
 
         void OnViewModelChanged(object? _, System.ComponentModel.PropertyChangedEventArgs e)

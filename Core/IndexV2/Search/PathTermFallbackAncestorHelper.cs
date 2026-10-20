@@ -87,6 +87,17 @@ internal static class PathTermFallbackAncestorHelper
             written = Encoding.UTF8.GetChars(nameUtf8, worker.Scratch);
         }
 
+        ReadOnlySpan<char> segment = ascii ? default : worker.Scratch.AsSpan(0, written);
+        if (!ascii)
+        {
+            var normalizedBuffer = worker.NormalizedScratch;
+            var normalizedLength = SearchTextNormalizer.NormalizeInto(segment, ref normalizedBuffer, out _);
+            if (normalizedBuffer != null)
+                worker.NormalizedScratch = normalizedBuffer;
+            if (normalizedLength > 0 && normalizedBuffer is { } normalized)
+                segment = normalized.AsSpan(0, normalizedLength);
+        }
+
         for (var i = 0; i < termPatterns.Length; i++)
         {
             var bit = 1 << i;
@@ -94,13 +105,13 @@ internal static class PathTermFallbackAncestorHelper
                 continue;
             var hit = ascii
                 ? termBytePatterns[i].TryMatch(nameUtf8, out _, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers)
-                : termPatterns[i].TryMatch(worker.Scratch.AsSpan(0, written), out _, FzfScoringScheme.Default, worker.Slab);
+                : termPatterns[i].TryMatch(segment, out _, FzfScoringScheme.Default, worker.Slab);
             if (!hit && !ascii)
             {
                 // The live reading tier decides the same question for a pinyin word the literal pass
                 // cannot reach (see PinyinNameEvaluator).
                 var live = PinyinNameEvaluator.ForPattern(termPatterns[i]);
-                hit = live.HasProviders && live.TryScore(worker.Scratch.AsSpan(0, written), worker.Slab, out _);
+                hit = live.HasProviders && live.TryScore(segment, worker.Slab, out _);
             }
             if (hit)
                 mask |= bit;
@@ -167,18 +178,19 @@ internal static class PathTermFallbackAncestorHelper
         var mask = 0;
         foreach (var segment in segments)
         {
+            var matchSegment = SearchTextNormalizer.Normalize(segment);
             for (var i = 0; i < termPatterns.Length; i++)
             {
                 var bit = 1 << i;
                 if (((already | mask) & bit) != 0)
                     continue;
-                var hit = termPatterns[i].TryMatch(segment, out _, FzfScoringScheme.Default, worker.Slab);
+                var hit = termPatterns[i].TryMatch(matchSegment, out _, FzfScoringScheme.Default, worker.Slab);
                 if (!hit)
                 {
                     // Same live reading tier as the per-name mask: a pinyin word the literal pass
                     // cannot reach still counts for this segment (see PinyinNameEvaluator).
                     var live = PinyinNameEvaluator.ForPattern(termPatterns[i]);
-                    hit = live.HasProviders && live.TryScore(segment, worker.Slab, out _);
+                    hit = live.HasProviders && live.TryScore(matchSegment, worker.Slab, out _);
                 }
                 if (hit)
                     mask |= bit;

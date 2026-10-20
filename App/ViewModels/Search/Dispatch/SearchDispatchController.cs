@@ -171,6 +171,13 @@ internal sealed class SearchDispatchController
         // (a folder scope says nothing about applications), so no app budget is needed at all.
         var hasTokens = _queryTokens.Count > 0;
         var hasScope = scopeDirective != null;
+        // A filename-like query (contains a dot, e.g. "plan.md") is a request for a specific file, not a
+        // broad substring sweep. The ordinary 51-row budget is deliberately a cheap prefix for broad
+        // queries; using it here truncates the candidate set BEFORE the (now unified) ranking can see the
+        // other files with that name, which is why the full window found them and the quick one did not.
+        // The dot query gets the token path's wider budget (the same 1000-row ceiling) while the display
+        // cap remains in place. A user who wants the whole set can still use the full window / "more".
+        var filenameLike = LooksLikeFileNameQuery(searchQuery);
         // Folders only, and only for the card over a dialog whose target field takes nothing but a folder --
         // a Browse-For-Folder picker. Over an Open/Save dialog the name box wants a file, so the card has to
         // keep finding files; typed into an Explorer window's own search box this card IS that window's search.
@@ -178,31 +185,23 @@ internal sealed class SearchDispatchController
         // A folder scope drops most of what the engine answers before it reaches the list, so the ordinary
         // 51-row budget would leave about ten folders on a mixed query. Same widening the token and scoped
         // paths above already use, for the same reason: the rows the card may keep have to arrive first.
-        var fileLimit = hasTokens || hasScope || folderScope ? SearchViewModel.TokenQuickSearchFileLimit : 51;
+        var fileLimit = hasTokens || hasScope || folderScope || filenameLike ? SearchViewModel.TokenQuickSearchFileLimit : 51;
         var appLimit = hasScope ? 0 : hasTokens ? SearchViewModel.FullSearchAppLimit : 51;
         // Per search, not per paint: the mapper below is the render callback, and it asks every instant
         // provider and search-action plugin on each call. See SearchResultMapper.InstantPassCache.
         var instantPass = new SearchResultMapper.InstantPassCache();
-        // The session's first search is the one that hitches even after the mapper is warmed at startup, so its
-        // arrival time is the number that says whether the wait is before this callback (pipe + service index) or
-        // after it (row realization in the list). Info level: whether the line appears at all is itself a result.
-        // Removed once the first search is known to be immediate. See SearchWarmup.
-        if (Interlocked.CompareExchange(ref _firstSearchAt, Environment.TickCount64, 0) == 0)
-        {
-            // First search of this process: arm the clock. Nothing else here changes behaviour.
-        }
+        var rankRules = ExclusionRuleSet.From(UserSettings.Load());
+        // The engine truncates before the App can rank, so a high-priority row that matches weakly could
+        // never arrive at all. Only high rules pay for the wider window; the default rule set has none.
+        if (rankRules.HasHighPriorityRules)
+            fileLimit = Math.Max(fileLimit, SearchViewModel.TokenQuickSearchFileLimit);
         engineCall(
             searchQuery,
             hasScope ? null : _getSearchScope(),
             _getIsInlineSearchContext(),
             fileLimit,
             appLimit,
-            (resp, contextDir) =>
-            {
-                var built = SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass);
-                LogFirstSearchArrival(built.Count);
-                return built;
-            },
+            (resp, contextDir) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope || filenameLike, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass, priorityResolver: rankRules.GetPriority),
             state => _setIsSearching(state),
             (results, status, final) => ApplySearchResults(originalValue, searchQuery, results, status, final),
             HandleLocalServiceUnavailable,
@@ -224,32 +223,18 @@ internal sealed class SearchDispatchController
             contextDir => SearchResultMapper.CollectInstantPass(instantPass, originalValue, searchQuery, _getIsInlineSearchContext(), contextDir)
         );
     }
-    private static long _firstSearchAt;
-    private static int _firstSearchArrivalLogged;
-
-    private static void LogFirstSearchArrival(int rows)
-    {
-        if (_firstSearchAt == 0 || Interlocked.Exchange(ref _firstSearchArrivalLogged, 1) != 0) return;
-        Lertaro.Core.Logger.Log(
-            $"[SearchTiming] First search of the session: results built after {Environment.TickCount64 - _firstSearchAt} ms ({rows} rows).",
-            Lertaro.Core.LogLevel.Info);
-    }
-
     public void PerformSearch(string query)
     {
         if (string.IsNullOrWhiteSpace(query))
         {
             _engine.CancelPendingSearch();
             _setIsSearching(false);
+            var suggestion = ExplorerJumpSuggestionHelper.TryBuildSuggestion(_getIsInlineSearchContext(), _getSearchScope());
             var openedFolderPaths = _getIsInlineSearchContext() && UserSettings.Load().ShowOpenedFoldersInInlineSearch && InlineSearchManager.Instance.ExplorerTracker.IsActiveWindowDialog
                 ? ExplorerPathService.GetOpenedFolderPaths()
                 : Array.Empty<string>();
-            // No "last directory" row is built any more: Ctrl+G already jumps to the last activated
-            // file-manager folder, so showing that same folder again as a numbered candidate only duplicated
-            // the hotkey and made the list look like it had no logic. What is left is the real set of
-            // alternatives -- the folders that are open right now -- under their own header.
             var emptyStateResults = InlineEmptyStateResultHelper.Build(
-                null,
+                suggestion,
                 openedFolderPaths,
                 TranslationManager.Instance["Search_LastDirectoryHeader"],
                 TranslationManager.Instance["Search_OpenedFoldersHeader"]);
@@ -415,5 +400,18 @@ internal sealed class SearchDispatchController
     {
         var prefix = UserSettings.Load().GlobalTokenPrefix;
         return !string.IsNullOrEmpty(prefix) ? prefix[0] : ':';
+    }
+
+    // A query that names a file rather than sweeping a substring. Kept deliberately narrow: a leading
+    // operator/dot is not a name, and a dot anywhere else is the one signal a filename query always has
+    // (the extension). This only chooses the candidate budget; ranking and display are unchanged.
+    internal static bool LooksLikeFileNameQuery(string? query)
+    {
+        var text = query?.Trim();
+        if (string.IsNullOrEmpty(text) || text.Length < 3)
+            return false;
+        if (text[0] is '!' or '^' or '\'' or '-' or ':' or '.')
+            return false;
+        return text.Contains('.');
     }
 }

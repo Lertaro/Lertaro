@@ -5,25 +5,37 @@
         Height="529" Width="400"
         MinHeight="300" MinWidth="300"
         WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent"
+        Background="{DynamicResource ContentBg}"
         ShowInTaskbar="False"
         ShowActivated="False"
         Focusable="False"
         ResizeMode="CanResizeWithGrip"
         TextElement.Foreground="{DynamicResource TextPrimary}"
         BorderThickness="0">
+
+    <!-- The window is opaque, which is what lets its text be antialiased sub-pixel; the chrome is what
+         keeps an opaque borderless window behaving, with a resize border of 0 rather than the band that used
+         to cover the 6px overlay scrollbar along its edges. The bottom-right grip is the only thing that
+         resizes it; see ResizeGrip.xaml. CaptionHeight is 0 deliberately: this window drags from its own
+         header and footer handlers, so the chrome must not claim a caption area of its own. -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+
     <Window.Resources>
         <ResourceDictionary>
             <BooleanToVisibilityConverter x:Key="BoolToVis"/>
-            <!-- This window's card sits 12 DIP in rather than the 8 the grip's default inset assumes, so the
-                 lines need the extra room to stay inside it instead of in the transparent margin. -->
-            <Thickness x:Key="ResizeGripInset">4,4,14,14</Thickness>
+            <!-- The card reaches the window's own edge now, so the grip's lines only need to clear the
+                 card's 1.5 DIP border to stay inside it. -->
+            <Thickness x:Key="ResizeGripInset">4,4,2,2</Thickness>
         </ResourceDictionary>
     </Window.Resources>
     
+    <!-- The card IS the window: the 12 DIP margin it carried was a transparent halo holding the drop
+         shadow the layered window painted around itself, and an opaque window has no pixels out there to
+         paint into. The CornerRadius stays: the window manager rounds the real window on Windows 11, and
+         this radius is what rounds the card anywhere it cannot. -->
     <Border x:Name="WindowBorder" CornerRadius="{StaticResource CornerRadiusWindow}" BorderThickness="1.5"
-            Margin="12"
             Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource CardBorderBrush}">
         <Grid Margin="16">
             <Grid.RowDefinitions>

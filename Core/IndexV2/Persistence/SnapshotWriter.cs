@@ -102,8 +102,14 @@ public static class SnapshotWriter
         {
             // Union of name + alias chars: over-admits, never rejects a real match -- the
             // structural equivalent of the old engine bucketing rows under alias chars.
-            var mask = FzfAlgorithm.GetCharMask(uniqueNames[uid]);
-            aliasResults[uid] = AliasGenerationUtf8.Generate(uniqueNames[uid], ref mask);
+            var name = uniqueNames[uid];
+            var mask = FzfAlgorithm.GetCharMask(name);
+            // A half-width query arrives folded, so a full-width name must also admit the folded
+            // letters/digits or the prefilter would reject it before the folded matcher ever runs.
+            var folded = SearchTextNormalizer.Normalize(name);
+            if (!string.Equals(folded, name, StringComparison.Ordinal))
+                mask |= FzfAlgorithm.GetCharMask(folded);
+            aliasResults[uid] = AliasGenerationUtf8.Generate(name, ref mask);
             uniqueMasks[uid] = mask;
         });
 

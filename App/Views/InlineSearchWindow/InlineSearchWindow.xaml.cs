@@ -53,6 +53,10 @@ public partial class InlineSearchWindow : Window, ISearchWindow
         InitializeComponent();
         ThemedWindowIconHelper.Apply(this);
         SystemMenuBlocker.Attach(this);
+        // The card is the window, so its corners are the window's own shape rather than a painting inside
+        // a transparent one. Windows 11 rounds the real window; older Windows keeps the painted radius
+        // ApplyLayoutMode maintains.
+        DwmWindowCorners.ApplyRound(this);
         _viewModel = viewModel;
         _manager = manager;
         this.DataContext = _viewModel;
@@ -150,25 +154,22 @@ public partial class InlineSearchWindow : Window, ISearchWindow
 
         this.SourceInitialized += (s, e) =>
         {
+            // Composed on the CPU, like every card the user only ever summons (see CardRenderMode). Here, not
+            // in the constructor: the handle does not exist yet there, and the mode is a property of the
+            // composition target the handle brings with it.
+            CardRenderMode.Apply(this);
+
             var helper = new System.Windows.Interop.WindowInteropHelper(this);
             var hwnd = helper.Handle;
             if (hwnd != IntPtr.Zero)
             {
-                // 1. Decouple window hierarchy: Set active Explorer/Desktop as native owner HWND
-
-                var tracker = _manager.ExplorerTracker;
-                if (tracker.ActiveHwnd != IntPtr.Zero)
-                {
-                    InlineSearchWindowNativeMethods.SetWindowLongPtr(hwnd, InlineSearchWindowNativeMethods.GWL_HWNDPARENT, tracker.ActiveHwnd);
-                }
-
-                // 2. Set Extended Styles: WS_EX_TOOLWINDOW (hide from Alt+Tab)
+                // 1. Set Extended Styles: WS_EX_TOOLWINDOW (hide from Alt+Tab)
 
                 var exStyle = InlineSearchWindowNativeMethods.GetWindowLongPtr(hwnd, InlineSearchWindowNativeMethods.GWL_EXSTYLE);
                 exStyle = new IntPtr(exStyle.ToInt64() | InlineSearchWindowNativeMethods.WS_EX_TOOLWINDOW);
                 InlineSearchWindowNativeMethods.SetWindowLongPtr(hwnd, InlineSearchWindowNativeMethods.GWL_EXSTYLE, exStyle);
 
-                // 3. Ensure topmost
+                // 2. Ensure topmost
 
                 InlineSearchWindowNativeMethods.SetWindowPos(hwnd, InlineSearchWindowNativeMethods.HWND_TOPMOST, 0, 0, 0, 0,
                     InlineSearchWindowNativeMethods.SWP_NOMOVE | InlineSearchWindowNativeMethods.SWP_NOSIZE | InlineSearchWindowNativeMethods.SWP_SHOWWINDOW);
@@ -229,6 +230,30 @@ public partial class InlineSearchWindow : Window, ISearchWindow
     }
 
     public bool ActivateAndFocusSearchBox() => _focusSupport.ActivateAndFocus();
+
+    /// <summary>Docks the card onto the window it is being summoned for.</summary>
+    /// <remarks>
+    /// Owner rather than topmost alone, because that is what keeps the card with its host's group; and it is
+    /// re-applied on every summon now that the card outlives the summon it was built for -- the owner belongs
+    /// to the handle, and the handle is what is being reused while the host window changes.
+    /// </remarks>
+    internal void HostOnto(IntPtr hostHwnd)
+    {
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero || hostHwnd == IntPtr.Zero) return;
+        InlineSearchWindowNativeMethods.SetWindowLongPtr(hwnd, InlineSearchWindowNativeMethods.GWL_HWNDPARENT, hostHwnd);
+    }
+
+    /// <summary>Puts the card back into the state a brand-new one would be in: no half-open actions menu, and
+    /// the host watchdog running again -- it stops itself when the dialog it was watching goes away.</summary>
+    internal void BeginSession()
+    {
+        if (_menuPresenter.IsInActionsMode) _menuPresenter.ExitActionsMode();
+        _activeTimer.Start();
+    }
+
+    /// <summary>Puts back the keyboard layout that the last summon adopted from its host.</summary>
+    internal void RestoreKeyboardLayout() => _focusSupport.RestoreLayout();
 
     public void HideWindow() => _manager.CloseInlineSearch();
 

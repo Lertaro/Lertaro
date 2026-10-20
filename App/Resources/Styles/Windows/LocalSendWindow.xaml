@@ -9,7 +9,7 @@
     <Style x:Key="ThemeTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
         <Setter Property="Height" Value="26"/>
         <Setter Property="Padding" Value="6,0"/>
-        <Setter Property="FontSize" Value="11.5"/>
+        <Setter Property="FontSize" Value="12"/>
         <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
         <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
@@ -39,7 +39,7 @@
         <Setter Property="Padding" Value="6,4"/>
         <Setter Property="HorizontalContentAlignment" Value="Left"/>
         <Setter Property="VerticalContentAlignment" Value="Top"/>
-        <Setter Property="FontSize" Value="11.5"/>
+        <Setter Property="FontSize" Value="12"/>
         <Setter Property="Background" Value="{DynamicResource FieldBackground}"/>
         <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
@@ -109,7 +109,7 @@
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Text="{Binding DisplayName}" ToolTip="{Binding DisplayName}" FontSize="12" Foreground="{DynamicResource TextPrimary2}" TextTrimming="CharacterEllipsis" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                <TextBlock Grid.Column="1" FontSize="11.5" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center">
+                <TextBlock Grid.Column="1" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
                             <Setter Property="Text" Value="{Binding SizeText}"/>

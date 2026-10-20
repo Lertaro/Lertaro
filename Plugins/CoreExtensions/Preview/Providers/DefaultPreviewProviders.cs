@@ -117,7 +117,7 @@ public class TextPreviewProvider : IFilePreviewProvider
         };
         var txt = new TextBlock
         {
-            FontSize = 12.5,
+            FontSize = 13,
             Margin = new Thickness(4),
             TextWrapping = TextWrapping.Wrap
         };

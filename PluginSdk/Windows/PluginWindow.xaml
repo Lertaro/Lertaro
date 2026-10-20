@@ -4,10 +4,18 @@
         xmlns:helpers="clr-namespace:Lertaro.PluginSdk.Windows"
         Width="560" Height="360" MinWidth="420" MinHeight="240"
         WindowStartupLocation="CenterScreen" ShowInTaskbar="False"
-        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        WindowStyle="None" Background="{DynamicResource CardBackground}"
         TextElement.Foreground="{DynamicResource TextPrimary}"
-        UseLayoutRounding="True" SnapsToDevicePixels="True"
-        TextOptions.TextFormattingMode="Display">
+        UseLayoutRounding="True" SnapsToDevicePixels="True">
+
+    <!-- The window is opaque, which is what lets its text be antialiased sub-pixel; the chrome is what
+         keeps an opaque borderless window behaving: an invisible resize border instead of the OS's chunky
+         frame. CaptionHeight is 0 deliberately: this window drags from its own title bar handler, so the
+         chrome must not claim a caption area of its own. -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -49,10 +57,14 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <Border CornerRadius="10" Background="{DynamicResource ContentBg}"
+    <!-- The card IS the window: the 8 DIP margin it carried was a transparent halo holding the drop shadow
+         the layered window painted around itself, and an opaque window has no pixels out there to paint
+         into. The CornerRadius stays: the window manager rounds the real window on Windows 11, and this
+         radius is what rounds the card anywhere it cannot. -->
+    <Border x:Name="Surface" CornerRadius="8" Background="{DynamicResource ContentBg}"
             helpers:PluginWindowClip.IsEnabled="True"
-            BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1" Margin="8">
-        <Border CornerRadius="10" helpers:PluginWindowClip.IsEnabled="True">
+            BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1">
+        <Border CornerRadius="8" helpers:PluginWindowClip.IsEnabled="True">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="38"/>
@@ -67,7 +79,7 @@
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
                             <Image x:Name="TitleBarLogo" Width="16" Height="16" Margin="0,0,8,0"
                                    Stretch="Uniform"/>
-                            <TextBlock x:Name="TitleText" FontSize="12.5" FontWeight="SemiBold"
+                            <TextBlock x:Name="TitleText" FontSize="13" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center"/>
                         </StackPanel>
                         <Button Content="&#xE8BB;" Style="{StaticResource CloseButton}"

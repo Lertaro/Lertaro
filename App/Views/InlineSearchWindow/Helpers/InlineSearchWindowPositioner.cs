@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Threading;
+using Lertaro.App.Helpers.Visuals;
 using Lertaro.Core;
 
 namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
@@ -15,6 +16,12 @@ public class InlineSearchWindowPositioner
     private readonly InlineCardDragOffset _dragOffset;
     private readonly InlineDialogGeometryProbe _geometry;
     private int _positionUpdateQueued;
+
+    // The target the last computing pass produced, and the pass that has to hold off applying it because the
+    // card is busy being composed at the parking row. See Reveal and WindowParking.ShowThenPlace.
+    private bool _hasTarget;
+    private bool _revealPending;
+    private double _targetLeft, _targetTop, _targetPhysLeft, _targetPhysTop, _targetPhysWidth, _targetPhysHeight;
 
     private bool _hasCachedInputs;
     private IntPtr _cachedActiveHwnd;
@@ -95,6 +102,59 @@ public class InlineSearchWindowPositioner
     }
 
     public void PositionWindowImmediate() => PositionWindowCore();
+
+    /// <summary>Shows the card at the parking row and lands it once WPF has had a render pass there.</summary>
+    /// <remarks>
+    /// The caller places the card at its dock before this, which is what makes the target monitor's scale the
+    /// one the parked frame is composed for: the landing pass then moves the card down into place without
+    /// changing its size or its DPI context, so no surface has to be recreated while the user is looking at it.
+    /// Measured against a Show straight at the dock: 30ms of content after the card reaches the screen, instead
+    /// of 170-258ms (scratch/blackprobe).
+    /// </remarks>
+    internal void Reveal()
+    {
+        _revealPending = true;
+        var shownAt = Environment.TickCount64;
+        WindowParking.ShowThenPlace(_window, () =>
+        {
+            _revealPending = false;
+            // Info, like the summon sizing pass: this is the instant the card becomes something the user can
+            // see, and the gap it reports is the thing being argued about.
+            Logger.Log(
+                $"[InlineCardReveal] landed +{Environment.TickCount64 - shownAt}ms "
+                + $"at={_window.Left:F0},{_window.Top:F0} height={_window.Height:F0} width={_window.Width:F0} "
+                + $"searching={_window.ViewModel.IsSearching} results={_window.ViewModel.Results.Count}",
+                LogLevel.Info);
+            // Nothing was ever computed for this card (no host window yet) -- lay it out the ordinary way,
+            // which now applies because the reveal is over.
+            if (_hasTarget) ApplyTarget(new WindowInteropHelper(_window).Handle);
+            else PositionWindowCore();
+        });
+    }
+
+    // Size AND position in one native call, deliberately. Resizing the window is anchored at its top-left, so a
+    // height change on its own would leave the bottom edge (and with it the search box) sitting at the old spot
+    // until the reposition below caught up -- and when the two land in different frames that shows as the card
+    // visibly snapping upward before settling. Handing Windows both at once removes the frame where they
+    // disagree. SWP_NOZORDER/NOACTIVATE keep the rest of the window's state untouched, and this only ever runs
+    // from the layout path that has just set Height/Left/Top, so the values are the ones WPF is about to render
+    // anyway.
+    //
+    // The two sizes are the recorded target rather than _window.Width/Height: a card whose height has not been
+    // applied yet reports NaN there, and NaN in a SetWindowPos height is a zero-height window.
+    private void ApplyTarget(IntPtr hwnd)
+    {
+        if (!_hasTarget) return;
+
+        if (Math.Abs(_window.Left - _targetLeft) > 0.5) _window.Left = _targetLeft;
+        if (Math.Abs(_window.Top - _targetTop) > 0.5) _window.Top = _targetTop;
+
+        if (hwnd == IntPtr.Zero) return;
+        InlineSearchWindowNativeMethods.SetWindowPos(hwnd, IntPtr.Zero,
+            (int)Math.Round(_targetPhysLeft), (int)Math.Round(_targetPhysTop),
+            (int)Math.Round(_targetPhysWidth), (int)Math.Round(_targetPhysHeight),
+            InlineSearchWindowNativeMethods.SWP_NOZORDER | InlineSearchWindowNativeMethods.SWP_NOACTIVATE);
+    }
 
     private void PositionWindowCore()
     {
@@ -183,9 +243,12 @@ public class InlineSearchWindowPositioner
             return;
         }
 
-        // The window's own transparent margin, paid back wherever the card's VISIBLE edge is meant to meet
-        // an edge. There is no second inset: the card is its own visible boundary.
-        const double xamlMargin = 12;
+        // The window's own margin, paid back wherever the card's VISIBLE edge is meant to meet an edge. It
+        // is zero now: the window is opaque and the card is the whole of it (InlineCardSizingSupport sizes
+        // the window to the card), so the window's own edge already is the visible one. The parameter is
+        // still threaded through the two placement functions below because they are pure geometry with
+        // their own tests, and the margin is genuinely a property of the window rather than of the math.
+        const double xamlMargin = 0;
 
         // Whether the space under the anchored window can hold the WHOLE card. Asked of the tallest the card
         // can ever be (InlineCardSizingSupport.FullCardHeight), never of the height it happens to have: the
@@ -298,23 +361,23 @@ public class InlineSearchWindowPositioner
             targetTop = targetPhysTop / targetDpiScaleY;
         }
 
-        if (Math.Abs(_window.Left - targetLeft) > 0.5) _window.Left = targetLeft;
-        if (Math.Abs(_window.Top - targetTop) > 0.5) _window.Top = targetTop;
+        // Recorded on every pass that computes a target, including the ones that are held back below: the frame
+        // that lands the card after its parked show uses wherever the layout last wanted it, not where the
+        // pre-show pass happened to get to.
+        _hasTarget = true;
+        _targetLeft = targetLeft;
+        _targetTop = targetTop;
+        _targetPhysLeft = targetPhysLeft;
+        _targetPhysTop = targetPhysTop;
+        _targetPhysWidth = physWindowWidth;
+        _targetPhysHeight = physWindowHeight;
 
-        if (hwnd != IntPtr.Zero)
-        {
-            // Size AND position in one native call, deliberately. Resizing the window is anchored at its
-            // top-left, so a height change on its own would leave the bottom edge (and with it the search
-            // box) sitting at the old spot until the reposition below caught up -- and when the two land in
-            // different frames that shows as the card visibly snapping upward before settling. Handing
-            // Windows both at once removes the frame where they disagree. SWP_NOZORDER/NOACTIVATE keep the
-            // rest of the window's state untouched, and this only ever runs from the layout path that has
-            // just set Height/Left/Top, so the values are the ones WPF is about to render anyway.
-            InlineSearchWindowNativeMethods.SetWindowPos(hwnd, IntPtr.Zero,
-                (int)Math.Round(targetPhysLeft), (int)Math.Round(targetPhysTop),
-                (int)Math.Round(_window.Width * targetDpiScaleX), (int)Math.Round(_window.Height * targetDpiScaleY),
-                InlineSearchWindowNativeMethods.SWP_NOZORDER | InlineSearchWindowNativeMethods.SWP_NOACTIVATE);
-        }
+        // The card is on screen being composed but not yet placed (Reveal below): putting it where the user is
+        // looking from this pass would undo exactly what the parked show buys.
+        if (_revealPending)
+            return;
+
+        ApplyTarget(hwnd);
 
         _hasCachedInputs = true;
         _cachedActiveHwnd = tracker.ActiveHwnd;

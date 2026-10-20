@@ -5,6 +5,27 @@
 符号：* 核心功能　+ 小功能添加　# 修复。只写"改了什么"。
 -->
 
+## v5.9.8.1
+
+## 更新内容
+
+```
+* 合并上游 v5.9.8（窗口不透明化、排版圆角与焦点框、内联卡片复用与尺寸、索引规则优先级与统一规则设置页、安装器 CET 修复、右键 logo 居中）
+* 排序改为：收藏/搜过 → 左侧位置 → 覆盖率 → 历史次数 → 索引规则 → 类型顺序 → 最近文件（同类型内优先）→ 其余匹配质量
++ 自动更新只检查本仓库的发行
++ 保留鼠标平滑滚动
+```
+
+## What's changed
+
+```
+* Merged upstream v5.9.8 (opaque window surfaces, typography and focus rectangles, inline card reuse and sizing, index rule priorities with a unified rules editor, installer CET fix, right-click logo to center)
+* Ranked by favorites/searched-before, left position, coverage, history count, index rules, result type, recent files (leading their type), then the remaining match quality
++ Auto-update only checks this repository's releases
++ Keeps the smooth wheel scrolling
+```
+
+
 ## v5.9.7.2
 
 ## 更新内容
