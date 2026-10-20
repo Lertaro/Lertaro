@@ -1,0 +1,9 @@
+{
+  "Plugins_Xplorer2_EnableInlineSearch": "Enable Inline Search",
+  "Plugins_Xplorer2_EnableInlineSearchDesc": "Allow double-clicking or pressing hotkeys in xplorer2 to summon inline search",
+  "Plugins_Xplorer2_EnableQuickNav": "Enable Quick Navigation Menu",
+  "Plugins_Xplorer2_EnableQuickNavDesc": "Allow middle-clicking in xplorer2's file list to summon the Quick Navigation menu",
+  "Xplorer2_PluginDesc": "xplorer2 integration plugin. Reads the active pane's path and provides quick directory jumping in xplorer2.",
+  "Plugin_Comp_Desc_Xplorer2PathCollector": "Reads and tracks the folder in xplorer2's active pane. Other open tabs are left out: xplorer2 unloads inactive tabs and exposes no way to read them.",
+  "Plugin_Comp_Desc_Xplorer2InlineSearchAdapter": "Provides inline typing filter navigation and directory jumping for xplorer2's file list panes."
+}

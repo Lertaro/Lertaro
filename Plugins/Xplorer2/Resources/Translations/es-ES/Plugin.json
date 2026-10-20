@@ -1,0 +1,9 @@
+{
+  "Plugins_Xplorer2_EnableInlineSearch": "Activar Búsqueda en Línea",
+  "Plugins_Xplorer2_EnableInlineSearchDesc": "Permite hacer doble clic o pulsar atajos de teclado en xplorer2 para invocar la búsqueda en línea",
+  "Plugins_Xplorer2_EnableQuickNav": "Activar Menú de Navegación Rápida",
+  "Plugins_Xplorer2_EnableQuickNavDesc": "Permite hacer clic central en la lista de archivos de xplorer2 para invocar el menú de Navegación Rápida",
+  "Xplorer2_PluginDesc": "Complemento de integración con xplorer2. Lee la ruta del panel activo y ofrece salto rápido de directorio en xplorer2.",
+  "Plugin_Comp_Desc_Xplorer2PathCollector": "Lee y realiza el seguimiento de la carpeta del panel activo de xplorer2. Omite las demás pestañas abiertas: xplorer2 descarga las pestañas inactivas y no ofrece manera de leerlas.",
+  "Plugin_Comp_Desc_Xplorer2InlineSearchAdapter": "Ofrece navegación por filtrado de escritura en línea y salto de directorio para los paneles de lista de archivos de xplorer2."
+}

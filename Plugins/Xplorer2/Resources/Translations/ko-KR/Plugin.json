@@ -1,0 +1,9 @@
+{
+  "Plugins_Xplorer2_EnableInlineSearch": "인라인 검색 사용",
+  "Plugins_Xplorer2_EnableInlineSearchDesc": "xplorer2에서 더블클릭하거나 단축키를 눌러 인라인 검색을 호출할 수 있게 합니다",
+  "Plugins_Xplorer2_EnableQuickNav": "빠른 탐색 메뉴 사용",
+  "Plugins_Xplorer2_EnableQuickNavDesc": "xplorer2의 파일 목록에서 가운데 버튼을 클릭하여 빠른 탐색 메뉴를 호출할 수 있게 합니다",
+  "Xplorer2_PluginDesc": "xplorer2 통합 플러그인입니다. 활성 패널의 경로를 읽고 xplorer2에서 빠른 디렉터리 이동을 제공합니다.",
+  "Plugin_Comp_Desc_Xplorer2PathCollector": "xplorer2의 활성 패널에 열린 폴더를 읽고 추적합니다. 다른 열려 있는 탭은 제외됩니다. xplorer2는 비활성 탭을 언로드하며 이를 읽을 수 있는 방법을 제공하지 않습니다.",
+  "Plugin_Comp_Desc_Xplorer2InlineSearchAdapter": "xplorer2의 파일 목록 패널에 인라인 입력 필터 탐색과 디렉터리 이동을 제공합니다."
+}
