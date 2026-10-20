@@ -1,4 +1,3 @@
-using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
 using Lertaro.App.ViewModels.Search;
@@ -39,6 +38,10 @@ internal sealed class InlineSearchWindowSummonSupport
         _manager.Window ??= Create();
         var window = _manager.Window;
 
+        // Before the dock: ownership is a property of the HWND, and a card built just above does not have one
+        // yet, so the order here decided whether its first session was docked at all.
+        new WindowInteropHelper(window).EnsureHandle();
+
         _manager.CurrentHostHwnd = tracker.ActiveHwnd;
         _manager.KeyboardHook.IsInlineSearchVisible = true;
         _manager.KeyboardHook.IsInlineWindowOnScreen = true;
@@ -53,7 +56,6 @@ internal sealed class InlineSearchWindowSummonSupport
         window.ViewModel.SearchScope = tracker.ActivePath;
         window.UpdateSearchDisplay(string.Empty);
 
-        new WindowInteropHelper(window).EnsureHandle();
         // Sized before it is shown, not from its Loaded handler like every later pass: the window is opaque
         // now, so the card's height has to be the window's height before the first frame or the frame that
         // goes up is the XAML's own 550 DIP with a small card pinned inside one edge of it -- a slab where
@@ -119,6 +121,18 @@ internal sealed class InlineSearchWindowSummonSupport
         {
             IsInlineSearchContext = true
         };
-        return new InlineSearchWindow(viewModel, _manager);
+        var window = new InlineSearchWindow(viewModel, _manager);
+
+        // Win32 destroys an owned window along with its owner, and while the card is on screen it is owned by
+        // the host it was docked to. WPF reads that WM_DESTROY as a close, so the cached reference would be a
+        // window Show and EnsureHandle both refuse to touch afterwards -- the crash dialog every later summon
+        // produced. Dropping it here is what makes the next summon build a new card; the same guard every
+        // other cached window in this app carries (see AppWindowManager).
+        window.Closed += (_, _) =>
+        {
+            if (_manager.Window == window) _manager.Window = null;
+        };
+
+        return window;
     }
 }

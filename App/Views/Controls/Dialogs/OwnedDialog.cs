@@ -128,5 +128,7 @@ internal static class OwnedDialog
     // A window still listed in Application.Current.Windows but with no HWND is one that has already
     // been closed, or was never shown. Owning a dialog to it is owning it to nothing: the dialog is
     // destroyed the moment it is created, which is the same freeze as above with no window to blame.
-    private static bool IsAlive(Window window) => new WindowInteropHelper(window).Handle != IntPtr.Zero;
+    // Internal because the same test is what gates every deferred Show: a window the system destroyed
+    // along with its owner reads as closed here, and Show on it throws.
+    internal static bool IsAlive(Window window) => new WindowInteropHelper(window).Handle != IntPtr.Zero;
 }

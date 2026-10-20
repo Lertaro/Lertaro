@@ -3,6 +3,7 @@ using System.Windows;
 using Lertaro.PluginSdk.Services;
 
 using Lertaro.App.Services.AppWindow;
+using Lertaro.App.Views.Controls.Dialogs;
 namespace Lertaro.App.Services;
 
 public partial class QuickLookManager
@@ -78,8 +79,13 @@ public partial class QuickLookManager
         owner.Dispatcher.BeginInvoke(new Action(() =>
         {
             _hiddenForDialog = false;
-            owner.Show();
-            window.Show();
+            // Either of them can have gone in the time the dialog was up: the owner closes, and the preview
+            // hidden inside it is destroyed with it (it is an owned window). Show on either then throws the
+            // same InvalidOperationException the inline card used to crash on, and this runs from a hook
+            // event, so nothing is left holding it. Skipping them is correct on its own terms -- the
+            // session these two windows belonged to is over.
+            if (OwnedDialog.IsAlive(owner)) owner.Show();
+            if (OwnedDialog.IsAlive(window)) window.Show();
         }));
     }
 
