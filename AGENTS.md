@@ -100,6 +100,9 @@ Not lazy about: input validation at trust boundaries, error handling that preven
     `fork-release-notes.yml` 会**原样投影**那一段，块外内容会变成正文里散落的文字（2026-10-19 踩过）。
     改完必须打印该段前后 30 行，确认每个条目都在块内、中英条目一一对应。
 - `git commit` / `git push` 必须 owner 明确授权；部署、构建、测试不需要。
+- **fork 主线分支 = `local/main`**（2026-10-20 从 `local/5.9.1.3` 改名而来）。分支名**不再带版本号**：它跟着上游一直往前走，
+  版本只看 `App/App.csproj`。发布与 CI 只认 tag（`release.yml` 触发于 `push: tags: v*`），分支叫什么与发行无关。
+  - 做 fork 的事只用 `local/main`；**提 PR 时临时切分支，推完立刻切回 `local/main`**（曾因停在 PR 分支上，每次读版本号都在错的分支上）。
 - 回滚：`git reset --hard 1bff6429`（回滚后**也要重编插件**）；二进制备份 `D:\App protable\Lertaro.bak-5917`（5.9.1.7）。
 
 ## 工作方式
