@@ -321,7 +321,7 @@ internal static class BrowserDataCache
         foreach (var entry in entries.Bookmarks.Concat(entries.History))
         {
             if (icons.TryGetValue(entry.Url, out var imageData))
-                entry.Favicon = BrowserFaviconIconLoader.Decode(imageData);
+                entry.FaviconData = imageData;
         }
     }
 }

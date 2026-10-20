@@ -1,5 +1,4 @@
 using Lertaro.Plugins.BrowserData.Readers;
-using System.Windows.Media.Imaging;
 
 namespace Lertaro.Plugins.BrowserData;
 
@@ -13,7 +12,10 @@ internal sealed class BrowserEntry
     public bool IsBookmark { get; }
     public long SortKey { get; }
     public BrowserFamily Family { get; }
-    public BitmapSource? Favicon { get; internal set; }
+
+    // Raw encoded bytes, not a decoded bitmap: a profile holds thousands of these and only a handful of
+    // rows ever render, so decoding is left to BrowserFaviconIconLoader.ToHBitmap at result-build time.
+    public byte[]? FaviconData { get; internal set; }
 
     public DateTimeOffset? VisitTime =>
         SortKey == 0 ? null : (Family == BrowserFamily.Firefox
