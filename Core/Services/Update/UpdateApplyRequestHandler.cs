@@ -39,6 +39,12 @@ internal static class UpdateApplyRequestHandler
     /// <summary>Subdirectory of the install directory the verified payload is unpacked into for the copier.</summary>
     internal const string PayloadStagingFolderName = "update-payload";
 
+    /// <summary>
+    /// How long the handler watches a freshly started updater before answering Ok. Long enough to catch one
+    /// that dies on the spot, short enough that the copier's wait for the update lock (15 s) is unaffected.
+    /// </summary>
+    private static readonly TimeSpan UpdaterStartGracePeriod = TimeSpan.FromSeconds(1.5);
+
     public static PipeResponse Handle(NamedPipeServerStream pipe, string? sourceDir)
     {
         lock (UpdateGate) return HandleCore(pipe, sourceDir);
@@ -104,7 +110,35 @@ internal static class UpdateApplyRequestHandler
 
             // Covers the handoff until the updater opens the same lock file. It acquires that lock
             // before stopping the service and holds it through copy/rollback and service restart.
-            _applier = System.Diagnostics.Process.GetProcessById(pid);
+            var previous = _applier;
+            _applier = null;
+            previous?.Dispose();
+            var applier = System.Diagnostics.Process.GetProcessById(pid);
+
+            // The App quits as soon as it is told Ok, and only the copier can bring it back. A copier that
+            // dies within a moment -- blocked by an execution policy, refused elevation, a broken script --
+            // would take the App down with it and leave a stale relaunch note behind for the next service
+            // start. Watching it for a moment turns that into a refusal the App can report while it is still
+            // up; a real run keeps running, since it has to stop a service and copy the whole application.
+            try
+            {
+                if (applier.WaitForExit((int)UpdaterStartGracePeriod.TotalMilliseconds))
+                {
+                    var exitCode = applier.ExitCode;
+                    applier.Dispose();
+                    UpdateRelaunchMarker.Clear();
+                    if (exitCode != 0)
+                        return Reject($"The updater stopped before it started (exit code {exitCode}).");
+                    Logger.Log($"[UsnService] Update applier (PID {pid}) finished within the start grace period.");
+                    return new PipeResponse { Kind = PipeResponseKind.Ok };
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[UsnService] Could not watch the update applier: {ex.Message}", LogLevel.Warn);
+            }
+
+            _applier = applier;
 
             Logger.Log($"[UsnService] Update applier launched (PID {pid}) into session {sessionId} for PID {callerPid}.");
             return new PipeResponse { Kind = PipeResponseKind.Ok };

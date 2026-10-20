@@ -79,7 +79,8 @@ public static class UpdateCheckService
                 // Record before handing off: a copy failure rolls back and restarts this version,
                 // whose next startup must not immediately repeat the same failed installation.
                 if (!RememberFailedAttempt(settings, release.TagName)) return;
-                if (await UpdateInstaller.Instance.StartSilentUpdateAsync(zipAsset.BrowserDownloadUrl, progress))
+                var (installed, _) = await UpdateInstaller.Instance.StartSilentUpdateAsync(zipAsset.BrowserDownloadUrl, progress);
+                if (installed)
                 {
                     SilentUpdateState.Report(TranslationManager.Instance["About_Success"]);
                     TrayCleanExitHelper.CleanExit(stopService: false);

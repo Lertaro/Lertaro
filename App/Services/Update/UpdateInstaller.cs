@@ -39,10 +39,12 @@ public class UpdateInstaller
     /// Downloads the portable zip, verifies it, and asks the service to install it.
     /// </summary>
     /// <returns>
-    /// True only once the updater is actually running, which is also the caller's cue to exit so the files
-    /// being replaced stop being locked. False means nothing was installed and this process should stay up.
+    /// Ok is true only once the updater is actually running, which is also the caller's cue to exit so the
+    /// files being replaced stop being locked. False means nothing was installed and this process should stay
+    /// up; <c>Error</c> then carries the reason to show, when there is one worth showing (the signature
+    /// failure has already shown its own dialog).
     /// </returns>
-    public async Task<bool> StartSilentUpdateAsync(string zipUrl, Action<double>? progressCallback = null)
+    public async Task<(bool Ok, string? Error)> StartSilentUpdateAsync(string zipUrl, Action<double>? progressCallback = null)
     {
         // A fresh per-run directory rather than the fixed %TEMP%\LertaroUpdate it used to be: a fixed name
         // is up for grabs to whichever process creates it first, and whatever was read out of it then went
@@ -96,30 +98,31 @@ public class UpdateInstaller
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
                 DeleteStagingDirectory(stagingDir);
-                return false;
+                return (false, null);
             }
 
             using var searchService = new SearchService();
             var (ok, error) = await searchService.RequestApplyUpdateAsync(stagingDir).ConfigureAwait(false);
             if (!ok)
             {
-                // Covers the service not running and an App/Service pair that disagrees about the pipe
-                // protocol. Both mean "no update today", which is not something to bother a dialog about:
-                // the next startup retries it, and the About page reports it to whoever asked.
+                // Covers the service not running, an App/Service pair that disagrees about the pipe
+                // protocol, and the refusals the handler makes in words it chooses itself (no administrator,
+                // updater missing, an update already running). The About page is asked for by a user, so it
+                // shows that sentence; the startup path only logs it.
                 Core.Logger.Log($"[UpdateService] Service refused the update: {error}", Core.LogLevel.Error);
                 DeleteStagingDirectory(stagingDir);
-                return false;
+                return (false, error);
             }
 
             // The service has already read the package and unpacked it under the install directory.
             DeleteStagingDirectory(stagingDir);
-            return true;
+            return (true, null);
         }
         catch (Exception ex)
         {
             Core.Logger.Log($"[UpdateService] Auto update failed: {ex}", Core.LogLevel.Error);
             DeleteStagingDirectory(stagingDir);
-            return false;
+            return (false, ex.Message);
         }
     }
 
