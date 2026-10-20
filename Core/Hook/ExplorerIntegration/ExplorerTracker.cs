@@ -145,6 +145,10 @@ public class ExplorerTracker : IDisposable
     /// scenario without a real one; production only ever writes it from <see cref="RefreshActiveWindowAdapters"/>.</summary>
     public IFileDialogAdapter? ActiveAdapter { get; internal set; }
     public IInlineSearchAdapter? ActiveInlineAdapter { get; private set; }
+    /// <summary>The tracked window's process name ("dopus", "explorer"), resolved with the adapters, and empty
+    /// for no tracked window. Published because the inline card keeps the position the user dragged it to per
+    /// host application, and the thread that places the card may not query another process for itself.</summary>
+    public string ActiveProcessName { get; private set; } = string.Empty;
     private IntPtr _activeHwnd;
     public IntPtr ActiveHwnd
     {
@@ -166,6 +170,7 @@ public class ExplorerTracker : IDisposable
             _isActiveWindowDialog = false;
             ActiveInlineAdapter = null;
             IsActiveWindowExplorer = false;
+            ActiveProcessName = string.Empty;
             return;
         }
 
@@ -173,6 +178,7 @@ public class ExplorerTracker : IDisposable
         ExplorerNativeHooks.GetClassName(_activeHwnd, sbClass, sbClass.Capacity);
         var className = sbClass.ToString();
         var processName = GetProcessName(_activeHwnd);
+        ActiveProcessName = processName;
         var budget = TimeSpan.FromMilliseconds(ExplorerWindowClassifier.DefaultPluginTimeoutMs);
         var hwnd = _activeHwnd;
 

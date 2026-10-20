@@ -38,7 +38,7 @@ public class InlineSearchWindowPositioner
     public InlineSearchWindowPositioner(Lertaro.App.InlineSearchWindow window)
     {
         _window = window ?? throw new ArgumentNullException(nameof(window));
-        _dragOffset = new InlineCardDragOffset(window);
+        _dragOffset = new InlineCardDragOffset(() => (window.Left, window.Top));
         _geometry = new InlineDialogGeometryProbe(MeasureDialogGeometry, PositionWindow);
     }
 
@@ -170,6 +170,11 @@ public class InlineSearchWindowPositioner
             return;
 
         var isResultsVisible = _window.ResultsPanelControl.Visibility == Visibility.Visible;
+
+        // Which application this dock belongs to, and so which remembered drag displacement applies to it.
+        // Read from the tracker's cached answer: resolving a process name is a query into another process,
+        // and this is the thread that places the card.
+        var hostKey = tracker.IsDesktop ? InlineCardDragOffset.DesktopHost : tracker.ActiveProcessName;
 
         var hasValidRect = false;
         var rect = new Core.Hook.ExplorerTracker.RECT();
@@ -336,7 +341,8 @@ public class InlineSearchWindowPositioner
                     + $"list={(fileList is { } listRect ? $"{listRect.Right},{listRect.Top}" : "none")} "
                     + $"dpi={targetDpiScaleX:F2} window={windowWidth:F0}x{windowHeight:F0} "
                     + $"below={hangsBelow} boundsBottom={screen.Bounds.Bottom} work={workingArea.Left},{workingArea.Top},{workingArea.Right},{workingArea.Bottom} "
-                    + $"bound={minTop:F0}..{maxTop:F0} at={targetPhysLeft:F0},{targetPhysTop:F0} drag={_dragOffset.IsSet}",
+                    + $"bound={minTop:F0}..{maxTop:F0} at={targetPhysLeft:F0},{targetPhysTop:F0} "
+                    + $"host={hostKey} drag={_dragOffset.IsSetFor(hostKey)}",
                     LogLevel.Debug);
             }
             else
@@ -350,16 +356,14 @@ public class InlineSearchWindowPositioner
         var targetTop = targetPhysTop / targetDpiScaleY;
 
         // The dock position on its own, which is what a user's drag is measured against -- recorded before that
-        // displacement is applied below.
-        _dragOffset.RememberBase(targetLeft, targetTop);
+        // displacement is applied below, and against the host being docked, since every application keeps its
+        // own.
+        _dragOffset.RememberBase(hostKey, targetLeft, targetTop);
 
-        if (_dragOffset.IsSet)
-        {
-            (targetPhysLeft, targetPhysTop) = _dragOffset.ApplyPhysical(
-                targetPhysLeft, targetPhysTop, targetDpiScaleX, targetDpiScaleY, workingArea, physWindowWidth, physWindowHeight);
-            targetLeft = targetPhysLeft / targetDpiScaleX;
-            targetTop = targetPhysTop / targetDpiScaleY;
-        }
+        (targetPhysLeft, targetPhysTop) = _dragOffset.ApplyPhysical(
+            hostKey, targetPhysLeft, targetPhysTop, targetDpiScaleX, targetDpiScaleY, workingArea, physWindowWidth, physWindowHeight);
+        targetLeft = targetPhysLeft / targetDpiScaleX;
+        targetTop = targetPhysTop / targetDpiScaleY;
 
         // Recorded on every pass that computes a target, including the ones that are held back below: the frame
         // that lands the card after its parked show uses wherever the layout last wanted it, not where the
@@ -431,7 +435,9 @@ public class InlineSearchWindowPositioner
     /// <summary>Records a drag the user has just finished, so the card keeps the position they left it at.</summary>
     /// <remarks>
     /// Wired to the search box logo's own drag (see InlineSearchWindow's constructor). Measured against the
-    /// dock position the last positioning pass applied, which is exactly what a displacement is relative to.
+    /// dock position the last positioning pass applied, which is exactly what a displacement is relative to,
+    /// and kept for the host that pass docked to -- a drag performed in one application never moves the card
+    /// in another.
     /// </remarks>
     public void RememberUserDrag() => _dragOffset.RememberDrag();
 
