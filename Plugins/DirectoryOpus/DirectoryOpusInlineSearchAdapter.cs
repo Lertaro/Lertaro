@@ -23,10 +23,15 @@ public class DirectoryOpusInlineSearchAdapter : IInlineSearchAdapter
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr FindWindow(string lpClassName, string? lpWindowName);
 
+    // Returns Win32 BOOL, so it is read as int: on x64 the upper half of RAX is unspecified after a 32-bit
+    // return, which an IntPtr would let through as garbage.
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, ref COPYDATASTRUCT lParam);
+    private static extern int SendMessageTimeout(IntPtr hWnd, uint Msg, IntPtr wParam, ref COPYDATASTRUCT lParam, uint flags, uint timeoutMs, out IntPtr result);
 
     private const uint WM_COPYDATA = 0x004A;
+    private const uint SmtoBlock = 0x0001;
+    private const uint SmtoAbortIfHung = 0x0002;
+    private const uint CommandTimeoutMs = 1000;
 
     public bool CanHandle(IntPtr hwnd, string className, string processName)
     {
@@ -73,36 +78,38 @@ public class DirectoryOpusInlineSearchAdapter : IInlineSearchAdapter
         return collector.TryGetPath(hwnd, className, hwnd, className, "dopus");
     }
 
+    internal static byte[] BuildCommandPayload(string command) => System.Text.Encoding.Unicode.GetBytes(command + "\0");
+
+    // Delivery is a synchronous cross-process message, so it is bounded and its answer is read. SendMessage
+    // (used here before) returns 0 for a receiver that is not answering while still letting that receiver run
+    // the command later, and its value was discarded: an Opus parked inside its own script engine made "open
+    // containing folder" report success without opening anything, which is how a user ends up pressing it
+    // again and again. The buffer is AllocHGlobal rather than a pinned array because a call that did not
+    // complete must never leave Opus holding a pointer the GC has since moved; that one buffer is then
+    // deliberately left allocated.
+    // ponytail: ceiling is one leaked small buffer per aborted command, which only a wedged host plus a
+    // persistent user can accumulate. The upgrade path is a bounded pool, not an earlier free.
     private static bool RunDopusCommandViaCopyData(string command)
     {
         var dopusParent = FindWindow("DOpus.ParentWindow", "Directory Opus");
         if (dopusParent == IntPtr.Zero) return false;
 
-        try
+        var bytes = BuildCommandPayload(command);
+        var buffer = Marshal.AllocHGlobal(bytes.Length);
+        Marshal.Copy(bytes, 0, buffer, bytes.Length);
+        var cds = new COPYDATASTRUCT
         {
-            var cmdString = command + "\0";
-            var bytes = System.Text.Encoding.Unicode.GetBytes(cmdString);
-            var pinnedArray = GCHandle.Alloc(bytes, GCHandleType.Pinned);
-            try
-            {
-                var cds = new COPYDATASTRUCT
-                {
-                    dwData = (IntPtr)0x14,
-                    cbData = bytes.Length,
-                    lpData = pinnedArray.AddrOfPinnedObject()
-                };
-                SendMessage(dopusParent, WM_COPYDATA, IntPtr.Zero, ref cds);
-                return true;
-            }
-            finally
-            {
-                pinnedArray.Free();
-            }
-        }
-        catch
-        {
+            dwData = (IntPtr)0x14,
+            cbData = bytes.Length,
+            lpData = buffer
+        };
+
+        if (SendMessageTimeout(dopusParent, WM_COPYDATA, IntPtr.Zero, ref cds,
+                SmtoAbortIfHung | SmtoBlock, CommandTimeoutMs, out _) == 0)
             return false;
-        }
+
+        Marshal.FreeHGlobal(buffer);
+        return true;
     }
 
     public bool LocateItem(IntPtr hwnd, string path)

@@ -13,7 +13,7 @@ public static class Win32Helper
     private static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
 
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    private static extern int SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, StringBuilder lParam);
+    private static extern int SendMessageTimeout(IntPtr hWnd, uint Msg, IntPtr wParam, StringBuilder lParam, uint flags, uint timeoutMs, out IntPtr result);
 
     [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
     private static extern IntPtr FindWindowEx(IntPtr hwndParent, IntPtr hwndChildAfter, string? lpszClass, string? lpszWindow);
@@ -36,12 +36,20 @@ public static class Win32Helper
     }
 
     private const uint WM_GETTEXT = 0x000D;
+    private const uint SmtoAbortIfHung = 0x0002;
+
+    // Measured on a window that stopped pumping: SendMessageTimeout(WM_GETTEXT, 50) comes back with
+    // ERROR_TIMEOUT in ~79 ms (dev-docs/pitfalls.md). 100 ms is above that without giving a wedged host an
+    // open-ended hold on the reader; a timeout reads as "no text", which every caller already treats as
+    // absence. This was SendMessage(WM_GETTEXT) -- the untimed variant, not Win32's own GetWindowText,
+    // which sends the same message with an internal timeout.
+    private const uint GetTextTimeoutMs = 100;
 
     public static string GetWindowText(IntPtr hWnd)
     {
         if (hWnd == IntPtr.Zero) return string.Empty;
         var sb = new StringBuilder(512);
-        SendMessage(hWnd, WM_GETTEXT, (IntPtr)sb.Capacity, sb);
+        SendMessageTimeout(hWnd, WM_GETTEXT, (IntPtr)sb.Capacity, sb, SmtoAbortIfHung, GetTextTimeoutMs, out _);
         return sb.ToString().Trim();
     }
 
