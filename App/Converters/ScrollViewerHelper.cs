@@ -109,9 +109,12 @@ public static class ScrollViewerHelper
     //    not resolve inside a MultiBinding in ControlTemplate.Triggers, which silently cost every
     //    ordinary ScrollViewer in the app its scrollbar; and PriorityBinding cannot be used to fall
     //    back from the ancestor lookup, because a FindAncestor that matches nothing reports no value
-    //    at all rather than a failed one, so it waits on that branch forever.
+    //    at all rather than a failed one, so it waits on that branch forever. (That is this viewer's own
+    //    template reading its TemplatedParent through a MultiBinding; the bar style asks an ancestor
+    //    ScrollViewer for one plain property, which is a different lookup and does resolve.)
     //
-    // Read-only: it is set from the mouse events below and read by a plain property trigger.
+    // Read-only: it is set from the mouse events below and read by the ScrollBar style's reveal trigger,
+    // which sits on the bar rather than on this viewer's template, as that file explains.
     private static readonly DependencyPropertyKey PointerNearPropertyKey =
         DependencyProperty.RegisterAttachedReadOnly("PointerNear", typeof(bool), typeof(ScrollViewerHelper),
             new PropertyMetadata(false));
