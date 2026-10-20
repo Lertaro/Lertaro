@@ -41,6 +41,13 @@ internal static class RankedCandidateOrdering
         var priorities = new Dictionary<string, IndexRuleEffect>(StringComparer.OrdinalIgnoreCase);
         IndexRuleEffect Priority(SearchResultMapper.RankedCandidate candidate)
         {
+            // Fork: favorites and history ride the index-rule priority system instead of a separate key order.
+            // They are the rows the owner asked to see first, so they take the High band and everything upstream
+            // already does with High (type order, match quality, the engine cut) applies inside that band.
+            // HistoryCount > 0, not HistoryPriority: the Windows "Recent Items" rows carry a non-MaxValue
+            // HistoryPriority but a zero count, and they must not be lifted to the top by this rule.
+            if (candidate.IsFavorite || EffectiveHistoryCount(candidate) > 0)
+                return IndexRuleEffect.High;
             if (priorityResolver == null)
                 return IndexRuleEffect.Normal;
             var path = candidate.NormalizedPath.TrimEnd('\\');
@@ -52,12 +59,26 @@ internal static class RankedCandidateOrdering
         }
 
         foreach (var candidate in ApplicationOwned(candidates)
-                     .OrderBy(c => SearchResultRankComparer.PriorityRank(Priority(c)))
+                     // Fork grouping (the owner's rule): three bands, in this order --
+                     //   0. favorites and rows the user actually searched for before,
+                     //   1. Windows "Recent Items" rows (recently opened, never searched from here),
+                     //   2. ordinary results (apps, files, settings -- ordered by the result-type order).
+                     // The band leads: a favorite or a row the user already searched for must be visible on
+                     // the first keystroke, before any ordinary result, and a recently-opened row likewise
+                     // comes before ordinary results. The left edge then orders the rows INSIDE a band.
+                     .OrderBy(c => Band(c) == 0 ? 0 : 1)
+                     .ThenBy(c => EffectiveMatch(c).Start)
+                     .ThenByDescending(c => EffectiveMatch(c).Coverage)
+                     .ThenByDescending(c => EffectiveHistoryCount(c))
+                     .ThenBy(c => EffectiveHistoryCount(c) > 0 ? c.HistoryPriority : int.MaxValue)
+                     .ThenBy(c => SearchResultRankComparer.PriorityRank(Priority(c)))
+                     // The user's result-type order, then -- inside one type -- a Windows "Recent Items" row
+                     // before the ordinary rows of that same type. Recent files carry the Files type rank, so
+                     // they lead the Files group exactly where the user put Files and never above an earlier
+                     // type.
                      .ThenBy(c => c.TypeRank)
+                     .ThenBy(c => Band(c) == 1 ? 0 : 1)
                      .ThenBy(c => EffectiveMatch(c), MatchRankQualityComparer.Instance)
-                     .ThenBy(c => c.IsFavorite ? 0 : 1)
-                     .ThenBy(c => SearchResultRankComparer.HistoryBand(EffectiveHistoryCount(c)))
-                     .ThenBy(c => c.HistoryPriority)
                      .ThenBy(c => c.Result.IsDir)
                      .ThenBy(c => c.Result.Name, SearchNameOrderComparer.Instance)
                      .ThenBy(c => c.Result.Name.Length)
@@ -96,9 +117,22 @@ internal static class RankedCandidateOrdering
                                     || !applicationPaths.Contains(c.NormalizedPath));
     }
 
-    // Older callers can supply the priority map without the count map; a path present there is weak
-    // (1-4) history, matching SearchResultRankComparer's own fallback.
+    // How often the user actually searched for / opened this path from this app. A Windows "Recent Items"
+    // row used to be counted as 1 here (it carries a priority but no count), which gave it the same weight as
+    // a row searched once and floated it above ordinary results; band 1 keeps it in its own group instead.
     private static int EffectiveHistoryCount(SearchResultMapper.RankedCandidate candidate)
-        => candidate.HistoryCount > 0 ? candidate.HistoryCount
-            : candidate.HistoryPriority != int.MaxValue ? 1 : 0;
+        => candidate.HistoryCount;
+
+    // The owner's bands, in rank order:
+    //   0 -- a favorite, or a row the user actually searched for from this app before;
+    //   1 -- a Windows "Recent Items" row: recently opened in the OS, never searched here;
+    //   2 -- an ordinary result (app, file, setting, ...).
+    // HistoryPriority alone cannot tell 1 from 2 (a Recent Items row is built with a small priority but a
+    // zero count), so a zero count paired with a real priority is what marks band 1.
+    private static int Band(SearchResultMapper.RankedCandidate candidate)
+    {
+        if (candidate.IsFavorite || candidate.HistoryCount > 0)
+            return 0;
+        return candidate.HistoryPriority != int.MaxValue ? 1 : 2;
+    }
 }

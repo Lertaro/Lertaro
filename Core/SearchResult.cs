@@ -79,6 +79,12 @@ public sealed class SearchResultRankComparer : IComparer<SearchResult>
     // overrules a better textual match. This is the same sequence RankedCandidateOrdering uses.
     public static int HistoryBand(int usageCount) => usageCount >= 5 ? 0 : usageCount >= 1 ? 1 : 2;
 
+    // The owner's lead band, shared with RankedCandidateOrdering: 0 for a favorite or a row the user actually
+    // searched for from this app before, 1 for everything else. Recent files are deliberately NOT a band here
+    // -- they are demoted below the result type by the window's own comparer, not by this key.
+    private static int LeadBand(int favoriteRank, int usageCount)
+        => favoriteRank == 0 || usageCount > 0 ? 0 : 1;
+
     private static string NormalizeForLookup(string path)
     {
         if (path.Length > 3 && path[^1] == '\\')
@@ -109,20 +115,24 @@ public sealed class SearchResultRankComparer : IComparer<SearchResult>
                 return compare;
         }
 
-        // Match quality first: contiguity, shape, left-contiguous (tie-break), start, coverage and tier
-        // are packed into the high 32 bits by SearchResultRelevance. The low bits are the engine's own
-        // fzf tie-breakers and are deliberately kept below every window-level key.
-        compare = (left.RankSortKey >> 32).CompareTo(right.RankSortKey >> 32);
-        if (compare != 0)
-            return compare;
-
         var leftCount = _usageCounts != null && _usageCounts.TryGetValue(leftPath, out var lc) ? lc : 0;
         var rightCount = _usageCounts != null && _usageCounts.TryGetValue(rightPath, out var rc) ? rc : 0;
 
-        // A favorite is an explicit user pick and sits before history, exactly as in the quick ladder.
+        // The owner's three bands lead the streamed order, exactly as RankedCandidateOrdering leads the
+        // window's final order: favorite / searched-before, then Windows "Recent Items", then everything
+        // else. Without this the streamed quick window emitted ordinary results first and the row the user
+        // had already searched for only appeared once the final re-sort ran (or not at all).
         var leftFavorite = _favoritePaths?.Contains(leftPath) == true ? 0 : 1;
         var rightFavorite = _favoritePaths?.Contains(rightPath) == true ? 0 : 1;
-        compare = leftFavorite.CompareTo(rightFavorite);
+        // The owner's lead band is only "favorite or searched from here" (0) versus everything else (1):
+        // recent files are demoted below the result type, so they must not form a band of their own here.
+        compare = LeadBand(leftFavorite, leftCount).CompareTo(LeadBand(rightFavorite, rightCount));
+        if (compare != 0)
+            return compare;
+
+        // Match quality: left edge first, then coverage and the rest of the keys packed by
+        // SearchResultRelevance. Quality only separates rows inside one band.
+        compare = (left.RankSortKey >> 32).CompareTo(right.RankSortKey >> 32);
         if (compare != 0)
             return compare;
 

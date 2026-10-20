@@ -43,13 +43,16 @@ internal static class SearchResultRelevance
 
     public static uint HighKey(in MatchRank rank)
     {
-        var notLeftContiguous = rank.IsLeftContiguous ? 0u : 1u;
-        var contiguityPoint = (uint)Math.Round((1 - Clamp01(rank.Contiguity)) * ContiguityMax);
-        var shape = (uint)Math.Clamp(rank.Shape, 0, MatchRank.ShapeNoName);
+        // Fork: the left edge leads, then coverage. Upstream ranks contiguity, then shape, then start, which
+        // let a long name that merely starts with the query outrank a short name that the query fills. Coverage
+        // is the old "hit / name length" key, so it sits directly under the left edge here.
+        //   start(7) | leftContiguous(1) | coverage(10) | contiguity(8) | tier(4)
+        var leftContiguous = rank.IsLeftContiguous ? 0u : 1u;
         var start = (uint)Math.Clamp(rank.Start, 0, MatchRank.StartCap);
+        var contiguityPoint = (uint)Math.Round((1 - Clamp01(rank.Contiguity)) * ContiguityMax);
         var coveragePoint = (uint)Math.Round((1 - Clamp01(rank.Coverage)) * CoverageMax);
         var tier = (uint)Math.Clamp(rank.Tier, 0, 0xF);
-        return (contiguityPoint << 24) | (shape << 21) | (notLeftContiguous << 20) | (start << 13) | (coveragePoint << 4) | tier;
+        return (start << 24) | (leftContiguous << 23) | (coveragePoint << 13) | (contiguityPoint << 5) | tier;
     }
 
     private static double Clamp01(double value)
