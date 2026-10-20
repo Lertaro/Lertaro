@@ -67,16 +67,20 @@ internal static class RankedCandidateOrdering
                      // the first keystroke, before any ordinary result, and a recently-opened row likewise
                      // comes before ordinary results. The left edge then orders the rows INSIDE a band.
                      .OrderBy(c => Band(c) == 0 ? 0 : 1)
+                     // The user's result-type order decides before any match key: with Applications above
+                     // Files in the settings, every application comes before every file, however well a
+                     // file happens to match. (Before this, a file literally named "db" outranked an
+                     // application that reached the query only through its pinyin initials, so the setting
+                     // looked broken.)
+                     .ThenBy(c => c.TypeRank)
+                     // Inside one type: the left edge, then coverage, then how often and how recently the
+                     // row was opened, then the index-rule band. Recent files carry the Files type rank, so
+                     // they lead the Files group and never appear above an earlier type.
                      .ThenBy(c => EffectiveMatch(c).Start)
                      .ThenByDescending(c => EffectiveMatch(c).Coverage)
                      .ThenByDescending(c => EffectiveHistoryCount(c))
                      .ThenBy(c => EffectiveHistoryCount(c) > 0 ? c.HistoryPriority : int.MaxValue)
                      .ThenBy(c => SearchResultRankComparer.PriorityRank(Priority(c)))
-                     // The user's result-type order, then -- inside one type -- a Windows "Recent Items" row
-                     // before the ordinary rows of that same type. Recent files carry the Files type rank, so
-                     // they lead the Files group exactly where the user put Files and never above an earlier
-                     // type.
-                     .ThenBy(c => c.TypeRank)
                      .ThenBy(c => Band(c) == 1 ? 0 : 1)
                      .ThenBy(c => EffectiveMatch(c), MatchRankQualityComparer.Instance)
                      .ThenBy(c => c.Result.IsDir)
