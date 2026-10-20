@@ -7,7 +7,9 @@ namespace Lertaro.App.Services.ShellMenu.ActionFlyout;
 // unchanged.
 internal static class ActionMenuBuilderFinalizeExtensions
 {
-    // Dedupes by text and tidies separators. Runs on the merged (static + dynamic) list.
+    // Dedupes by text and tidies separators. Runs on the merged (static + dynamic) list, on the UI thread:
+    // every host reaches its menu through here, so this is where a provider's vector path data becomes the
+    // ImageSource the row binds (see ActionMenuItem.MaterializeVectorIcon for why not where it arrives).
     internal static List<ActionMenuItem> FinalizeItems(List<ActionMenuItem> uiItems)
     {
         var uniqueItems = new List<ActionMenuItem>();
@@ -44,6 +46,7 @@ internal static class ActionMenuBuilderFinalizeExtensions
                 if (finalItems[finalItems.Count - 1].IsSeparator || finalItems[finalItems.Count - 1].IsSectionHeader) continue;
                 if (i == uniqueItems.Count - 1) continue;
             }
+            current.MaterializeVectorIcon();
             finalItems.Add(current);
         }
 

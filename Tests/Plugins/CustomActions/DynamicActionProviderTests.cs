@@ -33,7 +33,8 @@ public sealed class DynamicActionProviderTests
 
     private static DynamicActionProvider.ActionItem MakeAction(
         bool enabled = true, string title = "Do Thing", string path = "tool.exe",
-        bool folderOnly = false, string extensions = "", bool multiSelect = false, string hotkey = "") => new()
+        bool folderOnly = false, string extensions = "", bool multiSelect = false, string hotkey = "",
+        string icon = "") => new()
         {
             Enabled = enabled,
             Title = title,
@@ -42,6 +43,7 @@ public sealed class DynamicActionProviderTests
             Extensions = extensions,
             MultiSelect = multiSelect,
             Hotkey = hotkey,
+            Icon = icon,
         };
 
     [TestMethod]
@@ -128,6 +130,24 @@ public sealed class DynamicActionProviderTests
         Assert.HasCount(1, items);
         Assert.AreEqual("Compress", items[0].Text);
         Assert.IsNotNull(items[0].OnExecute);
+    }
+
+    [TestMethod]
+    public void GetMenuItems_ActionWithConfiguredIcon_CarriesItsPathData()
+    {
+        // The Icon field is stored as WPF path data (the settings field converts a pasted SVG document to
+        // it), and the menu row can only show it if the provider hands it over -- an item that arrives with
+        // no icon at all is exactly what the configured field used to produce.
+        ConfigureActions(new()
+        {
+            MakeAction(title: "Compress", icon: "M7 2v11h3v9l7-12h-4l3-8z"),
+            MakeAction(title: "Reveal"),
+        });
+
+        var items = new DynamicActionProvider().GetMenuItems(new[] { new FakeResult() }, IntPtr.Zero).ToList();
+
+        Assert.AreEqual("M7 2v11h3v9l7-12h-4l3-8z", items[0].IconPathData);
+        Assert.AreEqual(string.Empty, items[1].IconPathData);
     }
 
     [TestMethod]

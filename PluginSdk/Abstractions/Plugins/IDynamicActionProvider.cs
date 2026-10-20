@@ -101,6 +101,14 @@ public class DynamicMenuItem
     public bool IsActionable { get; set; } = true;
     public IntPtr HBitmapItem { get; set; }
     /// <summary>
+    /// WPF path data for a vector icon, rendered in the row's icon column with the same brush the
+    /// settings page previews it with. Use this instead of <see cref="HBitmapItem"/> when the icon is
+    /// only known as a path string (a configured icon, e.g. custom actions); a full SVG document is
+    /// accepted at the settings field and stored as path data, never here. Ignored when
+    /// <see cref="HBitmapItem"/> carries a real bitmap, which takes priority.
+    /// </summary>
+    public string IconPathData { get; set; } = string.Empty;
+    /// <summary>
     /// Optional direct invocation delegate set by the plugin.
     /// When non-null, the host calls this instead of routing through
     /// <see cref="IQuickNavigationProvider.ExecuteCommand"/> or path navigation.

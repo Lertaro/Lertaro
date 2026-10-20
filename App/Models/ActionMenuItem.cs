@@ -39,6 +39,27 @@ public class ActionMenuItem : INotifyPropertyChanged
     public IntPtr SubMenuHandle { get; set; }
     public bool IsDisabled { get; set; }
     public ImageSource? Icon { get; set; }
+    // A dynamic provider that only knows its icon as a vector hands over path data (DynamicMenuItem
+    // .IconPathData). It is not turned into an Icon where it arrives: that list is assembled off the UI
+    // thread, and building one needs a brush read out of the application's resources. MaterializeVectorIcon
+    // runs on the UI thread instead, at the one point every host reaches the list through.
+    internal string VectorIconPathData { get; set; } = string.Empty;
+
+    internal void MaterializeVectorIcon()
+    {
+        if (Icon != null || string.IsNullOrWhiteSpace(VectorIconPathData)) return;
+        try
+        {
+            // The same brush the settings page previews this very field with, so the row matches its own
+            // preview. Path data that will not parse (a settings file edited by hand) leaves the item on
+            // its placeholder dot rather than taking the menu down.
+            Icon = Services.ShellIcons.ShellIconHelper.CreateVectorIcon(VectorIconPathData, "DefaultPluginIconColor");
+        }
+        catch (Exception ex)
+        {
+            Core.Logger.Log($"[ActionMenuItem] Vector action icon not rendered: {ex.Message}", Core.LogLevel.Warn);
+        }
+    }
     private string _shortcutHint = string.Empty;
     public string ShortcutHint
     {

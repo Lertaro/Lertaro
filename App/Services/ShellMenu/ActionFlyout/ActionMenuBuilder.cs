@@ -205,6 +205,7 @@ internal static class ActionMenuBuilder
                                 SubMenuHandle = item.SubMenuHandle,
                                 IsDisabled = item.IsDisabled,
                                 Icon = iconSource,
+                                VectorIconPathData = item.IconPathData,
                                 OnExecute = item.OnExecute,
                                 ShortcutHint = item.ShortcutHint ?? string.Empty,
                                 ItemHeight = item.IsSeparator ? Math.Round(itemHeight * UiMetrics.ActionMenuSeparatorRowScale) : itemHeight
@@ -245,6 +246,7 @@ internal static class ActionMenuBuilder
                         SubMenuHandle = item.SubMenuHandle,
                         IsDisabled = item.IsDisabled,
                         Icon = iconSource,
+                        VectorIconPathData = item.IconPathData,
                         ItemHeight = item.IsSeparator ? Math.Round(itemHeight * UiMetrics.ActionMenuSeparatorRowScale) : itemHeight
                     });
 
