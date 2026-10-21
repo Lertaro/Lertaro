@@ -4,7 +4,7 @@
 
 ## 适用范围与核对基线
 
-本文写的是 `feat-search-reimpl` 分支的语法，该分支仍未合入 main。核对基线：分支刚 rebase 到 main = `a09f8b95`（领先 23 个提交、落后 0），合并基就是 `a09f8b95`。引用任何 `:term`、`/regex/` 结论前先确认在哪条线上。文末附录的 `file:line` 是 rebase 前对分支工作树逐条核过的，rebase 后未重核（截至 `a09f8b95`）——核对不上时以文件与函数名为准。
+本文写的是 `feat-search-reimpl` 分支的语法，该分支仍未合入 main。核对基线：分支已 rebase 到 main = `5a754391`（领先 24 个提交、落后 0），合并基就是 `5a754391`。引用任何 `:term`、`/regex/` 结论前先确认在哪条线上。文末附录的 `file:line` 已对着这次 rebase 后的工作树（`feat-search-reimpl` = `eba02cfb`、main = `5a754391`）逐条重核；分支再次 rebase 后行号与哈希仍会过期，核对不上时以文件与函数名为准。
 
 只在 `feat-search-reimpl` 上成立的语法：
 
@@ -91,7 +91,7 @@ OR 已经存在（两侧带空格的 `|`，默认 AND 结合更紧，优先级�
 三次落点：
 
 1. **ancestor pass（`PathTermFallback`）** —— `:term` 在分支语法下不占 mask 位（`HasPositiveTerm` 让纯排除项的逐词 pattern 零命中），占位就永远填不满，整条 fallback 对带排除项的查询返回空；而 `/.../` 在这个 pass 根本没人问，靠文件夹就能把名称不合格式的行捞回来。改法：排除项集合不进 `termPatterns`，名称级子句统一由 `NamePassesClauses` 在**行的名称**上否决。
-2. **grid 层（已随 main 的 `b8e1061c` 删除）** —— 曾经给 `TryMatchEntry`/`TryMatchPayload` 加过 `ReadOnlySpan<char> name`，让物化读音只回答词、子句回答名称。grid 没了，那两次提交（`c85b31ab`、`dc50cc03`）在本次 rebase 里被跳过/清空，规则改由下面第 3 条承接。注意 `3a8ad26b` 现在只剩别名视图测试的迁移，commit message 还在讲 TryMatchProvider —— squash 时改掉。
+2. **grid 层（已随 main 的 `b8e1061c` 删除）** —— 曾经给 `TryMatchEntry`/`TryMatchPayload` 加过 `ReadOnlySpan<char> name`，让物化读音只回答词、子句回答名称。grid 没了，那两次提交在本次 rebase 里被跳过/清空，规则改由下面第 3 条承接。注意「把 live tier 的候选名交进去」那条现在只剩别名视图测试的迁移，commit message 还在讲 TryMatchProvider —— squash 时改掉。
 3. **live 读音判定（`PinyinNameEvaluator`）** —— main 用它取代了 `FzfPattern.TryMatch` 作为名称 tier。它逐词读 NFA、并且自己处理排除项（`term.Inverse` 命中字面就 fail，缺席就满足），但整个类里没有 `Regexes` 这个词：查询带 `/.../` 时，一个读音命中就把名称不合格式的行收下。修前量出来的一条：`bg /\.pdf$/` 对 `报告` 返回 true（`FakeLiveProvider` 供 `bg` 的跨度）。改法是在 `TryScore` 门口按**整个名称**判一次子句，位置在 `'|'` 分段之前 —— 子句说的是名称，不是它的某一段。覆盖：`PinyinNameEvaluatorTests.RegexClause_IsAnsweredFromTheNameNeverFromTheReadings`（两侧各留一条对照，免得"任何读音都供不出的子句"和"根本没被查过的子句"混成一件事）。
 
 新增一层"从读音/别名/路径段判定"的地方时，问两句：
@@ -159,7 +159,7 @@ OR 已经存在（两侧带空格的 `|`，默认 AND 结合更紧，优先级�
 
 ## 已删除的锚定 kind 与裁定
 
-分支退役 `^ $ ' !` 之后没有任何地方再产出锚定 `FzfTermKind`，只剩 switch 在读。已按"删掉 kind 与对应 switch 逻辑"落地（`fb6cda90`）：`FzfTermKind` 现在只有 `Fuzzy` 与 `Exact`；`FzfAlgorithm.Match` 与 `FzfBytePattern.Match` 各去掉 4 条 arm；两个 `ExactMatch` 去掉 `boundaryCheck` 形参和那条只在边界判定下成立的加分公式；`PrefixMatch`/`SuffixMatch`/`EqualMatch`/`IsBoundaryMatch`/`SpanEquals`/`FzfAlgorithm.LeadingWhitespaces`/`TrailingWhitespaces` 全删。顺带 `PinyinNameEvaluator` 里因此变成恒真的两处 `Kind is Exact or Fuzzy` 也去掉了。`OtherReading` 与两个 `Match` 的 `_ =>` arm 留着：C# 对 enum switch 要求穷尽，成员减少并不等于值域减少。
+分支退役 `^ $ ' !` 之后没有任何地方再产出锚定 `FzfTermKind`，只剩 switch 在读。已按"删掉 kind 与对应 switch 逻辑"落地（`refactor(search): drop the anchored term kinds nothing produces`）：`FzfTermKind` 现在只有 `Fuzzy` 与 `Exact`；`FzfAlgorithm.Match` 与 `FzfBytePattern.Match` 各去掉 4 条 arm；两个 `ExactMatch` 去掉 `boundaryCheck` 形参和那条只在边界判定下成立的加分公式；`PrefixMatch`/`SuffixMatch`/`EqualMatch`/`IsBoundaryMatch`/`SpanEquals`/`FzfAlgorithm.LeadingWhitespaces`/`TrailingWhitespaces` 全删。顺带 `PinyinNameEvaluator` 里因此变成恒真的两处 `Kind is Exact or Fuzzy` 也去掉了。`OtherReading` 与两个 `Match` 的 `_ =>` arm 留着：C# 对 enum switch 要求穷尽，成员减少并不等于值域减少。
 
 main 有两条测试原先靠旧语法守着这些 kind：`OperatorTerms_AreLiteralOnly`（`^bg`）改写成分支真有的那个运算符 `?bg` 的行为，`AliasReading_LeavesAnOperatorsOwnKindAlone` 直接删除。
 
@@ -185,7 +185,7 @@ main 有两条测试原先靠旧语法守着这些 kind：`OperatorTerms_AreLite
 
 ## 附录：证据
 
-以下 `file:line` 逐条对着 `feat-search-reimpl`（`bf43109e`）与 main（`9a6b9769`）的当前工作树核过。分支每次 rebase 都会让行号过期，核对不上时以文件与函数名为准——行号随分支变动。
+以下 `file:line` 逐条对着 `feat-search-reimpl`（`eba02cfb`）与 main（`5a754391`）的当前工作树核过。分支每次 rebase 都会让行号过期，核对不上时以文件与函数名为准——行号随分支变动；提交一律按标题引用，rebase 会重写哈希。
 
 | 事实 | 出处 |
 |---|---|
@@ -194,32 +194,32 @@ main 有两条测试原先靠旧语法守着这些 kind：`OperatorTerms_AreLite
 | 词内转义空白仅对 Token 生效；整句 `*` 必须在 Scan 之前读取 | `QueryTokenScanner.cs:66`（`SplitWords`，转义判定在 `:86`）、`:116`（`StripExclusionBypass`） |
 | 正则子句的形状规则与三条路径保护 | `Core/SearchIndex/Query/RegexQueryParser.cs:13-24`（类注释）、`:83-115`（`TryReadClause`） |
 | 摘除早于路径判定 | `RegexQueryParser.cs:5-12`，`Core/SearchIndex/Query/SearchQueryParser.cs:7-15` |
-| 含分隔符进入全路径模式；裸盘符恰好两字符 | `SearchQueryParser.cs:14-36`、`:61-62`（`IsBareDriveSpec`） |
+| 含分隔符进入全路径模式；裸盘符恰好两字符 | `SearchQueryParser.cs:14-36`、`:63-64`（`IsBareDriveSpec`） |
 | main 的裸盘符取盘后余文仍是词；路径判定无正则摘除 | main `Core/SearchIndex/Fzf/FzfPatternParser.cs:17-25`，main `Core/SearchIndex/Query/SearchQueryParser.cs:8` |
 | 正则基选项带 `IgnoreCase`，共享缓存 256 条，活动查询另有弱键表 | `Core/SearchIndex/Fzf/RegexClauses.cs:19-31`、`:90-105`（NonBacktracking 与 250ms 回退） |
-| 普通词恒忽略大小写，smart case 已退役 | `Core/SearchIndex/Fzf/FzfPatternParser.cs:188-189`，main 同文件 `:194-196` |
+| 普通词恒忽略大小写，smart case 已退役 | `Core/SearchIndex/Fzf/FzfPatternParser.cs:191-193`，main 同文件 `:194-196` |
 | `caseSensitive` 参数已通到匹配与高亮 | `Core/SearchIndex/Fzf/FzfAlgorithm.cs:40`、`FzfByteExactMatcher.cs:9`、`Core/SearchIndex/HighlightMask.cs:133-168`、`Core/SearchIndex/AliasHighlightMarker.cs:64-102` |
 | `(?-i)` 覆盖 `IgnoreCase`，两种引擎一致 | `Tests/Core/SearchIndex/FuzzyMatcherTests.cs:34-38`（`/(?-i)Report/` 对 `report` 为 false，`(?=…)` 写法走回退引擎） |
 | `:exclusion` 恒 Exact，`?` 是模糊↔精确反转，`:` 先于 `?` 读取 | `Core/SearchIndex/Fzf/TermTriggers.cs:20-25, 37-66` |
-| 名称级子句在每一层都由名称否决 | `Core/SearchIndex/Fzf/FzfPatternMatcher.cs:11-21, 86-96`（注释写明读的是名称）、`Core/IndexV2/Search/PathTermFallback.cs:264-273`（`NamePassesClauses`）、`Core/IndexV2/Search/PinyinNameEvaluator.cs:146`、`SearchMatcher.cs:296`、`PathMode/SearchMatcherPath.cs:125`、`Core/IndexV2/Search/SearchMatcherRow.cs:35, 120` |
+| 名称级子句在每一层都由名称否决 | `Core/SearchIndex/Fzf/FzfPatternMatcher.cs:11-21, 86-96`（注释写明读的是名称）、`Core/IndexV2/Search/PathTermFallback.cs:264-273`（`NamePassesClauses`）、`Core/IndexV2/Search/PinyinNameEvaluator.cs:146`、`SearchMatcher.cs:303`、`PathMode/SearchMatcherPath.cs:125`、`Core/IndexV2/Search/SearchMatcherRow.cs:34-37, 122` |
 | 名称级对照测试两侧各一条 | `Tests/Core/IndexV2/Search/PinyinNameEvaluatorTests.cs:199`（`RegexClause_IsAnsweredFromTheNameNeverFromTheReadings`） |
 | 纯排除的 pattern 不占 mask 位 | `Core/SearchIndex/Fzf/FzfPattern.cs:112`（`HasPositiveTerm`）、`Core/IndexV2/Search/PathTermFallback.cs:195-196`；main 侧为 `FzfPattern.cs:53` 的 `HasPositiveTerms` |
 | `! ' ^ $` 退役为字面字符 | `TermTriggers.cs:10`，`Tests/Core/SearchIndex/FuzzyMatcherTests.cs:71-83`（`IsMatch_RetiredOperatorCharacters_AreLiteralText`） |
 | main 靠旧语法守 kind 的两条测试 | main `Tests/Core/IndexV2/Search/PinyinNameEvaluatorTests.cs:156`（`OperatorTerms_AreLiteralOnly`）、main `Tests/Core/SearchIndex/Fzf/FzfPatternAliasReadingTests.cs:52`（`AliasReading_LeavesAnOperatorsOwnKindAlone`） |
-| 锚定 kind 的删除 | `fb6cda90`；`Core/SearchIndex/Fzf/FzfAlgorithm.cs:3-6`（`FzfTermKind` 只剩两个成员）、`:36`（`Match` 只剩 `Fuzzy`/`Exact` 两条 arm）、`FzfBytePattern.cs:78` 同形，main 同文件 `:3-10` 仍带 `ExactBoundary`/`Prefix`/`Suffix`/`Equal` |
-| grid 层的删除 | `b8e1061c`（main）；两条分支上已消失的提交 `c85b31ab`、`dc50cc03`，`3a8ad26b` 只剩 `FzfPatternAliasReadingTests.cs` 的迁移 |
-| 排序键只有 `s c m a f`，阈值需要第二个触发符 | `Plugins/CoreExtensions/Providers/QueryTokens/SortFilterQueryTokenProvider.cs:27-28, 31-38, 64`（`AscendingTrigger`/`DescendingTrigger`、`KeysByLetter`、`IsTrigger`）、`:125-136` |
+| 锚定 kind 的删除 | `refactor(search): drop the anchored term kinds nothing produces`；`Core/SearchIndex/Fzf/FzfAlgorithm.cs:3-6`（`FzfTermKind` 只剩两个成员）、`:36`（`Match` 只剩 `Fuzzy`/`Exact` 两条 arm）、`FzfBytePattern.cs:78` 同形，main 同文件 `:3-10` 仍带 `ExactBoundary`/`Prefix`/`Suffix`/`Equal` |
+| grid 层的删除 | `b8e1061c`（main）；分支侧曾存在的同名提交在 rebase 后已丢弃，只剩 `FzfPatternAliasReadingTests.cs` 的迁移 |
+| 排序键只有 `s c m a f`，阈值需要第二个触发符 | `Plugins/CoreExtensions/Providers/QueryTokens/SortFilterQueryTokenProvider.cs:27-28, 31-38, 64`（`AscendingTrigger`/`DescendingTrigger`、`KeysByLetter`、`IsTrigger`）、`:102-113`（`SplitThreshold`）、`:117-150`（`BuildThresholdPredicate`） |
 | 无人认领的 Token 得到空结果 | `App/ViewModels/Search/QueryTokenDispatcher.cs:50-51` |
-| Token 链在已取回的结果之上 | `QueryTokenDispatcher.cs:19`，调用点 `App/ViewModels/Search/Dispatch/SearchQueryDispatchController.cs:429`、`SearchDispatchController.cs:359`、`App/Services/Pipe/AppSearchPipeService.cs:289`；main 的 `QueryTokenDispatcher.cs:6` 注释仍写尾部 `:a,b,c` 段 |
-| OR 已存在且优先级可配 | `FzfPatternParser.cs:70-75, 84, 123`，`Core/SearchContext.cs:45-53` |
-| 路径正则结果 8000 条上限 | `App/ViewModels/Search/Mapping/StreamingResultAccumulator.cs:27`（`RegexPathResultLimit`），main 无此常量 |
+| Token 链在已取回的结果之上 | `QueryTokenDispatcher.cs:19`，调用点 `App/ViewModels/Search/Dispatch/SearchQueryDispatchController.cs:457`、`SearchDispatchController.cs:383`、`App/Services/Pipe/AppSearchPipeService.cs:306`；main 的 `QueryTokenDispatcher.cs:6` 注释仍写尾部 `:a,b,c` 段 |
+| OR 已存在且优先级可配 | `FzfPatternParser.cs:71-83, 127`，`Core/SearchContext.cs:45-54` |
+| 路径正则结果 8000 条上限 | `App/ViewModels/Search/Mapping/StreamingResultAccumulator.cs:28`（`RegexPathResultLimit`），main 无此常量 |
 | 前缀冲突分级与旧值只警告 | `App/Helpers/QueryTokenPrefixRules.cs:40-54`（`GlobalPrefixConflict`）、`:78`（`BlocksSaving`） |
 | 「另一插件已认领该字符」检查被删除及其理由 | `QueryTokenPrefixRules.cs:12-15` |
-| 插件通过宿主单一前缀认领 Token | `PluginSdk/Services/SearchSyntaxService.cs:17-27`，`CustomFilterQueryTokenProvider.cs:48-52, 63-67, 345`；单一前缀改造是 `3d879e38` |
+| 插件通过宿主单一前缀认领 Token | `PluginSdk/Services/SearchSyntaxService.cs:17-27`，`CustomFilterQueryTokenProvider.cs:48-52, 63-67, 345`；单一前缀改造是 `feat(plugins): claim query tokens through the host's single prefix` |
 | 关键词最长匹配 | `CustomFilterQueryTokenProvider.cs:143-144` |
 | 设置页章节为静态帮助文本 | `App/Views/Settings/SearchSyntaxSettingsPage.xaml(.cs)`，`Plugins/CoreExtensions/Resources/Translations/<locale>/App.json:52, 57`（`SearchSyntax_Tab_Tokens` 与 `SearchSyntax_Tokens_Body`） |
 | 大小写写法已进入 7 locale 文档 | `Site/*/user-guide/search-syntax.md` 正则小节（含 `Site/user-guide/` 共 7 份），`Plugins/CoreExtensions/Resources/Translations/*/App.json:54, 55`（`SearchSyntax_Basic_Body` 与 `SearchSyntax_Regex_Body`） |
-| 通配符与路径排除 provider 的删除 | `3d879e38` 删除 `WildcardQueryTokenProvider.cs` 与 `PathExclusionQueryTokenProvider.cs`，两者在 main 上仍在 |
+| 通配符与路径排除 provider 的删除 | `feat(plugins): claim query tokens through the host's single prefix` 删除 `WildcardQueryTokenProvider.cs` 与 `PathExclusionQueryTokenProvider.cs`，两者在 main 上仍在 |
 | 快速面板仍解析 `!` 取反 glob | `App/Services/QuickPanel/QuickPanelFilterParser.cs:9, 65, 116` |
 | `#` 以管理员、`$` 以普通身份、`%` 环境变量 | `Plugins/CoreExtensions/Providers/InstantAnswers/CommandInstantProvider.cs:22-23`、`CommandQuickNavigationProvider.cs:52-54`、`EnvironmentVariableInstantProvider.cs:22-28` |
-| 设置侧规则语法只在 main | `Core/Settings/IndexRuleSetting.cs:58`（`IndexRuleSyntax`，`TryParse` 在 `:109` 先查 `/.../`，`:126` 才归一分隔符；`MatchTimeout` `:64`），`feat-search-reimpl` 无此文件 |
+| 设置侧规则语法两侧同源 | `Core/Settings/IndexRuleSetting.cs:74`（`IndexRuleSyntax`），`TryParse` 在 `:112` / `:117`，先认 `/.../`（`:130-131`）再归一分隔符，`MatchTimeout` 在 `:80`；该文件在 main 与 `feat-search-reimpl` 上逐字节一致 |

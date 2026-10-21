@@ -135,7 +135,7 @@
 
 ## Lertaro 机制事实（会反复要用）
 
-1. **语法有两棵树**：`search-grammar.md` 描述的是 `feat-search-reimpl`（已 rebase 到 `main` = `a09f8b95`，领先 23、
+1. **语法有两棵树**：`search-grammar.md` 描述的是 `feat-search-reimpl`（已 rebase 到 `main` = `5a754391`，领先 24、
    落后 0，仍未合入）。
    `main` 上排除标记仍是 `!term`、`'term` 仍翻精确性、`FzfTermKind` 仍有 ExactBoundary/Prefix/Suffix，
    `RegexQueryParser` / `RegexClauses` / `TermTriggers` / `SearchSyntaxReserved` / `FzfPatternMatcher` 都不存在。
