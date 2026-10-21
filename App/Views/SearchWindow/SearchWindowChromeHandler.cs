@@ -1,14 +1,22 @@
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using Lertaro.App.Helpers.Visuals;
+using Lertaro.App.Views.InlineSearchWindow.Helpers;
 using TextBox = System.Windows.Controls.TextBox;
 
 namespace Lertaro.App.Views.SearchWindow;
 
 public class SearchWindowChromeHandler
 {
+    [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
+    private const uint SWP_NOSIZE = 0x0001;
+    private const uint SWP_NOZORDER = 0x0004;
+    private const uint SWP_NOACTIVATE = 0x0010;
+
     private readonly Lertaro.App.SearchWindow _window;
 
     public SearchWindowChromeHandler(Lertaro.App.SearchWindow window) => _window = window;
@@ -68,6 +76,46 @@ public class SearchWindowChromeHandler
     public void ToggleMaximize() => _window.WindowState = _window.WindowState == WindowState.Maximized
             ? WindowState.Normal
             : WindowState.Maximized;
+
+    /// <summary>
+    /// Puts the window in the middle of the work area of the screen the mouse is on -- the screen the summon came
+    /// from -- and is called around the first Show. The logo's right-click stays on
+    /// <see cref="CenterInWorkArea"/>, which deliberately does not change screens.
+    /// </summary>
+    /// <remarks>
+    /// This replaces the startup location, which is not the same thing: WPF's CenterScreen does follow the cursor's
+    /// monitor (no-owner path: MonitorFromPoint of the cursor, then the center of that monitor's work area), but it
+    /// sizes the window with the scale it holds at that moment -- the system's, for a window that has never been
+    /// shown -- and the window is then resized to the monitor's own scale, so the center it aimed at is the center
+    /// for a smaller window. Measured on a 100% primary plus a 250% secondary with 854x480 DIP: the rect came out
+    /// (3093,768) at 2135x1200 while that work area's own center is (2453,408), off by +641,+360 = exactly
+    /// (new size - old size) / 2, toward the bottom-right. Same-scale desktops hide this, because the two scales are
+    /// equal; scratch/centerprobe is the instrument that reads it without showing anything.
+    ///
+    /// Placed twice, like QuickSearchWindowPositioner: once before Show and once after the first frame. The second
+    /// pass is the one that counts -- Left/Top are DIP and WPF converts a never-shown window's with the system
+    /// scale, so the first pass alone creates the window on the WRONG monitor (measured: (981,163) on the primary)
+    /// and SetWindowPos in physical pixels is what moves it onto the target and keeps it there.
+    /// </remarks>
+    public void CenterOnCursorScreen()
+    {
+        var mouse = Control.MousePosition;
+        var work = Screen.FromPoint(mouse).WorkingArea;
+        var (scaleX, scaleY) = InlineCardSpace.DpiScaleFor(InlineCardSpace.MonitorForPoint(mouse));
+
+        _window.WindowStartupLocation = WindowStartupLocation.Manual;
+        var (left, top) = CalculateCenter(work.Left, work.Top, work.Width, work.Height,
+            _window.Width, _window.Height, scaleX, scaleY);
+        _window.Left = left;
+        _window.Top = top;
+
+        var hwnd = new WindowInteropHelper(_window).Handle;
+        if (hwnd == IntPtr.Zero) return;
+
+        SetWindowPos(hwnd, IntPtr.Zero,
+            (int)Math.Round(left * scaleX), (int)Math.Round(top * scaleY), 0, 0,
+            SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    }
 
     /// <summary>
     /// Moves the whole window to the middle of the work area of the screen it is on: the area the taskbar is

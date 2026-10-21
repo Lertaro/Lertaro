@@ -280,8 +280,13 @@ public static class AppWindowManager
 
         if (!window.IsVisible)
         {
-            WindowParking.ParkUntilPainted(window);
-            window.Show();
+            // Placed on the summon's screen first, then shown from the parking row above it and placed again once
+            // the first frame is through -- the order QuickSearchWindowShowSupport uses. ParkUntilPainted is the
+            // mechanism for a window WPF positions by itself, and this one no longer is: CenterScreen centers with
+            // the wrong scale on a different-DPI monitor (see SearchWindowChromeHandler.CenterOnCursorScreen), and
+            // that park would then restore a DIP Top captured before the window's DPI was known.
+            window.CenterOnCursorScreen();
+            WindowParking.ShowThenPlace(window, window.CenterOnCursorScreen);
         }
         if (window.WindowState == WindowState.Minimized)
             window.WindowState = WindowState.Normal;

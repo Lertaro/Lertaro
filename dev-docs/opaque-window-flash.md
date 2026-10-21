@@ -106,7 +106,8 @@
 |---|---|---|
 | QuickSearchWindow / InlineSearchWindow / NotificationCard / NotificationNotice | 复用 / 复用 / 每条新建 / 每条新建 | ✅ 早先四个提交 |
 | CustomMessageBoxWindow、PluginFieldPromptWindow | 每次新建 + ShowModal | ✅ `OwnedDialog.ShowModal` 一处覆盖（`OwnedDialog.cs:88`，导出/导入/恢复 + 全应用消息框） |
-| SettingsWindow、SearchWindow | 缓存，但关闭后重开＝新建 + Show | ✅ `ParkUntilPainted`（只在首开生效，`AppWindowManager.cs:51,86,283`） |
+| SettingsWindow | 缓存，但关闭后重开＝新建 + Show | ✅ `ParkUntilPainted`（只在首开生效，`AppWindowManager.cs:51,86`） |
+| SearchWindow | 缓存，但关闭后重开＝新建 + Show | ✅ `ShowThenPlace`（`AppWindowManager.cs:281-290`；位置由 `SearchWindowChromeHandler.CenterOnCursorScreen` 自己摆，见下） |
 | QuickPanelWindow | 每次打开新建（注释明确说复用曾带来 5 个缺陷） | ✅ `ShowThenPlace`（`QuickPanelManager.cs:234`） |
 | LocalSendSendWindow / LocalSendReceiveWindow | 每次新建；接收窗是网络事件自己弹出 | ✅ `ParkUntilPainted`（`LocalSendAppEventHandler.cs:110,138`） |
 | QuickLookWindow、PreviewOverlay 匿名 overlay | 缓存 / 每次新建 | ❌ 两者都在 Show **之后**按 owner / 内嵌原生预览再定位，要屏障得搬定位逻辑，不是包一层 |
@@ -118,6 +119,12 @@
 两趟后落位；对话框/大窗是 **WPF 定位**的（CenterOwner / CenterScreen），模态窗口更不能由调用方摆位置（ShowDialog
 不返回），所以在 `SourceInitialized` 里抬 y —— 实测那一刻 centered rect 已经算出来（542x353，Show 之前是 NaN）。
 有句柄的窗口不再触发该事件，所以它是"只在首开"的闸门，也顺手避免了重复注册处理器。
+`SearchWindow` 已从后一类挪进前一类，理由是实测的：`CenterScreen` 确实按鼠标所在屏居中，但它用**系统缩放**换算窗口尺寸，
+建好之后再按该屏缩放重设尺寸，于是它对准的中心是"另一个更小的窗口"的中心。100% 主屏 + 250% 副屏、854x480 DIP 实测
+rect=(3093,768) 尺寸 2135x1200，而该屏 work area 真正的中心是 (2453,408)，偏 +641,+360 = 恰好 (新尺寸−旧尺寸)/2；
+两屏同缩放时这个偏差恒为 0，所以一直没人看见。现在由 `CenterOnCursorScreen` 按鼠标屏自己的缩放摆 x、走 `ShowThenPlace`
+两趟落位（Show 前 DIP 一趟建在**错误的屏**上，实测 (981,163) 落在主屏，靠第二趟 `SetWindowPos` 物理像素才落对）。
+仪器：`scratch/centerprobe`（带宿主同一份 PerMonitorV2 manifest，`EnsureHandle` 就能读，不用真开窗口）。
 
 `CardRenderMode`（软件合成）仍只给三张"召唤即用"的卡片：对话框靠屏障已经把黑帧挪到屏幕外，不需要改它们的合成模式。
 

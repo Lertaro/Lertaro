@@ -10,7 +10,7 @@
         xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
         Title="{Binding WindowTitle}" Height="600" Width="1024"
         MinHeight="480" MinWidth="800"
-        WindowStartupLocation="CenterScreen"
+        WindowStartupLocation="Manual"
         Background="{DynamicResource ContentBg}"
         WindowStyle="None"
         TextElement.Foreground="{DynamicResource TextPrimary}"
@@ -20,7 +20,11 @@
          of 0 - that band used to cover the 6px overlay scrollbar pressed against this window's right edge,
          which is why the results list could not be dragged. The bottom-right grip is now the only thing that
          resizes it; see ResizeGrip.xaml. CaptionHeight is 0 deliberately: this window drags from its own
-         header handler (SearchWindowChromeHandler), so the chrome must not claim a caption area of its own. -->
+         header handler (SearchWindowChromeHandler), so the chrome must not claim a caption area of its own.
+         The startup location is Manual because CenterScreen cannot place this window: it centers on the cursor's
+         monitor but sizes the window with the system scale, so on a different-DPI monitor it aims at the center of
+         a window that is not the one it creates. SearchWindowChromeHandler.CenterOnCursorScreen places it in that
+         monitor's own scale. -->
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
