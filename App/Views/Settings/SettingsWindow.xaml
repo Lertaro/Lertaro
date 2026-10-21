@@ -8,7 +8,7 @@
         Title="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_Title]}"
         Height="720" Width="1280"
         MinHeight="560" MinWidth="880"
-        WindowStartupLocation="CenterScreen"
+        WindowStartupLocation="Manual"
         Background="{DynamicResource ContentBg}"
         WindowStyle="None"
         ResizeMode="CanResizeWithGrip"
@@ -21,7 +21,9 @@
          because that band covers the 6px overlay scrollbar of every list and editor pressed against a window
          edge. The bottom-right grip is the only thing that resizes it; see ResizeGrip.xaml. CaptionHeight is 0
          deliberately: this window drags from its own title bar, so the chrome must not claim a caption area
-         of its own. -->
+         of its own. The startup location is Manual because CenterScreen sizes the window with the system scale
+         and centers for that, which on a different-DPI monitor is not where its own center is; AppWindowManager
+         hands it to WindowCentering.CenterOnCursorScreen inside the park. -->
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>

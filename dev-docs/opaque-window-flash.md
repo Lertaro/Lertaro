@@ -9,8 +9,8 @@
 
 对着代码核对后，与最初记录有出入的地方：
 
-- `WindowParking` 确实在 `App/Helpers/Visuals/WindowParking.cs`：`OffScreen = -32000`（:25）、`Park`（:31）、
-  `ShowThenPlace`（:53）、`AfterFrame`（:91）、`ParkUntilPainted`（:111）。
+- `WindowParking` 确实在 `App/Helpers/Visuals/WindowParking.cs`：`OffScreen = -32000`（:35）、`Park`（:41）、
+  `ShowThenPlace`（:63）、`AfterFrame`（:101）、`ParkUntilPainted(window, place)`（:125）。
 - `App/Helpers/Visuals/UnpaintedBrush.cs` 确认不在工作区，全仓没有任何 `WM_PAINT` / `WM_ERASEBKGND` 钩子。别再去找它。
 - `CardRenderMode` 明确不读 `EnableHardwareAcceleration`（`App/Helpers/Visuals/CardRenderMode.cs:23-26`）；那个开关
   改成在任何窗口创建前设进程级 `RenderOptions.ProcessRenderMode`（`App/App.xaml.cs:116-117`），默认值仍是 `true`
@@ -106,10 +106,10 @@
 |---|---|---|
 | QuickSearchWindow / InlineSearchWindow / NotificationCard / NotificationNotice | 复用 / 复用 / 每条新建 / 每条新建 | ✅ 早先四个提交 |
 | CustomMessageBoxWindow、PluginFieldPromptWindow | 每次新建 + ShowModal | ✅ `OwnedDialog.ShowModal` 一处覆盖（`OwnedDialog.cs:88`，导出/导入/恢复 + 全应用消息框） |
-| SettingsWindow | 缓存，但关闭后重开＝新建 + Show | ✅ `ParkUntilPainted`（只在首开生效，`AppWindowManager.cs:51,86`） |
-| SearchWindow | 缓存，但关闭后重开＝新建 + Show | ✅ `ShowThenPlace`（`AppWindowManager.cs:281-290`；位置由 `SearchWindowChromeHandler.CenterOnCursorScreen` 自己摆，见下） |
+| SettingsWindow | 缓存，但关闭后重开＝新建 + Show | ✅ `ParkUntilPainted` + 落位回调（`AppWindowManager.cs:51,86`） |
+| SearchWindow | 缓存，但关闭后重开＝新建 + Show | ✅ `ParkUntilPainted` + 落位回调（`AppWindowManager.cs:286`） |
 | QuickPanelWindow | 每次打开新建（注释明确说复用曾带来 5 个缺陷） | ✅ `ShowThenPlace`（`QuickPanelManager.cs:234`） |
-| LocalSendSendWindow / LocalSendReceiveWindow | 每次新建；接收窗是网络事件自己弹出 | ✅ `ParkUntilPainted`（`LocalSendAppEventHandler.cs:110,138`） |
+| LocalSendSendWindow / LocalSendReceiveWindow | 每次新建；接收窗是网络事件自己弹出 | ✅ `ParkUntilPainted` + 落位回调（`LocalSendAppEventHandler.cs:110,139`，接收窗是 ShowDialog 模态） |
 | QuickLookWindow、PreviewOverlay 匿名 overlay | 缓存 / 每次新建 | ❌ 两者都在 Show **之后**按 owner / 内嵌原生预览再定位，要屏障得搬定位逻辑，不是包一层 |
 | MenuHelperWindow | 每次新建 | ❌ 1×1 锚点，机制同但不可见 |
 | 原生 SaveFileDialog / OpenFileDialog / FolderBrowser | — | 不适用（系统窗口，不画我们的类背景） |
@@ -119,11 +119,15 @@
 两趟后落位；对话框/大窗是 **WPF 定位**的（CenterOwner / CenterScreen），模态窗口更不能由调用方摆位置（ShowDialog
 不返回），所以在 `SourceInitialized` 里抬 y —— 实测那一刻 centered rect 已经算出来（542x353，Show 之前是 NaN）。
 有句柄的窗口不再触发该事件，所以它是"只在首开"的闸门，也顺手避免了重复注册处理器。
-`SearchWindow` 已从后一类挪进前一类，理由是实测的：`CenterScreen` 确实按鼠标所在屏居中，但它用**系统缩放**换算窗口尺寸，
+`ParkUntilPainted(window, place)` 的第二参数是给"调用方其实有位置想摆、但那一刻还没有句柄"的窗口：
+`SourceInitialized` 正是句柄第一次存在、而一个字都还没画出来的时刻，落位先跑、随后捕获的矩形就是落好位的矩形，
+恢复用 `SetWindowPos` 写**物理像素** —— 原来写回捕获时的 DIP Top 在跨 DPI 屏上必然落偏，因为那个数字是按窗口创建时
+的缩放读的，而窗口此刻已被重设为目标屏的缩放。
+为什么这四个窗口不再交给 `CenterScreen`，是实测的：它确实按鼠标所在屏居中，但用**系统缩放**换算窗口尺寸，
 建好之后再按该屏缩放重设尺寸，于是它对准的中心是"另一个更小的窗口"的中心。100% 主屏 + 250% 副屏、854x480 DIP 实测
 rect=(3093,768) 尺寸 2135x1200，而该屏 work area 真正的中心是 (2453,408)，偏 +641,+360 = 恰好 (新尺寸−旧尺寸)/2；
-两屏同缩放时这个偏差恒为 0，所以一直没人看见。现在由 `CenterOnCursorScreen` 按鼠标屏自己的缩放摆 x、走 `ShowThenPlace`
-两趟落位（Show 前 DIP 一趟建在**错误的屏**上，实测 (981,163) 落在主屏，靠第二趟 `SetWindowPos` 物理像素才落对）。
+两屏同缩放时这个偏差恒为 0，所以一直没人看见。落位由 `WindowCentering.CenterOnCursorScreen` 做（Show 之前只写 DIP
+会把窗口建在**错误的屏**上，实测 (981,163) 落在主屏，所以物理像素那一趟才是算数的）。
 仪器：`scratch/centerprobe`（带宿主同一份 PerMonitorV2 manifest，`EnsureHandle` 就能读，不用真开窗口）。
 
 `CardRenderMode`（软件合成）仍只给三张"召唤即用"的卡片：对话框靠屏障已经把黑帧挪到屏幕外，不需要改它们的合成模式。

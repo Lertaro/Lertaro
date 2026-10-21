@@ -200,10 +200,6 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
     private void BtnMaximize_Click(object sender, RoutedEventArgs e) => _chromeHandler.ToggleMaximize();
     private void BtnClose_Click(object sender, RoutedEventArgs e) => _chromeHandler.Close();
 
-    // Called by AppWindowManager around the first Show: the startup location cannot center this window on the
-    // screen the summon came from at the scale that screen uses (see SearchWindowChromeHandler).
-    internal void CenterOnCursorScreen() => _chromeHandler.CenterOnCursorScreen();
-
     private void BtnBackToQuickSearch_Click(object sender, RoutedEventArgs e) => SearchWindowQuickReturnSupport.ReturnToQuickSearch(this);
 
     // Same move, reachable from the global summon hotkey when this window already holds foreground (see

@@ -23,8 +23,8 @@
          header handler (SearchWindowChromeHandler), so the chrome must not claim a caption area of its own.
          The startup location is Manual because CenterScreen cannot place this window: it centers on the cursor's
          monitor but sizes the window with the system scale, so on a different-DPI monitor it aims at the center of
-         a window that is not the one it creates. SearchWindowChromeHandler.CenterOnCursorScreen places it in that
-         monitor's own scale. -->
+         a window that is not the one it creates. WindowCentering.CenterOnCursorScreen places it, in that monitor's
+         own scale, from inside the park. -->
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>

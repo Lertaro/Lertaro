@@ -5,7 +5,7 @@
         xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
         xmlns:local="clr-namespace:Lertaro.App.Views.LocalSend"
         Title="LocalSend" Height="400" Width="480" MinWidth="420" MinHeight="320"
-        WindowStartupLocation="CenterScreen" Background="{DynamicResource ContentBg}"
+        WindowStartupLocation="Manual" Background="{DynamicResource ContentBg}"
         WindowStyle="None" ResizeMode="CanResizeWithGrip" ShowInTaskbar="True" Topmost="True"
         TextElement.Foreground="{DynamicResource TextPrimary}">
     <!-- The window is opaque, which is what lets its text be antialiased sub-pixel; the chrome is what makes
@@ -13,7 +13,10 @@
          away from the content against it. The grip is what resizes this window, and its hit area is declared
          in ResizeGrip.xaml.
          CaptionHeight is 0 deliberately: this window drags from its own title bar
-         (TitleBar_MouseLeftButtonDown), so the chrome must not claim a caption area of its own. -->
+         (TitleBar_MouseLeftButtonDown), so the chrome must not claim a caption area of its own.
+         The startup location is Manual: CenterScreen sizes the window with the system scale and centers for
+         that, which on a different-DPI monitor is not its own center. LocalSendAppEventHandler places it with
+         WindowCentering.CenterOnCursorScreen. -->
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
