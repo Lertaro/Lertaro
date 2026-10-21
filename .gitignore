@@ -129,3 +129,4 @@ Site/.vitepress/public/logo.svg
 
 # Claude Code local project state (per-machine, not shared)
 .claude/
+/node_modules
