@@ -33,15 +33,21 @@ public class QuickSearchWindowPositioner
         _getLastActiveHwnd = getLastActiveHwnd;
     }
 
-    public void PositionWindow()
+    /// <param name="keepCurrentMonitor">
+    /// True for the callers that ask where THIS WINDOW already is -- DpiChanged, and the status icon's reset: the
+    /// window is on screen and belongs to its own monitor. False is the summon, and a summon belongs to the
+    /// monitor under the mouse on BOTH of its passes. The second pass runs after Show(), so the gate this replaces
+    /// (the window's visibility) retargeted it to whichever screen the window had been created on, instead of
+    /// keeping the screen the summon asked for. Whether the two ever disagree is not measured -- the line below
+    /// logs it wherever it happens, which is what a single-screen development machine cannot tell us.
+    /// </param>
+    public void PositionWindow(bool keepCurrentMonitor = false)
     {
         var hwnd = new WindowInteropHelper(_window).Handle;
         Screen screen;
         IntPtr targetMonitor;
 
-        // When the window is already visible (e.g. pinned / handling DpiChanged), preserve placement on its current monitor.
-        // When summoning (not yet visible), target the monitor under the mouse cursor.
-        if (_window.IsVisible && hwnd != IntPtr.Zero)
+        if (keepCurrentMonitor && _window.IsVisible && hwnd != IntPtr.Zero)
         {
             screen = Screen.FromHandle(hwnd);
             targetMonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
@@ -51,6 +57,13 @@ public class QuickSearchWindowPositioner
             var mousePos = Control.MousePosition;
             screen = Screen.FromPoint(mousePos);
             targetMonitor = MonitorFromPoint(new POINT { X = mousePos.X, Y = mousePos.Y }, MONITOR_DEFAULTTONEAREST);
+            if (_window.IsVisible && hwnd != IntPtr.Zero && MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) != targetMonitor)
+            {
+                // Info, not Debug: this only fires when the two screens disagree, and the disagreement is the
+                // thing a reporter's log has to show without being asked to raise the level first.
+                Logger.Log($"[QuickPosition] summon keeps the cursor's monitor {screen.DeviceName}, the window was on "
+                    + $"{Screen.FromHandle(hwnd).DeviceName} with the cursor at ({mousePos.X},{mousePos.Y})", LogLevel.Info);
+            }
         }
 
         var (targetDpiScaleX, targetDpiScaleY) = GetMonitorDpiScale(targetMonitor);
@@ -155,7 +168,9 @@ public class QuickSearchWindowPositioner
         settings.SearchWindow.RelativeLeft = null;
         settings.SearchWindow.RelativeTop = null;
         settings.Save();
-        PositionWindow();
+        // Right-clicking the icon of the window on screen re-centers THAT window, so this is the caller that
+        // means "where am I", not a summon.
+        PositionWindow(keepCurrentMonitor: true);
     }
 
     private static (double x, double y) GetMonitorDpiScale(IntPtr hMonitor)

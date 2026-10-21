@@ -1,6 +1,5 @@
 using System.Windows;
 using System.Windows.Interop;
-using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Lertaro.App.Services;
 using Lertaro.App.Services.ShellIcons;
@@ -52,7 +51,7 @@ public class QuickSearchWindowController
         _showSupport = new QuickSearchWindowShowSupport(this);
     }
 
-    public void PositionWindow() => _positioner.PositionWindow();
+    public void PositionWindow(bool keepCurrentMonitor = false) => _positioner.PositionWindow(keepCurrentMonitor);
     public void SaveWindowPosition() => _positioner.SaveWindowPosition();
 
     // Wired to the search box's status icon right-click -- clears the saved position and immediately
