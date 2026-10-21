@@ -40,22 +40,18 @@ Use standalone folder indexing when you want to target specific working director
 
 ## 5. Exclusions
 
-Exclusion rules filter search results and bound how far the network, WSL and folder-index walks descend. They do not stop a local drive from being indexed: a local volume is always walked in full, so a path such as `E:\` in this list only hides its results. To stop indexing a local drive, turn it off under **Local Drives** above. The rules are organized into three sub-tabs:
+Exclusion rules filter search results and bound how far the network, WSL and folder-index walks descend. They do not stop a local drive from being indexed: a local volume is always walked in full, so a path such as `E:\` in this list only hides its results. To stop indexing a local drive, turn it off under **Local Drives** above. Rules live in one list, with no sub-tabs. Every rule is a match plus a level; the match is decided by how the text is spelled, and the input box reports it live as **Detected:**.
 
-### Path Exclusions
+- **Full path**: starts with a drive letter (`D:\Cache`), a UNC path (`\\server\share`), an environment variable (`%ProgramData%`, `%APPDATA%`), or a `shell:` virtual path. It covers that folder and everything under it.
+- **Wildcard**: any other spelling. `*` matches within a single folder level (`*.log`), `?` matches one character, `**` matches recursively (`**\node_modules\**`). A rule without a separator matches by name at any depth (`node_modules`, `*.tmp`); a rule with separators is anchored at the drive root, so `Listary\abc` covers `C:\Listary\abc` and its contents but not `D:\work\Listary\abc`.
+- **Regular expression**: wrap it in slashes, e.g. `/^\./` for hidden dotfiles or `/~\$/` for temporary Office locks. It runs as an implicit partial match against the full path or the file name. Prefer a wildcard where you can: a regex is interpreted on every match and costs more.
 
-- **Matching Logic**: Prefix matching against absolute physical paths.
-- **Environment Variables**: Accepts `%ProgramData%`, `%APPDATA%`, or `D:\Cache`.
+The **level** decides what happens: **Exclude** hides the item, while **Low**, **Normal**, and **High** only change the order, and a high rule can be pinned to put its rows at the very top. Set the level in the drop-down on the right of the row, or write it as a prefix in the text: `!` exclude, `-` low, `+` high, nothing means normal. A leading backslash makes the prefix character literal.
 
-### Glob Rules
+> [!NOTE]
+> The prefix is only stripped in the **Add** box and the **Bulk edit** box. Inline editing of an existing rule keeps the text literal, so change the level with the drop-down: a `!` left inside a wildcard rule becomes a character of the path, and since Windows paths contain no `!`, such a rule can never match anything and the page shows no error for it.
 
-- **Syntax**:
-  - `*`: Matches characters within a single folder level (e.g. `*.tmp`, `*.log`).
-  - `**`: Matches recursively across subdirectories (e.g. `**/node_modules/**`, `**/bin/**`, `**/obj/**`).
-
-### Regex Rules
-
-- **Advanced Filtering**: Regular expression matching against paths and filenames (e.g. `^\.` for hidden dotfiles, `~\$` for temporary Office locks).
+Local drives apply the rules during search; network drives, WSL and custom folders skip excluded items while building the index and refresh after you apply. When an exclude rule covers a priority rule, a conflict banner appears above the list and the covered rule has no effect.
 
 > [!TIP]
-> Exclusions support both **single entry additions** and **batch editing**: click **Generate from List** to export rules to text, edit, and click **Apply to List** to update in bulk. Modified exclusion rules automatically trigger index filtering.
+> Rules support both **single entry additions** and **batch editing**: click **Generate from List** to export rules to text, edit it, and click **Apply to List** to update in bulk. If one line of the batch text cannot be parsed, nothing is applied and the text stays in the box for you to fix.
