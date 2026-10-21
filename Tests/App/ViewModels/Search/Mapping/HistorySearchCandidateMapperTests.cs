@@ -9,7 +9,7 @@ namespace Lertaro.App.Tests.ViewModels.Search.Mapping;
 public sealed class HistorySearchCandidateMapperTests
 {
     [TestMethod]
-    public void Collect_QueryMatchesRecordedKeyword_AddsExistingPathWithLearnedPriority()
+    public void Collect_QueryMatchesRecordedKeyword_AddsExistingPathAsHistoryOnly()
     {
         var entries = new[] { Entry("bcomp", @"C:\Apps\BCompare.exe", HistoryEntryKind.File) };
 
@@ -19,13 +19,12 @@ public sealed class HistorySearchCandidateMapperTests
         Assert.AreEqual(@"C:\Apps\BCompare.exe", results[0].Result.FullPath);
         Assert.IsTrue(results[0].IsHistoryOnly);
         Assert.IsFalse(results[0].IsFavorite);
-        Assert.IsLessThan(0, results[0].HistoryPriority);
         Assert.AreEqual(1, results[0].HistoryCount);
     }
 
     // A history row is a file path, so it has to carry the caller's Files rank rather than a group of its
-    // own: with the type order as the outermost key (RankedCandidateOrdering), int.MaxValue here would put
-    // every history row below every indexed file of the same type.
+    // own: inside the Boosted section TypeRank is compared before match quality, so int.MaxValue here would
+    // put every history row below every indexed file that reached the same section.
     [TestMethod]
     public void Collect_CarriesTheCallersFilesTypeRank()
     {
@@ -69,33 +68,6 @@ public sealed class HistorySearchCandidateMapperTests
         CollectionAssert.AreEqual(
             new[] { @"D:\Projects\code-atlas", @"C:\Games\Atlas" },
             results.Select(result => result.Result.FullPath).ToList());
-    }
-
-    // The full window's ladder, as a path -> priority map: this query's picks, then other history, then
-    // Windows Recent Items. Paths are not probed, so these test paths need not exist.
-    [TestMethod]
-    public void RankingPriorities_LearnedPickThenOtherHistoryThenRecentItems()
-    {
-        var entries = new[]
-        {
-            Entry("atlas", @"D:\Projects\code-atlas", HistoryEntryKind.Folder),
-            Entry("budget", @"C:\Docs\atlas-budget.xlsx", HistoryEntryKind.File),
-        };
-        var history = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
-        {
-            [@"C:\Docs\atlas-budget.xlsx"] = 0,
-            [@"D:\Projects\code-atlas"] = 1,
-        };
-        var recent = WindowsRecentCandidateMapper.Collect(
-            FuzzyQuery.Parse("atlas"), null,
-            [new WindowsRecentCandidateMapper.Shortcut(@"C:\Recent\atlas.png.lnk", "atlas.png", DateTime.UtcNow)],
-            _ => @"C:\Pictures\atlas.png", _ => true, _ => false);
-
-        var priorities = HistorySearchCandidateMapper.RankingPriorities(FuzzyQuery.Parse("atlas"), entries, history, recent);
-
-        Assert.IsLessThan(priorities[@"C:\Docs\atlas-budget.xlsx"], priorities[@"D:\Projects\code-atlas"]);
-        Assert.IsLessThan(priorities[@"C:\Pictures\atlas.png"], priorities[@"C:\Docs\atlas-budget.xlsx"]);
-        Assert.IsLessThan(int.MaxValue, priorities[@"C:\Pictures\atlas.png"]);
     }
 
     [TestMethod]
@@ -226,21 +198,6 @@ public sealed class HistorySearchCandidateMapperTests
             new[] { @"C:\Work\BCompare.exe", @"C:\Work\beta.txt" },
             results.Select(result => result.FullPath).ToList());
         CollectionAssert.AreEqual(new[] { 0, 1 }, results.Select(result => result.Index).ToList());
-    }
-
-    [TestMethod]
-    public void ApplyPriorities_LearnedKeywordOverridesGlobalHistoryPriority()
-    {
-        var learned = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bc"),
-            null,
-            new[] { Entry("bcomp", @"C:\Apps\BCompare.exe", HistoryEntryKind.File) },
-            _ => true,
-            _ => false);
-        var existing = new Dictionary<string, int> { [@"C:\Apps\Other.exe"] = 0 };
-
-        var priorities = HistorySearchCandidateMapper.ApplyPriorities(existing, learned);
-
-        Assert.IsLessThan(priorities[@"C:\Apps\Other.exe"], priorities[@"C:\Apps\BCompare.exe"]);
     }
 
     [TestMethod]

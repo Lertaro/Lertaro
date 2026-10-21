@@ -20,7 +20,7 @@ public sealed class IndexRuleConflictTests
     }
 
     [TestMethod]
-    public void ExcludedPathUnderPriorityPath_IsReported()
+    public void ExcludePathIsAncestorOfPriorityPath_IsReported()
     {
         var conflicts = IndexRuleConflictDetector.Detect(new[]
         {
@@ -30,6 +30,90 @@ public sealed class IndexRuleConflictTests
 
         Assert.HasCount(1, conflicts);
         Assert.AreEqual(@"C:\temp", conflicts[0].ExcludePattern);
+    }
+
+    [TestMethod]
+    public void PriorityPathCoveringExcludePath_IsNotReported()
+    {
+        var conflicts = IndexRuleConflictDetector.Detect(new[]
+        {
+            Rule(@"C:\temp", IndexRuleEffect.High),
+            Rule(@"C:\temp\build", IndexRuleEffect.Exclude),
+        });
+
+        Assert.HasCount(0, conflicts);
+    }
+
+    [TestMethod]
+    public void BroadRegexPriorityVersusPathExclude_IsNotReported()
+    {
+        var conflicts = IndexRuleConflictDetector.Detect(new[]
+        {
+            Rule(@"C:\temp", IndexRuleEffect.Exclude),
+            Rule(@"/^[^.]+$/", IndexRuleEffect.Low),
+        });
+
+        Assert.HasCount(0, conflicts);
+    }
+
+    [TestMethod]
+    public void AnchoredGlobUnderExcludePath_IsReported()
+    {
+        var conflicts = IndexRuleConflictDetector.Detect(new[]
+        {
+            Rule(@"C:\temp", IndexRuleEffect.Exclude),
+            Rule(@"C:\temp\**", IndexRuleEffect.Low),
+        });
+
+        Assert.HasCount(1, conflicts);
+    }
+
+    [TestMethod]
+    public void AnchoredGlobAboveExcludePath_IsNotReported()
+    {
+        var conflicts = IndexRuleConflictDetector.Detect(new[]
+        {
+            Rule(@"C:\temp\build", IndexRuleEffect.Exclude),
+            Rule(@"C:\temp\*", IndexRuleEffect.Low),
+        });
+
+        Assert.HasCount(0, conflicts);
+    }
+
+    [TestMethod]
+    public void AnchoredGlobInSiblingDirectory_IsNotReported()
+    {
+        var conflicts = IndexRuleConflictDetector.Detect(new[]
+        {
+            Rule(@"C:\temp", IndexRuleEffect.Exclude),
+            Rule(@"C:\temp2\*", IndexRuleEffect.Low),
+        });
+
+        Assert.HasCount(0, conflicts);
+    }
+
+    [TestMethod]
+    public void RelativeGlobPriorityVersusPathExclude_IsNotReported()
+    {
+        var conflicts = IndexRuleConflictDetector.Detect(new[]
+        {
+            Rule(@"C:\temp", IndexRuleEffect.Exclude),
+            Rule(@"**\node_modules\**", IndexRuleEffect.Low),
+        });
+
+        Assert.HasCount(0, conflicts);
+    }
+
+    [TestMethod]
+    public void GlobWithWildcardInsideSegment_IsNotReported()
+    {
+        var conflicts = IndexRuleConflictDetector.Detect(new[]
+        {
+            Rule(@"C:\temp\a", IndexRuleEffect.Exclude),
+            Rule(@"C:\temp\a*", IndexRuleEffect.Low),
+        });
+
+        Assert.HasCount(0, conflicts);
     }
 
     [TestMethod]

@@ -27,6 +27,7 @@ public class GeneralSettingsViewModel : ViewModelBase
     private bool _enableQuickSearchClipboardAutoFill;
     private bool _keepSearchText;
     private bool _enableEverythingIpc;
+    private bool _enableRankingEventLog;
     private bool _showOpenedFoldersInInlineSearch;
     private int _inlineSearchWindowWidthPercent;
     private bool _hideTrayIcon;
@@ -69,6 +70,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         _enableQuickSearchClipboardAutoFill = userSettings.EnableQuickSearchClipboardAutoFill;
         _keepSearchText = userSettings.SearchWindow.KeepSearchText;
         _enableEverythingIpc = userSettings.EnableEverythingIpc;
+        _enableRankingEventLog = userSettings.EnableRankingEventLog;
         _showOpenedFoldersInInlineSearch = userSettings.ShowOpenedFoldersInInlineSearch;
         _inlineSearchWindowWidthPercent = userSettings.InlineSearchWindowWidthPercent ?? UiMetrics.DefaultInlineCardWidthPercent;
         _hideTrayIcon = userSettings.HideTrayIcon;
@@ -194,6 +196,12 @@ public class GeneralSettingsViewModel : ViewModelBase
         set => SetProperty(ref _enableEverythingIpc, value);
     }
 
+    public bool EnableRankingEventLog
+    {
+        get => _enableRankingEventLog;
+        set => SetProperty(ref _enableRankingEventLog, value);
+    }
+
     public bool ShowOpenedFoldersInInlineSearch
     {
         get => _showOpenedFoldersInInlineSearch;
@@ -288,6 +296,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         _enableQuickSearchClipboardAutoFill,
         _keepSearchText,
         _enableEverythingIpc,
+        _enableRankingEventLog,
         _showOpenedFoldersInInlineSearch,
         _inlineSearchWindowWidthPercent,
         _hideTrayIcon,

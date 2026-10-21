@@ -81,6 +81,7 @@ public static class SettingsSearchIndex
         new("General_InlineSearchWindowWidth", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowInlineSearchWidth", "General_SysTitle"),
         new("General_GlobalTokenPrefix", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowGlobalTokenPrefix", "General_SysTitle"),
         new("General_LogLevel", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowLogLevel", "General_SysTitle"),
+        new("General_EnableRankingEventLog", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowEnableRankingEventLog", "General_SysTitle"),
         new("General_LangSelect", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowLangSelect", "General_SysTitle"),
         new("General_OpenFoldersInNewExplorerTabs", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowOpenFoldersInNewExplorerTabs", "General_SysTitle"),
         new("General_DefaultFileManagerEnabled", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowDefaultFileManagerEnabled", "General_SysTitle"),

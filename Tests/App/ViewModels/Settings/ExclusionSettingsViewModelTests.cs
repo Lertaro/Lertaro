@@ -309,6 +309,16 @@ public sealed class ExclusionSettingsViewModelTests
     }
 
     [TestMethod]
+    public void Conflict_BroadLowRegexWithPathExclusion_IsNotFlagged()
+    {
+        var vm = new ExclusionSettingsViewModel(SettingsWith(
+            new IndexRuleSetting { Pattern = @"C:\temp", Effect = IndexRuleEffect.Exclude },
+            new IndexRuleSetting { Pattern = @"/^[^.]+$/", Effect = IndexRuleEffect.Low }));
+
+        Assert.IsFalse(vm.HasConflicts);
+    }
+
+    [TestMethod]
     public void EffectChange_RecomputesConflictsAndCounts()
     {
         var vm = new ExclusionSettingsViewModel(SettingsWith(
@@ -352,5 +362,106 @@ public sealed class ExclusionSettingsViewModelTests
         Assert.AreEqual(1, vm.Rules.Count(r => r.Effect == IndexRuleEffect.Low));
         Assert.AreEqual(1, vm.Rules.Count(r => r.Effect == IndexRuleEffect.Normal));
         Assert.IsFalse(string.IsNullOrEmpty(vm.CountSummary));
+    }
+
+    private static IndexRuleSetting Rule(string pattern, IndexRuleEffect effect, bool alwaysTop = false) =>
+        new() { Pattern = pattern, Effect = effect, AlwaysTop = alwaysTop };
+
+    [TestMethod]
+    public void Save_WritesAlwaysTopForHighRules()
+    {
+        var settings = SettingsWith(Rule(@"C:\work", IndexRuleEffect.High, alwaysTop: true));
+        var vm = new ExclusionSettingsViewModel(settings);
+
+        Assert.IsTrue(vm.Rules.Single(r => r.Value == @"C:\work").AlwaysTop);
+
+        vm.Save();
+
+        Assert.IsTrue(settings.IndexRules.Single(r => r.Pattern == @"C:\work").AlwaysTop);
+    }
+
+    [TestMethod]
+    public void Save_DropsPinStoredOnANonHighRule()
+    {
+        // A pin in the configuration on a rule that is not high never reaches the view or the saved list,
+        // rather than being kept and ignored by Core.
+        var settings = SettingsWith(Rule(@"C:\tmp", IndexRuleEffect.Low, alwaysTop: true));
+        var vm = new ExclusionSettingsViewModel(settings);
+        var item = vm.Rules.Single(r => r.Value == @"C:\tmp");
+
+        Assert.IsFalse(item.AlwaysTop);
+        Assert.IsFalse(item.CanPin);
+
+        vm.Save();
+
+        Assert.IsFalse(settings.IndexRules.Single(r => r.Pattern == @"C:\tmp").AlwaysTop);
+    }
+
+    [TestMethod]
+    public void EffectChange_ClearsPinAndCanPin()
+    {
+        var vm = new ExclusionSettingsViewModel(SettingsWith(Rule(@"C:\work", IndexRuleEffect.High, alwaysTop: true)));
+        var item = vm.Rules.Single(r => r.Value == @"C:\work");
+
+        item.Effect = IndexRuleEffect.Low;
+        Assert.IsFalse(item.AlwaysTop);
+        Assert.IsFalse(item.CanPin);
+
+        item.Effect = IndexRuleEffect.High;
+        Assert.IsFalse(item.AlwaysTop, "Coming back to high does not restore the pin; the user re-checks it.");
+        Assert.IsTrue(item.CanPin);
+    }
+
+    [TestMethod]
+    public void BulkApply_KeepsThePinOnUnchangedHighRules()
+    {
+        var vm = new ExclusionSettingsViewModel(SettingsWith(
+            Rule(@"C:\work", IndexRuleEffect.High, alwaysTop: true),
+            Rule(@"C:\tools", IndexRuleEffect.High)));
+
+        vm.BulkText = "+C:\\work\n+C:\\tools";
+        vm.ApplyBulkTextCommand.Execute(null);
+
+        Assert.IsTrue(vm.Rules.Single(r => r.Value == @"C:\work").AlwaysTop);
+        Assert.IsFalse(vm.Rules.Single(r => r.Value == @"C:\tools").AlwaysTop);
+    }
+
+    [TestMethod]
+    public void BulkApply_RewrittenRuleLosesItsPin()
+    {
+        var vm = new ExclusionSettingsViewModel(SettingsWith(Rule(@"C:\work", IndexRuleEffect.High, alwaysTop: true)));
+
+        vm.BulkText = "+C:\\work\\sub";
+        vm.ApplyBulkTextCommand.Execute(null);
+
+        Assert.IsFalse(vm.Rules.Single(r => r.Value == @"C:\work\sub").AlwaysTop);
+    }
+
+    [TestMethod]
+    public void SaveEdit_ChangingLevelAwayFromHigh_ClearsPin()
+    {
+        var settings = SettingsWith(Rule(@"C:\work", IndexRuleEffect.High, alwaysTop: true));
+        var vm = new ExclusionSettingsViewModel(settings);
+        var item = vm.Rules.Single(r => r.Value == @"C:\work");
+
+        vm.EditRuleCommand.Execute(item);
+        item.EditEffectValue = nameof(IndexRuleEffect.Normal);
+        vm.SaveRuleCommand.Execute(item);
+
+        Assert.IsFalse(item.AlwaysTop);
+
+        vm.Save();
+
+        Assert.IsFalse(settings.IndexRules.Single(r => r.Pattern == @"C:\work").AlwaysTop);
+    }
+
+    [TestMethod]
+    public void Save_Reload_RoundTripsPin()
+    {
+        var settings = SettingsWith(Rule(@"C:\work", IndexRuleEffect.High, alwaysTop: true));
+
+        new ExclusionSettingsViewModel(settings).Save();
+
+        Assert.IsTrue(new ExclusionSettingsViewModel(settings).Rules.Single(r => r.Value == @"C:\work").AlwaysTop);
     }
 }

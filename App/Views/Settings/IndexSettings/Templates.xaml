@@ -64,6 +64,15 @@
                     </TextBlock>
                     <TextBlock Grid.Column="2" Text="{Binding Value}" FontSize="13" Foreground="{DynamicResource TextPrimary2}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
                     <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <!-- Only a high rule can pin, so the box appears and disappears with the level. -->
+                        <CheckBox IsChecked="{Binding AlwaysTop, Mode=TwoWay}" IsEnabled="{Binding CanPin}"
+                                  Visibility="{Binding CanPin, Converter={StaticResource BoolToVis}}"
+                                  VerticalAlignment="Center" Margin="0,0,6,0"
+                                  ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_AlwaysTopTooltip]}">
+                            <CheckBox.Content>
+                                <TextBlock FontFamily="{DynamicResource AppIconFontFamily}" FontSize="13" Text="&#xE718;"/>
+                            </CheckBox.Content>
+                        </CheckBox>
                         <TextBlock Text="&#xE7BA;" FontFamily="{DynamicResource AppIconFontFamily}" FontSize="13" Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center" Margin="0,0,4,0"
                                    ToolTip="{Binding ConflictTooltip}" Visibility="{Binding IsConflict, Converter={StaticResource BoolToVis}}"/>
                         <Button Content="&#xE70F;" ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_EditTooltip]}" Style="{StaticResource RuleIconButtonAccent}" Command="{Binding DataContext.Exclusions.EditRuleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>

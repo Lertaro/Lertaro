@@ -40,10 +40,26 @@ public sealed class IndexRuleSetting
 {
     public string Pattern { get; set; } = string.Empty;
     public IndexRuleEffect Effect { get; set; } = IndexRuleEffect.Normal;
+
+    /// <summary>
+    /// Pins every match of a high rule to the very top of the result list. Only meaningful together with
+    /// <see cref="IndexRuleEffect.High"/>: the settings page clears the flag when the bucket changes away
+    /// from High, and parsing drops it for every other bucket, so no migration of old JSON is needed --
+    /// a stored file without the field reads as false.
+    /// </summary>
+    public bool AlwaysTop { get; set; }
 }
 
-/// <summary>A rule after cleaning, classification and (for paths) environment/virtual-path resolution.</summary>
-public readonly record struct ParsedIndexRule(string Text, IndexRuleKind Kind, string Pattern, IndexRuleEffect Effect);
+/// <summary>
+/// A rule after cleaning, classification and (for paths) environment/virtual-path resolution.
+/// <see cref="AlwaysTop"/> is already normalized: it is true only for a High rule the user pinned.
+/// </summary>
+public readonly record struct ParsedIndexRule(
+    string Text,
+    IndexRuleKind Kind,
+    string Pattern,
+    IndexRuleEffect Effect,
+    bool AlwaysTop = false);
 
 /// <summary>
 /// The single place that decides what a user typed: a complete path, a glob, or a delimited regex.
@@ -94,7 +110,13 @@ public static class IndexRuleSyntax
     }
 
     public static bool TryParse(string? input, IndexRuleEffect effect, out ParsedIndexRule rule, out IndexRuleError error)
+        => TryParse(input, effect, alwaysTop: false, out rule, out error);
+
+    /// <param name="alwaysTop">The pin requested by the rule. It is normalized here and nowhere else:
+    /// only a High rule can pin, so Normal, Low and Exclude carry it as false.</param>
+    public static bool TryParse(string? input, IndexRuleEffect effect, bool alwaysTop, out ParsedIndexRule rule, out IndexRuleError error)
     {
+        var pinned = alwaysTop && effect == IndexRuleEffect.High;
         rule = default;
         error = IndexRuleError.None;
 
@@ -119,7 +141,7 @@ public static class IndexRuleSyntax
                 error = IndexRuleError.InvalidRegex;
                 return false;
             }
-            rule = new ParsedIndexRule(text, IndexRuleKind.Regex, body, effect);
+            rule = new ParsedIndexRule(text, IndexRuleKind.Regex, body, effect, pinned);
             return true;
         }
 
@@ -137,7 +159,7 @@ public static class IndexRuleSyntax
             : IsCompletePath(text) ? IndexRuleKind.Path
             : IndexRuleKind.Glob;
 
-        rule = new ParsedIndexRule(text, kind, text, effect);
+        rule = new ParsedIndexRule(text, kind, text, effect, pinned);
         return true;
     }
 

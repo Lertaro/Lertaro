@@ -82,6 +82,9 @@ project.lock.json
 project.fragment.lock.json
 artifacts/
 
+# BenchmarkDotNet output (benchmarks/ writes logs/results next to the project by default)
+BenchmarkDotNet.Artifacts/
+
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
 

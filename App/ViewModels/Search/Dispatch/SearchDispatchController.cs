@@ -2,6 +2,7 @@ using System.Windows;
 using Lertaro.Core;
 using Lertaro.App.Services;
 using Lertaro.PluginSdk.Services;
+using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Query;
 using Lertaro.App.ViewModels.Search.Mapping;
 
@@ -191,6 +192,17 @@ internal sealed class SearchDispatchController
         // provider and search-action plugin on each call. See SearchResultMapper.InstantPassCache.
         var instantPass = new SearchResultMapper.InstantPassCache();
         var rankRules = ExclusionRuleSet.From(UserSettings.Load());
+        // Also per search, not per paint: the history score decays at read time, and repainting a streaming
+        // result set must not re-decay the same query's rows into a different order between two paints.
+        // The inline card is far shorter than the quick window, so it only lends 1 row to H5 and 3 to H3;
+        // every other lifted history row keeps ranking by score inside Boosted/HistoryTail. AlwaysTop is a
+        // user checkbox and does not spend a history slot, so pinning still works in the card.
+        var isInlineContext = _getIsInlineSearchContext();
+        var rankContext = new RankContext(
+            rankRules.GetPriorityVerdict,
+            SearchHistoryStore.ScoreSnapshot(DateTimeOffset.UtcNow),
+            historyFiveMax: isInlineContext ? 1 : RankPolicy.HistoryFiveMax,
+            historyThreeMax: isInlineContext ? 3 : RankPolicy.HistoryThreeMax);
         // The engine truncates before the App can rank, so a high-priority row that matches weakly could
         // never arrive at all. Only high rules pay for the wider window; the default rule set has none.
         if (rankRules.HasHighPriorityRules)
@@ -201,7 +213,7 @@ internal sealed class SearchDispatchController
             _getIsInlineSearchContext(),
             fileLimit,
             appLimit,
-            (resp, contextDir) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope || filenameLike, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass, priorityResolver: rankRules.GetPriority),
+            (resp, contextDir) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope || filenameLike, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass, rankContext: rankContext),
             state => _setIsSearching(state),
             (results, status, final) => ApplySearchResults(originalValue, searchQuery, results, status, final),
             HandleLocalServiceUnavailable,

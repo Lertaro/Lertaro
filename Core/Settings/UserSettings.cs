@@ -36,6 +36,13 @@ public class UserSettings
     public List<IndexRuleSetting>? IndexRules { get; set; }
     public List<string> BlacklistedProcesses { get; set; } = new();
     public bool EnableHistory { get; set; } = true;
+
+    /// <summary>
+    /// Writes the ranking calibration log (the quick window's top ten per query, plus what was opened) as
+    /// hashes only. On by default so a release collects data from the first day; see
+    /// dev-docs/search-ranking-redesign.md 5.5. There is no settings-page switch for it yet.
+    /// </summary>
+    public bool EnableRankingEventLog { get; set; } = true;
     public bool EnableKeywordHistory { get; set; } = true;
     public bool StartWithWindows { get; set; } = true;
     public bool AutoCheckUpdates { get; set; } = true;

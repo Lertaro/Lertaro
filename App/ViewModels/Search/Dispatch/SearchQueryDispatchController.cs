@@ -25,8 +25,8 @@ internal sealed class SearchQueryDispatchController
         {
             try
             {
-                paths.Add(Lertaro.App.ViewModels.Search.SearchResultHelper.NormalizePath(
-                    Lertaro.App.Helpers.FavoritePathResolver.Resolve(favorite.Path)));
+                paths.Add(SearchResultHelper.NormalizePath(
+                    Helpers.FavoritePathResolver.Resolve(favorite.Path)));
             }
             catch
             {
@@ -162,11 +162,8 @@ internal sealed class SearchQueryDispatchController
         // once. Built here rather than on the first mapper call because the content append has to reach it
         // even when the file search never answers. See StreamingResultAccumulator.
         var rankRules = ExclusionRuleSet.From(UserSettings.Load());
-        var accumulator = new StreamingResultAccumulator(
-            cleanQuery,
-            new Dictionary<string, int>(),
-            priorityResolver: rankRules.GetPriority);
-        var prioritiesApplied = false;
+        var accumulator = new StreamingResultAccumulator(cleanQuery);
+        var rankContextApplied = false;
         _accumulator = accumulator;
         _searchSettled = false;
 
@@ -213,17 +210,21 @@ internal sealed class SearchQueryDispatchController
             {
                 if (fileResults == null)
                     return new List<AppSearchResult>();
-                // Only index matches are shown here, but they rank like the quick window's: match quality,
-                // then favorites, then history band (5+ opens / 1-4 / none), then learned-keyword priority.
-                // Rank-only -- nothing the index did not return is added. Worked out here, on the render
-                // callback's thread, before the first batch is ranked.
-                if (!prioritiesApplied)
+                // Only index matches are shown here, but they rank like the quick window's: four sections
+                // (pinned, boosted, low, history tail) scored by match strength and priority bucket, with
+                // favorites and decayed history lifting a row inside the boosted section. Rank-only --
+                // nothing the index did not return is added. Worked out here, on the render callback's
+                // thread, before the first batch is ranked.
+                if (!rankContextApplied)
                 {
-                    accumulator.UsePriorities(
-                        HistorySearchCandidateMapper.RankingPriorities(FuzzyQuery.Parse(cleanQuery)),
-                        SearchHistoryStore.UsageCounts(),
-                        FavoritePaths());
-                    prioritiesApplied = true;
+                    // Read once per query, on this background callback: the decay snapshot must not move
+                    // between paints of the same search, or rows already on screen would re-rank under the
+                    // user.
+                    accumulator.UseRankContext(new RankContext(
+                        rankRules.GetPriorityVerdict,
+                        SearchHistoryStore.ScoreSnapshot(DateTimeOffset.UtcNow),
+                        FavoritePaths()));
+                    rankContextApplied = true;
                 }
                 return accumulator.AbsorbBatch(fileResults);
             },

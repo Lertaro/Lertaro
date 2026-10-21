@@ -16,13 +16,17 @@ public sealed class ExclusionRuleItem : ViewModelBase
     private IndexRuleEffect _editEffect;
     private bool _isConflict;
     private string _conflictTooltip = string.Empty;
+    private bool _alwaysTop;
 
-    public ExclusionRuleItem(string value, IndexRuleEffect effect = IndexRuleEffect.Normal)
+    public ExclusionRuleItem(string value, IndexRuleEffect effect = IndexRuleEffect.Normal, bool alwaysTop = false)
     {
         _value = value;
         _editValue = value;
         _effect = effect;
         _editEffect = effect;
+        // One normalization rule for the pin, shared by loading, editing, bulk and level changes: a stored
+        // alwaysTop on a rule that is not high is dropped here rather than left for Core to ignore.
+        _alwaysTop = alwaysTop && effect == IndexRuleEffect.High;
         Kind = ParseKind(value);
     }
 
@@ -74,9 +78,32 @@ public sealed class ExclusionRuleItem : ViewModelBase
             if (_effect == value)
                 return;
             _effect = value;
+            // Leaving the high level also drops the pin, through the same normalizing setter the checkbox
+            // uses, so the flag has exactly one entry point.
+            if (value != IndexRuleEffect.High)
+                AlwaysTop = false;
             OnPropertyChanged();
             OnPropertyChanged(nameof(EffectValue));
             OnPropertyChanged(nameof(EffectText));
+            OnPropertyChanged(nameof(CanPin));
+        }
+    }
+
+    /// <summary>True while this rule is a high one, which is the only level a pin means anything for.</summary>
+    public bool CanPin => Effect == IndexRuleEffect.High;
+
+    /// <summary>Pins this rule's matches to the very top. Always false for a rule that is not high.</summary>
+    public bool AlwaysTop
+    {
+        get => _alwaysTop;
+        set
+        {
+            var next = value && Effect == IndexRuleEffect.High;
+            if (_alwaysTop == next)
+                return;
+            _alwaysTop = next;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanPin));
         }
     }
 

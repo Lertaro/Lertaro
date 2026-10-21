@@ -86,13 +86,12 @@ internal static class WindowsRecentCandidateMapper
                 HistorySearchCandidateMapper.IsExcludedFromSearch(result))
                 continue;
 
-            // Not curated, so every history entry and favorite stays above; a priority below int.MaxValue,
-            // so this sits above every ordinary result, in the order built here.
+            // Not harvested by Lertaro: no open count and no decayed score, so this row never earns a
+            // history tier. It competes on its name match alone.
             candidates.Add(new SearchResultMapper.RankedCandidate(
                 result,
                 IsFavorite: false,
                 HistoryCount: 0,
-                HistoryPriority: int.MaxValue - MaxCandidates + candidates.Count,
                 TypeRank: typeRank,
                 Match: match,
                 NormalizedPath: normalizedPath));

@@ -32,7 +32,8 @@ public static class SearchHistoryStore
         [property: JsonPropertyName("path")] string Path,
         [property: JsonPropertyName("type")] HistoryEntryKind Kind,
         [property: JsonPropertyName("time")] long Time,
-        [property: JsonPropertyName("count")] int Count = 1);
+        [property: JsonPropertyName("count")] int Count = 1,
+        [property: JsonPropertyName("score")] double Score = 0);
 
     public static string HistoryPath => Path.Combine(Logger.UserDataDir, "search-history.json");
     private static string BackupPath => HistoryPath + ".bak";
@@ -76,14 +77,19 @@ public static class SearchHistoryStore
 
             // A path belongs to at most one keyword -- drop it from wherever it currently lives
             // (including its own bucket, if it's already there) before re-adding it under the keyword
-            // it was JUST opened with. Its previous open count is carried forward so a repeatedly
-            // opened item accumulates rather than resetting to one on every open.
-            var previousCount = RemovePathFromAllBuckets(buckets, normalizedPath);
+            // it was JUST opened with. Its previous open count and decayed score are carried forward so a
+            // repeatedly opened item accumulates rather than restarting on every open.
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var previous = RemovePathFromAllBuckets(buckets, normalizedPath);
+            var previousScore = previous is { } p
+                ? SearchHistoryBucketSupport.EffectiveScore(p, now)
+                : 0d;
+            var score = Math.Min(SearchHistoryBucketSupport.ScoreCap, previousScore + 1d);
 
             if (!buckets.TryGetValue(keyword, out var list))
                 buckets[keyword] = list = new List<StoredEntry>();
 
-            list.Insert(0, new StoredEntry(normalizedPath, kind, DateTimeOffset.UtcNow.ToUnixTimeSeconds(), previousCount + 1));
+            list.Insert(0, new StoredEntry(normalizedPath, kind, now, (previous?.Count ?? 0) + 1, score));
             if (list.Count > SearchHistoryBucketSupport.MaxEntriesPerKeyword)
                 list.RemoveRange(SearchHistoryBucketSupport.MaxEntriesPerKeyword, list.Count - SearchHistoryBucketSupport.MaxEntriesPerKeyword);
 
@@ -97,17 +103,17 @@ public static class SearchHistoryStore
 
     // Removes any existing record of `path` from every keyword bucket, pruning a bucket entirely once
     // it's left empty so a keyword that no longer points to anything doesn't linger in the JSON file.
-    // Returns the open count the removed record carried (0 when the path was not recorded before), so
-    // Record can continue the count instead of restarting it.
-    private static int RemovePathFromAllBuckets(Dictionary<string, List<StoredEntry>> buckets, string path)
+    // Returns the record that was dropped (null when the path was not recorded before) so Record can
+    // continue its count and decay its score instead of restarting both.
+    private static StoredEntry? RemovePathFromAllBuckets(Dictionary<string, List<StoredEntry>> buckets, string path)
     {
-        var previousCount = 0;
+        StoredEntry? previous = null;
         List<string>? emptied = null;
         foreach (var (keyword, list) in buckets)
         {
             var removed = list.Find(e => e.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
             if (removed != default)
-                previousCount = removed.Count;
+                previous = removed;
             list.RemoveAll(e => e.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
             if (list.Count == 0)
                 (emptied ??= new List<string>()).Add(keyword);
@@ -115,7 +121,7 @@ public static class SearchHistoryStore
         if (emptied != null)
             foreach (var keyword in emptied)
                 buckets.Remove(keyword);
-        return previousCount;
+        return previous;
     }
 
     /// <summary>Ranking boost lookup -- keyed by the bare target path, regardless of which keyword it's recorded under.</summary>
@@ -163,7 +169,27 @@ public static class SearchHistoryStore
 
         lock (Gate)
         {
-            _buckets = BuildBuckets(validated);
+            // A HistoryEntry carries no score, so an edit or a removal on the settings page must not
+            // silently reset every untouched path's weight to its bare open count. Carry the stored score
+            // over by path before rebuilding; anything the store has never seen falls back to the
+            // count-based migration.
+            EnsureCacheNoLock();
+            var storedScores = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            foreach (var list in _buckets!.Values)
+                foreach (var entry in list)
+                    if (entry.Score > 0d)
+                        storedScores[entry.Path] = entry.Score;
+
+            var scored = new List<(string Keyword, StoredEntry Entry)>(validated.Count);
+            foreach (var (keyword, entry) in validated)
+                scored.Add((keyword, entry with
+                {
+                    Score = storedScores.TryGetValue(entry.Path, out var stored)
+                        ? stored
+                        : Math.Min(SearchHistoryBucketSupport.ScoreCap, entry.Count),
+                }));
+
+            _buckets = BuildBuckets(scored);
             PersistNoLock();
             _priorityCache = BuildPriorityCache(_buckets);
             _countCache = BuildCountCache(_buckets);
@@ -198,6 +224,17 @@ public static class SearchHistoryStore
         {
             EnsureCacheNoLock();
             return _countCache ?? EmptyPriorities;
+        }
+    }
+
+    /// <summary>Ranking lookup: path -> effective history score * 100 (0.01 precision), decayed at read time.
+    /// The decay is never persisted here; only a new open rewrites Time/Score. Callers take one snapshot per query.</summary>
+    public static IReadOnlyDictionary<string, int> ScoreSnapshot(DateTimeOffset now)
+    {
+        lock (Gate)
+        {
+            EnsureCacheNoLock();
+            return SearchHistoryBucketSupport.BuildScoreCache(_buckets!, now.ToUnixTimeSeconds());
         }
     }
 

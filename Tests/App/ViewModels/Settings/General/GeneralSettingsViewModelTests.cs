@@ -88,4 +88,23 @@ public sealed class GeneralSettingsViewModelTests
         Assert.AreEqual(30, GeneralSettingsApplier.ToStoredInlineCardWidthPercent(30));
         Assert.AreEqual(UiMetrics.MaxInlineCardWidthPercent, GeneralSettingsApplier.ToStoredInlineCardWidthPercent(UiMetrics.MaxInlineCardWidthPercent));
     }
+
+    // Apply() is deliberately not called from these: it ends in UserSettings.Save(), which would overwrite
+    // this machine's real configuration. GeneralSettingsApplier's assignment is covered by review.
+    [TestMethod]
+    public void Constructor_ReadsRankingEventLogSwitch()
+    {
+        Assert.IsTrue(new GeneralSettingsViewModel(new UserSettings()).EnableRankingEventLog);
+        Assert.IsFalse(new GeneralSettingsViewModel(new UserSettings { EnableRankingEventLog = false }).EnableRankingEventLog);
+    }
+
+    [TestMethod]
+    public void RankingEventLogSwitch_SetterRoundTrips()
+    {
+        var vm = new GeneralSettingsViewModel(new UserSettings { EnableRankingEventLog = false });
+
+        vm.EnableRankingEventLog = true;
+
+        Assert.IsTrue(vm.EnableRankingEventLog);
+    }
 }

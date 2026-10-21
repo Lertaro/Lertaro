@@ -86,27 +86,50 @@ public sealed class WindowsRecentCandidateMapperTests
         Assert.HasCount(20, Collect("atlas", shortcuts));
     }
 
-    // User decision: Lertaro picks first, then Windows Recent Items, then everything else -- even when the
-    // ordinary row is the better match.
+    // Windows Recent rows are never curated and a single open is not a habit: both stay below an ordinary
+    // row whose name the query actually explains, and rank among themselves by name.
     [TestMethod]
-    public void RankAndDedupe_RecentItemsRankBelowLertaroPicksAndAboveOrdinaryResults()
+    public void RankAndDedupe_RecentAndOneOpenHistoryRankBelowAnExactMatch()
     {
         var recent = Collect("atlas", [Lnk("atlas-notes.txt", Now)]);
         var history = HistorySearchCandidateMapper.Collect(
             FuzzyQuery.Parse("atlas"), null,
-            [new HistoryEntry("atlas", @"D:\Projects\code-atlas", HistoryEntryKind.Folder, 100)],
+            [new HistoryEntry("atlas", @"D:\Projects\code-atlas", HistoryEntryKind.Folder, Time: 100, Count: 1)],
             _ => false, _ => true);
         var ordinary = new SearchResultMapper.RankedCandidate(
             new AppSearchResult { FullPath = @"C:\atlas", Name = "atlas" },
-            IsFavorite: false, HistoryCount: 0, HistoryPriority: int.MaxValue, TypeRank: int.MaxValue,
+            IsFavorite: false, HistoryCount: 0, TypeRank: int.MaxValue,
             new MatchRank(MatchRank.TierName, 0, 1.0, 1.0), @"C:\atlas");
 
         var ranked = SearchResultMapper.RankAndDedupe([ordinary, .. recent, .. history]);
 
-        // History no longer leads: the ordinary exact name, then the Recent shortcut name, then the
-        // history-only row (whose own name did not match the query).
+        // The history row's one open is 100 (under the 300 threshold), so it is not lifted at all: it keeps
+        // the history-tail section, which sits after the low-priority one. The Recent row scores on its
+        // name match alone.
         CollectionAssert.AreEqual(
             new[] { @"C:\atlas", @"D:\Projects\atlas-notes.txt", @"D:\Projects\code-atlas" },
+            ranked.Select(r => r.FullPath).ToList());
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_HistoryRowWithHundredOpens_LeadsTheList()
+    {
+        var history = HistorySearchCandidateMapper.Collect(
+            FuzzyQuery.Parse("atlas"), null,
+            [new HistoryEntry("atlas", @"D:\Projects\code-atlas", HistoryEntryKind.Folder, Time: 100, Count: 100)],
+            _ => false, _ => true);
+        var ordinary = new SearchResultMapper.RankedCandidate(
+            new AppSearchResult { FullPath = @"C:\atlas", Name = "atlas" },
+            IsFavorite: false, HistoryCount: 0, TypeRank: int.MaxValue,
+            new MatchRank(MatchRank.TierName, 0, 1.0, 1.0), @"C:\atlas");
+
+        var ranked = SearchResultMapper.RankAndDedupe([ordinary, .. history]);
+
+        // A hundred opens decay to well over the 5.0 threshold, so the row reaches H5 (34) and outranks an
+        // exact name match at 18 -- while its own name still did not match, which is why it needed history
+        // to be seen at all.
+        CollectionAssert.AreEqual(
+            new[] { @"D:\Projects\code-atlas", @"C:\atlas" },
             ranked.Select(r => r.FullPath).ToList());
     }
 

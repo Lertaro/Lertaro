@@ -3,6 +3,7 @@ using System.Windows.Input;
 using Lertaro.App.Services;
 using Lertaro.App.ViewModels.Search;
 using Lertaro.Core;
+using Lertaro.Core.SearchIndex;
 using ListBoxItem = System.Windows.Controls.ListBoxItem;
 
 using Lertaro.App.Services.Plugin;
@@ -42,6 +43,11 @@ public class QuickSearchWindowResultExecutor
     {
         if (result.IsEmptyResult || result.IsSearchSectionHeader)
             return;
+        // The calibration log's other half: which row the user picked. Position is not recorded, because
+        // the list may already have been re-ranked by a later batch when the click lands. A row with no path
+        // (a calculator answer, an instant row) would still spend a hash bucket, so it is skipped.
+        if (!string.IsNullOrWhiteSpace(result.FullPath))
+            RankingEventLog.RecordOpened(result.SearchQuery, result.FullPath);
         _window.RecordKeywordHistory();
         if (!result.IsPluginSearchAction && !result.IsInstantResult)
         {

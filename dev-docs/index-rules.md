@@ -168,6 +168,18 @@ public enum IndexRuleKind { Path, Glob, Regex }
 4. 路径规则只认整层相等（`PathPriorityAt`，`:314`）；模式规则按第 1 步的形态匹配。目录和文件都参与；没有规则命中或路径为空，返回正常档（`:237-253`）。
 5. 一个容易误读的边界：显式正常档路径规则只替换祖先链里的路径分量：命中那一层的**子项**在祖先链上没有更强的模式规则时继承到正常档；那一层自己的结果行仍会把自身路径规则与祖先路径值做强度合并，所以目录本身可能仍是低档。对文件写一条精确的正常档路径规则也不豁免它：自身是正常、祖先路径是低，最终仍是低。`ExplicitNormalStopsInheritance` 只断言了子文件，没有断言目录行。祖先链上若有低/高档 glob/regex，子项仍按模式分量的结果走，因为两个分量独立合并。
 
+### 始终置顶（AlwaysTop）
+
+`IndexRuleSetting.AlwaysTop`（`Core/Settings/IndexRuleSetting.cs:50`）是高优先档的一个修饰位，不是第五个档位：旧配置缺字段读为 false，序列化与迁移都不用改。解析层只在一个地方归一化，`IndexRuleSyntax.TryParse` 的 5 参重载把 `alwaysTop && effect == High` 写进 `ParsedIndexRule.AlwaysTop`（`:119`）；4 参重载等价于传 false，冲突检测继续用它。判定层再保证一次：`Verdict(effect, alwaysTop)`（`Core/ExclusionRuleSet.cs:324`）是所有 verdict 的唯一构造入口，所以 `Normal`/`Low` 永远不可能带着 pin 出来。
+
+- 置顶不是无条件出现。候选仍然必须命中查询，Pinned 段只是把命中的行抬到最前，不会凭空塞进结果里。
+- 路径规则：最近一层的显式路径规则**整体替换**祖先，连 pin 一起（`pathPart = PathPriorityAt(level) ?? pathPart`，`:314`）。因此子目录写一条未勾选的高档规则、甚至正常档规则，都能关掉祖先的置顶；兄弟子树不受影响。
+- 模式规则：沿祖先链取最强档，同档时 pin 取或（`Strongest`，`:332`），所以两条同为高的模式规则里勾了一条就都算置顶；低档未勾选不会盖掉高档的置顶。
+- 路径规则与模式规则相遇时（自身与继承的最后合并）取更强档，**同档时路径规则连 pin 一起胜出**，不取或（`PreferPath`，`:353`）。理由是路径规则是用户对某个文件夹的明示决定：`C:\work` 高优先未勾选必须压过全局 `*.ps1` 高优先已勾选，否则用户没法为某个目录关掉置顶。
+- 缓存把两个分量各打包 4 bit（0 表示无规则，否则 `((1 + effect) << 1) | pin`，`Pack`/`Encode`，`:369-380`），目录键与上溯逻辑没变。
+- `HighPriorityRoots` 仍只从路径规则取（`:139`）：模式规则即使置顶也不产生补搜根，glob/regex 型沿用原有限制。
+- 消费方：快速窗口把 `verdict.AlwaysTop` 传进 `RankSignals`，`RankPolicy.Section` 让它进 Pinned 段；完整窗口在 `SearchResultRanking.Decorate` 里把段号写进 `RankFlags` 的 bit 0-1，`RankedSearchResultComparer` 按段号先比，所以两个窗口的置顶来自同一条规则。
+
 排除语义保持不变。`IsExcluded` 里根前缀的判断和祖先层的 glob 与正则没有动，`exemptRoot` 和 WSL 分支也没有动，只是数据源从三条列表换成 `IndexRules` 的排除子集。网络侧 `WalkOptions.FromUserSettings` 从规则集派生三列，`WalkFilter` 未改。
 
 成本上，完整窗口一次查询可能排十万级结果，靠逐目录缓存和每次排序调用内的字典（`App/ViewModels/Search/Mapping/RankedCandidateOrdering.cs:41`、`Core/SearchResult.cs:53/66`）摊薄：一次查询里每个目录只判一次，规则集取一次，循环内不再读设置。glob 先走必需字面量的 `Contains` 预筛（`Core/Indexer/NetworkDrive/Walk/GlobMatcher.cs:65`），预筛不中就跳过正则。还有一个斜杠形式的开关：只有当某个 pattern 可能区分两种分隔符写法（字符类里原样输出的 `\` 或 `/`，或用户正则里带 `/`）时，才为每条路径额外构造 `/` 分隔形式（`Core/ExclusionRuleSet.cs:144-146/510-536`）。
@@ -190,18 +202,18 @@ public enum IndexRuleKind { Path, Glob, Regex }
 
 ## 冲突检测与提示
 
-静态、启发式的判定在 `Core/Settings/IndexRuleConflict.cs`（`IndexRuleConflictDetector.Detect`，:23），只看优先级规则与排除规则的配对，判型解析不出来的规则不参与检测（`:32-34`）。对每条优先级规则 `P` 与每条排除规则 `E`：
+静态、启发式的判定在 `Core/Settings/IndexRuleConflict.cs`（`IndexRuleConflictDetector.Detect`，:25），只看优先级规则与排除规则的配对，判型解析不出来的规则不参与检测（`:34-36`）。对每条优先级规则 `P` 与每条排除规则 `E`：
 
 | P 类型 | E 类型 | 判定 |
 | --- | --- | --- |
-| 完整路径 | 完整路径 | 解析后任一方在另一方之下（前缀加分隔符边界，忽略大小写） |
+| 完整路径 | 完整路径 | `E` 等于 `P`，或 `E` 是 `P` 的祖先（前缀加分隔符边界，忽略大小写）。只报「排除盖住优先级」，`E` 在 `P` 之下不报——那时 `P` 对同目录其余部分仍然生效 |
 | 完整路径 | 通配符 / 正则 | 拿 `E` 的匹配器测 `P` 解析出的路径，并沿它的祖先逐级上溯 |
-| 通配符 / 正则 | 完整路径 | 拿 `P` 的匹配器测 `E` 解析出的路径，同样逐级上溯 |
+| 通配符 / 正则 | 完整路径 | 只有能证明这条模式的全部匹配都落在 `E` 的子树内才报。以绝对路径开头、通配符之前不含 `..` 的 glob 取「第一个通配符之前的字面前缀」求覆盖根（前缀以 `\` 结尾就去掉尾分隔符，否则取它的目录），覆盖根等于 `E` 或在 `E` 之下才算；正则与相对 glob 一律不报 |
 | 同判型 | 同判型 | 归一化文本相等（忽略大小写） |
 | 通配符 | 正则 | 交集不可判定，不报 |
 | 通配符 | 通配符（不同文本） | 只做文本相等，不报重叠 |
 
-逐级上溯加上叶名比对是实施时补的：单段 glob（`node_modules`）要能在祖先层撞上 `C:\x\node_modules\y`，否则这类真冲突报不出来。匹配一层时 glob 测整路径、带尾分隔符的形式和叶名，正则再多加一个盘根相对形式（`:118-149`）。
+逐级上溯加上叶名比对是实施时补的：单段 glob（`node_modules`）要能在祖先层撞上 `C:\x\node_modules\y`，否则这类真冲突报不出来。匹配一层时 glob 测整路径、带尾分隔符的形式和叶名，正则再多加一个盘根相对形式（`:162-213`）。目录也能被 glob/正则排除，所以「`E` 命中 `P` 的路径」就当作整个子树被排除，不再区分文件和目录。
 
 展示方式：页面顶部横幅给数量（`Exclusions_ConflictSummary`），点击展开逐行明细，格式是「优先级规则 ← 盖住它的排除规则」；被盖住的那行加警告图标（字形 E7BA）和 tooltip（`Exclusions_ConflictTooltip`，带上冲突的排除规则文本）。增删改后立即同步重算，N×M 很小，不异步。不弹模态框，也不阻塞保存，排除优先是确定行为，提示即可。
 
@@ -209,6 +221,7 @@ public enum IndexRuleKind { Path, Glob, Regex }
 
 - 两条不同 glob 的重叠（`build\` 与 `**\build\**`）无法静态判定，运行期以排除优先，不会出错。
 - 正则交集不可判定，只做「正则测试路径」和文本相等两种判断。
+- 锚定到具体目录的正则（如 `^C:\\temp\\`）和相对 glob，即使实际被排除规则完全盖住也不会提示，这是宁漏勿错的保守选择。
 - 路径规则与通配符规则的冲突依赖路径字面量，覆盖不到未来才出现的目录。
 - 高与低两条优先级规则重叠不报（`GlobVersusGlob_IsNotStaticallyReported` 一类用例只覆盖排除方向），运行期取高。原文里「同一路径同时命中高与低也提示」这条没有实现，见踩坑第 11 条。
 
@@ -218,6 +231,7 @@ public enum IndexRuleKind { Path, Glob, Regex }
 
 - 一行里是输入框，右边配档位下拉和添加按钮。下拉默认「正常」，选项顺序是排除、低、正常、高。输入实时显示「识别为：X」（`Exclusions_DetectedTemplate`），判为完整路径时再显示解析后的路径（`Exclusions_ResolvedTemplate`）；错误行只在有错时出现，6 种 `Exclusions_Error*` 一一对应 `IndexRuleError` 的六个非 None 取值。解析不出来的路径规则按无效处理，添加与行内编辑都拦（`App/ViewModels/Settings/ExclusionSettingsViewModel.cs:239/340`）。
 - 输入框也认档位前缀，`!` 排除、`-` 低、`+` 高，写了前缀以前缀为准，下拉只在无前缀时提供默认档位。
+- 高优先行在操作图标前多一个置顶勾选框（`Templates.xaml` 显示行，图标 E718，tooltip `Exclusions_AlwaysTopTooltip`）：`IsEnabled`/`Visibility` 都绑 `CanPin`，档位改成低/正常/排除时 `ExclusionRuleItem.Effect` 的 setter 立即清掉 `AlwaysTop` 并隐藏勾选框。编辑行不提供勾选框，改回高档后要重新勾。批量文本不编码 pin（没有新前缀），但「应用到列表」对文本未变的 High 规则按 `Value` 保留原勾选；新增与改过文本的规则一律不带 pin。页面说明区多一行 `Exclusions_AlwaysTopHint`。
 - 档位筛选是一排计数按钮（全部、排除、低、正常、高），列表用 `ListCollectionView`：`Filter` 按当前档位，`CustomSort` 按判型组序（完整路径在前，通配符次之，正则最后）加组内 `OrdinalIgnoreCase` 字母序（`App/ViewModels/Settings/ExclusionRuleItem.cs:168-179`），跟档位无关。计数汇总给 `Exclusions_CountSummary`。
 - 编辑在行内完成，回车保存、Esc 取消，编辑态旁边出现档位下拉（绑定 `EditEffectValue`），文本与档位一起写回或一起丢弃。删除没有二次确认，跟现有一致。不做拖拽换档，WPF 拖拽成本高、容易误操作，列表排序又与档位无关。把行内档位徽章做成按钮（点击弹出四档菜单）的一步换档留给「确实频繁逐条整理」的时候，没做。
 - 筛选态下把条目移出当前档，它会立刻从列表消失，状态行给 `Exclusions_MovedTemplate`（「规则已移到「X」，当前筛选看不到它」）并更新各计数；切到「全部」能在原排序位置看到它。移入或移出排除才触发网络索引刷新与扫描盘重建。
@@ -258,7 +272,7 @@ zh-CN 的五段主文案（其余 6 语言保持同义，中文按口语重写�
 11. 设计稿里有四条说法与实现不符，留在这里说明以哪边为准。
     - 「应用行（无文件路径的插件行）取正常档，不查规则集」。搜索可搜项/应用行确实进入排序，并按它的快捷方式或可执行文件路径求值（`App/ViewModels/Search/Mapping/SearchResultMapper.cs:250-257`）；只有进入排序且路径为空的候选才在 `GetPriority` 里直接拿正常档（`Core/ExclusionRuleSet.cs:237`）；没有规则命中的路径同样返回正常档。插件即时结果、插件搜索动作行、完整窗口的内容 provider 行则根本不参与排序（快速/内联窗口是列表顶部前缀，完整窗口是内容前缀），所以它们不是「拿到正常档」，而是档位没有出手的机会。
     - 「`shell:AppsFolder\AUMID` 这类没有文件系统对应的虚拟路径，保存时允许、UI 标注对文件搜索不生效、运行期忽略并记日志」。实际是输入即拒，报 `VirtualPathWithoutFileSystem`（`Core/Settings/IndexRuleSetting.cs:181`），规则进不了列表。
-    - 「同一路径同时命中高与低两条优先级规则时给提示，但不算错误」。冲突检测只做优先级与排除的配对（`Core/Settings/IndexRuleConflict.cs:39-45`），高与低重叠静默按高处理。
+    - 「同一路径同时命中高与低两条优先级规则时给提示，但不算错误」。冲突检测只做优先级与排除的配对（`Core/Settings/IndexRuleConflict.cs:39-47`），高与低重叠静默按高处理。
     - 「改规则不触发本地重建」。排除子集变化会重建非 NTFS 的扫描式本地盘（`App/ViewModels/Settings/SettingsViewModel.cs:302`），只有 MFT/USN 索引的盘不重建。
 12. 迁移里「用户从未改过」的判断走的是集合语义比较（每项清洗，分隔符统一，去尾部分隔符，排序后忽略大小写逐项比），并且要求旧正则列为空（`Core/Settings/IndexRuleMigration.cs:101-118`，测试 `Ensure_UntouchedDefaults_AdoptsTheNewDefaults`）。
 13. 空列表提示绑规则总数而不是当前可见行数，筛选后为空时只剩计数为 0。这是设计阶段就知道的取舍，写在这里免得被当 bug 修掉。

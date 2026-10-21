@@ -71,12 +71,14 @@ public static class ExplorerSearchHelper
         IReadOnlyList<SearchResultMapper.RankedCandidate> learned,
         string query,
         string contextDirectory,
-        int limit = 50)
+        int limit = 50,
+        RankContext? rankContext = null)
     {
         var normalizedDirectory = DirectoryProximity.Normalize(contextDirectory);
         var ordinary = RankMatches(
             matches.Where(match => !string.Equals(DirectoryProximity.Normalize(match.FullPath), normalizedDirectory, StringComparison.OrdinalIgnoreCase)),
-            FuzzyQuery.Parse(query));
+            FuzzyQuery.Parse(query),
+            rankContext);
 
         // Learned rows are those the history merge contributed rather than the ordinary set; tracked by
         // normalized path, which is also the merge's own identity for a row.
@@ -118,8 +120,9 @@ public static class ExplorerSearchHelper
     //     ladder: its coverage term is bound to name length, so for the query "l" it ranked Lertaro (1/7),
     //     then lx-music (1/8), then LRC maker (1/9) -- "the shorter name first", the reported symptom.
     //     Explorer's own name order replaces it in the one view that shows a single real folder.
-    //   * Descendants and anything outside the folder -- the order RankAndDedupe already established
-    //     (quality ladder, history band, folder, name), merely grouped by proximity depth.
+    //   * Descendants and anything outside the folder -- the order RankCandidates already established
+    //     (RankPolicy sections and score, then quality, then folder and name), merely grouped by
+    //     proximity depth.
     internal static List<AppSearchResult> OrderByDirectoryTier(IEnumerable<RankedRow> rankedMatches, string contextDirectory)
     {
         var direct = new List<RankedRow>();
@@ -155,9 +158,11 @@ public static class ExplorerSearchHelper
     // though RankAndDedupe has already consumed it into an ordered list.
     internal readonly record struct RankedRow(AppSearchResult Result, MatchRank Match);
 
-    private static List<SearchResultMapper.RankedCandidate> RankMatches(IEnumerable<AppSearchResult> matches, FuzzyQuery fuzzy)
+    private static List<SearchResultMapper.RankedCandidate> RankMatches(
+        IEnumerable<AppSearchResult> matches,
+        FuzzyQuery fuzzy,
+        RankContext? rankContext)
     {
-        var historySnapshot = SearchHistoryStore.Snapshot();
         var historyUsage = SearchHistoryStore.UsageCounts();
         var favoritePaths = new HashSet<string>(
             UserSettings.Load().Favorites.Select(f => SearchResultHelper.NormalizePath(
@@ -169,20 +174,20 @@ public static class ExplorerSearchHelper
         {
             var lookupPath = match.FullPath.Length > 3 && match.FullPath[^1] == '\\' ? match.FullPath.TrimEnd('\\') : match.FullPath;
             var normalizedPath = SearchResultHelper.NormalizePath(match.FullPath);
-            var hasHistory = historySnapshot.TryGetValue(lookupPath, out var priority);
             var usage = historyUsage.TryGetValue(lookupPath, out var uc) ? uc : 0;
             candidates.Add(new SearchResultMapper.RankedCandidate(
                 match,
                 IsFavorite: favoritePaths.Contains(normalizedPath),
                 HistoryCount: usage,
-                HistoryPriority: hasHistory ? priority : int.MaxValue,
                 TypeRank: int.MaxValue,
                 fuzzy.Rank(match.Name),
                 normalizedPath));
         }
 
-        // Ordered by the same ladder the merged list uses, but returned as candidates so the caller still
-        // has each row's MatchRank to order by afterwards.
-        return SearchResultMapper.RankCandidates(candidates);
+        // Ranked by the same sections and score the quick window uses (RankPolicy through
+        // RankCandidates), but returned as candidates so the caller still has each row's MatchRank to
+        // order by afterwards. Without a context the kernel falls back to the raw open count and treats
+        // every path as normal priority, which is what the unit tests exercise.
+        return SearchResultMapper.RankCandidates(candidates, rankContext);
     }
 }

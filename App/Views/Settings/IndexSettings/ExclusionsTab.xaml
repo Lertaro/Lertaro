@@ -40,6 +40,8 @@
                     <Border Height="1" Background="{DynamicResource SettingsRowBorderBrush}" Margin="0,0,0,10"/>
                     <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_PriorityHint]}"
                                Style="{StaticResource SettingsHintText}" Margin="0,0,0,4" TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_AlwaysTopHint]}"
+                               Style="{StaticResource SettingsHintText}" Margin="0,0,0,10" TextWrapping="Wrap"/>
                     <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_ProgramPriorityHint]}"
                                Style="{StaticResource SettingsHintText}" Margin="0,0,0,10" TextWrapping="Wrap"/>
                     <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Exclusions_RegexCostHint]}"

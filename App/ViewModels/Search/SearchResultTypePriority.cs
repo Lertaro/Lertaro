@@ -26,11 +26,19 @@ public static class SearchResultTypePriority
     // to int.MaxValue, which -- since the caller's sort is stable -- lands it after every listed type
     // while preserving its original relative order against any OTHER unlisted type, matching the same
     // fallback convention QuickNavigationProviderOrder/QuickPanel.TabOrder already use.
-    public static int Rank(string typeId, List<string> order)
+    public static int Rank(string typeId, IReadOnlyDictionary<string, int> ranks) =>
+        ranks.TryGetValue(typeId, out var rank) ? rank : int.MaxValue;
+
+    /// <summary>First occurrence wins, matching IndexOf. Ordinal comparer keeps the old case sensitivity.</summary>
+    public static Dictionary<string, int> BuildRanks(List<string> order)
     {
-        var idx = order.IndexOf(typeId);
-        return idx >= 0 ? idx : int.MaxValue;
+        var ranks = new Dictionary<string, int>(order.Count, StringComparer.Ordinal);
+        for (var i = 0; i < order.Count; i++)
+            ranks.TryAdd(order[i], i);
+        return ranks;
     }
+
+    public static int Rank(string typeId, List<string> order) => Rank(typeId, BuildRanks(order));
 
     // The reverse lookup for UserSettings.ResultTypeTriggers -- a handful of entries at most, so a
     // linear scan beats maintaining a second reversed dictionary in sync. Compared case-insensitively,

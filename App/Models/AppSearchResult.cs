@@ -148,6 +148,29 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
         }
     }
     public bool IsApplication => ResultKind == "Application";
+
+    private bool _isFrequent;
+
+    /// <summary>
+    /// True when the ranking gave this row a history tier (H5 or H3): the path is opened often enough for
+    /// this query to count as a habit. Drives the "frequent" badge in the result list.
+    /// </summary>
+    /// <remarks>
+    /// Notifies because <see cref="ViewModels.Search.SearchResultsReconciler"/> may keep an existing row
+    /// instance across searches and copy the fresh value onto it; without the notification the badge would
+    /// stay at the previous query's answer on a row the grid never re-creates.
+    /// </remarks>
+    public bool IsFrequent
+    {
+        get => _isFrequent;
+        set
+        {
+            if (_isFrequent == value) return;
+            _isFrequent = value;
+            OnPropertyChanged(nameof(IsFrequent));
+        }
+    }
+
     public bool IsPluginSearchAction => ResultKind == "PluginAction";
     public bool IsSearchSectionHeader => ResultKind == "SectionHeader";
     public bool IsJumpToExplorerPath => ResultKind == "JumpToExplorerPath";

@@ -198,9 +198,11 @@ public static class AppSearchPipeService
     // produces it, unsorted -- NOT accumulate-then-sort-then-send. That accumulate-first approach used
     // to mean the client saw nothing until BOTH the local (pipe) and network (in-process) sources had
     // fully finished, which felt much slower than the GUI's own full window (which renders progressively
-    // as results stream in). Ranking (SearchResultRankComparer) is left to the client for the same
-    // reason: it needs to re-run repeatedly against a growing snapshot, which belongs wherever the
-    // incremental rendering is happening.
+    // as results stream in). Ranking is left to the client for the same reason: it needs to re-run
+    // repeatedly against a growing snapshot, which belongs wherever the incremental rendering is
+    // happening (SearchResultRankComparer is that client-side comparer). The tokenized path below is the
+    // opposite case -- it must hold the whole result set anyway, so it ranks server-side with the full
+    // window's own SearchResultRanking + RankedSearchResultComparer.
     //
     // Writes go through a bounded channel to one consumer task, which is what SearchStreamPump already
     // does on the elevated service's pipe. The callback below fires from whichever of
@@ -304,7 +306,9 @@ public static class AppSearchPipeService
     // A query token needs the FULL, already-ranked candidate set before a plugin-provided
     // IQueryTokenProvider can filter/reorder it (e.g. "::expr" fuzzy-matches by path segment, ".ext"
     // filters by extension) -- there's no meaningful way to stream this incrementally the way the plain
-    // path above does, so this buffers everything, ranks it, dispatches the tokens, then sends the whole
+    // path above does, so this buffers everything, ranks it with the full window's ordering (see
+    // RunTokenizedSearchAsync: SearchResultRanking.Decorate + RankedSearchResultComparer, i.e. sections,
+    // decayed history, favorites and pins), dispatches the tokens, then sends the whole
     // already-final-order result in one go, same as SearchQueryDispatchController's own
     // RefreshAfterTokenDispatchAsync. PluginManager.QueryTokenProviders is only populated in a process
     // that's loaded plugins -- same reason AliasProviderRegistry needed this pipe in the first place --
@@ -332,10 +336,20 @@ public static class AppSearchPipeService
 
         SearchResultMapper.RemoveQueriedDirectoryItself(raw, query);
         token.ThrowIfCancellationRequested();
-        raw.Sort(new SearchResultRankComparer(
-            SearchHistoryStore.Snapshot(),
-            SearchHistoryStore.UsageCounts(),
-            FavoritePaths()));
+        // The full window's ordering, once over the complete set: sections and score written onto each row,
+        // then compared by the shared comparer. History is read as a single decayed snapshot for this query
+        // (the old ladder used the undecayed open count), and favorites/pins come from the same context, so
+        // a token search answers with the order the GUI's own full window would show.
+        var rankRules = ExclusionRuleSet.From(UserSettings.Load());
+        var rankContext = new RankContext(
+            rankRules.GetPriorityVerdict,
+            SearchHistoryStore.ScoreSnapshot(DateTimeOffset.UtcNow),
+            FavoritePaths());
+
+        foreach (var result in raw)
+            SearchResultRanking.Decorate(result, rankContext);
+
+        raw.Sort(RankedSearchResultComparer.Instance);
 
         var byPath = new Dictionary<string, SearchResult>(StringComparer.OrdinalIgnoreCase);
         var appResults = new List<AppSearchResult>(raw.Count);
@@ -376,8 +390,8 @@ public static class AppSearchPipeService
         {
             try
             {
-                paths.Add(Lertaro.App.ViewModels.Search.SearchResultHelper.NormalizePath(
-                    Lertaro.App.Helpers.FavoritePathResolver.Resolve(favorite.Path)));
+                paths.Add(SearchResultHelper.NormalizePath(
+                    Helpers.FavoritePathResolver.Resolve(favorite.Path)));
             }
             catch
             {

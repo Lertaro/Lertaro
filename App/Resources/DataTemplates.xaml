@@ -2,6 +2,7 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:app="clr-namespace:Lertaro.App"
                     xmlns:local="clr-namespace:Lertaro.App.Converters"
+                    xmlns:services="clr-namespace:Lertaro.App.Services"
                     xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals">
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="Styles/Tokens/Colors.xaml"/>
@@ -66,6 +67,24 @@
                                TextElement.FontSize="11"
                                Content="{Binding}"
                                ContentTemplate="{StaticResource ShortcutHintBadgeTemplate}"/>
+
+            <!-- "Frequent" marker: rows the user opens often enough to enter a history tier (H5/H3) in the
+                 quick window. A quiet wash like the shortcut badge, so a selected row's own background does
+                 not swallow it; text-only because the row is already dense. -->
+            <Border DockPanel.Dock="Right"
+                    Margin="10,0,0,0"
+                    CornerRadius="4"
+                    VerticalAlignment="Center"
+                    Visibility="{Binding IsFrequent, Converter={StaticResource BoolToVis}}">
+                <Grid>
+                    <Border CornerRadius="4" IsHitTestVisible="False" Background="{DynamicResource HoverBackground}" Opacity="0.5"/>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Search_ResultFrequent]}"
+                               Padding="7,2,7,2"
+                               FontSize="10"
+                               Foreground="{DynamicResource TextSecondary}"
+                               VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
 
             <!-- Name + directory path -->
             <StackPanel VerticalAlignment="Center">

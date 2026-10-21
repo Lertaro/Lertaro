@@ -40,9 +40,16 @@ public sealed class ExclusionRuleSet
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> _priorityVerdicts =
         new(StringComparer.OrdinalIgnoreCase);
 
-    private readonly record struct EffectivePathRule(string Root, IndexRuleEffect Effect);
-    private readonly record struct EffectiveGlobRule(NetworkGlobPattern Pattern, IndexRuleEffect Effect);
-    private readonly record struct EffectiveRegexRule(Regex Pattern, IndexRuleEffect Effect);
+    private readonly record struct EffectivePathRule(string Root, IndexRuleEffect Effect, bool AlwaysTop);
+    private readonly record struct EffectiveGlobRule(NetworkGlobPattern Pattern, IndexRuleEffect Effect, bool AlwaysTop);
+    private readonly record struct EffectiveRegexRule(Regex Pattern, IndexRuleEffect Effect, bool AlwaysTop);
+
+    /// <summary>
+    /// What the rules say about one path: which bucket it lands in, and whether a high rule pins it to the
+    /// very top. <see cref="AlwaysTop"/> is only ever true together with <see cref="IndexRuleEffect.High"/>;
+    /// build every value through <see cref="Verdict"/> so that invariant cannot be broken by a merge.
+    /// </summary>
+    public readonly record struct PriorityVerdict(IndexRuleEffect Effect, bool AlwaysTop);
 
     private ExclusionRuleSet(IReadOnlyList<IndexRuleSetting> rules, string? root = null)
     {
@@ -57,7 +64,7 @@ public sealed class ExclusionRuleSet
 
         foreach (var rule in rules)
         {
-            if (!IndexRuleSyntax.TryParse(rule.Pattern, rule.Effect, out var parsed, out var error))
+            if (!IndexRuleSyntax.TryParse(rule.Pattern, rule.Effect, rule.AlwaysTop, out var parsed, out var error))
             {
                 Logger.Log($"[ExclusionRuleSet] Ignoring invalid rule '{rule.Pattern}': {error}", LogLevel.Warn);
                 continue;
@@ -80,7 +87,8 @@ public sealed class ExclusionRuleSet
                     if (parsed.Effect == IndexRuleEffect.Exclude)
                         excludedRoots.Add(normalizedRoot);
                     else
-                        priorityPaths.Add(new EffectivePathRule(normalizedRoot.TrimEnd(Path.DirectorySeparatorChar), parsed.Effect));
+                        priorityPaths.Add(new EffectivePathRule(
+                            normalizedRoot.TrimEnd(Path.DirectorySeparatorChar), parsed.Effect, parsed.AlwaysTop));
                     break;
                 }
 
@@ -93,7 +101,7 @@ public sealed class ExclusionRuleSet
                     if (parsed.Effect == IndexRuleEffect.Exclude)
                         ignoredGlobs.Add(glob);
                     else
-                        priorityGlobs.Add(new EffectiveGlobRule(glob, parsed.Effect));
+                        priorityGlobs.Add(new EffectiveGlobRule(glob, parsed.Effect, parsed.AlwaysTop));
                     break;
                 }
 
@@ -113,7 +121,7 @@ public sealed class ExclusionRuleSet
                     if (parsed.Effect == IndexRuleEffect.Exclude)
                         ignoredRegexes.Add(regex);
                     else
-                        priorityRegexes.Add(new EffectiveRegexRule(regex, parsed.Effect));
+                        priorityRegexes.Add(new EffectiveRegexRule(regex, parsed.Effect, parsed.AlwaysTop));
                     break;
                 }
             }
@@ -227,45 +235,57 @@ public sealed class ExclusionRuleSet
     /// </summary>
     /// <remarks>
     /// Only whole paths can be turned into a scoped search: globs and regexes describe a name shape, not a
-    /// subtree, so their rows still depend on the regular pool. Drive roots are skipped -- promoting a whole
-    /// volume says nothing and would make every query scan it twice.
+    /// subtree, so their rows still depend on the regular pool -- a pinned pattern rule therefore adds no
+    /// root here either, and the supplemental search behaves exactly as before. Drive roots are skipped --
+    /// promoting a whole volume says nothing and would make every query scan it twice.
     /// </remarks>
     public IReadOnlyList<string> HighPriorityRoots { get; }
 
-    public IndexRuleEffect GetPriority(string path, bool isDirectory)
+    public IndexRuleEffect GetPriority(string path, bool isDirectory) => GetPriorityVerdict(path, isDirectory).Effect;
+
+    /// <summary>
+    /// Bucket and pin of one path. The two components are kept apart until the last step, because they
+    /// inherit differently: the nearest path rule replaces every path rule above it wholesale, while
+    /// pattern rules accumulate their strongest effect along the chain -- and a path rule that ties with a
+    /// pattern rule decides the pin, so a folder can switch a global pinned pattern off.
+    /// </summary>
+    public PriorityVerdict GetPriorityVerdict(string path, bool isDirectory)
     {
         if (string.IsNullOrWhiteSpace(path))
-            return IndexRuleEffect.Normal;
+            return Verdict(IndexRuleEffect.Normal, alwaysTop: false);
         if (_priorityPaths.Length == 0 && _priorityGlobs.Length == 0 && _priorityRegexes.Length == 0)
-            return IndexRuleEffect.Normal;
+            return Verdict(IndexRuleEffect.Normal, alwaysTop: false);
 
         var normalized = NormalizeIndexedPath(path, isDirectory).TrimEnd(Path.DirectorySeparatorChar);
         if (normalized.Length == 0)
-            return IndexRuleEffect.Normal;
+            return Verdict(IndexRuleEffect.Normal, alwaysTop: false);
 
         // Own-level patterns matter (a `*.exe` high rule must beat a low folder), but a path rule on an
         // ancestor is a deliberate folder-level decision and the nearest one wins over shallower paths.
-        var matched = OwnPriority(normalized);
+        var pathPart = PathPriorityAt(normalized);
+        var patternPart = PatternPriorityAt(normalized);
+
         var parent = Path.GetDirectoryName(normalized);
         if (!string.IsNullOrEmpty(parent))
-            matched = Stronger(matched, InheritedPriority(parent));
+        {
+            InheritedPriority(parent, out var inheritedPath, out var inheritedPattern);
+            pathPart ??= inheritedPath;
+            patternPart = Strongest(patternPart, inheritedPattern);
+        }
 
-        return matched ?? IndexRuleEffect.Normal;
+        return PreferPath(pathPart, patternPart) ?? Verdict(IndexRuleEffect.Normal, alwaysTop: false);
     }
 
-    private IndexRuleEffect? OwnPriority(string path) =>
-        Stronger(PathPriorityAt(path), PatternPriorityAt(path));
-
     /// <summary>
-    /// Merged priority a child of <paramref name="directory"/> inherits: the nearest path rule at or above
+    /// The two components a child of <paramref name="directory"/> inherits: the nearest path rule at or above
     /// it plus the best pattern hit along the chain. Cached per directory, because every file below it
     /// shares the answer.
     /// </summary>
-    private IndexRuleEffect? InheritedPriority(string directory)
+    private void InheritedPriority(string directory, out PriorityVerdict? pathPart, out PriorityVerdict? patternPart)
     {
         var undecided = new List<string>();
-        IndexRuleEffect? pathPart = null;
-        IndexRuleEffect? patternPart = null;
+        PriorityVerdict? inheritedPath = null;
+        PriorityVerdict? inheritedPattern = null;
 
         var current = directory;
         var depth = 0;
@@ -273,7 +293,7 @@ public sealed class ExclusionRuleSet
         {
             if (_priorityVerdicts.TryGetValue(current, out var known))
             {
-                Decode(known, out pathPart, out patternPart);
+                Decode(known, out inheritedPath, out inheritedPattern);
                 break;
             }
 
@@ -289,35 +309,87 @@ public sealed class ExclusionRuleSet
         for (var i = undecided.Count - 1; i >= 0; i--)
         {
             var level = undecided[i];
-            pathPart = PathPriorityAt(level) ?? pathPart;
-            patternPart = Stronger(patternPart, PatternPriorityAt(level));
-            _priorityVerdicts[level] = Encode(pathPart, patternPart);
+            // A path rule closer to the child replaces the inherited one even when it is weaker, and even
+            // for the pin: an unpinned High on this folder is how the user switches an ancestor's pin off.
+            inheritedPath = PathPriorityAt(level) ?? inheritedPath;
+            inheritedPattern = Strongest(inheritedPattern, PatternPriorityAt(level));
+            _priorityVerdicts[level] = Encode(inheritedPath, inheritedPattern);
         }
 
-        return Stronger(pathPart, patternPart);
+        pathPart = inheritedPath;
+        patternPart = inheritedPattern;
     }
 
-    // Packs two "effect or none" values into one int so the dictionary can cache a miss (-1 was not enough:
-    // a path rule and a pattern rule contribute independently).
-    private static int Encode(IndexRuleEffect? path, IndexRuleEffect? pattern) =>
-        ((path == null ? 4 : (int)path.Value) << 3) | (pattern == null ? 4 : (int)pattern.Value);
+    // A pin is only ever carried by High, so every verdict goes through here.
+    private static PriorityVerdict Verdict(IndexRuleEffect effect, bool alwaysTop) =>
+        new(effect, alwaysTop && effect == IndexRuleEffect.High);
 
-    private static void Decode(int code, out IndexRuleEffect? path, out IndexRuleEffect? pattern)
+    /// <summary>
+    /// Merge of two rules of the same kind -- pattern rules along the chain, or several rules naming one
+    /// level. The stronger bucket wins; on an equal bucket the pin survives if either side asks for it, so
+    /// an unpinned rule can never cancel a pinned one of the same strength.
+    /// </summary>
+    private static PriorityVerdict? Strongest(PriorityVerdict? current, PriorityVerdict? candidate)
     {
-        var pathCode = code >> 3;
-        var patternCode = code & 7;
-        path = pathCode == 4 ? null : (IndexRuleEffect)pathCode;
-        pattern = patternCode == 4 ? null : (IndexRuleEffect)patternCode;
+        if (candidate == null)
+            return current;
+        if (current == null)
+            return candidate;
+
+        var byStrength = PriorityStrength(candidate.Value.Effect).CompareTo(PriorityStrength(current.Value.Effect));
+        if (byStrength > 0)
+            return candidate;
+        if (byStrength < 0)
+            return current;
+        return Verdict(current.Value.Effect, current.Value.AlwaysTop || candidate.Value.AlwaysTop);
+    }
+
+    /// <summary>
+    /// Merge of a path rule against a pattern rule. The stronger bucket wins, and on an equal bucket the
+    /// PATH rule decides -- pin included, no OR here. A path rule is an explicit call about one folder, so
+    /// `C:\work` High-unpinned must outrank a global `*.ps1` High-pinned; otherwise a user could not turn
+    /// pinning off for a folder without editing the pattern.
+    /// </summary>
+    private static PriorityVerdict? PreferPath(PriorityVerdict? pathRule, PriorityVerdict? patternRule)
+    {
+        if (pathRule == null)
+            return patternRule;
+        if (patternRule == null)
+            return pathRule;
+
+        return PriorityStrength(patternRule.Value.Effect) > PriorityStrength(pathRule.Value.Effect)
+            ? patternRule
+            : pathRule;
+    }
+
+    // Packs "effect and pin, or none" into 4 bits per component: 0 means no rule, and a real bucket packs to
+    // ((1 + effect) << 1) | pin, which lands in 4..9 because a priority rule is never Exclude. Two
+    // components share one int so the dictionary can cache a miss (-1 was not enough: a path rule and a
+    // pattern rule contribute independently).
+    private static int Pack(PriorityVerdict? verdict) =>
+        verdict == null ? 0 : ((1 + (int)verdict.Value.Effect) << 1) | (verdict.Value.AlwaysTop ? 1 : 0);
+
+    private static PriorityVerdict? Unpack(int packed) => packed == 0
+        ? null
+        : Verdict((IndexRuleEffect)((packed >> 1) - 1), (packed & 1) != 0);
+
+    private static int Encode(PriorityVerdict? path, PriorityVerdict? pattern) =>
+        (Pack(path) << 4) | Pack(pattern);
+
+    private static void Decode(int code, out PriorityVerdict? path, out PriorityVerdict? pattern)
+    {
+        path = Unpack(code >> 4);
+        pattern = Unpack(code & 0xF);
     }
 
     /// <summary>Exact path rules at one level; null when no path rule names it.</summary>
-    private IndexRuleEffect? PathPriorityAt(string fullPath)
+    private PriorityVerdict? PathPriorityAt(string fullPath)
     {
-        IndexRuleEffect? matched = null;
+        PriorityVerdict? matched = null;
         foreach (var rule in _priorityPaths)
         {
             if (fullPath.Equals(rule.Root, StringComparison.OrdinalIgnoreCase))
-                matched = Stronger(matched, rule.Effect);
+                matched = Strongest(matched, Verdict(rule.Effect, rule.AlwaysTop));
         }
         return matched;
     }
@@ -327,12 +399,12 @@ public sealed class ExclusionRuleSet
     /// leaf and the search-root-relative path, never the absolute path: otherwise every rule would also see
     /// the drive and parent names.
     /// </summary>
-    private IndexRuleEffect? PatternPriorityAt(string fullPath)
+    private PriorityVerdict? PatternPriorityAt(string fullPath)
     {
         if (_priorityGlobs.Length == 0 && _priorityRegexes.Length == 0)
             return null;
 
-        IndexRuleEffect? matched = null;
+        PriorityVerdict? matched = null;
         var name = Path.GetFileName(fullPath);
         var relative = GetPriorityRelativePath(fullPath);
         var withSeparator = fullPath + Path.DirectorySeparatorChar;
@@ -345,7 +417,7 @@ public sealed class ExclusionRuleSet
                 || (relative.Length > 0 && (rule.Pattern.IsMatch(relative) || rule.Pattern.IsMatch(relativeWithSeparator)))
                 || rule.Pattern.IsMatch(name))
             {
-                matched = Stronger(matched, rule.Effect);
+                matched = Strongest(matched, Verdict(rule.Effect, rule.AlwaysTop));
             }
         }
 
@@ -354,20 +426,11 @@ public sealed class ExclusionRuleSet
             if (rule.Pattern.IsMatch(name)
                 || (relative.Length > 0 && (rule.Pattern.IsMatch(relative) || rule.Pattern.IsMatch(relativeWithSeparator))))
             {
-                matched = Stronger(matched, rule.Effect);
+                matched = Strongest(matched, Verdict(rule.Effect, rule.AlwaysTop));
             }
         }
 
         return matched;
-    }
-
-    private static IndexRuleEffect? Stronger(IndexRuleEffect? current, IndexRuleEffect? candidate)
-    {
-        if (candidate == null)
-            return current;
-        if (current == null)
-            return candidate;
-        return PriorityStrength(candidate.Value) > PriorityStrength(current.Value) ? candidate : current;
     }
 
     private static int PriorityStrength(IndexRuleEffect effect) => effect switch

@@ -1,5 +1,6 @@
 using Lertaro.App.ViewModels.Search;
 using Lertaro.App.ViewModels.Search.Mapping;
+using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 
 namespace Lertaro.App.Tests.ViewModels.Search;
@@ -270,5 +271,30 @@ public sealed class ExplorerSearchHelperTests
 
         for (var i = 0; i < result.Count; i++)
             Assert.AreEqual(i, result[i].Index);
+    }
+
+    // Both rows live outside the window's folder, so they share one proximity tier and whatever
+    // RankCandidates decided is what reaches the list. The pinned row is the WORSE name match on purpose:
+    // only the pinned section can put it first.
+    [TestMethod]
+    public void CreateLocalSnapshot_PinnedHighRuleLeadsItsProximityGroup()
+    {
+        var matches = new[] { Item(@"D:\sub-atlas.txt"), Item(@"D:\atlas.txt") };
+
+        var withoutRules = ExplorerSearchHelper.CreateLocalSnapshot(
+            matches, new List<SearchResultMapper.RankedCandidate>(), "atlas", @"C:\Root");
+        CollectionAssert.AreEqual(
+            new[] { @"D:\atlas.txt", @"D:\sub-atlas.txt" },
+            withoutRules.Select(item => item.FullPath).ToArray());
+
+        var rankContext = new RankContext((path, _) => path.Contains("sub-atlas", StringComparison.OrdinalIgnoreCase)
+            ? new ExclusionRuleSet.PriorityVerdict(IndexRuleEffect.High, true)
+            : new ExclusionRuleSet.PriorityVerdict(IndexRuleEffect.Normal, false));
+
+        var pinned = ExplorerSearchHelper.CreateLocalSnapshot(
+            matches, new List<SearchResultMapper.RankedCandidate>(), "atlas", @"C:\Root", rankContext: rankContext);
+        CollectionAssert.AreEqual(
+            new[] { @"D:\sub-atlas.txt", @"D:\atlas.txt" },
+            pinned.Select(item => item.FullPath).ToArray());
     }
 }

@@ -1,6 +1,7 @@
 using Lertaro.Core.IndexV2;
 
 using Lertaro.Core.IndexV2.Search;
+using Lertaro.Core.SearchIndex;
 
 namespace Lertaro.Core.Indexer.Usn;
 
@@ -65,7 +66,7 @@ internal static class SearchCoordinator
                     Logger.Log($"[SearchCoordinator] Search of drive {drives[i].Key} failed; its rows are left out: {ex.Message}", LogLevel.Error);
                 }
             });
-            foreach (var row in buffered.SelectMany(rows => rows).OrderBy(row => row, SearchResultRankComparer.Instance).Take(limit))
+            foreach (var row in buffered.SelectMany(rows => rows).OrderBy(row => row, SearchCandidateComparer.Instance).Take(limit))
             {
                 token.ThrowIfCancellationRequested();
                 onResult(row);
