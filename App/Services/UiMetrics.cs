@@ -95,7 +95,7 @@ public static class UiMetrics
     // only what the settings box accepts.
     public const int MinInlineCardWidthPercent = 20;
     public const int MaxInlineCardWidthPercent = 100;
-    public const int DefaultInlineCardWidthPercent = 40;
+    public const int DefaultInlineCardWidthPercent = 60;
 
     private static double _scale = 1.0;
     private static double _flowRowScale = 1.0;
