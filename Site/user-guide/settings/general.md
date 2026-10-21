@@ -56,7 +56,7 @@ Configures default window geometry, columns, and sidebars for the main search wi
 
 ## 5. Quick Navigation
 
-- **Provider Order**: Drag and reorder root categories in the Quick Navigation menu (Favorites, History, Open Folders, and third-party file manager bookmarks).
+- **Provider Order**: Drag and reorder the provider groups at the root of the Quick Navigation menu. Each row is one provider, such as Folder Cascader and System Command Runner, plus the bookmark groups contributed by file manager plugins.
 
 ## 6. Previews & Thumbnails
 

@@ -1,5 +1,5 @@
 {
-  "Plugins_OneCommander_EnableInlineSearch": "启用内联搜索",
+  "Plugins_OneCommander_EnableInlineSearch": "启用内嵌搜索",
   "Plugins_OneCommander_EnableInlineSearchDesc": "允许在 OneCommander 窗口中双击或按快捷键弹出内置搜索栏",
   "Plugins_OneCommander_EnableQuickNav": "启用快速导航菜单",
   "Plugins_OneCommander_EnableQuickNavDesc": "允许在 OneCommander 窗口中中键点击弹出快速导航菜单",

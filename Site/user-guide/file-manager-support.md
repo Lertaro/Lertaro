@@ -7,7 +7,7 @@ Lertaro works both as a standalone search launcher and embedded inside Windows F
 Depending on the host window's characteristics, Lertaro provides up to three distinct integration features:
 
 - **Inline Search**: Lertaro's fast search box embeds directly at the top of the host window or file dialog, enabling instant directory-scoped or global searches without context switching. It appears the moment you type a letter or digit in a supported file list, carrying that first character into its own box.
-- **Quick Navigation**: Middle-click (or, if you enable it, double-left-click — **off by default**) empty areas or click the embedded logo to summon a cascading menu of active folders, favorites, history, and custom categories. Third-party file managers support middle-click only.
+- **Quick Navigation**: Middle-click (or, if you enable it, double-left-click — **off by default**) empty areas or click the embedded logo to summon a Quick Navigation menu of active folders, favorites, history, and custom categories. Third-party file managers support middle-click only.
 - **Active Path Detection**: Senses the physical directory currently opened in the host window, scoping searches automatically and resolving relative path actions.
 
 > [!TIP]

@@ -1,6 +1,6 @@
 # Atajos de teclado y gestos
 
-Lertaro adopta una filosofía de interacción centrada en el teclado, complementada con prácticos gestos de ratón y navegación rápida en cascada. Excepto las teclas fijas, todos los atajos globales y de la aplicación se pueden personalizar en [**Configuración → Atajos de teclado**](./settings/hotkeys-page).
+Lertaro adopta una filosofía de interacción centrada en el teclado, complementada con prácticos gestos de ratón y Navegación rápida. Excepto las teclas fijas, todos los atajos globales y de la aplicación se pueden personalizar en [**Configuración → Atajos de teclado**](./settings/hotkeys-page).
 
 ## 1. Tabla resumen de atajos globales
 
@@ -8,7 +8,7 @@ Lertaro adopta una filosofía de interacción centrada en el teclado, complement
 | :--- | :--- | :--- |
 | **Mostrar/Ocultar Ventana rápida** | Doble pulsación de `Ctrl` | Configurable en modo doble pulsación o combinación estándar (p. ej. `Alt+Space`). Una doble pulsación son dos pulsaciones del **mismo** modificador, soltadas con **100–300 ms** de diferencia: la `Ctrl` izquierda y la derecha son teclas distintas, y cualquier otra tecla pulsada en medio reinicia el conteo. En la forma de doble pulsación el modificador nunca se consume, así que los atajos normales del estilo `Ctrl`+`C` siguen funcionando. Si se activa **Abrir el panel principal de forma predeterminada**, este atajo abre la Ventana principal: al mostrarla por primera vez solo la lleva al primer plano y le da el foco una vez; si está visible pero inactiva la vuelve a activar, y si ya está activa, al pulsar de nuevo vuelve a la Ventana rápida de forma predeterminada (o se cierra directamente cuando **Cerrar al repetir el atajo** está activado). No se mantiene automáticamente siempre encima. |
 | **Salto rápido (Quick Jump)** | `Ctrl+G` | En cuadros de diálogo, salta directamente a la carpeta consultada recientemente en el Explorador, un explorador compatible o un cuadro de diálogo de archivos. |
-| **Menú de Navegación rápida** | Sin valor predeterminado | Un atajo global opcional abre el menú de Navegación rápida en cascada. Desde el escritorio o una aplicación normal usa el contexto del escritorio; en el Explorador de archivos y los cuadros de diálogo nativos usa el contexto de la ventana activa. Los exploradores y los cuadros de diálogo siguen permitidos aunque la protección normal de primer plano suprima los atajos globales. |
+| **Menú de Navegación rápida** | Sin valor predeterminado | Un atajo global opcional abre el menú de Navegación rápida. Desde el escritorio o una aplicación normal usa el contexto del escritorio; en el Explorador de archivos y los cuadros de diálogo nativos usa el contexto de la ventana activa. Los exploradores y los cuadros de diálogo siguen permitidos aunque la protección normal de primer plano suprima los atajos globales. |
 | **Seleccionar elemento siguiente** | `Ctrl+N` o `↓` | Mueve el resaltado hacia abajo. En el Panel rápido se desplaza entre grupos. En el Panel de inicio rápido, las flechas siguen la cuadrícula visible: **←** y **→** recorren el orden de lectura atravesando los límites de las filas, mientras **↑** y **↓** conservan la columna actual y solo se mueven entre filas adyacentes, deteniéndose donde la fila destino no tiene ningún elemento en esa columna. Con el Panel de inicio rápido visible y la consulta vacía, `Ctrl+N` recorre la siguiente fuente y vuelve a la primera al llegar al final. |
 | **Seleccionar elemento anterior** | `Ctrl+P` o `↑` | Mueve el resaltado hacia arriba. En el Panel rápido también se desplaza entre grupos. En el Panel de inicio rápido, las flechas siguen la cuadrícula visible: **←** y **→** recorren el orden de lectura atravesando los límites de las filas, mientras **↑** y **↓** conservan la columna actual y solo se mueven entre filas adyacentes, deteniéndose donde la fila destino no tiene ningún elemento en esa columna. Con el Panel de inicio rápido visible y la consulta vacía, `Ctrl+P` recorre la fuente anterior y vuelve a la última al llegar al principio. |
 | **Saltar a resultados 1–9** | `Ctrl` + `1`–`9` | Modificador personalizable. Aparecen distintivos numéricos junto a los resultados para abrirlos directamente. El número indica la N.ª fila seleccionable **a partir de la primera fila visible**, así que los distintivos se renumeran al desplazar; la `0` no está asignada. El panel de Inicio rápido es la excepción: asigna `1`–`9`, `0` y `A`–`Z` para hasta 36 mosaicos. |
@@ -87,13 +87,13 @@ También puedes asignar un atajo de teclado global opcional en [**Configuración
 - **Exploradores de terceros**: Clic central en la lista de archivos de Directory Opus, Total Commander, XYplorer, Files y One Commander (ver [**Exploradores de archivos compatibles**](./file-manager-support)).
 - **Diálogos de archivo**: Clic central o clic en el icono incrustado dentro de diálogos Abrir/Guardar para saltar a la carpeta de destino sin confirmar accidentalmente.
 
-### Estructura del menú en cascada
+### Estructura del menú de Navegación rápida
 
-Impulsado por el plugin **Folder Cascader**:
+Los cuatro grupos siguientes los aporta el plugin **Cascada de Carpetas**:
 
 1. **Carpetas abiertas actualmente**: Agrupa y desduplica carpetas activas de todos los exploradores abiertos.
 2. **Favoritos e Historial**: Muestra elementos marcados con estrella e historial de visitas recientes.
-3. **Categorías personalizadas**: Configura submenús anidados en **Configuración → Plugins → Folder Cascader** (p. ej. `Trabajo/ProyectoA`).
+3. **Categorías personalizadas**: Configura submenús anidados en **Configuración → Plugins → Cascada de Carpetas** (p. ej. `Trabajo/ProyectoA`).
 4. **Añadir carpeta rápida (Botón `+`)**: Cada encabezado de submenú cuenta con un botón `+` para guardar el directorio activo directamente en esa categoría.
 
 ## 4. Teclas fijas básicas (No configurables)

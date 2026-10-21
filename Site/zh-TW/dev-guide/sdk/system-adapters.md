@@ -9,7 +9,7 @@
 
 ## 1. 已開啟資料夾收集器 `IOpenedFolderCollector`
 
-契約中唯讀的那一半：報告目標管理器目前開啟的每一個資料夾，這正是餵給[**快速導覽**](../../user-guide/hotkeys)以及內嵌搜尋清單中「目前開啟的資料夾」群組的來源。
+契約中唯讀的那一半：報告目標管理器目前開啟的每一個資料夾，這正是餵給[**快速導航**](../../user-guide/hotkeys)以及內嵌搜尋清單中「目前開啟的資料夾」群組的來源。
 
 ```csharp
 namespace Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
@@ -123,14 +123,14 @@ public interface IInlineSearchAdapter : IPluginComponent
 - **`GetDockBounds`**：返回實際用於停靠的內容區域實體邊界。宿主使用這個容器矩形來決定內嵌搜尋框的大小與位置；當這些邊界可以解析時，適配器應返回目前的檔案總管窗格或對話方塊內容區域，而不是無關的外層視窗。
 - **`CanTrigger`** 是*每一次*擊鍵的閘門，因此它必須只用傳入的類別名稱作答——鉤子在那裡負擔不起一次 UI Automation 往返。
 - **`GetListItems`**：目前顯示的各列名稱，用於選取鏡像。返回空也沒有關係；幾個受支援的管理器會為其各列回報空字串，這就是宿主不只用名稱辨識某列的原因。
-- **`CanEnterActionsMode`**：`false` 會為此宿主完全移除動作功能表——右鍵、`Ctrl+O` 與 `→` 一併退下，而不是開啟一個空白面板。
+- **`CanEnterActionsMode`**：`false` 會為此宿主完全移除動作選單——右鍵、`Ctrl+O` 與 `→` 一併退下，而不是開啟一個空白面板。
 - **`OnSearchFinished(hwnd, executed)`**：卡片關閉時呼叫，並帶上是否有結果真的被執行；這時那些必須隱藏自身 UI（資訊提示、重新命名編輯框）的宿主就該把它們放回去。
 
 `LocateItem(hwnd, path)` 只顯示父資料夾並選取項目，不會開啟該項目；不支援定位的配接器預設傳回 `false`。它與 `ExecuteItem` 一樣透過路徑結尾的目錄分隔符號識別資料夾。定位與執行應分別實作：Directory Opus 和 Total Commander 會在自身視窗中定位，而非另外開啟檔案總管。
 
-## 5. 快速導覽提供者 `IQuickNavigationProvider`
+## 5. 快速導航提供者 `IQuickNavigationProvider`
 
-為[**快速導覽功能表**](../../user-guide/hotkeys)貢獻動態群組與項目：
+為[**快速導航選單**](../../user-guide/hotkeys)貢獻動態群組與項目：
 
 ```csharp
 public enum MouseTriggerType { DoubleClick, MiddleClick }
@@ -147,15 +147,15 @@ public interface IQuickNavigationProvider : IPluginComponent
     IEnumerable<DynamicMenuItem> GetMenuItems(ISearchResult result, IntPtr hMenu);
     void ExecuteCommand(ISearchResult result, uint commandId, IntPtr ownerHwnd);
 
-    // 無預設：實作它是必須的。當功能表關閉時，清除功能表遺留的任何已配置資源
+    // 無預設：實作它是必須的。當選單關閉時，清除選單遺留的任何已配置資源
     // （快取的 Shell CDS 串流、原生圖示控制代碼）。
     void ClearSession();
 }
 ```
 
-- **`HeaderAction`**：在根群組標題附加一個動作按鈕（例如書籤提供者加上「釘選目前資料夾」）。資料夾層級選擇器（Folder Cascader）外掛模組那個「儲存你所在的資料夾」的 `+` 按鈕就是這個成員。
-- **`DynamicMenuItem.IsHeader`**：在巢狀子功能表中，返回 `IsHeader = true` 的項目會轉譯出帶有動作按鈕的互動式群組標題。
-- **`MouseTriggerType`**：命名了兩個可以開啟功能表的全域手勢。哪些手勢生效屬於使用者設定，而非提供者的決定——見[**快速鍵 → 快速導覽滑鼠觸發**](../../user-guide/settings/hotkeys-page)。
+- **`HeaderAction`**：在根群組標題附加一個動作按鈕（例如書籤提供者加上「釘選目前資料夾」）。級聯資料夾瀏覽器外掛模組那個「儲存你所在的資料夾」的 `+` 按鈕就是這個成員。
+- **`DynamicMenuItem.IsHeader`**：在巢狀子選單中，返回 `IsHeader = true` 的項目會轉譯出帶有動作按鈕的互動式群組標題。
+- **`MouseTriggerType`**：命名了兩個可以開啟選單的全域手勢。哪些手勢生效屬於使用者設定，而非提供者的決定——見[**快速鍵 → 快速導航滑鼠觸發**](../../user-guide/settings/hotkeys-page)。
 
 ## 6. 註冊表
 
