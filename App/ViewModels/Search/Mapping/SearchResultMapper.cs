@@ -290,7 +290,7 @@ public static class SearchResultMapper
         // The inline window's global tier shares this ranking, but its history caps are 1/3 while the quick
         // window's are 3/10. Mixed into one log that has no window field, the bucket distribution would tilt
         // toward Boosted, so the inline window is not sampled.
-        var ranked = RankAndDedupe(candidates, rankContext, isInlineWindow ? null : query);
+        var ordered = RankedCandidateOrdering.Order(candidates, rankContext, isInlineWindow ? null : query);
         // Capped here (not deferred to the caller) because this display cap has to respect whatever
         // header/grouping layout the caller (or InlineListSearchHelper.MergeLocalMatches, downstream)
         // builds around these rows -- e.g. the inline window's "Current Folder"/"Global Search" split
@@ -299,31 +299,34 @@ public static class SearchResultMapper
         // grouping anyway (see its own composition logic). Same two-tier shape as before (show
         // everything under 10 total, else pad to ~8 then allow up to 50 with a "N more" marker) --
         // just applied to the now-unified candidate list instead of only file results.
-        if (skipDisplayCap || uiResults.Count + ranked.Count < 10)
+        if (skipDisplayCap || uiResults.Count + ordered.Count < 10)
         {
-            foreach (var result in ranked)
+            foreach (var candidate in ordered)
             {
-                result.Index = uiResults.Count;
-                uiResults.Add(result);
+                candidate.Result.Index = uiResults.Count;
+                uiResults.Add(candidate.Result);
             }
 
             return uiResults;
         }
 
-        var firstCount = Math.Min(ranked.Count, Math.Max(0, 8 - uiResults.Count));
+        var hasMoreAtEnd = ordered.Count > 50;
+        // A type the user bothered to order must not vanish behind the cap: keep its best few rows and let
+        // the rest of the slots follow the global order (EnsureTypeCoverage never reorders, only selects).
+        if (hasMoreAtEnd)
+            ordered = RankedCandidateOrdering.EnsureTypeCoverage(ordered, 50);
+
+        var firstCount = Math.Min(ordered.Count, Math.Max(0, 8 - uiResults.Count));
         for (var i = 0; i < firstCount; i++)
         {
-            ranked[i].Index = uiResults.Count;
-            uiResults.Add(ranked[i]);
+            ordered[i].Result.Index = uiResults.Count;
+            uiResults.Add(ordered[i].Result);
         }
 
-        var hasMoreAtEnd = ranked.Count > 50;
-        var endLimit = hasMoreAtEnd ? 50 : ranked.Count;
-
-        for (var i = firstCount; i < endLimit; i++)
+        for (var i = firstCount; i < ordered.Count; i++)
         {
-            ranked[i].Index = uiResults.Count;
-            uiResults.Add(ranked[i]);
+            ordered[i].Result.Index = uiResults.Count;
+            uiResults.Add(ordered[i].Result);
         }
 
         if (hasMoreAtEnd)
@@ -336,8 +339,9 @@ public static class SearchResultMapper
 
     // IsFavorite: an explicit user pick. HistoryCount is how many times the path was opened (0 when not
     // in history), which the kernel only uses when it has no decayed score for the path. TypeRank is the
-    // row's position in the user's result-type order (int.MaxValue when the type is not listed); it only
-    // decides inside one score band, and never inside the low-priority one. IsHistoryOnly marks a row that
+    // row's position in the user's result-type order (int.MaxValue when the type is not listed); the quick
+    // window adds its type bonus to the C/P score and the display cap keeps a few rows per type, while the
+    // full window has no type layer at all. IsHistoryOnly marks a row that
     // exists only because a history keyword matched: its name did not match, so the kernel must not treat
     // the keyword rank as a name match. Which keys these become is RankPolicy's decision, not this type's.
     internal readonly record struct RankedCandidate(

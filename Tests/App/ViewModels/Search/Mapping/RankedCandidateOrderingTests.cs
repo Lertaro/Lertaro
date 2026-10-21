@@ -153,4 +153,41 @@ public sealed class RankedCandidateOrderingTests
         Assert.AreEqual(@"C:\z-high.txt", ranked[0].Result.FullPath);
         Assert.AreEqual(@"C:\a-normal.txt", ranked[1].Result.FullPath);
     }
+
+    // The display cap keeps each type's best few rows: with 60 rows, the three rows of the last type sit
+    // beyond the 50-row cut, and the reservation is what pulls them back in.
+    [TestMethod]
+    public void EnsureTypeCoverage_KeepsTheBestRowsOfATypePastTheCap()
+    {
+        var ordered = new List<SearchResultMapper.RankedCandidate>();
+        for (var i = 0; i < 57; i++)
+            ordered.Add(Candidate($@"C:\bulk\b{i:00}.txt", typeRank: 9));
+        for (var i = 0; i < 3; i++)
+            ordered.Add(Candidate($@"C:\tail\t{i}.txt", typeRank: 0));
+
+        var kept = RankedCandidateOrdering.EnsureTypeCoverage(ordered, 50);
+
+        Assert.AreEqual(50, kept.Count);
+        Assert.IsTrue(kept.Exists(c => c.Result.FullPath == @"C:\tail\t0.txt"));
+        Assert.IsTrue(kept.Exists(c => c.Result.FullPath == @"C:\tail\t2.txt"));
+        // Only three slots go to the sparse type; the rest still follow the global order.
+        Assert.AreEqual(3, kept.Count(c => c.TypeRank == 0));
+        Assert.AreEqual(@"C:\bulk\b00.txt", kept[0].Result.FullPath);
+    }
+
+    // Selection never reorders: the rows that survive keep their relative order.
+    [TestMethod]
+    public void EnsureTypeCoverage_DoesNotReorderTheKeptRows()
+    {
+        var ordered = new List<SearchResultMapper.RankedCandidate>();
+        for (var i = 0; i < 55; i++)
+            ordered.Add(Candidate($@"C:\bulk\b{i:00}.txt", typeRank: 9));
+        ordered.Add(Candidate(@"C:\tail\t.txt", typeRank: 0));
+
+        var kept = RankedCandidateOrdering.EnsureTypeCoverage(ordered, 50);
+        var expected = ordered.Where(c => kept.Contains(c)).Select(c => c.Result.FullPath).ToList();
+
+        CollectionAssert.AreEqual(expected, kept.Select(c => c.Result.FullPath).ToList());
+        Assert.IsTrue(kept.Exists(c => c.Result.FullPath == @"C:\tail\t.txt"));
+    }
 }

@@ -403,4 +403,44 @@ public sealed class RankPolicyTests
             }
         }
     }
+
+    [TestMethod]
+    public void TypeBonus_DecaysWithTheUsersOrderAndUnlistedTypesGetNothing()
+    {
+        var match = Strong();
+
+        Assert.AreEqual(16, RankPolicy.TypeBonus(0, match));
+        Assert.AreEqual(8, RankPolicy.TypeBonus(1, match));
+        Assert.AreEqual(4, RankPolicy.TypeBonus(2, match));
+        Assert.AreEqual(1, RankPolicy.TypeBonus(3, match));
+        Assert.AreEqual(0, RankPolicy.TypeBonus(4, match));
+        Assert.AreEqual(0, RankPolicy.TypeBonus(int.MaxValue, match));
+    }
+
+    [TestMethod]
+    public void TypeBonus_ScalesWithTheWeakMatchWeight()
+    {
+        var weak = new MatchRank(MatchRank.TierName, 0, 0.25, 1.0, MatchRank.ShapeScattered);
+
+        Assert.AreEqual(4, RankPolicy.TypeBonus(0, weak));
+        Assert.AreEqual(0, RankPolicy.TypeBonus(int.MaxValue, weak));
+        Assert.AreEqual(0, RankPolicy.TypeBonus(0, MatchRank.NoMatch));
+    }
+
+    [TestMethod]
+    public void QuickScore_WeightsOnlyTheBaseScore()
+    {
+        var strong = Signals(typeRank: 0);
+        Assert.AreEqual(34, RankPolicy.QuickScore(strong, HistoryTier.None));
+        Assert.AreEqual(18, RankPolicy.Score(strong, HistoryTier.None));
+
+        var favorite = Signals(isFavorite: true, typeRank: 0);
+        Assert.AreEqual(44, RankPolicy.QuickScore(favorite, HistoryTier.None));
+
+        var h5 = Signals(typeRank: 0, historyScoreX100: 600);
+        Assert.AreEqual(34, RankPolicy.QuickScore(h5, HistoryTier.H5));
+
+        var tail = Signals(isHistoryOnly: true, strong: false, typeRank: 0, historyScoreX100: 200);
+        Assert.AreEqual(6, RankPolicy.QuickScore(tail, HistoryTier.Tail));
+    }
 }

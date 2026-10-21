@@ -372,14 +372,28 @@ public sealed class RankAndDedupeTests
     }
 
     [TestMethod]
-    public void RankAndDedupe_MatchStrengthBeatsTypeGroup()
+    public void RankAndDedupe_TypeBonusLiftsAReasonableMatchOfTheLeadingType()
     {
-        // Inside Boosted the score comes first, and the score is what the strength decides: a rare-reading
-        // row of the preferred type (8) loses to a strong row of a later type (18).
+        // The user ordered the type list, so the leading type earns its bonus on top of its own C/P score:
+        // a rare-reading row of the first type (8 + 16) now beats a strong row of the third type (18 + 4).
         var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
             Candidate(@"C:\files.txt", typeRank: 2),
             Candidate(@"C:\apps.txt", typeRank: 0, tier: MatchRank.TierFullRare),
+        });
+
+        Assert.AreEqual(@"C:\apps.txt", ranked[0].FullPath);
+    }
+
+    // The bonus is capped by the row's own match quality: a barely matching row of the leading type does not
+    // ride the type order past a strong match further down.
+    [TestMethod]
+    public void RankAndDedupe_TypeBonusDoesNotLiftABarelyMatchingRow()
+    {
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\files.txt", typeRank: 2),
+            Candidate(@"C:\apps.txt", typeRank: 0, tier: MatchRank.TierFullRare, coverage: 0.2),
         });
 
         Assert.AreEqual(@"C:\files.txt", ranked[0].FullPath);

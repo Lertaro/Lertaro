@@ -37,7 +37,12 @@ internal static class RankedCandidateOrdering
         for (var i = 0; i < rows.Length; i++)
         {
             var tier = budget.GetValueOrDefault(signals[i].NormalizedPath, HistoryTier.None);
-            keys[i] = RankPolicy.BuildKey(signals[i], tier);
+            // The quick window is the only consumer with a display-type order: weight the C/P score by the
+            // type's position there (favorites and history tiers are global and keep their own score).
+            keys[i] = RankPolicy.BuildKey(signals[i], tier) with
+            {
+                Score = RankPolicy.QuickScore(signals[i], tier),
+            };
             // The "frequent" badge: only the two lifted history tiers are a habit. A history-tail row
             // (fewer than three effective opens) is merely known, so it gets no badge.
             rows[i].Result.IsFrequent = tier >= HistoryTier.H3;
@@ -46,6 +51,51 @@ internal static class RankedCandidateOrdering
         Array.Sort(keys, rows, RankKeyComparer.Instance);
         RecordPage(query, rows, keys);
         return [.. rows];
+    }
+
+    /// <summary>
+    /// Keeps the display cap from swallowing a whole result type: before the list is truncated, each type
+    /// keeps its best <paramref name="perType"/> rows and the rest of the slots go back to the global order.
+    /// The relative order of the kept rows never changes -- this only decides which rows survive. Types the
+    /// user never listed share the int.MaxValue rank and therefore share one slot group.
+    /// </summary>
+    internal static List<SearchResultMapper.RankedCandidate> EnsureTypeCoverage(
+        List<SearchResultMapper.RankedCandidate> ordered,
+        int cap,
+        int perType = 3)
+    {
+        if (ordered.Count <= cap || cap <= 0 || perType <= 0)
+            return ordered;
+
+        var take = new bool[ordered.Count];
+        var seenPerType = new Dictionary<int, int>();
+        var taken = 0;
+        for (var i = 0; i < ordered.Count && taken < cap; i++)
+        {
+            var type = ordered[i].TypeRank;
+            seenPerType.TryGetValue(type, out var seen);
+            if (seen >= perType)
+                continue;
+            seenPerType[type] = seen + 1;
+            take[i] = true;
+            taken++;
+        }
+
+        for (var i = 0; i < ordered.Count && taken < cap; i++)
+        {
+            if (take[i])
+                continue;
+            take[i] = true;
+            taken++;
+        }
+
+        var kept = new List<SearchResultMapper.RankedCandidate>(taken);
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            if (take[i])
+                kept.Add(ordered[i]);
+        }
+        return kept;
     }
 
     // The calibration sample: the leading rows of the page the user is about to see, ranked. Nothing is

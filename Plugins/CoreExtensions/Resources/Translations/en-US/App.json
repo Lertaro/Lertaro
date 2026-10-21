@@ -478,7 +478,7 @@
   "General_KeepSearchTextHint": "Neither closing the quick search window nor pressing Escape in the full window empties the search box. This lasts for the current session only: the text itself is never saved.",
   "General_LayoutReset": "Reset Layout Settings",
   "General_ResultTypeOrderTitle": "Result Type Priority",
-  "General_ResultTypeOrderHint": "Choose which result type wins when several equally-good matches tie in the quick window -- move a type up to make it always outrank the ones below it, regardless of which one actually matched the query text better. History and Favorites always come first and aren't affected by this list. Optionally, give a type a single-character trigger below -- typing it as the very first character shows only that type's results.",
+  "General_ResultTypeOrderHint": "Decide how much each result type counts in the quick window: the higher a type sits, the bigger its bonus, so it wins near-ties and can still lead with a weaker match. The bonus is scaled by match quality, so a barely-matching row cannot jump past a more accurate match elsewhere. History and Favorites are global signals and ignore this list. Optionally, give a type a single-character trigger below -- typing it as the very first character shows only that type's results.",
   "General_ResultTypeFiles": "Files",
   "General_ResultTypeTriggerTooltip": "Optional trigger character. Typing this as the first character of your search shows only this type's results. Leave empty for none.",
   "General_ResultTypeTriggerTaken": "This trigger character is already used by {0}. Only the first match takes effect; pick another character.",

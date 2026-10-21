@@ -134,6 +134,50 @@ public static class RankPolicy
     public static int Score(in RankSignals s, HistoryTier tier) =>
         Score(s.Match.IsStrong, s.IsFavorite, s.IsHistoryOnly, s.Priority, tier);
 
+    /// <summary>The biggest bonus the first type in the user's result-type order earns on a strong match.</summary>
+    public const int TypeBonusMax = 16;
+
+    /// <summary>
+    /// The quick window's score: the base C/P score plus the row's display-type weight. Only the base score
+    /// is weighted -- a favorite in the fifth type must stay above a strong match in the first, and the
+    /// history tiers are global by the same argument. The full window has no type layer and keeps calling
+    /// <see cref="Score(in RankSignals, HistoryTier)"/> through <c>SearchResultRanking.Decorate</c>.
+    /// </summary>
+    public static int QuickScore(in RankSignals s, HistoryTier tier) =>
+        UsesBaseScore(s.Match.IsStrong, s.IsFavorite, s.IsHistoryOnly, tier)
+            ? Score(s, tier) + TypeBonus(s.TypeRank, s.Match)
+            : Score(s, tier);
+
+    /// <summary>The rows whose score the display-type order is allowed to weight.</summary>
+    public static bool UsesBaseScore(bool isStrong, bool isFavorite, bool isHistoryOnly, HistoryTier tier) =>
+        !(isFavorite && isStrong)
+        && tier is not (HistoryTier.H5 or HistoryTier.H3)
+        && !(isHistoryOnly && tier == HistoryTier.Tail);
+
+    /// <summary>
+    /// How much the user's result-type order adds to a row's score. The first type gets enough to lift a
+    /// reasonable match over a perfect match two or three types down, and the bonus decays per position
+    /// instead of acting as a hard group. A weak match keeps only its own quality share of the bonus
+    /// (<see cref="MatchRank.Weight"/>), so a barely matching row in the first type still loses to a strong
+    /// match further down. Unlisted types (int.MaxValue) and any type past the fourth get nothing.
+    /// </summary>
+    public static int TypeBonus(int typeRank, in MatchRank match)
+    {
+        var max = typeRank switch
+        {
+            0 => TypeBonusMax,
+            1 => TypeBonusMax / 2,
+            2 => TypeBonusMax / 4,
+            3 => TypeBonusMax / 16,
+            _ => 0,
+        };
+        if (max == 0 || !match.IsMatch)
+            return 0;
+        if (match.IsStrong)
+            return max;
+        return (int)Math.Round(max * Math.Clamp(match.Weight, 0, 1), MidpointRounding.AwayFromZero);
+    }
+
     /// <summary>
     /// The section of one candidate, in the fixed order of redesign 3.2: always-top first, then anything
     /// history or a favorite lifts (regardless of its priority bucket -- a low-priority H5 row is Boosted),
