@@ -2,7 +2,7 @@
 
 ## 适用范围与核对基线
 
-本篇是搜索排序与两窗差异的唯一权威文档，描述的是**已实施**的行为。设计依据、参数理由、阶段进度与性能数字在 [search-ranking-redesign.md](search-ranking-redesign.md)；未被采纳的独立分值方案在 [search-ranking-score-model.md](search-ranking-score-model.md)。
+本篇是搜索排序与两窗差异的唯一权威文档，描述的是**已实施的 V2 行为**。设计依据、参数理由、阶段进度与性能数字在 [search-ranking-redesign.md](search-ranking-redesign.md)；未被采纳的独立分值方案在 [search-ranking-score-model.md](search-ranking-score-model.md)。针对低匹配越级、`.lnk` 应用身份/召回、历史反馈偏差和拼音空格敏感的新一轮工作，以 [search-ranking-intuition-plan.md](search-ranking-intuition-plan.md) 为唯一实施计划；计划落地前不能把其中 V3 规则当成现行行为。
 
 基线：`main` = `fd490885`，排序改进（阶段 1–3）已在该基线上落地。旧文描述的“优先档 → 类型 → 六质量键 → 收藏 → history band → …”梯子已整体删除：`RankedCandidateOrdering` 的 11 层 LINQ 换成了“合并路径 → 装饰 → 历史预算 → `Array.Sort`”，完整窗口换成一次性装饰 + 只读字段的比较器。本文按该状态重写，与旧文冲突时以本文为准。
 
@@ -297,6 +297,8 @@ query="atlas !code" name="code-atlas.txt"
 - 单测通过数要注明口径：`ExplorerStaInvokerTests` 与 `UpdaterRollbackTests` 在方法级并行下会偶发环境性红，不是排序回归；Core 的日常基线要带过滤，见下节。
 
 ## 仍然待办
+
+以下 V2 遗留与用户反馈的系统性改进已经整理成 [search-ranking-intuition-plan.md](search-ranking-intuition-plan.md) 的 P0–P10；这里仍只记录现行缺口，不在两处各维护一套步骤。
 
 - 应用内 p50/p95 未测：基准只覆盖 `RankPolicy.BuildKey`、`SearchCandidateComparer` 与 `RankedSearchResultComparer`，窗口重绘与数据到达的真实延迟要跑起应用才能取。
 - 真实日志的校准未做：0.8 交换率、90 天半衰期、3/10 名额都是先验值，需要用 `ranking-events.jsonl` 的样本回放（`RankingEventLogTests` 只保证采样正确，不评价好坏）。
