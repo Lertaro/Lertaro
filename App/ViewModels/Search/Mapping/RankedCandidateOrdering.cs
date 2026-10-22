@@ -19,7 +19,8 @@ internal static class RankedCandidateOrdering
     public static List<SearchResultMapper.RankedCandidate> Order(
         List<SearchResultMapper.RankedCandidate> candidates,
         RankContext? context = null,
-        string? query = null)
+        string? query = null,
+        IReadOnlyList<string>? typeOrder = null)
     {
         if (candidates.Count == 0)
             return [];
@@ -49,7 +50,7 @@ internal static class RankedCandidateOrdering
         }
 
         Array.Sort(keys, rows, RankKeyComparer.Instance);
-        RecordPage(query, rows, keys);
+        RecordPage(query, rows, keys, context, budget, typeOrder);
         return [.. rows];
     }
 
@@ -98,9 +99,15 @@ internal static class RankedCandidateOrdering
         return kept;
     }
 
-    // The calibration sample: the leading rows of the page the user is about to see, ranked. Nothing is
-    // allocated for it while the log is off.
-    private static void RecordPage(string? query, SearchResultMapper.RankedCandidate[] rows, RankKey[] keys)
+    // The calibration sample: the leading rows of the page the user is about to see, ranked, with the
+    // decomposition of each key. Nothing is allocated for it while the log is off.
+    private static void RecordPage(
+        string? query,
+        SearchResultMapper.RankedCandidate[] rows,
+        RankKey[] keys,
+        RankContext? context,
+        IReadOnlyDictionary<string, HistoryTier> budget,
+        IReadOnlyList<string>? typeOrder)
     {
         if (query is null || !RankingEventLog.IsEnabled)
             return;
@@ -108,9 +115,28 @@ internal static class RankedCandidateOrdering
         var taken = Math.Min(rows.Length, RankingEventLog.DisplayRowLimit);
         var page = new RankingLogRow[taken];
         for (var i = 0; i < taken; i++)
-            page[i] = new RankingLogRow(rows[i].NormalizedPath, i + 1, keys[i].Section, keys[i].Score);
+        {
+            // The pre-sort signal array is not permuted with the sort, so it cannot be indexed in step
+            // with the rows. Rebuilding the row's own signals keeps the logged decomposition attached
+            // to the row it belongs to; only the page's leading rows pay for it.
+            var signal = ToSignals(rows[i], context);
+            page[i] = new RankingLogRow(
+                rows[i].NormalizedPath,
+                i + 1,
+                (RankSection)keys[i].Section,
+                keys[i].Score,
+                keys[i].TypeRank,
+                signal.Priority,
+                budget.GetValueOrDefault(signal.NormalizedPath, HistoryTier.None),
+                keys[i].HistoryTie,
+                signal.Match,
+                signal.IsFavorite,
+                signal.IsHistoryOnly,
+                signal.IsDir,
+                IsApplication(rows[i]));
+        }
 
-        RankingEventLog.RecordQuery(query, page);
+        RankingEventLog.RecordQuery(query, page, typeOrder);
     }
 
     private static SearchResultMapper.RankedCandidate[] MergeByPath(

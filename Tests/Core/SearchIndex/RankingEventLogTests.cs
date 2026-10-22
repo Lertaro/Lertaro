@@ -42,10 +42,31 @@ public sealed class RankingEventLogTests
     private string Read() => File.ReadAllText(MainPath);
 
     private static RankingLogRow Row(string path, int rank) =>
-        new(path, rank, (int)RankSection.Boosted, 18);
+        new(
+            path,
+            rank,
+            RankSection.Boosted,
+            18,
+            0,
+            IndexRuleEffect.Normal,
+            HistoryTier.None,
+            0,
+            MatchRank.NoMatch,
+            false,
+            false,
+            false,
+            false);
 
     private static RankingLogRow[] Page(int count) =>
         Enumerable.Range(1, count).Select(i => Row($@"D:\page\file{i}.txt", i)).ToArray();
+
+    // A page line plus one line per row: the page is what carries the query's shared context (type order,
+    // candidate count), so every assertion below skips it rather than counting it as a row.
+    private JsonElement[] RowLines() =>
+        File.ReadAllLines(MainPath)
+            .Skip(1)
+            .Select(line => JsonDocument.Parse(line).RootElement)
+            .ToArray();
 
     [TestMethod]
     public void RecordQuery_WritesHashesInsteadOfText()
@@ -72,11 +93,77 @@ public sealed class RankingEventLogTests
     {
         RankingEventLog.RecordQuery("atlas", Page(12));
 
-        var ranks = File.ReadAllLines(MainPath)
-            .Select(line => JsonDocument.Parse(line).RootElement.GetProperty("rank").GetInt32())
+        var ranks = RowLines()
+            .Select(element => element.GetProperty("rank").GetInt32())
             .ToArray();
         Assert.AreEqual(10, ranks.Length);
         CollectionAssert.AreEqual(Enumerable.Range(1, 10).ToArray(), ranks);
+    }
+
+    [TestMethod]
+    public void RecordQuery_WritesPageLineWithTheTypeOrder()
+    {
+        RankingEventLog.RecordQuery("atlas", Page(2), ["__builtin::Files", "CoreExtensions.StartMenu"]);
+
+        var lines = File.ReadAllLines(MainPath);
+        Assert.AreEqual(3, lines.Length);
+        var page = JsonDocument.Parse(lines[0]).RootElement;
+        Assert.AreEqual("page", page.GetProperty("kind").GetString());
+        Assert.AreEqual(2, page.GetProperty("rows").GetInt32());
+        Assert.AreEqual(2, page.GetProperty("shown").GetInt32());
+        Assert.AreEqual("__builtin::Files", page.GetProperty("order")[0].GetString());
+        Assert.AreEqual("CoreExtensions.StartMenu", page.GetProperty("order")[1].GetString());
+        Assert.AreEqual(RankingEventLog.SchemaVersion, page.GetProperty("v").GetInt32());
+    }
+
+    [TestMethod]
+    public void RecordQuery_AnEmptyTypeOrderIsAnEmptyArray()
+    {
+        RankingEventLog.RecordQuery("atlas", Page(1));
+
+        var page = JsonDocument.Parse(File.ReadAllLines(MainPath)[0]).RootElement;
+        Assert.AreEqual(0, page.GetProperty("order").GetArrayLength());
+    }
+
+    [TestMethod]
+    public void RecordQuery_DecomposesTheKeyWithoutNamingAnything()
+    {
+        // A .lnk four levels down with a strong whole-word match in the first result type: exactly the row
+        // the calibration log has to make arguable ("why is this above that folder?") without the text.
+        var path = @"D:\tools\smalltools\Auslogics Duplicate File Finder.lnk";
+        var row = new RankingLogRow(
+            path,
+            1,
+            RankSection.Boosted,
+            34,
+            0,
+            IndexRuleEffect.Normal,
+            HistoryTier.H5,
+            5000,
+            new MatchRank(MatchRank.TierName, 0, 0.742, 1),
+            false,
+            false,
+            false,
+            false);
+        RankingEventLog.RecordQuery("auslogics", [row]);
+
+        var element = RowLines()[0];
+        Assert.AreEqual(34, element.GetProperty("score").GetInt32());
+        Assert.AreEqual(0, element.GetProperty("typeRank").GetInt32());
+        Assert.AreEqual(1, element.GetProperty("prio").GetInt32());
+        Assert.AreEqual((int)HistoryTier.H5, element.GetProperty("hTier").GetInt32());
+        Assert.AreEqual(5000, element.GetProperty("histTie").GetInt32());
+        Assert.AreEqual(1, element.GetProperty("strong").GetInt32());
+        Assert.AreEqual(742, element.GetProperty("mCov").GetInt32());
+        Assert.AreEqual(1000, element.GetProperty("mCont").GetInt32());
+        Assert.AreEqual(1, element.GetProperty("ext").GetInt32());
+        Assert.AreEqual(4, element.GetProperty("depth").GetInt32());
+        Assert.AreEqual(Path.GetFileName(path).Length, element.GetProperty("nameLen").GetInt32());
+
+        var text = Read();
+        Assert.IsFalse(text.Contains("Auslogics"), text);
+        Assert.IsFalse(text.Contains("smalltools"), text);
+        Assert.IsFalse(text.Contains("auslogics"), text);
     }
 
     [TestMethod]
@@ -86,7 +173,8 @@ public sealed class RankingEventLogTests
         RankingEventLog.RecordQuery("atlas", page);
         RankingEventLog.RecordQuery("atlas", page);
 
-        Assert.AreEqual(10, File.ReadAllLines(MainPath).Length);
+        // One page line plus the ten rows.
+        Assert.AreEqual(11, File.ReadAllLines(MainPath).Length);
     }
 
     [TestMethod]
@@ -96,7 +184,8 @@ public sealed class RankingEventLogTests
         RankingEventLog.RecordQuery("atlas", page);
         RankingEventLog.RecordQuery("atlas2", page);
 
-        Assert.AreEqual(2, File.ReadAllLines(MainPath).Length);
+        // Two pages, each one page line plus its single row.
+        Assert.AreEqual(4, File.ReadAllLines(MainPath).Length);
     }
 
     [TestMethod]
@@ -130,7 +219,8 @@ public sealed class RankingEventLogTests
         RankingEventLog.RecordQuery("atlas", Page(1));
 
         Assert.IsTrue(File.Exists(Path.Combine(_dir, "ranking-events.1.jsonl")));
-        Assert.AreEqual(1, File.ReadAllLines(MainPath).Length);
+        // The fresh file holds this query's page line and its single row.
+        Assert.AreEqual(2, File.ReadAllLines(MainPath).Length);
     }
 
     [TestMethod]

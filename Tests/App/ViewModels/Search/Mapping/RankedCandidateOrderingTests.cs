@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.Json;
 
 using Lertaro.App.ViewModels.Search.Mapping;
 using Lertaro.Core;
@@ -189,5 +190,54 @@ public sealed class RankedCandidateOrderingTests
 
         CollectionAssert.AreEqual(expected, kept.Select(c => c.Result.FullPath).ToList());
         Assert.IsTrue(kept.Exists(c => c.Result.FullPath == @"C:\tail\t.txt"));
+    }
+
+    // The page is written after the sort, and the sort permutes the rows without permuting the signal
+    // array. Indexing the pre-sort signals in step with the ranked rows would label every row with the
+    // signals of whatever candidate happened to sit at that index before the sort.
+    [TestMethod]
+    public void RecordedPageKeepsEachRowsOwnSignalsAfterTheSort()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "LertaroRankedPage_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        RankingEventLog.DirectoryOverride = directory;
+        RankingEventLog.EnabledOverride = true;
+        try
+        {
+            // Input order is the reverse of the ranked order: z-high is Normal in input position 2.
+            RankedCandidateOrdering.Order(
+                new List<SearchResultMapper.RankedCandidate>
+                {
+                    Candidate(@"C:\a-normal.txt", coverage: 0.5),
+                    Candidate(@"C:\z-high.txt", coverage: 0.2),
+                },
+                new RankContext(Priorities()),
+                "atlas");
+
+            var rows = File.ReadAllLines(Path.Combine(directory, "ranking-events.jsonl"))
+                .Skip(1)
+                .Select(line => JsonDocument.Parse(line).RootElement)
+                .ToArray();
+
+            Assert.AreEqual(2, rows.Length);
+            Assert.AreEqual(1, rows[0].GetProperty("rank").GetInt32());
+            Assert.AreEqual(2, rows[0].GetProperty("prio").GetInt32());
+            Assert.AreEqual(1, rows[1].GetProperty("prio").GetInt32());
+            // The weak-coverage row must keep its own match, not the one that used to sit above it.
+            Assert.AreEqual(200, rows[0].GetProperty("mCov").GetInt32());
+            Assert.AreEqual(500, rows[1].GetProperty("mCov").GetInt32());
+        }
+        finally
+        {
+            RankingEventLog.DirectoryOverride = null;
+            RankingEventLog.EnabledOverride = false;
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+            catch (IOException)
+            {
+            }
+        }
     }
 }
