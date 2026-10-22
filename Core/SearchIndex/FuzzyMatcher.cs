@@ -48,7 +48,14 @@ public static class FuzzyMatcher
             if (live.TryScore(text, null, out _))
                 return true;
         }
-        else if (fzf.TryMatch(text, out _, FzfScoringScheme.Default))
+
+        // The literal read is NOT skipped when a live provider exists: the live matcher only decides the
+        // provider's own alphabet, so a term that is not that alphabet (an ASCII abbreviation like "zbl"
+        // against a CJK name) has no pinyin reading to match and would otherwise reach the alias lane --
+        // where the loose reading accepts it as a subsequence the painter then refuses to paint. Measured
+        // before this: with the pinyin provider registered, a plain fuzzy query on such a name matched
+        // ONLY through that lane.
+        if (fzf.TryMatch(text, out _, FzfScoringScheme.Default))
         {
             return true;
         }
