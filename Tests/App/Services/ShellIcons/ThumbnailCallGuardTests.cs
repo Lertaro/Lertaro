@@ -4,9 +4,10 @@ using Lertaro.App.Services.ShellIcons;
 
 namespace Lertaro.App.Tests.Services.ShellIcons;
 
-// The guard is what keeps one wedged plugin thumbnail call from holding an icon-loader permit open forever,
-// which is how every result row in a user's quick window stayed on its placeholder (measured 2026-10-22 from
-// his full dump: 4 hung GetImage calls, 163 rows queued behind them, 38 idle workers).
+// One guard now bounds both questions the host asks a thumbnail provider: the thumbnail itself, which used to
+// hold an icon-loader permit open forever, and the can-you-handle-this-path question, asked on the UI thread
+// for every visible row. Measured 2026-10-22 from a user's full dump: 4 hung GetImage calls, 163 rows queued
+// behind them, 38 idle workers.
 [TestClass]
 [DoNotParallelize]
 public sealed class ThumbnailCallGuardTests
@@ -35,7 +36,9 @@ public sealed class ThumbnailCallGuardTests
     {
         var image = new BitmapImage();
 
-        Assert.AreSame(image, ThumbnailCallGuard.Run(() => image, @"C:\any.png"));
+        var result = ThumbnailCallGuard.Run<ImageSource?>(() => image, @"C:\any.png");
+
+        Assert.AreSame(image, result);
         Assert.IsFalse(ThumbnailCallGuard.InCooldown);
     }
 
@@ -46,10 +49,10 @@ public sealed class ThumbnailCallGuardTests
         var gate = new ManualResetEventSlim(false);
         try
         {
-            var result = ThumbnailCallGuard.Run(() =>
+            var result = ThumbnailCallGuard.Run<ImageSource?>(() =>
             {
                 gate.Wait();
-                return (ImageSource?)null;
+                return null;
             }, @"C:\wedged.mp4");
 
             Assert.IsNull(result, "a wedged provider must not keep the caller waiting past the budget");
@@ -63,27 +66,57 @@ public sealed class ThumbnailCallGuardTests
     }
 
     [StaTestMethod]
-    public void Run_WhileInCooldown_SkipsTheProviderAltogether()
+    public void Run_WedgedCanProvideQuestion_AnswersNoAndTripsCooldown()
+    {
+        ThumbnailCallGuard.TimeoutMs = 50;
+        var gate = new ManualResetEventSlim(false);
+        try
+        {
+            var answer = ThumbnailCallGuard.Run(() =>
+            {
+                gate.Wait();
+                return true;
+            }, @"C:\wedged.mp4");
+
+            Assert.IsFalse(answer, "a provider that cannot answer the yes/no question counts as no help at all");
+            Assert.IsTrue(ThumbnailCallGuard.InCooldown);
+        }
+        finally
+        {
+            gate.Set();
+        }
+    }
+
+    [StaTestMethod]
+    public void Run_WhileInCooldown_SkipsBothProviderQuestions()
     {
         ThumbnailCallGuard.CooldownUntilUtcTicks = DateTime.UtcNow.AddMinutes(1).Ticks;
-        var called = false;
+        var thumbnailAsked = false;
+        var canProvideAsked = false;
 
-        var result = ThumbnailCallGuard.Run(() =>
+        var thumbnail = ThumbnailCallGuard.Run<ImageSource?>(() =>
         {
-            called = true;
+            thumbnailAsked = true;
             return new BitmapImage();
         }, @"C:\any.png");
+        var canProvide = ThumbnailCallGuard.Run(() =>
+        {
+            canProvideAsked = true;
+            return true;
+        }, @"C:\any.png");
 
-        Assert.IsNull(result);
-        Assert.IsFalse(called, "one wedged handler is probed once per cooldown window, not once per row");
+        Assert.IsNull(thumbnail);
+        Assert.IsFalse(canProvide);
+        Assert.IsFalse(thumbnailAsked, "one wedged handler is probed once per cooldown window, not once per row");
+        Assert.IsFalse(canProvideAsked, "the UI-thread question is skipped for the same window");
     }
 
     [StaTestMethod]
     public void Run_ProviderFastsWithAnException_LeavesCooldownAlone()
     {
         Assert.ThrowsExactly<AggregateException>(() =>
-            ThumbnailCallGuard.Run(() => throw new InvalidOperationException("bad provider"), @"C:\any.png"));
+            ThumbnailCallGuard.Run<ImageSource?>(() => throw new InvalidOperationException("bad provider"), @"C:\any.png"));
 
-        Assert.IsFalse(ThumbnailCallGuard.InCooldown, "a provider that answers fast, even badly, must not freeze every provider's results");
+        Assert.IsFalse(ThumbnailCallGuard.InCooldown, "a provider that answers fast, even badly, must not freeze every provider's calls");
     }
 }
