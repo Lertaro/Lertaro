@@ -157,6 +157,11 @@ internal sealed class SearchDispatchController
         string searchQuery,
         FileFilterScopeDirective? scopeDirective)
     {
+        // A new search always paints, whatever the previous one left behind. The signature below
+        // exists to skip a STREAMING report that carries the rows already on screen; carried across
+        // searches it also skipped the first report of a query whose rows had been cleared since --
+        // the card was hidden and re-summoned -- and the list stayed empty for that first keystroke.
+        _lastAppliedSignature = null;
         // A query token (e.g. "::bzsc") filters/reorders whatever candidate set it's handed in
         // ComposeAndApplyAsync, AFTER this search already ran -- the usual 51/51 quick-window budget
         // (and BuildQuickResults' own ~50-item display cap) exists to keep every ordinary keystroke
