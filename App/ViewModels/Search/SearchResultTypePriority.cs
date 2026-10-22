@@ -63,18 +63,19 @@ public static class SearchResultTypePriority
         return rank;
     }
 
-    // A shortcut file (.lnk/.url/.appref-ms) is two things at once: a file-index row, and -- wherever the
+    // A shortcut file (.lnk/.appref-ms) is two things at once: a file-index row, and -- wherever the
     // app provider indexes it -- an application row. Ranking takes the better of the two ranks, so moving
     // "Applications" below "Files" in the order can never demote a shortcut: whichever identity the user
     // ranked higher is the one that counts. An .exe is deliberately NOT a shortcut here -- it is a file
-    // the user searched for anywhere, and giving every build output the app bonus would invert that.
+    // the user searched for anywhere, and giving every build output the app bonus would invert that. A
+    // .url is excluded for the same kind of reason: it opens a web page in a browser, so it is a file row
+    // the user searches for, not an installed program.
     public static int ShortcutRank(int appRank, int filesRank) => Math.Min(appRank, filesRank);
 
     public static bool IsShortcutPath(string path)
     {
         var extension = Path.GetExtension(path);
         return extension.Equals(".lnk", StringComparison.OrdinalIgnoreCase)
-            || extension.Equals(".url", StringComparison.OrdinalIgnoreCase)
             || extension.Equals(".appref-ms", StringComparison.OrdinalIgnoreCase);
     }
 
