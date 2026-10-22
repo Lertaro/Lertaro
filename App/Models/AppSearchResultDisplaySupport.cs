@@ -107,7 +107,16 @@ internal static class AppSearchResultDisplaySupport
                 });
             }
             return Task.CompletedTask;
-        });
+        },
+        // IconLoadingStarted is one-way and GetIcon short-circuits on a non-null Icon, so a row whose permit
+        // never came free would keep its placeholder for the rest of the session. Clearing both here lets the
+        // next binding refresh queue the load again -- the quick window re-notifies every persisted row when it
+        // is shown or rescaled, which is what makes an aborted load self-healing instead of permanent.
+        onWaitTimedOut: () => LazyBackgroundLoader.ApplyOnUiThread(() =>
+        {
+            owner.DisplayExtras.Icon = null;
+            owner.DisplayExtras.IconLoadingStarted = false;
+        }));
     }
 
     private static void LoadDateModifiedAsync(AppSearchResult owner)

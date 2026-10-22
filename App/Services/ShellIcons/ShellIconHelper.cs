@@ -182,7 +182,11 @@ public static class ShellIconHelper
         {
             try
             {
-                var thumb = PluginPerformanceMonitor.Measure(thumbnailProvider, () => thumbnailProvider.GetThumbnail(path, ShellImageListInterop.PreferredPixels()));
+                // Bounded: this arbitrary third-party code used to run while holding an icon-loader permit, so
+                // four wedged shell-thumbnail calls froze every row's icon for the rest of the process.
+                var thumb = ThumbnailCallGuard.Run(
+                    () => PluginPerformanceMonitor.Measure(thumbnailProvider, () => thumbnailProvider.GetThumbnail(path, ShellImageListInterop.PreferredPixels())),
+                    path);
                 if (thumb != null)
                 {
                     return CacheAndDeduplicateIcon(cacheKey, thumb);

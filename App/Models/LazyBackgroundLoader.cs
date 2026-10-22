@@ -5,22 +5,31 @@ namespace Lertaro.App;
 // instances), then marshal back to the UI thread to apply it.
 internal static class LazyBackgroundLoader
 {
-    public static void Start(SemaphoreSlim semaphore, Func<Task> loadAndApply) => Task.Run(async () =>
-                                                                                       {
-                                                                                           await semaphore.WaitAsync();
-                                                                                           try
-                                                                                           {
-                                                                                               await loadAndApply();
-                                                                                           }
-                                                                                           catch
-                                                                                           {
-                                                                                               // Ignore -- loadAndApply is responsible for its own fallback state on failure
-                                                                                           }
-                                                                                           finally
-                                                                                           {
-                                                                                               semaphore.Release();
-                                                                                           }
-                                                                                       });
+    // onWaitTimedOut runs when the permit has not come free within waitTimeoutMs, which is how a caller gets
+    // its row back into a retryable state instead of leaving it on whatever it is already showing. The task is
+    // returned so a caller that cares -- and every test -- can await the load instead of polling for it.
+    public static Task Start(SemaphoreSlim semaphore, Func<Task> loadAndApply,
+                             Action? onWaitTimedOut = null, int waitTimeoutMs = 5000) => Task.Run(async () =>
+                             {
+                                 if (!await semaphore.WaitAsync(waitTimeoutMs))
+                                 {
+                                     onWaitTimedOut?.Invoke();
+                                     return;
+                                 }
+
+                                 try
+                                 {
+                                     await loadAndApply();
+                                 }
+                                 catch
+                                 {
+                                     // Ignore -- loadAndApply is responsible for its own fallback state on failure
+                                 }
+                                 finally
+                                 {
+                                     semaphore.Release();
+                                 }
+                             });
 
     public static void ApplyOnUiThread(Action apply)
     {
