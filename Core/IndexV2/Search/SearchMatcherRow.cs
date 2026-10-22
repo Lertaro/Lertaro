@@ -28,10 +28,7 @@ internal static class SearchMatcherRow
             if (live.TryScore(name, slab, out match))
                 return true;
         }
-        // Not skipped when a live provider exists -- see SearchMatcher.MatchName: the live tier only
-        // decides the provider's own alphabet, so an ASCII term on a CJK name has no reading to match and
-        // must still be tried literally instead of falling through to the loose alias lane.
-        if (pattern.TryMatch(name, out match, FzfScoringScheme.Default, slab))
+        else if (pattern.TryMatch(name, out match, FzfScoringScheme.Default, slab))
             return true;
 
         // A `!term` has nothing to compare against in a transliteration, so the alias tiers below have to
@@ -117,8 +114,7 @@ internal static class SearchMatcherRow
             if (live.TryScore(name, slab, out result))
                 return true;
         }
-        // Same reason as MatchRow above: the literal read is not skipped when a live provider exists.
-        if (pattern.TryMatch(name, out result, FzfScoringScheme.Default, slab))
+        else if (pattern.TryMatch(name, out result, FzfScoringScheme.Default, slab))
             return true;
         if (pattern.HasExclusions && !pattern.ExclusionsPass(name))
             return false;

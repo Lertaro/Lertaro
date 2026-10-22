@@ -269,11 +269,7 @@ internal static class SearchMatcher
                 return;
             }
         }
-        // The literal read still runs when a live provider exists: the live tier decides the provider's
-        // own alphabet (a term typed as pinyin), and a term that is not that alphabet -- an ASCII
-        // abbreviation against a CJK name -- has no reading to match. Skipping it left the alias lane as
-        // the only path, whose loose reading then accepted scatters the painter refuses to paint.
-        if (ctx.Pattern.TryMatch(name, out var match, FzfScoringScheme.Default, worker.Slab))
+        else if (ctx.Pattern.TryMatch(name, out var match, FzfScoringScheme.Default, worker.Slab))
         {
             worker.Hits.Add(new UniqueMatch(uid, match, FzfResultRank.ForDefaultScheme(uid, name, match).SortKey));
             return;

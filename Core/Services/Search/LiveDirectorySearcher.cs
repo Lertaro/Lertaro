@@ -177,9 +177,7 @@ public static class LiveDirectorySearcher
             if (live.TryScore(matchName, slab, out _))
                 return true;
         }
-        // Not skipped when a live provider exists -- see SearchMatcher.MatchName: a term outside the
-        // provider's alphabet has no reading to match and would otherwise only reach the loose alias lane.
-        if (pattern.TryMatch(matchName, out _, FzfScoringScheme.Default, slab))
+        else if (pattern.TryMatch(matchName, out _, FzfScoringScheme.Default, slab))
         {
             return true;
         }
