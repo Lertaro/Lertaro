@@ -38,6 +38,24 @@ public readonly struct FuzzyQuery
     public bool IsMatch(string? text)
         => _pattern is not null && !string.IsNullOrEmpty(text) && FuzzyMatcher.IsMatch(_pattern, text);
 
+    /// <summary>
+    /// Whether <paramref name="text"/> matches through a pinyin reading of it -- an initials query against a
+    /// han-character name, which <see cref="IsMatch"/> cannot see because it compares characters.
+    /// </summary>
+    /// <remarks>
+    /// Exists for the inline window's direct-children listing: those rows come from a filesystem enumeration
+    /// rather than from the index, so they carry no baked alias and the alias-aware matcher the engine uses
+    /// never applies to them. Their names are still han characters, so an initials query returned nothing from
+    /// the folder the user was looking at while the same query worked in the global results.
+    ///
+    /// The evaluator is cached per pattern (see <see cref="IndexV2.Search.PinyinNameEvaluator.ForPattern"/>),
+    /// so this costs one dictionary lookup per listing rather than one per candidate.
+    /// </remarks>
+    public bool IsAliasMatch(string? text)
+        => _pattern is not null
+           && !string.IsNullOrEmpty(text)
+           && IndexV2.Search.PinyinNameEvaluator.ForPattern(_pattern).TryScore(text, null, out _);
+
     // The shared ranking measure (start position + quality weight). NoMatch for an empty query or text.
     public MatchRank Rank(string? text)
         => _pattern is null || string.IsNullOrEmpty(text) ? MatchRank.NoMatch : FuzzyMatcher.ComputeMatchRank(text, _pattern);

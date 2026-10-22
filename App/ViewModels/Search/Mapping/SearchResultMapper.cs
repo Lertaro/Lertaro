@@ -109,6 +109,41 @@ public static class SearchResultMapper
             });
         }
 
+        // The profile folders under the name Windows shows for them. The index only knows the on-disk name
+        // (Desktop, Downloads, Music), so a query in Chinese or its pinyin could not reach them even though
+        // typing the English name always could. Injected after the scope filter on purpose: an inline search
+        // is scoped to the folder being browsed, and these folders are precisely not inside it -- filtering
+        // them afterwards is what would make them unreachable again. The row carries the display name so it
+        // reads and ranks like the thing the user named, and the real path so opening it still works.
+        foreach (var folder in Lertaro.App.Services.KnownFolderNames.Match(query))
+        {
+            // The index usually already returned this folder under its on-disk name, so injecting a second
+            // row would show "Desktop" next to "桌面" for the same folder. Rename the row that is already
+            // there instead, and add one only when the index did not return it at all.
+            // Compared through the shared normalizer: the index stores paths without a trailing
+            // separator while GetFolderPath may hand one back, and a raw string compare on the two
+            // forms never matched -- so the row was neither renamed nor recognised as present.
+            var existing = fileResults?.FirstOrDefault(r =>
+                string.Equals(
+                    SearchResultHelper.NormalizePath(r.Path),
+                    SearchResultHelper.NormalizePath(folder.Path),
+                    StringComparison.OrdinalIgnoreCase));
+            if (existing != null)
+            {
+                existing.Name = folder.DisplayName;
+                continue;
+            }
+
+            fileResults ??= new List<SearchResult>();
+            fileResults.Add(new SearchResult
+            {
+                Name = folder.DisplayName,
+                Path = folder.Path,
+                IsDir = true,
+                Drive = System.IO.Path.GetPathRoot(folder.Path) ?? string.Empty,
+            });
+        }
+
         // A file-filter scope needs no per-result path check: its folders were already handed to the
         // engine as the per-folder directoryFilter (see SearchStreamRenderer's fan-out), so every
         // streamed result is inside the scope by construction. What still needs scoping here are the
@@ -316,6 +351,7 @@ public static class SearchResultMapper
         // grouping anyway (see its own composition logic). Same two-tier shape as before (show
         // everything under 10 total, else pad to ~8 then allow up to 50 with a "N more" marker) --
         // just applied to the now-unified candidate list instead of only file results.
+
         if (skipDisplayCap || uiResults.Count + ordered.Count < 10)
         {
             foreach (var candidate in ordered)
@@ -446,4 +482,5 @@ public static class SearchResultMapper
 
     internal static bool IsQueriedDirectory(string path, string? normalizedQueriedDirectory) =>
         SearchResultDirectoryHelper.IsQueriedDirectory(path, normalizedQueriedDirectory);
+
 }
