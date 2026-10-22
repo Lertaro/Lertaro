@@ -39,6 +39,24 @@ public static class ServiceInstallManager
             + "from an elevated command prompt.";
     }
 
+    /// <summary>What the user is told when the elevated installer did not succeed.</summary>
+    /// <remarks>
+    /// Same shape as <see cref="DescribeRepairFailure"/>, and for the same reason: the installer's stderr is
+    /// discarded too (UseShellExecute + runas, hidden window), its log opens only after the steps that fail
+    /// first, and "did not complete successfully (declined, timed out, or failed)" is three different problems
+    /// in one sentence. A service that never starts is usually this message and nothing else.
+    /// </remarks>
+    internal static string DescribeInstallFailure(bool exited, int exitCode, string? report, string serviceExePath)
+    {
+        var reason = exited
+            ? $"Service installation failed (exit code {exitCode})."
+            : $"Service installation did not finish within {InstallerTimeoutMs / 1000} seconds; it was still at: "
+              + $"{PermissionRepairReport.LastStep(report) ?? "an unrecorded step"}.";
+        var detail = TailOf(report) ?? "It left no diagnostic of its own.";
+        return $"{reason}\n{detail}\nThe whole trace is in {PermissionRepairReport.DefaultPath}\n"
+            + $"To see the failure directly, run \"{serviceExePath}\" --install from an elevated command prompt.";
+    }
+
     /// <summary>
     /// The last few lines of the repair's trace: enough to show what happened, not a scrolling box. The file
     /// itself is capped at 16 KB, which is still far more than a message box should ever be asked to show.
@@ -85,10 +103,11 @@ public static class ServiceInstallManager
         {
             var serviceExePath = GetServiceExePath();
             Logger.Log($"[ServiceInstallManager] Requesting service installation: {serviceExePath} --install");
-            if (RunElevatedInstaller("Service installation", serviceExePath))
+            if (RunElevatedInstaller("Service installation", serviceExePath, out var diagnostic))
                 onCompleted?.Invoke();
             else
-                onError?.Invoke(new InvalidOperationException("Service installation did not complete successfully."));
+                onError?.Invoke(new InvalidOperationException(
+                    diagnostic ?? "Service installation did not complete successfully."));
         }
         catch (Exception ex)
         {
@@ -114,9 +133,10 @@ public static class ServiceInstallManager
         {
             var serviceExePath = GetServiceExePath();
             Logger.Log($"[ServiceInstallManager] Attempting silent service installation: {serviceExePath}");
-            if (!RunElevatedInstaller("Silent service installation", serviceExePath))
+            if (!RunElevatedInstaller("Silent service installation", serviceExePath, out var diagnostic))
             {
-                onFailed?.Invoke(new InvalidOperationException("Silent service installation did not complete successfully (declined, timed out, or failed)."));
+                onFailed?.Invoke(new InvalidOperationException(diagnostic
+                    ?? "Silent service installation did not complete successfully (declined, timed out, or failed)."));
                 return SilentInstallResult.Failed;
             }
 
@@ -153,8 +173,9 @@ public static class ServiceInstallManager
         return SilentInstallResult.Started;
     }
 
-    private static bool RunElevatedInstaller(string operation, string serviceExePath)
+    private static bool RunElevatedInstaller(string operation, string serviceExePath, out string? diagnostic)
     {
+        diagnostic = null;
         var psi = new ProcessStartInfo
         {
             FileName = serviceExePath,
@@ -164,6 +185,9 @@ public static class ServiceInstallManager
             WindowStyle = ProcessWindowStyle.Hidden
         };
 
+        // The elevated process cannot answer us once it runs -- nothing about its stdout or stderr survives
+        // UseShellExecute -- so it records its steps in this file and the reason is read back from there.
+        PermissionRepairReport.Clear();
         using var proc = Process.Start(psi);
         if (proc == null)
         {
@@ -175,11 +199,20 @@ public static class ServiceInstallManager
         {
             Logger.Log($"[ServiceInstallManager] {operation} timed out after {InstallerTimeoutMs}ms.", LogLevel.Error);
             TryKill(proc);
+            diagnostic = DescribeInstallFailure(exited: false, exitCode: 0, PermissionRepairReport.Read(), serviceExePath);
+            Logger.Log($"[ServiceInstallManager] {diagnostic}", LogLevel.Error);
             return false;
         }
 
         Logger.Log($"[ServiceInstallManager] {operation} exited with code {proc.ExitCode}.");
-        return proc.ExitCode == 0;
+        if (proc.ExitCode == 0)
+            return true;
+
+        // The reason the service never came up, in the words of the process that knows it. Without this the
+        // caller only had the exit code, and the user only had "1053".
+        diagnostic = DescribeInstallFailure(exited: true, exitCode: proc.ExitCode, PermissionRepairReport.Read(), serviceExePath);
+        Logger.Log($"[ServiceInstallManager] {diagnostic}", LogLevel.Error);
+        return false;
     }
 
     /// <summary>

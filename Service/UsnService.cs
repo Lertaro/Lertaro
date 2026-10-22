@@ -5,6 +5,8 @@ using Lertaro.Core.Services;
 
 using Lertaro.Core.Services.HookLaunch;
 
+using Lertaro.Core.Services.Installation;
+
 using Lertaro.Core.Services.Plugin.Loading;
 
 using Lertaro.Core.Services.Update;
@@ -24,9 +26,21 @@ public class UsnService : ServiceBase
 
     protected override void OnStart(string[] args)
     {
+        // The SCM kills a start that has not reported back within 30 s, and records only error 1053 when it
+        // does. Locking a portable copy's folder is the one step here that can take minutes (a first start, or
+        // any start after one that was cut short), so the time is asked for before the work begins rather than
+        // discovered halfway through it.
+        TryRequestAdditionalTime(ApplicationLockTimeoutMs);
         Logger.Log("[UsnService] Service Starting...");
         try
         {
+            // Before the plugins, the index and the pipe: everything below runs out of this folder. Program
+            // records why it refused in PermissionRepairReport, which is what the App shows.
+            if (!Program.EnsureApplicationDirectoryLocked())
+                throw new InvalidOperationException(
+                    $"The folder this service runs from could not be locked ({AppContext.BaseDirectory}). "
+                    + $"See {PermissionRepairReport.DefaultPath}.");
+
             // Local-drive scanning (USN/MFT/ReFS full builds, the non-USN LocalDriveWalkBuilder fallback,
             // and their FileSystemWatcher-based file monitors) all run in this same process. Unlike
             // network-drive indexing, they're already isolated from the App's own ThreadPool by being in
@@ -112,4 +126,21 @@ public class UsnService : ServiceBase
 
     internal void TestStart() => OnStart(Array.Empty<string>());
     internal void TestStop() => OnStop();
+
+    // Budget for the lock walk, asked for before it starts. Larger than the walk ever needs on a normal copy so
+    // that a slow disk degrades into a slow start rather than into the 1053 that has no explanation.
+    private const int ApplicationLockTimeoutMs = 120_000;
+
+    // RequestAdditionalTime throws when this process is not being driven by the service dispatcher, which is
+    // how the debug console host (UsnServiceDebugWrapper) runs it.
+    private void TryRequestAdditionalTime(int milliseconds)
+    {
+        try
+        {
+            RequestAdditionalTime(milliseconds);
+        }
+        catch (InvalidOperationException)
+        {
+        }
+    }
 }

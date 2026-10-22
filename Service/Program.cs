@@ -29,16 +29,24 @@ static class Program
             // locked any user may have planted a link in it that redirects exactly that write.
             var repair = args.Length > 0 && args[0].Equals("--repair-permissions", StringComparison.OrdinalIgnoreCase);
             var isService = args.Length > 0 && args[0].Equals("--service", StringComparison.OrdinalIgnoreCase);
+            var install = args.Length > 0 && args[0] is "--install" or "-i";
+            // One trace per run. The App reads this file back as the reason the elevated process it started did
+            // not succeed, and a line left by an earlier attempt would be shown as this attempt's failure.
+            if (repair || install) PermissionRepairReport.Clear();
             // This path has no log of its own (see PermissionRepairReport), so every step is recorded before it
             // runs: a repair that is killed for running too long leaves the step it was stuck on as the last line.
             if (repair) PermissionRepairReport.Write($"repair starting ({string.Join(' ', args)})");
-            var (lockReport, lockErrors) = LockDirectories(isService: isService || repair);
-            var install = args.Length > 0 && args[0] is "--install" or "-i";
+            else if (install) PermissionRepairReport.Write($"install starting ({string.Join(' ', args)})");
+            var (lockReport, lockErrors) = LockDirectories(lockApplicationDirectory: repair);
             if ((isService || repair || install) && (lockReport.Failed.Count > 0 || lockErrors.Count > 0))
             {
                 // Do not open logs, indexes or plugins through a tree whose ACL preparation failed.
                 var failure = string.Join(Environment.NewLine, lockReport.Failed.Concat(lockErrors));
-                if (repair) PermissionRepairReport.Write($"repair failed while locking directories: {failure}");
+                // Nobody is listening on stderr here: the installer runs with UseShellExecute + runas, whose
+                // window is hidden and whose output cannot be redirected, and the SCM discards it too. The log is
+                // opened further down, so without this line the whole run leaves no evidence at all -- which is
+                // exactly how a service that never started came to be reported as error 1053 and nothing else.
+                PermissionRepairReport.Write($"{args[0]} stopped before opening its log: {failure}");
                 Console.Error.WriteLine(failure);
                 Environment.ExitCode = 1;
                 return;
@@ -166,22 +174,25 @@ static class Program
     // Only a process running as LocalSystem or elevated can do this; the debug console run by a plain user
     // gets the error back and carries on, as it always has, with a directory it can write.
     //
-    // The service also re-locks a portable copy's own folder when that is no longer locked the way this build
-    // locks it: updates are applied in place without another --install, so this is the only point at which a
-    // copy installed before the lock existed, or locked by 5.8.2 (issue #316), gets the current one.
-    private static (InstallDirectoryLock.Report Report, List<string> Errors) LockDirectories(bool isService)
+    // The service no longer locks a portable copy's own folder from here: that walk can outlast the SCM's start
+    // timeout and is done in OnStart instead (see EnsureApplicationDirectoryLocked). A repair still does it here,
+    // because it is the elevated process the App already waited on and it has a trace of its own.
+    private static (InstallDirectoryLock.Report Report, List<string> Errors) LockDirectories(bool lockApplicationDirectory)
     {
         var report = new InstallDirectoryLock.Report();
         var errors = new List<string>();
 
         Lock(Logger.SharedDataDir, () => InstallDirectoryLock.PrepareSharedDataDirectory(Logger.SharedDataDir));
         var appDirectory = AppContext.BaseDirectory;
-        if (isService && ServiceInstaller.LocksApplicationFolder)
+        if (lockApplicationDirectory && ServiceInstaller.LocksApplicationFolder)
             Lock(appDirectory, () => PortableDirectoryLock.IsCurrent(appDirectory) ? null : PortableDirectoryLock.Lock(appDirectory));
         return (report, errors);
 
         void Lock(string directory, Func<InstallDirectoryLock.Report?> lockIt)
         {
+            // Recorded before the walk: this is the step a start can be killed in, and the file is the only
+            // evidence of where it stopped.
+            PermissionRepairReport.Write($"locking {directory}");
             try
             {
                 if (lockIt() is { } locked)
@@ -195,6 +206,51 @@ static class Program
             {
                 errors.Add($"{directory}: {ex.Message}");
             }
+        }
+    }
+
+    /// <summary>
+    /// Locks a portable copy's own folder, from inside the running service, before anything in it is loaded.
+    /// </summary>
+    /// <remarks>
+    /// This used to run before <see cref="Logger.Initialize"/> and before the process reported to the SCM. On a
+    /// copy whose folder had never been locked -- the normal state of a portable build that was installed while
+    /// it sat somewhere every user can write -- the walk runs on every single start, and once it outlasts the
+    /// SCM's 30 s start timeout the process is killed mid-walk with nothing written anywhere: event 1053, an
+    /// empty service log, and the next start finds no marker and begins the same walk again. It runs in OnStart
+    /// now, which asks for the time it needs first (see UsnService.OnStart).
+    ///
+    /// False means this copy must not be used at all: every plugin below is loaded from and every index written
+    /// into that folder, and it is only trusted once the walk has closed it to everyone but SYSTEM and
+    /// Administrators.
+    /// </remarks>
+    internal static bool EnsureApplicationDirectoryLocked()
+    {
+        if (!ServiceInstaller.LocksApplicationFolder) return true;
+
+        var appDirectory = AppContext.BaseDirectory;
+        try
+        {
+            if (PortableDirectoryLock.IsCurrent(appDirectory)) return true;
+            if (PortableDirectoryLock.IsInterrupted(appDirectory))
+                Logger.Log("[InstallDirectoryLock] The previous lock of this folder never finished; locking it again from the start.", LogLevel.Warn);
+            PermissionRepairReport.Write($"locking the application directory {appDirectory}");
+            var report = PortableDirectoryLock.Lock(appDirectory);
+            foreach (var path in report.Removed)
+                Logger.Log($"[InstallDirectoryLock] Removed a link that was not this product's: {path}", LogLevel.Warn);
+            foreach (var failure in report.Failed)
+                Logger.Log($"[InstallDirectoryLock] Could not reset {failure}", LogLevel.Error);
+            foreach (var failure in report.UserDataFailed)
+                Logger.Log($"[InstallDirectoryLock] Personal data repair incomplete: {failure}", LogLevel.Warn);
+            if (report.Failed.Count == 0) return true;
+            PermissionRepairReport.Write($"could not lock {appDirectory}: {string.Join(Environment.NewLine, report.Failed)}");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[InstallDirectoryLock] Could not lock {appDirectory}: {ex.Message}", LogLevel.Error);
+            PermissionRepairReport.Write($"could not lock {appDirectory}: {ex.Message}");
+            return false;
         }
     }
 }

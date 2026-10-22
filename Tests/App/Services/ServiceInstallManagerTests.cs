@@ -66,4 +66,60 @@ public sealed class ServiceInstallManagerTests
 
         Assert.AreEqual("c\nd", tail);
     }
+
+    // The same failure shape as the repair, on the path that produces "the service never starts" with no other
+    // trace at all: SilentInstall used to report a single generic sentence for a declined prompt, a timeout and
+    // a failed lock walk alike.
+    [TestMethod]
+    public void DescribeInstallFailure_NonZeroExit_QuotesTheInstallersOwnDiagnostic()
+    {
+        var text = ServiceInstallManager.DescribeInstallFailure(
+            exited: true, exitCode: 1,
+            report: "installing from C:\\Soft\\Lertaro-Portable\\Lertaro\\Lertaro.Service.exe\n"
+                    + "locking C:\\ProgramData\\Lertaro\n"
+                    + "install failed: Could not lock the portable folder: C:\\Soft\\Lertaro-Portable\\Lertaro\\Plugins: Could not set the owner and permissions.",
+            serviceExePath: @"C:\Soft\Lertaro-Portable\Lertaro\Lertaro.Service.exe");
+
+        StringAssert.Contains(text, "exit code 1");
+        StringAssert.Contains(text, "Could not set the owner and permissions");
+        StringAssert.Contains(text, "--install");
+    }
+
+    [TestMethod]
+    public void DescribeInstallFailure_Timeout_NamesTheStepItWasStuckOn()
+    {
+        var text = ServiceInstallManager.DescribeInstallFailure(
+            exited: false, exitCode: 0,
+            report: "[2026-10-22 14:03:24.100] [9004] locking C:\\ProgramData\\Lertaro",
+            serviceExePath: @"C:\Soft\Lertaro-Portable\Lertaro\Lertaro.Service.exe");
+
+        StringAssert.Contains(text, "did not finish within 120 seconds");
+        StringAssert.Contains(text, @"locking C:\ProgramData\Lertaro");
+    }
+
+    // Nothing written at all is the case that produced the report this exists for: the process died before its
+    // first line, so saying that is the only honest answer.
+    [TestMethod]
+    public void DescribeInstallFailure_WithoutAnyTrace_SaysSoRatherThanLeavingItBlank()
+    {
+        var withoutTrace = ServiceInstallManager.DescribeInstallFailure(exited: true, exitCode: 1, report: null,
+            serviceExePath: @"C:\Soft\Lertaro\Lertaro.Service.exe");
+        var timedOut = ServiceInstallManager.DescribeInstallFailure(exited: false, exitCode: 0, report: "  ",
+            serviceExePath: @"C:\Soft\Lertaro\Lertaro.Service.exe");
+
+        StringAssert.Contains(withoutTrace, "no diagnostic of its own");
+        StringAssert.Contains(timedOut, "unrecorded step");
+    }
+
+    [TestMethod]
+    public void DescribeInstallFailure_LongTrace_ShowsTheEndOfItAndPointsAtTheFile()
+    {
+        var trace = string.Join("\n", Enumerable.Range(1, 40).Select(index => $"[step {index}] doing something"));
+        var text = ServiceInstallManager.DescribeInstallFailure(exited: true, exitCode: 1, report: trace,
+            serviceExePath: @"C:\Soft\Lertaro\Lertaro.Service.exe");
+
+        StringAssert.Contains(text, "[step 40]");
+        Assert.IsFalse(text.Contains("[step 1] doing", StringComparison.Ordinal), text);
+        StringAssert.Contains(text, "repair.log");
+    }
 }

@@ -28,12 +28,17 @@ static class ServiceInstaller
             serviceExePath = Path.GetFullPath(serviceExePath);
 
             Console.WriteLine($"Installing service from path: {serviceExePath}");
+            // Recorded before each step: the App reads this file back when this process exits non-zero, and the
+            // step that was running is the answer. Nothing else survives -- this runs elevated with a hidden
+            // window, and a failure here is why a service never appears at all.
+            PermissionRepairReport.Write($"installing from {serviceExePath}");
 
             // A portable copy lives wherever it was unzipped, usually somewhere every user can write, and the
             // service about to run from it as LocalSystem would load whatever anyone put there. Locked before
             // the service is pointed at it; a folder that cannot be locked is not one to install it from.
             if (LocksApplicationFolder)
             {
+                PermissionRepairReport.Write($"locking the portable folder {Path.GetDirectoryName(serviceExePath)}");
                 Logger.Log("Locking the portable folder to SYSTEM and Administrators before installing the service.");
                 var report = PortableDirectoryLock.Lock(Path.GetDirectoryName(serviceExePath)!);
                 foreach (var path in report.Removed)
@@ -46,6 +51,7 @@ static class ServiceInstaller
 
             // Stop an existing service before changing its executable path. Updating it in place avoids
             // the SCM's asynchronous "marked for deletion" window that makes delete-then-create fragile.
+            PermissionRepairReport.Write("stopping any service that is already registered");
             Logger.Log("Preparing existing service instance before install.");
             var stop = ServiceControlRunner.Run("stop LertaroService", 0, 1060, 1062);
             if (!stop.IsSuccess(0, 1060, 1062))
@@ -54,6 +60,7 @@ static class ServiceInstaller
                 throw new InvalidOperationException("sc stop timed out before the service reached STOPPED.");
 
             var serviceArguments = $"binPath= \"\\\"{serviceExePath}\\\" --service\" start= auto DisplayName= \"Lertaro Background Service\"";
+            PermissionRepairReport.Write("registering or reconfiguring the service");
             var configure = ServiceControlRunner.Run($"config LertaroService {serviceArguments}", 0, 1060);
             if (!configure.IsSuccess(0))
             {
@@ -68,17 +75,20 @@ static class ServiceInstaller
 
             ApplySecurity();
 
+            PermissionRepairReport.Write("starting the service");
             Logger.Log("Starting service: sc.exe start LertaroService");
             var start = ServiceControlRunner.Run("start LertaroService", 0, 1056);
             if (!start.IsSuccess(0, 1056))
                 throw new InvalidOperationException("sc start failed. See service.log for details.");
 
+            PermissionRepairReport.Write("installed and started");
             Console.WriteLine("Service installed and started successfully!");
         }
         catch (Exception ex)
         {
             Environment.ExitCode = 1;
             Console.WriteLine($"Failed to install service: {ex.Message}");
+            PermissionRepairReport.Write($"install failed: {ex.Message}");
             Logger.Log($"Failed to install service: {ex}", LogLevel.Error);
         }
     }

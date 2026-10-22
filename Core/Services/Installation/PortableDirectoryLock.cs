@@ -30,6 +30,11 @@ public static class PortableDirectoryLock
     // already has the right ACL. Lives in the administrator-owned binary directory, never user data.
     private const string PermissionsRevision = "2";
     private const string RevisionFile = ".permissions-version";
+    // Written before the walk and replaced by PermissionsRevision after it. A walk that is cut short -- the SCM
+    // kills a start at its timeout, a power loss takes the machine -- used to leave no file at all, which is
+    // indistinguishable from a copy nobody ever locked, so the next start could not even say it was retrying.
+    // Never counts as current (see IsCurrent), so it cannot suppress the repair it is waiting for.
+    private const string PendingRevision = "pending";
     /// <summary>
     /// Locks <paramref name="directory"/> to <paramref name="user"/> alone, and checks that the owner it claims
     /// to have set is the owner that is actually there.
@@ -139,14 +144,31 @@ public static class PortableDirectoryLock
         Allow(user, FileSystemRights.FullControl, AceFlags.ObjectInherit | AceFlags.ContainerInherit),
     ], PreserveLinks: true);
 
-    public static Report Lock(string appDirectory)
+    public static Report Lock(string appDirectory) => Lock(appDirectory, ReadOnlyForUsers);
+
+    /// <remarks>
+    /// The root zone is a parameter so a test can lock a folder to the account running it. The shipped zone
+    /// hands the root to SYSTEM and Administrators, which take ownership of it, and a process that is not
+    /// elevated cannot assign that owner (ERROR_INVALID_OWNER): a test that used it would need elevation just to
+    /// check the marker written below.
+    /// </remarks>
+    internal static Report Lock(string appDirectory, Zone rootZone)
     {
         appDirectory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(appDirectory));
         var (zoneFor, userFolders) = Zones(appDirectory, UserProfiles.Read().Keys);
 
-        // A failed walk must not leave a previous success marker suppressing the next repair.
-        File.Delete(Path.Combine(appDirectory, RevisionFile));
-        var report = InstallDirectoryLock.Lock(appDirectory, ReadOnlyForUsers, zoneFor);
+        // Replaced, not deleted first: a run that dies before finishing has to leave the fact that it started,
+        // because "cut short" and "never locked" need different answers and only this file tells them apart. A
+        // pending marker is not current, so the next start still walks the tree.
+        try
+        {
+            AtomicFileStore.Write(Path.Combine(appDirectory, RevisionFile), PendingRevision);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Not a reason to skip the walk: the walk is what may fix whatever refused the write.
+        }
+        var report = InstallDirectoryLock.Lock(appDirectory, rootZone, zoneFor);
         if (!Directory.Exists(Path.Combine(appDirectory, "Data")))
         {
             if (report.Failed.Count == 0 && report.UserDataFailed.Count == 0) AtomicFileStore.Write(Path.Combine(appDirectory, RevisionFile), PermissionsRevision);
@@ -164,6 +186,19 @@ public static class PortableDirectoryLock
         if (report.Failed.Count == 0 && report.UserDataFailed.Count == 0) AtomicFileStore.Write(Path.Combine(appDirectory, RevisionFile), PermissionsRevision);
         return report;
     }
+
+    /// <summary>
+    /// Whether a previous <see cref="Lock"/> of the copy at <paramref name="appDirectory"/> was cut short: it
+    /// wrote its pending marker and never reached <see cref="PermissionsRevision"/>.
+    /// </summary>
+    /// <remarks>
+    /// Only useful for telling the user (and the log) that this is a retry of an interrupted walk rather than a
+    /// copy nobody ever locked: on a portable build that is installed somewhere writable, the second case is
+    /// what a start killed by the SCM turns into, boot after boot.
+    /// </remarks>
+    public static bool IsInterrupted(string appDirectory) =>
+        SettingsFileReader.ReadIfPresent(Path.Combine(
+            Path.TrimEndingDirectorySeparator(Path.GetFullPath(appDirectory)), RevisionFile)) == PendingRevision;
 
     /// <summary>
     /// Whether the copy at <paramref name="appDirectory"/> is still locked the way <see cref="Lock"/> does it
