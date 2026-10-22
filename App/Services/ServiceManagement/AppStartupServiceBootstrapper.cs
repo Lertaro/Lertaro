@@ -89,8 +89,16 @@ internal static class AppStartupServiceBootstrapper
                                                           {
                                                               if (await searchService.PingAsync().ConfigureAwait(false))
                                                               {
-                                                                  Logger.Log("[AppStartupServiceBootstrapper] Service already reachable on app startup.");
-                                                                  return;
+                                                                  // Something answers, but only a service registered at this exe may be used: one
+                                                                  // installed from another folder (an older copy, or the build this one replaced)
+                                                                  // answers Ping and then rejects every privileged request as "Unauthorized caller",
+                                                                  // because it only trusts an App running beside itself. Reinstall rather than trust it.
+                                                                  if (ServiceInstallManager.IsInstalledAtCurrentPath())
+                                                                  {
+                                                                      Logger.Log("[AppStartupServiceBootstrapper] Service already reachable on app startup.");
+                                                                      return;
+                                                                  }
+                                                                  Logger.Log("[AppStartupServiceBootstrapper] A service is running from another folder; reinstalling it from this one.", LogLevel.Warn);
                                                               }
                                                           }
                                                           catch (Exception ex)
