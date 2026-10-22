@@ -10,7 +10,7 @@ internal static class InlineSearchShortcutLauncher
 {
     public static void Launch(Lertaro.App.InlineSearchWindow window, InlineSearchWindowLayoutManager layoutManager, int num)
     {
-        if (num < 1 || num > 9) return;
+        if (num < 1 || num > InlineCardMetrics.MaxJumpSlots) return;
 
         var scrollViewer = layoutManager.GetScrollViewer(window.LstResults);
         var firstVisible = WpfUiHelper.GetFirstVisibleIndex(scrollViewer, UiMetrics.InlineRowHeight);

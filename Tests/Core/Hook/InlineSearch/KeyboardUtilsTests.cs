@@ -185,4 +185,18 @@ public sealed class KeyboardUtilsTests
         Assert.HasCount(256, state);
         Assert.IsTrue(state.All(b => b == 0));
     }
+
+    // The inline card's Ctrl+number jump slots, read from the raw hook virtual key code. The tenth row is
+    // reached with 0, top and bottom of the digit row alike, and nothing else is a slot at all.
+    [TestMethod]
+    [DataRow(0x31, 1)] // VK_D1
+    [DataRow(0x39, 9)] // VK_D9
+    [DataRow(0x61, 1)] // VK_NUMPAD1
+    [DataRow(0x69, 9)] // VK_NUMPAD9
+    [DataRow(0x30, KeyboardUtils.MaxJumpSlots)] // VK_D0
+    [DataRow(0x60, KeyboardUtils.MaxJumpSlots)] // VK_NUMPAD0
+    [DataRow(0x3A, -1)]
+    [DataRow(0x41, -1)] // VK_A, a letter rather than a slot
+    public void GetJumpSlotNumber_DigitKeysNameASlot(int vkCode, int expected) =>
+        Assert.AreEqual(expected, KeyboardUtils.GetJumpSlotNumber(vkCode));
 }

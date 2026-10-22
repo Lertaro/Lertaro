@@ -16,8 +16,8 @@ public sealed class InlineSearchWindowLayoutManager
         _window = window ?? throw new ArgumentNullException(nameof(window));
 
         // Item-based scrolling ENABLES virtualization; pixel-based (CanContentScroll=false) disables it
-        // outright in WPF, realizing and rendering EVERY bound row even though the card only ever shows
-        // about nine of them. That was the whole cost: measured on a large folder, the UI-thread time of a
+        // outright in WPF, realizing and rendering EVERY bound row even though the card shows at most ten
+        // of them. That was the whole cost: measured on a large folder, the UI-thread time of a
         // paint tracked the number of bound rows rather than the number visible (0.6ms at 2 rows, 119.8ms
         // at 103), which is why a result-rich folder felt heavy here while the quick window -- virtualizing
         // all along -- stayed smooth. Verified that this really does virtualize: a 100-row list realizes 17
@@ -54,9 +54,9 @@ public sealed class InlineSearchWindowLayoutManager
             var results = _window.ViewModel.Results;
             var count = results.Count;
             // One source of truth for the split. Section titles are rows in the list, so they spend the
-            // 9-row budget rather than riding on top of it -- see InlineCardMetrics.ComputeLayout. With
-            // both "Current Folder" and "Global Search" showing, two of those rows are titles and seven
-            // are results; with neither, all nine are results.
+            // row budget rather than riding on top of it -- see InlineCardMetrics.ComputeLayout. With
+            // both "Current Folder" and "Global Search" showing, two of those rows are titles and the rest
+            // are results; with neither, every budgeted row is a result.
             var layout = _window.CardSizing.CurrentLayout();
 
             // The list is only as tall as the real items that exist. The shell reserves extra space without
@@ -98,8 +98,8 @@ public sealed class InlineSearchWindowLayoutManager
             // been cleared -- and the fixed area's own height would no longer match it.
             // Action rows use the same height as result rows, so the result area's height says nothing
             // about how many actions fit. Limit the action ListBox itself to as many of its real rows as
-            // the result list's budget allows (the same 9), then add the non-list target header to the
-            // outer panel height.
+            // the result list's budget allows, then add the non-list target header to the outer panel
+            // height.
             var actionRowHeight = UiMetrics.InlineRowHeight;
             var actionsListHeight = actionRowHeight * _window.CardSizing.RowBudget;
             var actionHeaderHeight = UiMetrics.InlineRowHeight;

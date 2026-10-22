@@ -441,6 +441,8 @@
   "General_ShowOpenedFoldersInInlineSearchDesc": "内嵌窗口停靠在文件选择器时，显示该选择器当前打开的文件夹。",
   "General_InlineSearchWindowWidth": "内嵌窗口宽度 (%)",
   "General_InlineSearchWindowWidthDesc": "内嵌窗口停靠在某个窗口上时，以该窗口宽度为 100% 按此百分比取宽，可设 20–100。实际宽度还会按屏幕自动收放：下限是该窗口宽度的 20% 与屏幕宽度的 1/6 中的较大者，上限是该窗口本身与屏幕宽度的 90% 中的较小者。",
+  "General_InlineSearchWindowMaxRows": "内嵌窗口显示条数",
+  "General_InlineSearchWindowMaxRowsDesc": "内嵌窗口一次显示的行数，分区标题同样占一行，可设 4–10，默认 10。十条是跳转快捷键能到的距离：Ctrl+1 至 Ctrl+9 选中第 1–9 行，Ctrl+0 选中第 10 行。停靠在文件对话框时，卡片仍固定为 4 行，不受这个设置影响；屏幕高度不够时只显示放得下的行数，其余滚动查看。",
   "General_DefaultFileManagerHint": "打开文件夹(包括\"打开所在文件夹\")时改用下面配置的程序，而不是系统默认关联。",
   "General_DefaultFileManagerPath": "路径(程序)",
   "General_DefaultFileManagerBrowseTooltip": "浏览选择程序",

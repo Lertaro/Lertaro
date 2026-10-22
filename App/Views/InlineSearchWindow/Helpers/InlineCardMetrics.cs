@@ -2,19 +2,24 @@ using Lertaro.App.Services;
 
 namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 
-// The inline card's geometry. The card shows up to a fixed number of list rows while a search runs, and
+// The inline card's geometry. The card shows up to the configured number of list rows while a search runs, and
 // trims to what actually came back once it is not.
 //
 // Split from the window and the layout manager so the arithmetic is testable without a visual tree.
 internal static class InlineCardMetrics
 {
-    // How many rows the result list shows. 9 matches the Ctrl+1..9 jump range while keeping the complete
-    // card bounded: section titles are rows in the list and cannot make a tenth row appear.
-    internal const int DefaultRows = 9;
+    // How many rows the result list shows when the user has not chosen a count. Section titles are rows in the
+    // list and spend this budget rather than riding on top of it.
+    internal const int DefaultRows = UiMetrics.DefaultInlineCardRows;
+
+    // The Ctrl jump shortcuts reach 1..9 and then 0, so ten slots. This is the key space, not the card's
+    // ceiling -- UiMetrics.MaxInlineCardRows is the largest count the settings box accepts. The hook process
+    // maps the same ten keys in KeyboardUtils.MaxJumpSlots.
+    internal const int MaxJumpSlots = 10;
 
     // The cap over a file dialog: a dialog is mostly other people's controls, and the card that covers one
-    // should leave as much of it usable as possible. The jump shortcuts keep working 1..4; 5..9 simply have
-    // nothing to jump to here.
+    // should leave as much of it usable as possible. It keeps its own four rows whatever the card is
+    // configured to show, which is also the lowest count the settings box accepts.
     internal const int DialogRows = 4;
 
     // The floor a screen-aware budget never drops below, and it is deliberately low: an over-tall card is
@@ -126,8 +131,27 @@ internal static class InlineCardMetrics
     }
 
     /// <summary>
+    /// The card's row ceiling: <see cref="DialogRows"/> over a file dialog, and otherwise the count the user
+    /// configured, held to the range the settings box takes. A ceiling, not a promise -- <see
+    /// cref="ComputeRowBudget"/> still decides how many of those rows the space the card has can hold.
+    /// </summary>
+    /// <remarks>
+    /// user-settings.json is hand-editable, so a stored number outside the box reads as its nearest edge.
+    /// </remarks>
+    internal static int ResolveRowCap(int configuredRows, bool overFileDialog) =>
+        overFileDialog
+            ? DialogRows
+            : Math.Clamp(configuredRows, UiMetrics.MinInlineCardRows, UiMetrics.MaxInlineCardRows);
+
+    /// <summary>
+    /// The key a jump slot is labeled with: slots 1..9 keep their number, and the tenth is "0" -- the key the
+    /// hook process maps back to slot ten.
+    /// </summary>
+    internal static string JumpSlotLabel(int slot) => slot == MaxJumpSlots ? "0" : slot.ToString();
+
+    /// <summary>
     /// How many list rows fit in <paramref name="availableHeight"/> once the card's non-row height is paid
-    /// for, bounded by the Ctrl+1..9 budget and never below <paramref name="minRows"/>.
+    /// for, bounded by the row ceiling above and never below <paramref name="minRows"/>.
     /// </summary>
     /// <remarks>
     /// When not even <paramref name="minRows"/> fit, the minimum wins: the card then takes more of the screen

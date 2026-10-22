@@ -26,9 +26,9 @@ internal sealed class InlineCardSizingSupport
     private readonly Lertaro.App.InlineSearchWindow _window;
     private int? _searchAreaRows;
 
-    // The row budget that currently fits on screen: never more than the Ctrl+1..9 range, and never more than
-    // the space this card actually has (see InlineCardSpace.AvailableHeight). Starts at the full budget so the
-    // first sizing pass, which runs before any screen query has happened, behaves exactly as it always did.
+    // The row budget that currently fits on screen: never more than the configured ceiling (RowCap), and never
+    // more than the space this card actually has (see InlineCardSpace.AvailableHeight). Starts at the default
+    // ceiling so the first sizing pass, which runs before any screen query has happened, behaves as it always did.
     private int _rowBudget = InlineCardMetrics.DefaultRows;
 
     internal InlineCardSizingSupport(Lertaro.App.InlineSearchWindow window) => _window = window;
@@ -36,13 +36,15 @@ internal sealed class InlineCardSizingSupport
     /// <summary>The row budget in force right now: what the results area, and the actions area, size to.</summary>
     internal int RowBudget => _rowBudget;
 
-    // How tall the card may get where it is now. A file dialog caps at four rows because the card is a guest
-    // over somebody else's window, and the shorter it is the less of that window it costs the user; a card
-    // over a file manager's window has that window's whole list to fill, and keeps the Ctrl+1..9 budget. This
+    // How tall the card may get where it is now: the count the user set in General settings, which a file dialog
+    // caps shorter because the card is a guest over somebody else's window -- the shorter it is, the less of that
+    // window it costs the user. A card over a file manager's window has that window's whole list to fill. This
     // is also what FullCardHeight prices, so the two cannot disagree about which corner to hang from.
-    private int RowCap => _window.Manager.ExplorerTracker.IsActiveWindowDialog
-        ? InlineCardMetrics.DialogRows
-        : InlineCardMetrics.DefaultRows;
+    // Read per sizing pass, like the card's width: the screen, the host and the setting can all change while
+    // the card is open, and a saved setting has to reach the very next layout.
+    private int RowCap => InlineCardMetrics.ResolveRowCap(
+        UserSettings.Load().InlineSearchWindowMaxRows,
+        _window.Manager.ExplorerTracker.IsActiveWindowDialog);
 
     /// <summary>Re-applies the card's size once the window has been laid out at least once.</summary>
     internal void Attach()

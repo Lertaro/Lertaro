@@ -89,6 +89,24 @@ public sealed class GeneralSettingsViewModelTests
         Assert.AreEqual(UiMetrics.MaxInlineCardWidthPercent, GeneralSettingsApplier.ToStoredInlineCardWidthPercent(UiMetrics.MaxInlineCardWidthPercent));
     }
 
+    [TestMethod]
+    public void InlineSearchWindowMaxRows_DefaultsToTenAndTakesOnlyTheBoxsRange()
+    {
+        var settings = new UserSettings();
+        var vm = new GeneralSettingsViewModel(settings);
+
+        Assert.AreEqual(UiMetrics.DefaultInlineCardRows, vm.InlineSearchWindowMaxRows);
+
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => vm.InlineSearchWindowMaxRows = UiMetrics.MinInlineCardRows - 1);
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => vm.InlineSearchWindowMaxRows = UiMetrics.MaxInlineCardRows + 1);
+
+        vm.InlineSearchWindowMaxRows = 6;
+
+        // Staged per the page's rule: the box shows 6, the settings keep the default until Apply() runs.
+        Assert.AreEqual(6, vm.InlineSearchWindowMaxRows);
+        Assert.AreEqual(UiMetrics.DefaultInlineCardRows, settings.InlineSearchWindowMaxRows);
+    }
+
     // Apply() is deliberately not called from these: it ends in UserSettings.Save(), which would overwrite
     // this machine's real configuration. GeneralSettingsApplier's assignment is covered by review.
     [TestMethod]

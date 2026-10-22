@@ -30,6 +30,7 @@ public class GeneralSettingsViewModel : ViewModelBase
     private bool _enableRankingEventLog;
     private bool _showOpenedFoldersInInlineSearch;
     private int _inlineSearchWindowWidthPercent;
+    private int _inlineSearchWindowMaxRows;
     private bool _hideTrayIcon;
     private bool _openFoldersInNewExplorerTabs;
     private string _globalTokenPrefix;
@@ -73,6 +74,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         _enableRankingEventLog = userSettings.EnableRankingEventLog;
         _showOpenedFoldersInInlineSearch = userSettings.ShowOpenedFoldersInInlineSearch;
         _inlineSearchWindowWidthPercent = userSettings.InlineSearchWindowWidthPercent ?? UiMetrics.DefaultInlineCardWidthPercent;
+        _inlineSearchWindowMaxRows = userSettings.InlineSearchWindowMaxRows;
         _hideTrayIcon = userSettings.HideTrayIcon;
         _openFoldersInNewExplorerTabs = userSettings.DefaultFileManager.OpenFoldersInNewExplorerTabs;
         _globalTokenPrefix = userSettings.GlobalTokenPrefix;
@@ -230,6 +232,27 @@ public class GeneralSettingsViewModel : ViewModelBase
         }
     }
 
+    /// <summary>How many rows the inline card shows at once, section titles included.</summary>
+    /// <remarks>
+    /// The ceiling is 10 because that is as far as the Ctrl jump shortcuts reach (1..9, then 0); the floor is 4,
+    /// the count a file dialog already caps the card at. A screen too short for the chosen count gives fewer
+    /// rows and scrolls, and the card's own placement bounds the result either way.
+    /// </remarks>
+    public int InlineSearchWindowMaxRows
+    {
+        get => _inlineSearchWindowMaxRows;
+        set
+        {
+            if (value < UiMetrics.MinInlineCardRows || value > UiMetrics.MaxInlineCardRows)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(value),
+                    $"Row count must be between {UiMetrics.MinInlineCardRows} and {UiMetrics.MaxInlineCardRows}.");
+            }
+            SetProperty(ref _inlineSearchWindowMaxRows, value);
+        }
+    }
+
     public bool HideTrayIcon
     {
         get => _hideTrayIcon;
@@ -299,6 +322,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         _enableRankingEventLog,
         _showOpenedFoldersInInlineSearch,
         _inlineSearchWindowWidthPercent,
+        _inlineSearchWindowMaxRows,
         _hideTrayIcon,
         _openFoldersInNewExplorerTabs,
         _globalTokenPrefix,

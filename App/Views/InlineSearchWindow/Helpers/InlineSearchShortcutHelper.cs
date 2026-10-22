@@ -68,10 +68,10 @@ public static class InlineSearchShortcutHelper
                     continue;
                 }
 
-                if (!string.IsNullOrEmpty(selectMod) && i >= firstVisible && shortcutIndex <= 9)
+                if (!string.IsNullOrEmpty(selectMod) && i >= firstVisible && shortcutIndex <= InlineCardMetrics.MaxJumpSlots)
                 {
                     var prefix = string.Equals(selectMod, "None", StringComparison.OrdinalIgnoreCase) ? "" : $"{selectMod}+";
-                    item.ShortcutHint = $"{prefix}{shortcutIndex}";
+                    item.ShortcutHint = $"{prefix}{InlineCardMetrics.JumpSlotLabel(shortcutIndex)}";
                     item.ShortcutVisibility = Visibility.Visible;
                     shortcutIndex++;
                 }

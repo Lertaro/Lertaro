@@ -27,6 +27,7 @@ internal static class GeneralSettingsApplier
         bool enableRankingEventLog,
         bool showOpenedFoldersInInlineSearch,
         int inlineSearchWindowWidthPercent,
+        int inlineSearchWindowMaxRows,
         bool hideTrayIcon,
         bool openFoldersInNewExplorerTabs,
         string globalTokenPrefix,
@@ -56,6 +57,7 @@ internal static class GeneralSettingsApplier
         userSettings.EnableRankingEventLog = enableRankingEventLog;
         userSettings.ShowOpenedFoldersInInlineSearch = showOpenedFoldersInInlineSearch;
         userSettings.InlineSearchWindowWidthPercent = ToStoredInlineCardWidthPercent(inlineSearchWindowWidthPercent);
+        userSettings.InlineSearchWindowMaxRows = inlineSearchWindowMaxRows;
         userSettings.HideTrayIcon = hideTrayIcon;
         userSettings.DefaultFileManager.OpenFoldersInNewExplorerTabs = openFoldersInNewExplorerTabs;
         userSettings.GlobalTokenPrefix = string.IsNullOrWhiteSpace(globalTokenPrefix) ? ":" : globalTokenPrefix;
