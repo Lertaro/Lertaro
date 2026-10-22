@@ -10,10 +10,53 @@ public sealed class IndexRuleMigrationTests
 
         var rules = IndexRuleMigration.Ensure(settings);
 
-        Assert.HasCount(16, rules);
+        Assert.HasCount(15, rules);
         Assert.AreEqual(1, rules.Count(r => r.Effect == IndexRuleEffect.Exclude));
         Assert.AreEqual("node_modules", rules.Single(r => r.Effect == IndexRuleEffect.Exclude).Pattern);
-        Assert.AreEqual(15, rules.Count(r => r.Effect == IndexRuleEffect.Low));
+        Assert.AreEqual(14, rules.Count(r => r.Effect == IndexRuleEffect.Low));
+        // Retired: it demoted everything under an extensionless directory, e.g. D:\tools\**.
+        Assert.IsFalse(rules.Any(r => r.Pattern == IndexRuleDefaults.RetiredExtensionlessRegex));
+    }
+
+    [TestMethod]
+    public void Ensure_PreviousStockList_DropsTheRetiredRule()
+    {
+        // Write the list the previous build shipped, as a settings file would hold it.
+        var settings = new UserSettings
+        {
+            IndexRules = IndexRuleDefaults.Create()
+                .Append(new IndexRuleSetting
+                {
+                    Pattern = IndexRuleDefaults.RetiredExtensionlessRegex,
+                    Effect = IndexRuleEffect.Low,
+                })
+                .ToList(),
+        };
+
+        var rules = IndexRuleMigration.Ensure(settings);
+
+        Assert.HasCount(15, rules);
+        Assert.IsFalse(rules.Any(r => r.Pattern == IndexRuleDefaults.RetiredExtensionlessRegex));
+    }
+
+    [TestMethod]
+    public void Ensure_CustomisedList_KeepsTheRetiredRule()
+    {
+        // One edited entry is enough: the rule is the user's then, so it is not removed behind their back.
+        var settings = new UserSettings
+        {
+            IndexRules = new List<IndexRuleSetting>
+            {
+                new() { Pattern = "node_modules", Effect = IndexRuleEffect.Exclude },
+                new() { Pattern = IndexRuleDefaults.RetiredExtensionlessRegex, Effect = IndexRuleEffect.Low },
+                new() { Pattern = "*.bak", Effect = IndexRuleEffect.Exclude },
+            },
+        };
+
+        var rules = IndexRuleMigration.Ensure(settings);
+
+        Assert.HasCount(3, rules);
+        Assert.IsTrue(rules.Any(r => r.Pattern == IndexRuleDefaults.RetiredExtensionlessRegex));
     }
 
     [TestMethod]
@@ -28,7 +71,7 @@ public sealed class IndexRuleMigrationTests
 
         var rules = IndexRuleMigration.Ensure(settings);
 
-        Assert.HasCount(3 + 15, rules);
+        Assert.HasCount(3 + 14, rules);
         Assert.AreEqual(3, rules.Count(r => r.Effect == IndexRuleEffect.Exclude));
         Assert.IsTrue(rules.Any(r => r.Pattern == @"D:\cache" && r.Effect == IndexRuleEffect.Exclude));
         Assert.IsTrue(rules.Any(r => r.Pattern == "*.bak" && r.Effect == IndexRuleEffect.Exclude));

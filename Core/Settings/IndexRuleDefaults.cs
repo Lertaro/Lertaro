@@ -21,7 +21,7 @@ public static class IndexRuleDefaults
         "node_modules",
     };
 
-    /// <summary>1 exclusion plus the 15 low-priority defaults; the app directories are demoted, not hidden.</summary>
+    /// <summary>1 exclusion plus the 14 low-priority defaults; the app directories are demoted, not hidden.</summary>
     public static List<IndexRuleSetting> Create()
     {
         var rules = new List<IndexRuleSetting>
@@ -31,6 +31,16 @@ public static class IndexRuleDefaults
         rules.AddRange(CreateLow());
         return rules;
     }
+
+    /// <summary>
+    /// Retired from <see cref="CreateLow"/>, and dropped again from a settings file that still holds the
+    /// exact previous stock list (see <see cref="IndexRuleMigration.Ensure"/>). Its regex is tested against
+    /// the search-root-relative path as well as the leaf name, so an extensionless *ancestor* directory
+    /// matched it -- <c>D:\tools\smalltools\...</c> matched at <c>tools\smalltools</c> -- and the whole tree
+    /// inherited Low. That demoted every program kept outside Program Files, which is not what "demote names
+    /// without an extension" was meant to do. A named constant so the migration and this doc cannot drift.
+    /// </summary>
+    public const string RetiredExtensionlessRegex = @"/^[^.]+$/";
 
     public static IEnumerable<IndexRuleSetting> CreateLow() => new[]
     {
@@ -47,7 +57,6 @@ public static class IndexRuleDefaults
         Low(@"target\"),
         Low(@"/^\./"),
         Low(@"/^~/"),
-        Low(@"/^[^.]+$/"),
         Low(@"/^\$/"),
     };
 

@@ -7,14 +7,18 @@ namespace Lertaro.Core;
 public static class IndexRuleMigration
 {
     /// <summary>
-    /// Returns the settings' rules, migrating once when they are absent. Migration is in-memory only:
-    /// startup never writes settings, so a read-only install directory cannot break the app; the next
-    /// normal save persists the result.
+    /// Returns the settings' rules, migrating once when they are absent and retiring a rule the shipped
+    /// defaults no longer carry when the saved list is still exactly the previous stock one. Migration is
+    /// in-memory only: startup never writes settings, so a read-only install directory cannot break the app;
+    /// the next normal save persists the result.
     /// </summary>
     public static List<IndexRuleSetting> Ensure(UserSettings settings)
     {
         if (settings.IndexRules != null)
+        {
+            RetirePreviousStockDefault(settings.IndexRules);
             return settings.IndexRules;
+        }
 
         settings.IndexRules = IsLegacyDefault(settings)
             ? IndexRuleDefaults.Create()
@@ -104,6 +108,40 @@ public static class IndexRuleMigration
                && SameSet(settings.IgnoredPathGlobs, IndexRuleDefaults.LegacyIgnoredGlobs)
                && settings.IgnoredPathRegexes.Count == 0;
     }
+
+    // The shipped list before IndexRuleDefaults.RetiredExtensionlessRegex was dropped, as stable keys.
+    private static readonly string[] PreviousStockKeys = IndexRuleDefaults.Create()
+        .Append(new IndexRuleSetting
+        {
+            Pattern = IndexRuleDefaults.RetiredExtensionlessRegex,
+            Effect = IndexRuleEffect.Low,
+        })
+        .Select(KeyOf)
+        .OrderBy(key => key, StringComparer.Ordinal)
+        .ToArray();
+
+    /// <summary>
+    /// Removes <see cref="IndexRuleDefaults.RetiredExtensionlessRegex"/> from a settings file that still
+    /// holds the exact previous stock list. A list the user touched is left alone -- the rule is theirs at
+    /// that point, and deleting something someone typed on purpose is worse than leaving a demotion they can
+    /// see and delete themselves. In memory, like the rest of the migration: the next save persists it.
+    /// </summary>
+    private static void RetirePreviousStockDefault(List<IndexRuleSetting> rules)
+    {
+        if (rules.Count != PreviousStockKeys.Length)
+            return;
+
+        var keys = rules.Select(KeyOf).OrderBy(key => key, StringComparer.Ordinal).ToArray();
+        if (!keys.SequenceEqual(PreviousStockKeys, StringComparer.Ordinal))
+            return;
+
+        rules.RemoveAll(rule => rule.Pattern == IndexRuleDefaults.RetiredExtensionlessRegex
+                                && rule.Effect == IndexRuleEffect.Low);
+    }
+
+    // The effect is part of the identity: the same pattern may legitimately appear as an exclusion and as a
+    // demotion, and a conflict is reported rather than rewritten.
+    private static string KeyOf(IndexRuleSetting rule) => $"{(int)rule.Effect}|{rule.Pattern}";
 
     private static bool SameSet(IReadOnlyList<string> actual, IReadOnlyList<string> expected)
     {
