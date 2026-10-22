@@ -215,9 +215,9 @@ public class GeneralSettingsViewModel : ViewModelBase
     /// <summary>How wide the inline card may get, as a percent of the window it docks to.</summary>
     /// <remarks>
     /// The box takes 20-100, but the number is a request rather than a size: the placement bounds the result
-    /// by the anchored window and its screen, so 40 over a maximized window and 40 over a 400px dialog come
-    /// out different widths. Saving the default back stores null, not 40 -- see GeneralSettingsApplier --
-    /// because null keeps the floor an untouched card has always had on a small window.
+    /// by the anchored window and its screen, so the same percent over a maximized window and over a 400px
+    /// dialog come out different widths. Saving the default -- 60 -- back stores null rather than the number,
+    /// because null is the floor an untouched card has always had on a small window.
     /// </remarks>
     public int InlineSearchWindowWidthPercent
     {

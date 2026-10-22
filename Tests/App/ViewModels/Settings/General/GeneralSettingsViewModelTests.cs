@@ -61,7 +61,7 @@ public sealed class GeneralSettingsViewModelTests
     }
 
     [TestMethod]
-    public void InlineSearchWindowWidthPercent_DefaultsToFortyAndTakesOnlyTheBoxsRange()
+    public void InlineSearchWindowWidthPercent_DefaultsToSixtyAndTakesOnlyTheBoxsRange()
     {
         var settings = new UserSettings();
         var vm = new GeneralSettingsViewModel(settings);
@@ -80,9 +80,9 @@ public sealed class GeneralSettingsViewModelTests
     }
 
     [TestMethod]
-    public void InlineSearchWindowWidthPercent_DefaultIsStoredAsUnsetNotAsForty()
+    public void InlineSearchWindowWidthPercent_DefaultIsStoredAsUnsetNotAsSixty()
     {
-        // Writing 40 back would read as an explicit choice and cost the card the screen floor it keeps when
+        // Writing 60 back would read as an explicit choice and cost the card the screen floor it keeps when
         // nobody picked a number.
         Assert.IsNull(GeneralSettingsApplier.ToStoredInlineCardWidthPercent(UiMetrics.DefaultInlineCardWidthPercent));
         Assert.AreEqual(30, GeneralSettingsApplier.ToStoredInlineCardWidthPercent(30));
