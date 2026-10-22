@@ -1,3 +1,4 @@
+using System.IO;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services;
 using Lertaro.App.Services.PluginManagerCore;
@@ -19,6 +20,10 @@ public static class SearchResultTypePriority
     // for its own non-plugin entries.
     public const string FilesTypeId = "__builtin::Files";
 
+    // The ResultKind AppSearchResult.IsApplication reads. A named constant so the shortcut-identity path
+    // below and the app provider's own declaration cannot drift apart.
+    public const string ApplicationResultKind = "Application";
+
     public static string GetProviderTypeId(ISearchableItemProvider provider) =>
         PluginLoaderHelper.MakeId(ComponentFilter.GetDllName(provider), PluginComponentType.SearchableItemProvider, provider.GetType().Name);
 
@@ -39,6 +44,45 @@ public static class SearchResultTypePriority
     }
 
     public static int Rank(string typeId, List<string> order) => Rank(typeId, BuildRanks(order));
+
+    // The type rank of the provider(s) declaring this ResultKind -- the best one when several do.
+    // int.MaxValue when none of them declares it or the type is not in the saved order, i.e. the same
+    // "unlisted" fallback every other lookup uses.
+    public static int RankForResultKind(
+        string resultKind,
+        IEnumerable<ISearchableItemProvider> providers,
+        IReadOnlyDictionary<string, int> ranks)
+    {
+        var rank = int.MaxValue;
+        foreach (var provider in providers)
+        {
+            if (!string.Equals(provider.ItemResultKind, resultKind, StringComparison.Ordinal))
+                continue;
+            rank = Math.Min(rank, Rank(GetProviderTypeId(provider), ranks));
+        }
+        return rank;
+    }
+
+    // A shortcut file (.lnk/.url/.appref-ms) is two things at once: a file-index row, and -- wherever the
+    // app provider indexes it -- an application row. Ranking takes the better of the two ranks, so moving
+    // "Applications" below "Files" in the order can never demote a shortcut: whichever identity the user
+    // ranked higher is the one that counts. An .exe is deliberately NOT a shortcut here -- it is a file
+    // the user searched for anywhere, and giving every build output the app bonus would invert that.
+    public static int ShortcutRank(int appRank, int filesRank) => Math.Min(appRank, filesRank);
+
+    public static bool IsShortcutPath(string path)
+    {
+        var extension = Path.GetExtension(path);
+        return extension.Equals(".lnk", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".url", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".appref-ms", StringComparison.OrdinalIgnoreCase);
+    }
+
+    // The per-row decision behind ShortcutRank: only a row that is still on the Files rank, is not a
+    // directory, and is a shortcut file takes the better rank. Everything else -- including an .exe, and a
+    // folder whose name merely ends in ".lnk" -- keeps the rank its type already gave it.
+    public static int TypeRankForRow(int typeRank, bool isDirectory, string normalizedPath, int filesRank, int shortcutRank) =>
+        typeRank == filesRank && !isDirectory && IsShortcutPath(normalizedPath) ? shortcutRank : typeRank;
 
     // The reverse lookup for UserSettings.ResultTypeTriggers -- a handful of entries at most, so a
     // linear scan beats maintaining a second reversed dictionary in sync. Compared case-insensitively,

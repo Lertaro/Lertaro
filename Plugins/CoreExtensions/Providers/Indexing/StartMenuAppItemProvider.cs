@@ -13,6 +13,11 @@ public class StartMenuAppItemProvider : ISearchableItemProvider, IDisposable
 {
     public string Name => TranslationService.Get("Plugins_StartMenuAppItemProviderName");
 
+    // Both branches below (shortcut files walked from the roots, and packaged apps read from
+    // shell:AppsFolder) build Application rows, so the host may treat this provider as the application
+    // type -- which is what lets a plain .lnk inherit the app rank for ranking.
+    public string? ItemResultKind => "Application";
+
     /// <summary>What this provider's directories are registered and notified under.</summary>
     private const string RegistrationId = "CoreExtensions.StartMenu";
 

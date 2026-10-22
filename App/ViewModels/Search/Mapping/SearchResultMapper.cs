@@ -124,11 +124,23 @@ public static class SearchResultMapper
         // Quick-window-only: the user-orderable result-type order (RankedCandidate.TypeRank) is compared
         // inside each ranking section, not above it (see RankPolicy.CompareSectionRank): before match
         // quality everywhere except the low-priority section, where quality comes first. Every file-backed
-        // row (index files, favorites, history, Windows' Recent) shares FilesTypeRank so those rows stay
-        // one group; the inline window never consults the list at all.
+        // row (index files, favorites, history, Windows' Recent) starts on FilesTypeRank so those rows stay
+        // one group; a shortcut then borrows the better of that rank and the application type's (below).
+        // The inline window never consults the list at all.
         var typeOrder = isInlineWindow ? new List<string>() : UserSettings.Load().ResultTypeOrder;
         var typeRanks = SearchResultTypePriority.BuildRanks(typeOrder);
         var filesTypeRank = SearchResultTypePriority.Rank(SearchResultTypePriority.FilesTypeId, typeRanks);
+
+        // A .lnk/.url/.appref-ms is a file row that is also an application shortcut. Taking the better of
+        // the two ranks keeps the user's "Applications first" order working for shortcuts the app provider
+        // never scanned (a folder that is not in 自定义应用搜索文件夹), and makes the mirrored "Files first"
+        // order harmless instead of silently demoting every shortcut to the file rank.
+        var shortcutTypeRank = SearchResultTypePriority.ShortcutRank(
+            SearchResultTypePriority.RankForResultKind(
+                SearchResultTypePriority.ApplicationResultKind,
+                PluginManager.Instance.SearchableItemProviders,
+                typeRanks),
+            filesTypeRank);
 
         // Quick-window-only exclusive filter: if the first character the user actually typed matches a
         // configured per-type trigger (UserSettings.ResultTypeTriggers), only that type's candidates
@@ -281,6 +293,11 @@ public static class SearchResultMapper
             }
         }
 
+        // Second identity for the rows above: every shortcut still sitting on the Files rank (index file,
+        // favorite, history, Windows Recent -- the searchable-item loop already carries the app rank) takes
+        // the better of the two. Nothing moves when the app type is unlisted or ranked below Files.
+        ApplyShortcutTypeRank(candidates, filesTypeRank, shortcutTypeRank);
+
         // The history and favorite rows merged above never pass through the engine's own folder filter, so the
         // scope has to be re-applied to them here. Before ranking and before the display cap, so a dropped
         // file cannot take a row the folders would have used.
@@ -290,7 +307,7 @@ public static class SearchResultMapper
         // The inline window's global tier shares this ranking, but its history caps are 1/3 while the quick
         // window's are 3/10. Mixed into one log that has no window field, the bucket distribution would tilt
         // toward Boosted, so the inline window is not sampled.
-        var ordered = RankedCandidateOrdering.Order(candidates, rankContext, isInlineWindow ? null : query);
+        var ordered = RankedCandidateOrdering.Order(candidates, rankContext, isInlineWindow ? null : query, typeOrder);
         // Capped here (not deferred to the caller) because this display cap has to respect whatever
         // header/grouping layout the caller (or InlineListSearchHelper.MergeLocalMatches, downstream)
         // builds around these rows -- e.g. the inline window's "Current Folder"/"Global Search" split
@@ -352,6 +369,27 @@ public static class SearchResultMapper
         MatchRank Match,
         string NormalizedPath,
         bool IsHistoryOnly = false);
+
+    // A shortcut file is both a file row and an application shortcut, and it ranks as whichever identity the
+    // user put first -- where the app provider never indexed it, the file row is the only row it has, so
+    // without this it would carry only the Files rank (see SearchResultTypePriority.ShortcutRank). Only rows
+    // still sitting on the Files rank move: an Application row already carries the better rank, a directory
+    // whose name ends in ".lnk" is not a shortcut, and an .exe is a file like any other. Split out of
+    // BuildQuickResults so the wiring is testable without a search engine behind it.
+    internal static void ApplyShortcutTypeRank(List<RankedCandidate> candidates, int filesTypeRank, int shortcutTypeRank)
+    {
+        if (shortcutTypeRank >= filesTypeRank)
+            return;
+
+        for (var i = 0; i < candidates.Count; i++)
+        {
+            var row = candidates[i];
+            var rank = SearchResultTypePriority.TypeRankForRow(
+                row.TypeRank, row.Result.IsDir, row.NormalizedPath, filesTypeRank, shortcutTypeRank);
+            if (rank != row.TypeRank)
+                candidates[i] = row with { TypeRank = rank };
+        }
+    }
 
     // Shared by both search groups the inline window shows (its own "Current Folder" matches via
     // ExplorerSearchHelper, and this "Global Search" tier below) so a file scores the same way regardless

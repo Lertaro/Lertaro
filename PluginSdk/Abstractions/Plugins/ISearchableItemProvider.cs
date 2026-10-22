@@ -21,6 +21,14 @@ public interface ISearchableItemProvider : IPluginComponent
     bool EnableAlias => true;
 
     /// <summary>
+    /// The ResultKind every item from this provider carries, when they all share one (e.g. "Application").
+    /// Null when the provider mixes kinds or does not declare one, in which case callers read each item's
+    /// own <see cref="SearchableItem.ResultKind"/>. Hosts use this to name the type group a provider's rows
+    /// belong to without depending on the provider implementation.
+    /// </summary>
+    string? ItemResultKind => null;
+
+    /// <summary>
     /// Fired when the items of the provider change, notifying the host to clear cache.
     /// </summary>
     event Action? ItemsChanged;
