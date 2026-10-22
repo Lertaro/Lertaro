@@ -2,14 +2,14 @@
 
 為了幫助開發者深入理解 `Lertaro.PluginSdk` 的各模組協同機制，本章節深入剖析隨 Lertaro 官方存放庫發布的四個典型開源外掛模組。
 
-## 1. CoreExtensions —— 動作、Shell 功能表與快速面板
+## 1. CoreExtensions —— 動作、Shell 選單與快速面板
 
 `CoreExtensions` 外掛模組是 Lertaro 最核心的功能擴充包，同時實作了 `IPlugin`、`IActionProvider`、`IConfigurable` 以及多個子提供者介面。
 
 ### 核心實作要點
 
 - **靜態結果動作（`IActionProvider.GetActions()`）**：註冊了一組常用的基礎檔案動作，包括開啟與定位項目、複製路徑和檔案、加入我的最愛、重新命名、終端機命令、刪除以及以管理員身分執行等。
-- **原生 Shell 功能表整合（`IDynamicActionProvider`）**：透過 `ShellMenuActionProvider` 與 Windows Shell COM 介面互動，將完整的 Windows 快顯階層式功能表（如「傳送到」、7-Zip、VS Code 開啟等）轉譯至 Lertaro 的 `Ctrl+O` 動作功能表中。
+- **原生 Shell 選單整合（`IDynamicActionProvider`）**：透過 `ShellMenuActionProvider` 與 Windows Shell COM 介面互動，將完整的 Windows 快顯階層式選單（如「傳送到」、7-Zip、VS Code 開啟等）轉譯至 Lertaro 的 `Ctrl+O` 動作選單中。
 - **結構描述驅動的設定表單（`IConfigurable`）**：展示了如何定義包含巢狀分組（`Group`）、多行字串清單（`StringList`）與快速鍵錄製（`Hotkey`）的複雜設定表單，無需手寫任何 XAML 即可在設定中心中自動產生。
 - **多樣化的快速面板索引標籤（`IQuickPanelTabProvider`）**：
   - `FavoritesTabProvider` / `HistoryTabProvider`：提供宿主已經載入的我的最愛與歷程清單，而不是重新從磁碟讀取；歷程查詢會派發到 UI 執行緒之外（`Task.Run`），因此喚起面板時從不等待它。

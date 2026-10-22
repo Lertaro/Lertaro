@@ -2,9 +2,10 @@ using Lertaro.App.Views.InlineSearchWindow.Helpers;
 
 namespace Lertaro.App.Tests.Views.InlineSearchWindow.Helpers;
 
-// A drag the user performed on the inline card lives on as a displacement from the position the card docks
-// to. What these pin is that the displacement is scaled by the monitor's DPI (it is recorded in DIP while the
-// dock position is in physical pixels) and that the result stays reachable on the working area.
+// A drag the user performed on the inline card lives on as a displacement from the position the card docks to,
+// one per host application. What these pin is that the displacement is scaled by the monitor's DPI (it is
+// recorded in DIP while the dock position is in physical pixels), that the result stays reachable on the working
+// area, and that a displacement belongs to the host it was dragged off.
 [TestClass]
 public sealed class InlineCardDragOffsetTests
 {
@@ -69,5 +70,62 @@ public sealed class InlineCardDragOffsetTests
 
         Assert.AreEqual(140.0, left, 0.001);
         Assert.AreEqual(70.0, top, 0.001);
+    }
+
+    // The tests above take the displacement as an argument. The ones below are the reason the displacement is
+    // remembered per host application at all: the card is ONE window, parked rather than destroyed when it is
+    // dismissed (InlineSearchWindowSummonSupport), so a single global displacement travelled with it from host
+    // to host -- moving the card inside Directory Opus moved the card inside Explorer.
+
+    [TestMethod]
+    public void ADragRecordedForOneHost_DoesNotMoveAnotherHostsCard()
+    {
+        var left = 1500.0;
+        var top = 500.0;
+        var offsets = new InlineCardDragOffset(() => (left, top));
+
+        offsets.RememberBase("dopus", 1500, 500);
+        (left, top) = (1300, 380);
+        offsets.RememberDrag();
+
+        Assert.IsTrue(offsets.IsSetFor("dopus"));
+        Assert.IsFalse(offsets.IsSetFor("explorer"));
+        Assert.AreEqual((1500.0, 500.0), offsets.ApplyPhysical(
+            "explorer", 1500, 500, 1.0, 1.0, Screen1080, 465, 550));
+    }
+
+    [TestMethod]
+    public void EachHostKeepsItsOwnDisplacementThroughAReDock()
+    {
+        var left = 1500.0;
+        var top = 500.0;
+        var offsets = new InlineCardDragOffset(() => (left, top));
+
+        offsets.RememberBase("dopus", 1500, 500);
+        (left, top) = (1300, 380);
+        offsets.RememberDrag();
+
+        // Explorer's card is then dragged the other way; neither one may pick up the other's travel.
+        offsets.RememberBase("explorer", 900, 300);
+        (left, top) = (1000, 400);
+        offsets.RememberDrag();
+
+        Assert.AreEqual((1300.0, 380.0), offsets.ApplyPhysical(
+            "dopus", 1500, 500, 1.0, 1.0, Screen1080, 465, 550));
+        Assert.AreEqual((1000.0, 400.0), offsets.ApplyPhysical(
+            "explorer", 900, 300, 1.0, 1.0, Screen1080, 465, 550));
+    }
+
+    [TestMethod]
+    public void ADragIsAppliedToItsOwnHostScaledByThatPassesDpi()
+    {
+        // Recorded against a dock of 1500,500 and left at 1200,380: -300,-120 DIP, which on a 200%/150% pass is
+        // -600,-180 physical -- the same arithmetic the static Apply is tested with, reached through the host.
+        var offsets = new InlineCardDragOffset(() => (1200.0, 380.0));
+        offsets.RememberBase("dopus", 1500, 500);
+        offsets.RememberDrag();
+
+        Assert.AreEqual((2400.0, 820.0), offsets.ApplyPhysical(
+            "dopus", 3000, 1000, 2.0, 1.5, new System.Drawing.Rectangle(0, 0, 3840, 2160), 930, 825));
     }
 }

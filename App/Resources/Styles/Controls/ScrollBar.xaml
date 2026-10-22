@@ -117,6 +117,34 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+
+        <!-- The reveal fade is driven from the bar's own style, by the hover state of the ScrollViewer it
+             sits in, and deliberately not from a Trigger in that ScrollViewer's ControlTemplate. A trigger
+             action that names a template part ("PART_VerticalScrollBar") resolves the name against the
+             template's instance scope when it fires, and a pointer change can arrive while WPF is
+             rebuilding that template: the crash log shows a system resource invalidation clearing the
+             generated subtree, the mouse-over state re-syncing out of the clearing, and ScrollViewerHelper
+             answering it by setting PointerNear. The trigger fires against a scope whose parts are gone and
+             Storyboard.ResolveTargetName throws. An animation with no TargetName is handed the styled bar
+             directly, so there is no name that can be missing. -->
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding Path=(converters:ScrollViewerHelper.PointerNear), RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}}" Value="True">
+                <DataTrigger.EnterActions>
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
+                        </Storyboard>
+                    </BeginStoryboard>
+                </DataTrigger.EnterActions>
+                <DataTrigger.ExitActions>
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
+                        </Storyboard>
+                    </BeginStoryboard>
+                </DataTrigger.ExitActions>
+            </DataTrigger>
+        </Style.Triggers>
     </Style>
 
     <!-- ═══════════ Sleek ScrollViewer ═══════════ -->
@@ -183,29 +211,12 @@
                          The condition is PointerNear and not this ScrollViewer's own IsMouseOver
                          because inside a RichTextBox the latter is false over the control's own text.
                          ScrollViewerHelper computes it and explains why it is code rather than a
-                         trigger binding. -->
+                         trigger binding. What fades the bars in on that condition is the ScrollBar style
+                         above, not a trigger here, and why is recorded there. -->
                     <ControlTemplate.Triggers>
                         <Trigger Property="converters:ScrollViewerHelper.AlwaysShowScrollBarWhenNeeded" Value="True">
                             <Setter TargetName="PART_VerticalScrollBar" Property="Opacity" Value="1"/>
                             <Setter TargetName="PART_HorizontalScrollBar" Property="Opacity" Value="1"/>
-                        </Trigger>
-                        <Trigger Property="converters:ScrollViewerHelper.PointerNear" Value="True">
-                            <Trigger.EnterActions>
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetName="PART_VerticalScrollBar" Storyboard.TargetProperty="Opacity" To="1" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
-                                        <DoubleAnimation Storyboard.TargetName="PART_HorizontalScrollBar" Storyboard.TargetProperty="Opacity" To="1" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </Trigger.EnterActions>
-                            <Trigger.ExitActions>
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetName="PART_VerticalScrollBar" Storyboard.TargetProperty="Opacity" To="0" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
-                                        <DoubleAnimation Storyboard.TargetName="PART_HorizontalScrollBar" Storyboard.TargetProperty="Opacity" To="0" Duration="{StaticResource DurationHover}" EasingFunction="{StaticResource EaseOutCubic}"/>
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </Trigger.ExitActions>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

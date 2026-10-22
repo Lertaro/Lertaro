@@ -37,6 +37,20 @@ internal static class SearchWarmup
                 ViewModels.Search.Mapping.SearchResultMapper.BuildQuickResults(null, "\u0001warmup", null, null, false);
                 ViewModels.Search.Mapping.SearchResultMapper.BuildQuickResults(null, "a", null, null, false);
 
+                // The two calls above pass no index results, so they never reach the ranking kernel or the
+                // result list: the first real search still paid that first time (measured: the first paint cost
+                // 109 ms with no index results in hand, against 0-16 ms for every later one). Feed a small
+                // synthetic batch through the same path so RankPolicy, the type order and the highlight JIT are
+                // warmed too. The rows are fabricated and only ever cross this method boundary -- nothing is
+                // recorded, so this cannot look like a search the user made.
+                var warmRows = new List<SearchResult>
+                {
+                    new() { Path = @"C:\Warmup\a.txt", Name = "a", IsDir = false },
+                    new() { Path = @"C:\Warmup\ab", Name = "ab", IsDir = false },
+                    new() { Path = @"C:\Warmup\warmup", Name = "warmup", IsDir = true },
+                };
+                ViewModels.Search.Mapping.SearchResultMapper.BuildQuickResults(warmRows, "a", null, null, false);
+
                 // Info, not Debug: whether this ran is the first thing to check when the first search still
                 // stalls, and a silent warm-up made that unknowable.
                 Logger.Log($"[SearchWarmup] Warm-up finished in {Environment.TickCount64 - started} ms.", LogLevel.Info);

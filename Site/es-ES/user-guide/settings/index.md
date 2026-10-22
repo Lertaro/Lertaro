@@ -15,7 +15,7 @@ La barra lateral izquierda contiene las siguientes secciones principales:
 | Sección | Contenido principal |
 | :--- | :--- |
 | **[Estado del servicio](./service-status)** | Estado del servicio de Windows en segundo plano, diagnóstico y visor de registros en vivo para Service, App y Hook. |
-| **[Gestión de indexación](./index-drives)** | Unidades locales (NTFS / ReFS / FAT32), unidades de red (SMB / NAS), distribuciones WSL, carpetas personalizadas y reglas de exclusión. |
+| **[Gestión de indexación](./index-drives)** | Unidades locales (NTFS / ReFS / FAT32), unidades de red (SMB / NAS), distribuciones WSL, carpetas personalizadas y reglas de exclusión y prioridad. |
 | **[Configuración general](./general)** | Inicio automático, aceleración por hardware, servicio compatible con IPC, dimensiones de la barra de búsqueda y opciones de vista previa. |
 | **[Atajos de teclado](./hotkeys-page)** | Atajos de búsqueda global, teclas de navegación, accesos de plugins, lista negra de procesos y omisión en pantalla completa. |
 | **[Plugins](./plugins)** | Lista de plugins instalados, activación por componentes, formularios de configuración, ecosistema de Flow Launcher y estado de ejecución en vivo. |

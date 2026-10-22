@@ -2,6 +2,7 @@ using System.Windows;
 using Lertaro.Core;
 using Lertaro.App.Services;
 using Lertaro.PluginSdk.Services;
+using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Query;
 using Lertaro.App.ViewModels.Search.Mapping;
 
@@ -169,6 +170,22 @@ internal sealed class SearchDispatchController
         // to the streamed candidates after each per-folder search, so the in-pattern matches must
         // reach the accumulator in the first place. Apps are dropped from a scoped search entirely
         // (a folder scope says nothing about applications), so no app budget is needed at all.
+        // Paint the previous session's rows for this exact query before asking the service for
+        // them again. The service needs ~4 s to load its index after a boot, and everything that
+        // runs before that is slow; the cached page puts a real result list on screen in the first
+        // frame, and the fresh rows replace it as soon as they arrive.
+        if (_queryTokens.Count == 0 && scopeDirective == null)
+        {
+            var cachedRows = Lertaro.Core.Services.Search.QueryResultCache.TryGetStartupPage(searchQuery, null);
+            if (cachedRows is { Count: > 0 })
+            {
+                var cachedUi = new List<AppSearchResult>(cachedRows.Count);
+                for (var i = 0; i < cachedRows.Count; i++)
+                    cachedUi.Add(AppSearchResult.FromIndexResult(cachedRows[i], searchQuery, i, isApplication: false, scope: null));
+                ApplyUntokenized(cachedUi, string.Empty);
+            }
+        }
+
         var hasTokens = _queryTokens.Count > 0;
         var hasScope = scopeDirective != null;
         // A filename-like query (contains a dot, e.g. "plan.md") is a request for a specific file, not a
@@ -191,6 +208,17 @@ internal sealed class SearchDispatchController
         // provider and search-action plugin on each call. See SearchResultMapper.InstantPassCache.
         var instantPass = new SearchResultMapper.InstantPassCache();
         var rankRules = ExclusionRuleSet.From(UserSettings.Load());
+        // Also per search, not per paint: the history score decays at read time, and repainting a streaming
+        // result set must not re-decay the same query's rows into a different order between two paints.
+        // The inline card is far shorter than the quick window, so it only lends 1 row to H5 and 3 to H3;
+        // every other lifted history row keeps ranking by score inside Boosted/HistoryTail. AlwaysTop is a
+        // user checkbox and does not spend a history slot, so pinning still works in the card.
+        var isInlineContext = _getIsInlineSearchContext();
+        var rankContext = new RankContext(
+            rankRules.GetPriorityVerdict,
+            SearchHistoryStore.ScoreSnapshot(DateTimeOffset.UtcNow),
+            historyFiveMax: isInlineContext ? 1 : RankPolicy.HistoryFiveMax,
+            historyThreeMax: isInlineContext ? 3 : RankPolicy.HistoryThreeMax);
         // The engine truncates before the App can rank, so a high-priority row that matches weakly could
         // never arrive at all. Only high rules pay for the wider window; the default rule set has none.
         if (rankRules.HasHighPriorityRules)
@@ -201,7 +229,15 @@ internal sealed class SearchDispatchController
             _getIsInlineSearchContext(),
             fileLimit,
             appLimit,
-            (resp, contextDir) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope || filenameLike, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass, priorityResolver: rankRules.GetPriority),
+            (resp, contextDir) =>
+            {
+                // BuildQuickResults runs on the UI thread, before ui.apply, and was never timed. The
+                // UI-lag probe caught stalls larger than any paint, which points here.
+                var __buildAt = Lertaro.Core.SearchIndex.PerfTrace.Begin();
+                var __built = SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope || filenameLike, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass, rankContext: rankContext);
+                Lertaro.Core.SearchIndex.PerfTrace.Mark("ui.build", __buildAt, __built.Count);
+                return __built;
+            },
             state => _setIsSearching(state),
             (results, status, final) => ApplySearchResults(originalValue, searchQuery, results, status, final),
             HandleLocalServiceUnavailable,
@@ -340,16 +376,62 @@ internal sealed class SearchDispatchController
 
     private void ApplyUntokenized(List<AppSearchResult> uiResults, string statusText)
     {
-        _replaceResults(uiResults);
+        var __ui = Lertaro.Core.SearchIndex.PerfTrace.Begin();
+
+        // A streaming search reports its rows more than once, and the later reports usually carry exactly the
+        // set already on screen -- the same rows in the same order, only the status line differs. Applying
+        // those again rebuilt every container for no visible change, which is what reads as "the list
+        // refreshed" mid-typing. The signature covers what a row draws from the search itself (its path and the
+        // query used for highlighting); everything else a row displays lives in DisplayExtras and updates by
+        // itself.
+        var signature = BuildResultSignature(uiResults, _getSearchQuery());
+        var unchanged = string.Equals(signature, _lastAppliedSignature, StringComparison.Ordinal);
+
+        if (!unchanged)
+        {
+            _lastAppliedSignature = signature;
+            var __replaceAt = Lertaro.Core.SearchIndex.PerfTrace.Begin();
+            _replaceResults(uiResults);
+            Lertaro.Core.SearchIndex.PerfTrace.Mark("ui.replace", __replaceAt, uiResults.Count);
+        }
 
         var hasResults = uiResults.Count > 0;
         _setResultsPanelVisibility(hasResults ? Visibility.Visible : Visibility.Collapsed);
         _setResultsSeparatorVisibility(hasResults ? Visibility.Visible : Visibility.Collapsed);
         _mainVm.Monitor.StatusBarVisibility = Visibility.Visible;
         _mainVm.Monitor.StatusText = statusText;
+        Lertaro.Core.SearchIndex.PerfTrace.Mark("ui.apply", __ui, uiResults.Count);
+
+        if (unchanged)
+            return;
+
+        var __vm = _mainVm;
+        System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+            new Action(() => Lertaro.Core.SearchIndex.PerfTrace.Mark("ui.painted", __ui, __vm.Results?.Count ?? 0)),
+            System.Windows.Threading.DispatcherPriority.Render);
     }
 
-    // Token mode only: extracts the file/directory subset -- the only thing a query token is allowed to
+    /// <summary>
+    /// Cheap identity for a result list: enough to tell "the same rows, drawn the same way" from a real change.
+    /// </summary>
+    private static string BuildResultSignature(List<AppSearchResult> results, string query)
+    {
+        var builder = new System.Text.StringBuilder(query.Length + (results.Count * 24));
+        builder.Append(query);
+
+        foreach (var row in results)
+        {
+            builder.Append('\u0001');
+            builder.Append(row.FullPath);
+        }
+
+        return builder.ToString();
+    }
+
+    // What the list is currently showing, so a repeat report of the same rows can be ignored.
+    private string? _lastAppliedSignature;
+
+    // Token mode only: extracts the file/directory subset (the only thing a query token is allowed to
     // see or reorder -- and everything else is pruned down to just instant results (a calculator answer,
     // etc.); applications, plugin actions, and section headers have nothing to do with what the token is
     // sorting/filtering and would just clutter a result set that's now specifically about files. Runs the

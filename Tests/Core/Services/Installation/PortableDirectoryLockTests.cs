@@ -259,6 +259,56 @@ public sealed class PortableDirectoryLockTests
     // The trust boundary is the directory's ACL and owner. A personal file another process is holding open is
     // not: elevation cannot open it either, and treating it as a failed repair is what turned one busy settings
     // file into an App that could not start at all.
+    // The marker a lock run leaves behind is the only record of what happened to a walk that never finished: the
+    // SCM kills a start at its timeout, so "started and was cut short" has to look different from "nobody ever
+    // locked this copy", and neither may count as current.
+    [TestMethod]
+    public void IsInterrupted_APendingMarkerIsReportedAndNeverCountsAsCurrent()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"LertaroRevision_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var marker = Path.Combine(root, ".permissions-version");
+        try
+        {
+            Assert.IsFalse(PortableDirectoryLock.IsInterrupted(root), "no marker is a copy that was never locked");
+
+            File.WriteAllText(marker, "pending");
+            Assert.IsTrue(PortableDirectoryLock.IsInterrupted(root));
+            Assert.IsFalse(PortableDirectoryLock.IsCurrent(root), "an interrupted walk must be walked again");
+
+            File.WriteAllText(marker, "2");
+            Assert.IsFalse(PortableDirectoryLock.IsInterrupted(root));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    // A completed walk is what makes the next start skip the tree entirely, so the marker it writes has to be the
+    // revision IsCurrent accepts -- not the pending one Lock starts with.
+    [TestMethod]
+    public void Lock_CompletingTheWalk_LeavesTheCurrentRevision()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"LertaroLockRevision_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            // The shipped root zone gives the folder to SYSTEM and Administrators, and assigning that owner
+            // needs elevation. Locking it to the account running the test exercises the same walk.
+            var report = PortableDirectoryLock.Lock(root,
+                PortableDirectoryLock.OwnedBy(WindowsIdentity.GetCurrent().User!));
+
+            Assert.IsEmpty(report.Failed);
+            Assert.AreEqual("2", File.ReadAllText(Path.Combine(root, ".permissions-version")).Trim());
+            Assert.IsFalse(PortableDirectoryLock.IsInterrupted(root));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [TestMethod]
     public void FatalReason_ABusyPersonalFileIsNotARepairFailure()
     {

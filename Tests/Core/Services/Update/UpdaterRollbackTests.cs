@@ -38,7 +38,8 @@ public sealed class UpdaterRollbackTests
             var start = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
                 "WindowsPowerShell", "v1.0", "powershell.exe"))
             { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true };
-            foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-File", runner, Path.Combine(AppContext.BaseDirectory, "portable-updater.ps1"),
+            foreach (var argument in new[] { "-NoProfile", "-ExecutionPolicy", "Bypass", "-NonInteractive", "-File", runner,
+                Path.Combine(AppContext.BaseDirectory, "portable-updater.ps1"),
                 source, target, Path.Combine(root, "rollback") }) start.ArgumentList.Add(argument);
             using var process = Process.Start(start)!;
             var output = process.StandardOutput.ReadToEndAsync();
@@ -146,6 +147,75 @@ public sealed class UpdaterRollbackTests
         finally { Directory.Delete(root, true); }
     }
 
+    [TestMethod]
+    public async Task WaitProcessExit_LingeringProcess_FailsNamingItInsteadOfKillingIt()
+    {
+        var root = Directory.CreateTempSubdirectory("LertaroUpdaterWait_").FullName;
+        try
+        {
+            var runner = WriteUpdaterRunner(root);
+
+            var run = await RunUpdaterActionAsync(runner, "WaitLingering", "");
+
+            Assert.AreEqual(0, run.ExitCode, run.Error + run.Output);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [TestMethod]
+    public async Task WaitProcessExit_AbsentProcess_ReturnsWithoutWaiting()
+    {
+        var root = Directory.CreateTempSubdirectory("LertaroUpdaterWait_").FullName;
+        try
+        {
+            var runner = WriteUpdaterRunner(root);
+
+            var run = await RunUpdaterActionAsync(runner, "WaitAbsent", "");
+
+            Assert.AreEqual(0, run.ExitCode, run.Error + run.Output);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [TestMethod]
+    public async Task ProcessLookup_SeveralNames_LooksUpEachName()
+    {
+        var root = Directory.CreateTempSubdirectory("LertaroUpdaterNames_").FullName;
+        try
+        {
+            var run = await RunUpdaterActionAsync(WriteUpdaterRunner(root), "ProcessHereArray", "");
+
+            Assert.AreEqual(0, run.ExitCode, run.Error + run.Output);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [TestMethod]
+    public async Task ManualPayload_StagesUnderThePayloadRoot_AndRefusesAnythingElse()
+    {
+        var root = Directory.CreateTempSubdirectory("LertaroUpdaterManual_").FullName;
+        try
+        {
+            var run = await RunUpdaterActionAsync(WriteUpdaterRunner(root), "ManualPayload", "", root);
+
+            Assert.AreEqual(0, run.ExitCode, run.Error + run.Output);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [TestMethod]
+    public async Task ClearStalePayload_DeletesOldRuns_AndKeepsTheCurrentOne()
+    {
+        var root = Directory.CreateTempSubdirectory("LertaroUpdaterStale_").FullName;
+        try
+        {
+            var run = await RunUpdaterActionAsync(WriteUpdaterRunner(root), "ClearStalePayload", "", root);
+
+            Assert.AreEqual(0, run.ExitCode, run.Error + run.Output);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
     // The fake returns scripted sc.exe exit codes while recording how many times the helper called it.
     private static string WriteFakeSc(string root, params int[] exitCodes)
     {
@@ -189,6 +259,26 @@ public sealed class UpdaterRollbackTests
                     Start-LertaroService $Sc 2000 10
                     exit 0
                 }
+                'WaitLingering' {
+                    # The runner's own host is a process that cannot leave on its own, so the wait has to time
+                    # out and name it -- an attempt to terminate it would only say "Access is denied".
+                    $deadline = [Diagnostics.Stopwatch]::StartNew()
+                    $message = ''
+                    try { Wait-LertaroProcessExit 'powershell' $PSHOME 400 10 } catch { $message = $_.Exception.Message }
+                    if ($message -notlike 'powershell (PID *) did not exit.') {
+                        throw "Unexpected result after $($deadline.ElapsedMilliseconds)ms: '$message'"
+                    }
+                    if ($deadline.Elapsed.TotalMilliseconds -lt 300) { throw 'The wait gave up before its deadline.' }
+                    exit 0
+                }
+                'WaitAbsent' {
+                    $deadline = [Diagnostics.Stopwatch]::StartNew()
+                    Wait-LertaroProcessExit 'NoSuchLertaroProcess' $PSHOME 5000 10
+                    if ($deadline.Elapsed.TotalMilliseconds -ge 1000) {
+                        throw "The wait polled for $($deadline.ElapsedMilliseconds)ms for an absent process."
+                    }
+                    exit 0
+                }
                 'CompleteRestartFailure' {
                     $lease = [IO.File]::Open($Lease, 'OpenOrCreate', 'ReadWrite', 'None')
                     $result = @{ Status = 'success'; Time = [DateTime]::UtcNow.ToString('O')
@@ -200,6 +290,58 @@ public sealed class UpdaterRollbackTests
                     $disposed = $false
                     try { $lease.WriteByte(0) } catch [ObjectDisposedException] { $disposed = $true }
                     if (!$disposed) { throw 'The update lease was not released.' }
+                    exit 0
+                }
+                'ProcessHereArray' {
+                    # One name is a pattern, so several names have to be looked up one at a time. A [string]
+                    # parameter would join them into "powershell NoSuchLertaroProcess" and match nothing,
+                    # which is how the App and the CLI stopped being stopped before a copy.
+                    $found = @(Get-LertaroProcessHere @('powershell', 'NoSuchLertaroProcess') $PSHOME)
+                    if ($found.Count -lt 1) { throw 'The array of names matched nothing: the names were joined.' }
+                    $absent = @(Get-LertaroProcessHere @('NoSuchLertaroProcess') $PSHOME)
+                    if ($absent.Count -ne 0) { throw "An absent process matched $($absent.Count) entries." }
+                    exit 0
+                }
+                'ManualPayload' {
+                    $source = Join-Path $Target 'download'
+                    $install = Join-Path $Target 'install'
+                    [IO.Directory]::CreateDirectory($source) | Out-Null
+                    [IO.Directory]::CreateDirectory($install) | Out-Null
+                    Set-Content -LiteralPath (Join-Path $install 'portable-updater.ps1') -Value '# marker'
+                    Set-Content -LiteralPath (Join-Path $source 'Lertaro.App.exe') -Value 'new'
+                    [IO.Directory]::CreateDirectory((Join-Path $source 'sub')) | Out-Null
+                    Set-Content -LiteralPath (Join-Path $source 'sub\hidden.txt') -Value 'x'
+                    (Get-Item -LiteralPath (Join-Path $source 'sub\hidden.txt')).Attributes = 'Hidden'
+
+                    $staged = Copy-LertaroManualPayload $source $install
+                    $payloadRoot = Join-Path $install 'update-payload'
+                    if (!$staged.StartsWith($payloadRoot + '\', [StringComparison]::OrdinalIgnoreCase)) {
+                        throw "The manual payload was staged outside $payloadRoot`: $staged"
+                    }
+                    if (!(Test-Path -LiteralPath (Join-Path $staged 'Lertaro.App.exe'))) { throw 'The payload file was not staged.' }
+                    if (!(Test-Path -LiteralPath (Join-Path $staged 'sub\hidden.txt'))) { throw 'The hidden payload file was not staged.' }
+
+                    $missing = Join-Path $Target 'missing'
+                    try { Copy-LertaroManualPayload $missing $install; throw 'A missing source was accepted.' }
+                    catch { if ($_.Exception.Message -notlike 'Update source not found:*') { throw } }
+                    try { Copy-LertaroManualPayload $source $Target; throw 'A non-installation target was accepted.' }
+                    catch { if ($_.Exception.Message -notlike 'The destination is not a Lertaro installation.*') { throw } }
+                    exit 0
+                }
+                'ClearStalePayload' {
+                    $root = Join-Path $Target 'update-payload'
+                    $old = Join-Path $root 'old-run'
+                    $recent = Join-Path $root 'recent-run'
+                    $current = Join-Path $root 'this-run'
+                    foreach ($dir in @($old, $recent, $current)) { [IO.Directory]::CreateDirectory($dir) | Out-Null }
+                    (Get-Item -LiteralPath $old).LastWriteTimeUtc = [DateTime]::UtcNow.AddDays(-30)
+
+                    Clear-LertaroStalePayload $root $current
+
+                    if (Test-Path -LiteralPath $old) { throw 'A stale run was left behind.' }
+                    if (!(Test-Path -LiteralPath $recent)) { throw 'A recent run was deleted.' }
+                    if (!(Test-Path -LiteralPath $current)) { throw 'The current run was deleted.' }
+                    Clear-LertaroStalePayload (Join-Path $Target 'absent') ''
                     exit 0
                 }
             }
@@ -217,7 +359,7 @@ public sealed class UpdaterRollbackTests
         var start = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
             "WindowsPowerShell", "v1.0", "powershell.exe"))
         { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true };
-        foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-File", runner,
+        foreach (var argument in new[] { "-NoProfile", "-ExecutionPolicy", "Bypass", "-NonInteractive", "-File", runner,
             Path.Combine(AppContext.BaseDirectory, "portable-updater.ps1"), action, sc, target ?? "", lease ?? "" })
             start.ArgumentList.Add(argument);
         using var process = Process.Start(start)!;

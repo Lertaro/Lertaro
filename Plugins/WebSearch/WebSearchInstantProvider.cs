@@ -147,13 +147,12 @@ public class WebSearchInstantProvider : IInstantResultProvider
         if (suggestions != null)
         {
             var shownCount = 0;
+            // The fetcher already dropped the typed word itself, the duplicates and the empties, so what
+            // is cached is what goes on screen -- up to the row budget.
             foreach (var suggestion in suggestions)
             {
                 if (shownCount >= MaxSuggestions)
                     break;
-
-                if (string.Equals(suggestion, searchTerm, StringComparison.OrdinalIgnoreCase))
-                    continue;
 
                 shownCount++;
                 yield return new InstantResultItem

@@ -320,6 +320,19 @@ begin
   end;
 end;
 
+procedure StartServiceIfRegistered;
+var
+  ResultCode: Integer;
+begin
+  // PrepareToInstall stops and kills the service so its files can be replaced, and nothing started it
+  // again: until it runs, the App that [Run] launches has no index and no updater until it happens to
+  // start the service itself. Only when the machine ever registered it -- an installation whose App was
+  // never run has no service, and `sc start` on that is just error 1060.
+  if RegKeyExists(HKEY_LOCAL_MACHINE, 'SYSTEM\CurrentControlSet\Services\{#ServiceName}') then
+    if not Exec('sc.exe', 'start ' + '{#ServiceName}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+      Log('Could not run sc.exe to start the service.');
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
@@ -327,6 +340,7 @@ begin
     if WizardIsTaskSelected('addtopath') then
       EnvAddPath(ExpandConstant('{app}'));
     DisableUserShadowStackOnOldWindows;
+    StartServiceIfRegistered;
   end;
 end;
 

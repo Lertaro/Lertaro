@@ -153,12 +153,28 @@ internal static class ShellImageListInterop
 
     private const int SIIGBF_BIGGERSIZEOK = 0x1; // allow a larger bitmap than requested (avoids upscaling)
 
+    // A real content thumbnail comes from whatever handler the extension is registered to, so the call answers
+    // in tens of milliseconds on a healthy shell and never at all on a wedged one. This budget is what makes
+    // the second case a missing preview instead of a preview that is never delivered.
+    internal static int PreviewBudgetMs = 3000;
+
     /// <summary>
     /// Fetches a large real thumbnail (video frame, document page, image) at up to <paramref name="size"/>
     /// pixels for the preview pane — no ICONONLY, so the shell returns the actual content thumbnail when it
-    /// has one, and its native icon otherwise. Uncached; returns null on failure.
+    /// has one, and its native icon otherwise. Uncached; returns null on failure, and null when the shell has
+    /// not answered within <see cref="PreviewBudgetMs"/>.
     /// </summary>
     public static ImageSource? TryGetPreviewThumbnail(string path, int size)
+    {
+        // ponytail: stopping the wait cannot stop the call -- an abandoned one keeps its worker parked until the
+        // shell finally answers. That is acceptable here because nothing retries this on its own: it is asked
+        // once per explicit preview, unlike the provider calls ThumbnailCallGuard rate-limits. The upgrade path
+        // is a cooldown on this seam if a wedged handler ever shows up in a thread count.
+        var task = Task.Run(() => TryGetPreviewThumbnailNow(path, size));
+        return task.Wait(PreviewBudgetMs) ? task.Result : null;
+    }
+
+    private static ImageSource? TryGetPreviewThumbnailNow(string path, int size)
     {
         try
         {

@@ -15,7 +15,7 @@ The sidebar contains the following core sections:
 | Section | Core Capabilities |
 | :--- | :--- |
 | **[Service Status](./service-status)** | Windows background service state, health diagnostics, and live log viewers for Service / App / Hook processes. |
-| **[Indexing Management](./index-drives)** | Local drives (NTFS / ReFS / FAT32), network shares (SMB / NAS), WSL distributions, custom folders, and three exclusion rule types. |
+| **[Indexing Management](./index-drives)** | Local drives (NTFS / ReFS / FAT32), network shares (SMB / NAS), WSL distributions, custom folders, and exclusion and priority rules. |
 | **[General Settings](./general)** | Autostart, hardware acceleration, IPC compatibility, search bar dimensions, Full Window column ordering, and preview parameters. |
 | **[Hotkeys](./hotkeys-page)** | Global search hotkeys, navigation keys, plugin action shortcuts, process blacklist, and fullscreen bypass rules. |
 | **[Plugins](./plugins)** | Installed plugins list, component toggles, custom configuration forms, Flow Launcher community bridge, and live plugin runtime status. |

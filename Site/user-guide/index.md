@@ -4,7 +4,7 @@ Welcome to the official Lertaro User Guide! Lertaro is a file search launcher an
 
 - **[Getting Started](./getting-started)** —— Installation, portable usage, architecture overview, three window modes (Quick / Full / Inline), and essential operations.
 - **[Search Syntax](./search-syntax)** —— Fuzzy matching, operators (`!` exclude, `'` exact, `^` prefix, `$` suffix, `|` OR), drive prefixes, path mode, and multilingual pinyin aliases.
-- **[Hotkeys & Gestures](./hotkeys)** —— Global hotkeys cheat sheet, search box logo drag/reset gestures, mouse Quick Navigation cascading menus, and hardcoded keys.
+- **[Hotkeys & Gestures](./hotkeys)** —— Global hotkeys cheat sheet, search box logo drag/reset gestures, mouse Quick Navigation menus, and hardcoded keys.
 - **[Actions & Preview](./actions-and-preview)** —— Context action menu (`Ctrl+O`), Full Window results list, built-in QuickLook media/document previews, and interactive plugin cards.
 - **[Space Analyzer](./space-analyzer)** —— Zero-I/O Treemap visualization and sorted size breakdown for storage cleanup.
 - **[Instant Answers & Keyword Features](./instant-answers)** —— Always-active calculator, environment variables, commands, and keyword plugins like Process Manager (`ps`), Window Switcher (`win`), Browser Bookmarks (`bb`), Browser History (`bh`), and Settings Search (`set`).

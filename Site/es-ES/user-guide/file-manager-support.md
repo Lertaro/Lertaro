@@ -7,7 +7,7 @@ Lertaro funciona tanto como lanzador independiente como incrustado en el Explora
 En función de las características de la ventana anfitriona, Lertaro ofrece hasta tres funciones de integración:
 
 - **Búsqueda incrustada (Inline Search)**: La barra de búsqueda rápida de Lertaro se incrusta en la parte superior de la ventana o dentro del diálogo, permitiendo buscar en el directorio actual o globalmente sin cambiar de contexto. Aparece en cuanto escribes una letra o un dígito en una lista de archivos compatible, y se lleva ese primer carácter a su propio cuadro.
-- **Navegación rápida (Quick Navigation)**: Haz clic central (o doble clic izquierdo si lo activas, **desactivado de forma predeterminada**) en zonas vacías o en el logotipo incrustado para desplegar un menú en cascada con carpetas abiertas, favoritos, historial y categorías personalizadas. Los exploradores de terceros solo admiten el clic central.
+- **Navegación rápida (Quick Navigation)**: Haz clic central (o doble clic izquierdo si lo activas, **desactivado de forma predeterminada**) en zonas vacías o en el logotipo incrustado para desplegar un menú de Navegación rápida con carpetas abiertas, favoritos, historial y categorías personalizadas. Los exploradores de terceros solo admiten el clic central.
 - **Detección de ruta activa (Active Path Detection)**: Reconoce en tiempo real el directorio físico abierto en la ventana anfitriona, limitando automáticamente el ámbito de búsqueda y resolviendo rutas relativas.
 
 > [!TIP]

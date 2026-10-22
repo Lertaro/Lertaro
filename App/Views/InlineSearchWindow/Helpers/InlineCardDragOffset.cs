@@ -1,37 +1,51 @@
 namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 
 /// <summary>
-/// A drag the user performed on the inline card, kept as a displacement from the position the card docks to.
+/// A drag the user performed on the inline card, kept as a displacement from the position the card docks to,
+/// one displacement per host application.
 /// </summary>
 /// <remarks>
 /// A displacement rather than an absolute position, because every later positioning pass re-docks the card --
 /// the dialog moved, the monitor's DPI changed, the card grew or shrank -- and a remembered absolute position
 /// would be thrown away by the next one of those. That is the trap the quick window's own card drag fell into
-/// (#255), where dragging the card appeared to do nothing at all. Split out purely to keep
-/// InlineSearchWindowPositioner under the repo's per-file line limit; it holds two numbers and always answers
-/// for the one window that owns it.
+/// (#255), where dragging the card appeared to do nothing at all.
+///
+/// Host-scoped because the card is ONE window reused across hosts: a dismissed card is parked, not destroyed
+/// (InlineSearchWindowSummonSupport), so that the next summon does not pay 170-258ms of composition for a
+/// window the user is already looking at. One global displacement therefore travelled with it -- moving the
+/// card inside Directory Opus moved the card inside Explorer. Each application now keeps its own, kept only
+/// for this run of the process, and the desktop is its own bucket because its window belongs to explorer.exe,
+/// the same process as every Explorer folder window.
+///
+/// Split out purely to keep InlineSearchWindowPositioner under the repo's per-file line limit. Takes the
+/// window's position as a function rather than the window so the keying is testable without a WPF window.
 /// </remarks>
 internal sealed class InlineCardDragOffset
 {
-    private readonly Lertaro.App.InlineSearchWindow _window;
+    /// <summary>The bucket the desktop's displacement lives in, kept apart from explorer.exe's.</summary>
+    internal const string DesktopHost = "desktop";
+
+    private readonly Func<(double Left, double Top)> _position;
+    private readonly Dictionary<string, (double X, double Y)> _offsets = new(StringComparer.OrdinalIgnoreCase);
+    private string _host = string.Empty;
     private double _baseLeft;
     private double _baseTop;
-    private double _offsetX;
-    private double _offsetY;
 
-    internal InlineCardDragOffset(Lertaro.App.InlineSearchWindow window) => _window = window;
+    internal InlineCardDragOffset(Func<(double Left, double Top)> position) => _position = position;
 
-    /// <summary>Whether the user has moved this card at all.</summary>
-    internal bool IsSet => _offsetX != 0 || _offsetY != 0;
+    /// <summary>Whether the user has moved the card on this host at all.</summary>
+    internal bool IsSetFor(string host) => _offsets.ContainsKey(host);
 
-    /// <summary>The dock position the displacement is measured from. Recorded before it is applied.</summary>
-    internal void RememberBase(double left, double top)
+    /// <summary>The dock position the displacement is measured from, for the host being docked now.</summary>
+    internal void RememberBase(string host, double left, double top)
     {
+        _host = host;
         _baseLeft = left;
         _baseTop = top;
     }
 
-    /// <summary>Records the drag that has just finished, from where the card has been left.</summary>
+    /// <summary>Records the drag that has just finished, from where the card has been left, for whichever host
+    /// <see cref="RememberBase"/> last named.</summary>
     /// <remarks>
     /// ponytail: the displacement is only known once the drag ENDS, so a content refresh that re-sizes the card
     /// mid-drag re-anchors it and that part of the travel is lost (the drag then keeps following the cursor from
@@ -41,12 +55,14 @@ internal sealed class InlineCardDragOffset
     /// </remarks>
     internal void RememberDrag()
     {
-        _offsetX = _window.Left - _baseLeft;
-        _offsetY = _window.Top - _baseTop;
+        var (left, top) = _position();
+        _offsets[_host] = (left - _baseLeft, top - _baseTop);
     }
 
-    /// <summary>Applies this card's own displacement to a dock position, in physical pixels.</summary>
+    /// <summary>Applies one host's displacement to a dock position, in physical pixels. A host the user has
+    /// never moved is returned as the dock left it.</summary>
     internal (double Left, double Top) ApplyPhysical(
+        string host,
         double left,
         double top,
         double dpiScaleX,
@@ -54,7 +70,9 @@ internal sealed class InlineCardDragOffset
         Rectangle workingArea,
         double windowWidth,
         double windowHeight) =>
-        Apply(left, top, _offsetX, _offsetY, dpiScaleX, dpiScaleY, workingArea, windowWidth, windowHeight);
+        _offsets.TryGetValue(host, out var offset)
+            ? Apply(left, top, offset.X, offset.Y, dpiScaleX, dpiScaleY, workingArea, windowWidth, windowHeight)
+            : (left, top);
 
     /// <summary>
     /// The displacement arithmetic on its own, so it is testable without a window: scaled by the monitor's DPI

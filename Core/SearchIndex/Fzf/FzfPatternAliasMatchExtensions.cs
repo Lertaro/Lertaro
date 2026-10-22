@@ -20,8 +20,12 @@ internal static class FzfPatternAliasMatchExtensions
     // pattern itself, so hoisting it once avoids recomputing it per alias.
     public static bool IsAcceptableAliasMatch(this FzfPattern pattern, FzfPatternResult aliasMatch, int queryLen)
     {
+        // The tightness the painter applies (AliasHighlightPositions.Tightest -> AliasMatchRules.IsTightOccurrence),
+        // so a row can no longer match on an alias occurrence the highlight layer refuses to paint: that
+        // gap is what let a 3-letter exact query rank a file it merely scattered across (matching allowed
+        // 20 characters of span, painting 12). Both sides measure an inclusive width: MaxEnd is exclusive.
         var span = aliasMatch.MaxEnd - aliasMatch.MinBegin;
-        return span <= Math.Max(queryLen * 3, 20) && aliasMatch.Score >= queryLen * 5;
+        return AliasMatchRules.IsTightOccurrence(queryLen, span) && aliasMatch.Score >= queryLen * 5;
     }
 
     // A long candidate name's alias (e.g. a whole filename's pinyin, concatenated into one string) can

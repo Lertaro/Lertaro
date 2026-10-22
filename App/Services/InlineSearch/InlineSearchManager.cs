@@ -269,6 +269,9 @@ public class InlineSearchManager : IDisposable
         win.RestoreKeyboardLayout();
         win.Hide();
         WindowParking.Park(win);
+        // After the park, so the card is off its host before anything else can destroy the host and take the
+        // card with it: a parked card is meant to survive and be re-docked by the next summon.
+        win.ReleaseHost();
         PowerThrottlingHelper.WindowHidden("inline");
 
         // Inline search closes whenever you leave Explorer, so release the icon cache and let the working

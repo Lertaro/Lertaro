@@ -148,6 +148,29 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
         }
     }
     public bool IsApplication => ResultKind == "Application";
+
+    private bool _isFrequent;
+
+    /// <summary>
+    /// True when the ranking gave this row a history tier (H5 or H3): the path is opened often enough for
+    /// this query to count as a habit. Drives the "frequent" badge in the result list.
+    /// </summary>
+    /// <remarks>
+    /// Notifies because <see cref="ViewModels.Search.SearchResultsReconciler"/> may keep an existing row
+    /// instance across searches and copy the fresh value onto it; without the notification the badge would
+    /// stay at the previous query's answer on a row the grid never re-creates.
+    /// </remarks>
+    public bool IsFrequent
+    {
+        get => _isFrequent;
+        set
+        {
+            if (_isFrequent == value) return;
+            _isFrequent = value;
+            OnPropertyChanged(nameof(IsFrequent));
+        }
+    }
+
     public bool IsPluginSearchAction => ResultKind == "PluginAction";
     public bool IsSearchSectionHeader => ResultKind == "SectionHeader";
     public bool IsJumpToExplorerPath => ResultKind == "JumpToExplorerPath";
@@ -190,6 +213,23 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
     // so every non-list-item row is uniformly that height -- which InlineSearchWindowLayoutManager's own
     // height-sum relies on to land exactly on a whole multiple of the row height for every row count.
     public double InlineItemHeight => IsListItem ? ItemHeight : UiMetrics.InlineRowHeight;
+
+    /// <summary>
+    /// True when this row is rendered by the quick search window rather than the inline card, so it
+    /// uses the scaled metrics.
+    /// </summary>
+    /// <remarks>
+    /// Set once when the row is built. The template used to answer this itself with
+    /// {RelativeSource AncestorType=Window} on three elements per row, and that walks the visual tree
+    /// every time it is evaluated -- 20 visible rows meant 60 upward walks per frame. The measurement
+    /// said a repaint of a 200-row list took 60-100 ms; a row should cost under one.
+    /// </remarks>
+    public bool IsQuickWindow { get; set; }
+
+    /// <summary>The metrics for this row, already resolved for the window that owns it.</summary>
+    public double EffectiveNameFontSize => IsQuickWindow ? ScaledNameFontSize : NameFontSize;
+    public double EffectivePathFontSize => IsQuickWindow ? ScaledPathFontSize : PathFontSize;
+    public double EffectiveIconSize => IsQuickWindow ? ScaledResultIconSize : ResultIconSize;
     public double ActionsHeaderHeight => Math.Round(ItemHeight * 0.7);
     public string DisplayPath => IsApplication ? ParentDir : FullPath;
 

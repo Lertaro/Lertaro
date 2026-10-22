@@ -40,7 +40,7 @@ public class ExclusionSettingsViewModel : ViewModelBase
         {
             if (string.IsNullOrWhiteSpace(rule.Pattern))
                 continue;
-            Rules.Add(new ExclusionRuleItem(IndexRuleSyntax.Clean(rule.Pattern), rule.Effect));
+            Rules.Add(new ExclusionRuleItem(IndexRuleSyntax.Clean(rule.Pattern), rule.Effect, rule.AlwaysTop));
         }
 
         _view = new ListCollectionView(Rules)
@@ -211,7 +211,7 @@ public class ExclusionSettingsViewModel : ViewModelBase
         // box, so a typo can never silently drop rules from the saved configuration.
         var bulkApplied = ApplyBulkText();
         _userSettings.IndexRules = Rules
-            .Select(rule => new IndexRuleSetting { Pattern = rule.Value, Effect = rule.Effect })
+            .Select(ToSetting)
             .ToList();
         // Keep the in-memory legacy lists in step with the rules so an immediate settings snapshot and a
         // downgrade both see the excluding subset.
@@ -365,10 +365,15 @@ public class ExclusionSettingsViewModel : ViewModelBase
             StatusMessage = string.Format(T("Exclusions_MovedTemplate"), EffectText(parsed.Effect));
     }
 
+    // One row-to-setting conversion, so the saved list and the conflict scan can never disagree about
+    // which fields a rule carries.
+    private static IndexRuleSetting ToSetting(ExclusionRuleItem rule) =>
+        new() { Pattern = rule.Value, Effect = rule.Effect, AlwaysTop = rule.AlwaysTop };
+
     private void RecomputeConflicts()
     {
         var settings = Rules
-            .Select(rule => new IndexRuleSetting { Pattern = rule.Value, Effect = rule.Effect })
+            .Select(ToSetting)
             .ToList();
         var conflicts = IndexRuleConflictDetector.Detect(settings);
 
@@ -412,6 +417,14 @@ public class ExclusionSettingsViewModel : ViewModelBase
         var invalidLines = new List<int>();
         var lineNumber = 0;
 
+        // The bulk box spells the level only -- no prefix exists for a pin -- so re-applying the text must
+        // not silently unpin the high rules that are still there. A line whose text changed loses its pin,
+        // which is the same outcome as deleting and re-adding the rule.
+        var storedPins = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var rule in Rules)
+            if (rule.AlwaysTop)
+                storedPins.Add(rule.Value);
+
         foreach (var line in (BulkText ?? string.Empty).Split(["\r\n", "\n", "\r"], StringSplitOptions.None))
         {
             lineNumber++;
@@ -433,7 +446,10 @@ public class ExclusionSettingsViewModel : ViewModelBase
             if (!seen.Add(rule.Text))
                 continue;
 
-            parsed.Add(new ExclusionRuleItem(rule.Text, effect));
+            parsed.Add(new ExclusionRuleItem(
+                rule.Text,
+                effect,
+                effect == IndexRuleEffect.High && storedPins.Contains(rule.Text)));
         }
 
         // All or nothing: a half-applied paste is harder to notice than a refused one.

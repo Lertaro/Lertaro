@@ -145,7 +145,7 @@ public class BrowserDataInstantProvider : IInstantResultProvider
         var iconData = !string.IsNullOrWhiteSpace(profile.Profile.Icon)
             ? profile.Profile.Icon
             : entry.IsBookmark ? DefaultBookmarkIcon : DefaultHistoryIcon;
-        var favicon = BrowserFaviconIconLoader.ToHBitmap(entry.Favicon);
+        var favicon = BrowserFaviconIconLoader.ToHBitmap(entry.FaviconData);
 
         return new InstantResultItem
         {

@@ -56,7 +56,7 @@ Configura las dimensiones predeterminadas y la vista de tabla para la ventana pr
 
 ## 5. Navegación rápida
 
-- **Orden de proveedores**: Reordena las secciones de nivel superior en el menú de Navegación rápida (Favoritos, Historial, Carpetas abiertas y marcadores de exploradores).
+- **Orden de proveedores**: Reordena los grupos de proveedores del nivel superior en el menú de Navegación rápida. Cada fila es un proveedor, por ejemplo Cascada de Carpetas y Ejecutor de Comandos del Sistema, además de los grupos de marcadores de los complementos de exploradores.
 
 ## 6. Vista previa y miniaturas
 

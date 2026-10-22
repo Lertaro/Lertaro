@@ -24,6 +24,7 @@ internal static class GeneralSettingsApplier
         bool enableQuickSearchClipboardAutoFill,
         bool keepSearchText,
         bool enableEverythingIpc,
+        bool enableRankingEventLog,
         bool showOpenedFoldersInInlineSearch,
         int inlineSearchWindowWidthPercent,
         bool hideTrayIcon,
@@ -50,6 +51,9 @@ internal static class GeneralSettingsApplier
         // filtering, highlighting), which only ever sees the process-wide value -- see SearchContext.
         SearchContext.DefaultAndFirstPrecedence = !orFirstPrecedence;
         userSettings.EnableEverythingIpc = enableEverythingIpc;
+        // Turning the ranking calibration log off takes effect on its very next write attempt:
+        // RankingEventLog.IsEnabled reads the setting each time, so nothing has to be restarted.
+        userSettings.EnableRankingEventLog = enableRankingEventLog;
         userSettings.ShowOpenedFoldersInInlineSearch = showOpenedFoldersInInlineSearch;
         userSettings.InlineSearchWindowWidthPercent = ToStoredInlineCardWidthPercent(inlineSearchWindowWidthPercent);
         userSettings.HideTrayIcon = hideTrayIcon;

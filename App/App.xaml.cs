@@ -330,6 +330,19 @@ public partial class App : Application
             // user's first keystroke (measured ~60 ms against 4-9 ms for every later paint). See SearchWarmup.
             SearchWarmup.Schedule();
 
+            // And once off-screen for the list itself: the first paint of a session costs 185 ms
+            // against 35-100 ms afterwards, which is the template's first expansion rather than any
+            // per-search work. See ResultTemplateWarmup.
+            ResultTemplateWarmup.Schedule();
+
+            // The type icons a result list needs, resolved off the UI thread first. A cache miss in the
+            // icon getter runs the shell lookup on the UI thread, and the first search of a session
+            // misses every type at once -- which is why the first keystroke could not echo.
+            TypeIconWarmup.Schedule();
+
+
+
+
             if (e.Args.Length > 0 && UriRouter.IsLertaroUri(e.Args[0]))
                 UriRouter.Route(e.Args[0]);
         }), System.Windows.Threading.DispatcherPriority.Loaded);

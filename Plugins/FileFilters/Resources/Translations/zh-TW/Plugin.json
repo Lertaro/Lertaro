@@ -12,6 +12,6 @@
   "FileFilters_Config_FilterPatternLabel": "匹配副檔名",
   "FileFilters_Config_FilterPatternDesc": "檔案匹配規則或過濾副檔名（如 '*.exe;*.lnk'，預設 '*' 匹配所有）。",
   "FileFilters_PluginDesc": "自訂目錄範圍搜尋外掛。配置資料夾與副檔名過濾規則，透過字首關鍵字在指定資料夾範圍內搜尋。",
-  "Plugin_Comp_Desc_FileFiltersScopeProvider": "發布關鍵字觸發的目錄範圍（如用 'tf' 代表所配置的資料夾），輸入 'tf 詞' 即可在這些資料夾內進行快捷檢索。",
+  "Plugin_Comp_Desc_FileFiltersScopeProvider": "發布關鍵字觸發的目錄範圍（如用 'tf' 代表所配置的資料夾），輸入 'tf 詞' 即可在這些資料夾內進行快速搜尋。",
   "Plugin_Comp_Desc_FileFiltersTranslationProvider": "為各種過濾條件大類提供多語言翻譯服務。"
 }

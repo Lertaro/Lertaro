@@ -12,6 +12,12 @@ public static class AppSearchPipeClient
 {
     public const int ConnectTimeoutMs = 1500;
 
+    // The whole request, not just the connect. `--space-entries` is also called from inside Directory Opus's
+    // own script engine (LertaroSize.js), where the host process waits on this one synchronously: with only a
+    // connect bound, an App that accepts the pipe and never answers parked Opus's main thread for as long as
+    // it liked. Timing out here costs that one folder's size column, which is the cheaper thing to lose.
+    public const int SpaceEntriesTimeoutMs = 5000;
+
     // Same size and reasoning as Core's SearchPipeClient.ResponseReadBufferSize -- see that field's comment.
     private const int ResponseReadBufferSize = 64 * 1024;
 
@@ -49,16 +55,18 @@ public static class AppSearchPipeClient
 
     public static async Task<IReadOnlyList<SpaceIndexEntry>> GetSpaceEntriesAsync(string pipeName, string directory, CancellationToken token = default)
     {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(SpaceEntriesTimeoutMs);
         using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
-        await pipe.ConnectAsync(ConnectTimeoutMs, token);
+        await pipe.ConnectAsync(ConnectTimeoutMs, timeout.Token);
 
         await SearchRequestBinarySerializer.WriteSearchRequestAsync(pipe, new SearchRequestMessage
         {
             Id = SearchRequestId.GetSpaceEntries,
             Drive = directory
-        }, token);
+        }, timeout.Token);
 
-        var response = await PipeResponseBinarySerializer.ReadAsync(pipe, token);
+        var response = await PipeResponseBinarySerializer.ReadAsync(pipe, timeout.Token);
         if (response.Kind == PipeResponseKind.SpaceEntries)
             return response.SpaceEntries ?? Array.Empty<SpaceIndexEntry>();
 

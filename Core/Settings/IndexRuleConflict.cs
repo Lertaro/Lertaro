@@ -9,9 +9,11 @@ namespace Lertaro.Core;
 public sealed record IndexRuleConflict(int PriorityIndex, int ExcludeIndex, string PriorityPattern, string ExcludePattern);
 
 /// <summary>
-/// Static, heuristic conflict detection between exclude rules and low/high/normal rules. It only reports
-/// pairs it can decide from the patterns themselves; two overlapping globs or two regexes are left to the
-/// engine, where exclude always wins at runtime.
+/// Static, heuristic conflict detection between exclude rules and low/high/normal rules. It reports a pair
+/// only when the exclude rule covers the whole range of the priority rule, and abstains when coverage cannot
+/// be proven: overlapping globs, a regex priority rule against a path exclude, and a priority rule that
+/// reaches outside the excluded subtree are all left to the engine, where exclude wins at runtime anyway.
+/// Missing a real conflict is cheaper than flagging a rule that still takes effect.
 /// </summary>
 public static class IndexRuleConflictDetector
 {
@@ -74,11 +76,11 @@ public static class IndexRuleConflictDetector
         {
             var priorityPath = ResolvePath(priority.Pattern);
             var excludePath = ResolvePath(exclude.Pattern);
-            return priorityPath != null && excludePath != null
-                && (IsSameOrUnder(priorityPath, excludePath) || IsSameOrUnder(excludePath, priorityPath));
+            // One-way: an exclude above the priority path removes it, an exclude below only takes a part.
+            return priorityPath != null && excludePath != null && IsSameOrUnder(priorityPath, excludePath);
         }
 
-        // Paths are concrete, so a pattern rule on either side can be tested against them.
+        // A concrete priority path can be tested against any exclude matcher.
         if (priority.Kind == IndexRuleKind.Path)
         {
             var path = ResolvePath(priority.Pattern);
@@ -87,13 +89,75 @@ public static class IndexRuleConflictDetector
 
         if (exclude.Kind == IndexRuleKind.Path)
         {
-            var path = ResolvePath(exclude.Pattern);
-            return path != null && MatchesPattern(priority, path, matchers);
+            var excludePath = ResolvePath(exclude.Pattern);
+            return excludePath != null && PatternIsCoveredByPath(priority, excludePath);
         }
 
         // Glob x regex and glob x glob overlap is not decidable without enumerating the filesystem.
         return false;
     }
+
+    /// <summary>
+    /// True when every path a glob rule matches is known to live inside <paramref name="excludePath"/>. The
+    /// literal text before the first wildcard bounds the matches: when it ends on a separator that directory
+    /// is the deepest all matches share, otherwise the wildcard sits inside a segment and only its parent
+    /// directory is shared. Relative globs and regexes have no such anchor and are never proven.
+    /// </summary>
+    private static bool PatternIsCoveredByPath(ParsedIndexRule priority, string excludePath)
+    {
+        if (priority.Kind != IndexRuleKind.Glob)
+            return false;
+
+        var text = UserPathResolver.Expand(priority.Pattern);
+        if (!Path.IsPathFullyQualified(text) || IsDevicePath(text))
+            return false;
+
+        // A pattern with ".." no longer matches the subtree its literal prefix names.
+        if (text.Split(Path.DirectorySeparatorChar).Contains(".."))
+            return false;
+
+        var wildcard = IndexOfGlobWildcard(text);
+        var literal = wildcard < 0 ? text : text[..wildcard];
+        if (literal.Length == 0)
+            return false;
+
+        var coveredRoot = wildcard < 0 || literal[^1] == Path.DirectorySeparatorChar
+            ? literal.TrimEnd(Path.DirectorySeparatorChar)
+            : Path.GetDirectoryName(literal);
+
+        var normalized = NormalizeCoveredRoot(coveredRoot);
+        return normalized != null && IsSameOrUnder(normalized, excludePath);
+    }
+
+    private static string? NormalizeCoveredRoot(string? root)
+    {
+        if (string.IsNullOrEmpty(root))
+            return null;
+        try
+        {
+            var full = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar);
+            // Trimming a drive root leaves the drive-relative "C:", which no resolved path starts with.
+            return full.Length == 2 && full[1] == ':' ? full + Path.DirectorySeparatorChar : full;
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return null;
+        }
+    }
+
+    private static int IndexOfGlobWildcard(string text)
+    {
+        for (var i = 0; i < text.Length; i++)
+        {
+            if (text[i] is '*' or '?' or '[')
+                return i;
+        }
+
+        return -1;
+    }
+
+    private static bool IsDevicePath(string text) =>
+        text.StartsWith(@"\\?\", StringComparison.Ordinal) || text.StartsWith(@"\\.\", StringComparison.Ordinal);
 
     private static bool MatchesPattern(
         ParsedIndexRule rule,

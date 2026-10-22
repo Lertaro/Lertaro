@@ -178,6 +178,42 @@ public sealed class SearchResultRelevanceTests
         Assert.AreEqual(0xDEAD_BEEFUL, result.RankSortKey & 0xFFFF_FFFFUL);
     }
 
+    // The full window reads the two strong/weak signals back out of the packed key instead of rebuilding a
+    // MatchRank, so the bit layout and MatchRank.IsStrong have to stay in step -- a drift here would give
+    // one query two different strong/weak boundaries, and with them two different scores.
+    [TestMethod]
+    public void IsStrongMatch_AgreesWithMatchRankIsStrong()
+    {
+        var tiers = new[] { MatchRank.TierName, MatchRank.TierInitials, MatchRank.TierFull, MatchRank.TierFullRare };
+        var shapes = new[]
+        {
+            MatchRank.ShapeWholeWord,
+            MatchRank.ShapeWordStart,
+            MatchRank.ShapeInsideWord,
+            MatchRank.ShapeScattered,
+            MatchRank.ShapeNoName,
+        };
+
+        foreach (var tier in tiers)
+        {
+            foreach (var shape in shapes)
+            {
+                // A non-zero low word keeps the key distinguishable from "never packed" (see Apply below).
+                var rank = new MatchRank(tier, 0, 1d, 1d, shape);
+                var result = new SearchResult { Name = "atlas", Path = @"C:\atlas" };
+                result.RankSortKey = (ulong)Key(rank) << 32 | 0xFFFF_FFFFUL;
+
+                Assert.AreEqual(
+                    rank.IsStrong,
+                    SearchResultRelevance.IsStrongMatch(result.RankSortKey),
+                    $"tier {tier} shape {shape} disagree");
+            }
+        }
+
+        Assert.IsFalse(SearchResultRelevance.IsStrongMatch((ulong)Key(new MatchRank(MatchRank.TierFullRare, 0, 1d, 1d, MatchRank.ShapeWholeWord)) << 32));
+        Assert.IsFalse(SearchResultRelevance.IsStrongMatch((ulong)Key(new MatchRank(MatchRank.TierName, 0, 1d, 1d, MatchRank.ShapeScattered)) << 32));
+    }
+
     private static uint Key(MatchRank rank) => SearchResultRelevance.HighKey(rank);
 
     private static uint Key(int start, double coverage, double contiguity, int tier = 0, int shape = MatchRank.ShapeWholeWord) =>

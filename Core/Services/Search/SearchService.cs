@@ -43,8 +43,11 @@ public class SearchService : IDisposable
     // to unfilter here; recovering that is CheckNeedsLiveSearch's live-scan fallback's job instead.
     public async Task<bool> SearchStreamingAsync(string query, int maxResults, int maxAppResults, string? directoryFilter, Action<SearchResult> onResult, CancellationToken token = default, Action? onLocalSearchFailed = null, bool bypassExclusions = false, string? fileNameFilter = null)
     {
+        var __trace = Lertaro.Core.SearchIndex.PerfTrace.Begin();
+        var __firstRow = 0L;
         var settings = UserSettings.Load();
         var exclusionRules = ExclusionRuleSet.From(settings);
+        Lertaro.Core.SearchIndex.PerfTrace.Mark("client.setup", __trace);
         // No longer clamped to 2000. The service returns everything that matches and the caller decides
         // what to do with it; asking for a multiple of maxResults existed only to leave headroom for the
         // exclusion filtering below, which is pointless once maxResults is itself unbounded.
@@ -82,6 +85,7 @@ public class SearchService : IDisposable
         var effectiveBypassExclusions = bypassExclusions || parsed.IsPathMode;
 
         var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var cacheable = new List<SearchResult>();
         var uniqueOnResult = new Action<SearchResult>(result =>
         {
             // Unconditional, even in bypass mode: "*" only opts out of the user's own
@@ -95,6 +99,10 @@ public class SearchService : IDisposable
                 if (!seenPaths.Add(result.Path))
                     return;
             }
+            lock (cacheable)
+                cacheable.Add(result);
+            if (System.Threading.Interlocked.Exchange(ref __firstRow, 1) == 0)
+                Lertaro.Core.SearchIndex.PerfTrace.Mark("client.firstRow", __trace);
             onResult(result);
         });
 
@@ -102,11 +110,18 @@ public class SearchService : IDisposable
         {
             try
             {
+                var __pipeStart = Lertaro.Core.SearchIndex.PerfTrace.Begin();
                 await SearchPipeClient.SendSearchPipeCommandAsync(msg, result =>
                 {
                     if (effectiveBypassExclusions || !exclusionRules.IsExcluded(result, directoryFilter))
                         uniqueOnResult(result);
                 }, token).ConfigureAwait(false);
+                Lertaro.Core.SearchIndex.PerfTrace.Mark("client.pipe", __pipeStart);
+                // Keep this page for the next session to start from. Only the plain name-search shape:
+                // a scoped or token query is cheap to re-run and has no reuse worth storing.
+                if (directoryFilter == null && fileNameFilter == null)
+                    QueryResultCache.Store(query, null, cacheable);
+                Lertaro.Core.SearchIndex.PerfTrace.Flush("client", "ok", __trace, seenPaths.Count);
                 return true;
             }
             catch (OperationCanceledException)

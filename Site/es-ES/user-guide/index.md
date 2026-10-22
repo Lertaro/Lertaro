@@ -4,7 +4,7 @@
 
 - **[Primeros pasos](./getting-started)** —— Instalación, versión portátil, resumen de arquitectura, tres modalidades de ventana (Rápida / Principal / Incrustada) y operaciones básicas.
 - **[Sintaxis de búsqueda](./search-syntax)** —— Coincidencia difusa, operadores (`!` exclusión, `'` exacta, `^` prefijo, `$` sufijo, `|` OR), prefijos de unidad, modo ruta y alias de pinyin.
-- **[Atajos de teclado y gestos](./hotkeys)** —— Tabla de atajos globales, gestos de ratón en el logotipo, menús en cascada de Navegación rápida y teclas fijas.
+- **[Atajos de teclado y gestos](./hotkeys)** —— Tabla de atajos globales, gestos de ratón en el logotipo, menús de Navegación rápida y teclas fijas.
 - **[Acciones y vista previa](./actions-and-preview)** —— Menú contextual de acciones (`Ctrl+O`), lista de la Ventana principal, vista previa multimedia/documentos con QuickLook y tarjetas de plugins.
 - **[Analizador de espacio](./space-analyzer)** —— Visualización Treemap con cero operaciones de E/S y desglose ordenado por tamaño para limpiar almacenamiento.
 - **[Respuestas instantáneas y funciones con palabras clave](./instant-answers)** —— Calculadora, variables de entorno, comandos y plugins como Gestor de procesos (`ps`), Conmutador de ventanas (`win`), Marcadores del navegador (`bb`), Historial del navegador (`bh`) y Configuración (`set`).

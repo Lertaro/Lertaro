@@ -67,14 +67,13 @@ internal static class HistorySearchCandidateMapper
             if (IsExcludedFromSearch(result))
                 continue;
 
-            // Negative priorities put a learned keyword match ahead of ordinary global history, whose
-            // priorities start at zero. The row is marked history-only: the keyword matched, not the
-            // displayed name, so the quality ladder must not treat its perfect keyword rank as a name hit.
+            // The row is marked history-only: the keyword matched, not the displayed name, so the
+            // quality ladder must not treat its perfect keyword rank as a name hit. Its open count feeds the
+            // decayed-score budget instead of a separate priority signal.
             candidates.Add(new SearchResultMapper.RankedCandidate(
                 result,
                 IsFavorite: false,
                 HistoryCount: entry.Count,
-                HistoryPriority: candidates.Count - MaxCandidates,
                 TypeRank: typeRank,
                 Match: match,
                 NormalizedPath: normalizedPath,
@@ -202,38 +201,5 @@ internal static class HistorySearchCandidateMapper
         for (var index = 0; index < merged.Count; index++)
             merged[index].Index = index;
         return merged;
-    }
-
-    // The full window ranks only rows the index returned, so it needs a path -> priority map rather than
-    // rows: learned-keyword order inside a history band, then Windows Recent Items. The priority is
-    // compared AFTER match quality and the history band. No existence probes: every row this is compared
-    // against came from the index, so it exists, and a probe could stall on a network share.
-    internal static IReadOnlyDictionary<string, int> RankingPriorities(
-        FuzzyQuery fuzzy,
-        IEnumerable<HistoryEntry> entries,
-        IReadOnlyDictionary<string, int> history,
-        IReadOnlyList<SearchResultMapper.RankedCandidate> recent)
-    {
-        var learned = Collect(fuzzy, null, entries, _ => true, _ => true);
-        return ApplyPriorities(history, [.. learned, .. recent]);
-    }
-
-    public static IReadOnlyDictionary<string, int> RankingPriorities(FuzzyQuery fuzzy) =>
-        RankingPriorities(fuzzy, SearchHistoryStore.GetEntries(), SearchHistoryStore.Snapshot(), WindowsRecentCandidateMapper.CollectForRanking(fuzzy));
-
-    internal static IReadOnlyDictionary<string, int> ApplyPriorities(
-        IReadOnlyDictionary<string, int> existing,
-        IReadOnlyList<SearchResultMapper.RankedCandidate> learned)
-    {
-        var priorities = existing.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
-        foreach (var candidate in learned)
-        {
-            var path = candidate.Result.FullPath;
-            if (path.Length > 3 && path[^1] == '\\')
-                path = path.TrimEnd('\\');
-            if (!priorities.TryGetValue(path, out var priority) || candidate.HistoryPriority < priority)
-                priorities[path] = candidate.HistoryPriority;
-        }
-        return priorities;
     }
 }

@@ -76,6 +76,9 @@ internal static class SearchResultsReconciler
             // instant providers can derive them from the query even when the row identity stays equal.
             live[i].SearchQuery = target[i].SearchQuery;
             live[i].Index = target[i].Index;
+            // Ranking output, recomputed per search: whether this row landed in a history tier depends on
+            // this query's budget, not on the path.
+            live[i].IsFrequent = target[i].IsFrequent;
             live[i].PluginActionId = target[i].PluginActionId;
             live[i].PluginActionArgumentText = target[i].PluginActionArgumentText;
             live[i].InstantResultActionType = target[i].InstantResultActionType;

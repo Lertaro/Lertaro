@@ -5,11 +5,34 @@ using System.Windows.Media.Imaging;
 
 namespace Lertaro.Plugins.BrowserData;
 
-// Decodes cached browser favicon bytes once during profile loading and creates a fresh HBITMAP for each
-// result row. The host owns and deletes the returned handle after it materializes the instant result.
+// Turns one cached favicon's raw bytes into the HBITMAP an instant result row needs. The profile cache
+// deliberately keeps the encoded bytes rather than a decoded bitmap, so at most the rows that actually
+// make it into a result (MaxResults/MaxAllResults) are ever decoded. The host owns and deletes the
+// returned handle after it materializes the instant result.
 internal static class BrowserFaviconIconLoader
 {
-    public static BitmapSource? Decode(byte[] imageData)
+    public static IntPtr ToHBitmap(byte[]? imageData)
+    {
+        if (imageData is not { Length: > 0 })
+            return IntPtr.Zero;
+
+        var source = Decode(imageData);
+        if (source is not { PixelWidth: > 0, PixelHeight: > 0 })
+            return IntPtr.Zero;
+
+        var formatted = new FormatConvertedBitmap(source, PixelFormats.Bgra32, null, 0);
+        var stride = source.PixelWidth * 4;
+        var pixels = new byte[source.PixelHeight * stride];
+        formatted.CopyPixels(pixels, stride, 0);
+        var handle = CreateDibSection(source.PixelWidth, source.PixelHeight, out var bits);
+        if (handle == IntPtr.Zero || bits == IntPtr.Zero)
+            return IntPtr.Zero;
+
+        Marshal.Copy(pixels, 0, bits, pixels.Length);
+        return handle;
+    }
+
+    private static BitmapSource? Decode(byte[] imageData)
     {
         try
         {
@@ -28,23 +51,6 @@ internal static class BrowserFaviconIconLoader
         {
             return null;
         }
-    }
-
-    public static IntPtr ToHBitmap(BitmapSource? source)
-    {
-        if (source == null || source.PixelWidth <= 0 || source.PixelHeight <= 0)
-            return IntPtr.Zero;
-
-        var formatted = new FormatConvertedBitmap(source, PixelFormats.Bgra32, null, 0);
-        var stride = source.PixelWidth * 4;
-        var pixels = new byte[source.PixelHeight * stride];
-        formatted.CopyPixels(pixels, stride, 0);
-        var handle = CreateDibSection(source.PixelWidth, source.PixelHeight, out var bits);
-        if (handle == IntPtr.Zero || bits == IntPtr.Zero)
-            return IntPtr.Zero;
-
-        Marshal.Copy(pixels, 0, bits, pixels.Length);
-        return handle;
     }
 
     private static IntPtr CreateDibSection(int width, int height, out IntPtr bits)

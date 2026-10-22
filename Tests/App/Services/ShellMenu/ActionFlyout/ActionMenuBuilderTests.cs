@@ -1,3 +1,4 @@
+using System.Windows;
 using Lertaro.App.Services.ShellMenu.ActionFlyout;
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Abstractions.Plugins;
@@ -47,6 +48,44 @@ public sealed class ActionMenuBuilderTests
         var result = ActionMenuBuilder.FinalizeItems(items);
 
         CollectionAssert.AreEqual(items, result);
+    }
+
+    // The STA half of this class: a configured vector icon arrives as path data (the item list is built off
+    // the UI thread) and only becomes the ImageSource the row binds at finalize time, which is where every
+    // host is back on the UI thread. A configured icon that rendered nowhere is what this pair guards --
+    // the row shows a placeholder bullet instead of silently losing the icon.
+    [STATestMethod]
+    public void FinalizeItems_VectorPathData_BuildsTheIconTheRowBinds()
+    {
+        var item = new ActionMenuItem { Text = "Compress", VectorIconPathData = "M7 2v11h3v9l7-12h-4l3-8z" };
+
+        var result = ActionMenuBuilder.FinalizeItems(new List<ActionMenuItem> { item });
+
+        Assert.IsNotNull(result[0].Icon);
+        Assert.AreEqual(Visibility.Visible, result[0].IconVisibility);
+        Assert.AreEqual(Visibility.Collapsed, result[0].PlaceholderVisibility);
+    }
+
+    [STATestMethod]
+    public void FinalizeItems_VectorPathDataUnparseable_KeepsThePlaceholderBullet()
+    {
+        var item = new ActionMenuItem { Text = "Compress", VectorIconPathData = "not a path at all" };
+
+        var result = ActionMenuBuilder.FinalizeItems(new List<ActionMenuItem> { item });
+
+        Assert.IsNull(result[0].Icon, "an unusable path was turned into an icon anyway");
+        Assert.AreEqual(Visibility.Visible, result[0].PlaceholderVisibility);
+    }
+
+    [STATestMethod]
+    public void FinalizeItems_BitmapIconAlreadyBuilt_WinsOverPathData()
+    {
+        var existing = new System.Windows.Media.DrawingImage();
+        var item = new ActionMenuItem { Text = "Compress", Icon = existing, VectorIconPathData = "M7 2v11h3v9l7-12h-4l3-8z" };
+
+        var result = ActionMenuBuilder.FinalizeItems(new List<ActionMenuItem> { item });
+
+        Assert.AreSame(existing, result[0].Icon, "the bitmap the provider handed over was overwritten");
     }
 
     [TestMethod]

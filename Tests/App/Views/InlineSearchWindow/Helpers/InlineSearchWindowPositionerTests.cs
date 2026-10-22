@@ -144,4 +144,41 @@ public sealed class InlineSearchWindowPositionerTests
         Assert.AreEqual(908, InlineSearchWindowPositioner.CalculatePhysTop(true, dock, null, 12));
         Assert.AreEqual(260, InlineSearchWindowPositioner.CalculatePhysTop(false, dock, null, 12));
     }
+
+    // Directory Opus's lister, measured off a live one at 96 DPI: DWM frame 635,213,1721,1101, its client
+    // area starting at 244 (the system title bar is the band between), its two toolbar rows 244..283 and
+    // 283..315, and its file display 348. Its adapter reports the whole frame and no file list, so before the
+    // caption floor the card's top-right corner landed on 213,1721 -- across the lister's close button, the
+    // report this rule came from.
+    private static Core.Hook.ExplorerTracker.RECT OpusLister() => Box(635, 213, 1721, 1101);
+
+    [TestMethod]
+    public void ACardOverAWindowThatOnlyNamedItsFrameStartsAtTheClientArea()
+    {
+        Assert.AreEqual(213, InlineSearchWindowPositioner.CalculatePhysTop(false, OpusLister(), null, 0),
+            "with no client area to ask about, the card hangs from the window's own top edge as it always did");
+        Assert.AreEqual(244, InlineSearchWindowPositioner.CalculatePhysTop(false, OpusLister(), null, 0, 244),
+            "with one, the title bar band is off limits");
+        // The margin is the window's transparent border, paid back the same way at either edge: it is the
+        // card's VISIBLE top that has to meet the client area, not its window position.
+        Assert.AreEqual(232, InlineSearchWindowPositioner.CalculatePhysTop(false, OpusLister(), null, 12, 244));
+    }
+
+    [TestMethod]
+    public void TheCaptionFloorNeverMovesAnAnchorThatIsAlreadyBelowIt()
+    {
+        // A dialog's file list, or a file manager's pane, is inside the client area by definition, so the
+        // floor has nothing to say about it: the measured Opus file display starts at 348, its container 315.
+        Assert.AreEqual(348, InlineSearchWindowPositioner.CalculatePhysTop(
+            false, OpusLister(), Box(995, 348, 1353, 1044), 0, 244));
+        Assert.AreEqual(315, InlineSearchWindowPositioner.CalculatePhysTop(
+            false, OpusLister(), Box(994, 315, 1357, 1073), 0, 244));
+    }
+
+    [TestMethod]
+    public void TheCaptionFloorDoesNotReachACardThatHangsBelowTheWindow() =>
+        // Below the window there is no title bar to cover, and the floor is only about the band above the
+        // client area of the window being covered. Reaching it here would lift the card off the edge it hangs
+        // from -- and 1101 is the lister's own bottom edge, measured with nothing below it to change.
+        Assert.AreEqual(1101, InlineSearchWindowPositioner.CalculatePhysTop(true, OpusLister(), null, 0, 244));
 }

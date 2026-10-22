@@ -5,6 +5,43 @@
 符号：* 核心功能　+ 小功能添加　# 修复。只写"改了什么"。
 -->
 
+## v5.10.0.1
+
+## 更新内容
+
+```
+* 合并上游 v5.10.0
+* 排序改为：收藏/搜过 → 类型顺序 → 左侧位置 → 覆盖率 → 历史次数 → 索引规则 → 最近文件（同类型内优先）→ 其余匹配质量
+* 搜索结果支持像素级平滑滚动
+# 修复内联搜索无法用拼音首字母定位当前目录的文件
+# 修复内联搜索结果中文件夹未成组排在文件之前
+# 修复重复搜索时结果列表被反复重建造成的闪烁
+# 修复窗口隐藏后图标缓存被清空导致的图标空白
+# 修复结果行图标缓存键不一致导致的重复加载
+# 提升结果列表的渲染速度
+# 提升重复查询的响应速度
++ 自动更新只检查本仓库的发行
++ 保留鼠标平滑滚动
+```
+
+## What's changed
+
+```
+* Merged upstream v5.10.0
+* Ranked by favorites/searched-before, result type, left position, coverage, history count, index rules, recent files (leading their type), then the remaining match quality
+* Smooth pixel-level scrolling for search results
+# Fix inline search not locating current-folder files by pinyin initials
+# Fix folders not grouping ahead of files in the inline search results
+# Fix the result list being rebuilt and flickering on repeated searches
+# Fix icons going blank after the search window hides
+# Fix duplicate icon loads caused by mismatched cache keys
+# Faster result list rendering
+# Faster response for repeated queries
++ Auto-update only checks this repository's releases
++ Keeps the smooth wheel scrolling
+```
+
+
 ## v5.9.8.1
 
 ## 更新内容

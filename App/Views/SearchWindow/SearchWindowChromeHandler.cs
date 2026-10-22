@@ -95,35 +95,10 @@ public class SearchWindowChromeHandler
 
         var dpi = VisualTreeHelper.GetDpi(_window);
         var work = Screen.FromHandle(hwnd).WorkingArea;
-        var (left, top) = CalculateCenter(work.Left, work.Top, work.Width, work.Height,
+        var (left, top) = WindowCentering.CenterInWork(work.Left, work.Top, work.Width, work.Height,
             width, height, dpi.DpiScaleX, dpi.DpiScaleY);
         _window.Left = left;
         _window.Top = top;
-    }
-
-    /// <summary>
-    /// Where a window of the given DIP size goes to sit in the middle of a work area given in physical pixels,
-    /// answered in DIP.
-    /// </summary>
-    /// <remarks>
-    /// The two units are why this is a function with its own tests rather than two lines at the call site: the
-    /// screen is read in pixels while Left/Top are DIP, so the window's size is scaled up to be centered and
-    /// the answer scaled back down, and on a mixed-DPI desktop the scale is whichever monitor the window is on.
-    /// </remarks>
-    internal static (double Left, double Top) CalculateCenter(
-        int workLeft, int workTop, int workWidth, int workHeight,
-        double windowDipWidth, double windowDipHeight,
-        double dpiScaleX, double dpiScaleY)
-    {
-        var scaleX = dpiScaleX > 0 ? dpiScaleX : 1.0;
-        var scaleY = dpiScaleY > 0 ? dpiScaleY : 1.0;
-
-        // Maxed against the area's own edge: a window larger than the area cannot be centered in it, and
-        // letting the arithmetic go negative would push the header -- the only thing that can drag the window
-        // back -- off screen.
-        var physLeft = Math.Max(workLeft, workLeft + (workWidth - windowDipWidth * scaleX) / 2.0);
-        var physTop = Math.Max(workTop, workTop + (workHeight - windowDipHeight * scaleY) / 2.0);
-        return (physLeft / scaleX, physTop / scaleY);
     }
 
     public void Close() => _window.Close();

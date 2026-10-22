@@ -1,6 +1,6 @@
 # 核心檢索與動作
 
-本章節詳細介紹 `Lertaro.PluginSdk` 中用於貢獻搜尋資料來源、即時計算答案、非 ASCII 別名轉寫引擎、查詢後綴 Token 處理器以及靜態/動態快顯動作功能表的核心介面與資料結構。
+本章節詳細介紹 `Lertaro.PluginSdk` 中用於貢獻搜尋資料來源、即時計算答案、非 ASCII 別名轉寫引擎、查詢後綴 Token 處理器以及靜態/動態快顯動作選單的核心介面與資料結構。
 
 ## 1. 基礎元件規範 `IPluginComponent` 與 `IPlugin`
 
@@ -124,14 +124,14 @@ public interface IActionProvider
 
 ### 靜態動作契約 `ISearchResultAction`
 
-表示一個明確的靜態操作（如「複製完整路徑」、「以管理員身分執行」等），呈現在 `Ctrl+O` 動作功能表中或綁定為全域動作快速鍵：
+表示一個明確的靜態操作（如「複製完整路徑」、「以管理員身分執行」等），呈現在 `Ctrl+O` 動作選單中或綁定為全域動作快速鍵：
 
 ```csharp
 namespace Lertaro.PluginSdk.Abstractions;
 
 public interface ISearchResultAction : Plugins.IPluginComponent
 {
-    string GroupName { get; }           // 動作功能表中的分組標題
+    string GroupName { get; }           // 動作選單中的分組標題
     string DisplayName { get; }         // 動作顯示文字
     // 動作以其顯示名稱來尋址，因此 Name 是對應而來、而非自行撰寫：
     string Plugins.IPluginComponent.Name => DisplayName;
@@ -142,7 +142,7 @@ public interface ISearchResultAction : Plugins.IPluginComponent
     IReadOnlyList<string> Keywords => Array.Empty<string>();
     IReadOnlyList<string> Parameters => Array.Empty<string>();
 
-    // 動作出現在何處。預設：在搜尋中可見，且只有在它沒有聲明任何關鍵字時才在功能表中可見
+    // 動作出現在何處。預設：在搜尋中可見，且只有在它沒有聲明任何關鍵字時才在選單中可見
     // （關鍵字是動作改為以列出現的方式）。
     bool IsVisibleInSearch(IReadOnlyList<ISearchResult> results, SearchWindowType windowType) => true;
     bool IsVisibleInMenu(IReadOnlyList<ISearchResult> results, SearchWindowType windowType) => Keywords.Count == 0;
@@ -153,9 +153,9 @@ public interface ISearchResultAction : Plugins.IPluginComponent
 }
 ```
 
-### 動態功能表建置器 `IDynamicActionProvider`
+### 動態選單建置器 `IDynamicActionProvider`
 
-在執行階段動態建置深層巢狀或系統級功能表（例如將 Windows Shell 原生快顯功能表插入到 Lertaro 中）：
+在執行階段動態建置深層巢狀或系統級選單（例如將 Windows Shell 原生快顯選單插入到 Lertaro 中）：
 
 ```csharp
 namespace Lertaro.PluginSdk.Abstractions.Plugins;
@@ -165,17 +165,17 @@ public interface IDynamicActionProvider : IPluginComponent
     string GroupName { get; }
     string IPluginComponent.Name => GroupName;    // 與 ISearchResultAction 相同的對應方式
 
-    int Priority => 0;                            // 功能表排序權重，非可空型別
+    int Priority => 0;                            // 選單排序權重，非可空型別
     IReadOnlyList<string> Keywords => Array.Empty<string>();
     IReadOnlyList<string> Parameters => Array.Empty<string>();
 
     bool IsVisibleInSearch(IReadOnlyList<ISearchResult> results, SearchWindowType windowType) => true;
     bool IsVisibleInMenu(IReadOnlyList<ISearchResult> results, SearchWindowType windowType) => Keywords.Count == 0;
 
-    void Init() { }                               // 一次性預熱，於第一個功能表觸發時呼叫
+    void Init() { }                               // 一次性預熱，於第一個選單觸發時呼叫
     bool CanProvide(IReadOnlyList<ISearchResult> results);
 
-    // 選擇加入套用在即時結果（視窗標題、程序列）上的功能表。預設為 false，因為
+    // 選擇加入套用在即時結果（視窗標題、程序列）上的選單。預設為 false，因為
     // 大多數提供者是以那些列所沒有的檔案路徑為鍵。
     bool CanProvideForInstantResults => false;
 
@@ -184,7 +184,7 @@ public interface IDynamicActionProvider : IPluginComponent
         => Array.Empty<(string, Action)>();
     void ExecuteCommand(IReadOnlyList<ISearchResult> results, uint commandId, IntPtr ownerHwnd);
 
-    // 無預設實作：實作它是必須的。在功能表被拆毀時呼叫，
+    // 無預設實作：實作它是必須的。在選單被拆毀時呼叫，
     // 好讓持有原生控制代碼或快取 Shell CDS 串流的提供者能釋放它們。
     void ClearSession();
 }
@@ -193,7 +193,7 @@ public interface IDynamicActionProvider : IPluginComponent
 ## 4. 輔助資料結構
 
 - **`SearchableItem`**：包含 `Title`、`Description`、`IconData`、`IconColor`、`ActionType`（`"Copy"` / `"Execute"` / `"None"`）、`ActionArgument`、`TabCompletion`、`HBitmapIcon`（GDI 點陣圖控制代碼，宿主自動接管釋放）、`ResultKind`（一個由外掛模組選擇、供宿主的篩選器與資料欄據以取用的標籤），以及兩個執行回呼：用於一觸即擲的 `OnExecute`（`Action`），或當動作需要回報成功時的 `OnExecuteFunc`（`Func<bool>`）——宿主會依據那個回答，例如決定是否關閉視窗。`InstantResultItem` 帶有相同的顯示與回呼成員，**不含 `ResultKind` 和 `Keywords`**，那個成員只有可搜尋項目的模型才有。
-- **`DynamicMenuItem`**：包含 `Text`、`CommandId`、`IsSeparator`、`HasSubMenu`、`SubMenuHandle`、`IsDisabled`、`OnExecute`、`IsActionable`（預設 `true`；`false` 標記一個只會開啟子功能表的列）、`HBitmapItem`（來自被鏡像的 Shell 功能表的原生圖示控制代碼）、`ShortcutHint`（記憶鍵所對應的字母）、`IsContinuation`（一個分頁游標：這一梯次接續的是宿主仍在填補的功能表，而只要它被設定，宿主就會持續詢問），以及 `IsHeader`（轉譯為帶選填動作按鈕的分組標題）。
+- **`DynamicMenuItem`**：包含 `Text`、`CommandId`、`IsSeparator`、`HasSubMenu`、`SubMenuHandle`、`IsDisabled`、`OnExecute`、`IsActionable`（預設 `true`；`false` 標記一個只會開啟子選單的列）、`HBitmapItem`（來自被鏡像的 Shell 選單的原生圖示控制代碼）、`ShortcutHint`（記憶鍵所對應的字母）、`IsContinuation`（一個分頁游標：這一梯次接續的是宿主仍在填補的選單，而只要它被設定，宿主就會持續詢問），以及 `IsHeader`（轉譯為帶選填動作按鈕的分組標題）。
 - **`SearchWindowType`**：列舉值包括 `Main`（主搜尋視窗）、`Quick`（置中快速浮動視窗）與 `Inline`（嵌入式檔案對話方塊）。
 
 ## 5. 具名搜尋範圍 `ISearchScopeProvider`

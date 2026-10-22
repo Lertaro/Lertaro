@@ -1,6 +1,7 @@
 using Lertaro.Core.IndexV2;
 
 using Lertaro.Core.IndexV2.Search;
+using Lertaro.Core.SearchIndex;
 
 namespace Lertaro.Core.Indexer.Usn;
 
@@ -21,12 +22,14 @@ internal static class SearchCoordinator
         string? directoryFilter,
         string? fileNameFilter = null)
     {
+        var __t = Lertaro.Core.SearchIndex.PerfTrace.Begin();
         KeyValuePair<string, LiveIndex>[] drives;
         lock (lockObj)
         {
             drives = recordIndexes.ToArray();
         }
 
+        Lertaro.Core.SearchIndex.PerfTrace.Mark("coord.lock", __t, drives.Length);
         if (drives.Length == 0 || limit <= 0)
             return;
 
@@ -53,6 +56,7 @@ internal static class SearchCoordinator
         if (limit < int.MaxValue)
         {
             var buffered = new List<SearchResult>[drives.Length];
+            var __fan = Lertaro.Core.SearchIndex.PerfTrace.Begin();
             Parallel.For(0, drives.Length, ParallelOptionsFor(drives.Length, token), i =>
             {
                 var rows = buffered[i] = new List<SearchResult>();
@@ -65,11 +69,17 @@ internal static class SearchCoordinator
                     Logger.Log($"[SearchCoordinator] Search of drive {drives[i].Key} failed; its rows are left out: {ex.Message}", LogLevel.Error);
                 }
             });
-            foreach (var row in buffered.SelectMany(rows => rows).OrderBy(row => row, SearchResultRankComparer.Instance).Take(limit))
+            Lertaro.Core.SearchIndex.PerfTrace.Mark("coord.fanout", __fan, drives.Length);
+            var __sort = Lertaro.Core.SearchIndex.PerfTrace.Begin();
+            var __ordered = buffered.SelectMany(rows => rows).OrderBy(row => row, SearchCandidateComparer.Instance).Take(limit).ToList();
+            Lertaro.Core.SearchIndex.PerfTrace.Mark("coord.sort", __sort, __ordered.Count);
+            var __emit = Lertaro.Core.SearchIndex.PerfTrace.Begin();
+            foreach (var row in __ordered)
             {
                 token.ThrowIfCancellationRequested();
                 onResult(row);
             }
+            Lertaro.Core.SearchIndex.PerfTrace.Mark("coord.emit", __emit, __ordered.Count);
             return;
         }
 

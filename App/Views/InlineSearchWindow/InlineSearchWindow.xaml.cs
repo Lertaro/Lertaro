@@ -244,6 +244,20 @@ public partial class InlineSearchWindow : Window, ISearchWindow
         InlineSearchWindowNativeMethods.SetWindowLongPtr(hwnd, InlineSearchWindowNativeMethods.GWL_HWNDPARENT, hostHwnd);
     }
 
+    /// <summary>Takes the card off its host again, for when it is dismissed rather than destroyed.</summary>
+    /// <remarks>
+    /// The system destroys an owned window along with its owner. Left docked, a parked card therefore goes
+    /// away with the host it was last summoned for -- and WPF reports that as a closed window, which the
+    /// manager would keep handing to the next summon. Ownership is what keeps a visible card with its host's
+    /// group, and nothing is served by keeping it once the card is out of sight.
+    /// </remarks>
+    internal void ReleaseHost()
+    {
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero) return;
+        InlineSearchWindowNativeMethods.SetWindowLongPtr(hwnd, InlineSearchWindowNativeMethods.GWL_HWNDPARENT, IntPtr.Zero);
+    }
+
     /// <summary>Puts the card back into the state a brand-new one would be in: no half-open actions menu, and
     /// the host watchdog running again -- it stops itself when the dialog it was watching goes away.</summary>
     internal void BeginSession()

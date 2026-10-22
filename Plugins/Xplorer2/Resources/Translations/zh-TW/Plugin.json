@@ -1,0 +1,9 @@
+{
+  "Plugins_Xplorer2_EnableInlineSearch": "啟用內嵌搜尋",
+  "Plugins_Xplorer2_EnableInlineSearchDesc": "允許在 xplorer2 視窗中雙擊或按快速鍵彈出內建搜尋欄",
+  "Plugins_Xplorer2_EnableQuickNav": "啟用快速導航選單",
+  "Plugins_Xplorer2_EnableQuickNavDesc": "允許在 xplorer2 的檔案列表中中鍵點選彈出快速導航選單",
+  "Xplorer2_PluginDesc": "xplorer2 增強整合外掛。讀取 xplorer2 的活動窗格路徑並在其中快捷跳轉。",
+  "Plugin_Comp_Desc_Xplorer2PathCollector": "實時提取 xplorer2 當前活動窗格的資料夾路徑。其餘已開啟的分頁不在範圍內：xplorer2 會卸載非活動分頁，也不提供任何讀取它們的途徑。",
+  "Plugin_Comp_Desc_Xplorer2InlineSearchAdapter": "為 xplorer2 檔案管理員提供內嵌式的拼音與字元打字過濾定位和目錄跳轉功能。"
+}

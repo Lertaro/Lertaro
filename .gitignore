@@ -82,6 +82,9 @@ project.lock.json
 project.fragment.lock.json
 artifacts/
 
+# BenchmarkDotNet output (benchmarks/ writes logs/results next to the project by default)
+BenchmarkDotNet.Artifacts/
+
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
 
@@ -126,3 +129,4 @@ Site/.vitepress/public/logo.svg
 
 # Claude Code local project state (per-machine, not shared)
 .claude/
+/node_modules

@@ -1,0 +1,9 @@
+{
+  "Plugins_Xplorer2_EnableInlineSearch": "インライン検索を有効化",
+  "Plugins_Xplorer2_EnableInlineSearchDesc": "xplorer2 でダブルクリックまたはホットキーを押してインライン検索を呼び出せるようにします",
+  "Plugins_Xplorer2_EnableQuickNav": "クイックナビゲーションメニューを有効化",
+  "Plugins_Xplorer2_EnableQuickNavDesc": "xplorer2 のファイル一覧で中クリックしてクイックナビゲーションメニューを呼び出せるようにします",
+  "Xplorer2_PluginDesc": "xplorer2 連携プラグイン。アクティブなペインのパスを読み取り、xplorer2 内でクイックなディレクトリジャンプを提供します。",
+  "Plugin_Comp_Desc_Xplorer2PathCollector": "xplorer2 のアクティブなペインのフォルダを読み取り、追跡します。他の開いているタブは対象外です。xplorer2 は非アクティブなタブをアンロードしており、それらを読み取る手段を公開していません。",
+  "Plugin_Comp_Desc_Xplorer2InlineSearchAdapter": "xplorer2 のファイル一覧ペインに、インライン入力によるフィルターナビゲーションとディレクトリジャンプを提供します。"
+}

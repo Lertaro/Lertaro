@@ -61,7 +61,11 @@ internal sealed class SearchExecutionEngine : IDisposable
         // debounces. Otherwise its rows keep repainting ahead of the next keystroke.
         CancelPendingSearch();
 
-        var delay = string.IsNullOrEmpty(query) || query.Length <= 1 ? 0 : (fileLimit > 100 ? 150 : 30);
+            // Was 150 / 30 ms. A warm search is a cache replay on the service side (single-digit ms
+            // plus the pipe round trip), so waiting most of a frame before asking only added to the
+            // time the user spent looking at the previous query's rows. The token path keeps a small
+            // window because its query is wider (fileLimit > 100) and genuinely costs more to rebuild.
+            var delay = string.IsNullOrEmpty(query) || query.Length <= 1 ? 0 : (fileLimit > 100 ? 30 : 10);
         if (delay == 0)
         {
             PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective, instantQuery, emitInstantResults, beforeSearch, collectInstantResults);
@@ -269,6 +273,20 @@ internal sealed class SearchExecutionEngine : IDisposable
         var localSearchTask = ExplorerSearchHelper.LoadDirectChildrenAsync(
             query, fileLimit, contextDirectory, localMatches, token, OnLocalMatchesChanged, _directChildrenListing, folderScope);
 
+        // Built once for this inline search, deliberately OUTSIDE the memoized GetLocalSnapshot below: the
+        // renderer calls that on every paint, and the decay snapshot plus the rule set have to stay the same
+        // for the whole query -- re-reading them mid-search would re-rank rows already on screen.
+        var rankRules = ExclusionRuleSet.From(UserSettings.Load());
+        // This context only ever serves the inline card, so it gets the card's history caps: one H5 row and
+        // three H3 rows instead of the quick window's 3/10, because the card shows far fewer rows. Anything
+        // past them stays in Boosted/HistoryTail and still ranks by score; AlwaysTop keeps working here,
+        // since a pin is an explicit user choice rather than a history quota.
+        var rankContext = new RankContext(
+            rankRules.GetPriorityVerdict,
+            SearchHistoryStore.ScoreSnapshot(DateTimeOffset.UtcNow),
+            historyFiveMax: 1,
+            historyThreeMax: 3);
+
         // Memoized: CreateLocalSnapshot copies the whole history-priority dictionary and re-ranks every
         // local match, and the renderer asks for this snapshot on EVERY paint -- of which one keystroke can
         // produce several as results stream in. Nothing about the answer changes unless the local matches
@@ -289,7 +307,7 @@ internal sealed class SearchExecutionEngine : IDisposable
                 snapshot = new List<AppSearchResult>(localMatches);
             }
 
-            var built = ExplorerSearchHelper.CreateLocalSnapshot(snapshot, learnedLocalMatches, query, contextDirectory);
+            var built = ExplorerSearchHelper.CreateLocalSnapshot(snapshot, learnedLocalMatches, query, contextDirectory, rankContext: rankContext);
             cachedLocalSnapshot = built;
             cachedLocalVersion = version;
             return built;

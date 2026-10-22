@@ -38,7 +38,7 @@ public class InlineSearchWindowPositioner
     public InlineSearchWindowPositioner(Lertaro.App.InlineSearchWindow window)
     {
         _window = window ?? throw new ArgumentNullException(nameof(window));
-        _dragOffset = new InlineCardDragOffset(window);
+        _dragOffset = new InlineCardDragOffset(() => (window.Left, window.Top));
         _geometry = new InlineDialogGeometryProbe(MeasureDialogGeometry, PositionWindow);
     }
 
@@ -170,6 +170,11 @@ public class InlineSearchWindowPositioner
             return;
 
         var isResultsVisible = _window.ResultsPanelControl.Visibility == Visibility.Visible;
+
+        // Which application this dock belongs to, and so which remembered drag displacement applies to it.
+        // Read from the tracker's cached answer: resolving a process name is a query into another process,
+        // and this is the thread that places the card.
+        var hostKey = tracker.IsDesktop ? InlineCardDragOffset.DesktopHost : tracker.ActiveProcessName;
 
         var hasValidRect = false;
         var rect = new Core.Hook.ExplorerTracker.RECT();
@@ -305,7 +310,17 @@ public class InlineSearchWindowPositioner
                 // inside: AvailableCardHeight caps the card at AnchoredWindowHeightShare of the window it
                 // covers, so starting at the top is what leaves its bottom edge free -- and for a plain
                 // window it is the same edge a row count cannot move.
-                targetPhysTop = CalculatePhysTop(hangsBelow, rect, fileList, physXamlMarginY);
+                //
+                // The window's client area goes along as the floor, so a card that has nothing finer to hang
+                // from starts below the title bar rather than across it -- and only when it lies over the
+                // window, since a card hanging below covers no part of it. Read here rather than in the
+                // geometry probe below: this is win32k's own window data, not a call into the host's process,
+                // so this thread may ask it directly.
+                double? physClientTop = hangsBelow ? null
+                    : Core.Hook.ExplorerNativeHooks.TryGetClientTopOnScreen(tracker.ActiveHwnd, out var clientTop)
+                        ? clientTop : null;
+                targetPhysTop = CalculatePhysTop(
+                    hangsBelow, rect, fileList, physXamlMarginY, physClientTop);
 
                 var minLeft = workingArea.Left - physXamlMargin;
                 var minTop = workingArea.Top - physXamlMarginY;
@@ -336,7 +351,9 @@ public class InlineSearchWindowPositioner
                     + $"list={(fileList is { } listRect ? $"{listRect.Right},{listRect.Top}" : "none")} "
                     + $"dpi={targetDpiScaleX:F2} window={windowWidth:F0}x{windowHeight:F0} "
                     + $"below={hangsBelow} boundsBottom={screen.Bounds.Bottom} work={workingArea.Left},{workingArea.Top},{workingArea.Right},{workingArea.Bottom} "
-                    + $"bound={minTop:F0}..{maxTop:F0} at={targetPhysLeft:F0},{targetPhysTop:F0} drag={_dragOffset.IsSet}",
+                    + $"bound={minTop:F0}..{maxTop:F0} at={targetPhysLeft:F0},{targetPhysTop:F0} "
+                    + $"host={hostKey} drag={_dragOffset.IsSetFor(hostKey)} "
+                    + $"floor={(physClientTop is { } floor ? $"{floor:F0}" : "none")}",
                     LogLevel.Debug);
             }
             else
@@ -350,16 +367,14 @@ public class InlineSearchWindowPositioner
         var targetTop = targetPhysTop / targetDpiScaleY;
 
         // The dock position on its own, which is what a user's drag is measured against -- recorded before that
-        // displacement is applied below.
-        _dragOffset.RememberBase(targetLeft, targetTop);
+        // displacement is applied below, and against the host being docked, since every application keeps its
+        // own.
+        _dragOffset.RememberBase(hostKey, targetLeft, targetTop);
 
-        if (_dragOffset.IsSet)
-        {
-            (targetPhysLeft, targetPhysTop) = _dragOffset.ApplyPhysical(
-                targetPhysLeft, targetPhysTop, targetDpiScaleX, targetDpiScaleY, workingArea, physWindowWidth, physWindowHeight);
-            targetLeft = targetPhysLeft / targetDpiScaleX;
-            targetTop = targetPhysTop / targetDpiScaleY;
-        }
+        (targetPhysLeft, targetPhysTop) = _dragOffset.ApplyPhysical(
+            hostKey, targetPhysLeft, targetPhysTop, targetDpiScaleX, targetDpiScaleY, workingArea, physWindowWidth, physWindowHeight);
+        targetLeft = targetPhysLeft / targetDpiScaleX;
+        targetTop = targetPhysTop / targetDpiScaleY;
 
         // Recorded on every pass that computes a target, including the ones that are held back below: the frame
         // that lands the card after its parked show uses wherever the layout last wanted it, not where the
@@ -431,7 +446,9 @@ public class InlineSearchWindowPositioner
     /// <summary>Records a drag the user has just finished, so the card keeps the position they left it at.</summary>
     /// <remarks>
     /// Wired to the search box logo's own drag (see InlineSearchWindow's constructor). Measured against the
-    /// dock position the last positioning pass applied, which is exactly what a displacement is relative to.
+    /// dock position the last positioning pass applied, which is exactly what a displacement is relative to,
+    /// and kept for the host that pass docked to -- a drag performed in one application never moves the card
+    /// in another.
     /// </remarks>
     public void RememberUserDrag() => _dragOffset.RememberDrag();
 
@@ -470,16 +487,28 @@ public class InlineSearchWindowPositioner
     }
 
     /// <summary>Where the card's window starts vertically, in physical pixels.</summary>
+    /// <remarks>
+    /// <paramref name="physClientTop"/> is the anchored window's client area, where it has one: a card lying
+    /// over a window may not start above it, because above it is the title bar the system drew, and the host's
+    /// close button sits at the right end of that -- measured on Directory Opus's lister, whose frame starts at
+    /// 213 while its client area starts at 244, the card's corner landing on the button. It can only refuse a
+    /// position, never impose one: an anchor already inside the client area (a dialog's file list, a file
+    /// manager's pane) is below it and is kept, and a host that draws its own caption inside the client area
+    /// answers with that same top edge, which leaves the rule inert for it -- there is no system title bar
+    /// there to keep clear. Null when the window has no client area to ask about.
+    /// </remarks>
     internal static double CalculatePhysTop(
         bool hangsBelow,
         Core.Hook.ExplorerTracker.RECT dock,
         Core.Hook.ExplorerTracker.RECT? fileList,
-        double physXamlMarginY)
+        double physXamlMarginY,
+        double? physClientTop = null)
     {
         if (hangsBelow)
             return dock.Bottom - physXamlMarginY;
 
-        return (fileList.HasValue ? fileList.Value.Top : dock.Top) - physXamlMarginY;
+        var top = (fileList.HasValue ? fileList.Value.Top : dock.Top) - physXamlMarginY;
+        return physClientTop.HasValue ? Math.Max(top, physClientTop.Value - physXamlMarginY) : top;
     }
 
     private static bool SameRect(Core.Hook.ExplorerTracker.RECT? a, Core.Hook.ExplorerTracker.RECT? b) =>

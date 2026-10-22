@@ -23,10 +23,15 @@ public class DirectoryOpusInlineSearchAdapter : IInlineSearchAdapter
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr FindWindow(string lpClassName, string? lpWindowName);
 
+    // Returns Win32 BOOL, so it is read as int: on x64 the upper half of RAX is unspecified after a 32-bit
+    // return, which an IntPtr would let through as garbage.
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, ref COPYDATASTRUCT lParam);
+    private static extern int SendMessageTimeout(IntPtr hWnd, uint Msg, IntPtr wParam, ref COPYDATASTRUCT lParam, uint flags, uint timeoutMs, out IntPtr result);
 
     private const uint WM_COPYDATA = 0x004A;
+    private const uint SmtoBlock = 0x0001;
+    private const uint SmtoAbortIfHung = 0x0002;
+    private const uint CommandTimeoutMs = 1000;
 
     public bool CanHandle(IntPtr hwnd, string className, string processName)
     {
@@ -73,36 +78,38 @@ public class DirectoryOpusInlineSearchAdapter : IInlineSearchAdapter
         return collector.TryGetPath(hwnd, className, hwnd, className, "dopus");
     }
 
+    internal static byte[] BuildCommandPayload(string command) => System.Text.Encoding.Unicode.GetBytes(command + "\0");
+
+    // Delivery is a synchronous cross-process message, so it is bounded and its answer is read. SendMessage
+    // (used here before) returns 0 for a receiver that is not answering while still letting that receiver run
+    // the command later, and its value was discarded: an Opus parked inside its own script engine made "open
+    // containing folder" report success without opening anything, which is how a user ends up pressing it
+    // again and again. The buffer is AllocHGlobal rather than a pinned array because a call that did not
+    // complete must never leave Opus holding a pointer the GC has since moved; that one buffer is then
+    // deliberately left allocated.
+    // ponytail: ceiling is one leaked small buffer per aborted command, which only a wedged host plus a
+    // persistent user can accumulate. The upgrade path is a bounded pool, not an earlier free.
     private static bool RunDopusCommandViaCopyData(string command)
     {
         var dopusParent = FindWindow("DOpus.ParentWindow", "Directory Opus");
         if (dopusParent == IntPtr.Zero) return false;
 
-        try
+        var bytes = BuildCommandPayload(command);
+        var buffer = Marshal.AllocHGlobal(bytes.Length);
+        Marshal.Copy(bytes, 0, buffer, bytes.Length);
+        var cds = new COPYDATASTRUCT
         {
-            var cmdString = command + "\0";
-            var bytes = System.Text.Encoding.Unicode.GetBytes(cmdString);
-            var pinnedArray = GCHandle.Alloc(bytes, GCHandleType.Pinned);
-            try
-            {
-                var cds = new COPYDATASTRUCT
-                {
-                    dwData = (IntPtr)0x14,
-                    cbData = bytes.Length,
-                    lpData = pinnedArray.AddrOfPinnedObject()
-                };
-                SendMessage(dopusParent, WM_COPYDATA, IntPtr.Zero, ref cds);
-                return true;
-            }
-            finally
-            {
-                pinnedArray.Free();
-            }
-        }
-        catch
-        {
+            dwData = (IntPtr)0x14,
+            cbData = bytes.Length,
+            lpData = buffer
+        };
+
+        if (SendMessageTimeout(dopusParent, WM_COPYDATA, IntPtr.Zero, ref cds,
+                SmtoAbortIfHung | SmtoBlock, CommandTimeoutMs, out _) == 0)
             return false;
-        }
+
+        Marshal.FreeHGlobal(buffer);
+        return true;
     }
 
     public bool LocateItem(IntPtr hwnd, string path)
@@ -242,10 +249,22 @@ public class DirectoryOpusInlineSearchAdapter : IInlineSearchAdapter
         rect = default;
         if (hwnd == IntPtr.Zero) return false;
 
-        // Dock over the whole lister window's bottom-right corner (same as the Total Commander plugin).
+        var listerHwnd = GetListerWindow(hwnd);
+
+        // Dock to the file displays the lister is showing: the card covers the file area and scrolls it, so
+        // that is the corner it hangs from. His reference for this is 1451,331 on a live lister, which is the
+        // file display's own top-right corner (1090,331,1452,1027) and not the window's.
+        if (Win32Helper.TryGetFileDisplayBounds(listerHwnd, out var files))
+        {
+            rect = new AdapterRect { Left = files.Left, Top = files.Top, Right = files.Right, Bottom = files.Bottom };
+            return true;
+        }
+
+        // With no file display to name, the whole lister window -- and the App keeps the card below its title
+        // bar (InlineSearchWindowPositioner.CalculatePhysTop), because the top of this rect is the caption the
+        // system drew with the lister's close button at its right end (measured: frame 196, client area 227).
         // Extended frame bounds excludes the drop shadow, matching the visible edge; GetWindowRect is the
         // fallback for a window DWM will not answer for.
-        var listerHwnd = GetListerWindow(hwnd);
         if (DwmGetWindowAttribute(listerHwnd, DWMWA_EXTENDED_FRAME_BOUNDS, out var nativeRect, Marshal.SizeOf<Win32Helper.RECT>()) != 0 &&
             !Win32Helper.TryGetWindowRect(listerHwnd, out nativeRect))
         {

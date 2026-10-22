@@ -1,4 +1,4 @@
-using System;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
@@ -18,6 +18,16 @@ namespace Lertaro.App.Helpers.Visuals;
 /// </remarks>
 internal static class WindowParking
 {
+    [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+    [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
+
+    private const uint SWP_NOSIZE = 0x0001;
+    private const uint SWP_NOZORDER = 0x0004;
+    private const uint SWP_NOACTIVATE = 0x0010;
+
     /// <summary>-32000 rather than merely off the edge of a screen: it is where Windows parks windows it has
     /// disabled, and the value window enumerators treat as "not a candidate". A hidden window still answers
     /// GetWindowRect with the rectangle it last occupied, and PixPin's element picker drew its selection box
@@ -88,27 +98,28 @@ internal static class WindowParking
     /// the surfaces that already show themselves from the parking row and only need the landing pass deferred --
     /// the notification stack, whose placement is a stack-wide pass rather than one window's.
     /// </remarks>
-    internal static void AfterFrame(Window window, Action action)
-    {
-        window.Dispatcher.BeginInvoke(
+    internal static void AfterFrame(Window window, Action action) => window.Dispatcher.BeginInvoke(
             new Action(() => window.Dispatcher.BeginInvoke(action, DispatcherPriority.Loaded)),
             DispatcherPriority.Render);
-    }
 
     /// <summary>Lifts a window WPF positions by itself into the parking row for the length of its first render
     /// pass, and drops it back where it belongs once that pass is through. Call before Show or ShowDialog.</summary>
     /// <remarks>
-    /// The other order is for the cards, which are placed by the app; a CenterOwner dialog or a CenterScreen
-    /// window has no caller-side position to keep, and a dialog cannot be placed from its caller anyway because
-    /// ShowDialog does not return until it is answered. So the parking is done from SourceInitialized, where
-    /// WPF has already worked the startup location out (measured: a CenterOwner dialog reports its centered
-    /// 542x353 inside that handler, while before Show it is NaN), and the restore is queued from here so the
-    /// modal loop is what runs it.
+    /// The other order is for the cards, which are placed by the app; a CenterOwner dialog has no caller-side
+    /// position to keep, and a dialog cannot be placed from its caller at all because ShowDialog does not return
+    /// until it is answered. So the parking is done from SourceInitialized, where WPF has already worked the
+    /// startup location out (measured: a CenterOwner dialog reports its centered 542x353 inside that handler,
+    /// while before Show it is NaN), and the restore is queued from here so the modal loop is what runs it.
     ///
     /// Only the vertical coordinate moves, for the same reason ShowThenPlace parks on y alone: the x keeps the
     /// window in the monitor column whose scale it was placed for.
+    ///
+    /// <paramref name="place"/> is for the caller that does have a position in mind but cannot reach it before
+    /// Show, because the handle -- and so any placement that has to be in physical pixels -- does not exist yet:
+    /// SourceInitialized is the first moment it does, and nothing has been painted. Running it here, ahead of the
+    /// capture, means the rect restored below is the placed one rather than the one WPF chose.
     /// </remarks>
-    internal static void ParkUntilPainted(Window window)
+    internal static void ParkUntilPainted(Window window, Action<Window>? place = null)
     {
         // A window that already has a handle has been shown once, will not raise SourceInitialized again, and
         // has a warm visual tree to show -- this is a first-show gate, and checking here is what stops a
@@ -118,7 +129,10 @@ internal static class WindowParking
         void OnSourceInitialized(object? sender, EventArgs e)
         {
             window.SourceInitialized -= OnSourceInitialized;
-            var top = window.Top;
+            place?.Invoke(window);
+
+            var hwnd = new WindowInteropHelper(window).Handle;
+            GetWindowRect(hwnd, out var resting);
             window.Top = OffScreen;
             var shownAt = Environment.TickCount64;
             AfterFrame(window, () =>
@@ -128,7 +142,12 @@ internal static class WindowParking
                 // The two look identical on a machine whose compositor shows the desktop through an unpainted
                 // window instead of the class background, which is why this is not left to be inferred.
                 var held = window.Top <= OffScreen;
-                window.Top = top;
+                // Restored in physical pixels rather than by writing the captured DIP Top back: that number was
+                // read at the scale the window was created with, and by now the window has been resized to its
+                // monitor's own scale, so the same DIP means a different place. See WindowCentering for what that
+                // measures as on a mixed-DPI desktop.
+                SetWindowPos(hwnd, IntPtr.Zero, resting.Left, resting.Top, 0, 0,
+                    SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
                 var restoredAt = Environment.TickCount64;
                 Logger.Log($"[WindowPark] {window.GetType().Name} restored after "
                     + $"{restoredAt - shownAt}ms, parkHeld={held}", LogLevel.Info);

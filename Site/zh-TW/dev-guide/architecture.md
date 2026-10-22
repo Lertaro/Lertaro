@@ -17,7 +17,7 @@ Lertaro 採用多處理程序隔離與模組化分層設計，確保在實現毫
 ### 2. 使用者互動主程式（`Lertaro.App`）
 
 - **執行身分**：標準 Windows 使用者態、Session 隔離的 WPF 前景桌面應用程式。
-- **職責範圍**：承載快速搜尋置中浮動視窗、完整主搜尋視窗、設定中心、全域快速鍵分發、動作功能表（`Ctrl+O`）以及 QuickLook 檔案即時預覽介面。
+- **職責範圍**：承載快速搜尋置中浮動視窗、完整主搜尋視窗、設定中心、全域快速鍵分發、動作選單（`Ctrl+O`）以及 QuickLook 檔案即時預覽介面。
 - **IPC 橋樑與 CLI 裝載**：透過雙向具名管道 `LertaroPipe` 與背景 Service 溝通（`Core.Services.Search.SearchService` 是 App 側的客戶端）；同時，App 自身還裝載了一條面向目前使用者的專屬具名管道服務（`AppSearchPipeService`），使外部伴隨工具（如 `lff` 命令列工具）能直接複用 App 已經建置好的記憶體別名表、外掛模組提供者與網路磁碟快取，無需重複初始化。
 
 ### 3. 全域鍵盤攔截與視窗適配處理程序（`Lertaro.Service --hook`）

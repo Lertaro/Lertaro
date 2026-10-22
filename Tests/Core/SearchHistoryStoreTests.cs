@@ -40,6 +40,15 @@ public sealed class SearchHistoryStoreTests
 
     private string BackupPath => MainPath + ".bak";
 
+    // One keyword bucket holding exactly these entries, so the score helpers can be fed without a file.
+    private static Dictionary<string, List<SearchHistoryStore.StoredEntry>> Buckets(
+        params SearchHistoryStore.StoredEntry[] entries)
+        => SearchHistoryBucketSupport.BuildBuckets(entries.Select(e => ("kw", e)));
+
+    private static SearchHistoryStore.StoredEntry Entry(
+        string path = @"C:\path\file.txt", long time = 123, int count = 1, double score = 0) =>
+        new(path, HistoryEntryKind.File, time, count, score);
+
     [TestMethod]
     public void ExistsForKind_File_OnlyUsesFileProbe()
     {
@@ -180,5 +189,127 @@ public sealed class SearchHistoryStoreTests
         File.WriteAllText(BackupPath, "{ also truncated");
 
         Assert.IsEmpty(SearchHistoryStore.LoadFromFiles(MainPath, BackupPath));
+    }
+
+    [TestMethod]
+    public void TryLoadFile_LegacyEntryWithoutScore_MigratesFromCount()
+    {
+        var path = MainPath;
+        File.WriteAllText(path, """{ "kw": [ { "path": "C:\\path\\file.txt", "type": "File", "time": 123, "count": 7 } ] }""");
+
+        var buckets = SearchHistoryStore.TryLoadFile(path);
+
+        Assert.IsNotNull(buckets);
+        Assert.AreEqual(7d, buckets["kw"][0].Score);
+
+        // Reading the same file again cannot drift, and neither can re-reading what the migration wrote.
+        var again = SearchHistoryStore.TryLoadFile(path);
+        Assert.IsNotNull(again);
+        Assert.AreEqual(buckets["kw"][0].Score, again["kw"][0].Score);
+
+        var migratedPath = BackupPath;
+        File.WriteAllText(migratedPath, JsonSerializer.Serialize(buckets, BucketJsonOptions));
+        var reloaded = SearchHistoryStore.TryLoadFile(migratedPath);
+        Assert.IsNotNull(reloaded);
+        Assert.AreEqual(7d, reloaded["kw"][0].Score);
+    }
+
+    [TestMethod]
+    public void TryLoadFile_LegacyCountAboveScoreCap_ClampsToTen()
+    {
+        var path = MainPath;
+        File.WriteAllText(path, """{ "kw": [ { "path": "C:\\path\\file.txt", "type": "File", "time": 123, "count": 25 } ] }""");
+
+        var buckets = SearchHistoryStore.TryLoadFile(path);
+
+        Assert.IsNotNull(buckets);
+        Assert.AreEqual(10d, buckets["kw"][0].Score);
+    }
+
+    [TestMethod]
+    public void TryLoadFile_StoredScore_IsPreserved()
+    {
+        var path = MainPath;
+        File.WriteAllText(path,
+            """{ "kw": [ { "path": "C:\\path\\file.txt", "type": "File", "time": 123, "count": 3, "score": 4.5 } ] }""");
+
+        var buckets = SearchHistoryStore.TryLoadFile(path);
+
+        Assert.IsNotNull(buckets);
+        Assert.AreEqual(4.5d, buckets["kw"][0].Score, 1e-9);
+        Assert.AreEqual(3, buckets["kw"][0].Count);
+    }
+
+    [TestMethod]
+    public void TryLoadFile_ScoreAboveCap_ClampsToTen()
+    {
+        var path = MainPath;
+        File.WriteAllText(path,
+            """{ "kw": [ { "path": "C:\\path\\file.txt", "type": "File", "time": 123, "count": 3, "score": 12 } ] }""");
+
+        var buckets = SearchHistoryStore.TryLoadFile(path);
+
+        Assert.IsNotNull(buckets);
+        Assert.AreEqual(10d, buckets["kw"][0].Score, 1e-9);
+    }
+
+    [TestMethod]
+    public void EffectiveScore_NinetyDays_HalvesScore()
+    {
+        const long now = 2_000_000_000;
+        var entry = Entry(time: now - 90 * 86_400, count: 8, score: 8d);
+
+        Assert.AreEqual(4d, SearchHistoryBucketSupport.EffectiveScore(entry, now), 1e-9);
+    }
+
+    [TestMethod]
+    public void EffectiveScore_ThreeHalfLives_IsEighth()
+    {
+        const long now = 2_000_000_000;
+        var entry = Entry(time: now - 270 * 86_400, count: 10, score: 10d);
+
+        Assert.AreEqual(1.25d, SearchHistoryBucketSupport.EffectiveScore(entry, now), 1e-9);
+    }
+
+    [TestMethod]
+    public void BuildScoreCache_RoundsToHundredth()
+    {
+        const long now = 2_000_000_000;
+        var cache = SearchHistoryBucketSupport.BuildScoreCache(
+            Buckets(Entry(time: now - 30 * 86_400, count: 1, score: 1d)), now);
+
+        // 1 * 0.5^(1/3) = 0.7937, kept to 0.01 precision.
+        Assert.AreEqual(79, cache[@"C:\path\file.txt"]);
+    }
+
+    [TestMethod]
+    public void BuildScoreCache_FutureTimestamp_DoesNotInflate()
+    {
+        const long now = 2_000_000_000;
+        var cache = SearchHistoryBucketSupport.BuildScoreCache(
+            Buckets(Entry(time: now + 90 * 86_400, count: 5, score: 5d)), now);
+
+        Assert.AreEqual(500, cache[@"C:\path\file.txt"]);
+    }
+
+    [TestMethod]
+    public void BuildScoreCache_KeysAreCaseInsensitive()
+    {
+        const long now = 2_000_000_000;
+        var cache = SearchHistoryBucketSupport.BuildScoreCache(
+            Buckets(Entry(path: @"C:\A\x.txt", time: now, count: 3, score: 2d)), now);
+
+        Assert.IsTrue(cache.TryGetValue(@"c:\a\X.TXT", out var value));
+        Assert.AreEqual(200, value);
+    }
+
+    [TestMethod]
+    public void BuildScoreCache_EmptyBuckets_IsEmpty()
+    {
+        var cache = SearchHistoryBucketSupport.BuildScoreCache(
+            new Dictionary<string, List<SearchHistoryStore.StoredEntry>>(StringComparer.OrdinalIgnoreCase),
+            DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+
+        Assert.IsEmpty(cache);
     }
 }

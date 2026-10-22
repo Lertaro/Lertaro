@@ -1,5 +1,7 @@
+using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 using Lertaro.App.ViewModels.Search.Mapping;
+using PriorityVerdict = Lertaro.Core.ExclusionRuleSet.PriorityVerdict;
 
 namespace Lertaro.App.Tests.ViewModels.Search.Mapping;
 
@@ -9,22 +11,31 @@ public sealed class RankAndDedupeTests
     private static AppSearchResult Result(string path, bool isDir = false, string? resultKind = null) =>
         new() { FullPath = path, Name = path, IsDir = isDir, ResultKind = resultKind ?? string.Empty };
 
+    // Bucket by the words in the path: "high" and "low" name their own bucket, everything else is normal.
+    // Pinned adds AlwaysTop to the high rows, which is what reaches the Pinned section.
+    private static Func<string, bool, PriorityVerdict> PrefixPriorities(bool pinnedHigh = false) =>
+        (path, _) => path.Contains("high", StringComparison.OrdinalIgnoreCase)
+            ? new PriorityVerdict(IndexRuleEffect.High, pinnedHigh)
+            : path.Contains("low", StringComparison.OrdinalIgnoreCase)
+                ? new PriorityVerdict(IndexRuleEffect.Low, false)
+                : new PriorityVerdict(IndexRuleEffect.Normal, false);
+
     private static SearchResultMapper.RankedCandidate Candidate(
         string path,
         bool isFavorite = false,
         int historyCount = 0,
-        int historyPriority = int.MaxValue,
         int typeRank = int.MaxValue,
         int start = 0,
         double coverage = 1.0,
         double contiguity = 1.0,
         int tier = MatchRank.TierName,
+        int shape = MatchRank.ShapeWholeWord,
         bool isDir = false,
         string? normalizedPath = null,
         bool isHistoryOnly = false,
         string? resultKind = null) =>
-        new(Result(path, isDir, resultKind), isFavorite, historyCount, historyPriority, typeRank,
-            new MatchRank(tier, start, coverage, contiguity), normalizedPath ?? path, isHistoryOnly);
+        new(Result(path, isDir, resultKind), isFavorite, historyCount, typeRank,
+            new MatchRank(tier, start, coverage, contiguity, shape), normalizedPath ?? path, isHistoryOnly);
 
     [TestMethod]
     public void RankAndDedupe_LeftContiguousBeatsLaterStart()
@@ -102,11 +113,28 @@ public sealed class RankAndDedupeTests
     }
 
     [TestMethod]
-    public void RankAndDedupe_QualityBeatsFavorite()
+    public void RankAndDedupe_FavoriteStrongMatch_BeatsABetterQualityNonFavorite()
     {
+        // 44 is the reward for a favorite that the query really explains, not for the favorite flag alone:
+        // a late start and low coverage is still a whole-word literal hit, so it stays strong and beats a
+        // better-matching ordinary row.
         var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
             Candidate(@"C:\favorite", isFavorite: true, start: 5, coverage: 0.3),
+            Candidate(@"C:\plain", coverage: 1.0),
+        });
+
+        Assert.AreEqual(@"C:\favorite", ranked[0].FullPath);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_FavoriteWeakMatch_KeepsTheBaseScore()
+    {
+        // The same favorite one notch down: a rare-reading hit is weak, so it scores like any normal row and
+        // the better match wins.
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\favorite", isFavorite: true, tier: MatchRank.TierFullRare),
             Candidate(@"C:\plain", coverage: 1.0),
         });
 
@@ -126,15 +154,17 @@ public sealed class RankAndDedupeTests
     }
 
     [TestMethod]
-    public void RankAndDedupe_HistoryCannotBeatBetterQuality()
+    public void RankAndDedupe_HistoryH5_BeatsANormalStrongMatch()
     {
+        // Redesign 3.2: five weighted opens lift a row above an ordinary strong match (34 over 18). The old
+        // name claimed history could never beat quality; that was the pre-kernel ladder's contract.
         var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
             Candidate(@"C:\often", historyCount: 5, start: 5, coverage: 0.3),
             Candidate(@"C:\exact", historyCount: 0, coverage: 1.0),
         });
 
-        Assert.AreEqual(@"C:\exact", ranked[0].FullPath);
+        Assert.AreEqual(@"C:\often", ranked[0].FullPath);
     }
 
     [TestMethod]
@@ -164,8 +194,10 @@ public sealed class RankAndDedupeTests
     }
 
     [TestMethod]
-    public void RankAndDedupe_TypeGroupBeatsABetterMatch()
+    public void RankAndDedupe_TypeGroupDecidesAtEqualScore()
     {
+        // Both rows are strong (whole-word, common reading) so both score 18, and the display type order
+        // decides. The weaker-looking start and coverage only split them later, inside the quality keys.
         var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
             Candidate(@"C:\files-perfect", typeRank: 2, start: 0, coverage: 1.0, contiguity: 1.0),
@@ -188,15 +220,17 @@ public sealed class RankAndDedupeTests
     }
 
     [TestMethod]
-    public void RankAndDedupe_TypeGroupBeatsAFavoriteOfALaterType()
+    public void RankAndDedupe_FavoriteStrongMatch_BeatsTypeGroupOrder()
     {
+        // The favorite's 44 outranks an application row's 18 before any type order is consulted. "Same score,
+        // then TypeRank" is pinned by RankAndDedupe_TypeGroupDecidesAtEqualScore.
         var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
             Candidate(@"C:\app", typeRank: 0),
             Candidate(@"C:\favorite", isFavorite: true, typeRank: 3),
         });
 
-        Assert.AreEqual(@"C:\app", ranked[0].FullPath);
+        Assert.AreEqual(@"C:\favorite", ranked[0].FullPath);
     }
 
     [TestMethod]
@@ -264,6 +298,124 @@ public sealed class RankAndDedupeTests
         });
 
         Assert.HasCount(2, ranked);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_HighPriorityWeak_RanksBelowNormalPriorityStrong()
+    {
+        // The 0.8 exchange rate: one priority step (8) buys less than one match step (10), so tier 3 lands
+        // after tier 2 -- 16 under 18.
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\high-weak.txt", tier: MatchRank.TierFullRare),
+            Candidate(@"C:\normal-strong.txt"),
+        }, new RankContext(PrefixPriorities()));
+
+        Assert.AreEqual(@"C:\normal-strong.txt", ranked[0].FullPath);
+        Assert.AreEqual(@"C:\high-weak.txt", ranked[1].FullPath);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_PinnedHighPriorityWeak_LeadsAFavorite()
+    {
+        // AlwaysTop is a section, not a score: the Pinned rows outrank every Boosted row, favorite 44 included.
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\favorite", isFavorite: true),
+            Candidate(@"C:\high-weak.txt", tier: MatchRank.TierFullRare),
+        }, new RankContext(PrefixPriorities(pinnedHigh: true)));
+
+        Assert.AreEqual(@"C:\high-weak.txt", ranked[0].FullPath);
+        Assert.AreEqual(@"C:\favorite", ranked[1].FullPath);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_LowPriorityStrong_RanksBelowNormalWeak()
+    {
+        // Low is a hard section, so its strong match (10) still sits under a weak normal row (8) in Boosted.
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\low-strong.txt"),
+            Candidate(@"C:\normal-weak.txt", tier: MatchRank.TierFullRare),
+        }, new RankContext(PrefixPriorities()));
+
+        Assert.AreEqual(@"C:\normal-weak.txt", ranked[0].FullPath);
+        Assert.AreEqual(@"C:\low-strong.txt", ranked[1].FullPath);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_TwoOpenHistoryTail_RanksBelowLowPriorityStrong()
+    {
+        // Tier 6 lands after tier 5: one or two weighted opens only reach the history tail, and the whole
+        // low-priority bucket stays ahead of it.
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\ghost-twice", historyCount: 2, isHistoryOnly: true),
+            Candidate(@"C:\low-strong.txt"),
+        }, new RankContext(PrefixPriorities()));
+
+        Assert.AreEqual(@"C:\low-strong.txt", ranked[0].FullPath);
+        Assert.AreEqual(@"C:\ghost-twice", ranked[1].FullPath);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_FavoriteStrongMatch_BeatsHistoryH5()
+    {
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\ghost-many", historyCount: 5, isHistoryOnly: true),
+            Candidate(@"C:\favorite", isFavorite: true),
+        });
+
+        Assert.AreEqual(@"C:\favorite", ranked[0].FullPath);
+        Assert.AreEqual(@"C:\ghost-many", ranked[1].FullPath);
+    }
+
+    [TestMethod]
+    public void RankAndDedupe_TypeBonusLiftsAReasonableMatchOfTheLeadingType()
+    {
+        // The user ordered the type list, so the leading type earns its bonus on top of its own C/P score:
+        // a rare-reading row of the first type (8 + 16) now beats a strong row of the third type (18 + 4).
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\files.txt", typeRank: 2),
+            Candidate(@"C:\apps.txt", typeRank: 0, tier: MatchRank.TierFullRare),
+        });
+
+        Assert.AreEqual(@"C:\apps.txt", ranked[0].FullPath);
+    }
+
+    // The bonus is capped by the row's own match quality: a barely matching row of the leading type does not
+    // ride the type order past a strong match further down.
+    [TestMethod]
+    public void RankAndDedupe_TypeBonusDoesNotLiftABarelyMatchingRow()
+    {
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\files.txt", typeRank: 2),
+            Candidate(@"C:\apps.txt", typeRank: 0, tier: MatchRank.TierFullRare, coverage: 0.2),
+        });
+
+        Assert.AreEqual(@"C:\files.txt", ranked[0].FullPath);
+    }
+
+    // The badge is driven by the same budget that decides the score: a row only counts as "frequent" once it
+    // reaches H5 or H3. A pure-history row with one or two opens sits in the history tail and stays plain.
+    [TestMethod]
+    public void RankAndDedupe_MarksOnlyHistoryTierRowsAsFrequent()
+    {
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\h5", historyCount: 6),
+            Candidate(@"C:\h3", historyCount: 4),
+            Candidate(@"C:\tail", historyCount: 2, isHistoryOnly: true),
+            Candidate(@"C:\plain"),
+        });
+
+        Assert.IsTrue(ranked.Single(r => r.FullPath == @"C:\h5").IsFrequent);
+        Assert.IsTrue(ranked.Single(r => r.FullPath == @"C:\h3").IsFrequent);
+        Assert.IsFalse(ranked.Single(r => r.FullPath == @"C:\tail").IsFrequent);
+        Assert.IsFalse(ranked.Single(r => r.FullPath == @"C:\plain").IsFrequent);
     }
 
     [TestMethod]

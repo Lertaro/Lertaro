@@ -13,8 +13,10 @@ namespace Lertaro.Core.Services.HookLaunch;
 /// SeTcbPrivilege, and handing the child the session's token rather than the service's own is what keeps
 /// a launched process from being an artifact of the service's privileges. <paramref name="requestElevation"/>
 /// swaps in the UAC-linked admin token, which is how an elevated child is obtained without ever showing a
-/// consent prompt -- the session user is genuinely an administrator, so there is no one to ask. When that
-/// isn't true the plain token is used instead, so a request can only ever downgrade, never escalate.
+/// consent prompt -- the session user is genuinely an administrator, so there is no one to ask. A request
+/// can only ever downgrade, never escalate: when the session's user is not an administrator the launch is
+/// refused rather than quietly started unelevated, because the callers that ask for elevation cannot work
+/// without it and would otherwise fail silently after the caller has already been told to exit.
 ///
 /// Lifted out of <see cref="HookProcessBroker"/>, which layers "one live hook per session" on top of this.
 /// The update applier needs the same launch with different bookkeeping -- a detached applier must never be
@@ -50,13 +52,18 @@ public static class SessionProcessLauncher
             var launchToken = userToken;
             if (requestElevation)
             {
-                // Only actually elevates when the session's user is genuinely an administrator;
-                // otherwise silently falls through to the plain token below -- a non-admin (or spoofed)
-                // request for elevation still gets a working child at the normal level, never a hard failure.
+                // The caller needs an elevated child and cannot act without one -- the updater refuses to run
+                // unelevated anyway, and starting it unelevated only turns a clear refusal into a silent
+                // no-op (the App has already been told to quit, and nothing replaced it).
                 if (TryGetLinkedToken(userToken, out linkedToken) && IsTokenAdmin(linkedToken))
                     launchToken = linkedToken;
                 else if (IsTokenAdmin(userToken))
                     launchToken = userToken; // UAC disabled but genuinely an admin account
+                else
+                {
+                    error = $"The session's user is not an administrator, so an elevated launch was refused (session {sessionId}).";
+                    return false;
+                }
             }
 
             if (!DuplicateTokenEx(launchToken, MAXIMUM_ALLOWED, IntPtr.Zero, SecurityImpersonation, TokenPrimary, out primaryToken))

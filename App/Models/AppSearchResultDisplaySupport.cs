@@ -9,8 +9,18 @@ namespace Lertaro.App;
 // has no state of its own and operates on the result row that owns the lazy display state.
 internal static class AppSearchResultDisplaySupport
 {
-    private static readonly SemaphoreSlim IconSemaphore = new(4);
+    // Twenty at a time, not four: a visible list is a couple of dozen rows, and the exact icon of every
+    // row is what the user waits for after the placeholders are already on screen. At four the list was
+    // resolved in ten serial waves; one wave covers it. Shell icon lookup serialises internally, so this
+    // is about queueing less, not about going wider than the shell will actually serve.
+    // Twenty at a time: a visible list is a couple of dozen rows, and the exact icon of every row is what
+    // the user waits for after the placeholders are already on screen. Shell icon lookup serialises
+    // internally, so this is about queueing less, not about going wider than the shell will serve.
+    private static readonly SemaphoreSlim IconSemaphore = new(20);
+
     private static readonly SemaphoreSlim DateModifiedSemaphore = new(8);
+
+
 
     public static string GetIconData(AppSearchResult owner) => owner.FullPath == "__SHOW_MORE__"
         ? "M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"
@@ -29,7 +39,14 @@ internal static class AppSearchResultDisplaySupport
         if (extras.Icon != null)
             return extras.Icon;
 
+        // This runs on the UI thread as a binding getter, and a cache miss resolves the icon
+        // SYNCHRONOUSLY through the shell. Only a miss is recorded: a hit is a dictionary lookup, and
+        // recording every row call would make the probe the cost it is measuring.
+        var __iconAt = Lertaro.Core.SearchIndex.PerfTrace.Begin();
         extras.Icon = ShellIconHelper.GetIconFromCacheOnly(owner.FullPath, owner.IsDir, out var needsLoad);
+        // Only the misses are interesting: a hit is a dictionary lookup.
+        if (needsLoad)
+            Lertaro.Core.SearchIndex.PerfTrace.Mark("icon.sync", __iconAt, 0, owner.IsDir ? "dir" : "file");
         if (needsLoad && !extras.IconLoadingStarted)
         {
             extras.IconLoadingStarted = true;
@@ -92,22 +109,32 @@ internal static class AppSearchResultDisplaySupport
     {
         var path = owner.FullPath;
         var isDirectory = owner.IsDir;
-        LazyBackgroundLoader.Start(IconSemaphore, () =>
+        LazyBackgroundLoader.Start(IconSemaphore, async () =>
         {
+            // No artificial delay: the list paints the placeholder icons itself before this ever runs, so a
+            // wait here only added to how long the exact icon took to appear, which is the latency the user
+            // actually notices. The concurrency cap keeps it from flooding the UI thread with property
+            // changes.
             if (path.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase) && !ViewModels.Search.SearchReachabilityGate.IsPathReachable(path))
-                return Task.CompletedTask;
+                return;
 
             var icon = ShellIconHelper.GetIconForPath(path, isDirectory);
             if (icon != null)
-            {
-                LazyBackgroundLoader.ApplyOnUiThread(() =>
-                {
-                    owner.DisplayExtras.Icon = icon;
-                    owner.NotifyDisplayPropertyChanged(nameof(AppSearchResult.Icon));
-                });
-            }
-            return Task.CompletedTask;
-        });
+                // Queued, not applied one by one. Each icon re-notifies its row on the UI thread, and
+                // a result list resolves dozens of them: applied individually that is dozens of row
+                // repaints stacked onto the frame the user is waiting for. The queue collapses them into
+                // one pass per dispatcher turn.
+                QueueIcon(owner, icon);
+        },
+        // IconLoadingStarted is one-way and GetIcon short-circuits on a non-null Icon, so a row whose permit
+        // never came free would keep its placeholder for the rest of the session. Clearing both here lets the
+        // next binding refresh queue the load again -- the quick window re-notifies every persisted row when it
+        // is shown or rescaled, which is what makes an aborted load self-healing instead of permanent.
+        onWaitTimedOut: () => LazyBackgroundLoader.ApplyOnUiThread(() =>
+        {
+            owner.DisplayExtras.Icon = null;
+            owner.DisplayExtras.IconLoadingStarted = false;
+        }));
     }
 
     private static void LoadDateModifiedAsync(AppSearchResult owner)
@@ -138,5 +165,56 @@ internal static class AppSearchResultDisplaySupport
             });
             return Task.CompletedTask;
         });
+    }
+
+    // Icons resolved in the background land here instead of being applied one at a time. Each application
+    // re-notifies its row on the UI thread, and a result list resolves dozens at once -- applied individually
+    // that is dozens of repaints queued behind the frame the user is waiting on. One flush per dispatcher
+    // turn collapses them.
+    private static readonly List<(AppSearchResult Owner, System.Windows.Media.ImageSource Icon)> PendingIcons = new();
+    private static bool _iconFlushScheduled;
+
+    private static void QueueIcon(AppSearchResult owner, System.Windows.Media.ImageSource icon)
+    {
+        lock (PendingIcons)
+        {
+            PendingIcons.Add((owner, icon));
+            if (_iconFlushScheduled)
+                return;
+            _iconFlushScheduled = true;
+        }
+
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null)
+        {
+            FlushIcons();
+            return;
+        }
+
+        // Background, so the icon pass runs after the frame that is already queued rather than inside it.
+        dispatcher.BeginInvoke(new Action(FlushIcons), System.Windows.Threading.DispatcherPriority.Background);
+    }
+
+    private static void FlushIcons()
+    {
+        (AppSearchResult Owner, System.Windows.Media.ImageSource Icon)[] batch;
+        lock (PendingIcons)
+        {
+            batch = PendingIcons.ToArray();
+            PendingIcons.Clear();
+            _iconFlushScheduled = false;
+        }
+
+        foreach (var (owner, icon) in batch)
+        {
+            try
+            {
+                owner.DisplayExtras.Icon = icon;
+                owner.NotifyDisplayPropertyChanged(nameof(AppSearchResult.Icon));
+            }
+            catch
+            {
+            }
+        }
     }
 }

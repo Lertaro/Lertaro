@@ -12,6 +12,6 @@
   "FileFilters_Config_FilterPatternLabel": "匹配后缀",
   "FileFilters_Config_FilterPatternDesc": "文件匹配规则或过滤后缀（如 '*.exe;*.lnk'，默认 '*' 匹配所有）。",
   "FileFilters_PluginDesc": "自定义目录范围检索插件。配置文件夹与后缀过滤规则，通过前缀关键字在指定文件夹范围内检索。",
-  "Plugin_Comp_Desc_FileFiltersScopeProvider": "发布关键字触发的目录范围（如用 'tf' 代表所配置的文件夹），输入 'tf 词' 即可在这些文件夹内进行快捷检索。",
+  "Plugin_Comp_Desc_FileFiltersScopeProvider": "发布关键字触发的目录范围（如用 'tf' 代表所配置的文件夹），输入 'tf 词' 即可在这些文件夹内进行快速搜索。",
   "Plugin_Comp_Desc_FileFiltersTranslationProvider": "为各种过滤条件大类提供多语言翻译服务。"
 }

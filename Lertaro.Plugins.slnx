@@ -5,6 +5,7 @@
   <Project Path="Plugins/DirectoryOpus/DirectoryOpus.csproj" />
   <Project Path="Plugins/TotalCommander/TotalCommander.csproj" />
   <Project Path="Plugins/Xyplorer/Xyplorer.csproj" />
+  <Project Path="Plugins/Xplorer2/Xplorer2.csproj" />
   <Project Path="Plugins/OneCommander/OneCommander.csproj" />
   <Project Path="Plugins/Files/Files.csproj" />
   <Project Path="Plugins/WebSearch/WebSearch.csproj" />

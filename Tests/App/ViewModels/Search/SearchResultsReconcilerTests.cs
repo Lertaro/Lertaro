@@ -156,6 +156,30 @@ public sealed class SearchResultsReconcilerTests
         Assert.AreEqual(0, raised, "an unchanged query must not cost a repaint");
     }
 
+    // The frequent marker is recomputed per search, so it can flip on a row that is otherwise the same row:
+    // the kept instance has to take the new value, or the badge never appears on a list being reused.
+    [TestMethod]
+    public void Replace_SameRowUnderANewSearch_CarriesTheFrequentMarker()
+    {
+        var before = Result(@"C:\a");
+        var results = new ObservableRangeCollection<AppSearchResult> { before };
+        var raised = new List<string>();
+        before.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is not null)
+                raised.Add(e.PropertyName);
+        };
+
+        var after = Result(@"C:\a");
+        after.IsFrequent = true;
+
+        SearchResultsReconciler.Replace(results, new[] { after }, null, _ => { });
+
+        Assert.AreSame(before, results[0]);
+        Assert.IsTrue(results[0].IsFrequent);
+        Assert.Contains(nameof(AppSearchResult.IsFrequent), raised);
+    }
+
     [TestMethod]
     public void Replace_DifferentPath_StillReplacesTheRow()
     {

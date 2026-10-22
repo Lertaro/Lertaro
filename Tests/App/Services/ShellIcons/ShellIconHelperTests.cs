@@ -1,3 +1,4 @@
+using System.Windows.Media.Imaging;
 using Lertaro.App.Services.ShellIcons;
 
 namespace Lertaro.App.Tests.Services.ShellIcons;
@@ -68,5 +69,19 @@ public sealed class ShellIconHelperTests
         var uncExe = ShellIconHelper.GetIconFromCacheOnly(@"\\remote-server\share\tool.exe", false, out var needsLoadExe);
         Assert.IsTrue(needsLoadExe);
         Assert.IsNotNull(uncExe);
+    }
+
+    [StaTestMethod]
+    public void Step_FailingExtraction_AnswersNullSoTheChainMovesOn() =>
+        // The chain behind GetIconForPath relies on this: a leaf that throws must not become a null for the
+        // row, which is what one try/catch around the whole chain used to do.
+        Assert.IsNull(ShellIconHelper.Step(() => throw new InvalidOperationException("wedged leaf"), "embedded icon", @"C:\Apps\test.exe"));
+
+    [StaTestMethod]
+    public void Step_PassingExtraction_ReturnsItsIcon()
+    {
+        var image = new BitmapImage();
+
+        Assert.AreSame(image, ShellIconHelper.Step(() => image, "embedded icon", @"C:\Apps\test.exe"));
     }
 }

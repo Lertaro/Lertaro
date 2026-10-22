@@ -22,6 +22,16 @@ public class SearchResult : ISearchResult
     public FileAttributes Attributes { get; set; }
     internal ulong RankSortKey { get; set; }
 
+    // Filled once by SearchResultRanking.Decorate; the full window compares these instead of re-deriving
+    // rule verdicts and history lookups on every comparison.
+    internal int RankScore { get; set; }
+
+    // Bits 0-1 section, bit 2 strong, bits 3-4 history tier. A byte rather than three bools so a
+    // hundred thousand rows cost six bytes instead of sixteen.
+    internal byte RankFlags { get; set; }
+
+    internal int HistoryScoreX100 { get; set; }
+
     // Populated from the index for every result that comes from one (local or network/WSL) -- lets
     // SearchService merge GetRecentFiles' local and network/WSL result sets by actual recency instead of
     // just concatenating two already-sorted-but-incomparable lists, lets the sidebar Size/Date filters and

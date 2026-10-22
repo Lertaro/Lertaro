@@ -9,7 +9,7 @@
 
 ## 1. 열린 폴더 수집기 `IOpenedFolderCollector`
 
-계약의 읽기 전용 절반입니다: 대상 관리자가 현재 열어 둔 모든 폴더를 보고합니다. [**퀵 내비게이션**](../../user-guide/hotkeys)과 인라인 검색 목록의 **현재 열린 폴더** 그룹이 여기서 채워집니다.
+계약의 읽기 전용 절반입니다: 대상 관리자가 현재 열어 둔 모든 폴더를 보고합니다. [**빠른 탐색**](../../user-guide/hotkeys)과 인라인 검색 목록의 **현재 열린 폴더** 그룹이 여기서 채워집니다.
 
 ```csharp
 namespace Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
@@ -131,9 +131,9 @@ public interface IInlineSearchAdapter : IPluginComponent
 
 `LocateItem(hwnd, path)`는 부모 폴더를 표시하고 항목을 선택하며 항목 자체는 열지 않습니다. 미지원 어댑터는 기본적으로 `false`를 반환합니다. `ExecuteItem`처럼 경로 끝의 디렉터리 구분자로 폴더를 구분합니다. 실행과 별도로 구현하세요. Directory Opus와 Total Commander는 다른 탐색기 창을 열지 않고 자체 창에서 항목을 선택합니다.
 
-## 5. 퀵 내비게이션 제공자 `IQuickNavigationProvider`
+## 5. 빠른 탐색 제공자 `IQuickNavigationProvider`
 
-[**퀵 내비게이션 메뉴**](../../user-guide/hotkeys)에 동적 그룹과 항목을 제공합니다:
+[**빠른 탐색 메뉴**](../../user-guide/hotkeys)에 동적 그룹과 항목을 제공합니다:
 
 ```csharp
 public enum MouseTriggerType { DoubleClick, MiddleClick }
@@ -158,7 +158,7 @@ public interface IQuickNavigationProvider : IPluginComponent
 
 - **`HeaderAction`**: 루트 그룹 헤더에 액션 버튼을 덧붙입니다(예: 북마크 제공자가 "현재 폴더 고정"을 붙이는 자리). 폴더 캐스케이터 플러그인의 "현재 폴더 저장" `+` 버튼이 이 멤버입니다.
 - **`DynamicMenuItem.IsHeader`**: 중첩 하위 메뉴에서 `IsHeader = true`인 항목을 반환하면 액션 버튼이 있는 인터랙티브 그룹 헤더로 렌더링됩니다.
-- **`MouseTriggerType`**: 메뉴를 열 수 있는 두 가지 전역 제스처를 이름으로 적습니다. 그중 어떤 것이 살아 있을지는 제공자 결정이 아니라 사용자 설정입니다 — [**단축키 → 퀵 내비게이션 마우스 트리거**](../../user-guide/settings/hotkeys-page)를 참조하세요.
+- **`MouseTriggerType`**: 메뉴를 열 수 있는 두 가지 전역 제스처를 이름으로 적습니다. 그중 어떤 것이 살아 있을지는 제공자 결정이 아니라 사용자 설정입니다 — [**단축키 → 빠른 탐색 마우스 트리거**](../../user-guide/settings/hotkeys-page)를 참조하세요.
 
 ## 6. 레지스트리
 

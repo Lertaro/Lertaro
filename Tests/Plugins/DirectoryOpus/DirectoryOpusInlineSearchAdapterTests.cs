@@ -117,4 +117,19 @@ public sealed class DirectoryOpusInlineSearchAdapterTests
     [TestMethod]
     public void IsInFolder_EmptyScope_IsNeverInFolder() =>
         Assert.IsFalse(DirectoryOpusInlineSearchAdapter.IsInFolder("", @"C:\Root\file.txt"));
+
+    [TestMethod]
+    public void BuildCommandPayload_IsUtf16WithOneTerminator()
+    {
+        var payload = DirectoryOpusInlineSearchAdapter.BuildCommandPayload("Go");
+
+        // cbData is this byte count, so an off-by-one here is Opus reading past the string it was handed.
+        Assert.AreEqual(6, payload.Length);
+        Assert.AreEqual("Go\0", System.Text.Encoding.Unicode.GetString(payload));
+    }
+
+    [TestMethod]
+    public void BuildCommandPayload_KeepsNonAsciiPathCharacters() =>
+        Assert.AreEqual(@"Go ""C:\用户\报告""." + "\0",
+            System.Text.Encoding.Unicode.GetString(DirectoryOpusInlineSearchAdapter.BuildCommandPayload(@"Go ""C:\用户\报告"".")));
 }

@@ -29,9 +29,9 @@ public class DirectoryOpusPlugin : IPlugin, IConfigurable, ITranslationProvider
                 Cache[cultureName] = translations;
             }
 
-            if (cultureName.Equals(TranslationService.GetCurrentCulture(), StringComparison.OrdinalIgnoreCase) &&
-                PluginSettingsService.GetSetting(PluginId, EnableSizeColumnKey, true))
-                DirectoryOpusSizeColumnInstaller.EnsureInstalled(System.Reflection.Assembly.GetExecutingAssembly(), translations);
+            if (cultureName.Equals(TranslationService.GetCurrentCulture(), StringComparison.OrdinalIgnoreCase))
+                DirectoryOpusSizeColumnInstaller.Sync(System.Reflection.Assembly.GetExecutingAssembly(), translations,
+                    PluginSettingsService.GetSetting(PluginId, EnableSizeColumnKey, true));
 
             return translations;
         }

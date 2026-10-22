@@ -139,5 +139,5 @@ Get-ChildItem Tests\Plugins -Directory | ForEach-Object {
 ## 仓库状态里仍需要你处理的部分
 
 - 那 14 个提交（7 项审计修复 + 1 条编译警告 + 4 项格式化/配置 + 1 项测试契约修正 + 1 项行尾口径）已在 `origin/main` 上。原先记的"只提交到本地、没有 push"已不成立：核对 `git rev-list --left-right --count origin/main...main` 为 0/0。
-- 本文档已挪进 `dev-docs/`，整个 `dev-docs/` 目录仍未被 git 跟踪。`.git/info/exclude` 里的 `/AUDIT_*.md` 规则锚在仓库根，对 `dev-docs/` 下的文件不生效（`git check-ignore` 对本文无输出），要它进仓库或 PR 就直接 `git add`，或调整该规则。
+- 本文档在 `dev-docs/`，该目录已随 `a7a7249b` / `a09f8b95` 进 git（`git ls-files dev-docs` 可见），原来「整个 dev-docs/ 未被跟踪」的说法不再成立。`.git/info/exclude` 里的 `/AUDIT_*.md` 规则锚在仓库根，对 `dev-docs/` 下的文件不生效；要改哪篇直接编辑并提交即可。
 - 本次会话为修复沙箱对该工作区的写入权限（`<repo>` 缺少沙箱所需的写权限，Win32 5），在根目录 ACL 上追加了一条当前用户的完全控制允许项；备份与回滚命令在与仓库同级的 `Lertaro-acl-recovery\` 目录。

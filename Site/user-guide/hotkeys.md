@@ -1,6 +1,6 @@
 # Hotkeys & Gestures
 
-Lertaro embraces a keyboard-first interaction philosophy while offering rich mouse gestures and quick cascading navigation. Except for non-configurable core keys, all global and in-app hotkeys can be customized under [**Settings → Hotkeys**](./settings/hotkeys-page).
+Lertaro embraces a keyboard-first interaction philosophy while offering rich mouse gestures and Quick Navigation. Except for non-configurable core keys, all global and in-app hotkeys can be customized under [**Settings → Hotkeys**](./settings/hotkeys-page).
 
 ## 1. Global Hotkeys Cheat Sheet
 
@@ -8,7 +8,7 @@ Lertaro embraces a keyboard-first interaction philosophy while offering rich mou
 | :--- | :--- | :--- |
 | **Toggle Quick Window** | Double-tap `Ctrl` | Can be set to a double-tap mode or standard key combinations (e.g. `Alt+Space`). A double-tap is two presses of the **same** modifier key released **100–300 ms** apart — left and right `Ctrl` are different keys, and any other key pressed in between restarts the count. In the double-tap form the modifier itself is never swallowed, so ordinary `Ctrl`+`C` style shortcuts keep working. When **Open full panel by default** is enabled, this shortcut opens the Full Window instead: it is brought to the foreground once when first shown, refocused when visible but inactive, and when already active a repeat press returns to the Quick Window by default (or closes outright when **Close Full Window on Repeat Hotkey** is enabled). It is not automatically kept topmost. |
 | **Quick Jump** | `Ctrl+G` | Jumps file dialogs directly to the directory most recently browsed in Explorer, a supported file manager, or a file dialog. |
-| **Quick Navigation Menu** | No default | An optional global shortcut opens the cascading Quick Navigation menu. From the desktop or an ordinary app it uses desktop context; in File Explorer and native file dialogs it uses the active window context. File managers and file dialogs remain allowed even when ordinary foreground protections suppress global hotkeys. |
+| **Quick Navigation Menu** | No default | An optional global shortcut opens the Quick Navigation menu. From the desktop or an ordinary app it uses desktop context; in File Explorer and native file dialogs it uses the active window context. File managers and file dialogs remain allowed even when ordinary foreground protections suppress global hotkeys. |
 | **Select Next Item** | `Ctrl+N` or `↓` | Moves highlight down. Navigates across groups in the Quick Panel. In Quick Launch, the arrow keys follow the visible grid; **←** and **→** follow the reading order across row boundaries, while **↑** and **↓** keep the current column and only move between adjacent rows, stopping where the target row has no item in that column. When Quick Launch is visible with an empty query, `Ctrl+N` cycles to the next data source and wraps at the end. |
 | **Select Previous Item** | `Ctrl+P` or `↑` | Moves highlight up. Navigates across groups in the Quick Panel. In Quick Launch, the arrow keys follow the visible grid; **←** and **→** follow the reading order across row boundaries, while **↑** and **↓** keep the current column and only move between adjacent rows, stopping where the target row has no item in that column. When Quick Launch is visible with an empty query, `Ctrl+P` cycles to the previous data source and wraps at the beginning. |
 | **Jump to Results 1–9** | `Ctrl` + `1`–`9` | Modifier is customizable. Number badges appear next to visible items for instant activation. The number means the Nth selectable row **from the first visible row**, so the badges renumber as you scroll; `0` is not bound. The Quick Launch panel is the exception — it binds `1`–`9`, `0` and `A`–`Z` for up to 36 tiles. |
@@ -59,7 +59,7 @@ Besides branding, the small logo inside the search box also provides several qui
 
 ### Inline and Full Window Icons
 
-- **Inline Window**: When embedded in native file dialogs (Open/Save/Browse), left-clicking the logo triggers the [**Quick Navigation**](#_3-quick-navigation-mouse-triggers) cascading menu; disabled in ordinary Explorer windows. Dragging the logo moves the card itself, and the offset is re-applied on every later dock.
+- **Inline Window**: When embedded in native file dialogs (Open/Save/Browse), left-clicking the logo triggers the [**Quick Navigation**](#_3-quick-navigation-mouse-triggers) menu; disabled in ordinary Explorer windows. Dragging the logo moves the card itself, and the offset is re-applied on every later dock.
 - **Full Window**: Left-clicking the logo opens the context menu; **Open Full Window** is hidden there because the window is already open. Middle-clicking toggles the window's pinned state. Right-clicking centers the whole window in the work area of the display it is on, the taskbar excluded; a maximized window is restored first.
 
 ### Search Box Gestures (Quick Window)
@@ -87,9 +87,9 @@ You can also assign an optional global keyboard shortcut under [**Settings → H
 - **Third-party File Managers**: Middle-click file list areas in Directory Opus, Total Commander, XYplorer, Files, and One Commander (see [**Supported File Managers**](./file-manager-support)).
 - **File Dialogs**: Middle-click or click the embedded logo inside Open/Save/Browse dialogs to jump to the target folder without accidentally triggering confirmation.
 
-### Cascading Menu Structure
+### Quick Navigation Menu Structure
 
-Powered by the **Folder Cascader** plugin:
+The four groups below come from the **Folder Cascader** plugin:
 
 1. **Currently Open Folders**: Aggregates and deduplicates active folders from all open file managers.
 2. **Favorites & History**: Lists starred folders, files, and recent visit histories.

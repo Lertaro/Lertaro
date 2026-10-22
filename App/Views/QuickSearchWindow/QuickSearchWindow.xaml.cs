@@ -72,7 +72,8 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         InitializeChildControls();
         KeywordHistoryController = new QuickSearchKeywordHistoryController(this);
         _launchActions = new QuickSearchLaunchActionsCoordinator(this);
-        this.DpiChanged += (_, _) => { if (IsVisible) PositionWindow(); };
+        // This window's own monitor changed under it, so the placement has to follow the window, not the mouse.
+        this.DpiChanged += (_, _) => { if (IsVisible) PositionWindow(keepCurrentMonitor: true); };
     }
 
     // The opaque surface this window is. ClearType needs it: a layered window (AllowsTransparency) cannot
@@ -233,10 +234,10 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     // there, so the IsVisible-gated callers are awake again, and any one of them placing it would put an
     // unpainted card where the user is looking -- which is exactly what the parked show exists to avoid.
     internal void SuppressPositioning() => _suppressPositioning = true;
-    public void PositionWindow()
+    public void PositionWindow(bool keepCurrentMonitor = false)
     {
         if (_suppressPositioning) return;
-        _controller.PositionWindow();
+        _controller.PositionWindow(keepCurrentMonitor);
     }
     public void HideWindow() => _controller.HideWindow(true);
     public void HideWindowNoRestore() => _controller.HideWindow(false);

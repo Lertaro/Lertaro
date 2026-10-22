@@ -1,4 +1,5 @@
 using Lertaro.Core;
+using Lertaro.Core.SearchIndex;
 
 namespace Lertaro.App.ViewModels.Search.Mapping;
 
@@ -28,8 +29,9 @@ internal sealed class StreamingResultAccumulator
 
     private readonly string _query;
     private readonly Lazy<string?> _queriedDirectory;
-    private readonly Func<string, bool, IndexRuleEffect>? _priorityResolver;
-    private IComparer<SearchResult> _rankComparer;
+    // Decided on the render callback before the first batch, then read-only: the rows already merged are
+    // never re-ranked, so a late-arriving context cannot move what the user is looking at.
+    private RankContext? _rankContext;
 
     private int _consumed;
     private List<Entry> _ranked = new();
@@ -54,21 +56,13 @@ internal sealed class StreamingResultAccumulator
 
     public StreamingResultAccumulator(
         string query,
-        IReadOnlyDictionary<string, int> historySnapshot,
         IReadOnlyList<SearchResultMapper.RankedCandidate>? seedCandidates = null,
-        Func<string, string?>? resolveQueriedDirectory = null,
-        IReadOnlyDictionary<string, int>? historyUsage = null,
-        IReadOnlySet<string>? favoritePaths = null,
-        Func<string, bool, IndexRuleEffect>? priorityResolver = null)
+        Func<string, string?>? resolveQueriedDirectory = null)
     {
         _query = query;
-        _priorityResolver = priorityResolver;
         // Constructed on input, consumed by the background mapper. Directory.Exists can block on a
         // remote path; even an empty content-prefix paint on the UI thread must not resolve it.
         _queriedDirectory = new Lazy<string?>(() => (resolveQueriedDirectory ?? SearchResultMapper.GetQueriedDirectory)(query));
-        // Captured once for the whole query rather than re-read per paint: the ranking must not shift
-        // underneath rows that are already on screen just because the user opened something mid-search.
-        _rankComparer = new SearchResultRankComparer(historySnapshot, historyUsage, favoritePaths, priorityResolver);
 
         if (seedCandidates == null)
             return;
@@ -84,6 +78,8 @@ internal sealed class StreamingResultAccumulator
                 IsDir = candidate.Result.IsDir,
                 Drive = candidate.Result.Drive
             };
+            // No context yet -- UseRankContext re-decorates these rows before the first batch lands.
+            SearchResultRanking.Decorate(raw, null);
             _ranked.Add(new Entry(raw, candidate.Result));
         }
         _ranked.Sort(CompareEntries);
@@ -95,23 +91,30 @@ internal sealed class StreamingResultAccumulator
     }
 
     /// <summary>
-    /// Ranks this query's rows by <paramref name="priorities"/> (path to learned-keyword rank) and
-    /// <paramref name="usageCounts"/> (path to open count). Both are compared AFTER match quality: a path
-    /// with five or more opens gets the strong history band, one to four the weak band. Only takes effect
-    /// before the first file batch: once rows are on screen, re-ranking them would shift them under the user.
+    /// Hands the accumulator the ranking context (index-rule verdicts, decayed history scores, favorites)
+    /// for this query. Only takes effect before the first file batch: once rows are on screen, re-ranking
+    /// them would shift them under the user.
     /// </summary>
     /// <remarks>
-    /// Separate from the constructor because the full window builds its accumulator on the UI thread, and
-    /// working the priorities out reads the history store and resolves Recent Items shortcuts -- work that
-    /// belongs on the render callback's background thread, ahead of its first batch.
+    /// Separate from the constructor because the full window builds its accumulator on the UI thread, while
+    /// working the signals out reads the history store and the favorites -- work that belongs on the render
+    /// callback's background thread, ahead of its first batch. Seed rows have no batch behind them yet, so
+    /// re-decorating and re-sorting them here is invisible to the user.
     /// </remarks>
-    public void UsePriorities(
-        IReadOnlyDictionary<string, int> priorities,
-        IReadOnlyDictionary<string, int>? usageCounts = null,
-        IReadOnlySet<string>? favoritePaths = null)
+    public void UseRankContext(RankContext? context)
     {
-        if (_consumed == 0 && _ranked.Count == 0)
-            _rankComparer = new SearchResultRankComparer(priorities, usageCounts, favoritePaths, _priorityResolver);
+        if (_consumed != 0)
+            return;
+
+        _rankContext = context;
+        if (_ranked.Count == 0)
+            return;
+
+        foreach (var entry in _ranked)
+            SearchResultRanking.Decorate(entry.Raw, context);
+        _ranked.Sort(CompareEntries);
+        RewriteRows(0);
+        _firstChanged = 0;
     }
 
     /// <summary>How many of the arrivals handed in so far have been mapped.</summary>
@@ -226,6 +229,9 @@ internal sealed class StreamingResultAccumulator
                     continue;
                 if (_seedPaths.Contains(NormalizePath(raw.Path)))
                     continue;
+                // Decorated once, on arrival, so the section and score of a row are final before it is
+                // merged in: the merge and every later paint only read those fields.
+                SearchResultRanking.Decorate(raw, _rankContext);
                 var row = SearchResultMapper.CreateUiResult(raw, _query, 0, isApplication: false, scope: null);
                 _lastBatchRows.Add(row);
                 chunk.Add(new Entry(raw, row));
@@ -263,7 +269,8 @@ internal sealed class StreamingResultAccumulator
         }
     }
 
-    private int CompareEntries(Entry left, Entry right) => _rankComparer.Compare(left.Raw, right.Raw);
+    private static int CompareEntries(Entry left, Entry right) =>
+        RankedSearchResultComparer.Instance.Compare(left.Raw, right.Raw);
 
     private static string NormalizePath(string path) =>
         path.Length > 3 && path[^1] == '\\' ? path.TrimEnd('\\') : path;

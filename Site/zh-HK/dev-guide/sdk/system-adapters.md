@@ -9,7 +9,7 @@
 
 ## 1. 已開啟資料夾收集器 `IOpenedFolderCollector`
 
-這是契約中唯讀的那一半：回報目標管理器目前開啟的每一個資料夾，[**快速導覽**](../../user-guide/hotkeys)中的 **目前開啟的資料夾** 分組與內嵌搜尋清單的資料都來自這裡。
+這是契約中唯讀的那一半：回報目標管理器目前開啟的每一個資料夾，[**快速導航**](../../user-guide/hotkeys)中的 **目前開啟的資料夾** 分組與內嵌搜尋清單的資料都來自這裡。
 
 ```csharp
 namespace Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
@@ -128,9 +128,9 @@ public interface IInlineSearchAdapter : IPluginComponent
 
 `LocateItem(hwnd, path)` 只顯示父資料夾並選取項目，不會開啟該項目；不支援定位的適配器預設傳回 `false`。它與 `ExecuteItem` 一樣透過路徑結尾的目錄分隔符號識別資料夾。定位與執行應分別實作：Directory Opus 和 Total Commander 會在自身視窗中定位，而非另外開啟檔案總管。
 
-## 5. 快速導覽提供者 `IQuickNavigationProvider`
+## 5. 快速導航提供者 `IQuickNavigationProvider`
 
-為[**快速導覽級聯選單**](../../user-guide/hotkeys)貢獻動態分組與項目：
+為[**快速導航選單**](../../user-guide/hotkeys)貢獻動態分組與項目：
 
 ```csharp
 public enum MouseTriggerType { DoubleClick, MiddleClick }
@@ -153,9 +153,9 @@ public interface IQuickNavigationProvider : IPluginComponent
 }
 ```
 
-- **`HeaderAction`**：在根分組標題上附加一個操作按鈕（例如書籤提供者加上「釘選目前資料夾」）。隨包 Folder Cascader 外掛模組那個「儲存你所在資料夾」的 `+` 按鈕就是這個成員。
+- **`HeaderAction`**：在根分組標題上附加一個操作按鈕（例如書籤提供者加上「釘選目前資料夾」）。階層式資料夾瀏覽器外掛模組那個「儲存你所在資料夾」的 `+` 按鈕就是這個成員。
 - **`DynamicMenuItem.IsHeader`**：在巢狀子選單中返回 `IsHeader = true` 的項目，可以渲染出帶有操作按鈕的互動式分組標題列。
-- **`MouseTriggerType`**：指出可以開啟選單的兩種全域滑鼠手勢。其中哪幾種生效是使用者設定，不是提供者的決定——詳見[**快速鍵 → 快速導覽滑鼠觸發**](../../user-guide/settings/hotkeys-page)。
+- **`MouseTriggerType`**：指出可以開啟選單的兩種全域滑鼠手勢。其中哪幾種生效是使用者設定，不是提供者的決定——詳見[**快速鍵 → 快速導航滑鼠觸發**](../../user-guide/settings/hotkeys-page)。
 
 ## 6. 註冊表
 

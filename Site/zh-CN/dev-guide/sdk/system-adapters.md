@@ -130,7 +130,7 @@ public interface IInlineSearchAdapter : IPluginComponent
 
 ## 5. 快速导航提供者 `IQuickNavigationProvider`
 
-为[**快速导航级联菜单**](../../user-guide/hotkeys)贡献动态分组与条目：
+为[**快速导航菜单**](../../user-guide/hotkeys)贡献动态分组与条目：
 
 ```csharp
 public enum MouseTriggerType { DoubleClick, MiddleClick }
@@ -153,7 +153,7 @@ public interface IQuickNavigationProvider : IPluginComponent
 }
 ```
 
-- **`HeaderAction`**：在根分组标题上追加一个操作按钮（例如书签提供者用它添加“固定当前文件夹”）。文件夹级联插件那个“把你所在的文件夹存下来”的 `+` 按钮就是这个成员。
+- **`HeaderAction`**：在根分组标题上追加一个操作按钮（例如书签提供者用它添加“固定当前文件夹”）。级联文件夹浏览器插件那个“把你所在的文件夹存下来”的 `+` 按钮就是这个成员。
 - **`DynamicMenuItem.IsHeader`**：在嵌套子菜单中，返回 `IsHeader = true` 的条目会渲染成带操作按钮的可交互分组标题行。
 - **`MouseTriggerType`**：命名能够打开该菜单的两种全局手势。其中哪几种生效是用户的设置，而不是提供者的决定——见[**快捷键 → 快速导航鼠标触发**](../../user-guide/settings/hotkeys-page)。
 

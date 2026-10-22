@@ -48,7 +48,7 @@ public static class AppWindowManager
             {
                 // First show only (see ParkUntilPainted): the settings tree is the biggest in the app, and an
                 // opaque borderless window is the class background until that first frame is presented.
-                WindowParking.ParkUntilPainted(_settingsWindow);
+                WindowParking.ParkUntilPainted(_settingsWindow, WindowCentering.CenterOnCursorScreen);
                 _settingsWindow.Show();
             }
 
@@ -83,7 +83,7 @@ public static class AppWindowManager
             {
                 // First show only (see ParkUntilPainted): the settings tree is the biggest in the app, and an
                 // opaque borderless window is the class background until that first frame is presented.
-                WindowParking.ParkUntilPainted(_settingsWindow);
+                WindowParking.ParkUntilPainted(_settingsWindow, WindowCentering.CenterOnCursorScreen);
                 _settingsWindow.Show();
             }
 
@@ -280,7 +280,10 @@ public static class AppWindowManager
 
         if (!window.IsVisible)
         {
-            WindowParking.ParkUntilPainted(window);
+            // Placed inside the park rather than by the caller: the handle -- and so any placement that has to be
+            // in physical pixels -- does not exist until WPF creates it (see WindowCentering for what the DIP alone
+            // measures as on a mixed-DPI desktop), and SourceInitialized is before anything has been painted.
+            WindowParking.ParkUntilPainted(window, WindowCentering.CenterOnCursorScreen);
             window.Show();
         }
         if (window.WindowState == WindowState.Minimized)

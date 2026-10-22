@@ -1,0 +1,9 @@
+{
+  "Plugins_Xplorer2_EnableInlineSearch": "启用内嵌搜索",
+  "Plugins_Xplorer2_EnableInlineSearchDesc": "允许在 xplorer2 窗口中双击或按快捷键弹出内置搜索栏",
+  "Plugins_Xplorer2_EnableQuickNav": "启用快速导航菜单",
+  "Plugins_Xplorer2_EnableQuickNavDesc": "允许在 xplorer2 的文件列表中中键点击弹出快速导航菜单",
+  "Xplorer2_PluginDesc": "xplorer2 增强集成插件。读取 xplorer2 的活动窗格路径并在其中快捷跳转。",
+  "Plugin_Comp_Desc_Xplorer2PathCollector": "实时提取 xplorer2 当前活动窗格的文件夹路径。其余已打开的标签页不在范围内：xplorer2 会卸载非活动标签页，也不提供任何读取它们的途径。",
+  "Plugin_Comp_Desc_Xplorer2InlineSearchAdapter": "为 xplorer2 文件管理器提供内嵌式的拼音与字符打字过滤定位和目录跳转功能。"
+}
