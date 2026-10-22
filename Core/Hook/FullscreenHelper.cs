@@ -28,8 +28,15 @@ public static class FullscreenHelper
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
     private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
 
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsZoomed(IntPtr hWnd);
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongW")]
+    private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
     [StructLayout(LayoutKind.Sequential)]
-    private struct RECT
+    internal struct RECT
     {
         public int Left, Top, Right, Bottom;
     }
@@ -45,6 +52,8 @@ public static class FullscreenHelper
 
     private const uint MONITOR_DEFAULTTOPRIMARY = 1;
     private const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
+    private const int GWL_STYLE = -16;
+    private const int WS_CAPTION = 0x00C00000;
 
     // Reused because the notification queue reads this on its way to a refill, on the UI thread, and a fresh
     // 256-character buffer per read is a Gen0 allocation that never says anything new. The capacity is the
@@ -77,17 +86,34 @@ public static class FullscreenHelper
                 mi.cbSize = Marshal.SizeOf(mi);
                 if (GetMonitorInfo(hMonitor, ref mi))
                 {
-                    const int tolerance = 2;
-                    return Math.Abs(rect.Left - mi.rcMonitor.Left) <= tolerance &&
-                           Math.Abs(rect.Top - mi.rcMonitor.Top) <= tolerance &&
-                           Math.Abs(rect.Right - mi.rcMonitor.Right) <= tolerance &&
-                           Math.Abs(rect.Bottom - mi.rcMonitor.Bottom) <= tolerance;
+                    if (IsOrdinaryMaximized(IsZoomed(fgHwnd), GetWindowLong(fgHwnd, GWL_STYLE), rect, mi.rcWork)) return false;
+
+                    return Math.Abs(rect.Left - mi.rcMonitor.Left) <= Tolerance &&
+                           Math.Abs(rect.Top - mi.rcMonitor.Top) <= Tolerance &&
+                           Math.Abs(rect.Right - mi.rcMonitor.Right) <= Tolerance &&
+                           Math.Abs(rect.Bottom - mi.rcMonitor.Bottom) <= Tolerance;
                 }
             }
         }
         catch { }
         return false;
     }
+
+    private const int Tolerance = 2;
+
+    // A maximized window with a title bar that stays inside the work area is an ordinary one the user enlarged.
+    // With an auto-hidden taskbar (or on a monitor without one) the work area is the whole monitor, so by size
+    // alone a maximized Edge or Explorer read as fullscreen, and silenced hotkeys and notification cards.
+    // Still fullscreen: a captionless one (Windows sizes a maximized borderless popup to the monitor itself, and
+    // Edge in F11 is maximized without a title bar), and one that grows past the work area over a visible
+    // taskbar, which is how some apps do their own fullscreen. ponytail: a style-and-size heuristic -- an app
+    // that strips WS_CAPTION to draw its own title bar still reads as fullscreen when maximized over an
+    // auto-hidden taskbar. SHQueryUserNotificationState (QUNS_BUSY) is the system's own "fullscreen app
+    // running" signal, but it answers for the whole session, not this window, so it could only corroborate.
+    internal static bool IsOrdinaryMaximized(bool isZoomed, int style, RECT window, RECT work) =>
+        isZoomed && (style & WS_CAPTION) == WS_CAPTION &&
+        window.Left >= work.Left - Tolerance && window.Top >= work.Top - Tolerance &&
+        window.Right <= work.Right + Tolerance && window.Bottom <= work.Bottom + Tolerance;
 
     private static bool GetVisibleWindowRect(IntPtr hwnd, out RECT rect)
     {
