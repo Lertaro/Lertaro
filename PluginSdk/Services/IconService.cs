@@ -43,7 +43,9 @@ public static class IconService
     public static Func<string, int, ImageSource?> GetThumbnailFunc { get; set; } = (path, size) => null;
 
     /// <summary>
-    /// Retrieves a large thumbnail for the path (uncached), or null when the shell has none.
+    /// Retrieves a large thumbnail for the path (uncached), or null when the shell has none. The host stops
+    /// waiting for a shell that has not answered within its few-second budget and answers null, so this blocks
+    /// the calling thread for up to that budget -- call it off the UI thread, as the preview controls do.
     /// </summary>
     public static ImageSource? GetThumbnail(string path, int size) => GetThumbnailFunc(path, size);
 }
