@@ -23,14 +23,13 @@ public class SearchEngine : IDisposable
     private readonly SearchCancellationRegistry _searchCancellations = new();
     private static readonly string IndexCacheDir = LocalDriveCacheLocator.DefaultCacheDir;
 
-    // How long the service must sit idle before it hands its working set back to the OS. This is NOT a
-    // memory hint on a quiet process -- TrimWorkingSet drops the index's mapped pages, so the next search
-    // reads them off the disk again. Measured on this machine: with the upstream 3 s window the first query
-    // after any 3-second pause blocked 375-593 ms before emitting a row, against 16-47 ms while the pages
-    // were still resident, and the user reads that as "the first keystroke always stalls". 60 s keeps the
-    // memory saving for a genuinely idle service while covering the pause between two searches a person
-    // actually makes.
-    private const long IdleTrimAfterMs = 60_000;
+    // How long the service must sit idle before it hands its working set back to the OS. The trim
+    // drops the index's mapped pages, so the next query re-reads them: measured, a query after a pause
+    // costs tens to a couple of hundred milliseconds more than one on resident pages. That is a small
+    // delay at the start of a query, not the stall users reported -- that one held the UI thread and
+    // came from the result list, so this stays at the upstream window and the service keeps a small
+    // working set when nobody is searching.
+    private const long IdleTrimAfterMs = 3_000;
     private readonly IdleTrimGate _idleTrim = new(IdleTrimAfterMs, Environment.TickCount64);
     private readonly Timer? _idleTimer;
 
