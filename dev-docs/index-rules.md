@@ -112,7 +112,7 @@ public enum IndexRuleKind { Path, Glob, Regex }
 
 ## 默认规则与旧配置迁移
 
-新装默认是 1 条排除加 15 条低档（`Core/Settings/IndexRuleDefaults.cs:25`）：
+新装默认是 1 条排除加 14 条低档（`Core/Settings/IndexRuleDefaults.cs:25`）：
 
 | 档位 | Pattern |
 | --- | --- |
@@ -130,18 +130,19 @@ public enum IndexRuleKind { Path, Glob, Regex }
 | 低 | `target\` |
 | 低 | `/^\./` |
 | 低 | `/^~/` |
-| 低 | `/^[^.]+$/` |
 | 低 | `/^\$/` |
 
-旧的三条默认 glob（`.*`、`~*`、`\$*`）由四条低档正则接管（`/^\./`、`/^~/`、`/^\$/` 加上 `/^[^.]+$/`），同一个意图从「隐藏」换成「降权」；`node_modules` 仍是排除。系统目录和应用目录从默认排除改成默认低档，属于行为变化：老用户会突然在结果里看到 `Program Files` 或 `AppData` 下的文件，它们排在最后而不是消失。
+旧的三条默认 glob（`.*`、`~*`、`\$*`）由三条低档正则接管（`/^\./`、`/^~/`、`/^\$/`），同一个意图从「隐藏」换成「降权」；`node_modules` 仍是排除。系统目录和应用目录从默认排除改成默认低档，属于行为变化：老用户会突然在结果里看到 `Program Files` 或 `AppData` 下的文件，它们排在最后而不是消失。
+
+`/^[^.]+$/` 曾经是第四条，已从默认值退休（`IndexRuleDefaults.RetiredExtensionlessRegex`）。原因是对它的实测：regex 除了叶名还要测「相对搜索根的路径」，于是 `D:\tools\smalltools\Auslogics Duplicate File Finder.lnk` 会在祖先 `tools\smalltools` 那一层命中，整棵树继承 Low——任何把程序放在 `Program Files` 之外的人，程序目录都被无声压到最低档，这与「降权没有扩展名的名字」差得太远。`D:\tools\smalltools\重复文件`（文件夹）和同目录的 `.lnk` 都被压成 Low，结果就是一个文件夹压过它旁边的快捷方式，唯一在起作用的是「文件名匹配得更贴切」。想恢复这个意图，用显式路径规则（如 `-D:\tools`）或更窄的正则，别再用 `/^[^.]+$/`。
 
 `IndexRules` 是可空字段，null 表示这份设置文件早于该字段，是迁移信号；空列表是用户主动清空，绝不再迁移（`Core/Settings/UserSettings.cs:30-36`）。旧的三列继续保留，读取时不参与匹配，只在保存时回写镜像。
 
 迁移算法在 `IndexRuleMigration.Ensure`（`Core/Settings/IndexRuleMigration.cs:14`），加载设置后调用（`Core/Settings/UserSettingsPersistence.cs:47/86`），只在内存里算：
 
-1. `IndexRules != null`，直接用，旧三列忽略。重复调用拿到同一个列表，幂等（`Ensure_IsIdempotentAndKeepsTheSameList`）。
+1. `IndexRules != null`，先做一次「退休规则清理」再用，旧三列忽略。清理只对**完全等于上一版默认列表**的设置生效（条数先比，再按 `(档位, Pattern)` 排序逐项比）：把 `/^[^.]+$/` 这条低档删掉。用户改过列表就不动——那时规则是他自己写的，背着人删一条比留着一条看得见的降权更糟。重复调用拿到同一个列表，幂等（`Ensure_IsIdempotentAndKeepsTheSameList`、`Ensure_PreviousStockList_DropsTheRetiredRule`、`Ensure_CustomisedList_KeepsTheRetiredRule`）。
 2. 为 null，且旧三列与旧默认等价，换成新默认。等价判断走集合语义：每项先清洗，`/` 转 `\`，去掉尾部分隔符，再排序后忽略大小写逐项比；`IgnoredPathRegexes` 必须为空（`:101-118`）。全新安装落在这条路上，因为 `UserSettings` 的旧三列默认值就是那份旧默认。
-3. 为 null 且用户改过，旧条目逐条转成 `Effect = Exclude`（正则补上 `/` 定界符，`WrapLegacyRegex`），然后把 15 条默认低档全部追加。跟同文本排除项重复的低档规则保留，运行期排除优先，冲突横幅是让用户看见并自行取舍的入口（`Ensure_CustomLegacyLists_KeepEveryEntryAsExclusionAndAppendDefaults`）。
+3. 为 null 且用户改过，旧条目逐条转成 `Effect = Exclude`（正则补上 `/` 定界符，`WrapLegacyRegex`），然后把 14 条默认低档全部追加。跟同文本排除项重复的低档规则保留，运行期排除优先，冲突横幅是让用户看见并自行取舍的入口（`Ensure_CustomLegacyLists_KeepEveryEntryAsExclusionAndAppendDefaults`）。
 
 迁移不在加载时写盘，避免启动期的写权限问题；下一次正常保存（应用设置）时落盘。重复启动会重复计算，结果一样。
 
@@ -188,7 +189,7 @@ public enum IndexRuleKind { Path, Glob, Regex }
 
 档位是**进入排序的候选**的第一级键，但不是整个窗口列表的第一级键：快速窗口的插件即时结果与搜索动作行先以固定前缀放在列表顶部，不参与排序；完整窗口的内容 provider 行同样是排序之外的前缀；内联窗口还会在排序之后按目录邻近度重新分组。`PriorityRank` 见上。两条梯子的完整键序见 search-ranking.md，这里只讲为什么把档位排到最外层。
 
-- 快速窗口：档位 → 结果类型顺序（`TypeRank`，只有这个窗口读设置）→ 六个质量键 → 收藏 → history band → history priority → 文件/文件夹 → 自然名序 → 名字长度 → 路径长度 → 盘 → 路径（`RankedCandidateOrdering.cs:54-66`）。
+- 快速窗口：档位 → 结果类型顺序（`TypeRank`，只有这个窗口读设置；快捷方式的索引行取应用/文件两个身份里更靠前的那个，见 search-ranking.md 的类型加权一节）→ 六个质量键 → 收藏 → history band → history priority → 文件/文件夹 → 自然名序 → 名字长度 → 路径长度 → 盘 → 路径（`RankedCandidateOrdering.cs:54-66`）。
 - 完整窗口：档位 → 高 32 位质量键 → 收藏 → history band → history priority → 文件/文件夹 → 自然名序 → 名字长度 → 路径长度 → 盘 → 路径 → 低 32 位（`SearchResultRankComparer`）。这个窗口**没有**结果类型顺序，也没有按类型分组：它只排索引返回的文件行，`ResultTypeOrder` 设置不在完整窗口生效；`Core/SearchResult.cs:102` 写的「结果类型分组在其上」是旧注释，与实现不符。
 - 内联窗口：全局段复用快速梯子，但 `TypeRank` 传入空顺序，所有类型同值，等于没有类型层；随后当前文件夹段按邻近度排在全局段之前，直达子项的顺序不单独查档位（`InlineListSearchHelper.cs:97-109`、`ExplorerSearchHelper.RankMatches` 不传 resolver）。一个低档的当前文件夹文件仍会排在外部的高档文件前面。
 

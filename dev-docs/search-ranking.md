@@ -89,6 +89,8 @@ S = 10*C + 8*P
 
 第一位类型的强匹配 = 18 + 16 = 34，与 H5 同分；段内 `HistoryTie` 在 `Score` 之后，所以 H5 仍排在前。第二位 26、第三位 22、第四位 19。这样“应用/快捷方式放第一位”能把 `jt` → 截图工具这类命中抬到几个完美匹配的文件之上，却抬不动完全不像的行。
 
+快捷方式没有自己的类型。`.lnk`/`.url`/`.appref-ms` 的索引行仍是文件行（`ResultKind = File`，打字触发符也仍按文件过滤），但它的 `TypeRank` 取“应用类型秩”和“文件类型秩”里更靠前的那个（`SearchResultTypePriority.ShortcutRank`，`SearchResultMapper.ApplyShortcutTypeRank` 在排序前逐行改写，判据是 `TypeRankForRow`）。于是把“文件”拖到“应用”前面时，快捷方式不会被按文件身份静默降级——两个身份里用户排得更靠前的那个说了算，只有两侧都没列入才是 `int.MaxValue`。`.exe` 不算快捷方式：它是用户到处在搜的程序文件本身，若也借用应用加成，`bin\Debug` 里每个产物都会顶掉真正的应用项。应用类型靠 provider 自己声明的 `ISearchableItemProvider.ItemResultKind`（开始菜单 provider 声明 `"Application"`）识别，所以没被“自定义应用搜索文件夹”扫到的 `.lnk`（只有文件行、没有应用行）也能吃到应用位次——这正是“某目录的 `.lnk` 排在文件夹后面”的修复点；这类借用应用秩的行在 50 行截断时计入应用组保留的 3 个名额。段位仍压在类型之上：一个被收藏/H5/H3 抬进 Boosted 的文件夹，照样排在 Low 段里借到应用加成的快捷方式前面；那种情况要靠索引规则把该目录调出 Low（记住默认规则里还有 `%ProgramFiles(x86)%`、`build\` 这类整棵树的降权），而不是改类型顺序。造成本例的 `/^[^.]+$/` 已从默认值退休：它连祖先目录一起命中，把 `D:\tools\**` 全压成 Low，详见 [index-rules.md](index-rules.md) 的默认规则一节。
+
 显示上限（50 行）另有一条保护：`RankedCandidateOrdering.EnsureTypeCoverage` 在截断前给每个类型保留最好的 3 行，剩下的名额再按全局顺序填。它只决定“谁被截掉”，不改变保留下来的行的相对顺序。
 
 ### 四段与段内键序
@@ -323,6 +325,16 @@ dotnet run -c Release --project benchmarks/Lertaro.Benchmarks -- --filter '*'
 ```
 
 数字与机器信息只放在 redesign §7.3；本目录不复制基准结果。日志验证：关掉“设置 → 通用 → 系统 → 排序事件日志”后，`%LOCALAPPDATA%\Lertaro\ranking-events.jsonl` 不再增长；测试程序集在 `Tests/App/AppTestAssembly.cs` 里关掉了 `RankingEventLog.EnabledOverride`，跑测试不会写用户目录。
+
+### 校准日志的字段（schema 2）
+
+`ranking-events.jsonl` 每页先写一行 `kind:"page"`，再写至多十行 `kind:"row"`。行里的 `v` 是日志 schema（`RankingEventLog.SchemaVersion`），`policyVersion` 才是排序策略版本，两者不要混。
+
+- `queryHash`/`pathHash` 是 12 位截断 SHA-256；其余字段全是数字或小枚举，任何一个都还原不出查询文字、路径或文件名。
+- 定位“为什么 A 排在 B 前面”要看的字段：`bucket`（段：0 Pinned / 1 Boosted / 2 Low / 3 HistoryTail）、`score`（`QuickScore`，已含类型加成）、`typeRank`（`page.order` 里的下标，`int.MaxValue` 表示该类型未列入）、`prio`（索引规则 2 高 / 1 普通 / 0 低）、`hTier` 与 `histTie`（历史档、名额内次序）、`mTier`/`mShape`/`mStart`/`mCov`/`mCont`（匹配形状与质量，后两个是千分比）、`strong`、`fav`、`histOnly`、`dir`、`app`。
+- `nameLen`/`depth`/`ext`（0 无扩展名或目录、1 `.lnk`、2 `.exe`、3 `.url`、4 `.appref-ms`、5 其它）用来在不看名字的前提下区分“四层深的 `.lnk`”和“同名的文件夹”。
+- `page` 行带 `rows`（合并后的候选数）、`shown`（写了几行）和 `order`（本轮解析出的类型顺序，元素是 provider 类型 id，如 `__builtin::Files`），因此没有设置文件也能把 `typeRank` 映射回类型。
+- 开关、大小轮转、30 天保留、5 秒合并窗口的行为不变；关掉开关后不再写文件。
 
 排序相关的测试类：
 
