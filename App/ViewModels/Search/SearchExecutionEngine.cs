@@ -61,7 +61,11 @@ internal sealed class SearchExecutionEngine : IDisposable
         // debounces. Otherwise its rows keep repainting ahead of the next keystroke.
         CancelPendingSearch();
 
-        var delay = string.IsNullOrEmpty(query) || query.Length <= 1 ? 0 : (fileLimit > 100 ? 150 : 30);
+            // Was 150 / 30 ms. A warm search is a cache replay on the service side (single-digit ms
+            // plus the pipe round trip), so waiting most of a frame before asking only added to the
+            // time the user spent looking at the previous query's rows. The token path keeps a small
+            // window because its query is wider (fileLimit > 100) and genuinely costs more to rebuild.
+            var delay = string.IsNullOrEmpty(query) || query.Length <= 1 ? 0 : (fileLimit > 100 ? 30 : 10);
         if (delay == 0)
         {
             PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective, instantQuery, emitInstantResults, beforeSearch, collectInstantResults);
