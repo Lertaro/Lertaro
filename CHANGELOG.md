@@ -19,6 +19,7 @@
 # 修复窗口隐藏后图标缓存被清空导致的图标空白
 # 修复结果行图标缓存键不一致导致的重复加载
 # 提升结果列表的渲染速度
+# 修复快速搜索第一个字偶尔不显示结果
 # 提升重复查询的响应速度
 + 自动更新只检查本仓库的发行
 + 保留鼠标平滑滚动
@@ -36,6 +37,7 @@
 # Fix icons going blank after the search window hides
 # Fix duplicate icon loads caused by mismatched cache keys
 # Faster result list rendering
+# Fix the result list occasionally staying empty on the first keystroke
 # Faster response for repeated queries
 + Auto-update only checks this repository's releases
 + Keeps the smooth wheel scrolling
