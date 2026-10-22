@@ -36,6 +36,9 @@ internal sealed class InlineCardDragOffset
     /// <summary>Whether the user has moved the card on this host at all.</summary>
     internal bool IsSetFor(string host) => _offsets.ContainsKey(host);
 
+    /// <summary>Drops one host's displacement, so its next placement puts the card back where it docks.</summary>
+    internal void ClearFor(string host) => _offsets.Remove(host);
+
     /// <summary>The dock position the displacement is measured from, for the host being docked now.</summary>
     internal void RememberBase(string host, double left, double top)
     {

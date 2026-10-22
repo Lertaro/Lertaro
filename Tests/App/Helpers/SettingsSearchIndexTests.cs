@@ -115,6 +115,15 @@ public sealed class SettingsSearchIndexTests
     }
 
     [TestMethod]
+    public void TheInlineCardDialogRowCountSettingIsSearchable()
+    {
+        var entry = SettingsSearchIndex.Entries.SingleOrDefault(e => e.LabelKey == "General_InlineSearchDialogMaxRows");
+
+        Assert.IsNotNull(entry, "the inline card's file-dialog row count setting has no search index entry");
+        Assert.AreEqual("TabSystem/RowInlineSearchDialogMaxRows", entry!.TargetElementName);
+    }
+
+    [TestMethod]
     public void ThePluginRuntimeStatusTabIsSearchable()
     {
         var entry = SettingsSearchIndex.Entries.SingleOrDefault(e => e.LabelKey == "Plugins_TabRuntimeStatus");

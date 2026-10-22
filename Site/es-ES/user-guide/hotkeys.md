@@ -59,7 +59,7 @@ El pequeño logotipo en la barra de búsqueda, además de su función de marca, 
 
 ### Iconos en la Ventana incrustada y Ventana principal
 
-- **Ventana incrustada**: Al incrustarse en diálogos nativos (Abrir/Guardar/Examinar), hacer clic izquierdo en el icono abre el menú de [**Navegación rápida**](#_3-navegacion-rapida-activadores-de-raton); desactivado en el Explorador ordinario. Arrastrar el icono mueve la propia tarjeta, y el desplazamiento se vuelve a aplicar en cada acoplamiento posterior.
+- **Ventana incrustada**: Al incrustarse en diálogos nativos (Abrir/Guardar/Examinar), hacer clic izquierdo en el icono abre el menú de [**Navegación rápida**](#_3-navegacion-rapida-activadores-de-raton); desactivado en el Explorador ordinario. Arrastrar el icono mueve la propia tarjeta, y el desplazamiento se vuelve a aplicar en cada acoplamiento posterior. Al hacer clic derecho en el icono ese desplazamiento se descarta y la tarjeta vuelve a donde se acopla en este anfitrión.
 - **Ventana principal**: Al hacer clic izquierdo en el icono se abre el menú contextual; **Mostrar ventana principal** se oculta porque la ventana ya está abierta. El clic central alterna el estado de fijación de la ventana.Al hacer clic derecho la ventana se centra en el área de trabajo del monitor donde está, sin incluir la barra de tareas; si está maximizada, primero se restaura.
 
 ### Gestos del cuadro de búsqueda (Ventana rápida)

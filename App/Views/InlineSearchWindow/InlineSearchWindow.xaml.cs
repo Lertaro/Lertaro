@@ -82,6 +82,10 @@ public partial class InlineSearchWindow : Window, ISearchWindow
         SearchBox.IsIconDraggable = true;
         SearchBox.IconDragCompleted += _positioner.RememberUserDrag;
 
+        // And the same right click that brings the quick window back to the middle brings this card back to the
+        // edge it docks to: it drops the displacement the drag above recorded, for this host.
+        SearchBox.IconRightClicked += _positioner.ResetUserDrag;
+
         _sizing = new InlineCardSizingSupport(this);
         _sizing.Attach();
         _focusSupport = new InlineSearchFocusSupport(this);

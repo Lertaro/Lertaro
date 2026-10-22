@@ -80,6 +80,7 @@ public static class SettingsSearchIndex
         new("General_ShowOpenedFoldersInInlineSearch", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowShowOpenedFoldersInInlineSearch", "General_SysTitle"),
         new("General_InlineSearchWindowWidth", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowInlineSearchWidth", "General_SysTitle"),
         new("General_InlineSearchWindowMaxRows", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowInlineSearchMaxRows", "General_SysTitle"),
+        new("General_InlineSearchDialogMaxRows", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowInlineSearchDialogMaxRows", "General_SysTitle"),
         new("General_GlobalTokenPrefix", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowGlobalTokenPrefix", "General_SysTitle"),
         new("General_LogLevel", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowLogLevel", "General_SysTitle"),
         new("General_EnableRankingEventLog", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowEnableRankingEventLog", "General_SysTitle"),

@@ -189,6 +189,17 @@
                 </Grid>
                 <TextBlock Style="{StaticResource SettingsHintText}" TextWrapping="Wrap" Margin="0,4,0,0"
                            Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_InlineSearchWindowMaxRowsDesc]}"/>
+
+                <Grid x:Name="RowInlineSearchDialogMaxRows" Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="GeneralLabel"/>
+                        <ColumnDefinition Width="150"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_InlineSearchDialogMaxRows]}" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="1" Style="{StaticResource SettingsTextBox}" Text="{Binding General.InlineSearchDialogMaxRows, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, NotifyOnValidationError=True, ValidatesOnExceptions=True}"/>
+                </Grid>
+                <TextBlock Style="{StaticResource SettingsHintText}" TextWrapping="Wrap" Margin="0,4,0,0"
+                           Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_InlineSearchDialogMaxRowsDesc]}"/>
             </StackPanel>
         </Border>
 

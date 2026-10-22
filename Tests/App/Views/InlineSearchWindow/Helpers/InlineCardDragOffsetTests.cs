@@ -128,4 +128,25 @@ public sealed class InlineCardDragOffsetTests
         Assert.AreEqual((2400.0, 820.0), offsets.ApplyPhysical(
             "dopus", 3000, 1000, 2.0, 1.5, new System.Drawing.Rectangle(0, 0, 3840, 2160), 930, 825));
     }
+
+    [TestMethod]
+    public void ClearFor_DropsOneHostsDisplacementAndLeavesTheOthers()
+    {
+        // What the logo's right click does: the card the user is looking at goes back to where it docks, while a
+        // displacement dragged in another application stays where that user left it.
+        var offsets = new InlineCardDragOffset(() => (1300.0, 380.0));
+        offsets.RememberBase("dopus", 1500, 500);
+        offsets.RememberDrag();
+        offsets.RememberBase("explorer", 900, 300);
+        offsets.RememberDrag();
+
+        offsets.ClearFor("explorer");
+
+        Assert.IsFalse(offsets.IsSetFor("explorer"));
+        Assert.IsTrue(offsets.IsSetFor("dopus"), "resetting one host does not reset another");
+        Assert.AreEqual((900.0, 300.0), offsets.ApplyPhysical(
+            "explorer", 900, 300, 1.0, 1.0, Screen1080, 465, 550), "the dock position, with nothing added to it");
+        Assert.AreEqual((700.0, 180.0), offsets.ApplyPhysical(
+            "dopus", 900, 300, 1.0, 1.0, Screen1080, 465, 550), "dopus still carries its own -200,-120");
+    }
 }

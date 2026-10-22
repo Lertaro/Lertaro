@@ -28,6 +28,7 @@ internal static class GeneralSettingsApplier
         bool showOpenedFoldersInInlineSearch,
         int inlineSearchWindowWidthPercent,
         int inlineSearchWindowMaxRows,
+        int inlineSearchDialogMaxRows,
         bool hideTrayIcon,
         bool openFoldersInNewExplorerTabs,
         string globalTokenPrefix,
@@ -58,6 +59,7 @@ internal static class GeneralSettingsApplier
         userSettings.ShowOpenedFoldersInInlineSearch = showOpenedFoldersInInlineSearch;
         userSettings.InlineSearchWindowWidthPercent = ToStoredInlineCardWidthPercent(inlineSearchWindowWidthPercent);
         userSettings.InlineSearchWindowMaxRows = inlineSearchWindowMaxRows;
+        userSettings.InlineSearchDialogMaxRows = inlineSearchDialogMaxRows;
         userSettings.HideTrayIcon = hideTrayIcon;
         userSettings.DefaultFileManager.OpenFoldersInNewExplorerTabs = openFoldersInNewExplorerTabs;
         userSettings.GlobalTokenPrefix = string.IsNullOrWhiteSpace(globalTokenPrefix) ? ":" : globalTokenPrefix;

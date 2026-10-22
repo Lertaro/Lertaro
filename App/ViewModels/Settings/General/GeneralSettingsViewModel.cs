@@ -31,6 +31,7 @@ public class GeneralSettingsViewModel : ViewModelBase
     private bool _showOpenedFoldersInInlineSearch;
     private int _inlineSearchWindowWidthPercent;
     private int _inlineSearchWindowMaxRows;
+    private int _inlineSearchDialogMaxRows;
     private bool _hideTrayIcon;
     private bool _openFoldersInNewExplorerTabs;
     private string _globalTokenPrefix;
@@ -75,6 +76,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         _showOpenedFoldersInInlineSearch = userSettings.ShowOpenedFoldersInInlineSearch;
         _inlineSearchWindowWidthPercent = userSettings.InlineSearchWindowWidthPercent ?? UiMetrics.DefaultInlineCardWidthPercent;
         _inlineSearchWindowMaxRows = userSettings.InlineSearchWindowMaxRows;
+        _inlineSearchDialogMaxRows = userSettings.InlineSearchDialogMaxRows;
         _hideTrayIcon = userSettings.HideTrayIcon;
         _openFoldersInNewExplorerTabs = userSettings.DefaultFileManager.OpenFoldersInNewExplorerTabs;
         _globalTokenPrefix = userSettings.GlobalTokenPrefix;
@@ -232,11 +234,12 @@ public class GeneralSettingsViewModel : ViewModelBase
         }
     }
 
-    /// <summary>How many rows the inline card shows at once, section titles included.</summary>
+    /// <summary>How many results the inline card shows over an ordinary window.</summary>
     /// <remarks>
-    /// The ceiling is 10 because that is as far as the Ctrl jump shortcuts reach (1..9, then 0); the floor is 4,
-    /// the count a file dialog already caps the card at. A screen too short for the chosen count gives fewer
-    /// rows and scrolls, and the card's own placement bounds the result either way.
+    /// The ceiling is 10 because that is as far as the Ctrl jump shortcuts reach (1..9, then 0). Section titles
+    /// are not counted: the card shows this many results plus whatever headers group them. A screen too short
+    /// for the chosen count gives fewer rows and scrolls. The file dialog has its own box below, because the
+    /// card over a dialog covers somebody else's controls.
     /// </remarks>
     public int InlineSearchWindowMaxRows
     {
@@ -250,6 +253,26 @@ public class GeneralSettingsViewModel : ViewModelBase
                     $"Row count must be between {UiMetrics.MinInlineCardRows} and {UiMetrics.MaxInlineCardRows}.");
             }
             SetProperty(ref _inlineSearchWindowMaxRows, value);
+        }
+    }
+
+    /// <summary>How many results the inline card shows over a file dialog.</summary>
+    /// <remarks>
+    /// Same box range, its own default: a dialog is mostly other people's controls, so the card that covers one
+    /// starts shorter than the one over a file manager's own list, and the two are adjusted apart on purpose.
+    /// </remarks>
+    public int InlineSearchDialogMaxRows
+    {
+        get => _inlineSearchDialogMaxRows;
+        set
+        {
+            if (value < UiMetrics.MinInlineCardRows || value > UiMetrics.MaxInlineCardRows)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(value),
+                    $"Row count must be between {UiMetrics.MinInlineCardRows} and {UiMetrics.MaxInlineCardRows}.");
+            }
+            SetProperty(ref _inlineSearchDialogMaxRows, value);
         }
     }
 
@@ -323,6 +346,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         _showOpenedFoldersInInlineSearch,
         _inlineSearchWindowWidthPercent,
         _inlineSearchWindowMaxRows,
+        _inlineSearchDialogMaxRows,
         _hideTrayIcon,
         _openFoldersInNewExplorerTabs,
         _globalTokenPrefix,

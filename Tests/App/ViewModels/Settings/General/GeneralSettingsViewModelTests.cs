@@ -107,6 +107,23 @@ public sealed class GeneralSettingsViewModelTests
         Assert.AreEqual(UiMetrics.DefaultInlineCardRows, settings.InlineSearchWindowMaxRows);
     }
 
+    [TestMethod]
+    public void InlineSearchDialogMaxRows_DefaultsToFourAndTakesTheSameRangeAsTheWindowBox()
+    {
+        var settings = new UserSettings();
+        var vm = new GeneralSettingsViewModel(settings);
+
+        // The dialog starts where the card used to be capped over one, and the two boxes are independent.
+        Assert.AreEqual(UiMetrics.DefaultInlineCardDialogRows, vm.InlineSearchDialogMaxRows);
+
+        vm.InlineSearchDialogMaxRows = 8;
+        Assert.AreEqual(8, vm.InlineSearchDialogMaxRows);
+        Assert.AreEqual(UiMetrics.DefaultInlineCardRows, vm.InlineSearchWindowMaxRows, "the window box keeps its own count");
+
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => vm.InlineSearchDialogMaxRows = UiMetrics.MinInlineCardRows - 1);
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => vm.InlineSearchDialogMaxRows = UiMetrics.MaxInlineCardRows + 1);
+    }
+
     // Apply() is deliberately not called from these: it ends in UserSettings.Save(), which would overwrite
     // this machine's real configuration. GeneralSettingsApplier's assignment is covered by review.
     [TestMethod]

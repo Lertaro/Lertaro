@@ -53,10 +53,10 @@ public sealed class InlineSearchWindowLayoutManager
             // this height and the rendered rows cannot drift apart.
             var results = _window.ViewModel.Results;
             var count = results.Count;
-            // One source of truth for the split. Section titles are rows in the list, so they spend the
-            // row budget rather than riding on top of it -- see InlineCardMetrics.ComputeLayout. With
-            // both "Current Folder" and "Global Search" showing, two of those rows are titles and the rest
-            // are results; with neither, every budgeted row is a result.
+            // One source of truth for the split. The budget counts RESULTS, and a section title rides on top of
+            // it instead of spending one of them -- see InlineCardMetrics.ComputeLayout. With both "Current
+            // Folder" and "Global Search" showing, the list is those two titles plus the configured number of
+            // results, as long as the screen has room for the whole of it.
             var layout = _window.CardSizing.CurrentLayout();
 
             // The list is only as tall as the real items that exist. The shell reserves extra space without

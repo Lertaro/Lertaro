@@ -12,7 +12,8 @@ public partial class SearchBoxControl : UserControl
 {
     // Raised when either the left- or right-docked status icon is right-clicked. Purely a passthrough --
     // this control doesn't know what a right-click means for whichever window hosts it (the quick popup
-    // window resets its own saved position with it, the full search window centers itself).
+    // window resets its own saved position with it, the full search window centers itself, the inline card
+    // drops the drag offset it keeps per host application).
     public event Action? IconRightClicked;
 
     // Raised when the icon is left-clicked, with the click's screen coordinates (physical pixels, same

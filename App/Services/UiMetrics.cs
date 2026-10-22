@@ -97,13 +97,15 @@ public static class UiMetrics
     public const int MaxInlineCardWidthPercent = 100;
     public const int DefaultInlineCardWidthPercent = 60;
 
-    // Range for the inline card's user-chosen row count. A row is one list line, section titles included, so
-    // with both "Current Folder" and "Global Search" showing two of these are titles. The top is 10 because
-    // that is as far as the Ctrl jump shortcuts reach (1..9, then 0); the bottom is 4, the count a file dialog
-    // already caps the card at. The card still takes fewer rows when the screen cannot give this many.
+    // Range for the inline card's user-chosen result count. Titles do not count: a card set to ten rows shows
+    // ten results plus whatever "Current Folder" and "Global Search" headers that takes. The top is 10 because
+    // that is as far as the Ctrl jump shortcuts reach (1..9, then 0). The same range bounds both boxes -- an
+    // ordinary window and a file dialog, which are separate settings because the card over a dialog is a guest
+    // -- and only their defaults differ: a screen too short for the chosen count gives fewer rows and scrolls.
     public const int MinInlineCardRows = 4;
     public const int MaxInlineCardRows = 10;
     public const int DefaultInlineCardRows = 10;
+    public const int DefaultInlineCardDialogRows = 4;
 
     private static double _scale = 1.0;
     private static double _flowRowScale = 1.0;
