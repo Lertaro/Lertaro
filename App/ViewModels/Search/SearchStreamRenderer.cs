@@ -33,6 +33,7 @@ internal sealed class SearchStreamRenderer
     // Per-directory row budget for the high-priority re-searches. Large enough that a promoted folder's
     // best matches are never lost, small enough that the extra index work stays invisible while typing.
     private const int PriorityRootResultLimit = 50;
+    private const int ShortcutSupplementLimit = 50;
 
     private readonly SearchService _searchService;
     private readonly Func<int> _getSearchVersion;
@@ -72,10 +73,15 @@ internal sealed class SearchStreamRenderer
         var copiedCount = 0;
         var streamDone = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
+        var runShortcutSupplement = ScopedSearchRunner.ShouldRunShortcutSupplement(
+            fileLimit, foldersOnly, searchScope, scopeDirective);
+
         // Scoped searches answer from N per-folder engine queries, so the same file can arrive from two
-        // overlapping configured folders -- dedupe by path at accumulation. High-priority re-searches add a
-        // second source on top of the main query, so they need the same guard.
-        var dedupePaths = scopeDirective is { Folders.Count: > 0 } || priorityRoots is { Count: > 0 }
+        // overlapping configured folders -- dedupe by path at accumulation. High-priority and shortcut
+        // supplement passes add additive sources alongside the main query, so they use the same path guard.
+        var dedupePaths = scopeDirective is { Folders.Count: > 0 }
+            || priorityRoots is { Count: > 0 }
+            || runShortcutSupplement
             ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             : null;
         var scopePatterns = scopeDirective is { Folders.Count: > 0 }
@@ -225,6 +231,10 @@ internal sealed class SearchStreamRenderer
             ? ScopedSearchRunner.RunPriorityRootsAsync(
                 _searchService, priorityRoots, query, PriorityRootResultLimit, appLimit, Accumulate, token)
             : null;
+        var shortcutTask = runShortcutSupplement
+            ? ScopedSearchRunner.RunShortcutSupplementAsync(
+                _searchService, query, ShortcutSupplementLimit, appLimit, Accumulate, token)
+            : null;
 
         try
         {
@@ -251,6 +261,9 @@ internal sealed class SearchStreamRenderer
             if (priorityTask != null)
                 await priorityTask.ConfigureAwait(false);
 
+            if (shortcutTask != null)
+                await shortcutTask.ConfigureAwait(false);
+
             if (localSearchTask != null)
             {
                 try
@@ -269,6 +282,17 @@ internal sealed class SearchStreamRenderer
                 try
                 {
                     await priorityTask.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                }
+            }
+
+            if (shortcutTask != null)
+            {
+                try
+                {
+                    await shortcutTask.ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {

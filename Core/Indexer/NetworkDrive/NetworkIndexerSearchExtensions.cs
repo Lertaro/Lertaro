@@ -1,3 +1,4 @@
+using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Query;
 namespace Lertaro.Core.Indexer.NetworkDrive;
 
@@ -26,11 +27,62 @@ public static class NetworkIndexerSearchExtensions
 
         var parsed = SearchQueryParser.Parse(query);
         var directoryFilterLower = IndexerHelper.NormalizeFilter(directoryFilter);
-        var callbackLock = new object();
-        var emitted = 0;
+        SearchSnapshots(snapshots, parsed, query, directoryFilterLower, limit, onResult, token, fileNameFilter);
+    }
 
+    internal static void SearchSnapshots(
+        NetworkIndex[] snapshots,
+        SearchQueryParser.ParsedQuery parsed,
+        string query,
+        string? directoryFilterLower,
+        int limit,
+        Action<SearchResult> onResult,
+        CancellationToken token,
+        string? fileNameFilter = null)
+    {
+        var allowed = snapshots.Where(index => IsDriveAllowed(index.Drive, parsed, directoryFilterLower)).ToArray();
+        if (allowed.Length == 0 || limit <= 0)
+            return;
+
+        if (allowed.Length == 1)
+        {
+            allowed[0].SearchStreaming(parsed, query, directoryFilterLower, limit, onResult, token, fileNameFilter);
+            return;
+        }
+
+        // Bounded queries cut rows across shares, so merge each share's best `limit` by SearchCandidateComparer
+        // instead of letting whichever share answers first exhaust the shared budget.
+        if (limit < int.MaxValue)
+        {
+            var buffered = new List<SearchResult>[allowed.Length];
+            Parallel.For(0, allowed.Length, new ParallelOptions
+            {
+                CancellationToken = token,
+                MaxDegreeOfParallelism = 2
+            }, i =>
+            {
+                var rows = buffered[i] = new List<SearchResult>();
+                try
+                {
+                    allowed[i].SearchStreaming(parsed, query, directoryFilterLower, limit, rows.Add, token, fileNameFilter);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    Logger.Log($"[NetworkIndexer] Search of '{allowed[i].Drive}' failed; its rows are left out: {ex.Message}", LogLevel.Warn);
+                }
+            });
+
+            foreach (var row in buffered.SelectMany(rows => rows).OrderBy(row => row, SearchCandidateComparer.Instance).Take(limit))
+            {
+                token.ThrowIfCancellationRequested();
+                onResult(row);
+            }
+            return;
+        }
+
+        var callbackLock = new object();
         Parallel.ForEach(
-            snapshots,
+            allowed,
             new ParallelOptions
             {
                 CancellationToken = token,
@@ -39,30 +91,10 @@ public static class NetworkIndexerSearchExtensions
             index =>
             {
                 token.ThrowIfCancellationRequested();
-                if (!IsDriveAllowed(index.Drive, parsed, directoryFilterLower))
-                    return;
-
-                // Same shared budget as SearchCoordinator's fan-out: each index used to be handed the full
-                // limit, so the total emitted grew with the number of mapped shares rather than stopping
-                // at what the caller asked for.
-                int alreadyEmitted;
-                lock (callbackLock)
-                    alreadyEmitted = emitted;
-                if (alreadyEmitted >= limit)
-                    return;
-
-                // Parallel search invokes the caller-provided callback from multiple threads. Serialize
-                // the callback exactly like SearchCoordinator does so non-thread-safe consumers are safe.
-                index.SearchStreaming(parsed, query, directoryFilterLower, limit - alreadyEmitted, result =>
+                index.SearchStreaming(parsed, query, directoryFilterLower, limit, result =>
                 {
                     lock (callbackLock)
-                    {
-                        if (emitted >= limit)
-                            return;
-
-                        emitted++;
                         onResult(result);
-                    }
                 }, token, fileNameFilter);
             });
     }

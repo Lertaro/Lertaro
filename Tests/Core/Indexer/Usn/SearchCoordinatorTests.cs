@@ -151,6 +151,31 @@ public sealed class SearchCoordinatorTests
     }
 
     [TestMethod]
+    public void ShortcutFileNameFilter_PreservesCrossDriveShortcutsUnderBoundedLimit()
+    {
+        using var dir = new TempDirectory();
+        using var c = LoadNames(dir, "C", Enumerable.Range(0, 20).Select(i => $"cfwj_{i:00}.cache").ToArray());
+        using var d = LoadNames(dir, "D", "cfwj-compare.lnk", "cfwj-clean.lnk", "cfwj-find.url");
+        var drives = new Dictionary<string, LiveIndex> { ["C"] = c, ["D"] = d };
+
+        var shortcutHits = new List<SearchResult>();
+        SearchCoordinator.SearchStreaming(
+            drives,
+            new object(),
+            "cfwj",
+            limit: 5,
+            shortcutHits.Add,
+            CancellationToken.None,
+            directoryFilter: null,
+            fileNameFilter: "*.lnk;*.url");
+
+        Assert.HasCount(3, shortcutHits);
+        CollectionAssert.AreEquivalent(
+            new[] { "cfwj-compare.lnk", "cfwj-clean.lnk", "cfwj-find.url" },
+            shortcutHits.Select(h => h.Name).ToList());
+    }
+
+    [TestMethod]
     public void ABrokenDrive_DoesNotTakeTheOtherDrivesRowsWithIt()
     {
         // The bounded fan-out holds every drive's rows until the whole fan-out returns, so one drive's
