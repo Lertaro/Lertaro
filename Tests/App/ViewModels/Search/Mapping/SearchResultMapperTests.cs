@@ -392,6 +392,23 @@ public sealed class RankAndDedupeTests
         Assert.AreEqual(@"C:\apps.txt", acrossGrades[1].FullPath);
     }
 
+    [TestMethod]
+    public void RankAndDedupe_TypeOrderGroupsApproximateGrades()
+    {
+        // Both rows are DirectApproximate; the worse-quality application row still groups before the file
+        // row, so a pinyin-abbreviation search no longer interleaves shortcuts with files.
+        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\files.txt", typeRank: 2, start: 0, coverage: 1.0, contiguity: 1.0,
+                shape: MatchRank.ShapeScattered),
+            Candidate(@"C:\apps.lnk", typeRank: 0, start: 5, coverage: 0.2, contiguity: 0.2,
+                shape: MatchRank.ShapeScattered),
+        });
+
+        Assert.AreEqual(@"C:\apps.lnk", ranked[0].FullPath);
+        Assert.AreEqual(@"C:\files.txt", ranked[1].FullPath);
+    }
+
     // The bonus is capped by the row's own match quality: a barely matching row of the leading type does not
     // ride the type order past a strong match further down.
     [TestMethod]

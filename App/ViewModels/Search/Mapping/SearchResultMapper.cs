@@ -167,9 +167,10 @@ public static class SearchResultMapper
         var historyUsage = RecentUsage();
 
         // Quick-window-only: the user-orderable result-type order (RankedCandidate.TypeRank) is a
-        // section-local tie-break inside RankPolicy.BuildKey/RankKeyComparer, not a group above the
-        // sections. It follows the evidence grade inside Pinned and Boosted; Low compares it after
-        // quality; HistoryTail compares it before the common tail. Every file-backed row (index files,
+        // section-local group inside RankPolicy.BuildKey/RankKeyComparer, not a group above the sections
+        // or above the evidence grade. Pinned, Boosted and Low compare it before quality on every grade,
+        // so approximate rows stay grouped by type instead of interleaving; HistoryTail compares it before
+        // the common tail. Every file-backed row (index files,
         // favorites, history, Windows' Recent) starts on FilesTypeRank so those rows stay one group; a
         // shortcut then borrows the better of that rank and the application type's (below). The inline
         // window never consults the list at all.

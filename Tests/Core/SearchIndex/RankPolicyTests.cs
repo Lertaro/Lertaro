@@ -110,8 +110,8 @@ public sealed class RankPolicyTests
                 @"D:\Normal\report.docx",
                 @"D:\High\report-old.docx",
                 @"D:\Normal\report-final.docx",
-                @"D:\Fav\r-e-p-o-r-t.txt",
                 @"D:\High\r-e-p-o-r-t.txt",
+                @"D:\Fav\r-e-p-o-r-t.txt",
                 @"D:\High\target-match.lnk",
                 @"D:\Low\report.pdf",
                 @"D:\Low\misc.txt",
@@ -121,7 +121,7 @@ public sealed class RankPolicyTests
     }
 
     [TestMethod]
-    public void Compare_BoostedTypeRankBeatsQualityWithinPreferenceEligibleGrade_AndNeverOnApproximateGrade()
+    public void Compare_BoostedTypeRankBeatsQualityOnEveryGrade()
     {
         var preferredStrongType = KeyOf(Signals(
             typeRank: 0,
@@ -129,22 +129,43 @@ public sealed class RankPolicyTests
         var betterQualityLowerType = KeyOf(Signals(typeRank: 1, match: Strong()));
         Assert.IsLessThan(0, RankKeyComparer.Instance.Compare(preferredStrongType, betterQualityLowerType));
 
+        // Same DirectApproximate grade: the worse-quality type 0 row still wins, so the configured
+        // type order groups approximate matches instead of letting quality interleave the types.
         var approximatePreferredType = KeyOf(Signals(
             typeRank: 0,
             strong: false,
-            match: new MatchRank(MatchRank.TierFullRare, 0, 1.0, 1.0, MatchRank.ShapeWholeWord)));
-        Assert.IsLessThan(0, RankKeyComparer.Instance.Compare(betterQualityLowerType, approximatePreferredType));
+            match: new MatchRank(MatchRank.TierName, 0, 0.2, 0.4, MatchRank.ShapeScattered)));
+        var approximateBetterQualityLowerType = KeyOf(Signals(
+            typeRank: 1,
+            strong: false,
+            match: new MatchRank(MatchRank.TierName, 0, 1.0, 1.0, MatchRank.ShapeScattered)));
+        Assert.IsLessThan(0, RankKeyComparer.Instance.Compare(approximatePreferredType, approximateBetterQualityLowerType));
     }
 
     [TestMethod]
-    public void Compare_LowQualityBeatsTypeRank()
+    public void Compare_LowTypeRankBeatsQuality()
     {
-        var betterQuality = KeyOf(Signals(
-            IndexRuleEffect.Low, typeRank: 5, match: Strong(coverage: 1, start: 0)));
         var preferredType = KeyOf(Signals(
             IndexRuleEffect.Low, typeRank: 0, match: Strong(shape: MatchRank.ShapeInsideWord, coverage: 0.2, start: 5)));
+        var betterQualityLowerType = KeyOf(Signals(
+            IndexRuleEffect.Low, typeRank: 5, match: Strong(coverage: 1, start: 0)));
 
-        Assert.IsLessThan(0, RankKeyComparer.Instance.Compare(betterQuality, preferredType));
+        // Low is still a section, not a free-for-all: within it the configured type order comes before
+        // match quality, the same as every other grade-bearing section.
+        Assert.IsLessThan(0, RankKeyComparer.Instance.Compare(preferredType, betterQualityLowerType));
+    }
+
+    [TestMethod]
+    public void Compare_HistoryTailGroupsByTypeBeforeRecency()
+    {
+        var preferredType = KeyOf(
+            Signals(isHistoryOnly: true, typeRank: 0, historyScoreX100: 100, name: "older", path: @"D:\h\older"),
+            HistoryTier.H3);
+        var recentLowerType = KeyOf(
+            Signals(isHistoryOnly: true, typeRank: 1, historyScoreX100: 900, name: "recent", path: @"D:\h\recent"),
+            HistoryTier.H3);
+
+        Assert.IsLessThan(0, RankKeyComparer.Instance.Compare(preferredType, recentLowerType));
     }
 
     [TestMethod]

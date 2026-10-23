@@ -2,7 +2,8 @@ namespace Lertaro.Core.SearchIndex;
 
 // Shared monotonic ranking kernel (V3). The quick/inline windows sort RankKey arrays via RankKeyComparer;
 // the full window decorates SearchResult rows once via SearchResultRanking and sorts via
-// RankedSearchResultComparer. Both windows share the exact section, grade, tie-break and tail rules:
+// RankedSearchResultComparer. Both windows share the section, grade, band, tie-break and tail rules;
+// only the quick/inline window carries the configured result-type order:
 //
 //   Section 0 Pinned       explicit High+AlwaysTop pins first, then strong user Favorites
 //   Section 1 Boosted      ordinary High/Normal textual matches (Grade 0..3: ExactIdentity .. SecondaryField)
@@ -58,7 +59,10 @@ public readonly record struct RankKey(
     HistoryTier Tier = HistoryTier.None)
 {
     public RankTail Tail => new(IsDir, Name, NormalizedPath, Drive, EngineTie);
-    public int EffectiveTypeRank => RankPolicy.EffectiveTypeRank(Grade, TypeRank);
+    // The configured result-type order is a group inside one evidence grade, not a tie-break that only
+    // strong matches may use: a weaker grade still loses first, but every grade now keeps its types
+    // contiguous instead of dissolving approximate rows into quality order.
+    public int EffectiveTypeRank => TypeRank;
 }
 
 public static class RankPolicy
@@ -73,9 +77,6 @@ public static class RankPolicy
 
     public static bool IsPreferenceEligible(MatchEvidenceGrade grade) =>
         grade is MatchEvidenceGrade.ExactIdentity or MatchEvidenceGrade.DirectStrong;
-
-    public static int EffectiveTypeRank(MatchEvidenceGrade grade, int typeRank) =>
-        IsPreferenceEligible(grade) ? typeRank : int.MaxValue;
 
     public static int PriorityOrder(IndexRuleEffect priority) => priority switch
     {
@@ -349,6 +350,9 @@ public sealed class RankKeyComparer : IComparer<RankKey>
                 c = x.Grade.CompareTo(y.Grade);
                 if (c != 0)
                     return c;
+                c = x.EffectiveTypeRank.CompareTo(y.EffectiveTypeRank);
+                if (c != 0)
+                    return c;
                 c = y.Tier.CompareTo(x.Tier);
                 if (c != 0)
                     return c;
@@ -356,19 +360,16 @@ public sealed class RankKeyComparer : IComparer<RankKey>
                 if (c != 0)
                     return c;
                 c = MatchRank.CompareQuality(x.Match, y.Match);
-                if (c != 0)
-                    return c;
-                c = x.EffectiveTypeRank.CompareTo(y.EffectiveTypeRank);
                 return c != 0 ? c : RankPolicy.CompareCommonTail(x.Tail, y.Tail);
 
             case RankSection.HistoryTail:
                 c = y.Tier.CompareTo(x.Tier);
                 if (c != 0)
                     return c;
-                c = y.HistoryTie.CompareTo(x.HistoryTie);
+                c = x.TypeRank.CompareTo(y.TypeRank);
                 if (c != 0)
                     return c;
-                c = x.TypeRank.CompareTo(y.TypeRank);
+                c = y.HistoryTie.CompareTo(x.HistoryTie);
                 return c != 0 ? c : RankPolicy.CompareCommonTail(x.Tail, y.Tail);
 
             default:

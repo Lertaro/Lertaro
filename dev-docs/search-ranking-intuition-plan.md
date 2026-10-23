@@ -18,7 +18,7 @@
 | P9 跨盘与快捷方式检索召回 | 完成 | 多网络索引有界全局排序截断；快捷方式补召回改为主查询之后、且仅在主结果没有 `*.lnk`/`*.url` 时才跑 |
 | P10 文档同步与影子路径收口 | 进行中 | `RankPolicyV3` 委托至线上 `RankPolicy`；P7 之后恒等的影子排名通道已删除；dev-docs 与 7 语种用户文档同步 |
 
-Windows/.NET 10 实测状态（2026-10-23）：分支最初 10 处编译错误，修复后全绿 —— Tests/Core 2284、Tests/App 2326、PinyinAlias 242、CoreExtensions 401、ContentSearch 173，其余 24 个插件工程通过；`dotnet build Lertaro.slnx` 0 警告 0 错误。P10 未做完的部分见文末“仍未闭合”。
+Windows/.NET 10 实测状态（2026-10-23）：分支最初 10 处编译错误，修复后全绿 —— Tests/Core 2285、Tests/App 2328、PinyinAlias 242、CoreExtensions 401、ContentSearch 173，其余 24 个插件工程通过；`dotnet build Lertaro.slnx` 0 警告 0 错误。P10 未做完的部分见文末“仍未闭合”。
 
 P0 fixture：`Tests/Core/SearchRanking/Fixtures/reported-search-cases.v1.json`，P6 回放套件：`Tests/Core/SearchRanking/Fixtures/ranking-shadow-v3-cases.v1.json`（基线 `ranking-replay-cases.v1.json`，冻结的 V2 与离线策略在 `OfflineRankingPolicies.cs`）。当前 ranking-event schema 4；旧 schema 行缺失的字段读作 Unknown/null。P7 后干净（`IsStrong`）的次要别名与单结果本地用户别名进入 `SecondaryField` 并展示来源副标题，零散子序列仍仅保留在 `ShadowAliasGate` 观测通道。P8 的 learned alias 只走 canonical exact lookup；完整窗口不设历史配额（产品决定，见文末）。
 
@@ -100,7 +100,7 @@ Section
 
 段内：
   EvidenceGrade ↑
-  → PreferenceEligible ? TypeRank ↑ : neutral
+  → TypeRank ↑
   → High before Normal
   → DirectHistoryTier / frecency ↓
   → MatchRank quality
@@ -110,7 +110,7 @@ Section
 约束：
 
 - TypeRank 是 ordinal key，不再映射为 `16/8/4/1`。
-- 初版只允许 Grade 0–1 使用类型偏好；Grade 2 是否允许由黄金集决定。
+- 类型偏好在**同一 Grade 内**对所有等级生效（2026-10-23 用户裁决）：Grade 仍是第一优先级，强匹配文件不会被弱匹配应用越过；但 `DirectApproximate` 不再把类型置中性，近似行也按类型成组。
 - H5/H3 只在同 Grade 内细排，不生成跨 Grade 的 34/22 分。
 - learned alias 独立在最后；没有直接结果时仍可成为首项。
 - AlwaysTop 保留显式越级；Low 保留显式降级。
@@ -222,12 +222,12 @@ alias 仅在 ranking trace 开启时、且标题/既有 provider alias/keyword �
 ### P7：切换到 V3
 
 1. bump `RankPolicy.Version`。
-2. 生产路径移除 `16/8/4/1`，TypeRank 只在可偏好 Grade 内比较。
+2. 生产路径移除 `16/8/4/1`，TypeRank 在同一 Grade 内比较（含 Grade 2/3）；Low 与 HistoryTail 也在各自段内先比类型。
 3. High/Normal 不跨 Grade；Low、AlwaysTop 保持显式段。
 4. direct H5/H3 只做同 Grade tie-break。
 5. learned alias 进入 Grade 4；P8 前保守读取旧存储。
 6. 启用 P5 的 secondary alias，并显示来源；先跑 alias false-positive 集。
-7. 更新 7 种语言的类型顺序说明为“在相关性相近的结果中优先”。
+7. 更新 7 种语言的类型顺序说明为“同一匹配等级内类型先于质量”。
 8. 用 I1/I2 属性测试替换允许弱类型越过强命中的旧断言。
 9. 逐入口接快速、完整和内联窗口。
 

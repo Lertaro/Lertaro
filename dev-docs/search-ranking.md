@@ -30,8 +30,8 @@ CLI 与 Everything IPC 的名称排序仍使用 `SearchResultRankComparer`，不
 ```text
 Pinned       AlwaysTop ↑ → FavoritePin ↑ → Grade ↑ → TypeOrder ↑ → Priority ↑ → Band ↓ → Tie ↓ → Quality ↑ → Tail ↑
 Boosted      Grade ↑ → TypeOrder ↑ → IsFavorite ↑ → Priority ↑ → Band ↓ → Tie ↓ → Quality ↑ → Tail ↑
-Low          Grade ↑ → Band ↓ → Tie ↓ → Quality ↑ → TypeOrder ↑ → Tail ↑
-HistoryTail  Band ↓ → Tie ↓ → TypeOrder ↑ → Tail ↑
+Low          Grade ↑ → TypeOrder ↑ → Band ↓ → Tie ↓ → Quality ↑ → Tail ↑
+HistoryTail  Band ↓ → TypeOrder ↑ → Tie ↓ → Tail ↑
 ```
 
 完整窗口对同一段使用同一顺序，只是把 `TypeOrder ↑` 位置留空（恒等），并把 `Quality ↑` 换成打包后的 32 位质量键——两者键序一致，仅在量化精度上不同（连续性 1/255、覆盖率 1/511），因此两窗对“差异小于一个量化格”的两行可能给出不同名次。
@@ -53,8 +53,8 @@ HistoryTail  Band ↓ → Tie ↓ → TypeOrder ↑ → Tail ↑
 | ---: | --- | --- | --- |
 | `0` | `ExactIdentity` | 直接名称/显示标题完整命中（`.lnk/.url/.appref-ms` 容器后缀或普通文件扩展名按 stem 归一），且 `IsStrong` | 参与（序数比较，无加分） |
 | `1` | `DirectStrong` | 直接名称/显示标题命中且 `Match.IsStrong`（词首、词中连续、整词、普通全拼/简拼） | 参与（序数比较，无加分） |
-| `2` | `DirectApproximate` | 跳跃子序列、生僻多音读音等弱直接命中 | 置中性（不借类型顺序反超） |
-| `3` | `SecondaryField` | 干净（`IsStrong`）的非标题表示：`ShortcutTarget`、`ProductMetadata`、`CuratedAlias`、`UserAlias`、`ProviderAlias`、`Keyword`；以及引擎无名回退（如仅父路径解释）的命中 | 置中性；副标题显示本地化来源（如 `别名：…`、`目标：…`） |
+| `2` | `DirectApproximate` | 跳跃子序列、生僻多音读音等弱直接命中 | 参与（序数比较，无加分；同等级内先按类型成组，再比质量） |
+| `3` | `SecondaryField` | 干净（`IsStrong`）的非标题表示：`ShortcutTarget`、`ProductMetadata`、`CuratedAlias`、`UserAlias`、`ProviderAlias`、`Keyword`；以及引擎无名回退（如仅父路径解释）的命中 | 参与（序数比较，无加分）；副标题显示本地化来源（如 `别名：…`、`目标：…`） |
 | `4` | `LearnedAlias` | `IsHistoryOnly` 查询→路径关联召回 | 固定落入 `HistoryTail` |
 
 次要别名与本地单结果用户别名（`UserSettings.ResultAliases`，可在动作菜单 `Ctrl+O` 绑定/清除）均要求 `MatchRank.IsStrong`，拒绝零散子序列（防止 `#440` 类误召回）。不支持全局同义词表。
@@ -80,8 +80,8 @@ HistoryTail  Band ↓ → Tie ↓ → TypeOrder ↑ → Tail ↑
 
 - 至少两个无操作符 ASCII 拼音正词同时评估多词分支与同 provider 拼接分支（`PinyinNameEvaluator`），返回真实胜出 witness（provider、tier、span）。排序路径把它直接交给画刷，画刷不再重复打分；只有手上没有 witness 的显示路径（`HighlightMask.Compute`）自己求一次。两者对同一 pattern 与同一文本调用同一确定性函数，因此判定、高亮与解释始终涂同一段。
 - 完整窗口只有打包后的质量键，键里没有“胜出分支”这一位，所以 `SearchResultRanking` 一律按 `Original` 变体解等级：带空格的拼音查询在完整窗口最高只到 `DirectStrong`，即使拼接分支真的胜出。单词整词干读音与规范化同名字符串仍判 `ExactIdentity`。残留缺口是已知的：拼接胜出的那一行在快速窗口为 0、在完整窗口为 1，两窗名次可能不同；闭合它需要把该位带过引擎/管道边界（见实施计划的未做项）。
-- `ranking-events.jsonl`（schema 4）默认仅记录查询与路径的 12 位 SHA-256 截断哈希，绝不写入查询、标题或路径明文；“复制排序解释”由用户主动触发，文本首行自带 `# plaintext:` 声明其中的查询、显示名与路径未做哈希；离线回放夹具严禁包含真实用户路径（`RankingCaseFixtureLoader` 校验）。
-- 排序反馈只需要“预览、不打开”：开启设置中的排序事件记录后，每次预览都会写 `kind:"page"` 与 `kind:"row"` 事件（`opened:false`），无需实际点击。提交 `%LOCALAPPDATA%\Lertaro\ranking-events.jsonl`（便携版为 `Data\Users\<hash>\ranking-events.jsonl`）；因为文件名/查询只有哈希，再附上原始查询、错误行的显示名/路径与期望顺序。若只针对某一行，右键该行“复制排序解释”，把剪贴板中的明文另存为 `.txt` 一并提交即可，仍然不需要打开它。
+- `ranking-events.jsonl`（schema 4）默认仅记录查询与路径的 12 位 SHA-256 截断哈希，绝不写入查询、标题或路径明文；“复制排序解释/导出本页排序详情”由用户主动触发，文本首行自带 `# plaintext:` 声明其中的查询、显示名与路径未做哈希；离线回放夹具严禁包含真实用户路径（`RankingCaseFixtureLoader` 校验）。
+- 排序反馈只需要“预览、不打开”：开启设置中的排序事件记录后，每次预览都会写 `kind:"page"` 与 `kind:"row"` 事件（`opened:false`），无需实际点击。提交 `%LOCALAPPDATA%\Lertaro\ranking-events.jsonl`（便携版为 `Data\Users\<hash>\ranking-events.jsonl`）；因为文件名/查询只有哈希，再附上原始查询、错误行的显示名/路径与期望顺序。若只针对某一行，右键该行“复制排序解释”，把剪贴板中的明文另存为 `.txt` 一并提交即可，仍然不需要打开它。若要提交整个快速窗口列表，右键任一行选“导出本页排序详情”，会一次写出所有当前显示行的明文 `.txt`。
 
 ## 验证命令
 
