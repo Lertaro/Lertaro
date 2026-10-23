@@ -1,6 +1,6 @@
 # 搜索排序（现行 V3）
 
-当前生产策略：`RankPolicy.Version = 3`（单调证据分级模型，ranking-event schema 4）。历史 V2 基线与回放评估对照保留在 `Tests/Core/SearchRanking/ReplayEvaluator.cs`，演进记录见 [search-ranking-intuition-plan.md](search-ranking-intuition-plan.md)。
+当前生产策略：`RankPolicy.Version = 3`（单调证据分级模型，ranking-event schema 4）。V2 基线冻结在 `Tests/Core/SearchRanking/OfflineRankingPolicies.cs`，V2/V3 对照门槛在 `Tests/Core/SearchRanking/ShadowV3EvaluationTests.cs`，演进记录见 [search-ranking-intuition-plan.md](search-ranking-intuition-plan.md)。
 
 ## 范围
 
@@ -18,24 +18,29 @@ CLI 与 Everything IPC 的名称排序仍使用 `SearchResultRankComparer`，不
 
 1. **召回与排序解耦**：缺失候选只能在 provider、索引或检索预算层修复，绝不用放大终局排序权重补召回。
    - 本地多盘有界查询按 `SearchCandidateComparer` 全局合并后再取 `limit`（`SearchCoordinator`）；网络盘/目录索引多源有界查询同样全局排序截断（`NetworkIndexerSearchExtensions.SearchSnapshots`）。
-   - 快速/内联无范围全局查询并行执行 `ScopedSearchRunner.RunShortcutSupplementAsync`（`fileNameFilter: "*.lnk;*.url"`），确保跨盘快捷方式不会被大量普通文件挤出管道预算，再在 `SearchStreamRenderer` 按规范化路径去重。
+   - 快速/内联无范围全局查询在主查询流完之后，仅当主结果里一条 `*.lnk`/`*.url` 都没有时才补跑 `ScopedSearchRunner.RunShortcutSupplementAsync`（`fileNameFilter: "*.lnk;*.url"`），避免每次按键都付第二遍索引扫描、第二次设置读取与第二份排除规则；补召回行仍按规范化路径在 `SearchStreamRenderer` 去重。
 2. **单一路径实体合并**（`RankedCandidateOrdering.MergeByPath`）：
    - 同一规范化路径只保留一行，可执行的 `Application` 表示优先持有 UI 行与执行委托。
    - 合并后保留更强的直接文本 `Match`/`MatchEvidence`、路径规则输入、收藏并集、最大打开次数、更优类型秩与全部诊断 `RankingCandidateSource` 位；`LearnedAlias` 永不借给直接命中行。
 
 ## V3 单调排序内核
 
-快速窗口（`RankPolicy.BuildKey` + `RankKeyComparer`）与完整窗口（`SearchResultRanking` + `RankedSearchResultComparer`）严格按同一字典序比较，不使用手工加减的跨档总分：
+快速窗口（`RankPolicy.BuildKey` + `RankKeyComparer`）与完整窗口（`SearchResultRanking` + `RankedSearchResultComparer`）比较同一组结构化键，不使用手工加减的跨档总分。段内键序并非一条通用链，而是每段各一条，两窗只在“完整窗口没有类型秩”这一点上不同（完整窗口先把结果按类型分组，组间顺序不在比较器里）：
 
 ```text
-Section ↑ → PinOrder ↑ → EvidenceGrade ↑ → HistoryBand ↑ → HistoryTie ↓ → PriorityOrder ↑ → TypeOrder ↑ → Quality ↑ → Tail ↑
+Pinned       AlwaysTop ↑ → FavoritePin ↑ → Grade ↑ → TypeOrder ↑ → Priority ↑ → Band ↓ → Tie ↓ → Quality ↑ → Tail ↑
+Boosted      Grade ↑ → TypeOrder ↑ → IsFavorite ↑ → Priority ↑ → Band ↓ → Tie ↓ → Quality ↑ → Tail ↑
+Low          Grade ↑ → Band ↓ → Tie ↓ → Quality ↑ → TypeOrder ↑ → Tail ↑
+HistoryTail  Band ↓ → Tie ↓ → TypeOrder ↑ → Tail ↑
 ```
+
+完整窗口对同一段使用同一顺序，只是把 `TypeOrder ↑` 位置留空（恒等），并把 `Quality ↑` 换成打包后的 32 位质量键——两者键序一致，仅在量化精度上不同（连续性 1/255、覆盖率 1/511），因此两窗对“差异小于一个量化格”的两行可能给出不同名次。
 
 ### 四段硬边界（`RankSection`）
 
 | 段 | 编号 | 进入条件 | 语义 |
 | --- | ---: | --- | --- |
-| `Pinned` | 0 | `High && AlwaysTop`，或 `IsFavorite && Direct && Match.IsStrong && Priority != Low` | 显式置顶：`AlwaysTop` 排在强匹配收藏之前 |
+| `Pinned` | 0 | `High && AlwaysTop`，或 `IsFavorite && Direct && Match.IsStrong` | 显式置顶：`AlwaysTop` 排在强匹配收藏之前；段判定先于 `Low`，因此被规则降权的强收藏仍然置顶 |
 | `Boosted` | 1 | 非 `Low` 的直接命中与次要别名命中（`Grade 0..3`） | 主结果区 |
 | `Low` | 2 | `Priority == Low` 的直接/次要命中 | 系统缓存、`AppData\Local/Roaming`（Start Menu 显式豁免回 `Normal`）与用户降权目录；高频打开不跨出 `Low` |
 | `HistoryTail` | 3 | `IsHistoryOnly` 学习关联行（`Grade 4`） | 仅在所有直接与次要文本命中之后补充召回 |
@@ -54,6 +59,8 @@ Section ↑ → PinOrder ↑ → EvidenceGrade ↑ → HistoryBand ↑ → Histo
 
 次要别名与本地单结果用户别名（`UserSettings.ResultAliases`，可在动作菜单 `Ctrl+O` 绑定/清除）均要求 `MatchRank.IsStrong`，拒绝零散子序列（防止 `#440` 类误召回）。不支持全局同义词表。
 
+上表的 0..4 是文档语义号；枚举 `MatchEvidenceGrade` 另用 `LegacyUnknown = 0` 表示“未知”，真实等级从 1 开始，未知值永不参与排序。回放夹具因此用名字声明等级（`"expectedV3Grade": "ExactIdentity"`），避免编号口径分歧。
+
 公共尾（`RankTail`）依次比较：文件优先于目录、自然名序、名称长度、路径长度、盘符、忽略大小写路径、Ordinal 路径、引擎 tie，保证严格反对称与传递全序。
 
 ## 历史频率与查询关联分离
@@ -69,8 +76,9 @@ Section ↑ → PinOrder ↑ → EvidenceGrade ↑ → HistoryBand ↑ → Histo
 
 ## 拼音空格近不变性与诊断隐私
 
-- 至少两个无操作符 ASCII 拼音正词同时评估多词分支与同 provider 拼接分支（`PinyinNameEvaluator`），返回真实胜出 witness（provider、tier、span），排序证据、UI 高亮与诊断解释共用同一 witness，消除 `cao zuo xi tong` 与 `caozuoxitong` 的跨档反转。
-- `ranking-events.jsonl`（schema 4）默认仅记录查询与路径的 12 位 SHA-256 截断哈希，绝不写入查询、标题或路径明文；仅用户主动触发“复制排序解释”时剪贴板文本才包含原文；离线回放夹具严禁包含真实用户路径（`RankingCaseFixtureLoader` 校验）。
+- 至少两个无操作符 ASCII 拼音正词同时评估多词分支与同 provider 拼接分支（`PinyinNameEvaluator`），返回真实胜出 witness（provider、tier、span）。排序路径把它直接交给画刷，画刷不再重复打分；只有手上没有 witness 的显示路径（`HighlightMask.Compute`）自己求一次。两者对同一 pattern 与同一文本调用同一确定性函数，因此判定、高亮与解释始终涂同一段。
+- 完整窗口只有打包后的质量键，键里没有“胜出分支”这一位，所以 `SearchResultRanking` 一律按 `Original` 变体解等级：带空格的拼音查询在完整窗口最高只到 `DirectStrong`，即使拼接分支真的胜出。单词整词干读音与规范化同名字符串仍判 `ExactIdentity`。残留缺口是已知的：拼接胜出的那一行在快速窗口为 0、在完整窗口为 1，两窗名次可能不同；闭合它需要把该位带过引擎/管道边界（见实施计划的未做项）。
+- `ranking-events.jsonl`（schema 4）默认仅记录查询与路径的 12 位 SHA-256 截断哈希，绝不写入查询、标题或路径明文；“复制排序解释”由用户主动触发，文本首行自带 `# plaintext:` 声明其中的查询、显示名与路径未做哈希；离线回放夹具严禁包含真实用户路径（`RankingCaseFixtureLoader` 校验）。
 
 ## 验证命令
 
