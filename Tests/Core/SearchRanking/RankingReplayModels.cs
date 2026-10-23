@@ -1,4 +1,3 @@
-using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 
 namespace Lertaro.Core.Tests.SearchRanking;
@@ -42,7 +41,8 @@ internal sealed record CandidateSnapshot(
     MatchQueryVariant QueryVariant = MatchQueryVariant.Original,
     bool ExplicitUserPriority = false,
     int SpanStart = -1,
-    int SpanLength = 0)
+    int SpanLength = 0,
+    MatchEvidenceGrade? ExpectedV3Grade = null)
 {
     public bool IsDirectory => (Kind & CandidateKindFlags.Directory) != 0;
     public bool IsApplication => (Kind & CandidateKindFlags.Application) != 0;

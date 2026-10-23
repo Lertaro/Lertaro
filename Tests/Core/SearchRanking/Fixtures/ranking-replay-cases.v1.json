@@ -12,6 +12,7 @@
       "candidates": [
         {
           "token": "pixpin-start-menu",
+          "expectedV3Grade": "ExactIdentity",
           "displayName": "PixPin",
           "syntheticPath": "X:\\Fixture\\Users\\Example\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\PixPin\\PixPin.lnk",
           "kind": ["Application", "Shortcut"],
@@ -25,6 +26,7 @@
         },
         {
           "token": "pixpin-folder",
+          "expectedV3Grade": "ExactIdentity",
           "displayName": "PixPin",
           "syntheticPath": "X:\\Fixture\\Program Files\\PixPin",
           "kind": ["Directory"],
@@ -38,6 +40,7 @@
         },
         {
           "token": "pixpin-exe",
+          "expectedV3Grade": "ExactIdentity",
           "displayName": "PixPin.exe",
           "syntheticPath": "X:\\Fixture\\Program Files\\PixPin\\PixPin.exe",
           "kind": ["File"],
@@ -71,6 +74,7 @@
       "candidates": [
         {
           "token": "atlas-shortcut",
+          "expectedV3Grade": "ExactIdentity",
           "displayName": "Atlas",
           "syntheticPath": "X:\\Fixture\\Apps\\Atlas.lnk",
           "kind": ["Application", "Shortcut"],
@@ -84,6 +88,7 @@
         },
         {
           "token": "atlas-exe",
+          "expectedV3Grade": "ExactIdentity",
           "displayName": "Atlas.exe",
           "syntheticPath": "X:\\Fixture\\Tools\\Atlas.exe",
           "kind": ["File"],
@@ -116,6 +121,7 @@
       "candidates": [
         {
           "token": "editor-exact",
+          "expectedV3Grade": "ExactIdentity",
           "displayName": "Editor",
           "syntheticPath": "X:\\Fixture\\Apps\\Editor.lnk",
           "kind": ["Application", "Shortcut"],
@@ -129,6 +135,7 @@
         },
         {
           "token": "editor-history-weaker",
+          "expectedV3Grade": "DirectStrong",
           "displayName": "Old Editor Notes.txt",
           "syntheticPath": "X:\\Fixture\\Files\\Old Editor Notes.txt",
           "kind": ["File"],
@@ -161,6 +168,7 @@
       "candidates": [
         {
           "token": "notes-direct",
+          "expectedV3Grade": "ExactIdentity",
           "displayName": "Notes",
           "syntheticPath": "X:\\Fixture\\Apps\\Notes.lnk",
           "kind": ["Application", "Shortcut"],
@@ -174,6 +182,7 @@
         },
         {
           "token": "notes-learned-alias",
+          "expectedV3Grade": "LearnedAlias",
           "displayName": "Archive.bin",
           "syntheticPath": "X:\\Fixture\\Files\\Archive.bin",
           "kind": ["File"],

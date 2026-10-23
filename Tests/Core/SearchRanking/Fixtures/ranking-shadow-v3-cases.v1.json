@@ -11,6 +11,7 @@
       "candidates": [
         {
           "token": "cfwj-exact-lnk",
+          "expectedV3Grade": "ExactIdentity",
           "displayName": "重复文件",
           "syntheticPath": "X:\\Fixture\\Tools\\重复文件.lnk",
           "kind": ["Application", "Shortcut"],
@@ -24,6 +25,7 @@
         },
         {
           "token": "cfwj-exact-dir",
+          "expectedV3Grade": "ExactIdentity",
           "displayName": "重复文件",
           "syntheticPath": "X:\\Fixture\\Projects\\重复文件",
           "kind": ["Directory"],
@@ -37,6 +39,7 @@
         },
         {
           "token": "cfwj-clean-lnk",
+          "expectedV3Grade": "DirectStrong",
           "displayName": "重复文件清理",
           "syntheticPath": "X:\\Fixture\\Desktop\\重复文件清理.lnk",
           "kind": ["Application", "Shortcut"],
@@ -50,6 +53,7 @@
         },
         {
           "token": "cfwj-compare-lnk",
+          "expectedV3Grade": "DirectStrong",
           "displayName": "重复文件对比",
           "syntheticPath": "X:\\Fixture\\Tools\\重复文件对比.lnk",
           "kind": ["Application", "Shortcut"],
@@ -63,6 +67,7 @@
         },
         {
           "token": "cfwj-find-lnk",
+          "expectedV3Grade": "DirectStrong",
           "displayName": "查找重复文件",
           "syntheticPath": "X:\\Fixture\\Tools\\查找重复文件.lnk",
           "kind": ["Application", "Shortcut"],
@@ -76,6 +81,7 @@
         },
         {
           "token": "cfwj-delete-lnk",
+          "expectedV3Grade": "DirectStrong",
           "displayName": "删除重复文件",
           "syntheticPath": "X:\\Fixture\\Tools\\删除重复文件.lnk",
           "kind": ["Application", "Shortcut"],
@@ -89,6 +95,7 @@
         },
         {
           "token": "cfwj-etc-txt",
+          "expectedV3Grade": "DirectStrong",
           "displayName": "ETC服务监督热线.txt",
           "syntheticPath": "X:\\Fixture\\Docs\\ETC服务监督热线.txt",
           "kind": ["File"],
@@ -127,6 +134,7 @@
       "candidates": [
         {
           "token": "ssjg-lnk",
+          "expectedV3Grade": "ExactIdentity",
           "displayName": "搜索结果",
           "syntheticPath": "X:\\Fixture\\Desktop\\搜索结果.lnk",
           "kind": ["Application", "Shortcut"],
@@ -143,6 +151,7 @@
         },
         {
           "token": "ssjg-txt",
+          "expectedV3Grade": "ExactIdentity",
           "displayName": "搜索结果.txt",
           "syntheticPath": "X:\\Fixture\\Docs\\搜索结果.txt",
           "kind": ["File"],
@@ -159,6 +168,7 @@
         },
         {
           "token": "ssjg-reversed-txt",
+          "expectedV3Grade": "DirectStrong",
           "displayName": "结果搜索.txt",
           "syntheticPath": "X:\\Fixture\\Docs\\结果搜索.txt",
           "kind": ["File"],
@@ -175,6 +185,7 @@
         },
         {
           "token": "ssjg-scattered-txt",
+          "expectedV3Grade": "DirectApproximate",
           "displayName": "搜-x-索-y-结-z-果.txt",
           "syntheticPath": "X:\\Fixture\\Noise\\搜-x-索-y-结-z-果.txt",
           "kind": ["File"],
@@ -213,6 +224,7 @@
       "candidates": [
         {
           "token": "report-strong-file",
+          "expectedV3Grade": "DirectStrong",
           "displayName": "quarterly-report.txt",
           "syntheticPath": "X:\\Fixture\\Docs\\quarterly-report.txt",
           "kind": ["File"],
@@ -226,6 +238,7 @@
         },
         {
           "token": "report-weak-app",
+          "expectedV3Grade": "DirectApproximate",
           "displayName": "r-e-p-o-r-t-helper",
           "syntheticPath": "X:\\Fixture\\Apps\\r-e-p-o-r-t-helper.lnk",
           "kind": ["Application", "Shortcut"],
@@ -258,6 +271,7 @@
       "candidates": [
         {
           "token": "pixpin-normal-file",
+          "expectedV3Grade": "ExactIdentity",
           "displayName": "PixPin.exe",
           "syntheticPath": "X:\\Fixture\\Tools\\PixPin\\PixPin.exe",
           "kind": ["File"],
@@ -271,6 +285,7 @@
         },
         {
           "token": "pixpin-explicit-low-shortcut",
+          "expectedV3Grade": "ExactIdentity",
           "displayName": "PixPin",
           "syntheticPath": "X:\\Fixture\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Demoted\\PixPin.lnk",
           "kind": ["Application", "Shortcut"],
@@ -304,6 +319,7 @@
       "candidates": [
         {
           "token": "direct-approx-file",
+          "expectedV3Grade": "DirectApproximate",
           "displayName": "t-e-l-e-g-r-a-m.txt",
           "syntheticPath": "X:\\Fixture\\Docs\\t-e-l-e-g-r-a-m.txt",
           "kind": ["File"],
@@ -317,6 +333,7 @@
         },
         {
           "token": "secondary-alias-app",
+          "expectedV3Grade": "SecondaryField",
           "displayName": "电报客户端",
           "syntheticPath": "X:\\Fixture\\Apps\\Telegram\\电报客户端.lnk",
           "kind": ["Application", "Shortcut"],
@@ -332,6 +349,7 @@
         },
         {
           "token": "learned-alias-file",
+          "expectedV3Grade": "LearnedAlias",
           "displayName": "Archive2024.bin",
           "syntheticPath": "X:\\Fixture\\Archive\\Archive2024.bin",
           "kind": ["File"],

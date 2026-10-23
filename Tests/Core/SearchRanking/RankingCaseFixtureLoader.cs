@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 
 namespace Lertaro.Core.Tests.SearchRanking;
@@ -48,7 +47,7 @@ internal static class RankingCaseFixtureLoader
                 .ToArray();
             ValidateCandidates(candidates);
             var assertions = Required(item, "assertions");
-            cases.Add(new RankingCase(
+            var rankingCase = new RankingCase(
                 RequiredString(item, "id"),
                 RequiredString(item, "window"),
                 RequiredString(item, "rawQuery"),
@@ -68,7 +67,9 @@ internal static class RankingCaseFixtureLoader
                     .ToArray(),
                 Required(assertions, "mustBeAbsent").EnumerateArray()
                     .Select(value => value.GetString()!)
-                    .ToHashSet(StringComparer.Ordinal)));
+                    .ToHashSet(StringComparer.Ordinal));
+            ValidateAssertions(rankingCase);
+            cases.Add(rankingCase);
         }
         return cases;
     }
@@ -104,7 +105,21 @@ internal static class RankingCaseFixtureLoader
             OptionalEnum(item, "queryVariant", MatchQueryVariant.Original),
             OptionalBool(item, "explicitUserPriority"),
             OptionalIntOrDefault(item, "spanStart", -1),
-            OptionalInt(item, "spanLength"));
+            OptionalInt(item, "spanLength"),
+            OptionalGrade(item, "expectedV3Grade"));
+    }
+
+    // Grades are named, not numbered: the docs and the enum disagree about whether ExactIdentity is 0 or 1,
+    // and a fixture that silently means the other scale would assert the wrong ladder.
+    private static MatchEvidenceGrade? OptionalGrade(JsonElement parent, string name)
+    {
+        if (!parent.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.String)
+            return null;
+
+        var grade = Enum.Parse<MatchEvidenceGrade>(value.GetString()!, ignoreCase: true);
+        if (grade == MatchEvidenceGrade.LegacyUnknown)
+            throw new InvalidDataException($"'{name}' must name a real grade, not {grade}.");
+        return grade;
     }
 
     private static T OptionalEnum<T>(JsonElement parent, string name, T fallback) where T : struct, Enum =>
@@ -127,6 +142,29 @@ internal static class RankingCaseFixtureLoader
                 throw new InvalidDataException($"Candidate '{candidate.Token}' does not use a synthetic fixture path.");
             if (candidate.DisplayName.Contains(@"C:\Users\", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException($"Candidate '{candidate.Token}' contains a user path in its display name.");
+        }
+    }
+
+    // A case whose expectations name tokens that are not candidates cannot fail for the wrong reason: an
+    // unknown token used to read as an order inversion. Absent-only cases are the exception, because the
+    // point of #440 is that the row must never reach the candidate set at all.
+    private static void ValidateAssertions(RankingCase rankingCase)
+    {
+        if (rankingCase.MustBeTopK.Count == 0
+            && rankingCase.MustAppearBefore.Count == 0
+            && rankingCase.MustBeAbsent.Count == 0)
+        {
+            throw new InvalidDataException($"Case '{rankingCase.Id}' declares no assertion.");
+        }
+
+        var tokens = rankingCase.Candidates.Select(candidate => candidate.Token).ToHashSet(StringComparer.Ordinal);
+        var expected = rankingCase.MustBeTopK.Select(expectation => expectation.Token)
+            .Concat(rankingCase.MustAppearBefore.SelectMany(pair => new[] { pair.Before, pair.After }));
+        foreach (var token in expected)
+        {
+            if (!tokens.Contains(token))
+                throw new InvalidDataException(
+                    $"Case '{rankingCase.Id}' expects the unknown token '{token}'.");
         }
     }
 

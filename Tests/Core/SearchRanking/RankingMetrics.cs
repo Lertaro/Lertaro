@@ -2,10 +2,16 @@ namespace Lertaro.Core.Tests.SearchRanking;
 
 internal static class RankingMetrics
 {
-    internal readonly record struct RunMetrics(double NdcgAt10, int PairwiseInversions);
+    internal readonly record struct RunMetrics(
+        double NdcgAt10,
+        int PairwiseInversions,
+        int MissingExpectedTokens);
 
     public static RunMetrics Evaluate(RankingCase rankingCase, RankingRun run) =>
-        new(NdcgAt(run, 10), PairwiseInversions(run, rankingCase.MustAppearBefore));
+        new(
+            NdcgAt(run, 10),
+            PairwiseInversions(run, rankingCase.MustAppearBefore),
+            MissingExpectedTokens(run, rankingCase.MustAppearBefore));
 
     public static double RecallAt(RankingRun run, IReadOnlySet<string> relevantTokens, int k)
     {
@@ -37,20 +43,31 @@ internal static class RankingMetrics
         return ideal == 0 ? 1 : actual / ideal;
     }
 
+    // Order failures only: a pair whose tokens both reached the run but landed the wrong way round.
     public static int PairwiseInversions(RankingRun run, IEnumerable<ExpectedPair> expectedPairs)
     {
         var ranks = run.Rows.ToDictionary(row => row.Candidate.Token, row => row.Rank, StringComparer.Ordinal);
         var inversions = 0;
         foreach (var pair in expectedPairs)
         {
-            if (!ranks.TryGetValue(pair.Before, out var before)
-                || !ranks.TryGetValue(pair.After, out var after)
-                || before >= after)
+            if (ranks.TryGetValue(pair.Before, out var before)
+                && ranks.TryGetValue(pair.After, out var after)
+                && before >= after)
             {
                 inversions++;
             }
         }
         return inversions;
+    }
+
+    // A token that never reached the run is a recall failure, not an ordering one: counted as an inversion it
+    // would look like the kernel misordered two rows when one of them was simply absent.
+    public static int MissingExpectedTokens(RankingRun run, IEnumerable<ExpectedPair> expectedPairs)
+    {
+        var ranks = run.Rows.ToDictionary(row => row.Candidate.Token, row => row.Rank, StringComparer.Ordinal);
+        return expectedPairs
+            .Where(pair => !ranks.ContainsKey(pair.Before) || !ranks.ContainsKey(pair.After))
+            .Count();
     }
 
     public static int TargetRankDelta(RankingRun baseline, RankingRun candidate, string token)
@@ -70,7 +87,8 @@ internal static class RankingMetrics
         if (rankingCase.MustBeTopK.Any(expectation =>
                 run.RankOf(expectation.Token) is var rank && (rank == 0 || rank > expectation.K)))
             return false;
-        return PairwiseInversions(run, rankingCase.MustAppearBefore) == 0;
+        return PairwiseInversions(run, rankingCase.MustAppearBefore) == 0
+            && MissingExpectedTokens(run, rankingCase.MustAppearBefore) == 0;
     }
 
     private static double Dcg(IEnumerable<int> relevance)

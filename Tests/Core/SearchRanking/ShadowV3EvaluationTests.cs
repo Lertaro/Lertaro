@@ -1,5 +1,4 @@
 using System.Runtime.CompilerServices;
-using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 
 namespace Lertaro.Core.Tests.SearchRanking;
@@ -34,11 +33,16 @@ public sealed class ShadowV3EvaluationTests
                 0,
                 v3Metrics.PairwiseInversions,
                 $"Case '{rankingCase.Id}' had pairwise inversions under V3: {string.Join(", ", comparison.Candidate.Tokens)}");
+            Assert.AreEqual(
+                0,
+                v3Metrics.MissingExpectedTokens,
+                $"Case '{rankingCase.Id}' lost an expected token under V3: {string.Join(", ", comparison.Candidate.Tokens)}");
             Assert.IsGreaterThanOrEqualTo(
                 v2Metrics.NdcgAt10,
                 v3Metrics.NdcgAt10 + 1e-9,
                 $"Case '{rankingCase.Id}' regressed nDCG@10 from {v2Metrics.NdcgAt10:0.000} to {v3Metrics.NdcgAt10:0.000}");
 
+            AssertDeclaredGrades(rankingCase, comparison.Candidate);
             foreach (var topK in rankingCase.MustBeTopK)
             {
                 var rank = comparison.Candidate.RankOf(topK.Token);
@@ -53,6 +57,25 @@ public sealed class ShadowV3EvaluationTests
                 Assert.AreEqual(0, comparison.Candidate.RankOf(absent), $"Unexpected absent token '{absent}'");
 
             AssertNoOrdinaryWeakOverStrongInversion(rankingCase, comparison.Candidate);
+        }
+    }
+
+    // The ladder itself, not only the pairwise order it produces: each candidate may name the grade V3 has to
+    // resolve for it, which is what pins Grade 0 to a real joined witness rather than to a full-coverage mask.
+    private static void AssertDeclaredGrades(RankingCase rankingCase, RankingRun run)
+    {
+        foreach (var row in run.Rows)
+        {
+            var candidate = row.Candidate;
+            if (candidate.ExpectedV3Grade is not { } expected)
+                continue;
+
+            var key = RankPolicyV3.BuildKey(
+                candidate.ToV3Signals(), HistoryTier.None, candidate.ToEvidence(rankingCase.RawQuery));
+            Assert.AreEqual(
+                expected,
+                key.Grade,
+                $"'{candidate.Token}' in '{rankingCase.Id}' graded {key.Grade}, the fixture declared {expected}");
         }
     }
 
