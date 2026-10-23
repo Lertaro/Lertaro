@@ -1,5 +1,26 @@
 namespace Lertaro.Core.SearchIndex;
 
+/// <summary>Ranking-kernel fields for one candidate, before final page composition.</summary>
+internal readonly record struct RankingLogRow(
+    string Path,
+    int KernelRank,
+    RankSection Section,
+    int Score,
+    int TypeRank,
+    IndexRuleEffect Priority,
+    HistoryTier Tier,
+    int HistoryTie,
+    MatchRank Match,
+    bool IsFavorite,
+    bool IsHistoryOnly,
+    bool IsDir,
+    bool IsApplication,
+    RankingCandidateSource Source = RankingCandidateSource.Unknown,
+    string? ProviderId = null,
+    RankingProviderState ProviderState = RankingProviderState.Unknown,
+    MatchEvidence Evidence = default,
+    CandidateIdentity Identity = default);
+
 /// <summary>Search surface that produced a ranking impression.</summary>
 internal enum RankingTraceWindow : byte
 {
@@ -122,11 +143,6 @@ internal readonly record struct RankingPageStamp(
     string PageId,
     RankingTraceWindow Window,
     long QuerySequence);
-
-/// <summary>Page identity and rank copied onto a displayed row for open-event joins.</summary>
-internal readonly record struct RankingImpression(
-    RankingPageStamp Page,
-    int FinalDisplayedRank);
 
 /// <summary>Structured input to the user-triggered, localization-independent explanation formatter.</summary>
 internal sealed record RankingExplanation(

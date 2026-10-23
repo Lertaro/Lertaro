@@ -40,7 +40,6 @@
   "Action_Cut": "切り取り",
   "Action_CopyName": "名前をコピー",
   "Action_CopyPath": "パスをクリップボードにコピー",
-  "Action_CopyRankingExplanation": "ランキング説明をコピー",
   "Action_ExportRankingDetails": "このページのランキング詳細をエクスポート",
   "Action_Rename": "名前を変更",
   "Action_Rename_Desc": "Windows Shell を使用して、選択したファイルまたはフォルダーの名前を変更します。",
@@ -236,6 +235,4 @@
   "Command_Shell_Cmd": "CMD",
   "Command_Shell_WindowsPowerShell": "Windows PowerShell",
   "Command_Shell_Pwsh": "PowerShell (pwsh)",
-  "Action_BindQueryAsUserAlias": "「{0}」を検索別名として登録",
-  "Action_ClearUserAliases": "検索別名をクリア"
 }

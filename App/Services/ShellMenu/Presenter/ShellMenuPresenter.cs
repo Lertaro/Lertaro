@@ -283,18 +283,19 @@ public class ShellMenuPresenter : IDisposable
         return items;
     }
 
-    // The single-row Copy action lives in ActionMenuBuilder, which only sees the selection. A page
-    // export needs every displayed row, which only the presenter's view exposes, so it is appended here.
+    // A page export needs every displayed row, which only the presenter's view exposes. The trace is
+    // built in memory only when this same switch is on, and nothing is written unless the user exports.
     private void AddExportRankingDetailsAction(List<ActionMenuItem> items)
     {
-        if (GetWindowType() != SearchWindowType.Quick)
+        if (GetWindowType() != SearchWindowType.Quick || !Lertaro.Core.UserSettings.Load().EnableRankingDetailsExport)
             return;
 
         var results = _view.LstResults.Items
             .OfType<AppSearchResult>()
-            .Where(result => !result.IsSearchSectionHeader && !result.IsEmptyResult)
+            .Where(result => !result.IsSearchSectionHeader && !result.IsEmptyResult
+                && !string.Equals(result.FullPath, "__SHOW_MORE__", StringComparison.Ordinal))
             .ToList();
-        if (results.Count == 0 || !results.Exists(result => result.RankingExplanation != null))
+        if (results.Count == 0)
             return;
 
         var itemHeight = Math.Round(UiMetrics.ListItemHeight * UiMetrics.ActionMenuCompactRowScale);
@@ -316,6 +317,7 @@ public class ShellMenuPresenter : IDisposable
         {
             Text = TranslationManager.Instance["Action_ExportRankingDetails"],
             ItemHeight = itemHeight,
+            KeepWindowVisible = true,
             OnExecute = () => RankingExplanationExport.Export(results, _savedSearchQuery, Window.GetWindow(_view.LstResults)),
         });
     }

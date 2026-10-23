@@ -40,7 +40,6 @@
   "Action_Cut": "剪下",
   "Action_CopyName": "複製名稱",
   "Action_CopyPath": "複製路徑至剪貼簿",
-  "Action_CopyRankingExplanation": "複製排序解釋",
   "Action_ExportRankingDetails": "匯出本頁排序詳情",
   "Action_Rename": "重新命名",
   "Action_Rename_Desc": "使用 Windows Shell 重新命名選取的檔案或資料夾。",
@@ -236,6 +235,4 @@
   "Command_Shell_Cmd": "CMD",
   "Command_Shell_WindowsPowerShell": "Windows PowerShell",
   "Command_Shell_Pwsh": "PowerShell (pwsh)",
-  "Action_BindQueryAsUserAlias": "將「{0}」綁定為此項搜尋別名",
-  "Action_ClearUserAliases": "清除此項搜尋別名"
 }

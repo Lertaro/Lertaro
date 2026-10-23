@@ -39,8 +39,11 @@ public class UserSettings
     public List<string> BlacklistedProcesses { get; set; } = new();
     public bool EnableHistory { get; set; } = true;
 
-    /// <summary>Writes local, hashed quick-search ranking diagnostics. Controlled from General settings.</summary>
-    public bool EnableRankingEventLog { get; set; } = true;
+    /// <summary>
+    /// Offers the quick-window "export this page's ranking details" action. The trace is kept in memory
+    /// only; enabling this never writes a log file.
+    /// </summary>
+    public bool EnableRankingDetailsExport { get; set; } = true;
     public bool EnableKeywordHistory { get; set; } = true;
     public bool StartWithWindows { get; set; } = true;
     public bool AutoCheckUpdates { get; set; } = true;

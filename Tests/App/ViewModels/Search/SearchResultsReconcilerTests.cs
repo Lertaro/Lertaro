@@ -182,22 +182,24 @@ public sealed class SearchResultsReconcilerTests
     }
 
     [TestMethod]
-    public void Replace_StreamRepaint_CopiesTheLatestRankingImpressionOntoRetainedRow()
+    public void Replace_StreamRepaint_CopiesTheLatestRankingExplanationOntoRetainedRow()
     {
         var before = Result(@"C:\a", query: "a");
-        var oldPage = new RankingPageStamp("session", "page-1", RankingTraceWindow.Quick, 1);
-        before.RankingImpression = new RankingImpression(oldPage, 3);
         var results = new ObservableRangeCollection<AppSearchResult> { before };
 
         var after = Result(@"C:\a", query: "a");
-        var newPage = new RankingPageStamp("session", "page-2", RankingTraceWindow.Quick, 1);
-        after.RankingImpression = new RankingImpression(newPage, 7);
+        var page = new RankingPageStamp("session", "page-2", RankingTraceWindow.Quick, 1);
+        var explanation = new RankingExplanation(
+            new RankingLogSession("session", 1, RankingTraceWindow.Quick, "raw", "raw", 0),
+            page,
+            default,
+            default);
+        after.RankingExplanation = explanation;
 
         SearchResultsReconciler.Replace(results, new[] { after }, before, _ => { });
 
         Assert.AreSame(before, results[0]);
-        Assert.AreEqual("page-2", before.RankingImpression?.Page.PageId);
-        Assert.AreEqual(7, before.RankingImpression?.FinalDisplayedRank);
+        Assert.AreSame(explanation, before.RankingExplanation);
     }
 
     [TestMethod]

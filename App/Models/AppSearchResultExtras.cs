@@ -35,7 +35,6 @@ internal sealed class AppSearchResultExtras
     public object? SourceProvider;
 
     // Final quick-search diagnostics; unset for full-search rows.
-    public Core.SearchIndex.RankingImpression? RankingImpression;
     public Core.SearchIndex.RankingExplanation? RankingExplanation;
 
     // Set only on rows the quick window injected from a learned query->path association.

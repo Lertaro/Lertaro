@@ -211,12 +211,6 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
     public string? TabCompletion { get => _extras?.TabCompletion; set => Extras.TabCompletion = value; }
     public object? SourceProvider { get => _extras?.SourceProvider; set => Extras.SourceProvider = value; }
 
-    internal Core.SearchIndex.RankingImpression? RankingImpression
-    {
-        get => _extras?.RankingImpression;
-        set => Extras.RankingImpression = value;
-    }
-
     internal Core.SearchIndex.RankingExplanation? RankingExplanation
     {
         get => _extras?.RankingExplanation;

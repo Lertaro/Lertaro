@@ -40,7 +40,6 @@
   "Action_Cut": "Cut",
   "Action_CopyName": "Copy Name",
   "Action_CopyPath": "Copy Path to Clipboard",
-  "Action_CopyRankingExplanation": "Copy Ranking Explanation",
   "Action_ExportRankingDetails": "Export This Page's Ranking Details",
   "Action_Rename": "Rename",
   "Action_Rename_Desc": "Renames the selected file or folder using the Windows Shell.",
@@ -236,6 +235,4 @@
   "Command_Shell_Cmd": "CMD",
   "Command_Shell_WindowsPowerShell": "Windows PowerShell",
   "Command_Shell_Pwsh": "PowerShell (pwsh)",
-  "Action_BindQueryAsUserAlias": "Bind \"{0}\" as Search Alias",
-  "Action_ClearUserAliases": "Clear Search Aliases"
 }

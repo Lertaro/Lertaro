@@ -51,13 +51,19 @@ HistoryTail  Band ↓ → TypeOrder ↑ → Tie ↓ → Tail ↑
 
 | 等级 | 名称 | 判定条件 | 普通类型顺序参与度 |
 | ---: | --- | --- | --- |
-| `0` | `ExactIdentity` | 直接名称/显示标题完整命中（`.lnk/.url/.appref-ms` 容器后缀或普通文件扩展名按 stem 归一），且 `IsStrong` | 参与（序数比较，无加分） |
+| `0` | `ExactIdentity` | 文件或应用的直接名称/显示标题完整命中（`.lnk/.url/.appref-ms` 容器后缀或普通文件扩展名按 stem 归一），且 `IsStrong`；系统设置/应用项声明的 `Keyword` 干净前缀命中（如 `env` → `envvar`）；目录不算身份，精确同名目录降为 `DirectStrong` | 参与（序数比较，无加分） |
 | `1` | `DirectStrong` | 直接名称/显示标题命中且 `Match.IsStrong`（词首、词中连续、整词、普通全拼/简拼） | 参与（序数比较，无加分） |
 | `2` | `DirectApproximate` | 跳跃子序列、生僻多音读音等弱直接命中 | 参与（序数比较，无加分；同等级内先按类型成组，再比质量） |
-| `3` | `SecondaryField` | 干净（`IsStrong`）的非标题表示：`ShortcutTarget`、`ProductMetadata`、`CuratedAlias`、`UserAlias`、`ProviderAlias`、`Keyword`；以及引擎无名回退（如仅父路径解释）的命中 | 参与（序数比较，无加分）；副标题显示本地化来源（如 `别名：…`、`目标：…`） |
+| `3` | `SecondaryField` | 干净（`IsStrong`）的非标题表示：`ShortcutTarget`、`ProductMetadata`、`CuratedAlias`、`UserAlias`、`ProviderAlias`；以及引擎无名回退（如仅父路径解释）的命中 | 参与（序数比较，无加分）；副标题显示本地化来源（如 `别名：…`、`目标：…`） |
 | `4` | `LearnedAlias` | `IsHistoryOnly` 查询→路径关联召回 | 固定落入 `HistoryTail` |
 
-次要别名与本地单结果用户别名（`UserSettings.ResultAliases`，可在动作菜单 `Ctrl+O` 绑定/清除）均要求 `MatchRank.IsStrong`，拒绝零散子序列（防止 `#440` 类误召回）。不支持全局同义词表。
+次要别名与本地单结果用户别名（`UserSettings.ResultAliases`）均要求 `MatchRank.IsStrong`，拒绝零散子序列（防止 `#440` 类误召回）。用户别名不再提供动作菜单绑定/清除入口，但已有数据仍参与匹配。不支持全局同义词表。
+
+`Keyword` 是 provider 声明的同义词（当前用于系统设置的 `System.Keywords`），不是零散猜测：只有每个查询词都干净前缀命中一个声明词时才成立，质量按最短匹配词计算（`env` → `envvar` 覆盖 0.5），并按 `ExactIdentity` 参与类型顺序。这样用户配置的“设置先于文件”能让 `env` 命中“编辑账户的环境变量”，而不是被 `env.h` 等文件压到 40 名以后。2026-10-24 决策；若将来其他 provider 也提供 `Keywords`，需确认其同义词质量是否同样可信。
+
+同一候选的标题强命中优先于任何别名；别名只在标题未强命中时参与最佳证据选择。否则较长的别名可能以覆盖率优势覆盖标题的拼音直接命中，把 `DirectStrong` 降成 `SecondaryField`。
+
+目录是容器而非身份：精确同名目录仍是强直接命中（`DirectStrong`），但不占用 `ExactIdentity`。否则搜索 `powershell` 时，`F:\Documents\PowerShell` 会以 Grade 0 压过标题为 `PowerShell 7 (x64)` 的快捷方式，用户配置的“应用先于文件”类型顺序永远无法生效。
 
 上表的 0..4 是文档语义号；枚举 `MatchEvidenceGrade` 另用 `LegacyUnknown = 0` 表示“未知”，真实等级从 1 开始，未知值永不参与排序。回放夹具因此用名字声明等级（`"expectedV3Grade": "ExactIdentity"`），避免编号口径分歧。
 
@@ -80,8 +86,8 @@ HistoryTail  Band ↓ → TypeOrder ↑ → Tie ↓ → Tail ↑
 
 - 至少两个无操作符 ASCII 拼音正词同时评估多词分支与同 provider 拼接分支（`PinyinNameEvaluator`），返回真实胜出 witness（provider、tier、span）。排序路径把它直接交给画刷，画刷不再重复打分；只有手上没有 witness 的显示路径（`HighlightMask.Compute`）自己求一次。两者对同一 pattern 与同一文本调用同一确定性函数，因此判定、高亮与解释始终涂同一段。
 - 完整窗口只有打包后的质量键，键里没有“胜出分支”这一位，所以 `SearchResultRanking` 一律按 `Original` 变体解等级：带空格的拼音查询在完整窗口最高只到 `DirectStrong`，即使拼接分支真的胜出。单词整词干读音与规范化同名字符串仍判 `ExactIdentity`。残留缺口是已知的：拼接胜出的那一行在快速窗口为 0、在完整窗口为 1，两窗名次可能不同；闭合它需要把该位带过引擎/管道边界（见实施计划的未做项）。
-- `ranking-events.jsonl`（schema 4）默认仅记录查询与路径的 12 位 SHA-256 截断哈希，绝不写入查询、标题或路径明文；“复制排序解释/导出本页排序详情”由用户主动触发，文本首行自带 `# plaintext:` 声明其中的查询、显示名与路径未做哈希；离线回放夹具严禁包含真实用户路径（`RankingCaseFixtureLoader` 校验）。
-- 排序反馈只需要“预览、不打开”：开启设置中的排序事件记录后，每次预览都会写 `kind:"page"` 与 `kind:"row"` 事件（`opened:false`），无需实际点击。提交 `%LOCALAPPDATA%\Lertaro\ranking-events.jsonl`（便携版为 `Data\Users\<hash>\ranking-events.jsonl`）；因为文件名/查询只有哈希，再附上原始查询、错误行的显示名/路径与期望顺序。若只针对某一行，右键该行“复制排序解释”，把剪贴板中的明文另存为 `.txt` 一并提交即可，仍然不需要打开它。若要提交整个快速窗口列表，右键任一行选“导出本页排序详情”，会一次写出所有当前显示行的明文 `.txt`。
+- 应用不写任何排序日志文件。唯一的排序反馈出口是用户在快速窗口右键选择“导出本页排序详情”，一次性导出当前显示页的明文 `.txt`；文本首行自带 `# plaintext:` 声明其中的查询、显示名与路径未做哈希。开关位于“设置 → 通用 → 系统 → 允许导出本页排序详情”，默认开启；关闭后既不构建解释，也不显示该菜单项。离线回放夹具严禁包含真实用户路径（`RankingCaseFixtureLoader` 校验）。
+- 排序反馈只需要“预览、不打开”：搜索出错误顺序后，右键任意结果选“导出本页排序详情”，会一次写出当前显示页所有行的明文 `.txt`；不需要打开任何结果，也没有单行复制入口。提交该 `.txt`，并在 issue 中写明原始查询与期望顺序。导出前请检查文件内容：查询、显示名与路径都是明文。
 
 ## 验证命令
 

@@ -74,9 +74,9 @@ Set-ProcessMitigation -Name 'D:\Lertaro\lff.exe' -Disable UserShadowStack
 
 ## 8. Unexpected Search Order
 
-In Quick Search, select one result, open its action menu, and choose **Copy Ranking Explanation**. If the action is missing, enable ranking diagnostics and run the search again. Review the copied text before sharing it: unlike the background log, it includes the query, result name, and path in plain text.
+In Quick Search, run the query, then right-click any result and choose **Export this page's ranking details**. Lertaro writes one plaintext `.txt` for the whole displayed page; no result needs to be opened. The export action is shown when **Settings → General → System → Enable ranking details export** is on (the default). Turning it off also stops building the explanation in memory.
 
-For a longer trace, enable **Settings → General → System → Log ranking diagnostics**. Lertaro writes hashed query and path data to `%LOCALAPPDATA%\Lertaro\ranking-events.jsonl`; it does not upload the file. Turning the setting off stops new ranking events.
+Nothing is logged in the background. Review the exported file before sharing it: the query, result names, and paths are in plain text.
 
 ## 9. Inspecting Logs & Submitting Issues
 

@@ -198,8 +198,9 @@ internal sealed class SearchDispatchController
         // every other lifted history row keeps ranking by score inside Boosted/HistoryTail. AlwaysTop is a
         // user checkbox and does not spend a history slot, so pinning still works in the card.
         var isInlineContext = _getIsInlineSearchContext();
-        // One trace session covers all streaming paints of this quick-window query.
-        var rankingTrace = !isInlineContext && RankingEventLog.IsEnabled
+        // One trace session covers all streaming paints of this quick-window query. The switch only
+        // controls whether the export action is offered; the trace itself never writes anything.
+        var rankingTrace = !isInlineContext && UserSettings.Load().EnableRankingDetailsExport
             ? new QuickSearchRankingTrace(originalValue, searchQuery)
             : null;
         var rankContext = new RankContext(

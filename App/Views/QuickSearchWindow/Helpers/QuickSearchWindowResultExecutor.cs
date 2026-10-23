@@ -43,9 +43,6 @@ public class QuickSearchWindowResultExecutor
     {
         if (result.IsEmptyResult || result.IsSearchSectionHeader)
             return;
-        // Use the row's painted impression; the collection may repaint before execution.
-        if (!string.IsNullOrWhiteSpace(result.FullPath))
-            RankingEventLog.RecordOpened(result.SearchQuery, result.FullPath, result.RankingImpression);
         _window.RecordKeywordHistory();
         if (!result.IsPluginSearchAction && !result.IsInstantResult)
         {

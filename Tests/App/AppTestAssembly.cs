@@ -1,5 +1,4 @@
 using Lertaro.App.ViewModels.Search.Mapping;
-using Lertaro.Core.SearchIndex;
 
 namespace Lertaro.App.Tests;
 
@@ -11,9 +10,5 @@ public static class AppTestAssembly
     public static void Initialize(TestContext _)
     {
         WindowsRecentCandidateMapper.Source = () => [];
-
-        // The calibration log is user data: a synthesized query ("atlas", "test") cannot be told
-        // apart from a real one once it is hashed, so tests must never write to it.
-        RankingEventLog.EnabledOverride = false;
     }
 }

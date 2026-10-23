@@ -17,11 +17,10 @@ internal static class RankingExplanationFormatter
         var ranked = row.Ranking;
         var lines = new List<string>
         {
-            // Unlike the event log, this text is not hashed: it carries the query, the display name and the
-            // path in the clear. Said out loud on the first line because the paste is what reaches a bug
-            // report, not this window.
+            // This text is not hashed: it carries the query, the display name and the path in the clear.
+            // Said out loud on the first line because the paste is what reaches a bug report.
             "# plaintext: the query, display name and path below are written as typed",
-            $"rankingTraceVersion={RankingEventLog.SchemaVersion.ToString(CultureInfo.InvariantCulture)}",
+            $"rankingTraceVersion={RankingTrace.SchemaVersion.ToString(CultureInfo.InvariantCulture)}",
             $"rankingPolicyVersion={RankPolicy.Version.ToString(CultureInfo.InvariantCulture)}",
             $"searchSessionId={explanation.Session.SearchSessionId}",
             $"pageId={explanation.Page.PageId}",
@@ -33,7 +32,7 @@ internal static class RankingExplanationFormatter
             $"query.variantFlags={explanation.Session.QueryVariantFlags.ToString(CultureInfo.InvariantCulture)}",
             $"result.name={JsonSerializer.Serialize(displayName)}",
             $"result.path={JsonSerializer.Serialize(path)}",
-            $"result.pathHash={RankingEventLog.HashKey(path)}",
+            $"result.pathHash={RankingTrace.HashKey(path)}",
             $"result.finalDisplayedRank={row.FinalDisplayedRank.ToString(CultureInfo.InvariantCulture)}",
             $"result.source={SourceId(row.Source)}",
             $"result.selectionStage={SelectionId(row.SelectionStage)}",

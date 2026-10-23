@@ -18,9 +18,9 @@
 | P9 跨盘与快捷方式检索召回 | 完成 | 多网络索引有界全局排序截断；快捷方式补召回改为主查询之后、且仅在主结果没有 `*.lnk`/`*.url` 时才跑 |
 | P10 文档同步与影子路径收口 | 进行中 | `RankPolicyV3` 委托至线上 `RankPolicy`；P7 之后恒等的影子排名通道已删除；dev-docs 与 7 语种用户文档同步 |
 
-Windows/.NET 10 实测状态（2026-10-23）：分支最初 10 处编译错误，修复后全绿 —— Tests/Core 2285、Tests/App 2328、PinyinAlias 242、CoreExtensions 401、ContentSearch 173，其余 24 个插件工程通过；`dotnet build Lertaro.slnx` 0 警告 0 错误。P10 未做完的部分见文末“仍未闭合”。
+Windows/.NET 10 实测状态（2026-10-24）：移除排序日志后 Tests/Core 2262、Tests/App 2330 通过；`dotnet build Lertaro.slnx` 0 警告 0 错误。PinyinAlias 242、CoreExtensions 401、ContentSearch 173 在本次改动前通过，本次未触及这些工程。P10 未做完的部分见文末“仍未闭合”。
 
-P0 fixture：`Tests/Core/SearchRanking/Fixtures/reported-search-cases.v1.json`，P6 回放套件：`Tests/Core/SearchRanking/Fixtures/ranking-shadow-v3-cases.v1.json`（基线 `ranking-replay-cases.v1.json`，冻结的 V2 与离线策略在 `OfflineRankingPolicies.cs`）。当前 ranking-event schema 4；旧 schema 行缺失的字段读作 Unknown/null。P7 后干净（`IsStrong`）的次要别名与单结果本地用户别名进入 `SecondaryField` 并展示来源副标题，零散子序列仍仅保留在 `ShadowAliasGate` 观测通道。P8 的 learned alias 只走 canonical exact lookup；完整窗口不设历史配额（产品决定，见文末）。
+P0 fixture：`Tests/Core/SearchRanking/Fixtures/reported-search-cases.v1.json`，P6 回放套件：`Tests/Core/SearchRanking/Fixtures/ranking-shadow-v3-cases.v1.json`（基线 `ranking-replay-cases.v1.json`，冻结的 V2 与离线策略在 `OfflineRankingPolicies.cs`）。当前 trace schema 4；导出文本只由本次搜索的内存 trace 生成，不读取旧文件。P7 后干净（`IsStrong`）的次要别名与单结果本地用户别名进入 `SecondaryField` 并展示来源副标题，零散子序列仍仅保留在 `ShadowAliasGate` 观测通道。P8 的 learned alias 只走 canonical exact lookup；完整窗口不设历史配额（产品决定，见文末）。
 
 ## 目标与约束
 
@@ -33,7 +33,7 @@ P0 fixture：`Tests/Core/SearchRanking/Fixtures/reported-search-cases.v1.json`�
 5. **拼音空格近似不变**：纯拼音词边界加空格或去空格时，目标都能召回、证据等级相同，受控集名次差不超过 1。
 6. **召回与排序分开**：期望项不在排序前候选集时，修 provider/index/budget，不调终局权重。
 7. **两窗共享证据**：移除快速窗口独有偏好后，同一候选的证据与两两顺序一致。
-8. **证据可展示**：普通文本、拼音和 alias 召回使用同一个已验收 witness 完成判定、高亮和日志。
+8. **证据可展示**：普通文本、拼音和 alias 召回使用同一个已验收 witness 完成判定、高亮和导出说明。
 
 当前 `S = 10C + 8P` 本身是一张可解释的离散查表：它明确让 Normal+强（18）高于 High+弱（16）。问题不在“线性”二字，而在把类型序数、二值文本等级、规则档和有偏点击继续放入同一可加尺度。下一版先建立证据等级，再在等级内校准偏好。
 
@@ -81,7 +81,7 @@ CandidateIdentity
 
 | Grade | 定义 | 例子 |
 | --- | --- | --- |
-| 0 ExactIdentity | 规范化查询等于标题/文件茎；或常用 joined 拼音从 0 覆盖完整词干 | `sousuo jieguo` → `搜索结果.lnk` |
+| 0 ExactIdentity | 规范化查询等于文件/应用标题或文件茎；或常用 joined 拼音从 0 覆盖完整词干。目录不算身份，精确同名目录降为 Grade 1 | `sousuo jieguo` → `搜索结果.lnk` |
 | 1 DirectStrong | 全部正词在显示标题/文件名形成连续的 whole/word-start/inside 命中 | `jieguo` → `搜索结果` |
 | 2 DirectApproximate | 名字上全部词成立，但为散点、低覆盖、模糊或生僻读音 | 长名弱散点 |
 | 3 SecondaryField | 可信 alias、target stem、provider keyword 或父路径解释全部词 | `电报` → Telegram |
@@ -111,6 +111,7 @@ Section
 
 - TypeRank 是 ordinal key，不再映射为 `16/8/4/1`。
 - 类型偏好在**同一 Grade 内**对所有等级生效（2026-10-23 用户裁决）：Grade 仍是第一优先级，强匹配文件不会被弱匹配应用越过；但 `DirectApproximate` 不再把类型置中性，近似行也按类型成组。
+- 目录是容器而非身份：精确同名目录不占 `ExactIdentity`，降为 `DirectStrong`。这样同一 Grade 内配置的类型顺序可以把 `PowerShell 7 (x64).lnk` 排在 `F:\Documents\PowerShell` 之前，而不会让目录仅凭“精确同名”越过所有应用。
 - H5/H3 只在同 Grade 内细排，不生成跨 Grade 的 34/22 分。
 - learned alias 独立在最后；没有直接结果时仍可成为首项。
 - AlwaysTop 保留显式越级；Low 保留显式降级。
@@ -155,20 +156,20 @@ mustAppearBefore / mustBeTopK / mustBeAbsent
 
 现行产物：
 
-- 每个快速查询一个 `searchSessionId/querySeq`，每个组合页一个 `pageId`；
-- UI 行携带 `pageId + finalDisplayedRank`，open 直接使用该 impression；
-- 分开记录 engine/filter/merge/prefix/type-coverage/token/final-cap；
+- 每个快速查询一个 `searchSessionId/querySeq`，每个组合页一个 `pageId`（仅内存）；
+- UI 行携带 `pageId + finalDisplayedRank`，供整页导出时写进说明；
+- 说明中带 engine/filter/merge/prefix/type-coverage/token/final-cap 计数；
 - 来源 flags、drop stage、provider readiness 与原始 provider hit 数；
-- invariant key/value formatter 和“复制排序解释”；
-- schema 4 writer、兼容 reader、10 MiB × 3、30 天保留、5 秒邻接页折叠、fail-open。
+- invariant key/value formatter 和“导出本页排序详情”；
+- 不写 JSONL、不保留历史日志；只有用户主动导出时才落盘明文。
 
-P1 只增加观测，不改变候选、排序、截断或打开。已完成 C# 语法树、翻译 JSON、隐私字段和 diff 检查；当前环境无 .NET SDK，MSTest 尚未运行。
+P1 只增加观测，不改变候选、排序、截断或打开。导出开关默认开启，关闭后不构建解释。
 
 ### P2：候选录制与离线回放器 — 完成
 
 `Tests/Core/SearchRanking/` 包含脱敏 `RankingCase`/`CandidateSnapshot`、P0 loader、V2 与后续策略共用的回放接口，以及 Recall@K、MRR、nDCG、pairwise inversion 和 target rank delta。受控 fixture 覆盖普通 `.lnk`、AppData 下的 PixPin 快捷方式、direct history 和 learned alias；路径均为 `X:\Fixture\...`。
 
-V2 基线见 `Tests/Core/SearchRanking/Baselines/v2-baseline.md`。PixPin 当前排为 folder → exe → shortcut：AppData 的默认 Low 规则先把快捷方式放进 Low 段，类型 bonus 无法跨段。指标用手算单相关项验证，并固定枚举顺序无关、比较器反对称和传递测试。当前环境无 .NET SDK，MSTest 尚未运行。
+V2 基线见 `Tests/Core/SearchRanking/Baselines/v2-baseline.md`。PixPin 当前排为 folder → exe → shortcut：AppData 的默认 Low 规则先把快捷方式放进 Low 段，类型 bonus 无法跨段。指标用手算单相关项验证，并固定枚举顺序无关、比较器反对称和传递测试。Windows/.NET 10 已运行 Core MSTest；无 SDK 的环境只能把该段数字当契约，不能当实测结果。
 
 退出：后续阶段必须对同一候选集同时报告 V2 与候选策略，不能用权重修改掩盖召回缺失。
 
@@ -178,7 +179,7 @@ V2 基线见 `Tests/Core/SearchRanking/Baselines/v2-baseline.md`。PixPin 当前
 
 P3 提交时 matcher 只返回 `MatchRank`，所以普通文本、拼音和 provider alias 的 accepted branch、provider id 与 spans 当时都保持 `LegacyUnknown/-1`；history-only 行因来源明确可记为 `LearnedAlias`。P4 只补上可证明的 joined 拼音 witness，其余分支仍不得从 tier 或高亮结果反推。
 
-退出：schema 4、reader 和复制解释能显示已知 Field/Grade/Kind，旧行读作 Unknown；影子字段差异不改变 V2 顺序。
+退出：schema 4、导出 formatter 能显示已知 Field/Grade/Kind；影子字段差异不改变 V2 顺序。
 
 ### P4：拼音空格等价 — 完成
 
@@ -188,31 +189,31 @@ original 多词与 joined 单词在同一 scorer 中竞争。有字面词时，j
 
 Core fake-provider 测试覆盖资格、strict winner、跨 provider、枚举顺序、操作符、非 ASCII 与 64 字符；真实 provider 的 snapshot/delta 测试覆盖 `sousuojieguo`、`sousuo jieguo`、`sou suo jie guo` 的召回、Grade、`MatchRank`、高亮和受控 target rank delta，并在 fuzzy 开关两态核对反序、`visual studio`、`fast stone` 与含 `-` 的候选。普通多词仍走原分支，单 token 不跨候选分隔符。
 
-当前环境无 .NET SDK，尚未运行 Core/PinyinAlias/App MSTest，也无法记录 Windows 同机 p95；合入门槛仍是 p95 不超过基线 110%。
+Windows/.NET 10 已跑 Core/PinyinAlias/App MSTest；端到端 p95 按 2026-10-23 决策放弃测量，合入门槛仍未闭合（见文末“仍未闭合”第 1 条）。
 
 ### P5：应用与快捷方式身份
 
 1. 用 `KindFlags` 表示 File/Shortcut/Application；`.exe` 不自动升级。
 2. shortcut 的 `SearchTitle` 去已知扩展名，执行路径不变。
-3. provider `Aliases/Keywords` 成为带 provenance 的 Grade 3 evidence。
+3. provider `Aliases` 成为带 provenance 的 Grade 3 evidence；`Keywords` 的干净前缀命中按 `ExactIdentity` 参与类型顺序（2026-10-24 决策，当前用于系统设置）。
 4. 开始菜单 provider 在加载时缓存受控 alias：标题、target exe stem、package/product metadata；按键热路径不做 COM 或文件解析。
 5. 新 target/user alias 在 V3 切换前只进 shadow 候选；现有 provider keyword 保持 V2 行为。
 6. 合并行保留 Application 执行委托、File 规则/质量、收藏和历史。
 7. provider readiness 变化应重跑当前查询。
 8. 只有 trace 证明 recall 失败时才把 source top-K 交给 P9。
-9. 若可信 metadata 仍不能召回 `db` 目标，再提供单结果本地用户别名；不引入全局同义词库。
+9. 不再提供用户别名的设置入口（2026-10-24 产品决定）；已有用户别名数据仍参与匹配，不引入全局同义词库。
 
 退出：身份与标题 case 通过；可信 alias 的 shadow Recall 达标；无关 `.exe` 不升级。
 
-现行实现把 `SearchableItemAlias` 限为 `Curated/ShortcutTarget/ProductMetadata/User` 四种来源。host 在 provider 后台加载时去空白、按文本去重，并限制为每项 32 条、每条 128 字符。Start Menu provider 在同一加载阶段读取 shortcut target stem、PE product/description/original filename 或 package name；查询线程只读快照。受控 shadow Recall 用 5 个冷启动 alias case 固定为 5/5，另有非 executable target、package path、`.exe` identity 和合并信号回归；本容器无 .NET SDK，数字是测试契约而非已运行结果。
+现行实现把 `SearchableItemAlias` 限为 `Curated/ShortcutTarget/ProductMetadata/User` 四种来源。host 在 provider 后台加载时去空白、按文本去重，并限制为每项 32 条、每条 128 字符。Start Menu provider 在同一加载阶段读取 shortcut target stem、PE product/description/original filename 或 package name；查询线程只读快照。受控 shadow Recall 用 5 个冷启动 alias case 固定为 5/5，另有非 executable target、package path、`.exe` identity 和合并信号回归；Windows/.NET 10 已运行 Core MSTest；无 SDK 的环境只把数字当契约。
 
-alias 仅在 ranking trace 开启时、且标题/既有 provider alias/keyword 均未命中时计算。命中写 schema 4 `ShadowAliasGate` candidate 及 Grade 3（`SecondaryField`）provenance，不进入生产列表。readiness 沿用 `ProviderLoaded` 后 150 ms 合并重查。路径合并继续由 Application 行持有执行对象，同时合并 File 的更强直接文本 `Match`/evidence、路径规则、收藏、历史和来源 flags；learned-history alias 不借给直接行。`SearchTitle` 只去 `.lnk/.url/.appref-ms`；普通文件和 `.exe` 保留扩展名。
+alias 仅在导出开关开启、快速窗口内存 trace 构建时、且标题/既有 provider alias/keyword 均未命中时计算。命中写 schema 4 `ShadowAliasGate` candidate 及 Grade 3（`SecondaryField`）provenance，不进入生产列表。readiness 沿用 `ProviderLoaded` 后 150 ms 合并重查。路径合并继续由 Application 行持有执行对象，同时合并 File 的更强直接文本 `Match`/evidence、路径规则、收藏、历史和来源 flags；learned-history alias 不借给直接行。`SearchTitle` 只去 `.lnk/.url/.appref-ms`；普通文件和 `.exe` 保留扩展名。
 
 ### P6：V3 影子排序
 
 1. 固化 Grade 规则与属性测试。
 2. 建立独立 V3 key，保留 V2 生产路径。
-3. 日志开启时仅用 P3 预计算字段计算 rank delta；不做第二次匹配。
+3. trace 开启时仅用 P3 预计算字段计算 rank delta；不做第二次匹配。
 4. 比较 V2/V3：weak-over-strong inversion 为 0；P0 正例通过；#440 继续 absent；旧集 nDCG 不下降。
 5. 验证全序、路径去重、稳定尾和两窗一致性。
 6. 记录每个争议边界及人工决定。
@@ -296,14 +297,14 @@ P4 与 P5 可并行，但都依赖 P3，且不能提前切换排序。P9 可跳�
 - 快速窗口端到端 p95 ≤ V2 的 110%；
 - 比较期无字符串解析、COM 或文件 I/O；
 - provider alias 在加载期缓存；
-- 日志关闭时新增观测分配接近 0；
+- 导出开关关闭时新增观测分配接近 0；
 - 扩大候选预算必须附扫描量和内存。
 
 隐私：
 
-- 默认日志无原始 query/title/path；
-- fixture 无真实路径和用户名；
-- 复制解释只由用户主动触发，并提示其中包含明文。
+- 默认不写任何排序文件；
+- 用户主动导出时写明其中含明文 query/title/path；
+- fixture 无真实路径和用户名。
 
 ## 阶段任务模板
 
@@ -337,6 +338,7 @@ P4 与 P5 可并行，但都依赖 P3，且不能提前切换排序。P9 可跳�
 10. **完整窗口没有历史配额（已决定）**：快速窗口 H5/H3 限 3/10、内联 1/3，完整窗口不设配额。产品决定优先保证“展开全部”时相关行不被配额藏掉；同分相邻行两窗差一档名次作为已知差异接受，已写入 `search-ranking.md`。
 11. **absence/recall 门槛**：`#440` 已补真实索引/候选生成层 harness（`Tests/Plugins/PinyinAlias/PinyinExactModeTests.cs`，真实 `Snapshot → LiveIndex → IndexV2Searcher`）：精确 `zbl` 只召回 11 字符紧凑行、不召回 15 字符松散布。这不是通过终局排序过滤得到的，而是候选层本身的行为。其余 case 的 `mustBeAbsent` 仍只检查回放 run 的已排序候选 token，`MissingExpectedTokens` 因 loader 要求 expected token 必须是候选而恒为 0；Recall@50=100% 仍不能由离线回放单独背书。
 12. **`#440` 紧凑正例（已闭合，未放宽）**：`zbl` 对 11 字符紧凑名在 `AliasMatchRules.IsTightOccurrence(3, 11)` 为真；精确模式下字面 `FzfPattern.TryMatch` 因连字符不连续而失败，但共享 alias 门接受该 11 字符 span（实测 score 72，门槛 `queryLen * 5 = 15`），`FuzzyMatcher.IsMatch` 在真实 pinyin provider 下为真。原“被分数门槛拒掉”的判断不成立，因此没有改阈值；真实索引测试 `Reported440_RealIndexCandidateLayerKeepsOnlyTheTightAlias` 已钉住该行为。
+13. **系统设置 `Keyword` 前缀（已决定 2026-10-24）**：`SearchableItemMapper` 的 Control Panel 关键词兜底原先产出 `Keyword / SecondaryField` 和 `ShapeScattered / coverage=0`，导致 `env` 只命中 `envvar` 前缀时被 `env.h` 等文件压到 40 名以后。现改为：每个查询词都干净前缀命中声明词时，按最短匹配词计算 coverage，判 `ExactIdentity` 并参与类型顺序；`env` → `envvar` 覆盖 0.5，设置项因此与精确文件同级，再按“设置先于文件”排到文件前。字段仍是 `Keyword` 以保留 provenance；当前只有 `SystemSettingsItemProvider` 提供 `Keywords`，其他 provider 若启用需先确认同义词质量。
 
 ## 关键位置
 
@@ -351,4 +353,4 @@ P4 与 P5 可并行，但都依赖 P3，且不能提前切换排序。P9 可跳�
 | 拼音 | `Core/IndexV2/Search/PinyinNameEvaluator.cs`、`Plugins/PinyinAlias/PinyinTermMatcher.cs` |
 | 高亮 | `Core/SearchIndex/HighlightMask.cs` |
 | 引擎截断 | `Core/SearchIndex/SearchCandidateComparer.cs` |
-| schema 4 trace | `Core/SearchIndex/RankingEventLog.cs`、`RankingTraceModels.cs`、`App/ViewModels/Search/Mapping/QuickSearchRankingTrace.cs` |
+| schema 4 trace | `Core/SearchIndex/RankingTrace.cs`、`RankingTraceModels.cs`、`App/ViewModels/Search/Mapping/QuickSearchRankingTrace.cs` |

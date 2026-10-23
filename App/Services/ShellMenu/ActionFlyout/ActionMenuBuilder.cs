@@ -5,7 +5,6 @@ using Lertaro.App.Services.Plugin;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services.PluginManagerCore;
 using Lertaro.App.ViewModels.Settings.Plugins;
-using Lertaro.Core.SearchIndex;
 namespace Lertaro.App.Services.ShellMenu.ActionFlyout;
 
 internal static class ActionMenuBuilder
@@ -138,115 +137,7 @@ internal static class ActionMenuBuilder
             }
         }
 
-        AddRankingExplanationAction(uiItems, selection, builtinLabel, itemHeight, headerHeight);
         return uiItems;
-    }
-
-    private static void AddRankingExplanationAction(
-        List<ActionMenuItem> items,
-        IReadOnlyList<AppSearchResult> selection,
-        string builtinLabel,
-        double itemHeight,
-        double headerHeight)
-    {
-        if (selection.Count != 1 || selection[0].RankingExplanation is null)
-            return;
-
-        var result = selection[0];
-        var insertAt = -1;
-        for (var i = 0; i < items.Count; i++)
-        {
-            if (!items[i].IsSectionHeader || items[i].SectionGroupId != BuildStaticGroupId(builtinLabel, builtinLabel))
-                continue;
-            insertAt = i + 1;
-            while (insertAt < items.Count && !items[insertAt].IsSectionHeader)
-                insertAt++;
-            break;
-        }
-
-        if (insertAt < 0)
-        {
-            items.Add(new ActionMenuItem
-            {
-                IsSectionHeader = true,
-                SectionTitle = builtinLabel,
-                SectionGroupId = BuildStaticGroupId(builtinLabel, builtinLabel),
-                ItemHeight = headerHeight
-            });
-            insertAt = items.Count;
-        }
-
-        items.Insert(insertAt, new ActionMenuItem
-        {
-            Text = TranslationManager.Instance["Action_CopyRankingExplanation"],
-            ItemHeight = itemHeight,
-            OnExecute = () =>
-            {
-                try
-                {
-                    if (result.RankingExplanation is { } explanation)
-                    {
-                        System.Windows.Clipboard.SetText(RankingExplanationFormatter.Format(
-                            explanation,
-                            result.SearchQuery,
-                            result.Name,
-                            result.FullPath));
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Core.Logger.Log($"[RankingTrace] Failed to copy ranking explanation: {ex.Message}", Core.LogLevel.Warn);
-                }
-            }
-        });
-        insertAt++;
-
-        AddUserAliasActions(items, ref insertAt, result, itemHeight);
-    }
-
-    private static void AddUserAliasActions(
-        List<ActionMenuItem> items,
-        ref int insertAt,
-        AppSearchResult result,
-        double itemHeight)
-    {
-        if (result.IsEmptyResult || result.IsInstantResult || result.IsPluginSearchAction
-            || string.IsNullOrWhiteSpace(result.FullPath)
-            || result.FullPath.StartsWith("__SEARCHABLE_ITEM__:", StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        var trimmedQuery = result.SearchQuery?.Trim() ?? string.Empty;
-        if (trimmedQuery.Length > 0 && !string.Equals(trimmedQuery, result.Name, StringComparison.OrdinalIgnoreCase))
-        {
-            items.Insert(insertAt++, new ActionMenuItem
-            {
-                Text = string.Format(TranslationManager.Instance["Action_BindQueryAsUserAlias"], trimmedQuery),
-                ItemHeight = itemHeight,
-                OnExecute = () =>
-                {
-                    var settings = Core.UserSettings.Load();
-                    if (settings.AddUserAlias(result.FullPath, trimmedQuery))
-                        settings.Save();
-                }
-            });
-        }
-
-        if (Core.UserSettings.Load().GetUserAliases(result.FullPath).Count > 0)
-        {
-            items.Insert(insertAt++, new ActionMenuItem
-            {
-                Text = TranslationManager.Instance["Action_ClearUserAliases"],
-                ItemHeight = itemHeight,
-                OnExecute = () =>
-                {
-                    var settings = Core.UserSettings.Load();
-                    if (settings.ClearUserAliases(result.FullPath))
-                        settings.Save();
-                }
-            });
-        }
     }
 
     // Builds the dynamic-provider items (shell context menu, etc). This can be slow (loading shell

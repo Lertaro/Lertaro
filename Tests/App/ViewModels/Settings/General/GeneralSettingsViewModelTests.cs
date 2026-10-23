@@ -127,19 +127,19 @@ public sealed class GeneralSettingsViewModelTests
     // Apply() is deliberately not called from these: it ends in UserSettings.Save(), which would overwrite
     // this machine's real configuration. GeneralSettingsApplier's assignment is covered by review.
     [TestMethod]
-    public void Constructor_ReadsRankingEventLogSwitch()
+    public void Constructor_ReadsRankingDetailsExportSwitch_DefaultingToOn()
     {
-        Assert.IsTrue(new GeneralSettingsViewModel(new UserSettings()).EnableRankingEventLog);
-        Assert.IsFalse(new GeneralSettingsViewModel(new UserSettings { EnableRankingEventLog = false }).EnableRankingEventLog);
+        Assert.IsTrue(new GeneralSettingsViewModel(new UserSettings()).EnableRankingDetailsExport);
+        Assert.IsFalse(new GeneralSettingsViewModel(new UserSettings { EnableRankingDetailsExport = false }).EnableRankingDetailsExport);
     }
 
     [TestMethod]
-    public void RankingEventLogSwitch_SetterRoundTrips()
+    public void RankingDetailsExportSwitch_SetterRoundTrips()
     {
-        var vm = new GeneralSettingsViewModel(new UserSettings { EnableRankingEventLog = false });
+        var vm = new GeneralSettingsViewModel(new UserSettings { EnableRankingDetailsExport = false });
 
-        vm.EnableRankingEventLog = true;
+        vm.EnableRankingDetailsExport = true;
 
-        Assert.IsTrue(vm.EnableRankingEventLog);
+        Assert.IsTrue(vm.EnableRankingDetailsExport);
     }
 }

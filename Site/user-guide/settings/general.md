@@ -38,7 +38,7 @@ Fine-tunes the dimensions, layout, and priority rankings of the centered floatin
 
 - **Priority Sorting List**: Drag or move items (Applications, System Settings, Files, Plugin Extensions) to decide which types come first **among similarly relevant direct matches** without overriding stronger exact matches.
 - **Exclusive Single-Character Trigger**: Assign a dedicated character prefix (e.g. `;` for File Filters) to restrict searches exclusively to that type when typed at the start of a query.
-- **Ranking Diagnostics & Per-Result Aliases**: In any search window, open the context action menu (`Ctrl+O`) to **Copy Ranking Explanation** or **Bind/Clear Search Aliases** for that specific item.
+- **Ranking Details Export**: In the quick window, right-click any result and choose **Export This Page's Ranking Details** to write one plaintext file for the whole displayed page. Nothing is logged in the background. The action is shown while **Enable ranking details export** is on (default).
 
 ## 3. Full Search Window
 

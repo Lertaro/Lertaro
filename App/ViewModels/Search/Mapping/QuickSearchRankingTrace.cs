@@ -12,7 +12,7 @@ internal sealed class QuickSearchRankingTrace
 
     internal QuickSearchRankingTrace(string rawQuery, string canonicalQuery)
     {
-        _session = RankingEventLog.BeginSession(rawQuery, canonicalQuery, RankingTraceWindow.Quick);
+        _session = RankingTrace.BeginSession(rawQuery, canonicalQuery, RankingTraceWindow.Quick);
     }
 
     internal RankingLogSession Session => _session;
@@ -63,7 +63,6 @@ internal sealed class QuickSearchRankingTrace
         {
             if (!IsTraceableResult(result))
                 continue;
-            result.RankingImpression = null;
             result.RankingExplanation = null;
         }
 
@@ -139,15 +138,11 @@ internal sealed class QuickSearchRankingTrace
             snapshot.Providers,
             snapshot.TypeOrder,
             isFinal);
-        var stamp = RankingEventLog.RecordPage(trace);
-        if (stamp is not { } page)
-            return;
-
+        var page = RankingTrace.ComposePage(trace);
         for (var i = 0; i < displayObjects.Count; i++)
         {
             var result = displayObjects[i];
             var row = displayEvents[i];
-            result.RankingImpression = new RankingImpression(page, row.FinalDisplayedRank);
             result.RankingExplanation = new RankingExplanation(_session, page, counts, row);
         }
     }

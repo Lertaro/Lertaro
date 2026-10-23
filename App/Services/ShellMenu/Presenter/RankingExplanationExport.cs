@@ -8,7 +8,8 @@ namespace Lertaro.App.Services.ShellMenu.Presenter;
 
 /// <summary>
 /// Exports the ranking explanation of every displayed quick-window result to one plaintext file.
-/// The single-row Copy action remains the primary path; this is for bug reports that need the whole page.
+/// This is the only way ranking data leaves the app: nothing is written to disk until the user chooses
+/// a path here.
 /// </summary>
 internal static class RankingExplanationExport
 {
@@ -16,7 +17,7 @@ internal static class RankingExplanationExport
     {
         var blocks = new List<string>(results.Count + 1)
         {
-            // Same warning as the single-row copy: this text is deliberately not hashed.
+            // This text is deliberately not hashed: it is the user's explicit bug-report attachment.
             "# plaintext: the query, display names and paths below are written as typed",
             "# Lertaro quick-window ranking details",
             $"window=quick",
