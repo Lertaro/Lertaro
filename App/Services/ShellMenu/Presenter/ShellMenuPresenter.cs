@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Input;
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Abstractions.Plugins;
+using Lertaro.App.Services;
 using Lertaro.App.Services.AppWindow;
 using Lertaro.App.Services.Plugin;
 using Lertaro.App.Services.ShellMenu.ActionFlyout;
@@ -138,7 +139,7 @@ public class ShellMenuPresenter : IDisposable
         _view.TxtActionsTarget.Text = Path.GetFileName(result.FullPath) + (items.Count > 1 ? $" (+{items.Count - 1})" : string.Empty);
 
         var generation = ++_actionsGeneration;
-        _currentRawItems = ActionMenuBuilder.FinalizeItems(ActionMenuBuilder.BuildStatic(_activeResults, GetWindowType()));
+        _currentRawItems = ActionMenuBuilder.FinalizeItems(BuildStaticItems());
         var actionSearch = GetActionSearchTextBox();
         actionSearch.Clear();
         ApplyFilter(string.Empty);
@@ -184,7 +185,7 @@ public class ShellMenuPresenter : IDisposable
 
                 // Rebuild the static part on the UI thread (its vector icons may not be frozen) and
                 // append the dynamic items; re-render while preserving the current filter/selection.
-                var merged = ActionMenuBuilder.BuildStatic(_activeResults, GetWindowType());
+                var merged = BuildStaticItems();
                 merged.AddRange(dynamicItems);
                 _currentRawItems = ActionMenuBuilder.FinalizeItems(merged);
                 ApplyFilter(GetActionSearchTextBox().Text, preserveSelection: true);
@@ -274,6 +275,67 @@ public class ShellMenuPresenter : IDisposable
         _view.UsesFloatingActionsMenu ? _view.ActionsSearchTextBox : _view.SearchTextBox;
 
     public void Dispose() { foreach (var provider in PluginManager.Instance.DynamicActionProviders) PluginPerformanceMonitor.Measure(provider, provider.ClearSession); }
+
+    private List<ActionMenuItem> BuildStaticItems()
+    {
+        var items = ActionMenuBuilder.BuildStatic(_activeResults, GetWindowType());
+        AddExportRankingDetailsAction(items);
+        return items;
+    }
+
+    // The single-row Copy action lives in ActionMenuBuilder, which only sees the selection. A page
+    // export needs every displayed row, which only the presenter's view exposes, so it is appended here.
+    private void AddExportRankingDetailsAction(List<ActionMenuItem> items)
+    {
+        if (GetWindowType() != SearchWindowType.Quick)
+            return;
+
+        var results = _view.LstResults.Items
+            .OfType<AppSearchResult>()
+            .Where(result => !result.IsSearchSectionHeader && !result.IsEmptyResult)
+            .ToList();
+        if (results.Count == 0 || !results.Exists(result => result.RankingExplanation != null))
+            return;
+
+        var itemHeight = Math.Round(UiMetrics.ListItemHeight * UiMetrics.ActionMenuCompactRowScale);
+        var builtinLabel = TranslationManager.Instance["Action_BuiltinGroup"];
+        var insertAt = FindBuiltinSectionEnd(items, builtinLabel);
+        if (insertAt < 0)
+        {
+            items.Add(new ActionMenuItem
+            {
+                IsSectionHeader = true,
+                SectionTitle = builtinLabel,
+                SectionGroupId = ActionMenuBuilder.BuildStaticGroupId(builtinLabel, builtinLabel),
+                ItemHeight = itemHeight,
+            });
+            insertAt = items.Count;
+        }
+
+        items.Insert(insertAt, new ActionMenuItem
+        {
+            Text = TranslationManager.Instance["Action_ExportRankingDetails"],
+            ItemHeight = itemHeight,
+            OnExecute = () => RankingExplanationExport.Export(results, _savedSearchQuery, Window.GetWindow(_view.LstResults)),
+        });
+    }
+
+    private static int FindBuiltinSectionEnd(List<ActionMenuItem> items, string builtinLabel)
+    {
+        var groupId = ActionMenuBuilder.BuildStaticGroupId(builtinLabel, builtinLabel);
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (!items[i].IsSectionHeader || items[i].SectionGroupId != groupId)
+                continue;
+
+            var end = i + 1;
+            while (end < items.Count && !items[end].IsSectionHeader)
+                end++;
+            return end;
+        }
+
+        return -1;
+    }
 
     private SearchWindowType GetWindowType() =>
         _view.GetType().Name switch

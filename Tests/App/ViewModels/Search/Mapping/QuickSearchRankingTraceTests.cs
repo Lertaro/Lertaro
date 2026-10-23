@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using Lertaro.App.Services.ShellMenu.Presenter;
 using Lertaro.App.ViewModels.Search.Mapping;
 using Lertaro.Core.SearchIndex;
 
@@ -171,6 +172,32 @@ public sealed class QuickSearchRankingTraceTests
             candidates[RankingEventLog.HashKey(filtered.NormalizedPath)]);
         Assert.AreEqual((int)RankingDropStage.FinalDisplayCap,
             candidates[RankingEventLog.HashKey(capped.NormalizedPath)]);
+    }
+
+    [TestMethod]
+    public void BuildText_IncludesEveryDisplayedExplanation()
+    {
+        var first = Candidate(@"D:\first.txt", "first");
+        var second = Candidate(@"D:\second.txt", "second");
+        var ordered = RankedCandidateOrdering.OrderWithTrace([first, second], null, out var pass);
+        var mapperOutput = ordered.Select(candidate => candidate.Result).ToList();
+        var trace = new QuickSearchRankingTrace("raw", "raw");
+        trace.RegisterMapperOutput(mapperOutput, new MapperTraceSnapshot(
+            pass,
+            new RankingPageCounts(2, 2, 2, 2, 2, 0, 2, 0),
+            Array.Empty<RankingDroppedCandidate>(),
+            Array.Empty<RankingProviderTrace>(),
+            Array.Empty<string>(),
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)));
+
+        trace.RecordDisplayedPage(mapperOutput, mapperOutput, isFinal: true);
+
+        var text = RankingExplanationExport.BuildText(mapperOutput, "raw");
+
+        StringAssert.Contains(text, "resultCount=2");
+        StringAssert.Contains(text, "result.path=\"D:\\\\first.txt\"");
+        StringAssert.Contains(text, "result.path=\"D:\\\\second.txt\"");
+        Assert.AreEqual(3, text.Split("---").Length, "header plus one block per result");
     }
 
     private static SearchResultMapper.RankedCandidate Candidate(

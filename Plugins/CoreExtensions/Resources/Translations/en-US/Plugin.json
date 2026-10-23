@@ -41,6 +41,7 @@
   "Action_CopyName": "Copy Name",
   "Action_CopyPath": "Copy Path to Clipboard",
   "Action_CopyRankingExplanation": "Copy Ranking Explanation",
+  "Action_ExportRankingDetails": "Export This Page's Ranking Details",
   "Action_Rename": "Rename",
   "Action_Rename_Desc": "Renames the selected file or folder using the Windows Shell.",
   "Action_Rename_DialogTitle": "Rename",

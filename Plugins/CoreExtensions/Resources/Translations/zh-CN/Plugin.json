@@ -41,6 +41,7 @@
   "Action_CopyName": "复制名称",
   "Action_CopyPath": "复制路径至剪贴板",
   "Action_CopyRankingExplanation": "复制排序解释",
+  "Action_ExportRankingDetails": "导出本页排序详情",
   "Action_Rename": "重命名",
   "Action_Rename_Desc": "使用 Windows Shell 重命名选中的文件或文件夹。",
   "Action_Rename_DialogTitle": "重命名",
