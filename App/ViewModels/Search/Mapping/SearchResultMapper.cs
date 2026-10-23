@@ -166,12 +166,13 @@ public static class SearchResultMapper
 
         var historyUsage = RecentUsage();
 
-        // Quick-window-only: the user-orderable result-type order (RankedCandidate.TypeRank) is compared
-        // inside each ranking section, not above it (see RankPolicy.CompareSectionRank): before match
-        // quality everywhere except the low-priority section, where quality comes first. Every file-backed
-        // row (index files, favorites, history, Windows' Recent) starts on FilesTypeRank so those rows stay
-        // one group; a shortcut then borrows the better of that rank and the application type's (below).
-        // The inline window never consults the list at all.
+        // Quick-window-only: the user-orderable result-type order (RankedCandidate.TypeRank) is a
+        // section-local tie-break inside RankPolicy.BuildKey/RankKeyComparer, not a group above the
+        // sections. It follows the evidence grade inside Pinned and Boosted; Low compares it after
+        // quality; HistoryTail compares it before the common tail. Every file-backed row (index files,
+        // favorites, history, Windows' Recent) starts on FilesTypeRank so those rows stay one group; a
+        // shortcut then borrows the better of that rank and the application type's (below). The inline
+        // window never consults the list at all.
         var typeOrder = isInlineWindow ? new List<string>() : UserSettings.Load().ResultTypeOrder;
         var typeRanks = SearchResultTypePriority.BuildRanks(typeOrder);
         var filesTypeRank = SearchResultTypePriority.Rank(SearchResultTypePriority.FilesTypeId, typeRanks);
@@ -216,10 +217,9 @@ public static class SearchResultMapper
         }
 
         // Favorites, history-matched files, searchable items (apps/settings), and remaining file
-        // results all compete on ONE list now: the type grouping first (one hard group per type), then,
-        // inside a type, match quality, then favorites, then history band (5+ opens / 1-4 / none).
-        // History never overrules a better textual match, and quality never outranks a type the user put
-        // earlier.
+        // results all compete on ONE list: section first, then that section's key chain (evidence grade,
+        // preference/type/favorite/priority/history band, quality, common tail). A better evidence grade
+        // never loses to a type order; history only tie-breaks inside the same section and grade.
         var candidates = new List<RankedCandidate>();
         var shadowAliasCandidates = rankingTrace != null
             ? new List<RankedCandidate>()
@@ -281,10 +281,9 @@ public static class SearchResultMapper
                     continue;
 
                 // A favorite is curated by the user regardless of whether it also has USAGE history.
-                // Under the four-section model it competes on its own score: a strong name match makes it
-                // 44, above every history tier; a weak one keeps the ordinary base score, so it cannot
-                // overrule a much better textual match. The type list never applies to it, it only
-                // inherits the Files rank like every other file-backed row.
+                // Under V3 a strong direct match enters Pinned; a weak one stays in Boosted at its
+                // evidence grade, so it cannot overrule a much better textual match. The type list never
+                // applies to it; it only inherits the Files rank like every other file-backed row.
                 var normalizedFavPath = Helpers.FavoritePathResolver.NormalizeForComparison(fav.Path);
                 if (normalizedScopeFolders != null && !InFileFilterScope(normalizedFavPath))
                 {
@@ -639,10 +638,11 @@ public static class SearchResultMapper
     // IsFavorite: an explicit user pick. HistoryCount is how many times the path was opened (0 when not
     // in history), which the kernel only uses when it has no decayed score for the path. TypeRank is the
     // row's position in the user's result-type order (int.MaxValue when the type is not listed); the quick
-    // window adds its type bonus to the C/P score and the display cap keeps a few rows per type, while the
-    // full window has no type layer at all. IsHistoryOnly marks a row that
-    // exists only because a history keyword matched: its name did not match, so the kernel must not treat
-    // the keyword rank as a name match. Which keys these become is RankPolicy's decision, not this type's.
+    // window compares it only inside the section's key chain (neutral for weak evidence) and the display
+    // cap keeps a few rows per type, while the full window has no type layer at all. IsHistoryOnly marks a
+    // row that exists only because a history keyword matched: its name did not match, so the kernel must
+    // not treat the keyword rank as a name match. Which keys these become is RankPolicy's decision, not
+    // this type's.
     internal readonly record struct RankedCandidate(
         AppSearchResult Result,
         bool IsFavorite,

@@ -115,9 +115,8 @@ public sealed class RankAndDedupeTests
     [TestMethod]
     public void RankAndDedupe_FavoriteStrongMatch_BeatsABetterQualityNonFavorite()
     {
-        // 44 is the reward for a favorite that the query really explains, not for the favorite flag alone:
-        // a late start and low coverage is still a whole-word literal hit, so it stays strong and beats a
-        // better-matching ordinary row.
+        // A strong direct match puts a favorite in Pinned, not a score reward: a late start and low
+        // coverage is still a whole-word literal hit, so it beats a better-matching ordinary Boosted row.
         var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
             Candidate(@"C:\favorite", isFavorite: true, start: 5, coverage: 0.3),
@@ -130,8 +129,8 @@ public sealed class RankAndDedupeTests
     [TestMethod]
     public void RankAndDedupe_FavoriteWeakMatch_KeepsTheBaseScore()
     {
-        // The same favorite one notch down: a rare-reading hit is weak, so it scores like any normal row and
-        // the better match wins.
+        // The same favorite one notch down: a rare-reading hit is weak, so it stays in Boosted at
+        // DirectApproximate and the better match wins.
         var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
             Candidate(@"C:\favorite", isFavorite: true, tier: MatchRank.TierFullRare),
@@ -156,7 +155,8 @@ public sealed class RankAndDedupeTests
     [TestMethod]
     public void RankAndDedupe_HistoryH5_BeatsANormalStrongMatch()
     {
-        // H5 scores 34; an ordinary Normal strong match scores 18.
+        // Neither row supplies MatchEvidence, so both resolve to DirectStrong; H5 then wins the
+        // same-grade history tie-break.
         var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
             Candidate(@"C:\often", historyCount: 5, start: 5, coverage: 0.3),
@@ -221,8 +221,9 @@ public sealed class RankAndDedupeTests
     [TestMethod]
     public void RankAndDedupe_FavoriteStrongMatch_BeatsTypeGroupOrder()
     {
-        // The favorite's 44 outranks an application row's 18 before any type order is consulted. "Same score,
-        // then TypeRank" is pinned by RankAndDedupe_TypeGroupDecidesAtEqualScore.
+        // The favorite enters Pinned, so it outranks the application row's Boosted section before any type
+        // order is consulted. "Same grade, then TypeRank" is pinned by
+        // RankAndDedupe_TypeGroupDecidesAtEqualScore.
         var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
             Candidate(@"C:\app", typeRank: 0),
@@ -317,7 +318,7 @@ public sealed class RankAndDedupeTests
     [TestMethod]
     public void RankAndDedupe_PinnedHighPriorityWeak_LeadsAFavorite()
     {
-        // AlwaysTop is a section, not a score: the Pinned rows outrank every Boosted row, favorite 44 included.
+        // AlwaysTop is a section, not a score: Pinned outranks every Boosted row, a favorite pin included.
         var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
             Candidate(@"C:\favorite", isFavorite: true),

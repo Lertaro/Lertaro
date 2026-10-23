@@ -153,7 +153,12 @@ public static class SearchHistoryStore
             list.RemoveRange(SearchHistoryBucketSupport.MaxEntriesPerKeyword, list.Count - SearchHistoryBucketSupport.MaxEntriesPerKeyword);
     }
 
-    /// <summary>Canonical query normalization for learned associations: trims, collapses internal whitespace, and case-folds.</summary>
+    /// <summary>
+    /// Canonical query normalization for learned associations: trims, collapses internal whitespace, and
+    /// case-folds. Then reuses P4's joined-reading qualification: two or more all-letter ASCII terms whose
+    /// concatenation is still a valid term collapse to that joined form, so "sousuo jieguo" and
+    /// "sousuojieguo" are one association key. Anything else keeps its spacing.
+    /// </summary>
     public static string NormalizeAssociationQuery(string? query)
     {
         if (string.IsNullOrWhiteSpace(query))
@@ -178,7 +183,40 @@ public static class SearchHistoryStore
                 prevSpace = false;
             }
         }
-        return sb.ToString();
+
+        return TryJoinAsciiTerms(sb) ?? sb.ToString();
+    }
+
+    // P4's joined branch accepts a query of two or more plain all-letter ASCII terms (2..63 characters
+    // each) and scores the concatenation as an alternative reading. The store must use the same
+    // qualification, or a learned click on one spelling would never be found from the other.
+    private static string? TryJoinAsciiTerms(StringBuilder normalized)
+    {
+        var joined = new StringBuilder(normalized.Length);
+        var tokenLength = 0;
+        var tokenCount = 0;
+        for (var i = 0; i < normalized.Length; i++)
+        {
+            var ch = normalized[i];
+            if (ch == ' ')
+            {
+                if (tokenLength is < 2 or > 63)
+                    return null;
+                tokenCount++;
+                tokenLength = 0;
+                continue;
+            }
+
+            if (ch is < 'a' or > 'z')
+                return null;
+            joined.Append(ch);
+            tokenLength++;
+        }
+
+        if (tokenLength is < 2 or > 63)
+            return null;
+        tokenCount++;
+        return tokenCount >= 2 && joined.Length is >= 2 and <= 63 ? joined.ToString() : null;
     }
 
     internal static Dictionary<string, List<StoredAssociationEntry>> MigrateAssociationsFromLegacyBuckets(
@@ -196,31 +234,62 @@ public static class SearchHistoryStore
 
             foreach (var entry in entries)
             {
-                if (list.Any(existing => existing.Path.Equals(entry.Path, StringComparison.OrdinalIgnoreCase)))
-                    continue;
-
                 // Legacy bucket counts mixed frecency with self-reinforced learned opens: clamp initial
                 // organic count to <= 1 so historical mis-picks drop out until re-confirmed organically.
-                list.Add(new StoredAssociationEntry(
-                    entry.Path,
-                    entry.Kind,
-                    entry.Time,
-                    OrganicOpens: Math.Clamp(entry.Count, 0, 1)));
+                MergeSingleAssociationEntry(
+                    list,
+                    new StoredAssociationEntry(
+                        entry.Path,
+                        entry.Kind,
+                        entry.Time,
+                        OrganicOpens: Math.Clamp(entry.Count, 0, 1)),
+                    sumOpens: false);
             }
 
             // Several legacy keywords fold into one canonical query, and the reader keeps the newest
             // MaxEntriesPerKeyword rows per key. Do the same here, or the surplus is written once and then
             // silently dropped on the next load -- which rows survive must not depend on how the buckets
             // happened to be stored.
-            if (list.Count > SearchHistoryBucketSupport.MaxEntriesPerKeyword)
-            {
-                list.Sort(static (x, y) => y.LastOrganicTime.CompareTo(x.LastOrganicTime));
-                list.RemoveRange(
-                    SearchHistoryBucketSupport.MaxEntriesPerKeyword,
-                    list.Count - SearchHistoryBucketSupport.MaxEntriesPerKeyword);
-            }
+            TrimAssociationList(list);
         }
         return result;
+    }
+
+    private static void MergeSingleAssociationEntry(
+        List<StoredAssociationEntry> list,
+        StoredAssociationEntry entry,
+        bool sumOpens)
+    {
+        var opens = Math.Max(0, entry.OrganicOpens);
+        var index = list.FindIndex(existing =>
+            existing.Path.Equals(entry.Path, StringComparison.OrdinalIgnoreCase));
+        if (index < 0)
+        {
+            list.Add(entry with { OrganicOpens = opens });
+            return;
+        }
+
+        var current = list[index];
+        var mergedOpens = sumOpens
+            ? (int)Math.Min(int.MaxValue, (long)current.OrganicOpens + opens)
+            : Math.Max(current.OrganicOpens, opens);
+        var newest = entry.LastOrganicTime >= current.LastOrganicTime ? entry : current;
+        list[index] = new StoredAssociationEntry(
+            newest.Path,
+            newest.Kind,
+            Math.Max(current.LastOrganicTime, entry.LastOrganicTime),
+            mergedOpens);
+    }
+
+    private static void TrimAssociationList(List<StoredAssociationEntry> list)
+    {
+        list.Sort(static (x, y) => y.LastOrganicTime.CompareTo(x.LastOrganicTime));
+        if (list.Count > SearchHistoryBucketSupport.MaxEntriesPerKeyword)
+        {
+            list.RemoveRange(
+                SearchHistoryBucketSupport.MaxEntriesPerKeyword,
+                list.Count - SearchHistoryBucketSupport.MaxEntriesPerKeyword);
+        }
     }
 
     private static StoredEntry? RemovePathFromAllBuckets(Dictionary<string, List<StoredEntry>> buckets, string path)
@@ -365,11 +434,14 @@ public static class SearchHistoryStore
 
             if (!rebuilt.TryGetValue(canonical, out var list))
                 rebuilt[canonical] = list = new List<StoredAssociationEntry>();
-            if (list.Any(existing => existing.Path.Equals(normalizedPath, StringComparison.OrdinalIgnoreCase)))
-                continue;
-            if (list.Count < SearchHistoryBucketSupport.MaxEntriesPerKeyword)
-                list.Add(new StoredAssociationEntry(normalizedPath, entry.Kind, entry.Time, Math.Max(1, entry.Count)));
+            MergeSingleAssociationEntry(
+                list,
+                new StoredAssociationEntry(normalizedPath, entry.Kind, entry.Time, Math.Max(1, entry.Count)),
+                sumOpens: false);
         }
+
+        foreach (var list in rebuilt.Values)
+            TrimAssociationList(list);
 
         lock (Gate)
         {
@@ -509,11 +581,15 @@ public static class SearchHistoryStore
                 var canonical = NormalizeAssociationQuery(key);
                 if (canonical.Length == 0 || entries.Count == 0)
                     continue;
-                normalized[canonical] = entries
-                    .Select(e => e with { OrganicOpens = Math.Max(0, e.OrganicOpens) })
-                    .OrderByDescending(e => e.LastOrganicTime)
-                    .Take(SearchHistoryBucketSupport.MaxEntriesPerKeyword)
-                    .ToList();
+                if (!normalized.TryGetValue(canonical, out var list))
+                    normalized[canonical] = list = new List<StoredAssociationEntry>();
+
+                // Several on-disk spellings can fold into one canonical key ("sousuo jieguo" and
+                // "sousuojieguo"). Keep every path and add the organic opens: those were separate user
+                // confirmations, so dropping one spelling would lose recall evidence.
+                foreach (var entry in entries)
+                    MergeSingleAssociationEntry(list, entry, sumOpens: true);
+                TrimAssociationList(list);
             }
             return normalized;
         }

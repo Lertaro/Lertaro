@@ -14,13 +14,25 @@ public sealed class HistorySearchCandidateMapperTests
     {
         var entries = new[] { Entry("bcomp", @"C:\Apps\BCompare.exe", HistoryEntryKind.File) };
 
-        var results = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bc"), null, entries, _ => true, _ => false);
+        var results = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bcomp"), null, entries, _ => true, _ => false);
 
         Assert.HasCount(1, results);
         Assert.AreEqual(@"C:\Apps\BCompare.exe", results[0].Result.FullPath);
         Assert.IsTrue(results[0].IsHistoryOnly);
         Assert.IsFalse(results[0].IsFavorite);
         Assert.AreEqual(1, results[0].HistoryCount);
+    }
+
+    [TestMethod]
+    public void Collect_SpacedAndJoinedPinyinAreOneCanonicalQuery()
+    {
+        var entries = new[] { Entry("sousuojieguo", @"C:\Docs\搜索结果.txt", HistoryEntryKind.File) };
+
+        var results = HistorySearchCandidateMapper.Collect(
+            FuzzyQuery.Parse("sousuo jieguo"), null, entries, _ => true, _ => false);
+
+        Assert.HasCount(1, results);
+        Assert.AreEqual(MatchEvidenceGrade.LearnedAlias, results[0].Evidence.Grade);
     }
 
     // A history row is a file path, so it has to carry the caller's Files rank rather than a group of its
@@ -32,7 +44,7 @@ public sealed class HistorySearchCandidateMapperTests
         var entries = new[] { Entry("bcomp", @"C:\Apps\BCompare.exe", HistoryEntryKind.File) };
 
         var results = HistorySearchCandidateMapper.Collect(
-            FuzzyQuery.Parse("bc"), null, entries, _ => true, _ => false, typeRank: 3);
+            FuzzyQuery.Parse("bcomp"), null, entries, _ => true, _ => false, typeRank: 3);
 
         Assert.HasCount(1, results);
         Assert.AreEqual(3, results[0].TypeRank);
@@ -47,7 +59,7 @@ public sealed class HistorySearchCandidateMapperTests
             Entry("bcomp", @"C:\Apps\MoreUsed.exe", HistoryEntryKind.File, count: 5)
         };
 
-        var results = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bc"), null, entries, _ => true, _ => false);
+        var results = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bcomp"), null, entries, _ => true, _ => false);
 
         CollectionAssert.AreEqual(
             new[] { @"C:\Apps\MoreUsed.exe", @"C:\Apps\LessUsed.exe" },
@@ -72,17 +84,18 @@ public sealed class HistorySearchCandidateMapperTests
     }
 
     [TestMethod]
-    public void Collect_HistoryMatchesPreferCountBeforeMatchWeight()
+    public void Collect_ExactKeyword_DoesNotRecallPrefixOnlyEntry()
     {
         var entries = new[]
         {
-            Entry("bc", @"C:\Apps\Exact.exe", HistoryEntryKind.File, count: 1),
-            Entry("bcomp", @"C:\Apps\Frequent.exe", HistoryEntryKind.File, count: 5)
+            Entry("bc", @"C:\Apps\PrefixOnly.exe", HistoryEntryKind.File, count: 5),
+            Entry("bcomp", @"C:\Apps\BCompare.exe", HistoryEntryKind.File, count: 1)
         };
 
-        var results = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bc"), null, entries, _ => true, _ => false);
+        var results = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bcomp"), null, entries, _ => true, _ => false);
 
-        Assert.AreEqual(@"C:\Apps\Frequent.exe", results[0].Result.FullPath);
+        Assert.HasCount(1, results);
+        Assert.AreEqual(@"C:\Apps\BCompare.exe", results[0].Result.FullPath);
     }
 
     [TestMethod]
@@ -100,7 +113,7 @@ public sealed class HistorySearchCandidateMapperTests
     {
         var entries = new[] { Entry("bcomp", @"C:\Apps\BCompare.exe", HistoryEntryKind.File) };
 
-        var results = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bc"), null, entries, _ => false, _ => false);
+        var results = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bcomp"), null, entries, _ => false, _ => false);
 
         Assert.IsEmpty(results);
     }
@@ -110,7 +123,7 @@ public sealed class HistorySearchCandidateMapperTests
     {
         var entries = new[] { Entry("proj", @"C:\Work\Project", HistoryEntryKind.Folder) };
 
-        var results = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("pro"), null, entries, _ => false, _ => true);
+        var results = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("proj"), null, entries, _ => false, _ => true);
 
         Assert.HasCount(1, results);
         Assert.IsTrue(results[0].Result.IsDir);
@@ -122,7 +135,7 @@ public sealed class HistorySearchCandidateMapperTests
     {
         var entries = new[] { Entry("word", @"C:\Apps\Word.lnk", HistoryEntryKind.Application) };
 
-        var results = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("wo"), null, entries, _ => true, _ => false);
+        var results = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("word"), null, entries, _ => true, _ => false);
 
         Assert.HasCount(1, results);
         Assert.AreEqual("Word", results[0].Result.Name);
@@ -153,7 +166,7 @@ public sealed class HistorySearchCandidateMapperTests
     {
         var entries = new[] { Entry("bcomp", @"D:\Apps\BCompare.exe", HistoryEntryKind.File) };
 
-        var results = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bc"), @"C:\Work", entries, _ => true, _ => false);
+        var results = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bcomp"), @"C:\Work", entries, _ => true, _ => false);
 
         Assert.IsEmpty(results);
     }
@@ -174,10 +187,10 @@ public sealed class HistorySearchCandidateMapperTests
         var entries = new[]
         {
             Entry("bcomp", @"C:\Apps\BCompare.exe", HistoryEntryKind.File),
-            Entry("bcompare", @"C:\Apps\BCompare.exe", HistoryEntryKind.File)
+            Entry("BCOMP", @"C:\Apps\BCompare.exe", HistoryEntryKind.File)
         };
 
-        var results = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bc"), null, entries, _ => true, _ => false);
+        var results = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bcomp"), null, entries, _ => true, _ => false);
 
         Assert.HasCount(1, results);
     }
@@ -185,7 +198,7 @@ public sealed class HistorySearchCandidateMapperTests
     [TestMethod]
     public void MergeRows_LearnedMatchesLeadAndDuplicateOrdinaryRowsAreRemoved()
     {
-        var learned = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bc"),
+        var learned = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bcomp"),
             @"C:\Work",
             new[] { Entry("bcomp", @"C:\Work\BCompare.exe", HistoryEntryKind.File) },
             _ => true,
@@ -238,7 +251,7 @@ public sealed class HistorySearchCandidateMapperTests
     {
         var entries = new[] { Entry("report", @"\\remote-server\share\report.docx", HistoryEntryKind.File) };
 
-        var results = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("rep"), null, entries, _ => true, _ => false);
+        var results = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("report"), null, entries, _ => true, _ => false);
 
         Assert.HasCount(1, results);
         Assert.AreEqual(@"\\remote-server\share\report.docx", results[0].Result.FullPath);
@@ -295,13 +308,13 @@ public sealed class HistorySearchCandidateMapperTests
         {
             var entries = new[] { Entry("bcomp", path, HistoryEntryKind.File) };
 
-            var visible = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bc"), null, entries,
+            var visible = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bcomp"), null, entries,
                 File.Exists, Directory.Exists);
             Assert.HasCount(1, visible, "the control: the same row while the file is not hidden");
 
             File.SetAttributes(path, FileAttributes.Hidden);
 
-            Assert.IsEmpty(HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bc"), null, entries,
+            Assert.IsEmpty(HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse("bcomp"), null, entries,
                 File.Exists, Directory.Exists));
         }
         finally

@@ -3,11 +3,18 @@ using Lertaro.Core.SearchIndex;
 
 namespace Lertaro.Core.Tests.SearchRanking;
 
+internal sealed record ReportedCorpusRow(
+    string Token,
+    string DisplayName,
+    string Role,
+    bool? ExpectedAcceptanceBySharedTightnessGate);
+
 internal sealed record ReportedCaseSummary(
     string Id,
     string Window,
     IReadOnlyList<string?> Queries,
-    IReadOnlyList<string> SyntheticPaths);
+    IReadOnlyList<string> SyntheticPaths,
+    IReadOnlyList<ReportedCorpusRow> Corpus);
 
 internal static class RankingCaseFixtureLoader
 {
@@ -22,14 +29,23 @@ internal static class RankingCaseFixtureLoader
             var queries = Required(item, "queryVariants").EnumerateArray()
                 .Select(query => OptionalString(query, "raw"))
                 .ToArray();
-            var paths = Required(item, "corpus").EnumerateArray()
+            var corpusElements = Required(item, "corpus").EnumerateArray().ToArray();
+            var paths = corpusElements
                 .Select(candidate => RequiredString(candidate, "syntheticPath"))
+                .ToArray();
+            var corpus = corpusElements
+                .Select(candidate => new ReportedCorpusRow(
+                    RequiredString(candidate, "token"),
+                    RequiredString(candidate, "displayName"),
+                    RequiredString(candidate, "role"),
+                    OptionalNullableBool(candidate, "expectedAcceptanceBySharedTightnessGate")))
                 .ToArray();
             cases.Add(new ReportedCaseSummary(
                 RequiredString(item, "id"),
                 RequiredString(item, "window"),
                 queries,
-                paths));
+                paths,
+                corpus));
         }
         return cases;
     }
@@ -196,6 +212,9 @@ internal static class RankingCaseFixtureLoader
 
     private static bool OptionalBool(JsonElement parent, string name) =>
         parent.TryGetProperty(name, out var value) && value.GetBoolean();
+
+    private static bool? OptionalNullableBool(JsonElement parent, string name) =>
+        parent.TryGetProperty(name, out var value) ? value.GetBoolean() : null;
 
     private static double RequiredDouble(JsonElement parent, string name) => Required(parent, name).GetDouble();
 }

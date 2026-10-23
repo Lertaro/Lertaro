@@ -1,4 +1,7 @@
+using System.Runtime.CompilerServices;
 using Lertaro.Core.SearchIndex;
+using Lertaro.Core.SearchIndex.Fzf;
+using Lertaro.Core.Tests.SearchRanking;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 
 namespace Lertaro.Core.Tests.SearchIndex;
@@ -51,10 +54,58 @@ public sealed class AliasLooseReadingTests
         }
     }
 
+    // #440's absence claim is about candidate generation, not ranking: an exact `zbl` must never
+    // generate the loose alias row. The fixture carries both sides, so this pins the shared gate rather
+    // than asserting absence from a list that was already filtered by ranking.
+    [TestMethod]
+    public void Reported440_CandidateGate_RejectsLooseAliasAndKeepsTightAlias()
+    {
+        var reported = RankingCaseFixtureLoader
+            .LoadReportedCases(FixturePath(["..", "SearchRanking", "Fixtures", "reported-search-cases.v1.json"]))
+            .Single(item => item.Id == "440-zbl-alias-scatter");
+        var loose = reported.Corpus.Single(row => row.Token == "loose-alias-negative");
+        var tight = reported.Corpus.Single(row => row.Token == "tight-alias-positive");
+        Assert.IsFalse(loose.ExpectedAcceptanceBySharedTightnessGate ?? true);
+        Assert.IsTrue(tight.ExpectedAcceptanceBySharedTightnessGate ?? false);
+
+        var looseOccurrence = AliasMatchRules.TightestOccurrence(loose.DisplayName, "zbl", caseSensitive: false);
+        var tightOccurrence = AliasMatchRules.TightestOccurrence(tight.DisplayName, "zbl", caseSensitive: false);
+        Assert.IsNotNull(looseOccurrence);
+        Assert.IsNotNull(tightOccurrence);
+        Assert.AreEqual(15, looseOccurrence[^1] - looseOccurrence[0] + 1);
+        Assert.AreEqual(11, tightOccurrence[^1] - tightOccurrence[0] + 1);
+        Assert.IsFalse(AliasMatchRules.IsTightOccurrence(3, 15));
+        Assert.IsTrue(AliasMatchRules.IsTightOccurrence(3, 11));
+
+        // The shared gate itself is deterministic; FuzzyMatcher additionally depends on whichever alias
+        // providers other test classes have registered/filtered, so pin the gate rather than that global.
+        SearchContext.FuzzyMatchEnabled = false;
+        try
+        {
+            var pattern = Lertaro.Core.SearchIndex.Fzf.FzfPattern.Parse("zbl");
+            var reading = pattern.ReadingFor('\'');
+            Assert.IsTrue(reading.TryMatch(tight.DisplayName, out var tightMatch, Lertaro.Core.SearchIndex.Fzf.FzfScoringScheme.Default));
+            Assert.IsTrue(
+                pattern.IsAcceptableAliasMatch(tightMatch),
+                "the 11-character tight occurrence must pass the shared candidate gate");
+            Assert.IsTrue(reading.TryMatch(loose.DisplayName, out var looseMatch, Lertaro.Core.SearchIndex.Fzf.FzfScoringScheme.Default));
+            Assert.IsFalse(
+                pattern.IsAcceptableAliasMatch(looseMatch),
+                "the 15-character scatter must not pass the shared candidate gate");
+        }
+        finally
+        {
+            SearchContext.FuzzyMatchEnabled = true;
+        }
+    }
+
+    private static string FixturePath(string[] relative, [CallerFilePath] string thisFile = "") =>
+        Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, Path.Combine(relative)));
+
     // Registers an alias provider whose only alias is the text itself -- the shape the pinyin provider
     // produces for an already-Simplified name. The provider stays registered (there is no unregister) but
     // is filtered out for every later test on dispose.
-    private sealed class IdentityAliasScope : IDisposable
+    internal sealed class IdentityAliasScope : IDisposable
     {
         private readonly Func<IAliasProvider, bool> _previous;
 

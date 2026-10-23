@@ -73,6 +73,21 @@ internal static class HistorySearchCandidateMapper
         int typeRank = int.MaxValue) =>
         CollectCore(fuzzy, scope, entries, fileExists, directoryExists, typeRank, rankContext: null, MaxCandidates);
 
+    // The association key already passed the exact canonical comparison. Give it a full-strength
+    // keyword rank so the history-only marker, not a fuzzy coincidence, decides its tier.
+    private static MatchEvidenceResult ExactHistoryMatch(HistoryEntry entry)
+    {
+        var rank = new MatchRank(MatchRank.TierName, 0, 1d, 1d, MatchRank.ShapeWholeWord);
+        var evidence = MatchEvidence.Accepted(
+            entry.Keyword,
+            entry.Keyword,
+            MatchEvidenceField.HistoryKeyword,
+            rank,
+            MatchEvidenceMode.LearnedAlias,
+            MatchQueryVariant.HistoryExact);
+        return new MatchEvidenceResult(rank, evidence);
+    }
+
     private static List<SearchResultMapper.RankedCandidate> CollectCore(
         FuzzyQuery fuzzy,
         string? scope,
@@ -87,11 +102,17 @@ internal static class HistorySearchCandidateMapper
             return [];
 
         var query = fuzzy.Text;
+        // Learned association is an exact canonical lookup, not another fuzzy surface: the only query
+        // allowed to recall a learned pair is the one the user confirmed, after P4's pinyin-equivalence
+        // folding (see SearchHistoryStore.NormalizeAssociationQuery).
+        var canonicalQuery = SearchHistoryStore.NormalizeAssociationQuery(query);
         var matches = entries
-            .Select(entry => (Entry: entry, Matched: fuzzy.BestMatchWithEvidence(
-                entry.Keyword,
-                MatchEvidenceField.HistoryKeyword)))
-            .Where(candidate => candidate.Matched.Rank.IsMatch)
+            .Where(entry => canonicalQuery.Length > 0
+                && string.Equals(
+                    SearchHistoryStore.NormalizeAssociationQuery(entry.Keyword),
+                    canonicalQuery,
+                    StringComparison.OrdinalIgnoreCase))
+            .Select(entry => (Entry: entry, Matched: ExactHistoryMatch(entry)))
             .OrderBy(candidate => candidate.Matched.Rank.Start)
             // Most recent pick first: choosing the 10th result for "atlas" makes it the top one next time,
             // even over something opened more often before.

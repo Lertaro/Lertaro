@@ -59,6 +59,45 @@ public sealed class PinyinExactModeTests
         Assert.IsEmpty(Search("ex", fuzzy: true, names), "and fuzzy matching does not license it either");
     }
 
+    // #440's compact positive: a literal exact term cannot cross the hyphens, but the shared alias gate
+    // still accepts the 11-character occurrence. This pins the real provider path the user sees.
+    [TestMethod]
+    public void Reported440_TightAliasPositiveCandidatesWithRealProvider()
+    {
+        var previous = SearchContext.FuzzyMatchEnabled;
+        try
+        {
+            SearchContext.FuzzyMatchEnabled = false;
+            Assert.IsTrue(FuzzyMatcher.IsMatch("zbl", "著 z-aa-b-aa-l.epub"));
+        }
+        finally
+        {
+            SearchContext.FuzzyMatchEnabled = previous;
+        }
+    }
+
+    // The real pipeline: snapshot -> LiveIndex -> searcher. This is the candidate layer #440's absence
+    // claim is about, so the loose row must not appear at all while the tight row still does.
+    [TestMethod]
+    public void Reported440_RealIndexCandidateLayerKeepsOnlyTheTightAlias()
+    {
+        const string loose = "著 z-aaa-b-aaaaa-l.epub";
+        const string tight = "著 z-aa-b-aa-l.epub";
+        using var fixture = new RealIndexFixture(loose, tight);
+        var previous = SearchContext.FuzzyMatchEnabled;
+        try
+        {
+            SearchContext.FuzzyMatchEnabled = false;
+            var results = fixture.Search("zbl");
+            CollectionAssert.Contains(results, tight, "the 11-character tight occurrence must be a candidate");
+            CollectionAssert.DoesNotContain(results, loose, "the 15-character scatter must not be a candidate");
+        }
+        finally
+        {
+            SearchContext.FuzzyMatchEnabled = previous;
+        }
+    }
+
     [TestMethod]
     public void MidReadingStart_StaysOutOfBothModes()
     {

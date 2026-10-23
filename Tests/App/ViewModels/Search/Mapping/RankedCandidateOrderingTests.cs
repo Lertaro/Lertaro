@@ -124,10 +124,49 @@ public sealed class RankedCandidateOrderingTests
     }
 
     [TestMethod]
+    public void SecondaryAlias_DoesNotSpendTheHistorySlot()
+    {
+        // The alias is Grade 4 (curated alias / secondary field), so EffectiveHistoryTier can never lift it.
+        // It must not take the single H5 slot from the Grade 1 direct file -- even though its path sorts
+        // first and both carry the same history score.
+        var aliasRank = new MatchRank(MatchRank.TierName, 0, 1.0, 1.0);
+        var alias = new SearchResultMapper.RankedCandidate(
+            new AppSearchResult { FullPath = @"D:\h\a.txt", Name = "电报", ResultKind = string.Empty },
+            false,
+            10,
+            0,
+            aliasRank,
+            @"D:\h\a.txt",
+            Evidence: MatchEvidence.Accepted(
+                "telegram", "电报", MatchEvidenceField.CuratedAlias, aliasRank));
+        var directRank = new MatchRank(MatchRank.TierName, 0, 1.0, 1.0);
+        var direct = new SearchResultMapper.RankedCandidate(
+            new AppSearchResult { FullPath = @"D:\h\b.txt", Name = "telegram.txt", ResultKind = string.Empty },
+            false,
+            10,
+            0,
+            directRank,
+            @"D:\h\b.txt",
+            Evidence: MatchEvidence.Accepted(
+                "telegram", "telegram.txt", MatchEvidenceField.FileName, directRank));
+
+        var ranked = RankedCandidateOrdering.OrderWithTrace(
+            [alias, direct],
+            new RankContext(Priorities(), historyFiveMax: 1, historyThreeMax: 3),
+            out var trace);
+
+        Assert.AreEqual(@"D:\h\b.txt", ranked[0].Result.FullPath);
+        Assert.AreEqual(HistoryTier.H5, trace.DescribeAt(0, RankingProviderState.Unknown).Tier);
+        Assert.AreEqual(HistoryTier.None, trace.DescribeAt(1, RankingProviderState.Unknown).Tier);
+        Assert.IsTrue(direct.Result.IsFrequent);
+        Assert.IsFalse(alias.Result.IsFrequent);
+    }
+
+    [TestMethod]
     public void DefaultCaps_KeepBothHistoryFiveRowsBoosted()
     {
-        // Same two rows, default 3/10: both are H5 at 34, so the score no longer separates them and the
-        // shared name order decides -- the contrast that shows the inline cap demoted the second row.
+        // Same two rows, default 3/10: both are H5, so the tier no longer separates them and the shared
+        // name order decides -- the contrast that shows the inline cap demoted the second row.
         var ranked = RankedCandidateOrdering.Order(
             [HistoryRow(@"D:\h\bbb.txt", "alpha"), HistoryRow(@"D:\h\aaa.txt", "zeta")],
             new RankContext(Priorities()));

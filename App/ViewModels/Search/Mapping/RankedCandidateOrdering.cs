@@ -9,8 +9,6 @@ namespace Lertaro.App.ViewModels.Search.Mapping;
 internal static class RankedCandidateOrdering
 {
     private const string ApplicationKind = "Application";
-    private static readonly IReadOnlyDictionary<string, HistoryTier> EmptyHistoryBudget =
-        new Dictionary<string, HistoryTier>(StringComparer.OrdinalIgnoreCase);
 
     public static List<SearchResultMapper.RankedCandidate> Order(
         List<SearchResultMapper.RankedCandidate> candidates,
@@ -38,7 +36,6 @@ internal static class RankedCandidateOrdering
                     Array.Empty<SearchResultMapper.RankedCandidate>(),
                     Array.Empty<RankKey>(),
                     context,
-                    EmptyHistoryBudget,
                     Array.Empty<SearchResultMapper.RankedCandidate>())
                 : RankingPassTrace.Empty;
             return [];
@@ -50,8 +47,10 @@ internal static class RankedCandidateOrdering
         for (var i = 0; i < rows.Length; i++)
             signals[i] = ToSignals(rows[i], context);
 
+        var tierEligiblePaths = BuildTierEligiblePaths(rows, signals);
         var budget = RankPolicy.BuildHistoryBudget(
             signals,
+            tierEligiblePaths,
             context?.HistoryFiveMax ?? RankPolicy.HistoryFiveMax,
             context?.HistoryThreeMax ?? RankPolicy.HistoryThreeMax);
         var keys = new RankKey[rows.Length];
@@ -66,7 +65,7 @@ internal static class RankedCandidateOrdering
 
         Array.Sort(keys, rows, RankKeyComparer.Instance);
         trace = captureTrace
-            ? new RankingPassTrace(candidates.Count, rows, keys, context, budget, mergedAway ?? [])
+            ? new RankingPassTrace(candidates.Count, rows, keys, context, mergedAway ?? [])
             : RankingPassTrace.Empty;
         return [.. rows];
     }
@@ -121,7 +120,6 @@ internal static class RankedCandidateOrdering
         RankKey key,
         int kernelRank,
         RankContext? context,
-        IReadOnlyDictionary<string, HistoryTier> budget,
         RankingProviderState providerState = RankingProviderState.Unknown)
     {
         var signal = ToSignals(candidate, context);
@@ -139,7 +137,9 @@ internal static class RankedCandidateOrdering
             key.Score,
             key.TypeRank,
             signal.Priority,
-            budget.GetValueOrDefault(signal.NormalizedPath, HistoryTier.None),
+            // The effective tier, not the raw budget entry: a Grade 2/3 row never reads the tier, so
+            // reporting the budget's label here would explain an order the key did not produce.
+            key.Tier,
             key.HistoryTie,
             signal.Match,
             signal.IsFavorite,
@@ -171,8 +171,35 @@ internal static class RankedCandidateOrdering
             key,
             -1,
             context,
-            EmptyHistoryBudget,
             providerState);
+    }
+
+    // A lifted history tier only affects ranks it is allowed to lift (see MatchEvidenceGrade). Computing
+    // that before the budget keeps a secondary-field alias from spending an H5 slot a Grade 0/1 row
+    // would have used, since the alias can never read the lift.
+    private static HashSet<string> BuildTierEligiblePaths(
+        SearchResultMapper.RankedCandidate[] rows,
+        RankSignals[] signals)
+    {
+        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < rows.Length; i++)
+        {
+            var signal = signals[i];
+            if (signal.IsHistoryOnly)
+            {
+                paths.Add(signal.NormalizedPath);
+                continue;
+            }
+
+            var grade = MatchEvidence.ResolveGrade(
+                rows[i].Evidence,
+                signal.Match,
+                isHistoryOnly: false,
+                isStrongMatch: signal.Match.IsStrong);
+            if (RankPolicy.IsPreferenceEligible(grade))
+                paths.Add(signal.NormalizedPath);
+        }
+        return paths;
     }
 
     private static SearchResultMapper.RankedCandidate[] MergeByPath(

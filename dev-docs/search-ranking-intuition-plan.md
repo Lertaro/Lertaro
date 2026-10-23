@@ -6,7 +6,7 @@
 
 | 阶段 | 状态 | 行为变化 |
 | --- | --- | --- |
-| P0 工单 fixture | 完成 | 无 |
+| P0 工单 fixture | 部分完成（5/6） | 无 |
 | P1 端到端 ranking trace | 完成 | 无 |
 | P2 离线回放器 | 完成 | 无 |
 | P3 shadow evidence / identity | 完成 | 无 |
@@ -14,13 +14,13 @@
 | P5 应用与快捷方式身份 | 完成 | 同路径合并保留最强文本信号；新 alias 仅 shadow |
 | P6 影子 V3 模型与回放门槛 | 完成 | `RankPolicyV3` 与 V2/V3 回放对照门槛 |
 | P7 切换生产到单调 V3 | 完成 | `RankPolicy.Version = 3`；快速/完整/内联窗口统一单调分级；启用干净次要别名、单结果用户别名与来源副标题 |
-| P8 历史频率与查询关联拆分 | 完成 | 拆分 `search-history.json` 与 `search-query-associations.json`（自然打开 ≥ 3、阻断自强化、旧计数钳制 ≤ 1、设置页独立管理） |
+| P8 历史频率与查询关联拆分 | 完成 | 拆分 `search-history.json` 与 `search-query-associations.json`；canonical 合并（ASCII 词无空格拼接）后 exact lookup；自然打开 ≥ 3、阻断自强化、旧计数钳制 ≤ 1、设置页独立管理 |
 | P9 跨盘与快捷方式检索召回 | 完成 | 多网络索引有界全局排序截断；快捷方式补召回改为主查询之后、且仅在主结果没有 `*.lnk`/`*.url` 时才跑 |
 | P10 文档同步与影子路径收口 | 进行中 | `RankPolicyV3` 委托至线上 `RankPolicy`；P7 之后恒等的影子排名通道已删除；dev-docs 与 7 语种用户文档同步 |
 
-Windows/.NET 10 实测状态（2026-10-23）：分支最初 10 处编译错误，修复后全绿 —— Tests/Core 2280、Tests/App 2324、PinyinAlias 240、CoreExtensions 401、ContentSearch 173，其余 24 个插件工程通过；`dotnet build Lertaro.slnx` 0 警告 0 错误。P10 未做完的部分见文末“仍未闭合”。
+Windows/.NET 10 实测状态（2026-10-23）：分支最初 10 处编译错误，修复后全绿 —— Tests/Core 2284、Tests/App 2326、PinyinAlias 242、CoreExtensions 401、ContentSearch 173，其余 24 个插件工程通过；`dotnet build Lertaro.slnx` 0 警告 0 错误。P10 未做完的部分见文末“仍未闭合”。
 
-P0 fixture：`Tests/Core/SearchRanking/Fixtures/reported-search-cases.v1.json`，P6 回放套件：`Tests/Core/SearchRanking/Fixtures/ranking-shadow-v3-cases.v1.json`（基线 `ranking-replay-cases.v1.json`，冻结的 V2 与离线策略在 `OfflineRankingPolicies.cs`）。当前 ranking-event schema 4；旧 schema 行缺失的字段读作 Unknown/null。P7 后干净（`IsStrong`）的次要别名与单结果本地用户别名进入 `SecondaryField` 并展示来源副标题，零散子序列仍仅保留在 `ShadowAliasGate` 观测通道。
+P0 fixture：`Tests/Core/SearchRanking/Fixtures/reported-search-cases.v1.json`，P6 回放套件：`Tests/Core/SearchRanking/Fixtures/ranking-shadow-v3-cases.v1.json`（基线 `ranking-replay-cases.v1.json`，冻结的 V2 与离线策略在 `OfflineRankingPolicies.cs`）。当前 ranking-event schema 4；旧 schema 行缺失的字段读作 Unknown/null。P7 后干净（`IsStrong`）的次要别名与单结果本地用户别名进入 `SecondaryField` 并展示来源副标题，零散子序列仍仅保留在 `ShadowAliasGate` 观测通道。P8 的 learned alias 只走 canonical exact lookup；完整窗口不设历史配额（产品决定，见文末）。
 
 ## 目标与约束
 
@@ -145,9 +145,11 @@ mustAppearBefore / mustBeTopK / mustBeAbsent
 
 每阶段单独提交、测试和评审，不提前接下一阶段。
 
-### P0：冻结工单证据 — 完成
+### P0：冻结工单证据 — 部分完成（5/6）
 
 产物：`reported-search-cases.v1.json`。fixture 使用合成路径和 token，保留查询、候选关系、环境前提及断言。P2 才接 loader。
+
+已知缺口：本文件“已知 case”表中的 `437-shortcut-low` 尚未转录（缺原始查询/候选语料），不计入已冻结证据；见“仍未闭合”第 8 条。
 
 ### P1：端到端 ranking trace — 完成
 
@@ -323,13 +325,18 @@ P4 与 P5 可并行，但都依赖 P3，且不能提前切换排序。P9 可跳�
 
 按“先测量再动手”的顺序排列，未列出的阶段视为已闭合。
 
-1. **性能门槛没有数字**：P4/P5 要求的“同机端到端 p95 ≤ V2 的 110%”、P9 要求的“扫描量 / 首行延迟 / 内存”三项，本机与仓库内都没有任何一次测量记录。P9 的快捷方式补召回已从“每次按键无条件并行跑第二遍全索引”改为“主查询流完后、且主结果里没有 `*.lnk`/`*.url` 才跑”，普通按键回到一次查询；但需要补召回的那一档由并行变为串行，首行延迟是否仍在预算内必须实测。
+1. **性能门槛（已决定放弃端到端测量）**：P4/P5 的“同机端到端 p95 ≤ V2 的 110%”和 P9 的“扫描量 / 首行延迟 / 内存”不再作为闭合条件；V2 生产路径已删除，也没有同机 V2 基线可对比。保留已测的排序热路径绝对值作为回归参考（`benchmarks/Lertaro.Benchmarks`，i5-10400F、.NET 10.0.13、InProcess、Release，两次运行）：`QuickRankBenchmarks.DecorateAndSort` 204 行 Mean 228–249 µs、分配 105.47 KB；4000 行 Mean 3.23–3.55 ms、分配 3887 KB。非 InProcess 的 Default job 两次都因 `debug/Data/Machine/indexes` 拒绝访问而生成失败，只有 InProcess 结果可用；不得把该数字表述为相对 V2 的 110% 结论。P9 的快捷方式补召回已从“每次按键无条件并行跑第二遍全索引”改为“主查询流完后、且主结果里没有 `*.lnk`/`*.url` 才跑”，普通按键回到一次查询；该档首行延迟的风险作为已接受的遗留风险记录。
 2. **expected Recall@50 = 100% 离线测不了**：回放 run 的候选集就是 fixture 给的候选集，结构上不可能缺失，因此这条只能在真实索引上做端到端测量。当前只有 `RankingMetrics.RecallAt` 这个工具，没有调用它的门槛。
 3. **两窗 Grade 仍有一档差**：拼接分支确实胜出的空格拼音行，快速窗口判 `ExactIdentity`、完整窗口判 `DirectStrong`。完整窗口只有 32 位打包质量键，键里没有“胜出分支”这一位；闭合它要把该位带过引擎/管道边界，也就是 P9 里排最后的第 4 项，须由 1、2 的测量决定是否需要。
-4. **`Low` 与强收藏的优先级未定**：段判定先于 `Low`，被规则降权的强收藏仍进 `Pinned`。目标模型只写了“强收藏可 pin”和“Low 是降级”，没规定两者相撞。这是产品决定，不是实现缺陷。
-5. **P8 的 canonical query 未复用 P4 等价资格**：`NormalizeAssociationQuery` 只做大小写折叠与空白归一，`sousuojieguo` 与 `sousuo jieguo` 仍是两个关联键，约束 5 在存储层未满足。改动涉及已存键的迁移与合并，需要单独设计。
-6. **P0 工单断言仍是散文**：`reported-search-cases.v1.json` 的 `v3Expected.assertions` 没有可执行回放，`LoadReportedCases` 只读 id/window/查询/路径。它的候选缺少 `match`/`priority` 等数据，要执行必须补成完整回放 fixture 或接真实索引。
+4. **`Low` 与强收藏的优先级（已决定）**：产品决定“收藏优先”，段判定先于 `Low`，被规则降权的强收藏仍进 `Pinned`。实现与决定一致，不再作为待决项。
+5. **P8 canonical query（已实施）**：`NormalizeAssociationQuery` 在折叠大小写/空白后，仅对全部由 ASCII 字母组成的词做无空格拼接，`sousuojieguo` 与 `sousuo jieguo` 归并到同一键；引号、操作符、非 ASCII 查询不拼接。加载、旧版迁移与新增关联都走同一规范化并合并计数，已有键在加载时幂等迁移。
+6. **P0 工单断言（部分可执行）**：`#440` 已补候选生成层断言——跨 15 字符的松散布被 `AliasMatchRules.IsTightOccurrence` 拒绝，11 字符紧凑正例通过；其余 `v3Expected.assertions` 仍是散文，`LoadReportedCases` 现在读 id/window/查询/路径及候选的 token/displayName/role/tightness 期望，但仍不执行散文契约。要执行剩余断言必须补成完整回放 fixture 或接真实索引。
 7. **两窗质量精度不同**：完整窗口用量化键（连续性 1/255、覆盖率 1/511），快速窗口用原始 double。差异小于一格的成对比较两窗可能给不同名次。
+8. **P0 仍缺一条 case**：`reported-search-cases.v1.json` 只有 5 条；`437-shortcut-low` 没有查询与候选数据，无法回放。P0 仍只能算 5/6；没有原始工单时无法凭空补录，需继续向工单/用户取数，或明确接受该条不进入门槛。
+9. **learned alias（已实施 exact）**：`HistorySearchCandidateMapper.CollectCore` 现在只按规范化查询键精确查 `search-query-associations.json`，不再对所有关联调用 `BestMatchWithEvidence(entry.Keyword)`。换来的边界是：只有规范化后完全相同的查询才召回学习项，旧版模糊能命中的前缀/变体不再命中；这是 P8.4 的本意，不是召回退化。
+10. **完整窗口没有历史配额（已决定）**：快速窗口 H5/H3 限 3/10、内联 1/3，完整窗口不设配额。产品决定优先保证“展开全部”时相关行不被配额藏掉；同分相邻行两窗差一档名次作为已知差异接受，已写入 `search-ranking.md`。
+11. **absence/recall 门槛**：`#440` 已补真实索引/候选生成层 harness（`Tests/Plugins/PinyinAlias/PinyinExactModeTests.cs`，真实 `Snapshot → LiveIndex → IndexV2Searcher`）：精确 `zbl` 只召回 11 字符紧凑行、不召回 15 字符松散布。这不是通过终局排序过滤得到的，而是候选层本身的行为。其余 case 的 `mustBeAbsent` 仍只检查回放 run 的已排序候选 token，`MissingExpectedTokens` 因 loader 要求 expected token 必须是候选而恒为 0；Recall@50=100% 仍不能由离线回放单独背书。
+12. **`#440` 紧凑正例（已闭合，未放宽）**：`zbl` 对 11 字符紧凑名在 `AliasMatchRules.IsTightOccurrence(3, 11)` 为真；精确模式下字面 `FzfPattern.TryMatch` 因连字符不连续而失败，但共享 alias 门接受该 11 字符 span（实测 score 72，门槛 `queryLen * 5 = 15`），`FuzzyMatcher.IsMatch` 在真实 pinyin provider 下为真。原“被分数门槛拒掉”的判断不成立，因此没有改阈值；真实索引测试 `Reported440_RealIndexCandidateLayerKeepsOnlyTheTightAlias` 已钉住该行为。
 
 ## 关键位置
 

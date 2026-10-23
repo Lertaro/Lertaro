@@ -81,6 +81,27 @@ public sealed class HistoryBudgetTests
     }
 
     [TestMethod]
+    public void IneligiblePath_DoesNotSpendASlot()
+    {
+        // A Grade 2/3 row can never read an H5/H3 tier, so the budget must not hand it one: the second
+        // row is the only path allowed to spend the single H5 slot.
+        var eligible = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { @"D:\h\b.txt" };
+
+        var budget = RankPolicy.BuildHistoryBudget(
+            new[]
+            {
+                Signals(@"D:\h\a.txt", 900),
+                Signals(@"D:\h\b.txt", 800),
+            },
+            eligible,
+            fiveMax: 1,
+            threeMax: 10);
+
+        Assert.IsFalse(budget.ContainsKey(@"D:\h\a.txt"));
+        Assert.AreEqual(HistoryTier.H5, TierOf(budget, @"D:\h\b.txt"));
+    }
+
+    [TestMethod]
     public void FourteenthHistoryOnlyRow_FallsToTail()
     {
         var candidates = new List<RankSignals>();

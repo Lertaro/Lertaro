@@ -145,7 +145,26 @@ internal sealed class V3OfflineRankingPolicy : IOfflineRankingPolicy
                 Signals: candidate.ToV3Signals(),
                 Evidence: candidate.ToEvidence(rankingCase.RawQuery)))
             .ToArray();
-        var budget = RankPolicy.BuildHistoryBudget(rows.Select(row => row.Signals));
+        // Same eligibility rule as the live quick window: a row whose Grade never reads an H5/H3 tier
+        // cannot spend one of the budget's slots.
+        var tierEligiblePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows)
+        {
+            if (row.Signals.IsHistoryOnly)
+            {
+                tierEligiblePaths.Add(row.Signals.NormalizedPath);
+                continue;
+            }
+
+            var grade = MatchEvidence.ResolveGrade(
+                row.Evidence,
+                row.Signals.Match,
+                isHistoryOnly: false,
+                isStrongMatch: row.Signals.Match.IsStrong);
+            if (RankPolicy.IsPreferenceEligible(grade))
+                tierEligiblePaths.Add(row.Signals.NormalizedPath);
+        }
+        var budget = RankPolicy.BuildHistoryBudget(rows.Select(row => row.Signals), tierEligiblePaths);
         var decorated = new (CandidateSnapshot Candidate, V3RankKey V3Key, RankKeyCompat Key)[rows.Length];
 
         for (var i = 0; i < rows.Length; i++)

@@ -190,6 +190,18 @@ public static class RankPolicy
     public static IReadOnlyDictionary<string, HistoryTier> BuildHistoryBudget(
         IEnumerable<RankSignals> candidates,
         int fiveMax = HistoryFiveMax,
+        int threeMax = HistoryThreeMax) =>
+        BuildHistoryBudget(candidates, tierEligiblePaths: null, fiveMax, threeMax);
+
+    /// <summary>
+    /// Same budget, but only rows on <paramref name="tierEligiblePaths"/> may spend an H5/H3 slot.
+    /// A Grade 2/3 row cannot read a lifted tier (<see cref="EffectiveHistoryTier"/> drops it), so it
+    /// must not spend a slot whose lift it will never use. History-only rows always qualify.
+    /// </summary>
+    public static IReadOnlyDictionary<string, HistoryTier> BuildHistoryBudget(
+        IEnumerable<RankSignals> candidates,
+        IReadOnlySet<string>? tierEligiblePaths,
+        int fiveMax = HistoryFiveMax,
         int threeMax = HistoryThreeMax)
     {
         fiveMax = Math.Max(0, fiveMax);
@@ -201,7 +213,16 @@ public static class RankPolicy
         {
             var path = s.NormalizedPath;
             if (s.IsHistoryOnly)
+            {
                 historyOnlyPaths.Add(path);
+            }
+            else if (tierEligiblePaths != null && !tierEligiblePaths.Contains(path))
+            {
+                // The row stays in the candidate set, but it cannot spend a history slot: its grade
+                // never reads the tier, so letting it qualify would only mislabel the trace and badge
+                // (or, on a tied score, take a band from a row that can use it).
+                continue;
+            }
 
             if (s.HistoryScoreX100 < HistoryThreeThresholdX100)
                 continue;

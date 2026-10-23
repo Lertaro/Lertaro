@@ -314,6 +314,48 @@ public sealed class SearchHistoryStoreTests
     }
 
     [TestMethod]
+    public void NormalizeAssociationQuery_JoinsP4EligibleTerms()
+    {
+        Assert.AreEqual("sousuojieguo", SearchHistoryStore.NormalizeAssociationQuery("  Sousuo   Jieguo "));
+        Assert.AreEqual("sousuojieguo", SearchHistoryStore.NormalizeAssociationQuery("sousuojieguo"));
+
+        // Not every spaced query is a pinyin alternative: punctuation, single-letter terms and non-ASCII
+        // text keep their spacing (P4 only joins plain all-letter terms of 2..63 characters).
+        Assert.AreEqual("foo-bar baz", SearchHistoryStore.NormalizeAssociationQuery("Foo-Bar Baz"));
+        Assert.AreEqual("a b", SearchHistoryStore.NormalizeAssociationQuery("A B"));
+        Assert.AreEqual("设置 界面", SearchHistoryStore.NormalizeAssociationQuery("设置 界面"));
+    }
+
+    [TestMethod]
+    public void TryLoadAssociationsFile_MergesEquivalentCanonicalKeys()
+    {
+        var path = Path.Combine(_dir, "search-query-associations.json");
+        var raw = new Dictionary<string, List<SearchHistoryStore.StoredAssociationEntry>>
+        {
+            ["sousuo jieguo"] =
+            [
+                new(@"X:\Fixture\a.txt", HistoryEntryKind.File, LastOrganicTime: 100, OrganicOpens: 1),
+            ],
+            ["sousuojieguo"] =
+            [
+                new(@"X:\Fixture\a.txt", HistoryEntryKind.File, LastOrganicTime: 200, OrganicOpens: 2),
+                new(@"X:\Fixture\b.txt", HistoryEntryKind.File, LastOrganicTime: 150, OrganicOpens: 1),
+            ],
+        };
+        File.WriteAllText(path, JsonSerializer.Serialize(raw, BucketJsonOptions));
+
+        var loaded = SearchHistoryStore.TryLoadAssociationsFile(path);
+        Assert.IsNotNull(loaded);
+
+        var rows = SearchHistoryStore.FlattenAssociations(loaded, minOrganicOpens: 1);
+        Assert.HasCount(2, rows);
+        Assert.IsTrue(rows.All(row => row.Keyword == "sousuojieguo"));
+        var a = rows.Single(row => row.Path == @"X:\Fixture\a.txt");
+        Assert.AreEqual(3, a.Count, "both spellings were separate organic confirmations");
+        Assert.AreEqual(200, a.Time);
+    }
+
+    [TestMethod]
     public void MigrateAssociationsFromLegacyBuckets_ClampsOrganicOpensToAtMostOne()
     {
         var buckets = Buckets(Entry(path: @"X:\Fixture\legacy.txt", time: 500, count: 9, score: 9d));
@@ -391,7 +433,7 @@ public sealed class SearchHistoryStoreTests
         SearchHistoryStore.RecordAssociationInMemory(associations, "PIX PIN", @"X:\Fixture\Target.exe", HistoryEntryKind.File, 400, fromLearnedRecall: false);
         var confirmed = SearchHistoryStore.FlattenAssociations(associations, SearchHistoryStore.MinAssociationOrganicOpens);
         Assert.HasCount(1, confirmed);
-        Assert.AreEqual("pix pin", confirmed[0].Keyword);
+        Assert.AreEqual("pixpin", confirmed[0].Keyword);
         Assert.AreEqual(3, confirmed[0].Count);
     }
 }
