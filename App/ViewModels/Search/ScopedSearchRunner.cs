@@ -20,6 +20,12 @@ internal static class ScopedSearchRunner
         && string.IsNullOrEmpty(searchScope)
         && scopeDirective is not { Folders.Count: > 0 };
 
+    // The rows ShortcutSupplementFilter would contribute. The renderer asks whether the main query already
+    // surfaced one before paying for the second pass, so these two extension lists have to stay in step.
+    public static bool IsSupplementShortcutPath(string path) =>
+        path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith(".url", StringComparison.OrdinalIgnoreCase);
+
     public static async Task RunAsync(
         SearchService searchService,
         FileFilterScopeDirective directive,

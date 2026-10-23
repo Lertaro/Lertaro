@@ -53,4 +53,13 @@ public sealed class SearchStreamRendererTests
             searchScope: null,
             scopeDirective: new FileFilterScopeDirective(["X:\\OnlyHere"], "*")));
     }
+
+    [DataRow(@"X:\Start\重复文件.lnk", true)]
+    [DataRow(@"X:\Favorites\Site.url", true)]
+    [DataRow(@"X:\Apps\Tool.appref-ms", false)]
+    [DataRow(@"X:\Build\PixPin.exe", false)]
+    [DataRow(@"X:\Docs\note.txt", false)]
+    [DataTestMethod]
+    public void IsSupplementShortcutPath_AdmitsExactlyWhatTheFilterSearches(string path, bool expected) =>
+        Assert.AreEqual(expected, ScopedSearchRunner.IsSupplementShortcutPath(path));
 }

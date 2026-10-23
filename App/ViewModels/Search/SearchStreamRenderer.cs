@@ -75,6 +75,9 @@ internal sealed class SearchStreamRenderer
 
         var runShortcutSupplement = ScopedSearchRunner.ShouldRunShortcutSupplement(
             fileLimit, foldersOnly, searchScope, scopeDirective);
+        // Set by Accumulate the moment a row the supplement would have contributed arrives; read once, after
+        // the main query has streamed. Volatile because the engine hands rows in from its own threads.
+        int shortcutSurfaced = 0;
 
         // Scoped searches answer from N per-folder engine queries, so the same file can arrive from two
         // overlapping configured folders -- dedupe by path at accumulation. High-priority and shortcut
@@ -110,6 +113,8 @@ internal sealed class SearchStreamRenderer
             {
                 if (dedupePaths != null && !dedupePaths.Add(result.Path))
                     return;
+                if (runShortcutSupplement && ScopedSearchRunner.IsSupplementShortcutPath(result.Path))
+                    Volatile.Write(ref shortcutSurfaced, 1);
                 streamedResponse.Add(result);
                 streamedCount++;
             }
@@ -231,10 +236,7 @@ internal sealed class SearchStreamRenderer
             ? ScopedSearchRunner.RunPriorityRootsAsync(
                 _searchService, priorityRoots, query, PriorityRootResultLimit, appLimit, Accumulate, token)
             : null;
-        var shortcutTask = runShortcutSupplement
-            ? ScopedSearchRunner.RunShortcutSupplementAsync(
-                _searchService, query, ShortcutSupplementLimit, appLimit, Accumulate, token)
-            : null;
+        Task? shortcutTask = null;
 
         try
         {
@@ -257,6 +259,15 @@ internal sealed class SearchStreamRenderer
             }
 
             token.ThrowIfCancellationRequested();
+
+            // Started after the main query, not beside it: the question this pass answers -- did a bounded
+            // initials query crowd a shortcut out of the engine's cut -- only has an answer once that cut is
+            // on the table. Running it unconditionally cost every keystroke a second settings load, a second
+            // exclusion-rule build and a second scan of every drive and share.
+            shortcutTask = runShortcutSupplement && Volatile.Read(ref shortcutSurfaced) == 0
+                ? ScopedSearchRunner.RunShortcutSupplementAsync(
+                    _searchService, query, ShortcutSupplementLimit, appLimit, Accumulate, token)
+                : null;
 
             if (priorityTask != null)
                 await priorityTask.ConfigureAwait(false);
