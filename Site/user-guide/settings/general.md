@@ -36,8 +36,9 @@ Fine-tunes the dimensions, layout, and priority rankings of the centered floatin
 
 ### Result Type Priority & Trigger Characters
 
-- **Priority Sorting List**: Drag or move items (Applications, System Settings, Files, Plugin Extensions) to adjust which types rank highest in search results.
+- **Priority Sorting List**: Drag or move items (Applications, System Settings, Files, Plugin Extensions) to decide which types come first **among similarly relevant direct matches** without overriding stronger exact matches.
 - **Exclusive Single-Character Trigger**: Assign a dedicated character prefix (e.g. `;` for File Filters) to restrict searches exclusively to that type when typed at the start of a query.
+- **Ranking Diagnostics & Per-Result Aliases**: In any search window, open the context action menu (`Ctrl+O`) to **Copy Ranking Explanation** or **Bind/Clear Search Aliases** for that specific item.
 
 ## 3. Full Search Window
 

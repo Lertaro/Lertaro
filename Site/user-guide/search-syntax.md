@@ -33,10 +33,10 @@ Within each group:
 
 When everything else is equal, a file is listed before a folder (the Inline window's current-folder listing keeps folders first, like Explorer). With several terms, the weakest term decides the group.
 
-Two things come before all of this, in every window:
+Across all search windows, explicit pins and monotonic match grades keep ordering predictable:
 
-1. **What you picked before**: open a result, and the next time you type the same text it is at the top. Your most recent pick comes first.
-2. **Windows' Recent Items**: files and folders you recently opened in any app that match what you typed.
+1. **Explicit pins first**: rules marked **High + Always on Top** and clean matches in **Favorites** stay pinned at the top, while system/cache **Low** rules stay demoted below normal results.
+2. **Direct matches before aliases & history recall**: exact and clean direct title/filename matches always rank ahead of approximate fuzzy matches, clean secondary aliases (such as shortcut targets, product metadata, or per-item user aliases, shown with an `Alias:` / `Target:` subtitle), and confirmed **Query Associations** (which refine within equal match grades or supplement after direct matches).
 
 ### Case Insensitivity
 

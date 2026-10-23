@@ -36,8 +36,9 @@ Permite ajustar con precisión las dimensiones geométricas y las prioridades de
 
 ### Prioridad de tipos de resultado y activadores
 
-- **Lista de ordenación de prioridades**: Arrastra los controles para cambiar la precedencia de aplicaciones, ajustes, archivos y extensiones de plugins.
+- **Lista de ordenación de prioridades**: Arrastra los controles para decidir qué tipos van primero **entre coincidencias directas con relevancia similar**, sin superar nunca a coincidencias directas exactas.
 - **Carácter activador exclusivo**: Asigna un prefijo de un solo carácter (p. ej. `;` para Filtros de archivos) para aislar las búsquedas a ese tipo concreto.
+- **Explicación de ordenación y alias por resultado**: En el menú contextual de acciones (`Ctrl+O`) puedes **Copiar la explicación de ordenación** o **Vincular/Borrar alias de búsqueda** para ese elemento concreto.
 
 ## 3. Ventana de búsqueda principal
 

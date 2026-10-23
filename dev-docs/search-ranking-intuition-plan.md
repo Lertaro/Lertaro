@@ -12,9 +12,13 @@
 | P3 shadow evidence / identity | 完成；待 Windows/.NET 环境跑 MSTest | 无 |
 | P4 拼音空格等价 | 完成；待 Windows/.NET 环境跑 MSTest 与同机性能测试 | 受限 joined 拼音分支 |
 | P5 应用与快捷方式身份 | 完成；待 Windows/.NET 环境跑 MSTest 与同机性能测试 | 同路径合并保留最强文本信号；新 alias 仅 shadow |
-| P6–P10 | 未开始 | 逐阶段说明 |
+| P6 影子 V3 模型与回放门槛 | 完成；待 Windows/.NET 环境跑 MSTest | 无（新增 `RankPolicyV3`、`ReplayEvaluator` 与 9 组 V2/V3 回放对比门槛） |
+| P7 切换生产到单调 V3 | 完成；待 Windows/.NET 环境跑 MSTest | `RankPolicy.Version = 3`；快速/完整/内联窗口统一单调分级；启用干净次要别名、单结果用户别名与来源副标题 |
+| P8 历史频率与查询关联拆分 | 完成；待 Windows/.NET 环境跑 MSTest | 拆分 `search-history.json` 与 `search-query-associations.json`（自然打开 ≥ 3、阻断自强化、旧计数钳制 ≤ 1、设置页独立管理） |
+| P9 跨盘与快捷方式检索召回 | 完成；待 Windows/.NET 环境跑 MSTest | 多网络索引有界全局排序截断；有界全局搜索补充 `*.lnk;*.url` 快捷方式召回 |
+| P10 文档同步与影子路径收口 | 完成；待 Windows/.NET 环境跑 MSTest | `RankPolicyV3` 委托至线上 `RankPolicy`，开发文档与 7 语种用户文档同步并通过 `site:build` |
 
-P0 fixture：`Tests/Core/SearchRanking/Fixtures/reported-search-cases.v1.json`。当前 ranking-event schema 4；旧 schema 行缺失的字段读作 Unknown/null。P4 后只有胜出的 joined 拼音分支具有结构化 mode/provider/span；其余无法证明的 matcher 分支仍保持 `LegacyUnknown`，不得反推或伪造。P5 的 provider metadata 只写 `ShadowAliasGate` candidate，不进入 V2 候选、合并、历史预算或截断。
+P0 fixture：`Tests/Core/SearchRanking/Fixtures/reported-search-cases.v1.json`，P6 回放套件：`Tests/Core/SearchRanking/Fixtures/v3-replay-cases.v1.json`。当前 ranking-event schema 4；旧 schema 行缺失的字段读作 Unknown/null。P7 后干净（`IsStrong`）的次要别名与单结果本地用户别名进入 `SecondaryField`（`Grade 3`）并展示来源副标题，零散子序列仍仅保留在 `ShadowAliasGate` 观测通道。
 
 ## 目标与约束
 
@@ -317,7 +321,7 @@ P4 与 P5 可并行，但都依赖 P3，且不能提前切换排序。P9 可跳�
 
 | 主题 | 文件 |
 | --- | --- |
-| V2 内核 | `Core/SearchIndex/RankPolicy.cs` |
+| V3 内核与回放门面 | `Core/SearchIndex/RankPolicy.cs`、`Core/SearchIndex/RankPolicyV3.cs`、`Core/SearchIndex/SearchResultRanking.cs`、`Core/SearchIndex/RankedSearchResultComparer.cs` |
 | 快速窗口 | `App/ViewModels/Search/Mapping/SearchResultMapper.cs`、`RankedCandidateOrdering.cs` |
 | 类型与 shortcut | `App/ViewModels/Search/SearchResultTypePriority.cs` |
 | 可搜索项 | `App/ViewModels/Search/Mapping/SearchableItemMapper.cs`、`App/ViewModels/Search/SearchableItemCache.cs` |

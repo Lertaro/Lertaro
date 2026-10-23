@@ -33,10 +33,10 @@ Dentro de cada grupo:
 
 Si todo lo demás es igual, un archivo aparece antes que una carpeta (la lista de la carpeta actual en la ventana incrustada mantiene las carpetas primero, como el Explorador). Con varios términos, el término más débil decide el grupo.
 
-En todas las ventanas, hay dos cosas que van antes que todo lo anterior:
+En todas las ventanas, los anclajes explícitos y los grados monotónicos mantienen un orden predecible:
 
-1. **Lo que elegiste antes**: abre un resultado y, la próxima vez que escribas el mismo texto, aparecerá arriba del todo. Lo último que elegiste va primero.
-2. **Los elementos recientes de Windows**: archivos y carpetas que abriste hace poco en cualquier aplicación y que coinciden con lo que escribiste.
+1. **Anclajes explícitos primero**: las reglas **Alto + Siempre arriba** y las coincidencias limpias de **Favoritos** se fijan arriba, mientras que las rutas de nivel **Bajo** permanecen por debajo de los resultados normales.
+2. **Coincidencias directas antes que alias e historial**: las coincidencias directas exactas y limpias van siempre delante de las difusas aproximadas, los alias secundarios limpios (destino de acceso directo, metadatos o alias de usuario, mostrados en el subtítulo) y las **Asociaciones de consulta** confirmadas.
 
 ### Sin distinción entre mayúsculas y minúsculas (Case Insensitive)
 
