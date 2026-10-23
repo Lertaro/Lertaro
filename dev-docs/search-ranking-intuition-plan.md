@@ -10,9 +10,10 @@
 | P1 端到端 ranking trace | 完成；待 Windows/.NET 环境跑 MSTest | 无 |
 | P2 离线回放器 | 完成；待 Windows/.NET 环境跑 MSTest | 无 |
 | P3 shadow evidence / identity | 完成；待 Windows/.NET 环境跑 MSTest | 无 |
-| P4–P10 | 未开始 | 逐阶段说明 |
+| P4 拼音空格等价 | 完成；待 Windows/.NET 环境跑 MSTest 与同机性能测试 | 受限 joined 拼音分支 |
+| P5–P10 | 未开始 | 逐阶段说明 |
 
-P0 fixture：`Tests/Core/SearchRanking/Fixtures/reported-search-cases.v1.json`。P1 使用 ranking-event schema 3；旧 schema 行缺失的字段读作 Unknown/null。当前 matcher 尚无结构化 witness，所以 `field/mode/evidenceGrade` 为 `LegacyUnknown`，不得反推或伪造。
+P0 fixture：`Tests/Core/SearchRanking/Fixtures/reported-search-cases.v1.json`。P1 使用 ranking-event schema 3；旧 schema 行缺失的字段读作 Unknown/null。P4 后只有胜出的 joined 拼音分支具有结构化 mode/provider/span；其余无法证明的 matcher 分支仍保持 `LegacyUnknown`，不得反推或伪造。
 
 ## 目标与约束
 
@@ -165,25 +166,19 @@ V2 基线见 `Tests/Core/SearchRanking/Baselines/v2-baseline.md`。PixPin 当前
 
 `SearchRankingEvidence.cs` 定义字段、模式、query variant、Grade、kind flags 和候选身份。快速窗口在实际命中的 title、filename、provider alias、keyword 或 history keyword 上记录 Field；无法区分 alias 与 parent-path 的引擎 fallback 保持 Unknown。Grade 只由已知表示及既有 `MatchRank` 推导，V2 比较器不读取影子字段。同路径合并保留执行行、来源并集和最强 evidence，诊断 fingerprint 覆盖新增字段。
 
-当前协议缺口：matcher 仍只返回 `MatchRank`，所以普通文本、拼音和 provider alias 的 accepted branch、provider id 与 spans 不能可靠区分，`Mode/Span` 保持 `LegacyUnknown/-1`；history-only 行因来源明确可记为 `LearnedAlias`。不得从 tier 或高亮结果反推 branch。P4 扩展 matcher 时必须让判定、高亮和 evidence 共用同一 witness。
+P3 提交时 matcher 只返回 `MatchRank`，所以普通文本、拼音和 provider alias 的 accepted branch、provider id 与 spans 当时都保持 `LegacyUnknown/-1`；history-only 行因来源明确可记为 `LearnedAlias`。P4 只补上可证明的 joined 拼音 witness，其余分支仍不得从 tier 或高亮结果反推。
 
 退出：schema 3、reader 和复制解释能显示已知 Field/Grade/Kind，旧行读作 Unknown；影子字段差异不改变 V2 顺序。
 
-### P4：拼音空格等价
+### P4：拼音空格等价 — 完成
 
-joined 分支只适用于至少两个、无操作符、由同一 live provider 处理且拼接后长度 2–63 的纯拼音正词。
+`PinyinNameEvaluator` 只为至少两个普通正词建立 joined 分支：查询不得含 drive、OR、排除或显式匹配操作符；每词必须是 ASCII 字母；拼接长度为 2–63；同一个 live provider 必须能处理每个原词和拼接词。跨 provider 不合成。
 
-1. 先写 eligibility 纯函数和操作符、ASCII、反序、64 字符负例。
-2. 同时计算 original 多词与 joined 单词分支，保留胜出 variant/witness。
-3. joined 完整覆盖词干时，与无空格查询得到同 Grade 和引擎语义。
-4. 高亮消费同一 witness，不再独立重算。
-5. 核对字符 prefilter、snapshot 与 delta 索引路径。
-6. 保留普通英文多词、无序多块和单 token 不跨分隔符的行为。
-7. 跑 Core/PinyinAlias/App 高亮测试并记录真实语料耗时。
+original 多词与 joined 单词在同一 scorer 中竞争。有字面词时，joined 仍须原始分更高；全读音多词的逐词位置 bonus 会随空格数重复，不能与单词分直接比较，此时只在 joined 起点不更晚且源覆盖不更小时采用 canonical joined 分。否则保留 original。多 provider 同分再按 span/tier/provider 稳定决胜。胜出 witness 含 provider、tier 和源 span，`HighlightMask` 直接涂该 span，`FuzzyQuery` 同时写出 `PinyinJoined`、实际拼音 mode 和 span。比较器、候选集和非 joined evidence 不读这些字段。
 
-必测：`sousuojieguo`、`sousuo jieguo`、`sou suo jie guo`、反序、`visual studio`、`fast stone`、操作符、64 字符和含 `-` 的候选。
+Core fake-provider 测试覆盖资格、strict winner、跨 provider、枚举顺序、操作符、非 ASCII 与 64 字符；真实 provider 的 snapshot/delta 测试覆盖 `sousuojieguo`、`sousuo jieguo`、`sou suo jie guo` 的召回、Grade、`MatchRank`、高亮和受控 target rank delta，并在 fuzzy 开关两态核对反序、`visual studio`、`fast stone` 与含 `-` 的候选。普通多词仍走原分支，单 token 不跨候选分隔符。
 
-退出：拼音契约成立，普通语法零变化，p95 不超过基线 110%。
+当前环境无 .NET SDK，尚未运行 Core/PinyinAlias/App MSTest，也无法记录 Windows 同机 p95；合入门槛仍是 p95 不超过基线 110%。
 
 ### P5：应用与快捷方式身份
 

@@ -80,7 +80,9 @@ internal readonly record struct MatchEvidence(
         in MatchRank rank,
         MatchEvidenceMode mode = MatchEvidenceMode.LegacyUnknown,
         MatchQueryVariant variant = MatchQueryVariant.Original,
-        string? providerId = null)
+        string? providerId = null,
+        int spanStart = -1,
+        int spanLength = 0)
     {
         if (!rank.IsMatch)
             return LegacyUnknown;
@@ -102,7 +104,9 @@ internal readonly record struct MatchEvidence(
             grade,
             AllPositiveTerms: true,
             DirectText: direct,
-            providerId);
+            providerId,
+            spanStart,
+            spanLength);
     }
 
     internal static MatchEvidence Stronger(MatchEvidence preferred, MatchEvidence other)
@@ -135,6 +139,21 @@ internal readonly record struct MatchEvidence(
 }
 
 internal readonly record struct MatchEvidenceResult(MatchRank Rank, MatchEvidence Evidence);
+
+internal readonly record struct AcceptedMatchWitness(
+    MatchEvidenceMode Mode,
+    MatchQueryVariant QueryVariant,
+    string? ProviderId,
+    int SpanStart,
+    int SpanLength)
+{
+    public static AcceptedMatchWitness LegacyUnknown => new(
+        MatchEvidenceMode.LegacyUnknown,
+        MatchQueryVariant.LegacyUnknown,
+        null,
+        -1,
+        0);
+}
 
 /// <summary>Source, execution kind and merge key of one candidate; ordering does not read this structure.</summary>
 internal readonly record struct CandidateIdentity(

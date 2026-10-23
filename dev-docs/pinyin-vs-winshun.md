@@ -41,6 +41,7 @@ Qt 专属那一大类在这里不适用，不再逐条列：`startSystemMove`、
      └─ 每个正词追加 provider 的 GetQueryForms（拼音 provider 现在只追加繁转简写法）
 唯一名扫描（字符掩码预筛；掩码烘的是名字各位置全部读音的字母，读音本身不落盘）
  └─ 名字层 PinyinNameEvaluator.TryScore：逐词先按字面判，字面不中再走该词的读音 NFA
+     ├─ 合格的多拼音词另算同 provider 的 joined 分支，按分数或源 span 质量选 canonical winner
      ├─ 一个词的可读形态在模糊模式下也按连续子串判（两模式同答的根据）
      ├─ 字面命中的词用 fzf 自己的分数，只有需要读出来的词用参考实现的加分表
      └─ 排除词只按字面否决，别名层不得复活被 ! 排除的候选
@@ -97,7 +98,9 @@ Qt 专属那一大类在这里不适用，不再逐条列：`startSystemMove`、
 
 出厂默认是模糊匹配开启（`Core/Settings/UserSettings.cs:62`，`EnableFuzzyMatch = true`），精确模式指把它关掉。设置只决定候选自己文本怎么读：精确要连续子串，模糊要子序列。拼音层在两种模式下给同一个答案，机制是 `PinyinNameEvaluator.cs:255`：一个读音能判定的词，它的字面一侧即使在模糊模式下也按连续判；让这样的词散到名字的字母上是两模式答案不同的唯一来源。断言在 `PinyinExactModeTests.BothModes_ReachTheSameNamesForPinyinQueries` 与 `PinyinMultiBlockQueryTests.SameQuery_ReachesTheSameFileWithFuzzyMatchingOnAndOff`。
 
-无空格的拼音串是一个词，必须在名字里找一段连续位置；空格分隔的词彼此独立，顺序自由（`MultiTermTokens_AreIndependent`）。普通内容词与拼音词之间必须用空格隔开；同一个 token 里混排汉字与拼音字母走混合 lane，而这条 lane 只在模糊模式下认领多词查询里的混合词（`PinyinRobustnessTests.MixedAlphabetTerm_IsAFuzzyModeRescue`，`chuangysji Anna 电nao` 在精确模式不中）。
+无空格的拼音串是一个词，必须在名字里找一段连续位置；空格分隔的词原本彼此独立、顺序自由（`MultiTermTokens_AreIndependent`）。对至少两个普通 ASCII 字母正词，系统还会让同一个 live provider 试一次去空格拼接；drive、OR、排除、显式操作符、长度超过 63 或需要跨 provider 的查询不试。逐词分支照常计算。含字面命中时 joined 仍须分数更高；全读音分支的逐词位置 bonus 会随 token 数重复，改用源起点与覆盖选 canonical winner。这样反序和普通多词保留原语义，拼音加空格不因 bonus 重复而抬分。joined 胜出时，判定、高亮和诊断共用它返回的 provider/tier/span witness。
+
+普通内容词与拼音词之间必须用空格隔开；同一个 token 里混排汉字与拼音字母走混合 lane，而这条 lane 只在模糊模式下认领多词查询里的混合词（`PinyinRobustnessTests.MixedAlphabetTerm_IsAFuzzyModeRescue`，`chuangysji Anna 电nao` 在精确模式不中）。
 
 原来说过"整个查询必须落在同一份拼写上才算名字层命中"，多词需要联合取证才能满足。这个约束随网格一起没了：现在每个词独立在同一条名字上判定，不存在"各词只能落在不同拼写上"的形态，`xinl gxiao jt fd 简单` 这类查询直接由名字层给出（`PinyinMultiBlockQueryTests` 的 DataRow）。名字层真的没接住的行才由 `PathTermFallback` 逐词补齐，rank 记 `ShapeNoName`/`NoNameFallback`（`MatchRank.cs:43,68`），永远排在任何真名字命中之后；它只在名字层没填满引擎这次 `limit` 时跑（`NameSearch.cs:101`）。默认快速查询经 `SearchService` 的 4 倍余量后，每块本地盘的这个 `limit` 是 204 条，与 App 显示的约 50 条不是一回事（见 search-ranking.md 的「候选预算与显示截断」）。
 

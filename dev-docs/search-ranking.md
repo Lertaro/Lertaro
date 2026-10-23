@@ -1,6 +1,6 @@
 # 搜索排序（现行）
 
-核对基线：`ff0608a`，`RankPolicy.Version = 2`，ranking-event schema 3（2026-10-23）。本文只描述当前实现；后续改动按 [search-ranking-intuition-plan.md](search-ranking-intuition-plan.md) 分阶段执行。
+排序行为核对基线：`ff0608a`，`RankPolicy.Version = 2`；P2/P3 只增加离线回放和影子证据，未改变顺序。ranking-event schema 3（2026-10-23）。后续改动按 [search-ranking-intuition-plan.md](search-ranking-intuition-plan.md) 分阶段执行。
 
 ## 范围
 
@@ -111,7 +111,9 @@ Effective = clamp(Score × 0.5^(days / 90), 0, 10)
 
 查询解析、反向词、路径兜底和拼音都在排序之前决定候选及 `MatchRank`。排序不能补回没有召回的项目，也不能凭空生成匹配 witness。
 
-当前拼音实现是逐查询、逐候选的 NFA。查询与候选统一做全角 ASCII→半角、U+3000→空格和 NFC；不做通用 NFKC。单个拼音词要求 2–63 个字符，候选文本最多检查 512 个码点，简拼不跨候选中的分隔符。完整规则与测试矩阵见 [pinyin-vs-winshun.md](pinyin-vs-winshun.md)。
+当前拼音实现是逐查询、逐候选的 NFA。查询与候选统一做全角 ASCII→半角、U+3000→空格和 NFC；不做通用 NFKC。单个拼音词要求 2–63 个字符，候选文本最多检查 512 个码点，简拼不跨候选中的分隔符。
+
+至少两个无操作符的 ASCII 拼音正词还会由同一 live provider 拼接后试一次。拼接长度限 2–63，且该 provider 必须同时接受每个原词；跨 provider、drive、OR 和排除查询不进入此分支。原多词分支与拼接分支同时评分。含字面命中时拼接分必须更高；全读音分支改按源起点与覆盖比较，避免每加一个空格就重复累加位置 bonus。反序、普通英文多词和原来的无序多块语义不变。完整规则与测试矩阵见 [pinyin-vs-winshun.md](pinyin-vs-winshun.md)。
 
 ## 排序诊断
 
@@ -127,7 +129,7 @@ Effective = clamp(Score × 0.5^(days / 90), 0, 10)
 
 文件达到 10 MiB 后轮转，最多保留 3 个；进程首次写入时清理 30 天前的文件。相邻 5 秒内完全相同的页复用 `pageId`。日志失败不会阻止搜索或打开结果。reader 对旧 schema 缺失的字段返回 Unknown/null，并忽略未来字段。
 
-影子 `MatchEvidence` 记录实际参与匹配的 title、filename、provider alias、keyword 或 history keyword，并据此写 Field/Grade；无法区分 alias 与 parent-path 的引擎 fallback 保持 Unknown。`CandidateIdentity` 分开记录来源和 File/Directory/Application/Shortcut flags。matcher 尚未返回 accepted branch 和 spans，因此普通结果的 `Mode/Span` 仍是 `LegacyUnknown/-1`；不得从 `MatchRank` 反推 alias branch 或 span。
+影子 `MatchEvidence` 记录实际参与匹配的 title、filename、provider alias、keyword 或 history keyword，并据此写 Field/Grade；无法区分 alias 与 parent-path 的引擎 fallback 保持 Unknown。`CandidateIdentity` 分开记录来源和 File/Directory/Application/Shortcut flags。胜出的 joined 拼音分支由 scorer 返回 provider/tier/span，判定、高亮和日志共用该 witness，并写出 `PinyinJoined` 与实际拼音 mode。普通文本、非 joined 拼音和其他无法证明的 alias 分支仍用 `LegacyUnknown/-1`；不得从 `MatchRank` 反推。
 
 ## 科学性与校准边界
 

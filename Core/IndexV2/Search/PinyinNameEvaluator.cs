@@ -40,25 +40,41 @@ internal sealed class PinyinNameEvaluator
     private readonly ProviderTable[] _providers;
     private readonly FzfTerm? _loneWord; // the single plain positive term, when there is exactly one
     private readonly bool[] _eligible; // per word: some provider can actually decide it by reading
+    private readonly string? _joinedTerm;
 
     private sealed class ProviderTable
     {
         public required byte ProviderId { get; init; }
+        public required string ProviderName { get; init; }
         public required IAliasTermMatcher?[] Full { get; init; }
         public required IAliasTermMatcher?[] Common { get; init; }
+        public IAliasTermMatcher? JoinedFull { get; init; }
+        public IAliasTermMatcher? JoinedCommon { get; init; }
     }
 
+    internal readonly record struct PinyinMatchWitness(
+        bool IsJoined,
+        byte ProviderId,
+        string? ProviderName,
+        int Start,
+        int End,
+        int Tier);
+
+    private readonly record struct BranchStats(bool ReadingOnly, int Covered);
+
     private PinyinNameEvaluator(FzfPattern pattern, Dictionary<string, int> wordIndex,
-        ProviderTable[] providers, FzfTerm? loneWord, bool[] eligible)
+        ProviderTable[] providers, FzfTerm? loneWord, bool[] eligible, string? joinedTerm)
     {
         _pattern = pattern;
         _wordIndex = wordIndex;
         _providers = providers;
         _loneWord = loneWord;
         _eligible = eligible;
+        _joinedTerm = joinedTerm;
     }
 
     public bool HasProviders => _providers.Length != 0;
+    internal bool HasJoinedBranch => _joinedTerm != null && _providers.Any(table => table.JoinedFull != null);
 
     public static PinyinNameEvaluator ForPattern(FzfPattern pattern)
         => Cache.GetValue(pattern, static p =>
@@ -92,6 +108,7 @@ internal sealed class PinyinNameEvaluator
         // The whole-name bonuses belong to a query of exactly ONE plain word; a second term of any
         // kind (another word, an operator, an inverse) leaves them off.
         var lone = positives == 1 && plainCount == 1 ? firstPlain : null;
+        var joinedTerm = TryBuildJoinedTerm(pattern);
 
         var list = words.ToArray();
         var tables = new List<ProviderTable>();
@@ -115,12 +132,32 @@ internal sealed class PinyinNameEvaluator
                 }
                 any |= full[i] != null;
             }
-            if (any)
+            IAliasTermMatcher? joinedFull = null;
+            IAliasTermMatcher? joinedCommon = null;
+            if (joinedTerm != null && full.All(matcher => matcher != null))
+            {
+                try
+                {
+                    joinedFull = provider.CreateMatcher(joinedTerm, false);
+                    if (joinedFull != null)
+                        joinedCommon = provider.CreateMatcher(joinedTerm, true);
+                }
+                catch
+                {
+                    joinedFull = null;
+                    joinedCommon = null;
+                }
+            }
+
+            if (any || joinedFull != null)
                 tables.Add(new ProviderTable
                 {
                     ProviderId = AliasProviderRegistry.GetProviderId(provider),
+                    ProviderName = provider.GetType().Name,
                     Full = full,
                     Common = common,
+                    JoinedFull = joinedFull,
+                    JoinedCommon = joinedCommon,
                 });
         }
 
@@ -129,26 +166,79 @@ internal sealed class PinyinNameEvaluator
             for (var i = 0; i < list.Length; i++)
                 eligible[i] |= table.Full[i] != null;
 
-        return new PinyinNameEvaluator(pattern, index, tables.ToArray(), lone, eligible);
+        return new PinyinNameEvaluator(pattern, index, tables.ToArray(), lone, eligible, joinedTerm);
+    }
+
+    private static string? TryBuildJoinedTerm(FzfPattern pattern)
+    {
+        if (pattern.TargetDrive != null
+            || pattern.OrGroups != null
+            || pattern.HasExclusions
+            || pattern.TermSets.Length < 2)
+        {
+            return null;
+        }
+
+        var plainKind = SearchContext.FuzzyMatchEnabled ? FzfTermKind.Fuzzy : FzfTermKind.Exact;
+        var builder = new System.Text.StringBuilder(16);
+        foreach (var set in pattern.TermSets)
+        {
+            FzfTerm? typed = null;
+            foreach (var term in set.Terms)
+            {
+                if (term.AliasForm)
+                    continue;
+                if (typed != null
+                    || term.Inverse
+                    || term.Kind != plainKind
+                    || term.Text.Length == 0)
+                {
+                    return null;
+                }
+                typed = term;
+            }
+
+            if (typed is not { } word)
+                return null;
+            foreach (var c in word.Text)
+            {
+                if (c is not (>= 'a' and <= 'z') and not (>= 'A' and <= 'Z'))
+                    return null;
+                builder.Append(char.ToLowerInvariant(c));
+                if (builder.Length > 63)
+                    return null;
+            }
+        }
+
+        return builder.Length >= 2 ? builder.ToString() : null;
     }
 
     /// <summary>
     /// Decides the whole query against <paramref name="name"/>. On true the match carries the score and
     /// the span, ready for <c>FzfResultRank.ForDefaultScheme</c>.
     /// </summary>
-    public bool TryScore(ReadOnlySpan<char> name, FzfSlab? slab, out FzfPatternResult match)
+    public bool TryScore(ReadOnlySpan<char> name, FzfSlab? slab, out FzfPatternResult match) =>
+        TryScore(name, slab, out match, out _);
+
+    internal bool TryScore(
+        ReadOnlySpan<char> name,
+        FzfSlab? slab,
+        out FzfPatternResult match,
+        out PinyinMatchWitness witness)
     {
         match = default;
+        witness = default;
         if (name.IsEmpty || !HasProviders)
             return false;
 
         if (name.IndexOf('|') < 0)
-            return ScoreWhole(name, slab, out match);
+            return ScoreWhole(name, slab, out match, out witness);
 
         // A '|' inside the text is a reading separator to every alias tier, so a candidate that carries
         // one for real -- a browser tab title like "example.com | 代理" -- is decided one segment at a
         // time, exactly as FzfPattern.TryMatch does, and never across the boundary.
         var best = default(FzfPatternResult);
+        var bestWitness = default(PinyinMatchWitness);
         var matched = false;
         var start = 0;
         while (start < name.Length)
@@ -156,14 +246,21 @@ internal sealed class PinyinNameEvaluator
             var len = name.Slice(start).IndexOf('|');
             if (len < 0)
                 len = name.Length - start;
-            if (ScoreWhole(name.Slice(start, len), slab, out var segment))
+            if (ScoreWhole(name.Slice(start, len), slab, out var segment, out var segmentWitness))
             {
                 if (segment.ValidOffsetFound)
                     segment = new FzfPatternResult(segment.Score, segment.MinBegin + start,
                         segment.MinEnd + start, segment.MaxEnd + start, true);
+                if (segmentWitness.IsJoined)
+                    segmentWitness = segmentWitness with
+                    {
+                        Start = segmentWitness.Start + start,
+                        End = segmentWitness.End + start,
+                    };
                 if (!matched || segment.Score > best.Score)
                 {
                     best = segment;
+                    bestWitness = segmentWitness;
                     matched = true;
                 }
             }
@@ -171,23 +268,148 @@ internal sealed class PinyinNameEvaluator
         }
 
         match = best;
+        witness = bestWitness;
         return matched;
     }
 
-    private bool ScoreWhole(ReadOnlySpan<char> name, FzfSlab? slab, out FzfPatternResult match)
+    internal bool TryPaintJoined(ReadOnlySpan<char> name, Span<bool> painted, out PinyinMatchWitness witness)
+    {
+        witness = default;
+        if (!TryScore(name, null, out _, out var accepted) || !accepted.IsJoined)
+            return false;
+        for (var i = accepted.Start; i < accepted.End && i < painted.Length; i++)
+            painted[i] = true;
+        witness = accepted;
+        return true;
+    }
+
+    private bool ScoreWhole(
+        ReadOnlySpan<char> name,
+        FzfSlab? slab,
+        out FzfPatternResult match,
+        out PinyinMatchWitness witness)
     {
         match = default;
+        witness = default;
         var disabled = SearchContext.DisabledAliasIds;
+        var originalMatched = false;
+        var originalStats = default(BranchStats);
         if (_pattern.OrGroups != null)
         {
             foreach (var group in _pattern.OrGroups)
             {
-                if (ScoreSets(group.Sets, name, slab, disabled, out match))
-                    return true;
+                if (!ScoreSets(group.Sets, name, slab, disabled, out match, out originalStats))
+                    continue;
+                originalMatched = true;
+                break;
             }
-            return false;
         }
-        return ScoreSets(_pattern.TermSets, name, slab, disabled, out match);
+        else
+        {
+            originalMatched = ScoreSets(
+                _pattern.TermSets, name, slab, disabled, out match, out originalStats);
+        }
+
+        if (TryScoreJoined(name, disabled, out var joined, out var joinedWitness)
+            && JoinedWins(name, originalMatched, match, originalStats, joined))
+        {
+            match = joined;
+            witness = joinedWitness;
+            return true;
+        }
+        return originalMatched;
+    }
+
+    private static bool JoinedWins(
+        ReadOnlySpan<char> name,
+        bool originalMatched,
+        in FzfPatternResult original,
+        in BranchStats originalStats,
+        in FzfPatternResult joined)
+    {
+        if (!originalMatched || joined.Score > original.Score)
+            return true;
+        if (!originalStats.ReadingOnly)
+            return false;
+
+        // Per-term reading bonuses are additive, so merely inserting more spaces can make the original
+        // branch's raw score larger even when both branches describe exactly the same source span. Those
+        // numbers are not comparable across tokenizations. Canonicalize to the joined witness only when
+        // it starts no later and explains at least as much of the stem; otherwise the ordinary multi-word
+        // evidence remains stronger and keeps its existing result.
+        var stem = StemLength(name);
+        var joinedCoverage = Math.Min(joined.MaxEnd - joined.MinBegin, stem);
+        var originalCoverage = Math.Min(originalStats.Covered, stem);
+        return joined.MinBegin <= original.MinBegin && joinedCoverage >= originalCoverage;
+    }
+
+    private bool TryScoreJoined(
+        ReadOnlySpan<char> name,
+        HashSet<byte>? disabled,
+        out FzfPatternResult match,
+        out PinyinMatchWitness witness)
+    {
+        match = default;
+        witness = default;
+        if (_joinedTerm == null)
+            return false;
+
+        var found = false;
+        foreach (var table in _providers)
+        {
+            if (disabled != null && disabled.Contains(table.ProviderId))
+                continue;
+            if (table.JoinedFull == null
+                || !table.JoinedFull.TryFind(name, default, out var start, out var end))
+            {
+                continue;
+            }
+
+            var common = table.JoinedCommon != null
+                && table.JoinedCommon.TryFind(name, default, out _, out _);
+            var stem = StemLength(name);
+            var score = PinyinBonus(start, name, common)
+                + 25 * Math.Min(end - start, stem) / stem;
+            if (start == 0 && end - start >= stem)
+                score += 40;
+            var tier = !common
+                ? MatchRank.TierFullRare
+                : end - start == _joinedTerm.Length
+                    ? MatchRank.TierInitials
+                    : MatchRank.TierFull;
+            if (found && (score < match.Score
+                || score == match.Score && CompareJoinedTie(
+                    table.ProviderId, table.ProviderName, tier, start, end, witness) >= 0))
+            {
+                continue;
+            }
+
+            match = new FzfPatternResult(score, start, end, end, true);
+            witness = new PinyinMatchWitness(true, table.ProviderId, table.ProviderName, start, end, tier);
+            found = true;
+        }
+        return found;
+    }
+
+    private static int CompareJoinedTie(
+        byte providerId,
+        string providerName,
+        int tier,
+        int start,
+        int end,
+        in PinyinMatchWitness accepted)
+    {
+        var compare = start.CompareTo(accepted.Start);
+        if (compare != 0)
+            return compare;
+        compare = (accepted.End - accepted.Start).CompareTo(end - start);
+        if (compare != 0)
+            return compare;
+        compare = tier.CompareTo(accepted.Tier);
+        if (compare != 0)
+            return compare;
+        compare = string.CompareOrdinal(providerName, accepted.ProviderName);
+        return compare != 0 ? compare : providerId.CompareTo(accepted.ProviderId);
     }
 
     /// <summary>
@@ -221,10 +443,16 @@ internal sealed class PinyinNameEvaluator
         return false;
     }
 
-    private bool ScoreSets(FzfTermSet[] sets, ReadOnlySpan<char> name, FzfSlab? slab, HashSet<byte>? disabled,
-        out FzfPatternResult result)
+    private bool ScoreSets(
+        FzfTermSet[] sets,
+        ReadOnlySpan<char> name,
+        FzfSlab? slab,
+        HashSet<byte>? disabled,
+        out FzfPatternResult result,
+        out BranchStats stats)
     {
         result = default;
+        stats = default;
         var total = 0;
         var covered = 0;
         var minBegin = int.MaxValue;
@@ -331,6 +559,7 @@ internal sealed class PinyinNameEvaluator
         }
 
         result = new FzfPatternResult(total, minBegin, minEnd, maxEnd, valid);
+        stats = new BranchStats(literalTerms == 0 && readTerms > 0, covered);
         return true;
     }
 

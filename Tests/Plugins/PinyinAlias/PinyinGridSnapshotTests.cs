@@ -8,6 +8,7 @@ namespace Lertaro.Plugins.PinyinAlias.Tests;
 // snapshot carries NOTHING for the readings -- every candidate re-walks its own readings at query
 // time -- so what this class holds is that the zero-payload promise and the searches stand together.
 [TestClass]
+[DoNotParallelize]
 public sealed class PinyinLiveSnapshotTests
 {
     private static string LongPolyphonicName => new string('重', 40) + ".pdf";
@@ -78,6 +79,92 @@ public sealed class PinyinLiveSnapshotTests
 
                 SearchContext.FuzzyMatchEnabled = true;
                 CollectionAssert.AreEqual(new[] { Name }, fixture.Search(query).Take(1).ToArray(), $"'{query}' must answer the same with fuzzy matching on");
+            }
+        }
+        finally
+        {
+            SearchContext.FuzzyMatchEnabled = previous;
+        }
+    }
+
+    [TestMethod]
+    public void SpacedPinyin_ReusesTheAcceptedJoinedWitness()
+    {
+        const string Name = "搜索结果.txt";
+        const string DeltaName = "搜索结果增量.txt";
+        const string Joined = "sousuojieguo";
+        var spacedVariants = new[] { "sousuo jieguo", "sou suo jie guo" };
+        using var fixture = new RealIndexFixture(
+            Name,
+            "搜索结果备份.txt",
+            "旧搜索结果.txt",
+            "搜索结论.txt",
+            "搜素结果.txt");
+        var previous = SearchContext.FuzzyMatchEnabled;
+        try
+        {
+            foreach (var fuzzy in new[] { false, true })
+            {
+                SearchContext.FuzzyMatchEnabled = fuzzy;
+                var joinedResults = fixture.Search(Joined);
+                var joinedQuery = FuzzyQuery.Parse(Joined);
+                var joinedAccepted = joinedQuery.RankWithEvidence(Name, MatchEvidenceField.FileName);
+                CollectionAssert.Contains(joinedResults, Name);
+
+                foreach (var spaced in spacedVariants)
+                {
+                    var spacedResults = fixture.Search(spaced);
+                    CollectionAssert.Contains(spacedResults, Name);
+                    CollectionAssert.Contains(fixture.SearchWithAddedDelta(spaced, DeltaName), DeltaName);
+                    Assert.IsTrue(Math.Abs(joinedResults.IndexOf(Name) - spacedResults.IndexOf(Name)) <= 1,
+                        $"the controlled target rank for '{spaced}' may move by at most one place");
+                    CollectionAssert.AreEqual(
+                        fixture.HighlightedIndices(Name, Joined).ToArray(),
+                        fixture.HighlightedIndices(Name, spaced).ToArray());
+
+                    var spacedQuery = FuzzyQuery.Parse(spaced);
+                    Assert.AreEqual(joinedQuery.Rank(Name), spacedQuery.Rank(Name));
+                    var accepted = spacedQuery.RankWithEvidence(Name, MatchEvidenceField.FileName);
+                    Assert.AreEqual(joinedAccepted.Evidence.Grade, accepted.Evidence.Grade);
+                    Assert.AreEqual(MatchQueryVariant.PinyinJoined, accepted.Evidence.QueryVariant);
+                    Assert.AreEqual(MatchEvidenceMode.PinyinFull, accepted.Evidence.Mode);
+                    Assert.AreEqual(nameof(PinyinAliasProvider), accepted.Evidence.ProviderId);
+                    Assert.AreEqual(0, accepted.Evidence.SpanStart);
+                    Assert.AreEqual(4, accepted.Evidence.SpanLength);
+                }
+            }
+        }
+        finally
+        {
+            SearchContext.FuzzyMatchEnabled = previous;
+        }
+    }
+
+    [TestMethod]
+    public void JoinedBranch_DoesNotChangeOrdinaryMultiWordGrammar()
+    {
+        var previous = SearchContext.FuzzyMatchEnabled;
+        try
+        {
+            foreach (var fuzzy in new[] { false, true })
+            {
+                SearchContext.FuzzyMatchEnabled = fuzzy;
+                foreach (var (query, text) in new[]
+                {
+                    ("visual studio", "Visual Studio"),
+                    ("fast stone", "FastStone"),
+                    ("jie guo sou suo", "搜索结果"),
+                    ("sou suo jie guo", "搜索-结果"),
+                })
+                {
+                    var accepted = FuzzyQuery.Parse(query)
+                        .RankWithEvidence(text, MatchEvidenceField.DisplayTitle);
+                    Assert.IsTrue(accepted.Rank.IsMatch, $"'{query}' must retain its ordinary match");
+                    Assert.AreEqual(MatchQueryVariant.Original, accepted.Evidence.QueryVariant);
+                }
+
+                Assert.IsFalse(FuzzyMatcher.IsMatch("sousuojieguo", "搜索-结果"),
+                    "a joined pinyin token must not cross a candidate delimiter");
             }
         }
         finally

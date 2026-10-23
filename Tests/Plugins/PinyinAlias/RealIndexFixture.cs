@@ -38,6 +38,20 @@ internal sealed class RealIndexFixture : IDisposable
     {
         using var snapshot = Snapshot.Open(_path);
         using var index = new LiveIndex(snapshot);
+        return Search(index, query, limit);
+    }
+
+    public List<string> SearchWithAddedDelta(string query, string name, int limit = 20)
+    {
+        using var snapshot = Snapshot.Open(_path);
+        using var index = new LiveIndex(snapshot);
+        index.Mutate((_, delta) =>
+            delta.Upsert(10_000, 1, name, FileRecordFlags.None, 0, 0, 0, 0));
+        return Search(index, query, limit);
+    }
+
+    private static List<string> Search(LiveIndex index, string query, int limit)
+    {
         var results = new List<SearchResult>();
         IndexV2Searcher.SearchStreaming(index, query, limit, results.Add, CancellationToken.None);
         return results.Select(result => result.Name).ToList();

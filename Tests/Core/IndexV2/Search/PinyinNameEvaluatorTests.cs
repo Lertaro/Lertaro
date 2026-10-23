@@ -9,8 +9,21 @@ namespace Lertaro.Core.Tests.IndexV2.Search;
 // the reading table plays no part here. A word the name literally says keeps fzf's number; the WinShun
 // table spelled out in the assertions decides only the words that had to be read.
 [TestClass]
+[DoNotParallelize]
 public sealed class PinyinNameEvaluatorTests
 {
+    private bool _previousFuzzy;
+
+    [TestInitialize]
+    public void UseDefaultFuzzyMode()
+    {
+        _previousFuzzy = SearchContext.FuzzyMatchEnabled;
+        SearchContext.FuzzyMatchEnabled = true;
+    }
+
+    [TestCleanup]
+    public void RestoreFuzzyMode() => SearchContext.FuzzyMatchEnabled = _previousFuzzy;
+
     // Hands out one scripted span per term; no text inspection at all.
     private sealed class FakeLiveProvider : IAliasLiveMatcherProvider
     {
@@ -158,6 +171,116 @@ public sealed class PinyinNameEvaluatorTests
         // "^bg" keeps its anchored literal reading: the pinyin fallback never runs for operators.
         var evaluator = Evaluator("^bg", new FakeLiveProvider().Span("bg", 0, 2));
         Assert.IsFalse(evaluator.TryScore("报告", null, out _));
+    }
+
+    [TestMethod]
+    public void JoinedWords_UseOneAcceptedSpanAndEqualTheUnspacedScore()
+    {
+        var provider = new FakeLiveProvider()
+            .Span("sou", 0, 1)
+            .Span("suo", 0, 1)
+            .Span("jie", 0, 1)
+            .Span("guo", 0, 1)
+            .Span("sousuojieguo", 0, 4);
+        var spaced = Evaluator("sou suo jie guo", provider);
+        var unspaced = Evaluator("sousuojieguo", provider);
+
+        Assert.IsTrue(spaced.HasJoinedBranch);
+        // Four per-word position bonuses exceed the one-word score numerically; canonical source
+        // coverage, not that token-count artifact, must still select the joined witness.
+        Assert.IsTrue(spaced.TryScore("搜索结果", null, out var spacedResult, out var witness));
+        Assert.IsTrue(unspaced.TryScore("搜索结果", null, out var unspacedResult));
+        Assert.AreEqual(91, spacedResult.Score);
+        Assert.AreEqual(unspacedResult.Score, spacedResult.Score);
+        Assert.IsTrue(witness.IsJoined);
+        Assert.AreEqual(0, witness.Start);
+        Assert.AreEqual(4, witness.End);
+        Assert.AreEqual(MatchRank.TierFull, witness.Tier);
+
+        var marks = new bool[4];
+        Assert.IsTrue(spaced.TryPaintJoined("搜索结果", marks, out var painted));
+        CollectionAssert.AreEqual(new[] { true, true, true, true }, marks);
+        Assert.AreEqual(witness, painted);
+    }
+
+    [TestMethod]
+    public void JoinedWords_DoNotReplaceBetterOrdinarySourceCoverage()
+    {
+        var provider = new FakeLiveProvider()
+            .Span("sou", 0, 2)
+            .Span("suo", 2, 4)
+            .Span("sousuo", 2, 4);
+        var evaluator = Evaluator("sou suo", provider);
+
+        Assert.IsTrue(evaluator.HasJoinedBranch);
+        Assert.IsTrue(evaluator.TryScore("搜索结果", null, out _, out var witness));
+        Assert.IsFalse(witness.IsJoined);
+        var marks = new bool[4];
+        Assert.IsFalse(evaluator.TryPaintJoined("搜索结果", marks, out _));
+    }
+
+    [TestMethod]
+    public void JoinedWords_ProviderEnumerationDoesNotChooseTheTieWinner()
+    {
+        var left = new FakeLiveProvider()
+            .Span("sou", -1, -1)
+            .Span("suo", -1, -1)
+            .Span("sousuo", 0, 1);
+        var boundary = new FakeLiveProvider()
+            .Span("sou", -1, -1)
+            .Span("suo", -1, -1)
+            .Span("sousuo", 2, 5);
+
+        var forward = Evaluator("sou suo", left, boundary);
+        var reverse = Evaluator("sou suo", boundary, left);
+        Assert.IsTrue(forward.TryScore("甲 搜索结", null, out var forwardScore, out var forwardWitness));
+        Assert.IsTrue(reverse.TryScore("甲 搜索结", null, out var reverseScore, out var reverseWitness));
+        Assert.AreEqual(forwardScore, reverseScore);
+        Assert.AreEqual(forwardWitness, reverseWitness);
+        Assert.AreEqual(0, forwardWitness.Start);
+    }
+
+    [TestMethod]
+    public void JoinedWords_RejectOperatorsOrCrossProviderComposition()
+    {
+        var complete = new FakeLiveProvider()
+            .Span("sou", 0, 1)
+            .Span("suo", 1, 2)
+            .Span("sousuo", 0, 2);
+        Assert.IsFalse(Evaluator("^sou suo", complete).HasJoinedBranch);
+        Assert.IsFalse(Evaluator("c:sou suo", complete).HasJoinedBranch);
+        Assert.IsFalse(Evaluator("'sou suo", complete).HasJoinedBranch);
+        Assert.IsFalse(Evaluator("sou !suo", complete).HasJoinedBranch);
+        Assert.IsFalse(Evaluator("sou | suo", complete).HasJoinedBranch);
+
+        var first = new FakeLiveProvider().Span("sou", 0, 1).Span("sousuo", 0, 2);
+        var second = new FakeLiveProvider().Span("suo", 1, 2).Span("sousuo", 0, 2);
+        Assert.IsFalse(Evaluator("sou suo", first, second).HasJoinedBranch);
+    }
+
+    [TestMethod]
+    public void JoinedWords_RejectNonAsciiAndOverlongInput()
+    {
+        var nonAscii = new FakeLiveProvider()
+            .Span("sou", 0, 1)
+            .Span("搜", 0, 1)
+            .Span("sou搜", 0, 1);
+        Assert.IsFalse(Evaluator("sou 搜", nonAscii).HasJoinedBranch);
+
+        var withinFirst = new string('a', 31);
+        var second = new string('b', 32);
+        var boundary = new FakeLiveProvider()
+            .Span(withinFirst, 0, 1)
+            .Span(second, 0, 1)
+            .Span(withinFirst + second, 0, 1);
+        Assert.IsTrue(Evaluator($"{withinFirst} {second}", boundary).HasJoinedBranch);
+
+        var overFirst = new string('a', 32);
+        var overlong = new FakeLiveProvider()
+            .Span(overFirst, 0, 1)
+            .Span(second, 0, 1)
+            .Span(overFirst + second, 0, 1);
+        Assert.IsFalse(Evaluator($"{overFirst} {second}", overlong).HasJoinedBranch);
     }
 
     [TestMethod]

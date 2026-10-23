@@ -60,12 +60,28 @@ public readonly struct FuzzyQuery
         MatchEvidenceField field,
         string? providerId = null)
     {
-        var rank = Rank(text);
+        var witness = AcceptedMatchWitness.LegacyUnknown;
+        var rank = _pattern is null || string.IsNullOrEmpty(text)
+            ? MatchRank.NoMatch
+            : FuzzyMatcher.ComputeMatchRank(text, _pattern, out witness);
+        if (text is null || _pattern?.HasPositiveTerms != true)
+            return new MatchEvidenceResult(rank, MatchEvidence.LegacyUnknown);
+
+        var variant = witness.QueryVariant == MatchQueryVariant.LegacyUnknown
+            ? MatchQueryVariant.Original
+            : witness.QueryVariant;
         return new MatchEvidenceResult(
             rank,
-            text is null || _pattern?.HasPositiveTerms != true
-                ? MatchEvidence.LegacyUnknown
-                : MatchEvidence.Accepted(Text, text, field, rank, providerId: providerId));
+            MatchEvidence.Accepted(
+                Text,
+                text,
+                field,
+                rank,
+                witness.Mode,
+                variant,
+                witness.ProviderId ?? providerId,
+                witness.SpanStart,
+                witness.SpanLength));
     }
 
     internal MatchEvidenceResult BestMatchWithEvidence(

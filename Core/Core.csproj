@@ -20,6 +20,7 @@
     <InternalsVisibleTo Include="Lertaro.Core.Tests" />
     <InternalsVisibleTo Include="Lertaro.App" />
     <InternalsVisibleTo Include="Lertaro.App.Tests" />
+    <InternalsVisibleTo Include="Lertaro.Plugins.PinyinAlias.Tests" />
     <InternalsVisibleTo Include="Lertaro.Benchmarks" />
   </ItemGroup>
 
