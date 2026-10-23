@@ -112,7 +112,7 @@ public sealed class WindowsRecentCandidateMapperTests
     }
 
     [TestMethod]
-    public void RankAndDedupe_HistoryRowWithHundredOpens_LeadsTheList()
+    public void RankAndDedupe_HistoryRowWithHundredOpens_StaysBehindTheDirectNameRow()
     {
         var history = HistorySearchCandidateMapper.Collect(
             FuzzyQuery.Parse("atlas"), null,
@@ -125,11 +125,11 @@ public sealed class WindowsRecentCandidateMapperTests
 
         var ranked = SearchResultMapper.RankAndDedupe([ordinary, .. history]);
 
-        // A hundred opens decay to well over the 5.0 threshold, so the row reaches H5 (34) and outranks an
-        // exact name match at 18 -- while its own name still did not match, which is why it needed history
-        // to be seen at all.
+        // A hundred opens decay to well over the 5.0 threshold, so the row reaches H5 -- but its own name
+        // never matched, which puts it in the learned tail. Under V3 no amount of opening crosses the
+        // direct name row's section; that 34-beats-18 crossing was the exchange rate this replaces.
         CollectionAssert.AreEqual(
-            new[] { @"D:\Projects\code-atlas", @"C:\atlas" },
+            new[] { @"C:\atlas", @"D:\Projects\code-atlas" },
             ranked.Select(r => r.FullPath).ToList());
     }
 
