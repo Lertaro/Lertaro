@@ -439,66 +439,6 @@ public static class SearchResultMapper
             }
         }
 
-        // Single-result user aliases on files/folders (never a global synonym table). Admitted only on clean
-        // non-scattered matches and annotated with localized provenance in the subtitle.
-        if (!string.IsNullOrWhiteSpace(query) && (triggeredTypeId == null || triggeredTypeId == SearchResultTypePriority.FilesTypeId))
-        {
-            var userAliasSettings = UserSettings.Load().ResultAliases;
-            var scopeRoot = string.IsNullOrEmpty(scope) ? null : SearchResultHelper.NormalizePath(scope);
-            foreach (var aliasEntry in userAliasSettings)
-            {
-                if (string.IsNullOrWhiteSpace(aliasEntry.Path) || aliasEntry.Aliases.Count == 0)
-                    continue;
-
-                var bestAlias = new MatchEvidenceResult(MatchRank.NoMatch, MatchEvidence.LegacyUnknown);
-                string? matchedAliasText = null;
-                foreach (var alias in aliasEntry.Aliases)
-                {
-                    var probe = fuzzy.RankWithEvidence(alias, MatchEvidenceField.UserAlias, variant: MatchQueryVariant.ProviderAlias);
-                    if (!probe.Rank.IsStrong)
-                        continue;
-                    if (FuzzyMatcher.IsStronger(probe.Rank, bestAlias.Rank))
-                    {
-                        bestAlias = probe;
-                        matchedAliasText = alias;
-                    }
-                }
-
-                if (!bestAlias.Rank.IsMatch)
-                    continue;
-
-                var kind = System.IO.Directory.Exists(aliasEntry.Path) ? HistoryEntryKind.Folder : HistoryEntryKind.File;
-                if (!HistorySearchCandidateMapper.TryCreateResult(
-                        new HistoryEntry(string.Empty, aliasEntry.Path, kind, 0),
-                        query,
-                        scopeRoot,
-                        System.IO.File.Exists,
-                        System.IO.Directory.Exists,
-                        out var uiRow,
-                        out var normalizedAliasPath)
-                    || HistorySearchCandidateMapper.IsExcludedFromSearch(uiRow))
-                    continue;
-
-                if (normalizedScopeFolders != null && !InFileFilterScope(normalizedAliasPath))
-                    continue;
-
-                var provenance = SearchableItemMapper.FormatSecondaryProvenance(MatchEvidenceField.UserAlias, matchedAliasText);
-                if (!string.IsNullOrEmpty(provenance))
-                    uiRow.ParentDir = provenance;
-
-                var usage = historyUsage.TryGetValue(normalizedAliasPath.TrimEnd('\\'), out var uc) ? uc : 0;
-                candidates.Add(new RankedCandidate(
-                    uiRow,
-                    IsFavorite: false,
-                    HistoryCount: usage,
-                    filesTypeRank,
-                    bestAlias.Rank,
-                    normalizedAliasPath,
-                    Source: RankingCandidateSource.FileIndex,
-                    Evidence: bestAlias.Evidence));
-            }
-        }
-
         // Second identity for the rows above: every shortcut still sitting on the Files rank (index file,
         // favorite, history, Windows Recent -- the searchable-item loop already carries the app rank) takes
         // the better of the two. Nothing moves when the app type is unlisted or ranked below Files.

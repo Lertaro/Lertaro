@@ -9,8 +9,6 @@ public class UserSettings
     public List<FolderIndexSetting> FolderIndexes { get; set; } = new();
     public DefaultFileManagerSetting DefaultFileManager { get; set; } = new();
     public List<FavoriteItemSetting> Favorites { get; set; } = new();
-    /// <summary>Per-result local search aliases keyed by target path; never expands queries globally.</summary>
-    public List<ResultAliasSetting> ResultAliases { get; set; } = new();
     public List<string> ExcludedPaths { get; set; } = new()
     {
         "%SystemDrive%\\Windows.old",
@@ -239,45 +237,4 @@ public class UserSettings
     internal static UserSettings WriteRestored(string sourcePath, string settingsPath, int backupCount, out string json)
         => UserSettingsPersistence.WriteRestored(sourcePath, settingsPath, backupCount, out json);
 
-    public IReadOnlyList<string> GetUserAliases(string? path)
-    {
-        var key = ResultAliasSetting.NormalizeTargetKey(path);
-        if (key.Length == 0 || ResultAliases.Count == 0)
-            return Array.Empty<string>();
-
-        var match = ResultAliases.FirstOrDefault(entry =>
-            string.Equals(ResultAliasSetting.NormalizeTargetKey(entry.Path), key, StringComparison.OrdinalIgnoreCase));
-        return match?.Aliases ?? (IReadOnlyList<string>)Array.Empty<string>();
-    }
-
-    public bool AddUserAlias(string? path, string? alias)
-    {
-        var key = ResultAliasSetting.NormalizeTargetKey(path);
-        var cleaned = alias?.Trim() ?? string.Empty;
-        if (key.Length == 0 || cleaned.Length is 0 or > 128)
-            return false;
-
-        var entry = ResultAliases.FirstOrDefault(item =>
-            string.Equals(ResultAliasSetting.NormalizeTargetKey(item.Path), key, StringComparison.OrdinalIgnoreCase));
-        if (entry == null)
-        {
-            entry = new ResultAliasSetting { Path = key };
-            ResultAliases.Add(entry);
-        }
-
-        if (entry.Aliases.Contains(cleaned, StringComparer.OrdinalIgnoreCase))
-            return false;
-
-        entry.Aliases.Add(cleaned);
-        return true;
-    }
-
-    public bool ClearUserAliases(string? path)
-    {
-        var key = ResultAliasSetting.NormalizeTargetKey(path);
-        if (key.Length == 0)
-            return false;
-        return ResultAliases.RemoveAll(item =>
-            string.Equals(ResultAliasSetting.NormalizeTargetKey(item.Path), key, StringComparison.OrdinalIgnoreCase)) > 0;
-    }
 }

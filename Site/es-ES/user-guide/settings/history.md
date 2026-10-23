@@ -28,5 +28,5 @@ Memoriza las **cadenas de búsqueda originales** que se hayan usado realmente pa
 Almacena hábitos confirmados **consulta → ruta de destino** de forma independiente a la frecuencia general:
 
 - **Umbral de 3 aperturas orgánicas**: Un elemento solo se recupera por asociación aprendida tras abrirlo de forma orgánica al menos **3 veces** con la misma consulta normalizada, evitando que clics accidentales contaminen búsquedas futuras.
-- **Sin bucles de retroalimentación**: Las aperturas desde sugerencias aprendidas no inflan contadores no confirmados y aparecen siempre detrás de las coincidencias directas. Para asignar un alias explícito a un resultado concreto, usa **Vincular como alias de búsqueda** en el menú de acciones (`Ctrl+O`).
+- **Sin bucles de retroalimentación**: Las aperturas desde sugerencias aprendidas no inflan contadores no confirmados y aparecen siempre detrás de las coincidencias directas.
 - **Limpieza independiente**: Filtra, elimina asociaciones individuales o bórralas todas sin reiniciar la frecuencia de uso por ruta.

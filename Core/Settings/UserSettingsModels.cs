@@ -50,21 +50,6 @@ public class QuickLaunchItemSetting
     public string Path { get; set; } = string.Empty;
 }
 
-/// <summary>Local user-assigned aliases bound to one concrete result path (never a global synonym table).</summary>
-public class ResultAliasSetting
-{
-    public string Path { get; set; } = string.Empty;
-    public List<string> Aliases { get; set; } = new();
-
-    public static string NormalizeTargetKey(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return string.Empty;
-        var trimmed = path.Trim();
-        return trimmed.Length > 3 && trimmed[^1] == '\\' ? trimmed.TrimEnd('\\') : trimmed;
-    }
-}
-
 /// <summary>Settings for the LocalSend protocol v2 LAN transfer engine.</summary>
 public class LocalSendSettingsModel
 {

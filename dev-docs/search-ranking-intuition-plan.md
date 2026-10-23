@@ -13,14 +13,14 @@
 | P4 拼音空格等价 | 完成 | 受限 joined 拼音分支 |
 | P5 应用与快捷方式身份 | 完成 | 同路径合并保留最强文本信号；新 alias 仅 shadow |
 | P6 影子 V3 模型与回放门槛 | 完成 | `RankPolicyV3` 与 V2/V3 回放对照门槛 |
-| P7 切换生产到单调 V3 | 完成 | `RankPolicy.Version = 3`；快速/完整/内联窗口统一单调分级；启用干净次要别名、单结果用户别名与来源副标题 |
+| P7 切换生产到单调 V3 | 完成 | `RankPolicy.Version = 3`；快速/完整/内联窗口统一单调分级；启用干净次要别名与来源副标题 |
 | P8 历史频率与查询关联拆分 | 完成 | 拆分 `search-history.json` 与 `search-query-associations.json`；canonical 合并（ASCII 词无空格拼接）后 exact lookup；自然打开 ≥ 3、阻断自强化、旧计数钳制 ≤ 1、设置页独立管理 |
 | P9 跨盘与快捷方式检索召回 | 完成 | 多网络索引有界全局排序截断；快捷方式补召回改为主查询之后、且仅在主结果没有 `*.lnk`/`*.url` 时才跑 |
 | P10 文档同步与影子路径收口 | 进行中 | `RankPolicyV3` 委托至线上 `RankPolicy`；P7 之后恒等的影子排名通道已删除；dev-docs 与 7 语种用户文档同步 |
 
 Windows/.NET 10 实测状态（2026-10-24）：移除排序日志后 Tests/Core 2262、Tests/App 2330 通过；`dotnet build Lertaro.slnx` 0 警告 0 错误。PinyinAlias 242、CoreExtensions 401、ContentSearch 173 在本次改动前通过，本次未触及这些工程。P10 未做完的部分见文末“仍未闭合”。
 
-P0 fixture：`Tests/Core/SearchRanking/Fixtures/reported-search-cases.v1.json`，P6 回放套件：`Tests/Core/SearchRanking/Fixtures/ranking-shadow-v3-cases.v1.json`（基线 `ranking-replay-cases.v1.json`，冻结的 V2 与离线策略在 `OfflineRankingPolicies.cs`）。当前 trace schema 4；导出文本只由本次搜索的内存 trace 生成，不读取旧文件。P7 后干净（`IsStrong`）的次要别名与单结果本地用户别名进入 `SecondaryField` 并展示来源副标题，零散子序列仍仅保留在 `ShadowAliasGate` 观测通道。P8 的 learned alias 只走 canonical exact lookup；完整窗口不设历史配额（产品决定，见文末）。
+P0 fixture：`Tests/Core/SearchRanking/Fixtures/reported-search-cases.v1.json`，P6 回放套件：`Tests/Core/SearchRanking/Fixtures/ranking-shadow-v3-cases.v1.json`（基线 `ranking-replay-cases.v1.json`，冻结的 V2 与离线策略在 `OfflineRankingPolicies.cs`）。当前 trace schema 4；导出文本只由本次搜索的内存 trace 生成，不读取旧文件。P7 后干净（`IsStrong`）的 provider 次要别名进入 `SecondaryField` 并展示来源副标题，零散子序列仍仅保留在 `ShadowAliasGate` 观测通道。P8 的 learned alias 只走 canonical exact lookup；完整窗口不设历史配额（产品决定，见文末）。
 
 ## 目标与约束
 
@@ -54,7 +54,7 @@ P0 fixture：`Tests/Core/SearchRanking/Fixtures/reported-search-cases.v1.json`�
 
 ```text
 MatchEvidence
-  Field          DisplayTitle | FileName | CuratedAlias | UserAlias |
+  Field          DisplayTitle | FileName | CuratedAlias |
                  ShortcutTarget | ProductMetadata | ProviderAlias | Keyword |
                  ParentPath | HistoryKeyword
   Mode           Literal | PinyinInitials | PinyinFull | PinyinRare |
@@ -197,11 +197,11 @@ Windows/.NET 10 已跑 Core/PinyinAlias/App MSTest；端到端 p95 按 2026-10-2
 2. shortcut 的 `SearchTitle` 去已知扩展名，执行路径不变。
 3. provider `Aliases` 成为带 provenance 的 Grade 3 evidence；`Keywords` 的干净前缀命中按 `ExactIdentity` 参与类型顺序（2026-10-24 决策，当前用于系统设置）。
 4. 开始菜单 provider 在加载时缓存受控 alias：标题、target exe stem、package/product metadata；按键热路径不做 COM 或文件解析。
-5. 新 target/user alias 在 V3 切换前只进 shadow 候选；现有 provider keyword 保持 V2 行为。
+5. 新 provider alias 在 V3 切换前只进 shadow 候选；现有 provider keyword 保持 V2 行为。
 6. 合并行保留 Application 执行委托、File 规则/质量、收藏和历史。
 7. provider readiness 变化应重跑当前查询。
 8. 只有 trace 证明 recall 失败时才把 source top-K 交给 P9。
-9. 不再提供用户别名的设置入口（2026-10-24 产品决定）；已有用户别名数据仍参与匹配，不引入全局同义词库。
+9. 用户别名功能已彻底移除（2026-10-24 产品决定）：不再读取 `ResultAliases` 数据，也不提供绑定/清除入口；不引入全局同义词库。
 
 退出：身份与标题 case 通过；可信 alias 的 shadow Recall 达标；无关 `.exe` 不升级。
 

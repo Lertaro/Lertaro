@@ -38,7 +38,7 @@ Permite ajustar con precisión las dimensiones geométricas y las prioridades de
 
 - **Lista de ordenación de prioridades**: Arrastra los controles para decidir qué tipos van primero **entre coincidencias directas con relevancia similar**, sin superar nunca a coincidencias directas exactas.
 - **Carácter activador exclusivo**: Asigna un prefijo de un solo carácter (p. ej. `;` para Filtros de archivos) para aislar las búsquedas a ese tipo concreto.
-- **Explicación de ordenación y alias por resultado**: En el menú contextual de acciones (`Ctrl+O`) puedes **Copiar la explicación de ordenación** o **Vincular/Borrar alias de búsqueda** para ese elemento concreto.
+- **Exportación de detalles de ordenación**: En la ventana rápida, haz clic derecho en cualquier resultado y elige **Exportar los detalles de ordenación de esta página** para escribir un archivo de texto de toda la página mostrada. El ajuste **Permitir exportar los detalles de ordenación** está activado por defecto.
 
 ## 3. Ventana de búsqueda principal
 

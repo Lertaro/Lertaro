@@ -6,7 +6,6 @@ public enum MatchEvidenceField : byte
     DisplayTitle = 1,
     FileName = 2,
     CuratedAlias = 3,
-    UserAlias = 4,
     ShortcutTarget = 5,
     Keyword = 6,
     ParentPath = 7,

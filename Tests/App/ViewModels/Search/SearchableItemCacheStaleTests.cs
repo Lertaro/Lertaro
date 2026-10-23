@@ -59,7 +59,7 @@ public sealed class SearchableItemCacheStaleTests
             new("  PixPin  ", SearchableItemAliasKind.ShortcutTarget),
             new("pixpin", SearchableItemAliasKind.ProductMetadata),
             new("   ", SearchableItemAliasKind.Curated),
-            new(new string('x', 129), SearchableItemAliasKind.User),
+            new(new string('x', 129), SearchableItemAliasKind.ShortcutTarget),
         };
         source.AddRange(Enumerable.Range(0, 40)
             .Select(index => new SearchableItemAlias($"alias-{index}", SearchableItemAliasKind.Curated)));
@@ -68,7 +68,7 @@ public sealed class SearchableItemCacheStaleTests
             new List<string>(),
             null);
 
-        source[0] = new SearchableItemAlias("mutated", SearchableItemAliasKind.User);
+        source[0] = new SearchableItemAlias("mutated", SearchableItemAliasKind.ShortcutTarget);
 
         Assert.HasCount(32, entry.ProviderAliases);
         Assert.AreEqual("PixPin", entry.ProviderAliases[0].Text);
@@ -98,8 +98,7 @@ public sealed class SearchableItemCacheStaleTests
             FuzzyQuery.Parse("guohe"),
             ["guohe"],
             entry,
-            "StartMenuAppItemProvider",
-            userAliases: null);
+            "StartMenuAppItemProvider");
 
         Assert.IsTrue(match.Result.Rank.IsMatch);
         Assert.AreEqual(MatchEvidenceField.DisplayTitle, match.Result.Evidence.Field);
@@ -144,7 +143,7 @@ public sealed class SearchableItemCacheStaleTests
     }
 
     [TestMethod]
-    public void SecondaryAliasGate_RejectsScatteredSubsequencesWhileSurfacingCleanUserProvenance()
+    public void SecondaryAliasGate_RejectsScatteredSubsequences()
     {
         var entry = new SearchableItemCache.CacheEntry(
             new SearchableItem
@@ -161,23 +160,8 @@ public sealed class SearchableItemCacheStaleTests
             FuzzyQuery.Parse("zbl"),
             ["zbl"],
             entry,
-            "StartMenuAppItemProvider",
-            userAliases: ["电报"]);
+            "StartMenuAppItemProvider");
         Assert.IsFalse(scattered.Result.Rank.IsMatch, "#440 scattered metadata subsequences must stay excluded");
-
-        var userHit = SearchableItemMapper.MatchCatalogEntryWithProvenance(
-            FuzzyQuery.Parse("电报"),
-            ["电报"],
-            entry,
-            "StartMenuAppItemProvider",
-            userAliases: ["电报"]);
-        Assert.IsTrue(userHit.Result.Rank.IsMatch);
-        Assert.AreEqual(MatchEvidenceField.UserAlias, userHit.Result.Evidence.Field);
-        Assert.AreEqual(MatchEvidenceGrade.SecondaryField, userHit.Result.Evidence.Grade);
-        Assert.AreEqual("电报", userHit.MatchedSecondaryText);
-        StringAssert.Contains(
-            SearchableItemMapper.FormatSecondaryProvenance(userHit.Result.Evidence.Field, userHit.MatchedSecondaryText),
-            "电报");
     }
 
     [TestMethod]
@@ -193,8 +177,6 @@ public sealed class SearchableItemCacheStaleTests
                 Field: MatchEvidenceField.ProductMetadata),
             (Query: "telegram", Text: "Telegram", Kind: SearchableItemAliasKind.Curated,
                 Field: MatchEvidenceField.CuratedAlias),
-            (Query: "my capture", Text: "My Capture", Kind: SearchableItemAliasKind.User,
-                Field: MatchEvidenceField.UserAlias),
         };
         var recalled = 0;
         foreach (var item in cases)

@@ -36,7 +36,7 @@ When everything else is equal, a file is listed before a folder (the Inline wind
 Across all search windows, explicit pins and monotonic match grades keep ordering predictable:
 
 1. **Explicit pins first**: rules marked **High + Always on Top** and clean matches in **Favorites** stay pinned at the top, while system/cache **Low** rules stay demoted below normal results.
-2. **Direct matches before aliases & history recall**: exact and clean direct title/filename matches always rank ahead of approximate fuzzy matches, clean secondary aliases (such as shortcut targets, product metadata, or per-item user aliases, shown with an `Alias:` / `Target:` subtitle), and confirmed **Query Associations** (which refine within equal match grades or supplement after direct matches).
+2. **Direct matches before aliases & history recall**: exact and clean direct title/filename matches always rank ahead of approximate fuzzy matches, clean secondary aliases (such as shortcut targets or product metadata, shown with an `Alias:` / `Target:` subtitle), and confirmed **Query Associations** (which refine within equal match grades or supplement after direct matches).
 
 ### Case Insensitivity
 

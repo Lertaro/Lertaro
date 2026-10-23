@@ -54,10 +54,10 @@ HistoryTail  Band ↓ → TypeOrder ↑ → Tie ↓ → Tail ↑
 | `0` | `ExactIdentity` | 文件或应用的直接名称/显示标题完整命中（`.lnk/.url/.appref-ms` 容器后缀或普通文件扩展名按 stem 归一），且 `IsStrong`；系统设置/应用项声明的 `Keyword` 干净前缀命中（如 `env` → `envvar`）；目录不算身份，精确同名目录降为 `DirectStrong` | 参与（序数比较，无加分） |
 | `1` | `DirectStrong` | 直接名称/显示标题命中且 `Match.IsStrong`（词首、词中连续、整词、普通全拼/简拼） | 参与（序数比较，无加分） |
 | `2` | `DirectApproximate` | 跳跃子序列、生僻多音读音等弱直接命中 | 参与（序数比较，无加分；同等级内先按类型成组，再比质量） |
-| `3` | `SecondaryField` | 干净（`IsStrong`）的非标题表示：`ShortcutTarget`、`ProductMetadata`、`CuratedAlias`、`UserAlias`、`ProviderAlias`；以及引擎无名回退（如仅父路径解释）的命中 | 参与（序数比较，无加分）；副标题显示本地化来源（如 `别名：…`、`目标：…`） |
+| `3` | `SecondaryField` | 干净（`IsStrong`）的非标题表示：`ShortcutTarget`、`ProductMetadata`、`CuratedAlias`、`ProviderAlias`；以及引擎无名回退（如仅父路径解释）的命中 | 参与（序数比较，无加分）；副标题显示本地化来源（如 `别名：…`、`目标：…`） |
 | `4` | `LearnedAlias` | `IsHistoryOnly` 查询→路径关联召回 | 固定落入 `HistoryTail` |
 
-次要别名与本地单结果用户别名（`UserSettings.ResultAliases`）均要求 `MatchRank.IsStrong`，拒绝零散子序列（防止 `#440` 类误召回）。用户别名不再提供动作菜单绑定/清除入口，但已有数据仍参与匹配。不支持全局同义词表。
+次要别名（provider 声明的 `ShortcutTarget`、`ProductMetadata`、`CuratedAlias`）要求 `MatchRank.IsStrong`，拒绝零散子序列（防止 `#440` 类误召回）。用户别名功能已彻底移除，不再读取旧 `ResultAliases` 数据，也不提供动作菜单绑定/清除入口。不支持全局同义词表。
 
 `Keyword` 是 provider 声明的同义词（当前用于系统设置的 `System.Keywords`），不是零散猜测：只有每个查询词都干净前缀命中一个声明词时才成立，质量按最短匹配词计算（`env` → `envvar` 覆盖 0.5），并按 `ExactIdentity` 参与类型顺序。这样用户配置的“设置先于文件”能让 `env` 命中“编辑账户的环境变量”，而不是被 `env.h` 等文件压到 40 名以后。2026-10-24 决策；若将来其他 provider 也提供 `Keywords`，需确认其同义词质量是否同样可信。
 

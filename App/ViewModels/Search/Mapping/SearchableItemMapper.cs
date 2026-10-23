@@ -80,7 +80,6 @@ public static class SearchableItemMapper
         // own title -- same text TextHighlighter shows), instead of a fixed match-kind bucket order capped
         // PER PROVIDER.
         var matched = new List<(SearchableItemCache.CacheEntry Entry, MatchRank Match, MatchEvidence Evidence, string? MatchedSecondaryText, ISearchableItemProvider Provider, string ActiveQuery)>();
-        var userSettings = UserSettings.Load();
 
         foreach (var provider in PluginManager.Instance.SearchableItemProviders)
         {
@@ -92,8 +91,7 @@ public static class SearchableItemMapper
             foreach (var entry in entries)
             {
                 var providerId = provider.GetType().Name;
-                var localAliases = userSettings.GetUserAliases(entry.Item.ActionArgument);
-                var match = MatchCatalogEntryWithProvenance(fuzzy, queryWords, entry, providerId, localAliases);
+                var match = MatchCatalogEntryWithProvenance(fuzzy, queryWords, entry, providerId);
                 if (match.Result.Rank.IsMatch)
                 {
                     matched.Add((entry, match.Result.Rank, match.Result.Evidence, match.MatchedSecondaryText, provider, q));
@@ -133,14 +131,13 @@ public static class SearchableItemMapper
         string[] queryWords,
         SearchableItemCache.CacheEntry entry,
         string? providerId) =>
-        MatchCatalogEntryWithProvenance(query, queryWords, entry, providerId, null).Result;
+        MatchCatalogEntryWithProvenance(query, queryWords, entry, providerId).Result;
 
     internal static (MatchEvidenceResult Result, string? MatchedSecondaryText) MatchCatalogEntryWithProvenance(
         FuzzyQuery query,
         string[] queryWords,
         SearchableItemCache.CacheEntry entry,
-        string? providerId,
-        IReadOnlyList<string>? userAliases)
+        string? providerId)
     {
         var primary = query.RankWithEvidence(entry.Item.Title, MatchEvidenceField.DisplayTitle, providerId);
         // A strong title match -- including a pinyin reading -- is the strongest evidence this item can
@@ -166,28 +163,12 @@ public static class SearchableItemMapper
             }
         }
 
-        if (userAliases is { Count: > 0 })
-        {
-            foreach (var alias in userAliases)
-            {
-                var candidate = query.RankWithEvidence(alias, MatchEvidenceField.UserAlias, providerId, MatchQueryVariant.ProviderAlias);
-                if (!candidate.Rank.IsStrong)
-                    continue;
-                if (FuzzyMatcher.IsStronger(candidate.Rank, best.Rank))
-                {
-                    best = candidate;
-                    matchedSecondary = alias;
-                }
-            }
-        }
-
         foreach (var alias in entry.ProviderAliases)
         {
             var field = alias.Kind switch
             {
                 SearchableItemAliasKind.ShortcutTarget => MatchEvidenceField.ShortcutTarget,
                 SearchableItemAliasKind.ProductMetadata => MatchEvidenceField.ProductMetadata,
-                SearchableItemAliasKind.User => MatchEvidenceField.UserAlias,
                 _ => MatchEvidenceField.CuratedAlias,
             };
             var candidate = query.RankWithEvidence(alias.Text, field, providerId, MatchQueryVariant.ProviderAlias);
@@ -255,7 +236,6 @@ public static class SearchableItemMapper
             {
                 SearchableItemAliasKind.ShortcutTarget => MatchEvidenceField.ShortcutTarget,
                 SearchableItemAliasKind.ProductMetadata => MatchEvidenceField.ProductMetadata,
-                SearchableItemAliasKind.User => MatchEvidenceField.UserAlias,
                 _ => MatchEvidenceField.CuratedAlias,
             };
             var candidate = query.RankWithEvidence(

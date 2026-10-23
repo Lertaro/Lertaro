@@ -40,7 +40,6 @@ public enum SearchableItemAliasKind : byte
     Curated = 0,
     ShortcutTarget = 1,
     ProductMetadata = 2,
-    User = 3,
 }
 
 /// <summary>An alias cached with a searchable item; matching never calls the provider again.</summary>

@@ -28,5 +28,5 @@ Keyword History remembers the **raw query strings** that were actually used to e
 Query Associations stores confirmed **query → target path** habits separately from general path frequency:
 
 - **3-Open Confirmation Threshold**: An item is recalled for a non-matching query only after you organically open it at least **3 times** for that normalized query, preventing one-off misclicks from polluting future searches.
-- **No Feedback Loops & Monotonic Placement**: Launching an item from learned recall alone never self-reinforces unconfirmed counts, excludes `Low`-priority cache paths, and always places learned recall after direct matches. For explicit instant aliases on a single item, use **Bind "..." as Search Alias** in the context action menu (`Ctrl+O`).
+- **No Feedback Loops & Monotonic Placement**: Launching an item from learned recall alone never self-reinforces unconfirmed counts, excludes `Low`-priority cache paths, and always places learned recall after direct matches.
 - **Independent Cleanup**: Filter, delete individual associations, or clear all learned associations at any time without resetting your path usage counts.
