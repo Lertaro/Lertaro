@@ -8,6 +8,24 @@ namespace Lertaro.App.ViewModels.Search;
 // repository's line limit. The runner owns only orchestration; SearchService still owns all index work.
 internal static class ScopedSearchRunner
 {
+    public const string ShortcutSupplementFilter = "*.lnk;*.url";
+
+    public static bool ShouldRunShortcutSupplement(
+        int fileLimit,
+        bool foldersOnly,
+        string? searchScope,
+        FileFilterScopeDirective? scopeDirective) =>
+        fileLimit < int.MaxValue
+        && !foldersOnly
+        && string.IsNullOrEmpty(searchScope)
+        && scopeDirective is not { Folders.Count: > 0 };
+
+    // The rows ShortcutSupplementFilter would contribute. The renderer asks whether the main query already
+    // surfaced one before paying for the second pass, so these two extension lists have to stay in step.
+    public static bool IsSupplementShortcutPath(string path) =>
+        path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith(".url", StringComparison.OrdinalIgnoreCase);
+
     public static async Task RunAsync(
         SearchService searchService,
         FileFilterScopeDirective directive,
@@ -69,6 +87,41 @@ internal static class ScopedSearchRunner
         catch (OperationCanceledException)
         {
             // Same rule as the folder fan-out above.
+        }
+    }
+
+    /// <summary>
+    /// Ensures top-ranked <c>.lnk</c>/<c>.url</c> shortcuts across every drive reach bounded quick/inline
+    /// windows even when a short initials query matches hundreds of non-shortcut files first (#507).
+    /// </summary>
+    public static async Task RunShortcutSupplementAsync(
+        SearchService searchService,
+        string query,
+        int shortcutLimit,
+        int appLimit,
+        Action<SearchResult> onResult,
+        CancellationToken token)
+    {
+        try
+        {
+            await searchService.SearchStreamingAsync(
+                query,
+                shortcutLimit,
+                appLimit,
+                directoryFilter: null,
+                onResult,
+                token,
+                onLocalSearchFailed: static () => { },
+                bypassExclusions: false,
+                fileNameFilter: ShortcutSupplementFilter).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Same cancellation contract as priority roots above.
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[ScopedSearchRunner] Shortcut supplement search failed: {ex.Message}", LogLevel.Warn);
         }
     }
 

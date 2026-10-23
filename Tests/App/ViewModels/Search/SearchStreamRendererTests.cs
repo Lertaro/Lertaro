@@ -1,5 +1,6 @@
 using Lertaro.Core;
 using Lertaro.App.ViewModels.Search;
+using Lertaro.App.ViewModels.Search.Dispatch;
 
 namespace Lertaro.App.Tests.ViewModels.Search;
 
@@ -38,4 +39,27 @@ public sealed class SearchStreamRendererTests
         Assert.IsEmpty(unchanged);
         Assert.AreEqual(4, copiedCount);
     }
+
+    [TestMethod]
+    public void ShouldRunShortcutSupplement_OnlyForBoundedUnscopedFileCapableSearches()
+    {
+        Assert.IsTrue(ScopedSearchRunner.ShouldRunShortcutSupplement(50, foldersOnly: false, searchScope: null, scopeDirective: null));
+        Assert.IsFalse(ScopedSearchRunner.ShouldRunShortcutSupplement(int.MaxValue, foldersOnly: false, searchScope: null, scopeDirective: null));
+        Assert.IsFalse(ScopedSearchRunner.ShouldRunShortcutSupplement(50, foldersOnly: true, searchScope: null, scopeDirective: null));
+        Assert.IsFalse(ScopedSearchRunner.ShouldRunShortcutSupplement(50, foldersOnly: false, searchScope: @"D:\Scoped", scopeDirective: null));
+        Assert.IsFalse(ScopedSearchRunner.ShouldRunShortcutSupplement(
+            50,
+            foldersOnly: false,
+            searchScope: null,
+            scopeDirective: new FileFilterScopeDirective(["X:\\OnlyHere"], "*")));
+    }
+
+    [DataRow(@"X:\Start\重复文件.lnk", true)]
+    [DataRow(@"X:\Favorites\Site.url", true)]
+    [DataRow(@"X:\Apps\Tool.appref-ms", false)]
+    [DataRow(@"X:\Build\PixPin.exe", false)]
+    [DataRow(@"X:\Docs\note.txt", false)]
+    [DataTestMethod]
+    public void IsSupplementShortcutPath_AdmitsExactlyWhatTheFilterSearches(string path, bool expected) =>
+        Assert.AreEqual(expected, ScopedSearchRunner.IsSupplementShortcutPath(path));
 }

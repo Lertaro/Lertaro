@@ -34,7 +34,7 @@ internal static class HighlightMask
         var marks = text.Length <= 512 ? stackalloc bool[text.Length] : new bool[text.Length];
         marks.Clear();
         string? materialized = null;
-        Mark(text, pattern, marks, ref materialized, RentSlab(), pinyinWitness: null, out _, out _);
+        Mark(text, pattern, marks, ref materialized, RentSlab(), out _);
 
         for (var i = 0; i < marks.Length; i++)
         {
@@ -75,22 +75,8 @@ internal static class HighlightMask
     // Match tier, shape, start position, coverage and contiguity from ONE mask pass. Every ranking
     // window needs all of them (see MatchRank), and computing them separately would build the same mask
     // several times, the alias path being the expensive one.
-    public static MatchRank ComputeRank(ReadOnlySpan<char> fullText, FzfPattern pattern) =>
-        ComputeRank(fullText, pattern, out _);
-
-    internal static MatchRank ComputeRank(
-        ReadOnlySpan<char> fullText,
-        FzfPattern pattern,
-        out AcceptedMatchWitness witness) =>
-        ComputeRank(fullText, pattern, null, out witness);
-
-    internal static MatchRank ComputeRank(
-        ReadOnlySpan<char> fullText,
-        FzfPattern pattern,
-        IndexV2.Search.PinyinNameEvaluator.PinyinMatchWitness? pinyinWitness,
-        out AcceptedMatchWitness witness)
+    public static MatchRank ComputeRank(ReadOnlySpan<char> fullText, FzfPattern pattern)
     {
-        witness = AcceptedMatchWitness.LegacyUnknown;
         if (fullText.Length == 0)
             return MatchRank.NoMatch;
 
@@ -98,35 +84,13 @@ internal static class HighlightMask
         var marks = text.Length <= 512 ? stackalloc bool[text.Length] : new bool[text.Length];
         marks.Clear();
         string? materialized = null;
-        var tier = Mark(
-            text,
-            pattern,
-            marks,
-            ref materialized,
-            RentSlab(),
-            pinyinWitness,
-            out var shape,
-            out witness);
+        var tier = Mark(text, pattern, marks, ref materialized, RentSlab(), out var shape);
         var rank = RankFromMarks(marks);
         if (!rank.IsMatch)
             return rank;
 
-        if (map != null)
-        {
-            if (rank.Start < map.Length)
-                rank = rank with { Start = map[rank.Start] };
-            if (witness.SpanStart >= 0 && witness.SpanStart < map.Length)
-            {
-                var normalizedEnd = Math.Min(map.Length, witness.SpanStart + witness.SpanLength);
-                var originalStart = map[witness.SpanStart];
-                var originalEnd = normalizedEnd < map.Length ? map[normalizedEnd] : fullText.Length;
-                witness = witness with
-                {
-                    SpanStart = originalStart,
-                    SpanLength = Math.Max(0, originalEnd - originalStart),
-                };
-            }
-        }
+        if (map != null && rank.Start < map.Length)
+            rank = rank with { Start = map[rank.Start] };
 
         // The mask is a union across terms, so it cannot say HOW any one of them matched; Mark reports the
         // strongest tier and the folded shape, which is what decides the ordering.
@@ -144,41 +108,8 @@ internal static class HighlightMask
     // set (an OR group) the best-shaped term counts, and across sets (AND) the worst set decides -- "code
     // atlas" against "code-atlasing" is only as good as its weaker word. A set with nothing marked (the
     // match came through a route the mask cannot paint) is treated as scattered rather than guessed better.
-    private static int Mark(
-        ReadOnlySpan<char> fullText,
-        FzfPattern pattern,
-        Span<bool> highlights,
-        ref string? materialized,
-        FzfSlab slab,
-        IndexV2.Search.PinyinNameEvaluator.PinyinMatchWitness? pinyinWitness,
-        out int shape,
-        out AcceptedMatchWitness witness)
+    private static int Mark(ReadOnlySpan<char> fullText, FzfPattern pattern, Span<bool> highlights, ref string? materialized, FzfSlab slab, out int shape)
     {
-        witness = AcceptedMatchWitness.LegacyUnknown;
-        var joined = pinyinWitness ?? default;
-        if (pinyinWitness is null)
-        {
-            // No accepted witness from the caller: ask the evaluator which branch won. A caller that already
-            // holds the matcher's answer must not ask twice -- the second TryScore scored the same text a
-            // second time for every multi-term row whose joined branch lost.
-            var live = IndexV2.Search.PinyinNameEvaluator.ForPattern(pattern);
-            if (!live.HasJoinedBranch || !live.TryScore(fullText, null, out _, out joined) || !joined.IsJoined)
-                joined = default;
-        }
-        if (joined.IsJoined)
-        {
-            for (var i = joined.Start; i < joined.End && i < highlights.Length; i++)
-                highlights[i] = true;
-            shape = MatchRank.ShapeWordStart;
-            witness = new AcceptedMatchWitness(
-                PinyinMode(joined.Tier),
-                MatchQueryVariant.PinyinJoined,
-                joined.ProviderName,
-                joined.Start,
-                joined.End - joined.Start);
-            return joined.Tier;
-        }
-
         var tier = MatchRank.TierFullRare;
         shape = MatchRank.ShapeWholeWord;
         foreach (var set in pattern.EffectiveSets)
@@ -318,13 +249,6 @@ internal static class HighlightMask
 
         return foundAny;
     }
-
-    private static MatchEvidenceMode PinyinMode(int tier) => tier switch
-    {
-        MatchRank.TierInitials => MatchEvidenceMode.PinyinInitials,
-        MatchRank.TierFullRare => MatchEvidenceMode.PinyinRare,
-        _ => MatchEvidenceMode.PinyinFull,
-    };
 
     // The ranking measure for one candidate's mask: how much of the string the match covers, weighted by
     // how contiguous that coverage is (coverage * contiguity). Shape is filled in by ComputeRank, which
