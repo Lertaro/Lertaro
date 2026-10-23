@@ -143,6 +143,14 @@ public static class SearchableItemMapper
         IReadOnlyList<string>? userAliases)
     {
         var primary = query.RankWithEvidence(entry.Item.Title, MatchEvidenceField.DisplayTitle, providerId);
+        // A strong title match -- including a pinyin reading -- is the strongest evidence this item can
+        // offer. Secondary aliases may have a higher coverage score on a longer string (for example
+        // "guohe" covers 5/9 of "GuoheView" but 2/4 of "果核看图"), and comparing only coverage let that
+        // alias overwrite the title match, demoting a direct hit to SecondaryField. Aliases still compete
+        // when the title only matched weakly or not at all.
+        if (primary.Rank.IsStrong)
+            return (primary, null);
+
         var best = primary;
         string? matchedSecondary = null;
 
@@ -201,13 +209,36 @@ public static class SearchableItemMapper
         if (queryWords.Length > 0 && queryWords.All(token => entry.KeywordWords.Any(
                 word => word.StartsWith(token, StringComparison.OrdinalIgnoreCase))))
         {
-            var rank = new MatchRank(MatchRank.TierFull, 0, 0, 0, MatchRank.ShapeScattered);
-            var matchedKeyword = string.Join(' ', queryWords.Select(token =>
-                entry.KeywordWords.First(word => word.StartsWith(token, StringComparison.OrdinalIgnoreCase))));
-            return (new MatchEvidenceResult(
-                rank,
-                MatchEvidence.Accepted(query.Text, entry.Item.Title, MatchEvidenceField.Keyword, rank, providerId: providerId)),
-                matchedKeyword);
+            // A declared keyword is a synonym for the settings/application row, not a scattered guess.
+            // Prefer the shortest matching word so "env" scores against "envvar" rather than "environment".
+            var matchedWords = queryWords.Select(token => entry.KeywordWords
+                .Where(word => word.StartsWith(token, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(word => word.Length)
+                .First()).ToArray();
+            var coverage = matchedWords.Select((word, i) => (double)queryWords[i].Length / word.Length).Average();
+            var wholeWord = matchedWords.Select((word, i) => word.Length == queryWords[i].Length).All(match => match);
+            var rank = new MatchRank(
+                MatchRank.TierFull,
+                0,
+                coverage,
+                1,
+                wholeWord ? MatchRank.ShapeWholeWord : MatchRank.ShapeWordStart);
+            // Owner decision 2026-10-24: a clean keyword-prefix hit on a settings/application row is
+            // ExactIdentity, so the configured type order can place Settings ahead of files. A one- or
+            // two-letter Latin prefix is too ambiguous to be an identity; it still matches, but only as
+            // SecondaryField. Non-ASCII (Chinese) tokens carry enough information at one character.
+            var clean = queryWords.Select((token, i) => token.Length == matchedWords[i].Length
+                || token.Length >= 3
+                || token.Any(character => character > 0x7F)).All(isClean => isClean);
+            var evidence = new MatchEvidence(
+                MatchEvidenceField.Keyword,
+                MatchEvidenceMode.LegacyUnknown,
+                MatchQueryVariant.Original,
+                clean ? MatchEvidenceGrade.ExactIdentity : MatchEvidenceGrade.SecondaryField,
+                AllPositiveTerms: true,
+                DirectText: false,
+                ProviderId: providerId);
+            return (new MatchEvidenceResult(rank, evidence), string.Join(' ', matchedWords));
         }
         return (new MatchEvidenceResult(MatchRank.NoMatch, MatchEvidence.LegacyUnknown), null);
     }

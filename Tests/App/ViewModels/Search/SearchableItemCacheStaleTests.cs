@@ -77,6 +77,37 @@ public sealed class SearchableItemCacheStaleTests
     }
 
     [TestMethod]
+    public void DisplayTitleMatch_IsNotOverriddenByHigherCoverageSecondaryAlias()
+    {
+        // "guohe" covers 5/12 of the title but 5/9 of the alias: comparing only coverage used to let the
+        // alias replace a direct title hit, so the row lost its DirectStrong evidence and fell behind
+        // every other direct match. The title must win whenever it matches at all.
+        var entry = new SearchableItemCache.CacheEntry(
+            new SearchableItem
+            {
+                Title = "guohe 果核看图纸",
+                Aliases =
+                [
+                    new SearchableItemAlias("GuoheView", SearchableItemAliasKind.ShortcutTarget),
+                ],
+            },
+            new List<string>(),
+            null);
+
+        var match = SearchableItemMapper.MatchCatalogEntryWithProvenance(
+            FuzzyQuery.Parse("guohe"),
+            ["guohe"],
+            entry,
+            "StartMenuAppItemProvider",
+            userAliases: null);
+
+        Assert.IsTrue(match.Result.Rank.IsMatch);
+        Assert.AreEqual(MatchEvidenceField.DisplayTitle, match.Result.Evidence.Field);
+        Assert.AreEqual(MatchEvidenceGrade.DirectStrong, match.Result.Evidence.Grade);
+        Assert.IsNull(match.MatchedSecondaryText);
+    }
+
+    [TestMethod]
     public void ShadowAliasMatch_RecordsProviderVariantAndProvenanceField()
     {
         var entry = new SearchableItemCache.CacheEntry(

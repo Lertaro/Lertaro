@@ -25,7 +25,7 @@
         },
         {
           "token": "cfwj-exact-dir",
-          "expectedV3Grade": "ExactIdentity",
+          "expectedV3Grade": "DirectStrong",
           "displayName": "重复文件",
           "syntheticPath": "X:\\Fixture\\Projects\\重复文件",
           "kind": ["Directory"],
@@ -111,15 +111,16 @@
       "assertions": {
         "mustAppearBefore": [
           { "before": "cfwj-exact-lnk", "after": "cfwj-exact-dir" },
-          { "before": "cfwj-exact-dir", "after": "cfwj-clean-lnk" },
-          { "before": "cfwj-clean-lnk", "after": "cfwj-etc-txt" },
-          { "before": "cfwj-compare-lnk", "after": "cfwj-etc-txt" },
-          { "before": "cfwj-find-lnk", "after": "cfwj-etc-txt" },
-          { "before": "cfwj-delete-lnk", "after": "cfwj-etc-txt" }
+          { "before": "cfwj-clean-lnk", "after": "cfwj-exact-dir" },
+          { "before": "cfwj-compare-lnk", "after": "cfwj-exact-dir" },
+          { "before": "cfwj-find-lnk", "after": "cfwj-exact-dir" },
+          { "before": "cfwj-delete-lnk", "after": "cfwj-exact-dir" },
+          { "before": "cfwj-exact-dir", "after": "cfwj-etc-txt" },
+          { "before": "cfwj-clean-lnk", "after": "cfwj-etc-txt" }
         ],
         "mustBeTopK": [
           { "token": "cfwj-exact-lnk", "k": 1 },
-          { "token": "cfwj-exact-dir", "k": 2 }
+          { "token": "cfwj-exact-dir", "k": 6 }
         ],
         "mustBeAbsent": ["cfwj-scattered-alias"]
       }

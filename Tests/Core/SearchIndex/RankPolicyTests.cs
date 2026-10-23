@@ -143,6 +143,22 @@ public sealed class RankPolicyTests
     }
 
     [TestMethod]
+    public void Compare_ExactDirectoryLosesToStrongApplicationOnConfiguredTypeOrder()
+    {
+        var folder = KeyOf(
+            Signals(typeRank: 2, isDir: true, name: "PowerShell", path: @"F:\Documents\PowerShell"),
+            HistoryTier.None,
+            EvidenceOf(MatchEvidenceGrade.ExactIdentity));
+        var app = KeyOf(
+            Signals(typeRank: 0, name: "PowerShell 7 (x64)", path: @"C:\Start\PowerShell 7 (x64).lnk"),
+            HistoryTier.None,
+            EvidenceOf(MatchEvidenceGrade.DirectStrong));
+
+        Assert.AreEqual(MatchEvidenceGrade.DirectStrong, folder.Grade);
+        Assert.IsLessThan(0, RankKeyComparer.Instance.Compare(app, folder));
+    }
+
+    [TestMethod]
     public void Compare_LowTypeRankBeatsQuality()
     {
         var preferredType = KeyOf(Signals(

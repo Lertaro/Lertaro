@@ -84,7 +84,7 @@
           "syntheticPath": "X:\\Fixture\\Folders\\重复文件",
           "kind": ["Directory"],
           "role": "relevant-competitor",
-          "expectedV3Grade": 0
+          "expectedV3Grade": 1
         },
         {
           "token": "incidental-mixed-hit",
@@ -316,7 +316,7 @@
       "corpus": [
         { "token": "target-lnk", "displayName": "搜索结果.lnk", "syntheticPath": "X:\\Fixture\\Apps\\搜索结果.lnk", "kind": ["File", "Shortcut"], "role": "expected", "expectedV3Grade": 0 },
         { "token": "target-txt", "displayName": "搜索结果.txt", "syntheticPath": "X:\\Fixture\\Files\\搜索结果.txt", "kind": ["File"], "role": "expected", "expectedV3Grade": 0 },
-        { "token": "target-folder", "displayName": "搜索结果", "syntheticPath": "X:\\Fixture\\Folders\\搜索结果", "kind": ["Directory"], "role": "expected", "expectedV3Grade": 0 },
+        { "token": "target-folder", "displayName": "搜索结果", "syntheticPath": "X:\\Fixture\\Folders\\搜索结果", "kind": ["Directory"], "role": "expected", "expectedV3Grade": 1 },
         { "token": "target-old", "displayName": "搜索结果旧版.txt", "syntheticPath": "X:\\Fixture\\Files\\搜索结果旧版.txt", "kind": ["File"], "role": "near-target", "expectedV3Grade": 1 },
         { "token": "scattered", "displayName": "搜-x-索-y-结-z-果.txt", "syntheticPath": "X:\\Fixture\\Files\\搜-x-索-y-结-z-果.txt", "kind": ["File"], "role": "weak-control", "expectedV3Grade": 2 },
         { "token": "search-log", "displayName": "搜索记录.txt", "syntheticPath": "X:\\Fixture\\Noise\\搜索记录.txt", "kind": ["File"], "role": "distractor" },

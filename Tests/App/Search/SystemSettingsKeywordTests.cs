@@ -44,7 +44,33 @@ public sealed class SystemSettingsKeywordTests
         var entry = Entry("See running processes", ["cpu", "threads"]);
         Assert.IsTrue(Match("CPU run", entry).IsMatch);
         Assert.IsFalse(Match("cpu level", entry).IsMatch);
-        Assert.AreEqual(0d, Match("cpu", entry).Weight);
+        Assert.AreEqual(1d, Match("cpu", entry).Weight);
+    }
+
+    [TestMethod]
+    public void NativeKeywords_CleanPrefixIsExactIdentity()
+    {
+        var entry = Entry("编辑账户的环境变量", ["environment", "variables", "envvar"]);
+
+        var match = SearchableItemMapper.MatchCatalogEntryWithEvidence(
+            FuzzyQuery.Parse("env"), ["env"], entry, "Settings");
+
+        Assert.AreEqual(MatchEvidenceField.Keyword, match.Evidence.Field);
+        Assert.AreEqual(MatchEvidenceGrade.ExactIdentity, match.Evidence.Grade);
+        Assert.IsTrue(match.Rank.IsStrong);
+        Assert.AreEqual(0.5d, match.Rank.Coverage);
+    }
+
+    [TestMethod]
+    public void NativeKeywords_ShortLatinPrefixStaysSecondary()
+    {
+        var entry = Entry("编辑账户的环境变量", ["environment", "envvar"]);
+
+        var match = SearchableItemMapper.MatchCatalogEntryWithEvidence(
+            FuzzyQuery.Parse("e"), ["e"], entry, "Settings");
+
+        Assert.AreEqual(MatchEvidenceField.Keyword, match.Evidence.Field);
+        Assert.AreEqual(MatchEvidenceGrade.SecondaryField, match.Evidence.Grade);
     }
 
     [TestMethod]
@@ -72,6 +98,7 @@ public sealed class SystemSettingsKeywordTests
         Assert.AreEqual(MatchEvidenceGrade.SecondaryField, alias.Evidence.Grade);
         Assert.AreEqual("StartMenu", alias.Evidence.ProviderId);
         Assert.AreEqual(MatchEvidenceField.Keyword, keyword.Evidence.Field);
+        Assert.AreEqual(MatchEvidenceGrade.ExactIdentity, keyword.Evidence.Grade);
         Assert.AreEqual(MatchEvidenceMode.LegacyUnknown, alias.Evidence.Mode);
     }
 

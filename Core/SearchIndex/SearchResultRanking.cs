@@ -40,6 +40,8 @@ public static class SearchResultRanking
             : 0;
 
         var grade = ResolveFullWindowGrade(result, context?.Query);
+        if (result.IsDir && grade == MatchEvidenceGrade.ExactIdentity)
+            grade = MatchEvidenceGrade.DirectStrong;
         var isStrong = RankPolicy.IsPreferenceEligible(grade);
 
         var rawTier = !isStrong ? HistoryTier.None

@@ -103,8 +103,7 @@ public static class RankPolicy
 
     public static RankSection Section(in RankSignals s, HistoryTier tier, in MatchEvidence evidence = default)
     {
-        var strong = !s.IsHistoryOnly && s.Match.IsStrong;
-        var grade = MatchEvidence.ResolveGrade(evidence, s.Match, s.IsHistoryOnly, strong);
+        var grade = GradeForRanking(s, evidence);
         var explicitAlwaysTop = s.AlwaysTop && s.Priority == IndexRuleEffect.High;
         var favoritePin = !explicitAlwaysTop && s.IsFavorite && !s.IsHistoryOnly && IsPreferenceEligible(grade);
         return Section(s.Priority, explicitAlwaysTop, favoritePin, s.IsHistoryOnly, grade);
@@ -156,8 +155,7 @@ public static class RankPolicy
 
     public static RankKey BuildKey(in RankSignals s, HistoryTier tier, in MatchEvidence evidence = default)
     {
-        var strong = !s.IsHistoryOnly && s.Match.IsStrong;
-        var grade = MatchEvidence.ResolveGrade(evidence, s.Match, s.IsHistoryOnly, strong);
+        var grade = GradeForRanking(s, evidence);
         var explicitAlwaysTop = s.AlwaysTop && s.Priority == IndexRuleEffect.High;
         var favoritePin = !explicitAlwaysTop && s.IsFavorite && !s.IsHistoryOnly && IsPreferenceEligible(grade);
         var section = Section(s.Priority, explicitAlwaysTop, favoritePin, s.IsHistoryOnly, grade);
@@ -182,6 +180,18 @@ public static class RankPolicy
             s.IsFavorite,
             s.Priority,
             effectiveTier);
+    }
+
+    // Directories are containers, not identities: an exact folder name is a strong direct match but
+    // never an ExactIdentity. That keeps the configured type order (Applications before Files) able to
+    // put a versioned app shortcut ahead of an unrelated folder with the same leading word.
+    private static MatchEvidenceGrade GradeForRanking(in RankSignals s, in MatchEvidence evidence)
+    {
+        var strong = !s.IsHistoryOnly && s.Match.IsStrong;
+        var grade = MatchEvidence.ResolveGrade(evidence, s.Match, s.IsHistoryOnly, strong);
+        return s.IsDir && grade == MatchEvidenceGrade.ExactIdentity
+            ? MatchEvidenceGrade.DirectStrong
+            : grade;
     }
 
     /// <summary>

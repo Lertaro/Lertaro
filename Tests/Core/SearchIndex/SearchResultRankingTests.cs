@@ -66,6 +66,16 @@ public sealed class SearchResultRankingTests
     }
 
     [TestMethod]
+    public void Decorate_ExactDirectory_IsDirectStrongNotExactIdentity()
+    {
+        var folder = Result(@"F:\Documents\PowerShell", StrongKey(), isDir: true);
+
+        SearchResultRanking.Decorate(folder, Context(query: "powershell"));
+
+        Assert.AreEqual(MatchEvidenceGrade.DirectStrong, SearchResultRanking.GradeOf(folder));
+    }
+
+    [TestMethod]
     public void Decorate_WholeStemReading_GradesSpacedQueryLikeTheQuickWindow()
     {
         // One reading run over the whole stem of a CJK name whose syllables the query happens to swap:
