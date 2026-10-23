@@ -40,8 +40,33 @@ internal sealed class ActionsMenuExecutor
         if (item.OnExecute != null)
         {
             RecordQuickSearchKeyword();
-            _view.HideWindow();
-            item.OnExecute();
+            if (!item.KeepWindowVisible)
+            {
+                _view.HideWindow();
+                item.OnExecute();
+                return;
+            }
+
+            // The action owns a modal dialog and must run while the search window is still visible;
+            // exiting actions mode afterwards restores the query and keyboard focus. Defer the exit
+            // until the dialog's own window has finished closing: restoring the search box and query
+            // while the dialog is still tearing down can leave the IME attached to the destroyed
+            // dialog, which manifests as a frozen input method until another window is focused.
+            try
+            {
+                item.OnExecute();
+            }
+            finally
+            {
+                _view.LstResults.Dispatcher.BeginInvoke(
+                    System.Windows.Threading.DispatcherPriority.Background,
+                    () =>
+                    {
+                        _exitActionsMode();
+                        RestoreKeyboardFocusAfterModal();
+                    });
+            }
+
             return;
         }
 
@@ -104,5 +129,24 @@ internal sealed class ActionsMenuExecutor
     {
         if (_view is QuickSearchWindow quickSearchWindow)
             quickSearchWindow.RecordKeywordHistory();
+    }
+
+    // A modal dialog disables and then destroys its owner-side keyboard focus. Activate the search
+    // window again and give the search box keyboard focus on the next input pass so the IME reattaches
+    // to a live HWND instead of the closed dialog.
+    private void RestoreKeyboardFocusAfterModal()
+    {
+        if (Window.GetWindow(_view.LstResults) is not { } window)
+            return;
+
+        window.Activate();
+        _view.SearchTextBox.Dispatcher.BeginInvoke(
+            System.Windows.Threading.DispatcherPriority.Input,
+            () =>
+            {
+                window.Activate();
+                _view.FocusSearch();
+                System.Windows.Input.Keyboard.Focus(_view.SearchTextBox);
+            });
     }
 }

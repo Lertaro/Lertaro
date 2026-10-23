@@ -68,6 +68,11 @@ public class ActionMenuItem : INotifyPropertyChanged
     }
     public Action? OnExecute { get; set; }
 
+    // A few built-in actions open their own modal UI (the page export's SaveFileDialog). Hiding the
+    // search window first would leave that dialog owned by a hidden window and strand keyboard/IME
+    // focus after it closes, so those actions keep the window visible and exit actions mode normally.
+    internal bool KeepWindowVisible { get; set; }
+
     public double ItemHeight { get; set; } = Services.UiMetrics.ListItemHeight;
 
     // Set for the quick-nav flyout so it renders at the compact shell-menu size (smaller font + shorter
