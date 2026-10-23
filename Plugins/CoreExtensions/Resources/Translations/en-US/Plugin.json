@@ -234,5 +234,5 @@
   "Plugin_Comp_Desc_CommandQuickNavigationProvider": "Run commands in the directory where the Quick Navigation menu was opened, with a choice of command interpreter.",
   "Command_Shell_Cmd": "CMD",
   "Command_Shell_WindowsPowerShell": "Windows PowerShell",
-  "Command_Shell_Pwsh": "PowerShell (pwsh)",
+  "Command_Shell_Pwsh": "PowerShell (pwsh)"
 }
