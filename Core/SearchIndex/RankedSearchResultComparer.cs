@@ -14,9 +14,9 @@ public sealed class RankedSearchResultComparer : IComparer<SearchResult>
         if (ReferenceEquals(x, y))
             return 0;
         if (x == null)
-            return 1;
-        if (y == null)
             return -1;
+        if (y == null)
+            return 1;
 
         var sectionX = SectionOf(x);
         var sectionY = SectionOf(y);
