@@ -252,10 +252,12 @@ public static class SearchableItemMapper
             MatchEvidenceField.ProductMetadata => "Search_MetadataSourceFormat",
             _ => "Search_AliasSourceFormat",
         };
-        var template = TranslationManager.Instance[key];
-        return string.IsNullOrEmpty(template) || template == key
-            ? matchedText
-            : string.Format(template, matchedText);
+        // The indexer hands back "[key]" for anything it has never loaded, which would advertise a missing
+        // translation instead of the row's provenance, so ask whether the template actually exists.
+        if (!TranslationManager.Instance.TryGet(key, out var template) || string.IsNullOrWhiteSpace(template))
+            return matchedText;
+
+        return string.Format(template, matchedText);
     }
 
     private static (AppSearchResult Result, MatchRank Match) BuildCandidate(
