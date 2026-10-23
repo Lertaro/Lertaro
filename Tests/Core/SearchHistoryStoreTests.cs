@@ -328,6 +328,55 @@ public sealed class SearchHistoryStoreTests
     }
 
     [TestMethod]
+    public void LoadAssociationsFromFiles_BothFilesUnreadable_RebuildsFromLegacyBuckets()
+    {
+        var main = Path.Combine(_dir, "search-query-associations.json");
+        var backup = main + ".bak";
+        File.WriteAllText(main, "{ truncated");
+        File.WriteAllText(backup, "{ also truncated");
+
+        var loaded = SearchHistoryStore.LoadAssociationsFromFiles(
+            main, backup, Buckets(Entry(path: @"X:\Fixture\recovered.txt", time: 500, count: 4)));
+
+        var visible = SearchHistoryStore.FlattenAssociations(loaded, minOrganicOpens: 1);
+        Assert.HasCount(1, visible, "a corrupt associations file must not end the learned-alias feature");
+        Assert.AreEqual(@"X:\Fixture\recovered.txt", visible[0].Path);
+        Assert.AreEqual(
+            1,
+            visible[0].Count,
+            "recovered rows arrive at the clamped organic count, so nothing is recalled until re-confirmed");
+    }
+
+    [TestMethod]
+    public void MigrateAssociationsFromLegacyBuckets_KeepsTheNewestRowsWithinTheReadCap()
+    {
+        // Two legacy keywords that fold into one canonical query, 12 paths each: the reader keeps 20 rows per
+        // key, so a migration that writes all 24 loses four of them the first time the file is read back.
+        var buckets = new Dictionary<string, List<SearchHistoryStore.StoredEntry>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["alpha tool"] = [.. Enumerable.Range(0, 12).Select(i => Entry($@"X:\Fixture\old\{i}.txt", time: 100 + i))],
+            ["ALPHA  TOOL"] = [.. Enumerable.Range(0, 12).Select(i => Entry($@"X:\Fixture\new\{i}.txt", time: 900 + i))],
+        };
+
+        var migrated = SearchHistoryStore.MigrateAssociationsFromLegacyBuckets(buckets);
+        var rows = SearchHistoryStore.FlattenAssociations(migrated, minOrganicOpens: 1);
+        var cap = SearchHistoryBucketSupport.MaxEntriesPerKeyword;
+        var kept = rows.Select(row => row.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        Assert.HasCount(cap, rows);
+        Assert.IsTrue(
+            Enumerable.Range(0, 12).All(i => kept.Contains($@"X:\Fixture\new\{i}.txt")),
+            "every row of the newest keyword survives the truncation");
+        Assert.HasCount(
+            cap - 12,
+            Enumerable.Range(0, 12).Where(i => kept.Contains($@"X:\Fixture\old\{i}.txt")).ToList(),
+            "the overflow is filled by the oldest rows that still fit");
+        Assert.IsTrue(
+            Enumerable.Range(0, 12 - (cap - 12)).All(i => !kept.Contains($@"X:\Fixture\old\{i}.txt")),
+            "what the cap drops is the oldest of the oldest, never an arbitrary tail");
+    }
+
+    [TestMethod]
     public void RecordAssociationInMemory_RequiresOrganicOpensAndIgnoresLearnedFeedback()
     {
         var associations = new Dictionary<string, List<SearchHistoryStore.StoredAssociationEntry>>(StringComparer.OrdinalIgnoreCase);

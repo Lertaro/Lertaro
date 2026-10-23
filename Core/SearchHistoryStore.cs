@@ -207,6 +207,18 @@ public static class SearchHistoryStore
                     entry.Time,
                     OrganicOpens: Math.Clamp(entry.Count, 0, 1)));
             }
+
+            // Several legacy keywords fold into one canonical query, and the reader keeps the newest
+            // MaxEntriesPerKeyword rows per key. Do the same here, or the surplus is written once and then
+            // silently dropped on the next load -- which rows survive must not depend on how the buckets
+            // happened to be stored.
+            if (list.Count > SearchHistoryBucketSupport.MaxEntriesPerKeyword)
+            {
+                list.Sort(static (x, y) => y.LastOrganicTime.CompareTo(x.LastOrganicTime));
+                list.RemoveRange(
+                    SearchHistoryBucketSupport.MaxEntriesPerKeyword,
+                    list.Count - SearchHistoryBucketSupport.MaxEntriesPerKeyword);
+            }
         }
         return result;
     }
@@ -474,7 +486,10 @@ public static class SearchHistoryStore
 
         return TryLoadAssociationsFile(mainPath)
             ?? TryLoadAssociationsFile(backupPath)
-            ?? new Dictionary<string, List<StoredAssociationEntry>>(StringComparer.OrdinalIgnoreCase);
+            // Both unreadable is not "no associations": the buckets still hold every recorded open, and
+            // re-migrating them keeps the learned pairs recoverable instead of ending the feature with a
+            // truncated file. The clamped organic counts mean nothing is recalled until it is re-confirmed.
+            ?? MigrateAssociationsFromLegacyBuckets(legacyBuckets);
     }
 
     internal static Dictionary<string, List<StoredAssociationEntry>>? TryLoadAssociationsFile(string path)
