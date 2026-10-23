@@ -27,7 +27,7 @@ internal readonly record struct RankingLogRow(
 /// <summary>Writes hashed quick-search page, candidate and open events as JSONL.</summary>
 internal static class RankingEventLog
 {
-    internal const int SchemaVersion = 3;
+    internal const int SchemaVersion = 4;
 
     private const long MaxBytes = 10 * 1024 * 1024;
     private const int KeepFiles = 3;

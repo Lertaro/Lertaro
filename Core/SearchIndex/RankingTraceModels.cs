@@ -48,6 +48,8 @@ internal enum RankingDropStage : byte
     TokenDomainFilter = 7,
     TokenFilter = 8,
     FinalDisplayCap = 9,
+    // Recalled by provider metadata, deliberately excluded from the production candidate set.
+    ShadowAliasGate = 10,
 }
 
 /// <summary>Why a displayed row survived composition; this does not affect its ordering key.</summary>

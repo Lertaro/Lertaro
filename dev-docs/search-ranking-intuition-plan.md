@@ -11,9 +11,10 @@
 | P2 离线回放器 | 完成；待 Windows/.NET 环境跑 MSTest | 无 |
 | P3 shadow evidence / identity | 完成；待 Windows/.NET 环境跑 MSTest | 无 |
 | P4 拼音空格等价 | 完成；待 Windows/.NET 环境跑 MSTest 与同机性能测试 | 受限 joined 拼音分支 |
-| P5–P10 | 未开始 | 逐阶段说明 |
+| P5 应用与快捷方式身份 | 完成；待 Windows/.NET 环境跑 MSTest 与同机性能测试 | 同路径合并保留最强文本信号；新 alias 仅 shadow |
+| P6–P10 | 未开始 | 逐阶段说明 |
 
-P0 fixture：`Tests/Core/SearchRanking/Fixtures/reported-search-cases.v1.json`。P1 使用 ranking-event schema 3；旧 schema 行缺失的字段读作 Unknown/null。P4 后只有胜出的 joined 拼音分支具有结构化 mode/provider/span；其余无法证明的 matcher 分支仍保持 `LegacyUnknown`，不得反推或伪造。
+P0 fixture：`Tests/Core/SearchRanking/Fixtures/reported-search-cases.v1.json`。当前 ranking-event schema 4；旧 schema 行缺失的字段读作 Unknown/null。P4 后只有胜出的 joined 拼音分支具有结构化 mode/provider/span；其余无法证明的 matcher 分支仍保持 `LegacyUnknown`，不得反推或伪造。P5 的 provider metadata 只写 `ShadowAliasGate` candidate，不进入 V2 候选、合并、历史预算或截断。
 
 ## 目标与约束
 
@@ -48,7 +49,8 @@ P0 fixture：`Tests/Core/SearchRanking/Fixtures/reported-search-cases.v1.json`�
 ```text
 MatchEvidence
   Field          DisplayTitle | FileName | CuratedAlias | UserAlias |
-                 ShortcutTarget | Keyword | ParentPath | HistoryKeyword
+                 ShortcutTarget | ProductMetadata | ProviderAlias | Keyword |
+                 ParentPath | HistoryKeyword
   Mode           Literal | PinyinInitials | PinyinFull | PinyinRare |
                  Fuzzy | LearnedAlias
   QueryVariant   Original | PinyinJoined | ProviderAlias | HistoryExact
@@ -150,7 +152,7 @@ mustAppearBefore / mustBeTopK / mustBeAbsent
 - 分开记录 engine/filter/merge/prefix/type-coverage/token/final-cap；
 - 来源 flags、drop stage、provider readiness 与原始 provider hit 数；
 - invariant key/value formatter 和“复制排序解释”；
-- schema 3 writer、兼容 reader、10 MiB × 3、30 天保留、5 秒邻接页折叠、fail-open。
+- schema 4 writer、兼容 reader、10 MiB × 3、30 天保留、5 秒邻接页折叠、fail-open。
 
 P1 只增加观测，不改变候选、排序、截断或打开。已完成 C# 语法树、翻译 JSON、隐私字段和 diff 检查；当前环境无 .NET SDK，MSTest 尚未运行。
 
@@ -168,7 +170,7 @@ V2 基线见 `Tests/Core/SearchRanking/Baselines/v2-baseline.md`。PixPin 当前
 
 P3 提交时 matcher 只返回 `MatchRank`，所以普通文本、拼音和 provider alias 的 accepted branch、provider id 与 spans 当时都保持 `LegacyUnknown/-1`；history-only 行因来源明确可记为 `LearnedAlias`。P4 只补上可证明的 joined 拼音 witness，其余分支仍不得从 tier 或高亮结果反推。
 
-退出：schema 3、reader 和复制解释能显示已知 Field/Grade/Kind，旧行读作 Unknown；影子字段差异不改变 V2 顺序。
+退出：schema 4、reader 和复制解释能显示已知 Field/Grade/Kind，旧行读作 Unknown；影子字段差异不改变 V2 顺序。
 
 ### P4：拼音空格等价 — 完成
 
@@ -193,6 +195,10 @@ Core fake-provider 测试覆盖资格、strict winner、跨 provider、枚举顺
 9. 若可信 metadata 仍不能召回 `db` 目标，再提供单结果本地用户别名；不引入全局同义词库。
 
 退出：身份与标题 case 通过；可信 alias 的 shadow Recall 达标；无关 `.exe` 不升级。
+
+现行实现把 `SearchableItemAlias` 限为 `Curated/ShortcutTarget/ProductMetadata/User` 四种来源。host 在 provider 后台加载时去空白、按文本去重，并限制为每项 32 条、每条 128 字符。Start Menu provider 在同一加载阶段读取 shortcut target stem、PE product/description/original filename 或 package name；查询线程只读快照。受控 shadow Recall 用 5 个冷启动 alias case 固定为 5/5，另有非 executable target、package path、`.exe` identity 和合并信号回归；本容器无 .NET SDK，数字是测试契约而非已运行结果。
+
+alias 仅在 ranking trace 开启时、且标题/既有 provider alias/keyword 均未命中时计算。命中写 schema 4 `ShadowAliasGate` candidate 及 Grade 3（`SecondaryField`）provenance，不进入生产列表。readiness 沿用 `ProviderLoaded` 后 150 ms 合并重查。路径合并继续由 Application 行持有执行对象，同时合并 File 的更强直接文本 `Match`/evidence、路径规则、收藏、历史和来源 flags；learned-history alias 不借给直接行。`SearchTitle` 只去 `.lnk/.url/.appref-ms`；普通文件和 `.exe` 保留扩展名。
 
 ### P6：V3 影子排序
 
@@ -320,4 +326,4 @@ P4 与 P5 可并行，但都依赖 P3，且不能提前切换排序。P9 可跳�
 | 拼音 | `Core/IndexV2/Search/PinyinNameEvaluator.cs`、`Plugins/PinyinAlias/PinyinTermMatcher.cs` |
 | 高亮 | `Core/SearchIndex/HighlightMask.cs` |
 | 引擎截断 | `Core/SearchIndex/SearchCandidateComparer.cs` |
-| schema 3 trace | `Core/SearchIndex/RankingEventLog.cs`、`RankingTraceModels.cs`、`App/ViewModels/Search/Mapping/QuickSearchRankingTrace.cs` |
+| schema 4 trace | `Core/SearchIndex/RankingEventLog.cs`、`RankingTraceModels.cs`、`App/ViewModels/Search/Mapping/QuickSearchRankingTrace.cs` |

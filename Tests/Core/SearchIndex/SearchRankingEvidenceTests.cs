@@ -50,6 +50,55 @@ public sealed class SearchRankingEvidenceTests
 
         Assert.AreEqual(existing, shadow.Rank);
         Assert.AreEqual(MatchEvidenceField.ProviderAlias, shadow.Evidence.Field);
+        Assert.AreEqual(MatchQueryVariant.ProviderAlias, shadow.Evidence.QueryVariant);
+    }
+
+    [DataTestMethod]
+    [DataRow(@"X:\Apps\PixPin.lnk", "PixPin.lnk", "PixPin")]
+    [DataRow(@"X:\Apps\Portal.url", "Portal.url", "Portal")]
+    [DataRow(@"X:\Apps\ClickOnce.appref-ms", "ClickOnce.appref-ms", "ClickOnce")]
+    [DataRow(@"X:\Apps\PixPin.exe", "PixPin.exe", "PixPin.exe")]
+    [DataRow(@"X:\Apps\PixPin.txt", "PixPin.txt", "PixPin.txt")]
+    public void CandidateIdentity_SearchTitle_RemovesOnlyShortcutContainerExtensions(
+        string path,
+        string title,
+        string expected)
+    {
+        var identity = CandidateIdentity.Create(
+            RankingCandidateSource.FileIndex,
+            isDirectory: false,
+            isApplication: false,
+            title,
+            path);
+        Assert.AreEqual(expected, identity.SearchTitle);
+    }
+
+    [TestMethod]
+    public void CandidateIdentity_DirectoryWithShortcutSuffixIsNotAShortcut()
+    {
+        var identity = CandidateIdentity.Create(
+            RankingCandidateSource.FileIndex,
+            isDirectory: true,
+            isApplication: false,
+            "Archive.lnk",
+            @"X:\Apps\Archive.lnk");
+
+        Assert.AreEqual(RankingCandidateKind.Directory, identity.Kind);
+        Assert.AreEqual("Archive.lnk", identity.SearchTitle);
+    }
+
+    [TestMethod]
+    public void CandidateIdentity_ExeRemainsAFile()
+    {
+        var identity = CandidateIdentity.Create(
+            RankingCandidateSource.FileIndex,
+            isDirectory: false,
+            isApplication: false,
+            "PixPin.exe",
+            @"X:\Apps\PixPin.exe");
+
+        Assert.AreEqual(RankingCandidateKind.File, identity.Kind);
+        Assert.AreEqual("PixPin.exe", identity.SearchTitle);
     }
 
     [TestMethod]

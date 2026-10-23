@@ -84,6 +84,53 @@ public sealed class QuickSearchRankingTraceTests
     }
 
     [TestMethod]
+    public void ShadowAliasCandidate_IsLoggedWithEvidenceWithoutBecomingARow()
+    {
+        var rank = new MatchRank(MatchRank.TierName, 0, 1, 1);
+        var shadow = Candidate(
+            @"D:\Apps\PixPin.lnk",
+            "PixPin",
+            "Application",
+            RankingCandidateSource.SearchableProvider) with
+        {
+            Match = rank,
+            Evidence = MatchEvidence.Accepted(
+                "pixpin",
+                "PixPin",
+                MatchEvidenceField.ShortcutTarget,
+                rank,
+                variant: MatchQueryVariant.ProviderAlias),
+        };
+        var ordered = RankedCandidateOrdering.OrderWithTrace([], null, out var pass);
+        var mapperOutput = ordered.Select(candidate => candidate.Result).ToList();
+        var trace = new QuickSearchRankingTrace("pixpin", "pixpin");
+        trace.RegisterMapperOutput(mapperOutput, new MapperTraceSnapshot(
+            pass,
+            default,
+            Array.Empty<RankingDroppedCandidate>(),
+            Array.Empty<RankingProviderTrace>(),
+            Array.Empty<string>(),
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            new[] { shadow }));
+
+        trace.RecordDisplayedPage(mapperOutput, [], isFinal: true);
+
+        var logPath = Path.Combine(_dir, "ranking-events.jsonl");
+        var logText = File.ReadAllText(logPath);
+        Assert.DoesNotContain("PixPin", logText, StringComparison.Ordinal);
+        var events = File.ReadAllLines(logPath)
+            .Select(line => JsonDocument.Parse(line).RootElement.Clone())
+            .ToArray();
+        Assert.IsEmpty(events.Where(element => element.GetProperty("kind").GetString() == "row"));
+        var candidate = events.Single(element => element.GetProperty("kind").GetString() == "candidate");
+        Assert.AreEqual((int)RankingDropStage.ShadowAliasGate, candidate.GetProperty("drop").GetInt32());
+        Assert.AreEqual((int)MatchEvidenceField.ShortcutTarget, candidate.GetProperty("field").GetInt32());
+        Assert.AreEqual((int)MatchQueryVariant.ProviderAlias, candidate.GetProperty("queryVariant").GetInt32());
+        Assert.AreEqual((int)MatchEvidenceGrade.SecondaryField, candidate.GetProperty("evidenceGrade").GetInt32());
+        Assert.AreEqual(-1, candidate.GetProperty("kernelRank").GetInt32());
+    }
+
+    [TestMethod]
     public void TokenComposition_SeparatesDomainFilterTokenFilterAndFinalCap()
     {
         var app = Candidate(@"D:\app.lnk", "app", "Application", RankingCandidateSource.SearchableProvider);

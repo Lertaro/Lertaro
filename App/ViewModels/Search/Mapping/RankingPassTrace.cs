@@ -57,6 +57,11 @@ internal sealed class RankingPassTrace
         RankedCandidateOrdering.Describe(
             _rows[index], _keys[index], index + 1, _context, _budget, providerState);
 
+    internal RankingLogRow DescribeShadow(
+        SearchResultMapper.RankedCandidate candidate,
+        RankingProviderState providerState) =>
+        RankedCandidateOrdering.DescribeShadow(candidate, _context, providerState);
+
     internal int IndexOf(AppSearchResult result)
     {
         for (var i = 0; i < _rows.Length; i++)

@@ -161,13 +161,29 @@ internal sealed class QuickSearchRankingTrace
         IReadOnlyList<AppSearchResult>? tokenOutputRows,
         IReadOnlyDictionary<string, RankingProviderTrace> providerById)
     {
-        var dropped = new List<RankingDroppedCandidate>(snapshot.PreRankingDrops.Count);
+        var dropped = new List<RankingDroppedCandidate>(
+            snapshot.PreRankingDrops.Count + snapshot.ShadowAliasCandidates.Count);
         foreach (var candidate in snapshot.PreRankingDrops)
         {
             var state = candidate.ProviderId != null && providerById.TryGetValue(candidate.ProviderId, out var provider)
                 ? provider.State
                 : candidate.ProviderState;
             dropped.Add(candidate with { ProviderState = state });
+        }
+
+        foreach (var candidate in snapshot.ShadowAliasCandidates)
+        {
+            var providerId = candidate.Result.SourceProvider?.GetType().Name;
+            var providerState = ProviderState(providerId, providerById, candidate.Result);
+            var ranked = snapshot.Pass.DescribeShadow(candidate, providerState);
+            dropped.Add(new RankingDroppedCandidate(
+                candidate.NormalizedPath,
+                candidate.Source,
+                providerId,
+                providerState,
+                -1,
+                RankingDropStage.ShadowAliasGate,
+                ranked));
         }
 
         string TracePath(AppSearchResult result)
@@ -279,13 +295,33 @@ internal sealed record MapperTraceSnapshot(
     IReadOnlyList<RankingDroppedCandidate> PreRankingDrops,
     IReadOnlyList<RankingProviderTrace> Providers,
     IReadOnlyList<string>? TypeOrder,
-    IReadOnlySet<string> TypeCoveragePaths)
+    IReadOnlySet<string> TypeCoveragePaths,
+    IReadOnlyList<SearchResultMapper.RankedCandidate> ShadowAliasCandidates)
 {
+    internal MapperTraceSnapshot(
+        RankingPassTrace pass,
+        RankingPageCounts counts,
+        IReadOnlyList<RankingDroppedCandidate> preRankingDrops,
+        IReadOnlyList<RankingProviderTrace> providers,
+        IReadOnlyList<string>? typeOrder,
+        IReadOnlySet<string> typeCoveragePaths)
+        : this(
+            pass,
+            counts,
+            preRankingDrops,
+            providers,
+            typeOrder,
+            typeCoveragePaths,
+            Array.Empty<SearchResultMapper.RankedCandidate>())
+    {
+    }
+
     internal static readonly MapperTraceSnapshot Empty = new(
         RankingPassTrace.Empty,
         default,
         Array.Empty<RankingDroppedCandidate>(),
         Array.Empty<RankingProviderTrace>(),
         null,
-        new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+        Array.Empty<SearchResultMapper.RankedCandidate>());
 }

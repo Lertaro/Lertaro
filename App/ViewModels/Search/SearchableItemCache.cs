@@ -14,6 +14,18 @@ internal static class SearchableItemCache
         public string[] KeywordWords { get; } = Item.Keywords.Count == 0 ? [] : Item.Keywords.Prepend(Item.Title)
             .SelectMany(text => text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
             .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+
+        // Provider aliases are copied once on the background load. The query path reads only this bounded
+        // host-owned snapshot; it never asks a provider to resolve a shortcut or inspect target metadata.
+        public IReadOnlyList<SearchableItemAlias> ProviderAliases { get; } = Item.Aliases
+            .Where(alias => !string.IsNullOrWhiteSpace(alias.Text))
+            .Take(128)
+            .Select(alias => alias with { Text = alias.Text.Trim() })
+            .Where(alias => alias.Text.Length <= 128)
+            .GroupBy(alias => alias.Text, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .Take(32)
+            .ToArray();
     }
 
     private static readonly ConcurrentDictionary<string, List<CacheEntry>> _cache = new();

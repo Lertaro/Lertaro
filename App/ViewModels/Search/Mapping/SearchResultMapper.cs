@@ -220,6 +220,9 @@ public static class SearchResultMapper
         // History never overrules a better textual match, and quality never outranks a type the user put
         // earlier.
         var candidates = new List<RankedCandidate>();
+        var shadowAliasCandidates = rankingTrace != null
+            ? new List<RankedCandidate>()
+            : null;
         var searchableProviderHits = rankingTrace != null
             ? new Dictionary<string, int>(StringComparer.Ordinal)
             : null;
@@ -317,7 +320,11 @@ public static class SearchResultMapper
         // routing hid these too (its "Case B").
         if (fileFilterScope == null)
         {
-            foreach (var (result, match, evidence) in SearchableItemMapper.CollectSearchableItemResults(query, isInlineWindow))
+            var shadowHits = shadowAliasCandidates != null
+                ? new List<SearchableItemMapper.ShadowAliasCandidate>()
+                : null;
+            foreach (var (result, match, evidence) in SearchableItemMapper.CollectSearchableItemResults(
+                         query, isInlineWindow, shadowHits))
             {
                 var typeId = result.SourceProvider is ISearchableItemProvider provider
                     ? SearchResultTypePriority.GetProviderTypeId(provider)
@@ -355,6 +362,31 @@ public static class SearchResultMapper
                     SearchResultHelper.NormalizePath(result.FullPath),
                     Source: RankingCandidateSource.SearchableProvider,
                     Evidence: evidence));
+            }
+
+            // Alias hits are a parallel diagnostic stream. They never join candidates, and therefore
+            // cannot affect merge ownership, history budgets, truncation, badges or execution behavior.
+            if (!folderScope && shadowHits != null)
+            {
+                foreach (var hit in shadowHits)
+                {
+                    var typeId = SearchResultTypePriority.GetProviderTypeId(hit.Provider);
+                    if (triggeredTypeId != null && typeId != triggeredTypeId)
+                        continue;
+                    var lookupPath = hit.Result.IsApplication
+                        ? hit.Result.FullPath.Trim()
+                        : SearchResultHelper.NormalizePath(hit.Result.FullPath);
+                    var usage = historyUsage.TryGetValue(lookupPath, out var uc) ? uc : 0;
+                    shadowAliasCandidates!.Add(new RankedCandidate(
+                        hit.Result,
+                        IsFavorite: false,
+                        HistoryCount: usage,
+                        SearchResultTypePriority.Rank(typeId, typeRanks),
+                        hit.Match,
+                        SearchResultHelper.NormalizePath(hit.Result.FullPath),
+                        Source: RankingCandidateSource.SearchableProvider,
+                        Evidence: hit.Evidence));
+                }
             }
         }
 
@@ -470,7 +502,10 @@ public static class SearchResultMapper
                 preRankingDrops is null ? Array.Empty<RankingDroppedCandidate>() : preRankingDrops,
                 providerReadiness,
                 typeOrder.ToArray(),
-                typeCoveragePaths));
+                typeCoveragePaths,
+                shadowAliasCandidates is null
+                    ? Array.Empty<RankedCandidate>()
+                    : shadowAliasCandidates));
         }
 
         // Capped here (not deferred to the caller) because this display cap has to respect whatever

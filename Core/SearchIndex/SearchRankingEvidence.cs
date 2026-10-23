@@ -12,6 +12,7 @@ internal enum MatchEvidenceField : byte
     ParentPath = 7,
     HistoryKeyword = 8,
     ProviderAlias = 9,
+    ProductMetadata = 10,
 }
 
 internal enum MatchEvidenceMode : byte
@@ -109,15 +110,6 @@ internal readonly record struct MatchEvidence(
             spanLength);
     }
 
-    internal static MatchEvidence Stronger(MatchEvidence preferred, MatchEvidence other)
-    {
-        if (preferred.Grade == MatchEvidenceGrade.LegacyUnknown)
-            return other;
-        if (other.Grade == MatchEvidenceGrade.LegacyUnknown)
-            return preferred;
-        return other.Grade < preferred.Grade ? other : preferred;
-    }
-
     private static bool IsExactIdentity(string query, string text, MatchEvidenceField field)
     {
         var querySpan = query.AsSpan().Trim();
@@ -172,13 +164,32 @@ internal readonly record struct CandidateIdentity(
         var kind = isDirectory ? RankingCandidateKind.Directory : RankingCandidateKind.File;
         if (isApplication)
             kind |= RankingCandidateKind.Application;
-        var extension = Path.GetExtension(path);
-        if (!isDirectory && (extension.Equals(".lnk", StringComparison.OrdinalIgnoreCase)
-            || extension.Equals(".url", StringComparison.OrdinalIgnoreCase)
-            || extension.Equals(".appref-ms", StringComparison.OrdinalIgnoreCase)))
-        {
+        var isShortcut = !isDirectory && IsShortcutExtension(Path.GetExtension(path));
+        if (isShortcut)
             kind |= RankingCandidateKind.Shortcut;
-        }
-        return new CandidateIdentity(source, kind, title, path.TrimEnd('\\'));
+        return new CandidateIdentity(
+            source,
+            kind,
+            SearchTitle(title, path, isShortcut),
+            path.TrimEnd('\\'));
     }
+
+    private static string SearchTitle(string title, string path, bool isShortcut)
+    {
+        var candidate = string.IsNullOrWhiteSpace(title)
+            ? Path.GetFileName(path.TrimEnd('\\', '/'))
+            : title.Trim();
+        if (!isShortcut || !IsShortcutExtension(Path.GetExtension(candidate)))
+            return candidate;
+
+        // Shortcut containers are identity-transparent; executable and ordinary file extensions are not.
+        // In particular, PixPin.exe must remain a file title rather than being upgraded to the PixPin app.
+        var withoutExtension = Path.GetFileNameWithoutExtension(candidate);
+        return string.IsNullOrWhiteSpace(withoutExtension) ? candidate : withoutExtension;
+    }
+
+    private static bool IsShortcutExtension(string extension) =>
+        extension.Equals(".lnk", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".url", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".appref-ms", StringComparison.OrdinalIgnoreCase);
 }

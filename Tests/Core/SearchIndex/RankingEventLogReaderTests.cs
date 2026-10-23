@@ -35,6 +35,21 @@ public sealed class RankingEventLogReaderTests
     }
 
     [TestMethod]
+    public void Reader_PreservesSchema4ShadowAliasProvenance()
+    {
+        var line = $"{{\"v\":4,\"kind\":\"candidate\",\"drop\":{(int)RankingDropStage.ShadowAliasGate}," +
+                   $"\"field\":{(int)MatchEvidenceField.ProductMetadata}," +
+                   $"\"queryVariant\":{(int)MatchQueryVariant.ProviderAlias}," +
+                   $"\"evidenceGrade\":{(int)MatchEvidenceGrade.SecondaryField}}}";
+
+        Assert.IsTrue(RankingEventLogReader.TryReadLine(line, out var record));
+        Assert.AreEqual(RankingDropStage.ShadowAliasGate, record.DropStage);
+        Assert.AreEqual(MatchEvidenceField.ProductMetadata, record.EvidenceField);
+        Assert.AreEqual(MatchQueryVariant.ProviderAlias, record.QueryVariant);
+        Assert.AreEqual(MatchEvidenceGrade.SecondaryField, record.EvidenceGrade);
+    }
+
+    [TestMethod]
     public void Reader_MalformedOrNonObjectLine_FailsWithoutThrowing()
     {
         Assert.IsFalse(RankingEventLogReader.TryReadLine("not-json", out _));

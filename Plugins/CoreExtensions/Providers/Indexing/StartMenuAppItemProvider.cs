@@ -132,6 +132,7 @@ public class StartMenuAppItemProvider : ISearchableItemProvider, IDisposable
                 HBitmapIcon = IntPtr.Zero,
                 ActionType = "None",
                 ActionArgument = capturedPath,
+                Aliases = StartMenuAppAliasBuilder.FromShortcut(entry.Name, targetPath),
                 OnExecute = () =>
                 {
                     try
@@ -273,6 +274,9 @@ public class StartMenuAppItemProvider : ISearchableItemProvider, IDisposable
                 HBitmapIcon = IntPtr.Zero,
                 ActionType = "None",
                 ActionArgument = launchTarget,
+                Aliases = looksLikePath
+                    ? StartMenuAppAliasBuilder.FromShortcut(app.Name, aumid)
+                    : StartMenuAppAliasBuilder.FromPackage(app.Name, aumid),
                 OnExecute = () =>
                 {
                     try

@@ -237,6 +237,111 @@ public sealed class RankedCandidateOrderingTests
     }
 
     [TestMethod]
+    public void MergeKeepsApplicationExecutionObjectAndFilePathSignals()
+    {
+        const string path = @"C:\Apps\PixPin.lnk";
+        var fileMatch = new MatchRank(MatchRank.TierName, 0, 1, 1, MatchRank.ShapeWholeWord);
+        var file = Candidate(path) with
+        {
+            IsFavorite = true,
+            HistoryCount = 7,
+            Match = fileMatch,
+            Source = RankingCandidateSource.FileIndex | RankingCandidateSource.Favorite,
+            Evidence = MatchEvidence.Accepted("pixpin", "PixPin.lnk", MatchEvidenceField.FileName, fileMatch),
+        };
+        var appResult = new AppSearchResult
+        {
+            FullPath = path,
+            Name = "PixPin",
+            ResultKind = "Application",
+            SourceProvider = new object(),
+        };
+        var appMatch = new MatchRank(
+            MatchRank.TierName,
+            4,
+            0.5,
+            0.5,
+            MatchRank.ShapeScattered);
+        var app = Candidate(path, typeRank: 0) with
+        {
+            Result = appResult,
+            Match = appMatch,
+            Source = RankingCandidateSource.SearchableProvider,
+            Evidence = MatchEvidence.Accepted(
+                "pixpin",
+                "screen capture",
+                MatchEvidenceField.CuratedAlias,
+                appMatch),
+        };
+        var context = new RankContext((_, _) => new PriorityVerdict(IndexRuleEffect.Low, false));
+
+        var ranked = RankedCandidateOrdering.OrderWithTrace([file, app], context, out var trace);
+        var reversed = RankedCandidateOrdering.OrderWithTrace([app, file], context, out var reversedTrace);
+        var described = trace.DescribeAt(0, RankingProviderState.ReadyWithItems);
+        var reversedDescription = reversedTrace.DescribeAt(0, RankingProviderState.ReadyWithItems);
+
+        Assert.HasCount(1, ranked);
+        Assert.AreSame(appResult, ranked[0].Result);
+        Assert.AreEqual(fileMatch, ranked[0].Match);
+        Assert.IsTrue(ranked[0].IsFavorite);
+        Assert.AreEqual(7, ranked[0].HistoryCount);
+        Assert.AreSame(appResult, reversed[0].Result);
+        Assert.AreEqual(fileMatch, reversed[0].Match);
+        Assert.AreEqual(IndexRuleEffect.Low, described.Priority);
+        Assert.AreEqual(MatchEvidenceField.FileName, described.Evidence.Field);
+        Assert.AreEqual(described.Evidence, reversedDescription.Evidence);
+        Assert.AreEqual(
+            RankingCandidateSource.FileIndex |
+            RankingCandidateSource.SearchableProvider |
+            RankingCandidateSource.Favorite,
+            described.Source);
+    }
+
+    [TestMethod]
+    public void MergeDoesNotLendLearnedAliasQualityToDirectText()
+    {
+        const string path = @"C:\Apps\Editor.lnk";
+        var directMatch = new MatchRank(
+            MatchRank.TierName,
+            3,
+            0.5,
+            0.5,
+            MatchRank.ShapeScattered);
+        var direct = Candidate(path) with
+        {
+            Match = directMatch,
+            Source = RankingCandidateSource.SearchableProvider,
+            Evidence = MatchEvidence.Accepted(
+                "edit",
+                "My Editor",
+                MatchEvidenceField.DisplayTitle,
+                directMatch),
+        };
+        var learnedMatch = new MatchRank(MatchRank.TierName, 0, 1, 1);
+        var learned = Candidate(path) with
+        {
+            Match = learnedMatch,
+            IsHistoryOnly = true,
+            HistoryCount = 8,
+            Source = RankingCandidateSource.History,
+            Evidence = MatchEvidence.Accepted(
+                "edit",
+                "edit",
+                MatchEvidenceField.HistoryKeyword,
+                learnedMatch,
+                MatchEvidenceMode.LearnedAlias),
+        };
+
+        var ranked = RankedCandidateOrdering.Order([learned, direct]);
+
+        Assert.HasCount(1, ranked);
+        Assert.AreEqual(directMatch, ranked[0].Match);
+        Assert.AreEqual(MatchEvidenceField.DisplayTitle, ranked[0].Evidence.Field);
+        Assert.IsFalse(ranked[0].IsHistoryOnly);
+        Assert.AreEqual(8, ranked[0].HistoryCount);
+    }
+
+    [TestMethod]
     public void ShadowEvidenceDoesNotChangeV2Order()
     {
         var rows = new List<SearchResultMapper.RankedCandidate>

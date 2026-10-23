@@ -58,7 +58,8 @@ public readonly struct FuzzyQuery
     internal MatchEvidenceResult RankWithEvidence(
         string? text,
         MatchEvidenceField field,
-        string? providerId = null)
+        string? providerId = null,
+        MatchQueryVariant variant = MatchQueryVariant.Original)
     {
         var witness = AcceptedMatchWitness.LegacyUnknown;
         var rank = _pattern is null || string.IsNullOrEmpty(text)
@@ -67,8 +68,8 @@ public readonly struct FuzzyQuery
         if (text is null || _pattern?.HasPositiveTerms != true)
             return new MatchEvidenceResult(rank, MatchEvidence.LegacyUnknown);
 
-        var variant = witness.QueryVariant == MatchQueryVariant.LegacyUnknown
-            ? MatchQueryVariant.Original
+        var acceptedVariant = witness.QueryVariant == MatchQueryVariant.LegacyUnknown
+            ? variant
             : witness.QueryVariant;
         return new MatchEvidenceResult(
             rank,
@@ -78,7 +79,7 @@ public readonly struct FuzzyQuery
                 field,
                 rank,
                 witness.Mode,
-                variant,
+                acceptedVariant,
                 witness.ProviderId ?? providerId,
                 witness.SpanStart,
                 witness.SpanLength));
@@ -96,7 +97,10 @@ public readonly struct FuzzyQuery
 
         foreach (var alternate in alternateTexts)
         {
-            var candidate = RankWithEvidence(alternate.Text, alternate.Field, providerId);
+            var variant = alternate.Field == MatchEvidenceField.ProviderAlias
+                ? MatchQueryVariant.ProviderAlias
+                : MatchQueryVariant.Original;
+            var candidate = RankWithEvidence(alternate.Text, alternate.Field, providerId, variant);
             if (FuzzyMatcher.IsStronger(candidate.Rank, best.Rank))
                 best = candidate;
         }

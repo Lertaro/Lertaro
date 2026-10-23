@@ -34,6 +34,18 @@ public interface ISearchableItemProvider : IPluginComponent
     event Action? ItemsChanged;
 }
 
+/// <summary>Why a provider-supplied alias describes one searchable item.</summary>
+public enum SearchableItemAliasKind : byte
+{
+    Curated = 0,
+    ShortcutTarget = 1,
+    ProductMetadata = 2,
+    User = 3,
+}
+
+/// <summary>An alias cached with a searchable item; matching never calls the provider again.</summary>
+public readonly record struct SearchableItemAlias(string Text, SearchableItemAliasKind Kind = SearchableItemAliasKind.Curated);
+
 /// <summary>
 /// Represents an individual searchable item to be indexed by the host.
 /// </summary>
@@ -44,6 +56,12 @@ public class SearchableItem
 
     /// <summary>Optional search keywords. Each query word must prefix a title or keyword word.</summary>
     public IReadOnlyList<string> Keywords { get; set; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Optional provider-owned aliases with provenance. The host snapshots these during provider loading;
+    /// providers must not resolve shortcuts, inspect files, or perform other I/O from a query callback.
+    /// </summary>
+    public IReadOnlyList<SearchableItemAlias> Aliases { get; set; } = Array.Empty<SearchableItemAlias>();
 
     /// <summary>Optional vector path string for a custom icon.</summary>
     public string? IconData { get; set; }

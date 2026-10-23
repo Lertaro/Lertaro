@@ -8,6 +8,12 @@ namespace Lertaro.App.ViewModels.Search.Mapping;
 
 public static class SearchableItemMapper
 {
+    internal readonly record struct ShadowAliasCandidate(
+        AppSearchResult Result,
+        MatchRank Match,
+        MatchEvidence Evidence,
+        ISearchableItemProvider Provider);
+
     public static void Preload() => SearchableItemCache.Preload();
 
     // A learned Application history entry retains only its launched path. Reuse the cached provider
@@ -51,7 +57,10 @@ public static class SearchableItemMapper
     // the caller (SearchResultMapper.BuildQuickResults) merges these into one globally sorted list
     // alongside favorites/history-matched files/file-search results, rather than always showing every
     // searchable item ahead of every file result regardless of which actually matched better.
-    internal static List<(AppSearchResult Result, MatchRank Match, MatchEvidence Evidence)> CollectSearchableItemResults(string query, bool isInlineWindow)
+    internal static List<(AppSearchResult Result, MatchRank Match, MatchEvidence Evidence)> CollectSearchableItemResults(
+        string query,
+        bool isInlineWindow,
+        List<ShadowAliasCandidate>? shadowAliases = null)
     {
         var candidates = new List<(AppSearchResult Result, MatchRank Match, MatchEvidence Evidence)>();
         if (isInlineWindow) return candidates;
@@ -86,9 +95,27 @@ public static class SearchableItemMapper
                 // somewhere. (Keyword-scoped directory search used to live here as a FileFilter_
                 // ResultKind routing over materialized files; it is now a real scoped engine search --
                 // see FileFilterScopeResolver.)
-                var match = MatchCatalogEntryWithEvidence(fuzzy, queryWords, entry, provider.GetType().Name);
+                var providerId = provider.GetType().Name;
+                var match = MatchCatalogEntryWithEvidence(fuzzy, queryWords, entry, providerId);
                 if (match.Rank.IsMatch)
+                {
                     matched.Add((entry, match.Rank, match.Evidence, provider, q));
+                    continue;
+                }
+
+                // New provider metadata remains shadow-only until the V3 switch. It is evaluated only
+                // while tracing, from strings snapshotted by SearchableItemCache; no provider or shell
+                // work runs on this per-keystroke path.
+                if (shadowAliases != null)
+                {
+                    var shadow = MatchShadowAliases(fuzzy, entry, providerId);
+                    if (shadow.Rank.IsMatch)
+                    {
+                        var built = BuildCandidate(entry, provider, q, shadow.Rank);
+                        shadowAliases.Add(new ShadowAliasCandidate(
+                            built.Result, built.Match, shadow.Evidence, provider));
+                    }
+                }
             }
         }
 
@@ -132,6 +159,32 @@ public static class SearchableItemMapper
                 MatchEvidence.Accepted(query.Text, entry.Item.Title, MatchEvidenceField.Keyword, rank, providerId: providerId));
         }
         return new MatchEvidenceResult(MatchRank.NoMatch, MatchEvidence.LegacyUnknown);
+    }
+
+    internal static MatchEvidenceResult MatchShadowAliases(
+        FuzzyQuery query,
+        SearchableItemCache.CacheEntry entry,
+        string? providerId)
+    {
+        var best = new MatchEvidenceResult(MatchRank.NoMatch, MatchEvidence.LegacyUnknown);
+        foreach (var alias in entry.ProviderAliases)
+        {
+            var field = alias.Kind switch
+            {
+                SearchableItemAliasKind.ShortcutTarget => MatchEvidenceField.ShortcutTarget,
+                SearchableItemAliasKind.ProductMetadata => MatchEvidenceField.ProductMetadata,
+                SearchableItemAliasKind.User => MatchEvidenceField.UserAlias,
+                _ => MatchEvidenceField.CuratedAlias,
+            };
+            var candidate = query.RankWithEvidence(
+                alias.Text,
+                field,
+                providerId,
+                MatchQueryVariant.ProviderAlias);
+            if (FuzzyMatcher.IsStronger(candidate.Rank, best.Rank))
+                best = candidate;
+        }
+        return best;
     }
 
     // Split out of the matches loop below purely to keep this file's per-method length down -- no

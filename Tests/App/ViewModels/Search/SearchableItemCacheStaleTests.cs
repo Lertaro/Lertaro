@@ -1,4 +1,5 @@
 using Lertaro.App.ViewModels.Search;
+using Lertaro.App.ViewModels.Search.Mapping;
 using Lertaro.Core.SearchIndex;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 
@@ -48,6 +49,103 @@ public sealed class SearchableItemCacheStaleTests
 
         Assert.IsFalse(SearchableItemCache.TryGetEntries(id, out _));
         Assert.IsFalse(SearchableItemCache.IsStale(id));
+    }
+
+    [TestMethod]
+    public void CacheEntry_SnapshotsCleansAndBoundsProviderAliases()
+    {
+        var source = new List<SearchableItemAlias>
+        {
+            new("  PixPin  ", SearchableItemAliasKind.ShortcutTarget),
+            new("pixpin", SearchableItemAliasKind.ProductMetadata),
+            new("   ", SearchableItemAliasKind.Curated),
+            new(new string('x', 129), SearchableItemAliasKind.User),
+        };
+        source.AddRange(Enumerable.Range(0, 40)
+            .Select(index => new SearchableItemAlias($"alias-{index}", SearchableItemAliasKind.Curated)));
+        var entry = new SearchableItemCache.CacheEntry(
+            new SearchableItem { Title = "截图工具", Aliases = source },
+            new List<string>(),
+            null);
+
+        source[0] = new SearchableItemAlias("mutated", SearchableItemAliasKind.User);
+
+        Assert.HasCount(32, entry.ProviderAliases);
+        Assert.AreEqual("PixPin", entry.ProviderAliases[0].Text);
+        Assert.AreEqual(SearchableItemAliasKind.ShortcutTarget, entry.ProviderAliases[0].Kind);
+        Assert.IsFalse(entry.ProviderAliases.Any(alias => alias.Text == "mutated"));
+    }
+
+    [TestMethod]
+    public void ShadowAliasMatch_RecordsProviderVariantAndProvenanceField()
+    {
+        var entry = new SearchableItemCache.CacheEntry(
+            new SearchableItem
+            {
+                Title = "截图工具",
+                Aliases =
+                [
+                    new SearchableItemAlias("PixPin", SearchableItemAliasKind.ShortcutTarget),
+                ],
+            },
+            new List<string>(),
+            null);
+
+        var query = FuzzyQuery.Parse("pixpin");
+        var production = SearchableItemMapper.MatchCatalogEntryWithEvidence(
+            query,
+            ["pixpin"],
+            entry,
+            "StartMenuAppItemProvider");
+        var match = SearchableItemMapper.MatchShadowAliases(
+            query,
+            entry,
+            "StartMenuAppItemProvider");
+
+        Assert.IsFalse(production.Rank.IsMatch, "P5 aliases must remain outside the V2 candidate set");
+        Assert.IsTrue(match.Rank.IsMatch);
+        Assert.AreEqual(MatchEvidenceField.ShortcutTarget, match.Evidence.Field);
+        Assert.AreEqual(MatchQueryVariant.ProviderAlias, match.Evidence.QueryVariant);
+        Assert.AreEqual(MatchEvidenceGrade.SecondaryField, match.Evidence.Grade);
+        Assert.AreEqual("StartMenuAppItemProvider", match.Evidence.ProviderId);
+    }
+
+    [TestMethod]
+    public void TrustedAliasShadowRecall_ControlledCasesIsComplete()
+    {
+        var cases = new[]
+        {
+            (Query: "pixpin", Text: "PixPin", Kind: SearchableItemAliasKind.ShortcutTarget,
+                Field: MatchEvidenceField.ShortcutTarget),
+            (Query: "screen capture", Text: "Screen Capture", Kind: SearchableItemAliasKind.ProductMetadata,
+                Field: MatchEvidenceField.ProductMetadata),
+            (Query: "windowscalculator", Text: "WindowsCalculator", Kind: SearchableItemAliasKind.ProductMetadata,
+                Field: MatchEvidenceField.ProductMetadata),
+            (Query: "telegram", Text: "Telegram", Kind: SearchableItemAliasKind.Curated,
+                Field: MatchEvidenceField.CuratedAlias),
+            (Query: "my capture", Text: "My Capture", Kind: SearchableItemAliasKind.User,
+                Field: MatchEvidenceField.UserAlias),
+        };
+        var recalled = 0;
+        foreach (var item in cases)
+        {
+            var entry = new SearchableItemCache.CacheEntry(
+                new SearchableItem
+                {
+                    Title = "本地化标题",
+                    Aliases = [new SearchableItemAlias(item.Text, item.Kind)],
+                },
+                new List<string>(),
+                null);
+            var match = SearchableItemMapper.MatchShadowAliases(
+                FuzzyQuery.Parse(item.Query), entry, "fixture-provider");
+            if (match.Rank.IsMatch)
+                recalled++;
+            Assert.AreEqual(item.Field, match.Evidence.Field, item.Query);
+            Assert.AreEqual(MatchEvidenceGrade.SecondaryField, match.Evidence.Grade, item.Query);
+        }
+
+        Assert.AreEqual(cases.Length, recalled, "controlled trusted-alias shadow Recall must be 100%");
     }
 
     [TestMethod]

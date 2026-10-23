@@ -9,6 +9,8 @@ namespace Lertaro.App.ViewModels.Search.Mapping;
 internal static class RankedCandidateOrdering
 {
     private const string ApplicationKind = "Application";
+    private static readonly IReadOnlyDictionary<string, HistoryTier> EmptyHistoryBudget =
+        new Dictionary<string, HistoryTier>(StringComparer.OrdinalIgnoreCase);
 
     public static List<SearchResultMapper.RankedCandidate> Order(
         List<SearchResultMapper.RankedCandidate> candidates,
@@ -30,7 +32,15 @@ internal static class RankedCandidateOrdering
     {
         if (candidates.Count == 0)
         {
-            trace = RankingPassTrace.Empty;
+            trace = captureTrace
+                ? new RankingPassTrace(
+                    0,
+                    Array.Empty<SearchResultMapper.RankedCandidate>(),
+                    Array.Empty<RankKey>(),
+                    context,
+                    EmptyHistoryBudget,
+                    Array.Empty<SearchResultMapper.RankedCandidate>())
+                : RankingPassTrace.Empty;
             return [];
         }
 
@@ -148,6 +158,31 @@ internal static class RankedCandidateOrdering
             identity);
     }
 
+    /// <summary>
+    /// Describes an alias-recalled row without admitting it to the production merge, history budget or
+    /// ordering pass. Offline replay can compare the complete signals; the synthetic key is intentionally
+    /// marked kernel rank -1 because no displayed rank was assigned.
+    /// </summary>
+    internal static RankingLogRow DescribeShadow(
+        SearchResultMapper.RankedCandidate candidate,
+        RankContext? context,
+        RankingProviderState providerState)
+    {
+        var signals = ToSignals(candidate, context);
+        const HistoryTier tier = HistoryTier.None;
+        var key = RankPolicy.BuildKey(signals, tier) with
+        {
+            Score = RankPolicy.QuickScore(signals, tier),
+        };
+        return Describe(
+            candidate,
+            key,
+            -1,
+            context,
+            EmptyHistoryBudget,
+            providerState);
+    }
+
     private static SearchResultMapper.RankedCandidate[] MergeByPath(
         List<SearchResultMapper.RankedCandidate> candidates,
         List<SearchResultMapper.RankedCandidate>? mergedAway)
@@ -181,18 +216,65 @@ internal static class RankedCandidateOrdering
     {
         var better = CompareRows(a, b);
         var winner = better <= 0 ? a : b;
-        var other = better <= 0 ? b : a;
+        var textOwner = PreferTextEvidence(a, b);
 
         return winner with
         {
+            // Application views continue to own execution and presentation, while every path-level signal
+            // survives a duplicate file/application merge.
             IsFavorite = a.IsFavorite || b.IsFavorite,
             HistoryCount = Math.Max(a.HistoryCount, b.HistoryCount),
             TypeRank = Math.Min(a.TypeRank, b.TypeRank),
+            Match = textOwner.Match,
             // Any direct source makes the merged path a direct result.
             IsHistoryOnly = a.IsHistoryOnly && b.IsHistoryOnly,
             Source = a.Source | b.Source,
-            Evidence = MatchEvidence.Stronger(winner.Evidence, other.Evidence),
+            Evidence = textOwner.Evidence,
         };
+    }
+
+    private static SearchResultMapper.RankedCandidate PreferTextEvidence(
+        SearchResultMapper.RankedCandidate a,
+        SearchResultMapper.RankedCandidate b)
+    {
+        // A learned history lookup must not lend its alias quality to a path that also has direct text.
+        if (a.IsHistoryOnly != b.IsHistoryOnly)
+            return a.IsHistoryOnly ? b : a;
+
+        var quality = MatchRank.CompareQuality(a.Match, b.Match);
+        if (quality != 0)
+            return quality < 0 ? a : b;
+
+        var evidence = CompareEvidence(a.Evidence, b.Evidence);
+        return evidence <= 0 ? a : b;
+    }
+
+    private static int CompareEvidence(MatchEvidence a, MatchEvidence b)
+    {
+        static int Grade(MatchEvidenceGrade value) =>
+            value == MatchEvidenceGrade.LegacyUnknown ? int.MaxValue : (int)value;
+        static int Known<T>(T value) where T : struct, Enum =>
+            Convert.ToInt32(value) == 0 ? int.MaxValue : Convert.ToInt32(value);
+
+        var compare = Grade(a.Grade).CompareTo(Grade(b.Grade));
+        if (compare != 0)
+            return compare;
+        compare = Known(a.Field).CompareTo(Known(b.Field));
+        if (compare != 0)
+            return compare;
+        compare = Known(a.Mode).CompareTo(Known(b.Mode));
+        if (compare != 0)
+            return compare;
+        compare = Known(a.QueryVariant).CompareTo(Known(b.QueryVariant));
+        if (compare != 0)
+            return compare;
+        compare = string.Compare(a.ProviderId, b.ProviderId, StringComparison.Ordinal);
+        if (compare != 0)
+            return compare;
+        var aStart = a.SpanStart < 0 ? int.MaxValue : a.SpanStart;
+        var bStart = b.SpanStart < 0 ? int.MaxValue : b.SpanStart;
+        compare = aStart.CompareTo(bStart);
+        return compare != 0 ? compare : b.SpanLength.CompareTo(a.SpanLength);
     }
 
     private static int CompareRows(

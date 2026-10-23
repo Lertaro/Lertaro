@@ -1,6 +1,6 @@
 # 搜索排序（现行）
 
-排序行为核对基线：`ff0608a`，`RankPolicy.Version = 2`；P2/P3 只增加离线回放和影子证据，未改变顺序。ranking-event schema 3（2026-10-23）。后续改动按 [search-ranking-intuition-plan.md](search-ranking-intuition-plan.md) 分阶段执行。
+排序行为核对基线：`ff0608a`，`RankPolicy.Version = 2`。P2–P5 已加入离线回放、影子证据、受限 joined 拼音与应用身份接缝；provider metadata alias 仍不进入生产候选。当前 ranking-event schema 4（2026-10-23）。后续改动按 [search-ranking-intuition-plan.md](search-ranking-intuition-plan.md) 分阶段执行。
 
 ## 范围
 
@@ -28,7 +28,7 @@ CLI 与 Everything 的名称排序仍使用 `SearchResultRankComparer`，不在�
   → 最终 50 条上限
 ```
 
-同一路径只保留一行。合并时收藏取并集、历史次数取最大、类型秩取更靠前者；可执行的 Application 表示优先于普通 File 表示。诊断来源只做 flags 合并，不进入比较器。
+同一路径只保留一行。可执行的 Application 表示优先持有展示对象和执行委托；收藏取并集、历史次数取最大、类型秩取更靠前者，并保留重复 File 表示中更强的直接文本 `Match`/evidence；learned-history alias 不借给直接行。路径规则仍按规范化路径计算。诊断来源只做 flags 合并，不进入比较器。
 
 普通查询向 App 请求 51 个文件候选，服务端为过滤余量放大到 204；token、文件范围、filename-like 查询以及高优先规则使用 1000/4000。每盘搜索还会扩大扫描余量，但返回量仍受管道预算约束。引擎截断只看文本质量和公共尾，不看历史、收藏或索引优先级。
 
@@ -105,7 +105,9 @@ Effective = clamp(Score × 0.5^(days / 90), 0, 10)
 
 `AlwaysTop` 只对 High 生效，且不能创造候选。路径型 High 规则可通过 `HighPriorityRoots` 补搜；glob/regex 命中若在引擎截断前没有进入候选池，仍是 best-effort。索引规则的继承与冲突规则见 [index-rules.md](index-rules.md)。
 
-`.lnk`、`.url`、`.appref-ms` 文件可借用 Application 与 Files 中更靠前的类型秩；`.exe` 不借用。按路径合并时，可执行的 Application 行代表同一实体。
+`.lnk`、`.url`、`.appref-ms` 文件可借用 Application 与 Files 中更靠前的类型秩；`.exe` 不借用。候选身份的 `SearchTitle` 只去掉这三种 shortcut container 扩展名，普通文件和 `.exe` 保留扩展名。按路径合并时，可执行的 Application 行代表同一实体。
+
+可搜索项 provider 可为 alias 标注 `Curated`、`ShortcutTarget`、`ProductMetadata` 或 `User`。host 在后台加载时复制、清洗并限制为每项 32 条、每条 128 字符。Start Menu provider 同期缓存 target exe stem、PE product/description/original filename 与 package name；按键热路径不解析 shortcut、不读取文件元数据，也不重新枚举 provider alias。P7 前这些新 alias 只在日志开启时做 shadow recall，既有 title、语言 alias、keyword 行为不变。provider 加载完成仍由现有 150 ms 合并刷新重跑非空查询。
 
 ## 文本匹配边界
 
@@ -117,7 +119,7 @@ Effective = clamp(Score × 0.5^(days / 90), 0, 10)
 
 ## 排序诊断
 
-“设置 → 通用 → 系统 → 排序事件日志”控制 `%LOCALAPPDATA%\Lertaro\ranking-events.jsonl`。schema 3 记录：
+“设置 → 通用 → 系统 → 排序事件日志”控制 `%LOCALAPPDATA%\Lertaro\ranking-events.jsonl`。schema 4 记录：
 
 - `searchSessionId + pageId`：连接 page、row/candidate 与 open；
 - `kernelRank` 与 `finalDisplayedRank`：区分内核顺序和最终 UI 顺序；
@@ -129,7 +131,9 @@ Effective = clamp(Score × 0.5^(days / 90), 0, 10)
 
 文件达到 10 MiB 后轮转，最多保留 3 个；进程首次写入时清理 30 天前的文件。相邻 5 秒内完全相同的页复用 `pageId`。日志失败不会阻止搜索或打开结果。reader 对旧 schema 缺失的字段返回 Unknown/null，并忽略未来字段。
 
-影子 `MatchEvidence` 记录实际参与匹配的 title、filename、provider alias、keyword 或 history keyword，并据此写 Field/Grade；无法区分 alias 与 parent-path 的引擎 fallback 保持 Unknown。`CandidateIdentity` 分开记录来源和 File/Directory/Application/Shortcut flags。胜出的 joined 拼音分支由 scorer 返回 provider/tier/span，判定、高亮和日志共用该 witness，并写出 `PinyinJoined` 与实际拼音 mode。普通文本、非 joined 拼音和其他无法证明的 alias 分支仍用 `LegacyUnknown/-1`；不得从 `MatchRank` 反推。
+影子 `MatchEvidence` 记录实际参与匹配的 title、filename、provider alias、keyword 或 history keyword，并据此写 Field/Grade；无法区分 alias 与 parent-path 的引擎 fallback 保持 Unknown。`CandidateIdentity` 分开记录来源和 File/Directory/Application/Shortcut flags。胜出的 joined 拼音分支由 scorer 返回 provider/tier/span，判定、高亮和日志共用该 witness，并写出 `PinyinJoined` 与实际拼音 mode。普通文本、非 joined 拼音和其他无法证明的 matcher 分支仍用 `LegacyUnknown/-1`；不得从 `MatchRank` 反推。
+
+schema 4 另把新 provider alias 召回写为 `ShadowAliasGate` candidate：`CuratedAlias`、`ShortcutTarget`、`ProductMetadata`、`UserAlias` 字段保留来源，query variant 为 `ProviderAlias`，kernel rank 为 -1。这些记录不进入 V2 合并、历史预算、比较器或 UI 截断，只为 P6 离线比较提供候选和 evidence。
 
 ## 科学性与校准边界
 
@@ -148,6 +152,7 @@ Effective = clamp(Score × 0.5^(days / 90), 0, 10)
 ```powershell
 dotnet test Tests/Core/Core.csproj --filter "FullyQualifiedName!~ExplorerStaInvokerTests&FullyQualifiedName!~UpdaterRollbackTests"
 dotnet test Tests/App/App.csproj
+dotnet test Tests/Plugins/CoreExtensions/CoreExtensions.csproj
 dotnet test Tests/Plugins/PinyinAlias/PinyinAlias.csproj
 dotnet run -c Release --project benchmarks/Lertaro.Benchmarks -- --filter '*'
 ```
@@ -172,6 +177,7 @@ dotnet run -c Release --project benchmarks/Lertaro.Benchmarks -- --filter '*'
 | 内核与比较器 | `Core/SearchIndex/RankPolicy.cs`、`RankKeyComparer.cs`、`RankedSearchResultComparer.cs` |
 | 文本质量 | `Core/SearchIndex/MatchRank.cs`、`Core/IndexV2/Search/SearchResultRelevance.cs` |
 | 快速窗口 | `App/ViewModels/Search/Mapping/SearchResultMapper.cs`、`RankedCandidateOrdering.cs` |
+| 应用 alias/身份 | `PluginSdk/Abstractions/Plugins/ISearchableItemProvider.cs`、`Plugins/CoreExtensions/Providers/Indexing/StartMenuAppItemProvider.cs`、`App/ViewModels/Search/SearchableItemCache.cs` |
 | 完整窗口 | `App/ViewModels/Search/Mapping/StreamingResultAccumulator.cs` |
 | 历史 | `Core/SearchHistoryStore.cs`、`SearchHistoryBucketSupport.cs` |
 | 引擎截断 | `Core/SearchIndex/SearchCandidateComparer.cs`、`Core/Indexer/Usn/SearchCoordinator.cs` |
