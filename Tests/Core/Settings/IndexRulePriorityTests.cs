@@ -151,4 +151,27 @@ public sealed class IndexRulePriorityTests
 
         Assert.AreEqual(0, rules.HighPriorityRoots.Count);
     }
+
+    [TestMethod]
+    public void StartMenu_DoesNotInheritStockAncestorLow_UnlessExplicitlyDemoted()
+    {
+        var stockRules = Rules(
+            @"C:\",
+            Rule(@"C:\ProgramData", IndexRuleEffect.Low),
+            Rule(@"C:\Users\Demo\AppData", IndexRuleEffect.Low),
+            Rule(@"C:\Users\Demo\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Bloatware", IndexRuleEffect.Low));
+
+        Assert.AreEqual(
+            IndexRuleEffect.Low,
+            stockRules.GetPriority(@"C:\Users\Demo\AppData\Local\Temp\cache.bin", isDirectory: false));
+        Assert.AreEqual(
+            IndexRuleEffect.Normal,
+            stockRules.GetPriority(@"C:\Users\Demo\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\PixPin\PixPin.lnk", isDirectory: false));
+        Assert.AreEqual(
+            IndexRuleEffect.Normal,
+            stockRules.GetPriority(@"C:\ProgramData\Microsoft\Windows\Start Menu\Programs\7-Zip\7-Zip.lnk", isDirectory: false));
+        Assert.AreEqual(
+            IndexRuleEffect.Low,
+            stockRules.GetPriority(@"C:\Users\Demo\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Bloatware\Updater.lnk", isDirectory: false));
+    }
 }

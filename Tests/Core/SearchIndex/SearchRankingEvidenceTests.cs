@@ -53,7 +53,7 @@ public sealed class SearchRankingEvidenceTests
         Assert.AreEqual(MatchQueryVariant.ProviderAlias, shadow.Evidence.QueryVariant);
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(@"X:\Apps\PixPin.lnk", "PixPin.lnk", "PixPin")]
     [DataRow(@"X:\Apps\Portal.url", "Portal.url", "Portal")]
     [DataRow(@"X:\Apps\ClickOnce.appref-ms", "ClickOnce.appref-ms", "ClickOnce")]
@@ -116,5 +116,34 @@ public sealed class SearchRankingEvidenceTests
             identity.Kind);
         Assert.AreEqual("PixPin", identity.SearchTitle);
         Assert.AreEqual(@"X:\Apps\PixPin.lnk", identity.PathKey);
+    }
+
+    [TestMethod]
+    public void Accepted_DistinguishesJoinedWholeStemReadingFromReversedMultiTokenMatch()
+    {
+        var sharedRank = new MatchRank(MatchRank.TierFull, 0, 0.5, 1.0, MatchRank.ShapeWordStart);
+
+        var joinedIdentity = MatchEvidence.Accepted(
+            "sousuo jieguo",
+            "搜索结果.txt",
+            MatchEvidenceField.FileName,
+            sharedRank,
+            MatchEvidenceMode.PinyinFull,
+            MatchQueryVariant.PinyinJoined,
+            spanStart: 0,
+            spanLength: 4);
+
+        var reversedTokens = MatchEvidence.Accepted(
+            "sousuo jieguo",
+            "结果搜索.txt",
+            MatchEvidenceField.FileName,
+            sharedRank,
+            MatchEvidenceMode.PinyinFull,
+            MatchQueryVariant.Original,
+            spanStart: 0,
+            spanLength: 4);
+
+        Assert.AreEqual(MatchEvidenceGrade.ExactIdentity, joinedIdentity.Grade);
+        Assert.AreEqual(MatchEvidenceGrade.DirectStrong, reversedTokens.Grade);
     }
 }

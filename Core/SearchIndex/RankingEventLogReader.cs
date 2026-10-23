@@ -5,7 +5,7 @@ namespace Lertaro.Core.SearchIndex;
 /// <summary>Normalized view used by diagnostics readers across schema versions.</summary>
 internal readonly record struct RankingEventRecord(
     int SchemaVersion,
-    string Kind,
+    string EventKind,
     string? SearchSessionId,
     string? PageId,
     int? FinalDisplayedRank,
@@ -17,7 +17,9 @@ internal readonly record struct RankingEventRecord(
     MatchEvidenceMode EvidenceMode,
     MatchQueryVariant QueryVariant,
     MatchEvidenceGrade EvidenceGrade,
-    RankingCandidateKind Kind);
+    RankingCandidateKind Kind,
+    int? ShadowV3Rank = null,
+    int? ShadowV3RankDelta = null);
 
 /// <summary>Reads JSONL across schema versions; absent or unknown values normalize to Unknown/null.</summary>
 internal static class RankingEventLogReader
@@ -50,7 +52,9 @@ internal static class RankingEventLogReader
                 version >= 3 ? EnumValue(Int(root, "mode"), MatchEvidenceMode.LegacyUnknown) : MatchEvidenceMode.LegacyUnknown,
                 version >= 3 ? EnumValue(Int(root, "queryVariant"), MatchQueryVariant.LegacyUnknown) : MatchQueryVariant.LegacyUnknown,
                 version >= 3 ? EnumValue(Int(root, "evidenceGrade"), MatchEvidenceGrade.LegacyUnknown) : MatchEvidenceGrade.LegacyUnknown,
-                version >= 3 ? KindValue(Int(root, "kindFlags")) : RankingCandidateKind.Unknown);
+                version >= 3 ? KindValue(Int(root, "kindFlags")) : RankingCandidateKind.Unknown,
+                version >= 4 ? Int(root, "shadowRank") : null,
+                version >= 4 ? Int(root, "shadowRankDelta") : null);
             return true;
         }
         catch

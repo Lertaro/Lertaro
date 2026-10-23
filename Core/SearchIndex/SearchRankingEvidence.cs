@@ -1,6 +1,6 @@
 namespace Lertaro.Core.SearchIndex;
 
-internal enum MatchEvidenceField : byte
+public enum MatchEvidenceField : byte
 {
     LegacyUnknown = 0,
     DisplayTitle = 1,
@@ -15,7 +15,7 @@ internal enum MatchEvidenceField : byte
     ProductMetadata = 10,
 }
 
-internal enum MatchEvidenceMode : byte
+public enum MatchEvidenceMode : byte
 {
     LegacyUnknown = 0,
     Literal = 1,
@@ -26,7 +26,7 @@ internal enum MatchEvidenceMode : byte
     LearnedAlias = 6,
 }
 
-internal enum MatchQueryVariant : byte
+public enum MatchQueryVariant : byte
 {
     LegacyUnknown = 0,
     Original = 1,
@@ -36,7 +36,7 @@ internal enum MatchQueryVariant : byte
 }
 
 /// <summary>Smaller values are stronger; zero is unknown and never participates in ordering.</summary>
-internal enum MatchEvidenceGrade : byte
+public enum MatchEvidenceGrade : byte
 {
     LegacyUnknown = 0,
     ExactIdentity = 1,
@@ -47,7 +47,7 @@ internal enum MatchEvidenceGrade : byte
 }
 
 [Flags]
-internal enum RankingCandidateKind : byte
+public enum RankingCandidateKind : byte
 {
     Unknown = 0,
     // Directory/Application keep the schema-3 bit positions written before File/Shortcut were explicit.
@@ -61,7 +61,7 @@ internal enum RankingCandidateKind : byte
 /// Shadow evidence captured from the representation that actually matched. Mode and span stay
 /// LegacyUnknown until the matcher returns its accepted branch; they are never inferred from MatchRank.
 /// </summary>
-internal readonly record struct MatchEvidence(
+public readonly record struct MatchEvidence(
     MatchEvidenceField Field,
     MatchEvidenceMode Mode,
     MatchQueryVariant QueryVariant,
@@ -83,14 +83,16 @@ internal readonly record struct MatchEvidence(
         MatchQueryVariant variant = MatchQueryVariant.Original,
         string? providerId = null,
         int spanStart = -1,
-        int spanLength = 0)
+        int spanLength = 0,
+        bool isDirectory = false)
     {
         if (!rank.IsMatch)
             return LegacyUnknown;
 
         var direct = field is MatchEvidenceField.DisplayTitle or MatchEvidenceField.FileName;
         var grade = direct
-            ? IsExactIdentity(query, matchedText, field)
+            ? IsExactIdentityOrWholeStemReading(
+                query, matchedText, field, rank, variant, spanStart, spanLength, isDirectory)
                 ? MatchEvidenceGrade.ExactIdentity
                 : rank.IsStrong
                     ? MatchEvidenceGrade.DirectStrong
@@ -110,11 +112,91 @@ internal readonly record struct MatchEvidence(
             spanLength);
     }
 
-    private static bool IsExactIdentity(string query, string text, MatchEvidenceField field)
+    /// <summary>
+    /// Resolves a deterministic V3 grade purely from precomputed candidate fields without re-matching text.
+    /// </summary>
+    public static MatchEvidenceGrade ResolveGrade(
+        in MatchEvidence evidence,
+        in MatchRank match,
+        bool isHistoryOnly,
+        bool isStrongMatch)
+    {
+        if (isHistoryOnly || evidence.Grade == MatchEvidenceGrade.LearnedAlias)
+            return MatchEvidenceGrade.LearnedAlias;
+
+        if (evidence.Grade != MatchEvidenceGrade.LegacyUnknown)
+            return evidence.Grade;
+
+        if (match.Shape == MatchRank.ShapeNoName)
+            return MatchEvidenceGrade.SecondaryField;
+
+        return isStrongMatch
+            ? MatchEvidenceGrade.DirectStrong
+            : MatchEvidenceGrade.DirectApproximate;
+    }
+
+    internal static bool IsExactIdentityOrWholeStemReading(
+        string query,
+        string text,
+        MatchEvidenceField field,
+        in MatchRank rank,
+        MatchQueryVariant variant,
+        int spanStart,
+        int spanLength,
+        bool isDirectory = false)
+    {
+        var trimExtension = field == MatchEvidenceField.FileName && !isDirectory;
+        if (IsExactIdentity(query, text, trimExtension))
+            return true;
+
+        // A common reading walk (initials or full pinyin, never a rare polyphone) covering the whole
+        // stem from index 0 represents the user's complete romanized spelling ("pixpin", "cfwj",
+        // "sousuojieguo", "sousuo jieguo"). Multi-token queries only earn ExactIdentity when matched via
+        // the consecutive joined-reading branch across [0..stem.Length); independent tokens on swapped
+        // syllables ("sousuo jieguo" against "结果搜索.txt") union into full marks without sequential order.
+        if (rank.Tier is not (MatchRank.TierInitials or MatchRank.TierFull))
+            return false;
+        if (rank.Start != 0 || rank.Contiguity < 1d)
+            return false;
+
+        var fullSpan = text.AsSpan().Trim();
+        var stemSpan = trimExtension ? StripExtensionIfNonEmpty(fullSpan) : fullSpan;
+        if (fullSpan.Length == 0 || stemSpan.Length == 0)
+            return false;
+
+        var coveredChars = (int)Math.Round(rank.Coverage * fullSpan.Length, MidpointRounding.AwayFromZero);
+        if (coveredChars != stemSpan.Length)
+            return false;
+
+        if (!ContainsWhitespace(query.AsSpan().Trim()))
+            return true;
+
+        return variant == MatchQueryVariant.PinyinJoined
+               && spanStart == 0
+               && spanLength == stemSpan.Length;
+    }
+
+    private static ReadOnlySpan<char> StripExtensionIfNonEmpty(ReadOnlySpan<char> fileName)
+    {
+        var stem = Path.GetFileNameWithoutExtension(fileName).Trim();
+        return stem.Length > 0 ? stem : fileName;
+    }
+
+    private static bool ContainsWhitespace(ReadOnlySpan<char> text)
+    {
+        for (var i = 0; i < text.Length; i++)
+        {
+            if (char.IsWhiteSpace(text[i]))
+                return true;
+        }
+        return false;
+    }
+
+    private static bool IsExactIdentity(string query, string text, bool trimExtension)
     {
         var querySpan = query.AsSpan().Trim();
-        var textSpan = field == MatchEvidenceField.FileName
-            ? Path.GetFileNameWithoutExtension(text.AsSpan()).Trim()
+        var textSpan = trimExtension
+            ? StripExtensionIfNonEmpty(text.AsSpan().Trim())
             : text.AsSpan().Trim();
         if (querySpan.Length == 0)
             return false;

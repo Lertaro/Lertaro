@@ -260,17 +260,30 @@ public sealed class ExclusionRuleSet
         if (normalized.Length == 0)
             return Verdict(IndexRuleEffect.Normal, alwaysTop: false);
 
-        // Own-level patterns matter (a `*.exe` high rule must beat a low folder), but a path rule on an
-        // ancestor is a deliberate folder-level decision and the nearest one wins over shallower paths.
         var pathPart = PathPriorityAt(normalized);
         var patternPart = PatternPriorityAt(normalized);
 
-        var parent = Path.GetDirectoryName(normalized);
-        if (!string.IsNullOrEmpty(parent))
+        if (pathPart == null && !IsStartMenuRoot(normalized))
         {
-            InheritedPriority(parent, out var inheritedPath, out var inheritedPattern);
-            pathPart ??= inheritedPath;
-            patternPart = Strongest(patternPart, inheritedPattern);
+            var parent = Path.GetDirectoryName(normalized);
+            if (!string.IsNullOrEmpty(parent))
+            {
+                InheritedPriority(parent, out var inheritedPath, out var inheritedPattern);
+                pathPart = inheritedPath;
+                patternPart = Strongest(patternPart, inheritedPattern);
+            }
+        }
+        else
+        {
+            var parent = Path.GetDirectoryName(normalized);
+            if (!string.IsNullOrEmpty(parent))
+            {
+                InheritedPriority(parent, out var inheritedPath, out var inheritedPattern);
+                if (pathPart == null && IsStartMenuRoot(normalized) && inheritedPath?.Effect == IndexRuleEffect.Low)
+                    inheritedPath = null;
+                pathPart ??= inheritedPath;
+                patternPart = Strongest(patternPart, inheritedPattern);
+            }
         }
 
         return PreferPath(pathPart, patternPart) ?? Verdict(IndexRuleEffect.Normal, alwaysTop: false);
@@ -309,9 +322,15 @@ public sealed class ExclusionRuleSet
         for (var i = undecided.Count - 1; i >= 0; i--)
         {
             var level = undecided[i];
+            // Stock Low rules on %ProgramData% and %USERPROFILE%\AppData target background caches/state, not
+            // Start Menu shortcuts nested underneath them. Reset an ancestor Low when entering Start Menu,
+            // while still honoring explicit rules placed on Start Menu itself or any folder beneath it.
+            var explicitAtLevel = PathPriorityAt(level);
+            if (explicitAtLevel == null && IsStartMenuRoot(level) && inheritedPath?.Effect == IndexRuleEffect.Low)
+                inheritedPath = null;
             // A path rule closer to the child replaces the inherited one even when it is weaker, and even
             // for the pin: an unpinned High on this folder is how the user switches an ancestor's pin off.
-            inheritedPath = PathPriorityAt(level) ?? inheritedPath;
+            inheritedPath = explicitAtLevel ?? inheritedPath;
             inheritedPattern = Strongest(inheritedPattern, PatternPriorityAt(level));
             _priorityVerdicts[level] = Encode(inheritedPath, inheritedPattern);
         }
@@ -319,6 +338,9 @@ public sealed class ExclusionRuleSet
         pathPart = inheritedPath;
         patternPart = inheritedPattern;
     }
+
+    internal static bool IsStartMenuRoot(string normalizedPath) =>
+        normalizedPath.EndsWith(@"\Microsoft\Windows\Start Menu", StringComparison.OrdinalIgnoreCase);
 
     // A pin is only ever carried by High, so every verdict goes through here.
     private static PriorityVerdict Verdict(IndexRuleEffect effect, bool alwaysTop) =>

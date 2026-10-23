@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 
 namespace Lertaro.Plugins.CoreExtensions.Providers.Indexing;

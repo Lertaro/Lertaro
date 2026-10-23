@@ -17,6 +17,7 @@ internal sealed class RankingPassTrace
     private readonly RankKey[] _keys;
     private readonly RankContext? _context;
     private readonly IReadOnlyDictionary<string, HistoryTier> _budget;
+    private readonly int[] _shadowV3Ranks;
 
     internal RankingPassTrace(
         int preMergeCount,
@@ -31,6 +32,7 @@ internal sealed class RankingPassTrace
         _keys = keys;
         _context = context;
         _budget = budget;
+        _shadowV3Ranks = RankedCandidateOrdering.ComputeShadowV3Ranks(rows, context, budget);
         MergedAway = mergedAway;
     }
 
@@ -49,13 +51,13 @@ internal sealed class RankingPassTrace
         }
 
         row = RankedCandidateOrdering.Describe(
-            _rows[index], _keys[index], index + 1, _context, _budget, providerState);
+            _rows[index], _keys[index], index + 1, _context, _budget, providerState, _shadowV3Ranks[index]);
         return true;
     }
 
     internal RankingLogRow DescribeAt(int index, RankingProviderState providerState) =>
         RankedCandidateOrdering.Describe(
-            _rows[index], _keys[index], index + 1, _context, _budget, providerState);
+            _rows[index], _keys[index], index + 1, _context, _budget, providerState, _shadowV3Ranks[index]);
 
     internal RankingLogRow DescribeShadow(
         SearchResultMapper.RankedCandidate candidate,

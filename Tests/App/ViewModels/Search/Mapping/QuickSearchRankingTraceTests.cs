@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text.Json;
 using Lertaro.App.ViewModels.Search.Mapping;
 using Lertaro.Core.SearchIndex;

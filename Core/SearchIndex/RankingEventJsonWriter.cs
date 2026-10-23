@@ -143,6 +143,10 @@ internal static class RankingEventJsonWriter
                 ? row.Identity.Kind
                 : CandidateIdentity.Create(row.Source, row.IsDir, row.IsApplication, string.Empty, row.Path).Kind))
             .Append(",\"policyVersion\":").Append(RankPolicy.Version);
+        if (row.ShadowV3Rank is { } shadowRank)
+            builder.Append(",\"shadowRank\":").Append(shadowRank);
+        if (row.ShadowV3RankDelta is { } shadowDelta)
+            builder.Append(",\"shadowRankDelta\":").Append(shadowDelta);
     }
 
     private static void AppendUnknownRankFields(StringBuilder builder, string path) =>
