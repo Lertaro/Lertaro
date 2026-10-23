@@ -145,6 +145,10 @@ internal sealed class ActionsMenuExecutor
             () =>
             {
                 window.Activate();
+                // Some IMEs stay attached to the closed file dialog until the input method is
+                // re-associated with the search box; toggling it forces that re-association.
+                System.Windows.Input.InputMethod.SetIsInputMethodEnabled(_view.SearchTextBox, false);
+                System.Windows.Input.InputMethod.SetIsInputMethodEnabled(_view.SearchTextBox, true);
                 _view.FocusSearch();
                 System.Windows.Input.Keyboard.Focus(_view.SearchTextBox);
             });
