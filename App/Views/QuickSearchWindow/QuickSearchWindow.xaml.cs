@@ -31,6 +31,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     private readonly QuickSearchWindowLifecycle _lifecycle;
     private readonly QuickSearchLaunchActionsCoordinator _launchActions;
     private bool _isInActionsMode;
+    private bool _isModalActionActive;
     private Action? _scaleChangedHandler;
     internal QuickSearchKeywordHistoryController KeywordHistoryController { get; }
 
@@ -127,6 +128,9 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     public ListBox LstActions => ResultsPanelControl.ActionsListBox;
     public TextBox ActionsSearchTextBox => ResultsPanelControl.ActionsSearchTextBox;
     public bool UsesFloatingActionsMenu => true;
+    internal bool IsModalActionActive => _isModalActionActive;
+    internal void BeginModalAction() => _isModalActionActive = true;
+    internal void EndModalAction() => _isModalActionActive = false;
     bool ISearchWindow.KeepWindowOpenAfterActionsHotkey => _launchActions.IsActive;
     internal void EnterLaunchPanelActions(AppSearchResult result) => _launchActions.Enter(result);
     public void UpdateActionsLayout()
@@ -267,6 +271,10 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         {
             timer.Stop();
             if (IsActive) return;
+            // A native modal action (the export's SaveFileDialog) deactivates this window while it is
+            // open. Hiding here would put the search window behind the dialog; when the dialog closes,
+            // Activate() cannot restore a hidden window and the IME stays attached to the dead dialog.
+            if (_isModalActionActive) return;
             // Already hidden, so there is nothing here to react to -- something else put this window away
             // and losing activation is just a consequence of that. Without this, opening the full window
             // ran a second, full HideWindow() over the top of the deliberate one: two hundred milliseconds

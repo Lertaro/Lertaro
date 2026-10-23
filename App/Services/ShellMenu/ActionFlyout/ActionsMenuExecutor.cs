@@ -52,12 +52,19 @@ internal sealed class ActionsMenuExecutor
             // until the dialog's own window has finished closing: restoring the search box and query
             // while the dialog is still tearing down can leave the IME attached to the destroyed
             // dialog, which manifests as a frozen input method until another window is focused.
+            //
+            // The modal dialog deactivates the quick window, and its normal focus-loss path would hide
+            // the window behind the dialog. Flag the modal span so that path stays out of the way; a
+            // hidden owner cannot be reactivated, which is what left the IME stranded before.
+            var quick = _view as Lertaro.App.QuickSearchWindow;
+            quick?.BeginModalAction();
             try
             {
                 item.OnExecute();
             }
             finally
             {
+                quick?.EndModalAction();
                 _view.LstResults.Dispatcher.BeginInvoke(
                     System.Windows.Threading.DispatcherPriority.Background,
                     () =>

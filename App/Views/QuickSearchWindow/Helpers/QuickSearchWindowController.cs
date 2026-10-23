@@ -195,7 +195,7 @@ public class QuickSearchWindowController
     /// </remarks>
     public void HideOnFocusLoss(bool restoreFocus = true)
     {
-        if (_stayOpen)
+        if (_stayOpen || _window.IsModalActionActive)
             return;
         HideWindow(restoreFocus);
     }
