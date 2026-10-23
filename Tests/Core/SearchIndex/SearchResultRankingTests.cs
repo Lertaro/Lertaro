@@ -4,8 +4,7 @@ using PriorityVerdict = Lertaro.Core.ExclusionRuleSet.PriorityVerdict;
 
 namespace Lertaro.Core.Tests.SearchIndex;
 
-// The full window's decorator: what a row's score, section and tier become for a given set of query
-// signals. dev-docs/search-ranking-redesign.md 3.2 and 5.3.
+// Full-window score, section and history-tier decoration.
 [TestClass]
 public sealed class SearchResultRankingTests
 {

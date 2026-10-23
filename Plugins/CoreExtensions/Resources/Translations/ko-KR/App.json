@@ -427,7 +427,7 @@
   "General_EnableEverythingIpc": "Everything IPC 에뮬레이션 사용",
   "General_EnableEverythingIpcDesc": "Directory Opus, Total Commander, Flow Launcher 등 Everything에 의존하는 서드파티 도구가 Lertaro를 사용하여 검색 및 폴더 크기 계산을 수행할 수 있도록 허용합니다.",
   "General_EnableRankingEventLog": "정렬 보정 기록 저장",
-  "General_EnableRankingEventLogDesc": "빠른 검색에서 보이는 상위 10줄과 실제로 열었던 항목을 %LOCALAPPDATA\\Lertaro\\ranking-events.jsonl에 저장해 나중에 정렬을 보정하는 데 씁니다. 검색어와 경로는 해시만 저장되고 원문은 남지 않으며 외부로 전송되지 않습니다. 파일은 10MB를 넘기면 회전하고 3개까지 유지하며 30일 이전 파일은 삭제합니다.",
+  "General_EnableRankingEventLogDesc": "빠른 검색의 정렬 단계와 연 항목을 %LOCALAPPDATA\\Lertaro\\ranking-events.jsonl에 로컬로 기록합니다. 검색어와 경로는 해시로 저장하며, 로그는 10MB에서 순환하고 파일 3개를 유지하며 30일이 지난 파일을 삭제합니다.",
   "General_EnableFuzzyMatch": "퍼지 매칭 사용",
   "General_EnableFuzzyMatchDesc": "끄면 검색어가 이름 안에 연속된 부분 문자열로 나타나야 합니다. \"abc\"는 더 이상 \"a-b-c\"에 매칭되지 않습니다. 단어 앞에 '를 붙이면 그 단어만 퍼지 매칭을 유지합니다. 병음 별칭은 음절 첫 글자와 전체 읽기를 섞은 약어(\"gxiao\")도 계속 인식합니다.",
   "General_OrFirstPrecedence": "OR가 AND보다 우선 (이전 동작)",

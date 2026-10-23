@@ -4,19 +4,8 @@ using PriorityVerdict = Lertaro.Core.ExclusionRuleSet.PriorityVerdict;
 namespace Lertaro.Core.SearchIndex;
 
 /// <summary>
-/// Writes the ranking kernel's answer onto a <see cref="SearchResult"/> once, so the full window's comparer
-/// only reads fields (redesign 5.3). A hundred thousand rows are decorated a single time and then compared
-/// millions of times; deriving a rule verdict or a history lookup per comparison is what made that path
-/// cost more than the search itself.
-///
-/// Decorating is idempotent: the same context applied twice leaves the same values, which is what lets
-/// <c>StreamingResultAccumulator</c> re-decorate its seed rows when the context arrives later.
-///
-/// History tiers here are pure thresholds, NOT the H5-at-most-3 / H3-at-most-10 budget of redesign 3.4.
-/// The full window merges each arriving batch into a list already on screen, so a row's section has to be
-/// final when it arrives: recomputing a shared budget would move rows the user is looking at, and walking
-/// a hundred thousand rows per batch is exactly the cost this decorator exists to avoid. The quick window
-/// keeps the capped budget because it ranks one page at a time.
+/// Stores ranking fields once so the full-window comparer performs no rule or history lookup. Decoration is
+/// idempotent. History uses fixed thresholds because streaming rows cannot share a stable page budget.
 /// </summary>
 public static class SearchResultRanking
 {

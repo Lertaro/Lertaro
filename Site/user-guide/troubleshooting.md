@@ -72,7 +72,13 @@ Set-ProcessMitigation -Name 'D:\Lertaro\lff.exe' -Disable UserShadowStack
 
 - **Applying every available Windows update** is the other remedy, and is what the .NET message above asks for. If the app still closes immediately afterwards, collect the logs as described in the next section and open an issue.
 
-## 8. Inspecting Logs & Submitting Issues
+## 8. Unexpected Search Order
+
+In Quick Search, select one result, open its action menu, and choose **Copy Ranking Explanation**. If the action is missing, enable ranking diagnostics and run the search again. Review the copied text before sharing it: unlike the background log, it includes the query, result name, and path in plain text.
+
+For a longer trace, enable **Settings → General → System → Log ranking diagnostics**. Lertaro writes hashed query and path data to `%LOCALAPPDATA%\Lertaro\ranking-events.jsonl`; it does not upload the file. Turning the setting off stops new ranking events.
+
+## 9. Inspecting Logs & Submitting Issues
 
 If the problem persists, visit [**Settings → Service Status**](./settings/service-status) to inspect live logs:
 

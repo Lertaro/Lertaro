@@ -156,8 +156,7 @@ public sealed class RankAndDedupeTests
     [TestMethod]
     public void RankAndDedupe_HistoryH5_BeatsANormalStrongMatch()
     {
-        // Redesign 3.2: five weighted opens lift a row above an ordinary strong match (34 over 18). The old
-        // name claimed history could never beat quality; that was the pre-kernel ladder's contract.
+        // H5 scores 34; an ordinary Normal strong match scores 18.
         var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
             Candidate(@"C:\often", historyCount: 5, start: 5, coverage: 0.3),

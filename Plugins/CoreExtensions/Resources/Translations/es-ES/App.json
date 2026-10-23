@@ -427,7 +427,7 @@
   "General_EnableEverythingIpc": "Habilitar emulación Everything IPC",
   "General_EnableEverythingIpcDesc": "Permite que herramientas de terceros dependientes de Everything (como Directory Opus, Total Commander o Flow Launcher) usen Lertaro para búsquedas y cálculo del tamaño de carpetas.",
   "General_EnableRankingEventLog": "Registrar diagnósticos de clasificación",
-  "General_EnableRankingEventLogDesc": "Escribe en un archivo local las diez primeras filas de cada búsqueda rápida, más la fila que abriste, en %LOCALAPPDATA\\Lertaro\\ranking-events.jsonl, para calibrar la clasificación después. Solo se guardan hashes de consultas y rutas: nunca el texto, y nada sale del equipo. El archivo rota pasados 10 MB, conserva 3 copias y descarta lo anterior a 30 días.",
+  "General_EnableRankingEventLogDesc": "Guarda localmente las etapas de clasificación de la búsqueda rápida y las filas abiertas en %LOCALAPPDATA\\Lertaro\\ranking-events.jsonl. Las consultas y rutas se almacenan como hashes; el registro rota a los 10 MB, conserva 3 archivos y elimina los de más de 30 días.",
   "General_EnableFuzzyMatch": "Activar coincidencia difusa",
   "General_EnableFuzzyMatchDesc": "Al desactivarla, un término debe aparecer como subcadena contigua del propio nombre: \"abc\" deja de coincidir con \"a-b-c\". Antepón ' a un término para seguir buscándolo de forma difusa. Los alias de pinyin siguen aceptando una abreviatura mixta de inicios de sílaba y lecturas completas (\"gxiao\").",
   "General_OrFirstPrecedence": "OR se une más fuerte que AND (heredado)",

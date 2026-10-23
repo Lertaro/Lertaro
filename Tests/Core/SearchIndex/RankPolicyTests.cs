@@ -221,7 +221,7 @@ public sealed class RankPolicyTests
     [TestMethod]
     public void Compare_FullLadderMatchesDocumentedExample()
     {
-        // The ten candidates of dev-docs/search-ranking-redesign.md 3.7, fed in reverse order.
+        // Feed the documented ten-row ladder in reverse order.
         var ladder = new[]
         {
             Signals(IndexRuleEffect.Low, strong: false, name: "misc.txt", path: @"D:\Low\misc.txt"),

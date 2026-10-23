@@ -1,17 +1,9 @@
 namespace Lertaro.Core.SearchIndex;
 
 /// <summary>
-/// The key the engine truncates on: match quality, then the shared path tail. Deliberately not the final
-/// ranking (redesign 5.4) -- when a search keeps only its best <c>limit</c> rows per drive it has no
-/// history, favorite or priority context yet, and borrowing the final comparer for that step made the
-/// truncation depend on rules it cannot see.
+/// Engine truncation order: match quality, then the shared path tail. Personal ranking signals are not
+/// available at this stage, so this comparer is intentionally separate from final ranking.
 /// </summary>
-/// <remarks>
-/// Equivalent to what <see cref="SearchResultRankComparer"/> degrades to with an empty history, no
-/// favorites and no priority resolver: every band that comparer adds collapses to a tie, so quality then
-/// the path tail is all that is left. Kept as its own type so a change to the final ranking cannot quietly
-/// change which rows survive truncation.
-/// </remarks>
 public sealed class SearchCandidateComparer : IComparer<SearchResult>
 {
     public static readonly SearchCandidateComparer Instance = new();

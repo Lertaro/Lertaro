@@ -1,9 +1,7 @@
 namespace Lertaro.Core.SearchIndex;
 
-// The ranking kernel both search windows share: the score of one candidate, which section it lands in,
-// and the key order inside that section. Design, numbers and rationale:
-// dev-docs/search-ranking-redesign.md sections 2-5. Both windows rank through this kernel: the quick one
-// via RankKeyComparer, the full one via SearchResultRanking + RankedSearchResultComparer.
+// Shared ranking kernel. The quick window uses RankKeyComparer; the full window decorates rows through
+// SearchResultRanking and uses RankedSearchResultComparer. See dev-docs/search-ranking.md.
 //
 //   0 Pinned       the "always top" exit of a high-priority index rule
 //   1 Boosted      favorite strong matches, history H5/H3, and every normal or high priority row
@@ -24,11 +22,7 @@ public enum RankSection
     HistoryTail = 3,
 }
 
-/// <summary>
-/// Which history bucket a row was assigned by the caller's budget (redesign 3.4). Tail means a history
-/// row whose effective score is under 3; None means no history. The budget itself is not here yet -- the
-/// caller decides the tier and passes it in.
-/// </summary>
+/// <summary>History tier assigned by the caller. Tail is below 3; None has no history signal.</summary>
 public enum HistoryTier
 {
     None = 0,
@@ -74,7 +68,7 @@ public readonly record struct RankKey(
     public RankTail Tail => new(IsDir, Name, NormalizedPath, Drive, EngineTie);
 }
 
-/// <summary>Scores and sections of redesign 3.2. The constants are the only tunable numbers in the kernel.</summary>
+/// <summary>Shared ranking scores, sections and key order.</summary>
 public static class RankPolicy
 {
     /// <summary>
@@ -91,8 +85,8 @@ public static class RankPolicy
     public const int HistoryThreeScore = 22;
     public const int HistoryTailScore = 6;
 
-    // History buckets (redesign 3.4). The thresholds decide the tier; the caps only truncate, so a fourth
-    // 5+ row drops into H3 rather than out of the boosted rows. Scores arrive as X100 from
+    // Thresholds decide the tier; caps only truncate, so a fourth 5+ row can fall through to H3.
+    // Scores arrive as X100 from
     // SearchHistoryStore.ScoreSnapshot(now), already decayed -- the budget must not decay twice.
     public const int HistoryFiveThresholdX100 = 500;
     public const int HistoryThreeThresholdX100 = 300;
@@ -178,12 +172,7 @@ public static class RankPolicy
         return (int)Math.Round(max * Math.Clamp(match.Weight, 0, 1), MidpointRounding.AwayFromZero);
     }
 
-    /// <summary>
-    /// The section of one candidate, in the fixed order of redesign 3.2: always-top first, then anything
-    /// history or a favorite lifts (regardless of its priority bucket -- a low-priority H5 row is Boosted),
-    /// then a weak history-only row, then the low-priority bucket. A pin is only ever honored on a High
-    /// bucket, which is what the caller's verdict already guarantees.
-    /// </summary>
+    /// <summary>Returns Pinned, Boosted, Low or HistoryTail in display order.</summary>
     public static RankSection Section(
         bool isStrong,
         bool isFavorite,
@@ -236,12 +225,8 @@ public static class RankPolicy
         s.EngineTie);
 
     /// <summary>
-    /// Splits candidates into the history buckets of redesign 3.4. The thresholds decide which tier a row
-    /// gets and the caps only truncate the overflow, so the fourth 5+ row lands in H3 instead of dropping
-    /// to the tail, and a 3-5 row never fills a spare H5 slot. Only a history-only row or a strong
-    /// filename match qualifies, and every pure history row that did not make H5/H3 lands at Tail.
-    /// Paths missing from the result are <see cref="HistoryTier.None"/>. The order of the candidates
-    /// cannot change the outcome: rows are ranked by score, then by the path's ordinal order.
+    /// Assigns capped H5/H3 tiers by decayed score. Only history-only or strong filename matches qualify;
+    /// remaining history-only rows become Tail. Candidate enumeration order does not affect the result.
     /// </summary>
     /// <param name="fiveMax">Rows allowed into H5; a 5+ row past the cap keeps its lift by falling through
     /// to H3 (see <paramref name="threeMax"/>). The inline card passes 1 instead of the default 3.</param>
@@ -396,11 +381,7 @@ public readonly record struct SectionRank(int Score, int HistoryTie, int TypeRan
 /// <summary>The tail every section shares, already reduced to values a comparer can read.</summary>
 public readonly record struct RankTail(bool IsDir, string Name, string NormalizedPath, int Drive, ulong EngineTie);
 
-/// <summary>
-/// The key order of redesign 3.3. Sections decide first; inside a section the sequence differs on
-/// purpose, because the display type order is an explicit user preference that outranks quality in every
-/// bucket except Low, where the owner asked for quality first.
-/// </summary>
+/// <summary>Compares section-specific keys, then match quality and the common path tail.</summary>
 public sealed class RankKeyComparer : IComparer<RankKey>
 {
     public static readonly RankKeyComparer Instance = new();

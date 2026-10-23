@@ -4,8 +4,7 @@ using PriorityVerdict = Lertaro.Core.ExclusionRuleSet.PriorityVerdict;
 
 namespace Lertaro.Core.Tests.SearchIndex;
 
-// The full window's ordering over decorated rows: the four sections, the score inside them, then the packed
-// quality and the shared path tail. dev-docs/search-ranking-redesign.md 3.3.
+// Full-window ordering over precomputed section, score, quality and path keys.
 [TestClass]
 public sealed class RankedSearchResultComparerTests
 {
