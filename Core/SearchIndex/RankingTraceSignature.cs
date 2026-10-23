@@ -91,6 +91,18 @@ internal static class RankingTraceSignature
         Number(builder, (int)row.Source);
         Text(builder, row.ProviderId);
         Number(builder, (int)row.ProviderState);
+        Number(builder, (int)row.Evidence.Field);
+        Number(builder, (int)row.Evidence.Mode);
+        Number(builder, (int)row.Evidence.QueryVariant);
+        Number(builder, (int)row.Evidence.Grade);
+        Number(builder, row.Evidence.AllPositiveTerms ? 1 : 0);
+        Number(builder, row.Evidence.DirectText ? 1 : 0);
+        Text(builder, row.Evidence.ProviderId);
+        Number(builder, row.Evidence.SpanStart);
+        Number(builder, row.Evidence.SpanLength);
+        Number(builder, (int)(row.Identity.Kind != RankingCandidateKind.Unknown
+            ? row.Identity.Kind
+            : CandidateIdentity.Create(row.Source, row.IsDir, row.IsApplication, string.Empty, row.Path).Kind));
     }
 
     private static void Number(StringBuilder builder, long value) => builder.Append(value).Append(';');

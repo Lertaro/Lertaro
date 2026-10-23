@@ -272,8 +272,8 @@ public static class SearchResultMapper
             for (var i = 0; i < favorites.Count; i++)
             {
                 var fav = favorites[i];
-                var match = FavoriteSearchHelper.ComputeMatch(fav, fuzzy);
-                if (!match.IsMatch || !Helpers.FavoritePathResolver.IsPathAvailable(fav.Path))
+                var matched = FavoriteSearchHelper.ComputeMatchWithEvidence(fav, fuzzy);
+                if (!matched.Rank.IsMatch || !Helpers.FavoritePathResolver.IsPathAvailable(fav.Path))
                     continue;
 
                 // A favorite is curated by the user regardless of whether it also has USAGE history.
@@ -305,9 +305,10 @@ public static class SearchResultMapper
                     IsFavorite: true,
                     HistoryCount: usage,
                     filesTypeRank,
-                    match,
+                    matched.Rank,
                     normalizedFavPath,
-                    Source: RankingCandidateSource.Favorite));
+                    Source: RankingCandidateSource.Favorite,
+                    Evidence: matched.Evidence));
             }
         }
 
@@ -316,7 +317,7 @@ public static class SearchResultMapper
         // routing hid these too (its "Case B").
         if (fileFilterScope == null)
         {
-            foreach (var (result, match) in SearchableItemMapper.CollectSearchableItemResults(query, isInlineWindow))
+            foreach (var (result, match, evidence) in SearchableItemMapper.CollectSearchableItemResults(query, isInlineWindow))
             {
                 var typeId = result.SourceProvider is ISearchableItemProvider provider
                     ? SearchResultTypePriority.GetProviderTypeId(provider)
@@ -352,7 +353,8 @@ public static class SearchResultMapper
                     SearchResultTypePriority.Rank(typeId, typeRanks),
                     match,
                     SearchResultHelper.NormalizePath(result.FullPath),
-                    Source: RankingCandidateSource.SearchableProvider));
+                    Source: RankingCandidateSource.SearchableProvider,
+                    Evidence: evidence));
             }
         }
 
@@ -384,17 +386,23 @@ public static class SearchResultMapper
                 // (SearchResultRelevance.Apply). Leaving it at NoMatch instead made this window order those
                 // rows by path length and name where the full window ordered the same rows by coverage: one
                 // query, two file orders, and exactly the many-CJK-files case pinyin search produces.
-                var match = fuzzy.Rank(result.Name);
-                if (!match.IsMatch)
-                    match = fuzzy.FallbackRank(result.Path);
+                var matched = fuzzy.RankWithEvidence(result.Name, MatchEvidenceField.FileName);
+                if (!matched.Rank.IsMatch)
+                {
+                    var fallback = fuzzy.FallbackRank(result.Path);
+                    // The engine may have accepted an alias or an ancestor path. FallbackRank has no branch
+                    // provenance, so keep evidence unknown rather than labelling it ParentPath by inference.
+                    matched = new MatchEvidenceResult(fallback, MatchEvidence.LegacyUnknown);
+                }
                 candidates.Add(new RankedCandidate(
                     SearchResultHelper.CreateUiResult(result, query, 0, isApplication: false, scope),
                     IsFavorite: false,
                     HistoryCount: usage,
                     filesTypeRank,
-                    match,
+                    matched.Rank,
                     SearchResultHelper.NormalizePath(result.Path),
-                    Source: RankingCandidateSource.FileIndex));
+                    Source: RankingCandidateSource.FileIndex,
+                    Evidence: matched.Evidence));
             }
         }
 
@@ -547,7 +555,8 @@ public static class SearchResultMapper
         MatchRank Match,
         string NormalizedPath,
         bool IsHistoryOnly = false,
-        RankingCandidateSource Source = RankingCandidateSource.Unknown);
+        RankingCandidateSource Source = RankingCandidateSource.Unknown,
+        MatchEvidence Evidence = default);
 
     // A shortcut file is both a file row and an application shortcut, and it ranks as whichever identity the
     // user put first -- where the app provider never indexed it, the file row is the only row it has, so

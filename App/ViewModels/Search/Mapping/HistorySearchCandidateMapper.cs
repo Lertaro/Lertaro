@@ -44,20 +44,22 @@ internal static class HistorySearchCandidateMapper
 
         var query = fuzzy.Text;
         var matches = entries
-            .Select(entry => (Entry: entry, Match: fuzzy.BestMatch(entry.Keyword)))
-            .Where(candidate => candidate.Match.IsMatch)
-            .OrderBy(candidate => candidate.Match.Start)
+            .Select(entry => (Entry: entry, Matched: fuzzy.BestMatchWithEvidence(
+                entry.Keyword,
+                MatchEvidenceField.HistoryKeyword)))
+            .Where(candidate => candidate.Matched.Rank.IsMatch)
+            .OrderBy(candidate => candidate.Matched.Rank.Start)
             // Most recent pick first: choosing the 10th result for "atlas" makes it the top one next time,
             // even over something opened more often before.
             .ThenByDescending(candidate => candidate.Entry.Time)
             .ThenByDescending(candidate => candidate.Entry.Count)
             // Shape is gone; the shared quality ladder is the only textual order.
-            .ThenBy(candidate => candidate.Match, MatchRankQualityComparer.Instance);
+            .ThenBy(candidate => candidate.Matched.Rank, MatchRankQualityComparer.Instance);
         var candidates = new List<SearchResultMapper.RankedCandidate>(MaxCandidates);
         var candidatePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var normalizedScope = string.IsNullOrEmpty(scope) ? null : SearchResultHelper.NormalizePath(scope);
 
-        foreach (var (entry, match) in matches)
+        foreach (var (entry, matched) in matches)
         {
             if (candidates.Count >= MaxCandidates)
                 break;
@@ -75,10 +77,15 @@ internal static class HistorySearchCandidateMapper
                 IsFavorite: false,
                 HistoryCount: entry.Count,
                 TypeRank: typeRank,
-                Match: match,
+                Match: matched.Rank,
                 NormalizedPath: normalizedPath,
                 IsHistoryOnly: true,
-                Source: RankingCandidateSource.History));
+                Source: RankingCandidateSource.History,
+                Evidence: matched.Evidence with
+                {
+                    Mode = MatchEvidenceMode.LearnedAlias,
+                    QueryVariant = MatchQueryVariant.Original,
+                }));
         }
 
         return candidates;

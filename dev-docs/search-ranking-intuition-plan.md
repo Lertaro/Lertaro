@@ -9,7 +9,8 @@
 | P0 工单 fixture | 完成 | 无 |
 | P1 端到端 ranking trace | 完成；待 Windows/.NET 环境跑 MSTest | 无 |
 | P2 离线回放器 | 完成；待 Windows/.NET 环境跑 MSTest | 无 |
-| P3–P10 | 未开始 | 逐阶段说明 |
+| P3 shadow evidence / identity | 完成；待 Windows/.NET 环境跑 MSTest | 无 |
+| P4–P10 | 未开始 | 逐阶段说明 |
 
 P0 fixture：`Tests/Core/SearchRanking/Fixtures/reported-search-cases.v1.json`。P1 使用 ranking-event schema 3；旧 schema 行缺失的字段读作 Unknown/null。当前 matcher 尚无结构化 witness，所以 `field/mode/evidenceGrade` 为 `LegacyUnknown`，不得反推或伪造。
 
@@ -160,18 +161,13 @@ V2 基线见 `Tests/Core/SearchRanking/Baselines/v2-baseline.md`。PixPin 当前
 
 退出：后续阶段必须对同一候选集同时报告 V2 与候选策略，不能用权重修改掩盖召回缺失。
 
-### P3：影子 MatchEvidence 与 CandidateIdentity
+### P3：影子 MatchEvidence 与 CandidateIdentity — 完成
 
-1. 定义小枚举和只读结构；热路径不做字符串规则判断。
-2. 每个候选源填 `Source/Field/Mode/KindFlags/SearchTitle`。
-3. matcher 适配层保留已胜出的 branch、provider id 和 spans；不为日志重跑 matcher。
-4. 暂时拿不到的数据标 `LegacyUnknown`，列出协议缺口。
-5. 从真实 witness 推导 Grade；V2 仍只读旧 key。
-6. 定义同路径合并规则：执行身份、最强 evidence、收藏 OR、历史 max、真实路径规则；高亮与 evidence 一起保留。
-7. 日志写影子 Grade/Witness，并断言 V2 页逐项不变。
-8. 快速/完整窗口对可表达的同一行得到同 Grade。
+`SearchRankingEvidence.cs` 定义字段、模式、query variant、Grade、kind flags 和候选身份。快速窗口在实际命中的 title、filename、provider alias、keyword 或 history keyword 上记录 Field；无法区分 alias 与 parent-path 的引擎 fallback 保持 Unknown。Grade 只由已知表示及既有 `MatchRank` 推导，V2 比较器不读取影子字段。同路径合并保留执行行、来源并集和最强 evidence，诊断 fingerprint 覆盖新增字段。
 
-退出：每行能说明字段、模式和 witness；LegacyUnknown 有清单；顺序不变。
+当前协议缺口：matcher 仍只返回 `MatchRank`，所以普通文本、拼音和 provider alias 的 accepted branch、provider id 与 spans 不能可靠区分，`Mode/Span` 保持 `LegacyUnknown/-1`；history-only 行因来源明确可记为 `LearnedAlias`。不得从 tier 或高亮结果反推 branch。P4 扩展 matcher 时必须让判定、高亮和 evidence 共用同一 witness。
+
+退出：schema 3、reader 和复制解释能显示已知 Field/Grade/Kind，旧行读作 Unknown；影子字段差异不改变 V2 顺序。
 
 ### P4：拼音空格等价
 

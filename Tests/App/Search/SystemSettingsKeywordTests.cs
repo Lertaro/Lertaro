@@ -56,6 +56,25 @@ public sealed class SystemSettingsKeywordTests
             Match(entries[0].Item.Title, entries[0]));
     }
 
+    [TestMethod]
+    public void EvidenceNamesTheRepresentationThatActuallyMatched()
+    {
+        var aliasEntry = new SearchableItemCache.CacheEntry(
+            new SearchableItem { Title = "PixPin" },
+            ["screen capture"],
+            null);
+        var alias = SearchableItemMapper.MatchCatalogEntryWithEvidence(
+            FuzzyQuery.Parse("capture"), ["capture"], aliasEntry, "StartMenu");
+        var keyword = SearchableItemMapper.MatchCatalogEntryWithEvidence(
+            FuzzyQuery.Parse("env"), ["env"], Entry("System Settings", ["environment"]), "Settings");
+
+        Assert.AreEqual(MatchEvidenceField.ProviderAlias, alias.Evidence.Field);
+        Assert.AreEqual(MatchEvidenceGrade.SecondaryField, alias.Evidence.Grade);
+        Assert.AreEqual("StartMenu", alias.Evidence.ProviderId);
+        Assert.AreEqual(MatchEvidenceField.Keyword, keyword.Evidence.Field);
+        Assert.AreEqual(MatchEvidenceMode.LegacyUnknown, alias.Evidence.Mode);
+    }
+
     private static SearchableItemCache.CacheEntry Entry(string title, string[] keywords) =>
         new(new SearchableItem { Title = title, Keywords = keywords }, [], null);
 

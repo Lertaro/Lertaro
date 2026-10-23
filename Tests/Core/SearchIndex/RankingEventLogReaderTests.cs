@@ -17,6 +17,10 @@ public sealed class RankingEventLogReaderTests
         Assert.AreEqual(7, record.KernelRank);
         Assert.AreEqual(RankingCandidateSource.Unknown, record.Source);
         Assert.AreEqual(RankingDropStage.Unknown, record.DropStage);
+        Assert.AreEqual(MatchEvidenceField.LegacyUnknown, record.EvidenceField);
+        Assert.AreEqual(MatchEvidenceMode.LegacyUnknown, record.EvidenceMode);
+        Assert.AreEqual(MatchEvidenceGrade.LegacyUnknown, record.EvidenceGrade);
+        Assert.AreEqual(RankingCandidateKind.Unknown, record.Kind);
     }
 
     [TestMethod]
@@ -46,11 +50,32 @@ public sealed class RankingEventLogReaderTests
     }
 
     [TestMethod]
+    public void Reader_PreservesKnownEvidenceAndCombinedKindFlags()
+    {
+        const string line = "{\"v\":3,\"kind\":\"row\",\"field\":1,\"mode\":0,\"queryVariant\":1,\"evidenceGrade\":1,\"kindFlags\":14}";
+        Assert.IsTrue(RankingEventLogReader.TryReadLine(line, out var record));
+        Assert.AreEqual(MatchEvidenceField.DisplayTitle, record.EvidenceField);
+        Assert.AreEqual(MatchEvidenceMode.LegacyUnknown, record.EvidenceMode);
+        Assert.AreEqual(MatchQueryVariant.Original, record.QueryVariant);
+        Assert.AreEqual(MatchEvidenceGrade.ExactIdentity, record.EvidenceGrade);
+        Assert.AreEqual(
+            RankingCandidateKind.File | RankingCandidateKind.Application | RankingCandidateKind.Shortcut,
+            record.Kind);
+    }
+
+    [TestMethod]
     public void ExplanationFormatter_UsesInvariantStableKeys_NotLocalizedUiText()
     {
         var session = RankingEventLog.BeginSession("raw", "canonical");
         var page = new RankingPageStamp(session.SearchSessionId, "p-test", RankingTraceWindow.Quick, session.QuerySequence);
-        var ranked = Row(@"D:\atlas.txt", 3);
+        var ranked = Row(@"D:\atlas.txt", 3) with
+        {
+            Evidence = MatchEvidence.Accepted(
+                "atlas", "atlas.txt", MatchEvidenceField.FileName,
+                new MatchRank(MatchRank.TierName, 0, 1)),
+            Identity = CandidateIdentity.Create(
+                RankingCandidateSource.FileIndex, false, false, "atlas.txt", @"D:\atlas.txt"),
+        };
         var row = new RankingDisplayedRow(ranked.Path, 5, ranked.Source,
             RankingSelectionStage.TypeCoverage, null, RankingProviderState.Unknown, ranked);
         var explanation = new RankingExplanation(session, page, default, row);
@@ -64,6 +89,10 @@ public sealed class RankingEventLogReaderTests
             StringAssert.Contains(text, "result.selectionStage=type-coverage");
             StringAssert.Contains(text, "rank.kernel=3");
             StringAssert.Contains(text, "rank.matchCoverage=0");
+            StringAssert.Contains(text, "evidence.field=FileName");
+            StringAssert.Contains(text, "evidence.grade=ExactIdentity");
+            StringAssert.Contains(text, "evidence.mode=LegacyUnknown");
+            StringAssert.Contains(text, "candidate.kindFlags=File");
             Assert.IsFalse(text.Contains("Action_", StringComparison.Ordinal));
         }
         finally

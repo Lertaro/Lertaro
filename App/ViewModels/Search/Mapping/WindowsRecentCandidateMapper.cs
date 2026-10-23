@@ -57,15 +57,17 @@ internal static class WindowsRecentCandidateMapper
             return [];
 
         var hits = shortcuts
-            .Select(shortcut => (Shortcut: shortcut, Match: fuzzy.BestMatch(shortcut.TargetName)))
-            .Where(hit => hit.Match.IsMatch)
-            .OrderBy(hit => hit.Match, MatchRankQualityComparer.Instance)
+            .Select(shortcut => (Shortcut: shortcut, Matched: fuzzy.BestMatchWithEvidence(
+                shortcut.TargetName,
+                MatchEvidenceField.FileName)))
+            .Where(hit => hit.Matched.Rank.IsMatch)
+            .OrderBy(hit => hit.Matched.Rank, MatchRankQualityComparer.Instance)
             .ThenByDescending(hit => hit.Shortcut.LastWriteUtc);
         var normalizedScope = string.IsNullOrEmpty(scope) ? null : SearchResultHelper.NormalizePath(scope);
         var candidates = new List<SearchResultMapper.RankedCandidate>(MaxCandidates);
         var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (shortcut, match) in hits)
+        foreach (var (shortcut, matched) in hits)
         {
             if (candidates.Count >= MaxCandidates)
                 break;
@@ -93,9 +95,10 @@ internal static class WindowsRecentCandidateMapper
                 IsFavorite: false,
                 HistoryCount: 0,
                 TypeRank: typeRank,
-                Match: match,
+                Match: matched.Rank,
                 NormalizedPath: normalizedPath,
-                Source: RankingCandidateSource.WindowsRecent));
+                Source: RankingCandidateSource.WindowsRecent,
+                Evidence: matched.Evidence));
         }
 
         return candidates;

@@ -55,6 +55,38 @@ public readonly struct FuzzyQuery
     public MatchRank BestMatch(string? primaryText, IEnumerable<string>? alternateTexts = null)
         => _pattern is null ? MatchRank.NoMatch : FuzzyMatcher.ComputeBestMatch(_pattern, primaryText, alternateTexts);
 
+    internal MatchEvidenceResult RankWithEvidence(
+        string? text,
+        MatchEvidenceField field,
+        string? providerId = null)
+    {
+        var rank = Rank(text);
+        return new MatchEvidenceResult(
+            rank,
+            text is null || _pattern?.HasPositiveTerms != true
+                ? MatchEvidence.LegacyUnknown
+                : MatchEvidence.Accepted(Text, text, field, rank, providerId: providerId));
+    }
+
+    internal MatchEvidenceResult BestMatchWithEvidence(
+        string? primaryText,
+        MatchEvidenceField primaryField,
+        IEnumerable<(string Text, MatchEvidenceField Field)>? alternateTexts = null,
+        string? providerId = null)
+    {
+        var best = RankWithEvidence(primaryText, primaryField, providerId);
+        if (alternateTexts == null)
+            return best;
+
+        foreach (var alternate in alternateTexts)
+        {
+            var candidate = RankWithEvidence(alternate.Text, alternate.Field, providerId);
+            if (FuzzyMatcher.IsStronger(candidate.Rank, best.Rank))
+                best = candidate;
+        }
+        return best;
+    }
+
     public bool[] HighlightMask(string? text)
         => _pattern is null || string.IsNullOrEmpty(text) ? Array.Empty<bool>() : FuzzyMatcher.ComputeHighlightMask(text, _pattern);
 }

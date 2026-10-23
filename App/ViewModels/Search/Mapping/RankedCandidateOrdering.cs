@@ -120,6 +120,13 @@ internal static class RankedCandidateOrdering
         RankingProviderState providerState = RankingProviderState.Unknown)
     {
         var signal = ToSignals(candidate, context);
+        var isApplication = IsApplication(candidate);
+        var identity = CandidateIdentity.Create(
+            candidate.Source,
+            candidate.Result.IsDir,
+            isApplication,
+            candidate.Result.Name,
+            candidate.NormalizedPath);
         return new RankingLogRow(
             candidate.NormalizedPath,
             kernelRank,
@@ -133,10 +140,12 @@ internal static class RankedCandidateOrdering
             signal.IsFavorite,
             signal.IsHistoryOnly,
             signal.IsDir,
-            IsApplication(candidate),
+            isApplication,
             candidate.Source,
             candidate.Result.SourceProvider?.GetType().Name,
-            providerState);
+            providerState,
+            candidate.Evidence,
+            identity);
     }
 
     private static SearchResultMapper.RankedCandidate[] MergeByPath(
@@ -172,6 +181,7 @@ internal static class RankedCandidateOrdering
     {
         var better = CompareRows(a, b);
         var winner = better <= 0 ? a : b;
+        var other = better <= 0 ? b : a;
 
         return winner with
         {
@@ -181,6 +191,7 @@ internal static class RankedCandidateOrdering
             // Any direct source makes the merged path a direct result.
             IsHistoryOnly = a.IsHistoryOnly && b.IsHistoryOnly,
             Source = a.Source | b.Source,
+            Evidence = MatchEvidence.Stronger(winner.Evidence, other.Evidence),
         };
     }
 

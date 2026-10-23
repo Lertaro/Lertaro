@@ -20,7 +20,9 @@ internal readonly record struct RankingLogRow(
     bool IsApplication,
     RankingCandidateSource Source = RankingCandidateSource.Unknown,
     string? ProviderId = null,
-    RankingProviderState ProviderState = RankingProviderState.Unknown);
+    RankingProviderState ProviderState = RankingProviderState.Unknown,
+    MatchEvidence Evidence = default,
+    CandidateIdentity Identity = default);
 
 /// <summary>Writes hashed quick-search page, candidate and open events as JSONL.</summary>
 internal static class RankingEventLog

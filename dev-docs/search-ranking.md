@@ -127,7 +127,7 @@ Effective = clamp(Score × 0.5^(days / 90), 0, 10)
 
 文件达到 10 MiB 后轮转，最多保留 3 个；进程首次写入时清理 30 天前的文件。相邻 5 秒内完全相同的页复用 `pageId`。日志失败不会阻止搜索或打开结果。reader 对旧 schema 缺失的字段返回 Unknown/null，并忽略未来字段。
 
-当前 matcher 没有结构化 witness，因此 `field/mode/evidenceGrade` 写 `LegacyUnknown`。不得从 `MatchRank` 反推并伪造 alias branch 或 span。
+影子 `MatchEvidence` 记录实际参与匹配的 title、filename、provider alias、keyword 或 history keyword，并据此写 Field/Grade；无法区分 alias 与 parent-path 的引擎 fallback 保持 Unknown。`CandidateIdentity` 分开记录来源和 File/Directory/Application/Shortcut flags。matcher 尚未返回 accepted branch 和 spans，因此普通结果的 `Mode/Span` 仍是 `LegacyUnknown/-1`；不得从 `MatchRank` 反推 alias branch 或 span。
 
 ## 科学性与校准边界
 

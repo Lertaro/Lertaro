@@ -236,4 +236,64 @@ public sealed class RankedCandidateOrderingTests
         Assert.AreEqual(1, trace.PostMergeCount);
     }
 
+    [TestMethod]
+    public void ShadowEvidenceDoesNotChangeV2Order()
+    {
+        var rows = new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\b.txt", coverage: 0.4),
+            Candidate(@"C:\a.txt", coverage: 1),
+        };
+        var baseline = RankedCandidateOrdering.Order(rows).Select(row => row.NormalizedPath).ToArray();
+        var shadowed = rows.Select((row, index) => row with
+        {
+            Evidence = MatchEvidence.Accepted(
+                "a",
+                row.Result.Name,
+                index == 0 ? MatchEvidenceField.CuratedAlias : MatchEvidenceField.FileName,
+                row.Match),
+        }).ToList();
+
+        CollectionAssert.AreEqual(
+            baseline,
+            RankedCandidateOrdering.Order(shadowed).Select(row => row.NormalizedPath).ToArray());
+    }
+
+    [TestMethod]
+    public void MergeRetainsApplicationIdentityAndStrongestEvidenceForDiagnostics()
+    {
+        const string path = @"C:\Apps\PixPin.lnk";
+        var file = Candidate(path) with
+        {
+            Source = RankingCandidateSource.FileIndex,
+            Evidence = MatchEvidence.Accepted("pixpin", "launcher", MatchEvidenceField.CuratedAlias,
+                new MatchRank(MatchRank.TierName, 0, 1)),
+        };
+        var appResult = new AppSearchResult
+        {
+            FullPath = path,
+            Name = "PixPin",
+            ResultKind = "Application",
+        };
+        var app = Candidate(path) with
+        {
+            Result = appResult,
+            Source = RankingCandidateSource.SearchableProvider,
+            Evidence = MatchEvidence.Accepted("pixpin", "PixPin", MatchEvidenceField.DisplayTitle,
+                new MatchRank(MatchRank.TierName, 0, 1)),
+        };
+
+        var ranked = RankedCandidateOrdering.OrderWithTrace([file, app], null, out var trace);
+        var described = trace.DescribeAt(0, RankingProviderState.ReadyWithItems);
+
+        Assert.AreSame(appResult, ranked[0].Result);
+        Assert.AreEqual(MatchEvidenceGrade.ExactIdentity, described.Evidence.Grade);
+        Assert.AreEqual(
+            RankingCandidateKind.File | RankingCandidateKind.Application | RankingCandidateKind.Shortcut,
+            described.Identity.Kind);
+        Assert.AreEqual(
+            RankingCandidateSource.FileIndex | RankingCandidateSource.SearchableProvider,
+            described.Identity.Source);
+    }
+
 }

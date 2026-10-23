@@ -61,6 +61,16 @@ internal static class RankingExplanationFormatter
             lines.Add($"rank.matchStart={rank.Match.Start.ToString(CultureInfo.InvariantCulture)}");
             lines.Add($"rank.matchCoverage={rank.Match.Coverage.ToString("0.###", CultureInfo.InvariantCulture)}");
             lines.Add($"rank.matchContiguity={rank.Match.Contiguity.ToString("0.###", CultureInfo.InvariantCulture)}");
+            lines.Add($"evidence.field={rank.Evidence.Field}");
+            lines.Add($"evidence.mode={rank.Evidence.Mode}");
+            lines.Add($"evidence.queryVariant={rank.Evidence.QueryVariant}");
+            lines.Add($"evidence.grade={rank.Evidence.Grade}");
+            lines.Add($"evidence.allPositiveTerms={(rank.Evidence.AllPositiveTerms ? "true" : "false")}");
+            lines.Add($"evidence.directText={(rank.Evidence.DirectText ? "true" : "false")}");
+            lines.Add($"evidence.providerId={rank.Evidence.ProviderId ?? "unknown"}");
+            lines.Add($"evidence.spanStart={(rank.Evidence.SpanStart >= 0 ? rank.Evidence.SpanStart.ToString(CultureInfo.InvariantCulture) : "unknown")}");
+            lines.Add($"evidence.spanLength={rank.Evidence.SpanLength.ToString(CultureInfo.InvariantCulture)}");
+            lines.Add($"candidate.kindFlags={rank.Identity.Kind}");
         }
         else
         {

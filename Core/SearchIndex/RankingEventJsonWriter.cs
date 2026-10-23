@@ -130,9 +130,18 @@ internal static class RankingEventJsonWriter
             .Append(",\"nameLen\":").Append(NameLength(row.Path))
             .Append(",\"depth\":").Append(Depth(row.Path))
             .Append(",\"ext\":").Append(ExtensionClass(row.Path))
-            // The current MatchRank pipeline has no structured witness; zero means LegacyUnknown.
-            .Append(",\"field\":0,\"mode\":0,\"evidenceGrade\":0")
-            .Append(",\"kindFlags\":").Append((row.IsDir ? 1 : 0) | (row.IsApplication ? 2 : 0))
+            .Append(",\"field\":").Append((int)row.Evidence.Field)
+            .Append(",\"mode\":").Append((int)row.Evidence.Mode)
+            .Append(",\"queryVariant\":").Append((int)row.Evidence.QueryVariant)
+            .Append(",\"evidenceGrade\":").Append((int)row.Evidence.Grade)
+            .Append(",\"allPositiveTerms\":").Append(Flag(row.Evidence.AllPositiveTerms))
+            .Append(",\"directText\":").Append(Flag(row.Evidence.DirectText))
+            .Append(",\"evidenceProviderId\":\"").Append(Escape(row.Evidence.ProviderId ?? string.Empty)).Append('"')
+            .Append(",\"spanStart\":").Append(row.Evidence.SpanStart)
+            .Append(",\"spanLength\":").Append(row.Evidence.SpanLength)
+            .Append(",\"kindFlags\":").Append((int)(row.Identity.Kind != RankingCandidateKind.Unknown
+                ? row.Identity.Kind
+                : CandidateIdentity.Create(row.Source, row.IsDir, row.IsApplication, string.Empty, row.Path).Kind))
             .Append(",\"policyVersion\":").Append(RankPolicy.Version);
     }
 
@@ -143,7 +152,9 @@ internal static class RankingEventJsonWriter
             .Append(",\"nameLen\":").Append(NameLength(path))
             .Append(",\"depth\":").Append(Depth(path))
             .Append(",\"ext\":").Append(ExtensionClass(path))
-            .Append(",\"field\":0,\"mode\":0,\"evidenceGrade\":0,\"kindFlags\":0")
+            .Append(",\"field\":0,\"mode\":0,\"queryVariant\":0,\"evidenceGrade\":0")
+            .Append(",\"allPositiveTerms\":0,\"directText\":0,\"evidenceProviderId\":\"\"")
+            .Append(",\"spanStart\":-1,\"spanLength\":0,\"kindFlags\":0")
             .Append(",\"policyVersion\":").Append(RankPolicy.Version);
 
     private static string ProvidersJson(IReadOnlyList<RankingProviderTrace> providers)

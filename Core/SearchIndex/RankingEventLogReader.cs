@@ -12,7 +12,12 @@ internal readonly record struct RankingEventRecord(
     int? KernelRank,
     RankingCandidateSource Source,
     RankingDropStage DropStage,
-    RankingProviderState ProviderState);
+    RankingProviderState ProviderState,
+    MatchEvidenceField EvidenceField,
+    MatchEvidenceMode EvidenceMode,
+    MatchQueryVariant QueryVariant,
+    MatchEvidenceGrade EvidenceGrade,
+    RankingCandidateKind Kind);
 
 /// <summary>Reads JSONL across schema versions; absent or unknown values normalize to Unknown/null.</summary>
 internal static class RankingEventLogReader
@@ -40,7 +45,12 @@ internal static class RankingEventLogReader
                 kernelRank,
                 source,
                 drop,
-                providerState);
+                providerState,
+                version >= 3 ? EnumValue(Int(root, "field"), MatchEvidenceField.LegacyUnknown) : MatchEvidenceField.LegacyUnknown,
+                version >= 3 ? EnumValue(Int(root, "mode"), MatchEvidenceMode.LegacyUnknown) : MatchEvidenceMode.LegacyUnknown,
+                version >= 3 ? EnumValue(Int(root, "queryVariant"), MatchQueryVariant.LegacyUnknown) : MatchQueryVariant.LegacyUnknown,
+                version >= 3 ? EnumValue(Int(root, "evidenceGrade"), MatchEvidenceGrade.LegacyUnknown) : MatchEvidenceGrade.LegacyUnknown,
+                version >= 3 ? KindValue(Int(root, "kindFlags")) : RankingCandidateKind.Unknown);
             return true;
         }
         catch
@@ -74,6 +84,19 @@ internal static class RankingEventLogReader
                ((RankingCandidateSource)value & ~all) == RankingCandidateSource.Unknown
             ? (RankingCandidateSource)value
             : RankingCandidateSource.Unknown;
+    }
+
+    private static RankingCandidateKind KindValue(int? raw)
+    {
+        const RankingCandidateKind all =
+            RankingCandidateKind.File |
+            RankingCandidateKind.Directory |
+            RankingCandidateKind.Application |
+            RankingCandidateKind.Shortcut;
+        return raw is { } value && value >= 0 &&
+               ((RankingCandidateKind)value & ~all) == RankingCandidateKind.Unknown
+            ? (RankingCandidateKind)value
+            : RankingCandidateKind.Unknown;
     }
 
     private static T EnumValue<T>(int? raw, T fallback) where T : struct, Enum

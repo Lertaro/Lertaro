@@ -198,6 +198,34 @@ public sealed class RankingEventLogTests
     }
 
     [TestMethod]
+    public void RecordQuery_WritesShadowEvidenceAndKindsWithoutRawIdentityText()
+    {
+        const string path = @"D:\Apps\PixPin.lnk";
+        var rank = new MatchRank(MatchRank.TierName, 0, 1);
+        var row = Row(path, 1, RankingCandidateSource.SearchableProvider) with
+        {
+            Match = rank,
+            IsApplication = true,
+            Evidence = MatchEvidence.Accepted(
+                "pixpin", "PixPin", MatchEvidenceField.DisplayTitle, rank, providerId: "StartMenu"),
+            Identity = CandidateIdentity.Create(
+                RankingCandidateSource.SearchableProvider, false, true, "PixPin private title", path),
+        };
+
+        RankingEventLog.RecordQuery("pixpin", [row]);
+
+        var element = Events("row")[0];
+        Assert.AreEqual((int)MatchEvidenceField.DisplayTitle, element.GetProperty("field").GetInt32());
+        Assert.AreEqual((int)MatchEvidenceMode.LegacyUnknown, element.GetProperty("mode").GetInt32());
+        Assert.AreEqual((int)MatchEvidenceGrade.ExactIdentity, element.GetProperty("evidenceGrade").GetInt32());
+        Assert.AreEqual(
+            (int)(RankingCandidateKind.File | RankingCandidateKind.Application | RankingCandidateKind.Shortcut),
+            element.GetProperty("kindFlags").GetInt32());
+        Assert.IsFalse(Read().Contains("PixPin private title", StringComparison.Ordinal));
+        Assert.IsFalse(Read().Contains(path, StringComparison.Ordinal));
+    }
+
+    [TestMethod]
     public void SameStreamingPageWithinFiveSeconds_CollapsesAndReturnsExistingPageId()
     {
         var session = RankingEventLog.BeginSession("atlas", "atlas");

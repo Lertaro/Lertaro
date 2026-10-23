@@ -51,9 +51,9 @@ public static class SearchableItemMapper
     // the caller (SearchResultMapper.BuildQuickResults) merges these into one globally sorted list
     // alongside favorites/history-matched files/file-search results, rather than always showing every
     // searchable item ahead of every file result regardless of which actually matched better.
-    public static List<(AppSearchResult Result, MatchRank Match)> CollectSearchableItemResults(string query, bool isInlineWindow)
+    internal static List<(AppSearchResult Result, MatchRank Match, MatchEvidence Evidence)> CollectSearchableItemResults(string query, bool isInlineWindow)
     {
-        var candidates = new List<(AppSearchResult Result, MatchRank Match)>();
+        var candidates = new List<(AppSearchResult Result, MatchRank Match, MatchEvidence Evidence)>();
         if (isInlineWindow) return candidates;
 
         var q = query?.Trim() ?? string.Empty;
@@ -69,7 +69,7 @@ public static class SearchableItemMapper
         // match rank the file search hot path uses (FuzzyMatcher.ComputeBestMatch, against the entry's
         // own title -- same text TextHighlighter shows), instead of a fixed match-kind bucket order capped
         // PER PROVIDER.
-        var matched = new List<(SearchableItemCache.CacheEntry Entry, MatchRank Match, ISearchableItemProvider Provider, string ActiveQuery)>();
+        var matched = new List<(SearchableItemCache.CacheEntry Entry, MatchRank Match, MatchEvidence Evidence, ISearchableItemProvider Provider, string ActiveQuery)>();
 
         foreach (var provider in PluginManager.Instance.SearchableItemProviders)
         {
@@ -86,33 +86,52 @@ public static class SearchableItemMapper
                 // somewhere. (Keyword-scoped directory search used to live here as a FileFilter_
                 // ResultKind routing over materialized files; it is now a real scoped engine search --
                 // see FileFilterScopeResolver.)
-                var match = MatchCatalogEntry(fuzzy, queryWords, entry);
-                if (match.IsMatch)
-                    matched.Add((entry, match, provider, q));
+                var match = MatchCatalogEntryWithEvidence(fuzzy, queryWords, entry, provider.GetType().Name);
+                if (match.Rank.IsMatch)
+                    matched.Add((entry, match.Rank, match.Evidence, provider, q));
             }
         }
 
         // The final merge/order applies the shared quality ladder; there is no separate 50-item cut here,
         // because a cut by a different key can drop a row the real ladder would have kept.
         var matches = matched.OrderBy(m => m.Match, MatchRankQualityComparer.Instance);
-        foreach (var (entry, match, provider, activeQuery) in matches)
+        foreach (var (entry, match, evidence, provider, activeQuery) in matches)
         {
-            candidates.Add(BuildCandidate(entry, provider, activeQuery, match));
+            var built = BuildCandidate(entry, provider, activeQuery, match);
+            candidates.Add((built.Result, built.Match, evidence));
         }
 
         return candidates;
     }
 
-    internal static MatchRank MatchCatalogEntry(FuzzyQuery query, string[] queryWords, SearchableItemCache.CacheEntry entry)
+    internal static MatchRank MatchCatalogEntry(FuzzyQuery query, string[] queryWords, SearchableItemCache.CacheEntry entry) =>
+        MatchCatalogEntryWithEvidence(query, queryWords, entry, null).Rank;
+
+    internal static MatchEvidenceResult MatchCatalogEntryWithEvidence(
+        FuzzyQuery query,
+        string[] queryWords,
+        SearchableItemCache.CacheEntry entry,
+        string? providerId)
     {
-        var match = query.BestMatch(entry.Item.Title, entry.Aliases);
-        if (match.IsMatch) return match;
+        var match = query.BestMatchWithEvidence(
+            entry.Item.Title,
+            MatchEvidenceField.DisplayTitle,
+            entry.Aliases.Select(alias => (alias, MatchEvidenceField.ProviderAlias)),
+            providerId);
+        if (match.Rank.IsMatch)
+            return match;
+
         // Match Windows Control Panel task links: every query token prefixes a title/keyword word.
         // Keyword-only hits have no title highlight evidence, so retain zero weight as a fallback.
-        return queryWords.Length > 0 && queryWords.All(token => entry.KeywordWords.Any(
-                word => word.StartsWith(token, StringComparison.OrdinalIgnoreCase)))
-            ? new MatchRank(MatchRank.TierFull, 0, 0, 0, MatchRank.ShapeScattered)
-            : MatchRank.NoMatch;
+        if (queryWords.Length > 0 && queryWords.All(token => entry.KeywordWords.Any(
+                word => word.StartsWith(token, StringComparison.OrdinalIgnoreCase))))
+        {
+            var rank = new MatchRank(MatchRank.TierFull, 0, 0, 0, MatchRank.ShapeScattered);
+            return new MatchEvidenceResult(
+                rank,
+                MatchEvidence.Accepted(query.Text, entry.Item.Title, MatchEvidenceField.Keyword, rank, providerId: providerId));
+        }
+        return new MatchEvidenceResult(MatchRank.NoMatch, MatchEvidence.LegacyUnknown);
     }
 
     // Split out of the matches loop below purely to keep this file's per-method length down -- no
