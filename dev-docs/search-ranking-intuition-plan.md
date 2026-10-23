@@ -8,7 +8,8 @@
 | --- | --- | --- |
 | P0 工单 fixture | 完成 | 无 |
 | P1 端到端 ranking trace | 完成；待 Windows/.NET 环境跑 MSTest | 无 |
-| P2–P10 | 未开始 | 逐阶段说明 |
+| P2 离线回放器 | 完成；待 Windows/.NET 环境跑 MSTest | 无 |
+| P3–P10 | 未开始 | 逐阶段说明 |
 
 P0 fixture：`Tests/Core/SearchRanking/Fixtures/reported-search-cases.v1.json`。P1 使用 ranking-event schema 3；旧 schema 行缺失的字段读作 Unknown/null。当前 matcher 尚无结构化 witness，所以 `field/mode/evidenceGrade` 为 `LegacyUnknown`，不得反推或伪造。
 
@@ -151,18 +152,13 @@ mustAppearBefore / mustBeTopK / mustBeAbsent
 
 P1 只增加观测，不改变候选、排序、截断或打开。已完成 C# 语法树、翻译 JSON、隐私字段和 diff 检查；当前环境无 .NET SDK，MSTest 尚未运行。
 
-### P2：候选录制与离线回放器
+### P2：候选录制与离线回放器 — 完成
 
-位置：`Tests/Core/SearchRanking/` 或独立开发工具；不进入 Release 热路径。
+`Tests/Core/SearchRanking/` 包含脱敏 `RankingCase`/`CandidateSnapshot`、P0 loader、V2 与后续策略共用的回放接口，以及 Recall@K、MRR、nDCG、pairwise inversion 和 target rank delta。受控 fixture 覆盖普通 `.lnk`、AppData 下的 PixPin 快捷方式、direct history 和 learned alias；路径均为 `X:\Fixture\...`。
 
-1. 定义脱敏 `RankingCase` 与 `CandidateSnapshot`。
-2. 对同一候选集运行 V2 与后续 V3 纯函数。
-3. 实现 Recall@K、MRR、nDCG@10、pairwise inversion、target rank delta。
-4. 加载 P0 fixture，并补 `.lnk`、direct history、learned alias 成对反例。
-5. 用手算小例验证指标；验证枚举顺序无关、比较器反对称和传递。
-6. 输出小型基线报告，不提交大型数据或用户日志。
+V2 基线见 `Tests/Core/SearchRanking/Baselines/v2-baseline.md`。PixPin 当前排为 folder → exe → shortcut：AppData 的默认 Low 规则先把快捷方式放进 Low 段，类型 bonus 无法跨段。指标用手算单相关项验证，并固定枚举顺序无关、比较器反对称和传递测试。当前环境无 .NET SDK，MSTest 尚未运行。
 
-退出：有可重复的 V2 基线，后续阶段都能报告同候选对比。
+退出：后续阶段必须对同一候选集同时报告 V2 与候选策略，不能用权重修改掩盖召回缺失。
 
 ### P3：影子 MatchEvidence 与 CandidateIdentity
 

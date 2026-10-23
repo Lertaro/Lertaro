@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 1,
+  "privacy": "All paths and identities are synthetic. This file contains no user logs.",
+  "cases": [
+    {
+      "id": "pixpin-appdata-shortcut",
+      "window": "Quick",
+      "rawQuery": "pixpin",
+      "fuzzyEnabled": true,
+      "typeOrder": ["Application", "Settings", "Files"],
+      "providerReadiness": "Ready",
+      "candidates": [
+        {
+          "token": "pixpin-start-menu",
+          "displayName": "PixPin",
+          "syntheticPath": "X:\\Fixture\\Users\\Example\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\PixPin\\PixPin.lnk",
+          "kind": ["Application", "Shortcut"],
+          "source": "SearchableProvider",
+          "match": { "tier": 0, "start": 0, "coverage": 1.0, "contiguity": 1.0, "shape": 0 },
+          "priority": "Low",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 0,
+          "relevance": 3
+        },
+        {
+          "token": "pixpin-folder",
+          "displayName": "PixPin",
+          "syntheticPath": "X:\\Fixture\\Program Files\\PixPin",
+          "kind": ["Directory"],
+          "source": "FileIndex",
+          "match": { "tier": 0, "start": 0, "coverage": 1.0, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 2,
+          "relevance": 0
+        },
+        {
+          "token": "pixpin-exe",
+          "displayName": "PixPin.exe",
+          "syntheticPath": "X:\\Fixture\\Program Files\\PixPin\\PixPin.exe",
+          "kind": ["File"],
+          "source": "FileIndex",
+          "match": { "tier": 0, "start": 0, "coverage": 0.6, "contiguity": 1.0, "shape": 1 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 2,
+          "relevance": 0
+        }
+      ],
+      "assertions": {
+        "mustAppearBefore": [
+          { "before": "pixpin-start-menu", "after": "pixpin-folder" },
+          { "before": "pixpin-start-menu", "after": "pixpin-exe" }
+        ],
+        "mustBeTopK": [
+          { "token": "pixpin-start-menu", "k": 1 }
+        ],
+        "mustBeAbsent": []
+      }
+    },
+    {
+      "id": "shortcut-normal-root",
+      "window": "Quick",
+      "rawQuery": "atlas",
+      "fuzzyEnabled": true,
+      "typeOrder": ["Application", "Files"],
+      "providerReadiness": "Ready",
+      "candidates": [
+        {
+          "token": "atlas-shortcut",
+          "displayName": "Atlas",
+          "syntheticPath": "X:\\Fixture\\Apps\\Atlas.lnk",
+          "kind": ["Application", "Shortcut"],
+          "source": "SearchableProvider",
+          "match": { "tier": 0, "start": 0, "coverage": 1.0, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 0,
+          "relevance": 3
+        },
+        {
+          "token": "atlas-exe",
+          "displayName": "Atlas.exe",
+          "syntheticPath": "X:\\Fixture\\Tools\\Atlas.exe",
+          "kind": ["File"],
+          "source": "FileIndex",
+          "match": { "tier": 0, "start": 0, "coverage": 0.55, "contiguity": 1.0, "shape": 1 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 1,
+          "relevance": 0
+        }
+      ],
+      "assertions": {
+        "mustAppearBefore": [
+          { "before": "atlas-shortcut", "after": "atlas-exe" }
+        ],
+        "mustBeTopK": [
+          { "token": "atlas-shortcut", "k": 1 }
+        ],
+        "mustBeAbsent": []
+      }
+    },
+    {
+      "id": "direct-history-overreach",
+      "window": "Quick",
+      "rawQuery": "editor",
+      "fuzzyEnabled": true,
+      "typeOrder": ["Application", "Files"],
+      "providerReadiness": "Ready",
+      "candidates": [
+        {
+          "token": "editor-exact",
+          "displayName": "Editor",
+          "syntheticPath": "X:\\Fixture\\Apps\\Editor.lnk",
+          "kind": ["Application", "Shortcut"],
+          "source": "SearchableProvider",
+          "match": { "tier": 0, "start": 0, "coverage": 1.0, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 0,
+          "relevance": 3
+        },
+        {
+          "token": "editor-history-weaker",
+          "displayName": "Old Editor Notes.txt",
+          "syntheticPath": "X:\\Fixture\\Files\\Old Editor Notes.txt",
+          "kind": ["File"],
+          "source": "FileIndex",
+          "match": { "tier": 0, "start": 4, "coverage": 0.38, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 600,
+          "typeRank": 1,
+          "relevance": 0
+        }
+      ],
+      "assertions": {
+        "mustAppearBefore": [
+          { "before": "editor-exact", "after": "editor-history-weaker" }
+        ],
+        "mustBeTopK": [
+          { "token": "editor-exact", "k": 1 }
+        ],
+        "mustBeAbsent": []
+      }
+    },
+    {
+      "id": "learned-alias-overreach",
+      "window": "Quick",
+      "rawQuery": "notes",
+      "fuzzyEnabled": true,
+      "typeOrder": ["Application", "Files"],
+      "providerReadiness": "Ready",
+      "candidates": [
+        {
+          "token": "notes-direct",
+          "displayName": "Notes",
+          "syntheticPath": "X:\\Fixture\\Apps\\Notes.lnk",
+          "kind": ["Application", "Shortcut"],
+          "source": "SearchableProvider",
+          "match": { "tier": 0, "start": 0, "coverage": 1.0, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 0,
+          "relevance": 3
+        },
+        {
+          "token": "notes-learned-alias",
+          "displayName": "Archive.bin",
+          "syntheticPath": "X:\\Fixture\\Files\\Archive.bin",
+          "kind": ["File"],
+          "source": "History",
+          "match": { "tier": 0, "start": 0, "coverage": 1.0, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 600,
+          "typeRank": 1,
+          "relevance": 0,
+          "isHistoryOnly": true
+        }
+      ],
+      "assertions": {
+        "mustAppearBefore": [
+          { "before": "notes-direct", "after": "notes-learned-alias" }
+        ],
+        "mustBeTopK": [
+          { "token": "notes-direct", "k": 1 }
+        ],
+        "mustBeAbsent": []
+      }
+    }
+  ]
+}
