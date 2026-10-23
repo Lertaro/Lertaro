@@ -32,7 +32,7 @@ public static class NetworkIndexerSearchExtensions
 
     internal static void SearchSnapshots(
         NetworkIndex[] snapshots,
-        SearchQueryParser.ParsedQuery parsed,
+        ParsedSearchQuery parsed,
         string query,
         string? directoryFilterLower,
         int limit,

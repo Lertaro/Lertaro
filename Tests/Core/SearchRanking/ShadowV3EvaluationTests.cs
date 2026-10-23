@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 
@@ -6,11 +7,12 @@ namespace Lertaro.Core.Tests.SearchRanking;
 [TestClass]
 public sealed class ShadowV3EvaluationTests
 {
-    private static string ShadowCasesPath =>
-        Path.Combine(RankingCaseFixtureLoader.SearchRankingRoot, "Fixtures", "ranking-shadow-v3-cases.v1.json");
+    private static string Fixture(string name, [CallerFilePath] string source = "") =>
+        Path.Combine(Path.GetDirectoryName(source)!, "Fixtures", name);
 
-    private static string BaselineCasesPath =>
-        Path.Combine(RankingCaseFixtureLoader.SearchRankingRoot, "Fixtures", "ranking-replay-cases.v1.json");
+    private static string ShadowCasesPath => Fixture("ranking-shadow-v3-cases.v1.json");
+
+    private static string BaselineCasesPath => Fixture("ranking-replay-cases.v1.json");
 
     [TestMethod]
     public void ShadowV3_PassesAllBaselineAndBoundaryFixtures_WithZeroWeakOverStrongInversions()

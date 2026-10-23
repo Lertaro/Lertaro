@@ -38,6 +38,9 @@ internal sealed class AppSearchResultExtras
     public Core.SearchIndex.RankingImpression? RankingImpression;
     public Core.SearchIndex.RankingExplanation? RankingExplanation;
 
+    // Set only on rows the quick window injected from a learned query->path association.
+    public bool IsLearnedAliasRecall;
+
     // Filled in once the grid realizes the row and it starts loading its own visuals.
     public System.Windows.Media.ImageSource? Icon;
     public bool IconLoadingStarted;

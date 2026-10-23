@@ -2,6 +2,11 @@ namespace Lertaro.Core.Tests.SearchRanking;
 
 internal static class RankingMetrics
 {
+    internal readonly record struct RunMetrics(double NdcgAt10, int PairwiseInversions);
+
+    public static RunMetrics Evaluate(RankingCase rankingCase, RankingRun run) =>
+        new(NdcgAt(run, 10), PairwiseInversions(run, rankingCase.MustAppearBefore));
+
     public static double RecallAt(RankingRun run, IReadOnlySet<string> relevantTokens, int k)
     {
         if (relevantTokens.Count == 0)

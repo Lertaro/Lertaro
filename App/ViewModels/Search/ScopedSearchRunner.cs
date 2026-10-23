@@ -19,6 +19,7 @@ internal static class ScopedSearchRunner
         && !foldersOnly
         && string.IsNullOrEmpty(searchScope)
         && scopeDirective is not { Folders.Count: > 0 };
+
     public static async Task RunAsync(
         SearchService searchService,
         FileFilterScopeDirective directive,

@@ -223,6 +223,14 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
         set => Extras.RankingExplanation = value;
     }
 
+    // Set only on rows injected from a learned query->path association. An open from such a row must not
+    // count as organic association evidence, or the association would keep promoting itself.
+    internal bool IsLearnedAliasRecall
+    {
+        get => _extras?.IsLearnedAliasRecall ?? false;
+        set => Extras.IsLearnedAliasRecall = value;
+    }
+
     public bool[]? GetHighlightMask(string text, string query) => AppSearchResultDisplaySupport.GetHighlightMask(this, text, query);
 
     // Visual properties

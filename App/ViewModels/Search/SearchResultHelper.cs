@@ -19,7 +19,7 @@ internal static class SearchResultHelper
         string.IsNullOrWhiteSpace(result.SearchQuery) ? boxText : result.SearchQuery;
 
     public static bool IsLearnedRecall(AppSearchResult result) =>
-        result.RankingExplanation is { Evidence.Mode: Lertaro.Core.SearchIndex.MatchEvidenceMode.LearnedAlias };
+        result.IsLearnedAliasRecall;
 
     public static void AddSectionHeader(List<AppSearchResult> uiResults, string title, string query) => uiResults.Add(new AppSearchResult
     {

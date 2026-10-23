@@ -110,10 +110,11 @@ internal static class HistorySearchCandidateMapper
             if (!TryCreateResult(entry, query, normalizedScope, fileExists, directoryExists, out var result, out var normalizedPath) ||
                 !candidatePaths.Add(normalizedPath))
                 continue;
-            if (rankContext != null && rankContext.PriorityOf(normalizedPath, result.IsDir).Effect == IndexRuleEffect.Low)
+            if (rankContext?.PriorityResolver?.Invoke(normalizedPath, result.IsDir).Effect == IndexRuleEffect.Low)
                 continue;
             if (IsExcludedFromSearch(result))
                 continue;
+            result.IsLearnedAliasRecall = true;
 
             // The row is marked history-only: the keyword matched, not the displayed name, so the
             // quality ladder must not treat its perfect keyword rank as a name hit. Its open count feeds the

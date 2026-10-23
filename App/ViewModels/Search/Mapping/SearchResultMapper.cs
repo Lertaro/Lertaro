@@ -3,6 +3,7 @@ using Lertaro.Core.SearchIndex;
 using Lertaro.App.ViewModels.Search.Dispatch;
 using Lertaro.App.Services.Plugin;
 using Lertaro.PluginSdk.Abstractions.Plugins;
+using Lertaro.PluginSdk.Services;
 
 using SearchWindowType = Lertaro.PluginSdk.Abstractions.SearchWindowType;
 

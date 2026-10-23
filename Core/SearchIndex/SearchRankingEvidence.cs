@@ -252,11 +252,11 @@ internal readonly record struct CandidateIdentity(
         return new CandidateIdentity(
             source,
             kind,
-            SearchTitle(title, path, isShortcut),
+            ResolveSearchTitle(title, path, isShortcut),
             path.TrimEnd('\\'));
     }
 
-    private static string SearchTitle(string title, string path, bool isShortcut)
+    private static string ResolveSearchTitle(string title, string path, bool isShortcut)
     {
         var candidate = string.IsNullOrWhiteSpace(title)
             ? Path.GetFileName(path.TrimEnd('\\', '/'))
