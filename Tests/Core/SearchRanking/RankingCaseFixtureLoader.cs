@@ -99,8 +99,21 @@ internal static class RankingCaseFixtureLoader
             RequiredInt(item, "relevance"),
             OptionalBool(item, "isFavorite"),
             OptionalBool(item, "isHistoryOnly"),
-            (ulong)OptionalInt(item, "engineTie"));
+            (ulong)OptionalInt(item, "engineTie"),
+            OptionalEnum(item, "evidenceField", MatchEvidenceField.LegacyUnknown),
+            OptionalEnum(item, "queryVariant", MatchQueryVariant.Original),
+            OptionalBool(item, "explicitUserPriority"),
+            OptionalIntOrDefault(item, "spanStart", -1),
+            OptionalInt(item, "spanLength"));
     }
+
+    private static T OptionalEnum<T>(JsonElement parent, string name, T fallback) where T : struct, Enum =>
+        parent.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+            ? Enum.Parse<T>(value.GetString()!, ignoreCase: true)
+            : fallback;
+
+    private static int OptionalIntOrDefault(JsonElement parent, string name, int fallback) =>
+        parent.TryGetProperty(name, out var value) ? value.GetInt32() : fallback;
 
     private static void ValidateCandidates(IReadOnlyList<CandidateSnapshot> candidates)
     {

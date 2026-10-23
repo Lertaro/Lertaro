@@ -254,34 +254,23 @@ internal sealed class SearchExecutionEngine : IDisposable
         IReadOnlyList<string> priorityRoots)
     {
         var localMatches = new List<AppSearchResult>();
-        // The engine-side folder filter never sees these rows: history remembers files too, so the scope has
-        // to be applied here as well.
-        var learned = HistorySearchCandidateMapper.Collect(FuzzyQuery.Parse(query), contextDirectory);
-        var learnedLocalMatches = folderScope ? learned.Where(c => c.Result.IsDir).ToList() : learned;
-        var localUpdateVersion = learnedLocalMatches.Count > 0 ? 1 : 0;
-        void OnLocalMatchesChanged() => Interlocked.Increment(ref localUpdateVersion);
-
-        // The one thing the inline window does beyond the ordinary global search: list the window folder's
-        // own files, so they are guaranteed present even when the global result budget is spent elsewhere.
-        // Cheap and cached -- see ExplorerSearchHelper.LoadDirectChildrenAsync. There is deliberately no
-        // gate before the global search below: the global search IS the result list now, and holding it
-        // back behind this listing is what made the inline window lag the quick window.
-        var localSearchTask = ExplorerSearchHelper.LoadDirectChildrenAsync(
-            query, fileLimit, contextDirectory, localMatches, token, OnLocalMatchesChanged, _directChildrenListing, folderScope);
-
-        // Built once for this inline search, deliberately OUTSIDE the memoized GetLocalSnapshot below: the
-        // renderer calls that on every paint, and the decay snapshot plus the rule set have to stay the same
-        // for the whole query -- re-reading them mid-search would re-rank rows already on screen.
         var rankRules = ExclusionRuleSet.From(UserSettings.Load());
-        // This context only ever serves the inline card, so it gets the card's history caps: one H5 row and
-        // three H3 rows instead of the quick window's 3/10, because the card shows far fewer rows. Anything
-        // past them stays in Boosted/HistoryTail and still ranks by score; AlwaysTop keeps working here,
-        // since a pin is an explicit user choice rather than a history quota.
         var rankContext = new RankContext(
             rankRules.GetPriorityVerdict,
             SearchHistoryStore.ScoreSnapshot(DateTimeOffset.UtcNow),
             historyFiveMax: 1,
-            historyThreeMax: 3);
+            historyThreeMax: 3,
+            query: query);
+
+        // The engine-side folder filter never sees these rows: history remembers files too, so the scope has
+        // to be applied here as well.
+        var learned = HistorySearchCandidateMapper.CollectLearned(FuzzyQuery.Parse(query), contextDirectory, rankContext);
+        var learnedLocalMatches = folderScope ? learned.Where(c => c.Result.IsDir).ToList() : learned;
+        var localUpdateVersion = learnedLocalMatches.Count > 0 ? 1 : 0;
+        void OnLocalMatchesChanged() => Interlocked.Increment(ref localUpdateVersion);
+
+        var localSearchTask = ExplorerSearchHelper.LoadDirectChildrenAsync(
+            query, fileLimit, contextDirectory, localMatches, token, OnLocalMatchesChanged, _directChildrenListing, folderScope);
 
         // Memoized: CreateLocalSnapshot copies the whole history-priority dictionary and re-ranks every
         // local match, and the renderer asks for this snapshot on EVERY paint -- of which one keystroke can

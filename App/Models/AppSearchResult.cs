@@ -159,7 +159,7 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
     // Mirrors the exact conditions DataTemplates.xaml's path-subtitle row collapses under (applications,
     // a blank ParentDir, or the "no results" placeholder) -- single source of truth for both that
     // visibility and the name-line font size below, so they can never drift out of sync with each other.
-    public bool HasPathSubtitle => !IsApplication && ParentDir != "" && !IsEmptyResult;
+    public bool HasPathSubtitle => ParentDir != "" && !IsEmptyResult;
     // Non-list rows share one height and must contain their icon plus vertical margins.
     public double ItemHeight => IsListItem ? UiMetrics.ListItemHeight : Math.Max(UiMetrics.SearchResultItemHeight, UiMetrics.ResultIconSize + UiMetrics.ResultRowVerticalMargin + UiMetrics.IconRowBreathingRoom);
 

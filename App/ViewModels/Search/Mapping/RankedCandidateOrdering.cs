@@ -58,12 +58,7 @@ internal static class RankedCandidateOrdering
         for (var i = 0; i < rows.Length; i++)
         {
             var tier = budget.GetValueOrDefault(signals[i].NormalizedPath, HistoryTier.None);
-            // The quick window is the only consumer with a display-type order: weight the C/P score by the
-            // type's position there (favorites and history tiers are global and keep their own score).
-            keys[i] = RankPolicy.BuildKey(signals[i], tier) with
-            {
-                Score = RankPolicy.QuickScore(signals[i], tier),
-            };
+            keys[i] = RankPolicy.BuildKey(signals[i], tier, rows[i].Evidence);
             // The "frequent" badge: only the two lifted history tiers are a habit. A history-tail row
             // (fewer than three effective opens) is merely known, so it gets no badge.
             rows[i].Result.IsFrequent = tier >= HistoryTier.H3;
@@ -121,13 +116,39 @@ internal static class RankedCandidateOrdering
         return kept;
     }
 
+    internal static int[] ComputeShadowV3Ranks(
+        SearchResultMapper.RankedCandidate[] rows,
+        RankContext? context,
+        IReadOnlyDictionary<string, HistoryTier> budget)
+    {
+        if (rows.Length == 0)
+            return Array.Empty<int>();
+
+        var v3Keys = new V3RankKey[rows.Length];
+        var indices = new int[rows.Length];
+        for (var i = 0; i < rows.Length; i++)
+        {
+            var signal = ToSignals(rows[i], context);
+            var tier = budget.GetValueOrDefault(signal.NormalizedPath, HistoryTier.None);
+            v3Keys[i] = RankPolicyV3.BuildKey(signal, tier, rows[i].Evidence);
+            indices[i] = i;
+        }
+
+        Array.Sort(v3Keys, indices, V3RankKeyComparer.Instance);
+        var shadowRanks = new int[rows.Length];
+        for (var v3Position = 0; v3Position < indices.Length; v3Position++)
+            shadowRanks[indices[v3Position]] = v3Position + 1;
+        return shadowRanks;
+    }
+
     internal static RankingLogRow Describe(
         SearchResultMapper.RankedCandidate candidate,
         RankKey key,
         int kernelRank,
         RankContext? context,
         IReadOnlyDictionary<string, HistoryTier> budget,
-        RankingProviderState providerState = RankingProviderState.Unknown)
+        RankingProviderState providerState = RankingProviderState.Unknown,
+        int? shadowV3Rank = null)
     {
         var signal = ToSignals(candidate, context);
         var isApplication = IsApplication(candidate);
@@ -155,7 +176,9 @@ internal static class RankedCandidateOrdering
             candidate.Result.SourceProvider?.GetType().Name,
             providerState,
             candidate.Evidence,
-            identity);
+            identity,
+            shadowV3Rank,
+            shadowV3Rank.HasValue ? kernelRank - shadowV3Rank.Value : null);
     }
 
     /// <summary>
@@ -170,10 +193,7 @@ internal static class RankedCandidateOrdering
     {
         var signals = ToSignals(candidate, context);
         const HistoryTier tier = HistoryTier.None;
-        var key = RankPolicy.BuildKey(signals, tier) with
-        {
-            Score = RankPolicy.QuickScore(signals, tier),
-        };
+        var key = RankPolicy.BuildKey(signals, tier, candidate.Evidence);
         return Describe(
             candidate,
             key,

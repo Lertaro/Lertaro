@@ -1,4 +1,5 @@
 using Lertaro.PluginSdk.Abstractions.Plugins;
+using Lertaro.App.Services;
 using Lertaro.Core;
 
 using Lertaro.App.Services.Plugin;
@@ -78,7 +79,8 @@ public static class SearchableItemMapper
         // match rank the file search hot path uses (FuzzyMatcher.ComputeBestMatch, against the entry's
         // own title -- same text TextHighlighter shows), instead of a fixed match-kind bucket order capped
         // PER PROVIDER.
-        var matched = new List<(SearchableItemCache.CacheEntry Entry, MatchRank Match, MatchEvidence Evidence, ISearchableItemProvider Provider, string ActiveQuery)>();
+        var matched = new List<(SearchableItemCache.CacheEntry Entry, MatchRank Match, MatchEvidence Evidence, string? MatchedSecondaryText, ISearchableItemProvider Provider, string ActiveQuery)>();
+        var userSettings = UserSettings.Load();
 
         foreach (var provider in PluginManager.Instance.SearchableItemProviders)
         {
@@ -89,23 +91,17 @@ public static class SearchableItemMapper
 
             foreach (var entry in entries)
             {
-                // The standard match contract (FuzzyMatcher.ComputeBestMatch): title first,
-                // then each curated alias, via the same FzfPattern Parse Core's real file search uses
-                // -- a multi-word query like "gsh ypfq" correctly requires BOTH words to match
-                // somewhere. (Keyword-scoped directory search used to live here as a FileFilter_
-                // ResultKind routing over materialized files; it is now a real scoped engine search --
-                // see FileFilterScopeResolver.)
                 var providerId = provider.GetType().Name;
-                var match = MatchCatalogEntryWithEvidence(fuzzy, queryWords, entry, providerId);
-                if (match.Rank.IsMatch)
+                var localAliases = userSettings.GetUserAliases(entry.Item.ActionArgument);
+                var match = MatchCatalogEntryWithProvenance(fuzzy, queryWords, entry, providerId, localAliases);
+                if (match.Result.Rank.IsMatch)
                 {
-                    matched.Add((entry, match.Rank, match.Evidence, provider, q));
+                    matched.Add((entry, match.Result.Rank, match.Result.Evidence, match.MatchedSecondaryText, provider, q));
                     continue;
                 }
 
-                // New provider metadata remains shadow-only until the V3 switch. It is evaluated only
-                // while tracing, from strings snapshotted by SearchableItemCache; no provider or shell
-                // work runs on this per-keystroke path.
+                // Scattered secondary-alias matches stay excluded from the active candidate set (#440),
+                // while still observable on the shadow diagnostic channel when tracing is enabled.
                 if (shadowAliases != null)
                 {
                     var shadow = MatchShadowAliases(fuzzy, entry, providerId);
@@ -119,12 +115,10 @@ public static class SearchableItemMapper
             }
         }
 
-        // The final merge/order applies the shared quality ladder; there is no separate 50-item cut here,
-        // because a cut by a different key can drop a row the real ladder would have kept.
         var matches = matched.OrderBy(m => m.Match, MatchRankQualityComparer.Instance);
-        foreach (var (entry, match, evidence, provider, activeQuery) in matches)
+        foreach (var (entry, match, evidence, matchedSecondaryText, provider, activeQuery) in matches)
         {
-            var built = BuildCandidate(entry, provider, activeQuery, match);
+            var built = BuildCandidate(entry, provider, activeQuery, match, evidence.Field, matchedSecondaryText);
             candidates.Add((built.Result, built.Match, evidence));
         }
 
@@ -138,27 +132,84 @@ public static class SearchableItemMapper
         FuzzyQuery query,
         string[] queryWords,
         SearchableItemCache.CacheEntry entry,
-        string? providerId)
+        string? providerId) =>
+        MatchCatalogEntryWithProvenance(query, queryWords, entry, providerId, null).Result;
+
+    internal static (MatchEvidenceResult Result, string? MatchedSecondaryText) MatchCatalogEntryWithProvenance(
+        FuzzyQuery query,
+        string[] queryWords,
+        SearchableItemCache.CacheEntry entry,
+        string? providerId,
+        IReadOnlyList<string>? userAliases)
     {
-        var match = query.BestMatchWithEvidence(
-            entry.Item.Title,
-            MatchEvidenceField.DisplayTitle,
-            entry.Aliases.Select(alias => (alias, MatchEvidenceField.ProviderAlias)),
-            providerId);
-        if (match.Rank.IsMatch)
-            return match;
+        var primary = query.RankWithEvidence(entry.Item.Title, MatchEvidenceField.DisplayTitle, providerId);
+        var best = primary;
+        string? matchedSecondary = null;
+
+        foreach (var alias in entry.Aliases)
+        {
+            var candidate = query.RankWithEvidence(alias, MatchEvidenceField.ProviderAlias, providerId);
+            if (!candidate.Rank.IsStrong)
+                continue;
+            if (FuzzyMatcher.IsStronger(candidate.Rank, best.Rank))
+            {
+                best = candidate;
+                matchedSecondary = alias;
+            }
+        }
+
+        if (userAliases is { Count: > 0 })
+        {
+            foreach (var alias in userAliases)
+            {
+                var candidate = query.RankWithEvidence(alias, MatchEvidenceField.UserAlias, providerId, MatchQueryVariant.ProviderAlias);
+                if (!candidate.Rank.IsStrong)
+                    continue;
+                if (FuzzyMatcher.IsStronger(candidate.Rank, best.Rank))
+                {
+                    best = candidate;
+                    matchedSecondary = alias;
+                }
+            }
+        }
+
+        foreach (var alias in entry.ProviderAliases)
+        {
+            var field = alias.Kind switch
+            {
+                SearchableItemAliasKind.ShortcutTarget => MatchEvidenceField.ShortcutTarget,
+                SearchableItemAliasKind.ProductMetadata => MatchEvidenceField.ProductMetadata,
+                SearchableItemAliasKind.User => MatchEvidenceField.UserAlias,
+                _ => MatchEvidenceField.CuratedAlias,
+            };
+            var candidate = query.RankWithEvidence(alias.Text, field, providerId, MatchQueryVariant.ProviderAlias);
+            // Scattered matches against secondary metadata/aliases produce #440 false positives ("zbl");
+            // require a clean match before admitting non-title representations.
+            if (!candidate.Rank.IsStrong)
+                continue;
+            if (FuzzyMatcher.IsStronger(candidate.Rank, best.Rank))
+            {
+                best = candidate;
+                matchedSecondary = alias.Text;
+            }
+        }
+
+        if (best.Rank.IsMatch)
+            return (best, best.Evidence.Field == MatchEvidenceField.DisplayTitle ? null : matchedSecondary);
 
         // Match Windows Control Panel task links: every query token prefixes a title/keyword word.
-        // Keyword-only hits have no title highlight evidence, so retain zero weight as a fallback.
         if (queryWords.Length > 0 && queryWords.All(token => entry.KeywordWords.Any(
                 word => word.StartsWith(token, StringComparison.OrdinalIgnoreCase))))
         {
             var rank = new MatchRank(MatchRank.TierFull, 0, 0, 0, MatchRank.ShapeScattered);
-            return new MatchEvidenceResult(
+            var matchedKeyword = string.Join(' ', queryWords.Select(token =>
+                entry.KeywordWords.First(word => word.StartsWith(token, StringComparison.OrdinalIgnoreCase))));
+            return (new MatchEvidenceResult(
                 rank,
-                MatchEvidence.Accepted(query.Text, entry.Item.Title, MatchEvidenceField.Keyword, rank, providerId: providerId));
+                MatchEvidence.Accepted(query.Text, entry.Item.Title, MatchEvidenceField.Keyword, rank, providerId: providerId)),
+                matchedKeyword);
         }
-        return new MatchEvidenceResult(MatchRank.NoMatch, MatchEvidence.LegacyUnknown);
+        return (new MatchEvidenceResult(MatchRank.NoMatch, MatchEvidence.LegacyUnknown), null);
     }
 
     internal static MatchEvidenceResult MatchShadowAliases(
@@ -187,9 +238,33 @@ public static class SearchableItemMapper
         return best;
     }
 
-    // Split out of the matches loop below purely to keep this file's per-method length down -- no
-    // other caller.
-    private static (AppSearchResult Result, MatchRank Match) BuildCandidate(SearchableItemCache.CacheEntry entry, ISearchableItemProvider provider, string activeQuery, MatchRank match)
+    internal static string FormatSecondaryProvenance(MatchEvidenceField field, string? matchedText)
+    {
+        if (string.IsNullOrWhiteSpace(matchedText)
+            || field is MatchEvidenceField.LegacyUnknown or MatchEvidenceField.DisplayTitle or MatchEvidenceField.FileName)
+        {
+            return string.Empty;
+        }
+
+        var key = field switch
+        {
+            MatchEvidenceField.ShortcutTarget => "Search_TargetSourceFormat",
+            MatchEvidenceField.ProductMetadata => "Search_MetadataSourceFormat",
+            _ => "Search_AliasSourceFormat",
+        };
+        var template = TranslationManager.Instance[key];
+        return string.IsNullOrEmpty(template) || template == key
+            ? matchedText
+            : string.Format(template, matchedText);
+    }
+
+    private static (AppSearchResult Result, MatchRank Match) BuildCandidate(
+        SearchableItemCache.CacheEntry entry,
+        ISearchableItemProvider provider,
+        string activeQuery,
+        MatchRank match,
+        MatchEvidenceField evidenceField = MatchEvidenceField.DisplayTitle,
+        string? matchedSecondaryText = null)
     {
         var item = entry.Item;
         System.Windows.Media.ImageSource? iconOverride = null;
@@ -259,9 +334,11 @@ public static class SearchableItemMapper
         {
             Name = item.Title,
             FullPath = (isRealFile || isRealDir || isApplication) ? item.ActionArgument : $"__SEARCHABLE_ITEM__:{provider.Name}:{item.Title}",
-            // Applications show name-only: blank the subtitle so the path row collapses (an app's
-            // FullPath is a virtual token anyway). Other item kinds keep their description.
-            ParentDir = item.ResultKind == "Application" ? string.Empty : item.Description,
+            // Direct-title applications show name-only; secondary-alias hits surface their matched
+            // provenance ("Alias: ...", "Target: ...") so non-title matches explain themselves visually.
+            ParentDir = item.ResultKind == "Application"
+                ? FormatSecondaryProvenance(evidenceField, matchedSecondaryText)
+                : item.Description,
             IsDir = isRealDir,
             Drive = string.Empty,
             ResultKind = isRealFile ? "File" : (isRealDir ? "Directory" : (isApplication ? "Application" : "InstantResult")),

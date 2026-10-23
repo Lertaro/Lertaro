@@ -59,7 +59,8 @@ public readonly struct FuzzyQuery
         string? text,
         MatchEvidenceField field,
         string? providerId = null,
-        MatchQueryVariant variant = MatchQueryVariant.Original)
+        MatchQueryVariant variant = MatchQueryVariant.Original,
+        bool isDirectory = false)
     {
         var witness = AcceptedMatchWitness.LegacyUnknown;
         var rank = _pattern is null || string.IsNullOrEmpty(text)
@@ -82,7 +83,8 @@ public readonly struct FuzzyQuery
                 acceptedVariant,
                 witness.ProviderId ?? providerId,
                 witness.SpanStart,
-                witness.SpanLength));
+                witness.SpanLength,
+                isDirectory));
     }
 
     internal MatchEvidenceResult BestMatchWithEvidence(

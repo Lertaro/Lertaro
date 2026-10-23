@@ -75,31 +75,18 @@ public static class ExplorerSearchHelper
         RankContext? rankContext = null)
     {
         var normalizedDirectory = DirectoryProximity.Normalize(contextDirectory);
-        var ordinary = RankMatches(
+        var fuzzy = FuzzyQuery.Parse(query);
+        var orderedCandidates = RankMatches(
             matches.Where(match => !string.Equals(DirectoryProximity.Normalize(match.FullPath), normalizedDirectory, StringComparison.OrdinalIgnoreCase)),
-            FuzzyQuery.Parse(query),
+            learned,
+            fuzzy,
             rankContext);
 
-        // Learned rows are those the history merge contributed rather than the ordinary set; tracked by
-        // normalized path, which is also the merge's own identity for a row.
-        var learnedPaths = new HashSet<string>(
-            learned.Select(c => SearchResultHelper.NormalizePath(c.Result.FullPath)),
-            StringComparer.OrdinalIgnoreCase);
-
-        var rankByPath = new Dictionary<string, MatchRank>(StringComparer.OrdinalIgnoreCase);
-        foreach (var candidate in ordinary)
-            rankByPath[candidate.NormalizedPath] = candidate.Match;
-        foreach (var candidate in learned)
-            rankByPath.TryAdd(candidate.NormalizedPath, candidate.Match);
-
-        // int.MaxValue on purpose: the cap belongs after the proximity sort below, not before it.
-        var merged = HistorySearchCandidateMapper.MergeRows(learned, ordinary.Select(c => c.Result).ToList(), int.MaxValue);
-        var ranked = merged
-            .Select(result =>
-            {
-                var path = SearchResultHelper.NormalizePath(result.FullPath);
-                return new RankedRow(result, rankByPath.TryGetValue(path, out var rank) ? rank : TopTier);
-            })
+        var ranked = orderedCandidates
+            .Select(candidate => new RankedRow(
+                candidate.Result,
+                candidate.IsHistoryOnly ? MatchRank.NoMatch : candidate.Match,
+                candidate.IsHistoryOnly))
             .ToList();
 
         var snapshot = OrderByDirectoryTier(ranked, normalizedDirectory).Take(limit).ToList();
@@ -145,7 +132,8 @@ public static class ExplorerSearchHelper
         // global result list; its proximity grouping and name order are deliberate. The global ladder
         // still orders descendants and outside matches.
         var orderedDirect = direct
-            .OrderBy(row => row.Match.Start)
+            .OrderBy(row => row.IsHistoryOnly ? 1 : 0)
+            .ThenBy(row => row.Match.Start)
             .ThenBy(row => row.Result.IsDir ? 0 : 1)
             .ThenBy(row => row.Match.Tier)
             .ThenBy(row => row.Result.Name, NaturalNameComparer.Instance)
@@ -156,10 +144,11 @@ public static class ExplorerSearchHelper
 
     // A result paired with the match rank that placed it, so the ordering above can consult the rank even
     // though RankAndDedupe has already consumed it into an ordered list.
-    internal readonly record struct RankedRow(AppSearchResult Result, MatchRank Match);
+    internal readonly record struct RankedRow(AppSearchResult Result, MatchRank Match, bool IsHistoryOnly = false);
 
     private static List<SearchResultMapper.RankedCandidate> RankMatches(
         IEnumerable<AppSearchResult> matches,
+        IReadOnlyList<SearchResultMapper.RankedCandidate> learned,
         FuzzyQuery fuzzy,
         RankContext? rankContext)
     {
@@ -175,19 +164,21 @@ public static class ExplorerSearchHelper
             var lookupPath = match.FullPath.Length > 3 && match.FullPath[^1] == '\\' ? match.FullPath.TrimEnd('\\') : match.FullPath;
             var normalizedPath = SearchResultHelper.NormalizePath(match.FullPath);
             var usage = historyUsage.TryGetValue(lookupPath, out var uc) ? uc : 0;
+            var matched = fuzzy.RankWithEvidence(match.Name, MatchEvidenceField.FileName, isDirectory: match.IsDir);
             candidates.Add(new SearchResultMapper.RankedCandidate(
                 match,
                 IsFavorite: favoritePaths.Contains(normalizedPath),
                 HistoryCount: usage,
                 TypeRank: int.MaxValue,
-                fuzzy.Rank(match.Name),
-                normalizedPath));
+                matched.Rank,
+                normalizedPath,
+                Source: RankingCandidateSource.FileIndex,
+                Evidence: matched.Evidence));
         }
 
-        // Ranked by the same sections and score the quick window uses (RankPolicy through
-        // RankCandidates), but returned as candidates so the caller still has each row's MatchRank to
-        // order by afterwards. Without a context the kernel falls back to the raw open count and treats
-        // every path as normal priority, which is what the unit tests exercise.
+        if (learned.Count > 0)
+            candidates.AddRange(learned);
+
         return SearchResultMapper.RankCandidates(candidates, rankContext);
     }
 }

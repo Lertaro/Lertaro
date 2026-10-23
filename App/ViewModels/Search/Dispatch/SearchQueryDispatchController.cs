@@ -223,7 +223,8 @@ internal sealed class SearchQueryDispatchController
                     accumulator.UseRankContext(new RankContext(
                         rankRules.GetPriorityVerdict,
                         SearchHistoryStore.ScoreSnapshot(DateTimeOffset.UtcNow),
-                        FavoritePaths()));
+                        FavoritePaths(),
+                        query: cleanQuery));
                     rankContextApplied = true;
                 }
                 return accumulator.AbsorbBatch(fileResults);

@@ -4,11 +4,28 @@ using PriorityVerdict = Lertaro.Core.ExclusionRuleSet.PriorityVerdict;
 namespace Lertaro.Core.SearchIndex;
 
 /// <summary>
-/// Stores ranking fields once so the full-window comparer performs no rule or history lookup. Decoration is
-/// idempotent. History uses fixed thresholds because streaming rows cannot share a stable page budget.
+/// Decorates full-window <see cref="SearchResult"/> rows once so <see cref="RankedSearchResultComparer"/>
+/// compares the exact V3 tuple without repeating rule or history lookups per comparison.
 /// </summary>
+/// <remarks>
+/// Bit layout of <see cref="SearchResult.RankFlags"/>:
+///   bits 0..1  Section (0 Pinned, 1 Boosted, 2 Low, 3 HistoryTail)
+///   bit  2     Strong match flag (1 = preference-eligible Grade 0..1)
+///   bits 3..4  HistoryTier (0 None, 1 Tail, 2 H3, 3 H5)
+///   bits 5..7  MatchEvidenceGrade (1 ExactIdentity .. 4 SecondaryField)
+///
+/// Bit layout of <see cref="SearchResult.RankScore"/>:
+///   holds <see cref="RankPolicy.DiagnosticScore"/> plus packed V3 sub-keys in low bits for zero-allocation
+///   comparison (AlwaysTop, FavoritePin, IsFavorite, PriorityOrder) inside <see cref="RankedSearchResultComparer"/>.
+/// </remarks>
 public static class SearchResultRanking
 {
+    internal const int FlagAlwaysTop = 1 << 16;
+    internal const int FlagFavoritePin = 1 << 17;
+    internal const int FlagFavorite = 1 << 18;
+    internal const int PriorityShift = 19;
+    internal const int DiagnosticScoreMask = 0xFFFF;
+
     public static void Decorate(SearchResult result, RankContext? context)
     {
         var path = result.Path.Length > 3 && result.Path[^1] == '\\'
@@ -22,22 +39,83 @@ public static class SearchResultRanking
             ? known
             : 0;
 
-        // A zero key means the row was never ranked (legacy RankSortKey 0 sorted as the WORST quality).
-        // Treat it as weak so such a row cannot claim the strong-match score.
-        var isStrong = result.RankSortKey != 0 && SearchResultRelevance.IsStrongMatch(result.RankSortKey);
+        var grade = ResolveFullWindowGrade(result, context?.Query);
+        var isStrong = RankPolicy.IsPreferenceEligible(grade);
 
-        var tier = !isStrong ? HistoryTier.None
+        var rawTier = !isStrong ? HistoryTier.None
             : scoreX100 >= RankPolicy.HistoryFiveThresholdX100 ? HistoryTier.H5
             : scoreX100 >= RankPolicy.HistoryThreeThresholdX100 ? HistoryTier.H3
             : HistoryTier.None;
+        var tier = RankPolicy.EffectiveHistoryTier(rawTier, grade, isHistoryOnly: false);
 
         var isFavorite = context?.FavoritePaths?.Contains(path) == true;
+        var explicitAlwaysTop = verdict.AlwaysTop && verdict.Effect == IndexRuleEffect.High;
+        var favoritePin = !explicitAlwaysTop && isFavorite && isStrong;
+        var section = RankPolicy.Section(verdict.Effect, explicitAlwaysTop, favoritePin, isHistoryOnly: false, grade);
+        var diagScore = RankPolicy.DiagnosticScore(section, explicitAlwaysTop, favoritePin, grade, verdict.Effect, tier);
 
-        // No history-only rows exist in this window, so Tail never appears and bit 1 of the section stays 0.
-        var section = RankPolicy.Section(isStrong, isFavorite, isHistoryOnly: false, verdict.Effect, verdict.AlwaysTop, tier);
-
-        result.RankScore = RankPolicy.Score(isStrong, isFavorite, isHistoryOnly: false, verdict.Effect, tier);
         result.HistoryScoreX100 = scoreX100;
-        result.RankFlags = (byte)((int)section | (isStrong ? 4 : 0) | ((int)tier << 3));
+        result.RankFlags = (byte)(
+            ((int)section & 3)
+            | (isStrong ? 4 : 0)
+            | (((int)tier & 3) << 3)
+            | (((int)grade & 7) << 5));
+        result.RankScore = (diagScore & DiagnosticScoreMask)
+            | (explicitAlwaysTop ? FlagAlwaysTop : 0)
+            | (favoritePin ? FlagFavoritePin : 0)
+            | (isFavorite ? FlagFavorite : 0)
+            | ((RankPolicy.PriorityOrder(verdict.Effect) & 3) << PriorityShift);
+    }
+
+    internal static int DiagnosticScoreOf(SearchResult result) =>
+        result.RankScore & DiagnosticScoreMask;
+
+    internal static MatchEvidenceGrade GradeOf(SearchResult result)
+    {
+        var raw = (MatchEvidenceGrade)((result.RankFlags >> 5) & 7);
+        return raw != MatchEvidenceGrade.LegacyUnknown
+            ? raw
+            : (result.RankFlags & 4) != 0
+                ? MatchEvidenceGrade.DirectStrong
+                : MatchEvidenceGrade.DirectApproximate;
+    }
+
+    private static MatchEvidenceGrade ResolveFullWindowGrade(SearchResult result, string? query)
+    {
+        if (result.RankSortKey == 0)
+            return MatchEvidenceGrade.DirectApproximate;
+
+        var high = (uint)(result.RankSortKey >> 32);
+        var shape = (int)((high >> 21) & 0x7);
+        if (shape == MatchRank.ShapeNoName)
+            return MatchEvidenceGrade.SecondaryField;
+
+        var isStrong = SearchResultRelevance.IsStrongMatch(result.RankSortKey);
+        if (!isStrong)
+            return MatchEvidenceGrade.DirectApproximate;
+
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            var notLeft = (int)((high >> 20) & 0x1);
+            var start = (int)((high >> 13) & 0x7F);
+            var coverageInv = (int)((high >> 4) & 0x1FF);
+            var tier = (int)(high & 0xF);
+            var approxCoverage = 1d - coverageInv / 511d;
+            var approxRank = new MatchRank(tier, start, approxCoverage, notLeft == 0 ? 1d : 0.5d, shape);
+            if (MatchEvidence.IsExactIdentityOrWholeStemReading(
+                    query,
+                    result.Name,
+                    MatchEvidenceField.FileName,
+                    approxRank,
+                    MatchQueryVariant.PinyinJoined,
+                    spanStart: start,
+                    spanLength: (int)Math.Round(approxCoverage * result.Name.AsSpan().Trim().Length, MidpointRounding.AwayFromZero),
+                    isDirectory: result.IsDir))
+            {
+                return MatchEvidenceGrade.ExactIdentity;
+            }
+        }
+
+        return MatchEvidenceGrade.DirectStrong;
     }
 }

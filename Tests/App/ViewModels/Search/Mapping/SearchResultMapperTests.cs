@@ -371,17 +371,24 @@ public sealed class RankAndDedupeTests
     }
 
     [TestMethod]
-    public void RankAndDedupe_TypeBonusLiftsAReasonableMatchOfTheLeadingType()
+    public void RankAndDedupe_TypeOrderDecidesWithinStrongGrades_AndNeverLiftsWeakOverStrong()
     {
-        // The user ordered the type list, so the leading type earns its bonus on top of its own C/P score:
-        // a rare-reading row of the first type (8 + 16) now beats a strong row of the third type (18 + 4).
-        var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        // I2: within clean direct matches, user type priority still puts preferred types first.
+        var sameGrade = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
+        {
+            Candidate(@"C:\files.txt", typeRank: 2),
+            Candidate(@"C:\apps.txt", typeRank: 0, start: 3, coverage: 0.5),
+        });
+        Assert.AreEqual(@"C:\apps.txt", sameGrade[0].FullPath);
+
+        // I1: a rare/weak match of the leading type cannot jump across EvidenceGrade over a strong match.
+        var acrossGrades = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
             Candidate(@"C:\files.txt", typeRank: 2),
             Candidate(@"C:\apps.txt", typeRank: 0, tier: MatchRank.TierFullRare),
         });
-
-        Assert.AreEqual(@"C:\apps.txt", ranked[0].FullPath);
+        Assert.AreEqual(@"C:\files.txt", acrossGrades[0].FullPath);
+        Assert.AreEqual(@"C:\apps.txt", acrossGrades[1].FullPath);
     }
 
     // The bonus is capped by the row's own match quality: a barely matching row of the leading type does not

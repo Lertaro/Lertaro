@@ -199,6 +199,54 @@ internal static class ActionMenuBuilder
                 }
             }
         });
+        insertAt++;
+
+        AddUserAliasActions(items, ref insertAt, result, itemHeight);
+    }
+
+    private static void AddUserAliasActions(
+        List<ActionMenuItem> items,
+        ref int insertAt,
+        AppSearchResult result,
+        double itemHeight)
+    {
+        if (result.IsEmptyResult || result.IsInstantResult || result.IsPluginSearchAction
+            || string.IsNullOrWhiteSpace(result.FullPath)
+            || result.FullPath.StartsWith("__SEARCHABLE_ITEM__:", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var trimmedQuery = result.SearchQuery?.Trim() ?? string.Empty;
+        if (trimmedQuery.Length > 0 && !string.Equals(trimmedQuery, result.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            items.Insert(insertAt++, new ActionMenuItem
+            {
+                Text = string.Format(TranslationManager.Instance["Action_BindQueryAsUserAlias"], trimmedQuery),
+                ItemHeight = itemHeight,
+                OnExecute = () =>
+                {
+                    var settings = Core.UserSettings.Load();
+                    if (settings.AddUserAlias(result.FullPath, trimmedQuery))
+                        settings.Save();
+                }
+            });
+        }
+
+        if (Core.UserSettings.Load().GetUserAliases(result.FullPath).Count > 0)
+        {
+            items.Insert(insertAt++, new ActionMenuItem
+            {
+                Text = TranslationManager.Instance["Action_ClearUserAliases"],
+                ItemHeight = itemHeight,
+                OnExecute = () =>
+                {
+                    var settings = Core.UserSettings.Load();
+                    if (settings.ClearUserAliases(result.FullPath))
+                        settings.Save();
+                }
+            });
+        }
     }
 
     // Builds the dynamic-provider items (shell context menu, etc). This can be slow (loading shell

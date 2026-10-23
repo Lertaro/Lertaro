@@ -136,10 +136,7 @@
                         <Style TargetType="ScrollViewer">
                             <Setter Property="Visibility" Value="Visible"/>
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsApplication}" Value="True">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                </DataTrigger>
-                                <!-- Blank subtitle (e.g. applications) shows name-only: hide the empty row. -->
+                                <!-- Blank subtitle (e.g. direct-title applications) shows name-only: hide the empty row. -->
                                 <DataTrigger Binding="{Binding ParentDir}" Value="">
                                     <Setter Property="Visibility" Value="Collapsed"/>
                                 </DataTrigger>

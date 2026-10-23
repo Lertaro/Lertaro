@@ -102,12 +102,51 @@ public sealed class SearchableItemCacheStaleTests
             entry,
             "StartMenuAppItemProvider");
 
-        Assert.IsFalse(production.Rank.IsMatch, "P5 aliases must remain outside the V2 candidate set");
+        Assert.IsTrue(production.Rank.IsMatch, "clean V3 secondary aliases participate with explicit SecondaryField grade");
+        Assert.AreEqual(MatchEvidenceField.ShortcutTarget, production.Evidence.Field);
+        Assert.AreEqual(MatchEvidenceGrade.SecondaryField, production.Evidence.Grade);
         Assert.IsTrue(match.Rank.IsMatch);
         Assert.AreEqual(MatchEvidenceField.ShortcutTarget, match.Evidence.Field);
         Assert.AreEqual(MatchQueryVariant.ProviderAlias, match.Evidence.QueryVariant);
         Assert.AreEqual(MatchEvidenceGrade.SecondaryField, match.Evidence.Grade);
         Assert.AreEqual("StartMenuAppItemProvider", match.Evidence.ProviderId);
+    }
+
+    [TestMethod]
+    public void SecondaryAliasGate_RejectsScatteredSubsequencesWhileSurfacingCleanUserProvenance()
+    {
+        var entry = new SearchableItemCache.CacheEntry(
+            new SearchableItem
+            {
+                Title = "Telegram",
+                ResultKind = "Application",
+                ActionArgument = @"X:\Apps\Telegram.lnk",
+                Aliases = [new SearchableItemAlias("r-e-a-d-y-z-b-l", SearchableItemAliasKind.ProductMetadata)],
+            },
+            new List<string>(),
+            null);
+
+        var scattered = SearchableItemMapper.MatchCatalogEntryWithProvenance(
+            FuzzyQuery.Parse("zbl"),
+            ["zbl"],
+            entry,
+            "StartMenuAppItemProvider",
+            userAliases: ["电报"]);
+        Assert.IsFalse(scattered.Result.Rank.IsMatch, "#440 scattered metadata subsequences must stay excluded");
+
+        var userHit = SearchableItemMapper.MatchCatalogEntryWithProvenance(
+            FuzzyQuery.Parse("电报"),
+            ["电报"],
+            entry,
+            "StartMenuAppItemProvider",
+            userAliases: ["电报"]);
+        Assert.IsTrue(userHit.Result.Rank.IsMatch);
+        Assert.AreEqual(MatchEvidenceField.UserAlias, userHit.Result.Evidence.Field);
+        Assert.AreEqual(MatchEvidenceGrade.SecondaryField, userHit.Result.Evidence.Grade);
+        Assert.AreEqual("电报", userHit.MatchedSecondaryText);
+        StringAssert.Contains(
+            SearchableItemMapper.FormatSecondaryProvenance(userHit.Result.Evidence.Field, userHit.MatchedSecondaryText),
+            "电报");
     }
 
     [TestMethod]

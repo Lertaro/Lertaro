@@ -297,4 +297,29 @@ public sealed class ExplorerSearchHelperTests
             new[] { @"D:\sub-atlas.txt", @"D:\atlas.txt" },
             pinned.Select(item => item.FullPath).ToArray());
     }
+
+    [TestMethod]
+    public void CreateLocalSnapshot_LearnedAliasTrailsDirectMatchesWithinProximityTier()
+    {
+        var direct = Item(@"C:\Root\notes.txt");
+        var learned = new SearchResultMapper.RankedCandidate(
+            Item(@"C:\Root\archive.bin"),
+            IsFavorite: false,
+            HistoryCount: 8,
+            TypeRank: int.MaxValue,
+            new MatchRank(MatchRank.TierName, 0, 1.0, 1.0),
+            @"C:\Root\archive.bin",
+            IsHistoryOnly: true,
+            Source: RankingCandidateSource.History);
+
+        var result = ExplorerSearchHelper.CreateLocalSnapshot(
+            [direct],
+            [learned],
+            "notes",
+            @"C:\Root");
+
+        CollectionAssert.AreEqual(
+            new[] { @"C:\Root\notes.txt", @"C:\Root\archive.bin" },
+            result.Select(item => item.FullPath).ToArray());
+    }
 }

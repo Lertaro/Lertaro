@@ -342,26 +342,22 @@ public sealed class RankedCandidateOrderingTests
     }
 
     [TestMethod]
-    public void ShadowEvidenceDoesNotChangeV2Order()
+    public void EvidenceGrade_OrdersDirectMatchesAheadOfSecondaryAliases()
     {
-        var rows = new List<SearchResultMapper.RankedCandidate>
+        var secondaryAlias = Candidate(@"C:\a.txt", coverage: 1) with
         {
-            Candidate(@"C:\b.txt", coverage: 0.4),
-            Candidate(@"C:\a.txt", coverage: 1),
+            Evidence = MatchEvidence.Accepted("a", "a", MatchEvidenceField.CuratedAlias, new MatchRank(MatchRank.TierName, 0, 1)),
         };
-        var baseline = RankedCandidateOrdering.Order(rows).Select(row => row.NormalizedPath).ToArray();
-        var shadowed = rows.Select((row, index) => row with
+        var directFile = Candidate(@"C:\b.txt", coverage: 0.4) with
         {
-            Evidence = MatchEvidence.Accepted(
-                "a",
-                row.Result.Name,
-                index == 0 ? MatchEvidenceField.CuratedAlias : MatchEvidenceField.FileName,
-                row.Match),
-        }).ToList();
+            Evidence = MatchEvidence.Accepted("a", "b.txt", MatchEvidenceField.FileName, new MatchRank(MatchRank.TierName, 0, 0.4)),
+        };
+
+        var ordered = RankedCandidateOrdering.Order([secondaryAlias, directFile]);
 
         CollectionAssert.AreEqual(
-            baseline,
-            RankedCandidateOrdering.Order(shadowed).Select(row => row.NormalizedPath).ToArray());
+            new[] { @"C:\b.txt", @"C:\a.txt" },
+            ordered.Select(row => row.NormalizedPath).ToArray());
     }
 
     [TestMethod]

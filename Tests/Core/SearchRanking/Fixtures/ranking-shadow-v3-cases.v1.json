@@ -1,0 +1,361 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "cfwj-shortcuts-vs-inside-word-file",
+      "window": "quick",
+      "rawQuery": "cfwj",
+      "fuzzyEnabled": true,
+      "typeOrder": ["App", "Files"],
+      "providerReadiness": "ready",
+      "candidates": [
+        {
+          "token": "cfwj-exact-lnk",
+          "displayName": "重复文件",
+          "syntheticPath": "X:\\Fixture\\Tools\\重复文件.lnk",
+          "kind": ["Application", "Shortcut"],
+          "source": "FileIndex",
+          "match": { "tier": 1, "start": 0, "coverage": 1.0, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 0,
+          "relevance": 3
+        },
+        {
+          "token": "cfwj-exact-dir",
+          "displayName": "重复文件",
+          "syntheticPath": "X:\\Fixture\\Projects\\重复文件",
+          "kind": ["Directory"],
+          "source": "FileIndex",
+          "match": { "tier": 1, "start": 0, "coverage": 1.0, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 1,
+          "relevance": 3
+        },
+        {
+          "token": "cfwj-clean-lnk",
+          "displayName": "重复文件清理",
+          "syntheticPath": "X:\\Fixture\\Desktop\\重复文件清理.lnk",
+          "kind": ["Application", "Shortcut"],
+          "source": "SearchableProvider",
+          "match": { "tier": 1, "start": 0, "coverage": 0.667, "contiguity": 1.0, "shape": 1 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 0,
+          "relevance": 2
+        },
+        {
+          "token": "cfwj-compare-lnk",
+          "displayName": "重复文件对比",
+          "syntheticPath": "X:\\Fixture\\Tools\\重复文件对比.lnk",
+          "kind": ["Application", "Shortcut"],
+          "source": "FileIndex",
+          "match": { "tier": 1, "start": 0, "coverage": 0.667, "contiguity": 1.0, "shape": 1 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 0,
+          "relevance": 2
+        },
+        {
+          "token": "cfwj-find-lnk",
+          "displayName": "查找重复文件",
+          "syntheticPath": "X:\\Fixture\\Tools\\查找重复文件.lnk",
+          "kind": ["Application", "Shortcut"],
+          "source": "FileIndex",
+          "match": { "tier": 1, "start": 2, "coverage": 0.667, "contiguity": 1.0, "shape": 2 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 0,
+          "relevance": 2
+        },
+        {
+          "token": "cfwj-delete-lnk",
+          "displayName": "删除重复文件",
+          "syntheticPath": "X:\\Fixture\\Tools\\删除重复文件.lnk",
+          "kind": ["Application", "Shortcut"],
+          "source": "FileIndex",
+          "match": { "tier": 1, "start": 2, "coverage": 0.667, "contiguity": 1.0, "shape": 2 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 0,
+          "relevance": 2
+        },
+        {
+          "token": "cfwj-etc-txt",
+          "displayName": "ETC服务监督热线.txt",
+          "syntheticPath": "X:\\Fixture\\Docs\\ETC服务监督热线.txt",
+          "kind": ["File"],
+          "source": "FileIndex",
+          "match": { "tier": 1, "start": 2, "coverage": 0.308, "contiguity": 1.0, "shape": 2 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 1,
+          "relevance": 0
+        }
+      ],
+      "assertions": {
+        "mustAppearBefore": [
+          { "before": "cfwj-exact-lnk", "after": "cfwj-exact-dir" },
+          { "before": "cfwj-exact-dir", "after": "cfwj-clean-lnk" },
+          { "before": "cfwj-clean-lnk", "after": "cfwj-etc-txt" },
+          { "before": "cfwj-compare-lnk", "after": "cfwj-etc-txt" },
+          { "before": "cfwj-find-lnk", "after": "cfwj-etc-txt" },
+          { "before": "cfwj-delete-lnk", "after": "cfwj-etc-txt" }
+        ],
+        "mustBeTopK": [
+          { "token": "cfwj-exact-lnk", "k": 1 },
+          { "token": "cfwj-exact-dir", "k": 2 }
+        ],
+        "mustBeAbsent": ["cfwj-scattered-alias"]
+      }
+    },
+    {
+      "id": "pinyin-space-identity-and-reversal",
+      "window": "quick",
+      "rawQuery": "sousuo jieguo",
+      "fuzzyEnabled": true,
+      "typeOrder": ["App", "Files"],
+      "providerReadiness": "ready",
+      "candidates": [
+        {
+          "token": "ssjg-lnk",
+          "displayName": "搜索结果",
+          "syntheticPath": "X:\\Fixture\\Desktop\\搜索结果.lnk",
+          "kind": ["Application", "Shortcut"],
+          "source": "SearchableProvider",
+          "match": { "tier": 2, "start": 0, "coverage": 1.0, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 0,
+          "relevance": 3,
+          "queryVariant": "PinyinJoined",
+          "spanStart": 0,
+          "spanLength": 4
+        },
+        {
+          "token": "ssjg-txt",
+          "displayName": "搜索结果.txt",
+          "syntheticPath": "X:\\Fixture\\Docs\\搜索结果.txt",
+          "kind": ["File"],
+          "source": "FileIndex",
+          "match": { "tier": 2, "start": 0, "coverage": 0.5, "contiguity": 1.0, "shape": 1 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 1,
+          "relevance": 3,
+          "queryVariant": "PinyinJoined",
+          "spanStart": 0,
+          "spanLength": 4
+        },
+        {
+          "token": "ssjg-reversed-txt",
+          "displayName": "结果搜索.txt",
+          "syntheticPath": "X:\\Fixture\\Docs\\结果搜索.txt",
+          "kind": ["File"],
+          "source": "FileIndex",
+          "match": { "tier": 2, "start": 0, "coverage": 0.5, "contiguity": 1.0, "shape": 1 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 1,
+          "relevance": 1,
+          "queryVariant": "Original",
+          "spanStart": 0,
+          "spanLength": 4
+        },
+        {
+          "token": "ssjg-scattered-txt",
+          "displayName": "搜-x-索-y-结-z-果.txt",
+          "syntheticPath": "X:\\Fixture\\Noise\\搜-x-索-y-结-z-果.txt",
+          "kind": ["File"],
+          "source": "FileIndex",
+          "match": { "tier": 2, "start": 0, "coverage": 0.235, "contiguity": 0.4, "shape": 3 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 1,
+          "relevance": 0,
+          "queryVariant": "PinyinJoined",
+          "spanStart": 0,
+          "spanLength": 10
+        }
+      ],
+      "assertions": {
+        "mustAppearBefore": [
+          { "before": "ssjg-lnk", "after": "ssjg-txt" },
+          { "before": "ssjg-txt", "after": "ssjg-reversed-txt" },
+          { "before": "ssjg-reversed-txt", "after": "ssjg-scattered-txt" }
+        ],
+        "mustBeTopK": [
+          { "token": "ssjg-lnk", "k": 1 },
+          { "token": "ssjg-txt", "k": 2 }
+        ],
+        "mustBeAbsent": []
+      }
+    },
+    {
+      "id": "grade2-type-preference-boundary",
+      "window": "quick",
+      "rawQuery": "report",
+      "fuzzyEnabled": true,
+      "typeOrder": ["App", "Files"],
+      "providerReadiness": "ready",
+      "candidates": [
+        {
+          "token": "report-strong-file",
+          "displayName": "quarterly-report.txt",
+          "syntheticPath": "X:\\Fixture\\Docs\\quarterly-report.txt",
+          "kind": ["File"],
+          "source": "FileIndex",
+          "match": { "tier": 0, "start": 10, "coverage": 0.3, "contiguity": 1.0, "shape": 1 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 2,
+          "relevance": 3
+        },
+        {
+          "token": "report-weak-app",
+          "displayName": "r-e-p-o-r-t-helper",
+          "syntheticPath": "X:\\Fixture\\Apps\\r-e-p-o-r-t-helper.lnk",
+          "kind": ["Application", "Shortcut"],
+          "source": "SearchableProvider",
+          "match": { "tier": 3, "start": 0, "coverage": 1.0, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 0,
+          "relevance": 0
+        }
+      ],
+      "assertions": {
+        "mustAppearBefore": [
+          { "before": "report-strong-file", "after": "report-weak-app" }
+        ],
+        "mustBeTopK": [
+          { "token": "report-strong-file", "k": 1 }
+        ],
+        "mustBeAbsent": []
+      }
+    },
+    {
+      "id": "explicit-user-low-in-start-menu",
+      "window": "quick",
+      "rawQuery": "pixpin",
+      "fuzzyEnabled": true,
+      "typeOrder": ["App", "Files"],
+      "providerReadiness": "ready",
+      "candidates": [
+        {
+          "token": "pixpin-normal-file",
+          "displayName": "PixPin.exe",
+          "syntheticPath": "X:\\Fixture\\Tools\\PixPin\\PixPin.exe",
+          "kind": ["File"],
+          "source": "FileIndex",
+          "match": { "tier": 0, "start": 0, "coverage": 0.6, "contiguity": 1.0, "shape": 1 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 1,
+          "relevance": 3
+        },
+        {
+          "token": "pixpin-explicit-low-shortcut",
+          "displayName": "PixPin",
+          "syntheticPath": "X:\\Fixture\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Demoted\\PixPin.lnk",
+          "kind": ["Application", "Shortcut"],
+          "source": "SearchableProvider",
+          "match": { "tier": 0, "start": 0, "coverage": 1.0, "contiguity": 1.0, "shape": 0 },
+          "priority": "Low",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 0,
+          "relevance": 1,
+          "explicitUserPriority": true
+        }
+      ],
+      "assertions": {
+        "mustAppearBefore": [
+          { "before": "pixpin-normal-file", "after": "pixpin-explicit-low-shortcut" }
+        ],
+        "mustBeTopK": [
+          { "token": "pixpin-normal-file", "k": 1 }
+        ],
+        "mustBeAbsent": []
+      }
+    },
+    {
+      "id": "secondary-alias-below-direct-above-learned",
+      "window": "quick",
+      "rawQuery": "telegram",
+      "fuzzyEnabled": true,
+      "typeOrder": ["App", "Files"],
+      "providerReadiness": "ready",
+      "candidates": [
+        {
+          "token": "direct-approx-file",
+          "displayName": "t-e-l-e-g-r-a-m.txt",
+          "syntheticPath": "X:\\Fixture\\Docs\\t-e-l-e-g-r-a-m.txt",
+          "kind": ["File"],
+          "source": "FileIndex",
+          "match": { "tier": 0, "start": 0, "coverage": 0.421, "contiguity": 0.467, "shape": 3 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 1,
+          "relevance": 2
+        },
+        {
+          "token": "secondary-alias-app",
+          "displayName": "电报客户端",
+          "syntheticPath": "X:\\Fixture\\Apps\\Telegram\\电报客户端.lnk",
+          "kind": ["Application", "Shortcut"],
+          "source": "SearchableProvider",
+          "match": { "tier": 0, "start": 0, "coverage": 1.0, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 0,
+          "relevance": 3,
+          "evidenceField": "ShortcutTarget",
+          "queryVariant": "ProviderAlias"
+        },
+        {
+          "token": "learned-alias-file",
+          "displayName": "Archive2024.bin",
+          "syntheticPath": "X:\\Fixture\\Archive\\Archive2024.bin",
+          "kind": ["File"],
+          "source": "History",
+          "match": { "tier": 0, "start": 0, "coverage": 1.0, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 700,
+          "typeRank": 1,
+          "relevance": 1,
+          "isHistoryOnly": true
+        }
+      ],
+      "assertions": {
+        "mustAppearBefore": [
+          { "before": "direct-approx-file", "after": "secondary-alias-app" },
+          { "before": "secondary-alias-app", "after": "learned-alias-file" }
+        ],
+        "mustBeTopK": [
+          { "token": "direct-approx-file", "k": 1 },
+          { "token": "secondary-alias-app", "k": 2 }
+        ],
+        "mustBeAbsent": ["scattered-zbl-alias"]
+      }
+    }
+  ]
+}
