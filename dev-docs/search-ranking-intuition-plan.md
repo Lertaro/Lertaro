@@ -3,7 +3,7 @@
 ## 适用范围、基线与文档地位
 
 - 核对基线：`main` / 当前工作树 `c13746c`（2026-10-23）。本文逐行核对了排序、快速窗口候选合并、历史加行、开始菜单应用 provider、拼音实时匹配与现有测试。
-- 本文是**下一轮改进的权威实施计划**，当前尚未实施。现行行为仍以 [search-ranking.md](search-ranking.md) 为准；上一轮已经落地的设计与性能数据仍见 [search-ranking-redesign.md](search-ranking-redesign.md)；[search-ranking-score-model.md](search-ranking-score-model.md) 只保留为历史方案，不能再直接照做。
+- 本文是**下一轮改进的权威实施计划**。阶段状态：P0 证据 fixture 已完成，P1–P10 尚未实施；现行运行时行为仍以 [search-ranking.md](search-ranking.md) 为准。上一轮已经落地的设计与性能数据仍见 [search-ranking-redesign.md](search-ranking-redesign.md)；[search-ranking-score-model.md](search-ranking-score-model.md) 只保留为历史方案，不能再直接照做。
 - 范围：快速窗口为第一目标，同时保证完整窗口、内联窗口、文件引擎截断、可搜索项 provider 与拼音匹配不会继续分叉。
 - 用户指定 `#437`、`#440` 为典型案例。当前 checkout 的远端 `Mikachu2333/Lertaro` 是关闭 Issues 的 fork；两份原始工单实际位于其 parent `Lertaro/Lertaro`，已核对 [#437](https://github.com/Lertaro/Lertaro/issues/437) 与 [#440](https://github.com/Lertaro/Lertaro/issues/440) 的正文和全部文字评论。截图/视频只用来补名次，不覆盖评论里可复制的查询、文件名、路径和设置事实。
 - 当前基线已经包含两轮针对性修补：#437 触发了类型加权、shortcut 借用应用秩和错误默认 Low 规则退休；#440 触发了 alias 接受门与高亮 tightness 对齐。本文必须把“基线已经修掉的机制”和“工单仍暴露的模型缺口”分开，不能把整个工单重新宣称为未修复，也不能因有一个回归测试就宣称所有排序直觉已经解决。
@@ -385,7 +385,7 @@ Section
 4. **匹配文本不同。** provider 行对去扩展名 Title 打分，File 行对 `xxx.lnk` 打分；coverage、stem 与别名可能不同。
 5. **身份推断过宽又过晚。** 当前仅凭扩展名让所有 `.lnk/.url/.appref-ms` 借应用秩，但没有保留“provider 认证的应用”与“疑似快捷方式”两种强度。
 
-这些都是源码可证的机制。#437 已确认过“shortcut 只带文件身份”和 stock Low 规则两条链，但当前版本是否还在 provider readiness、引擎截断或标题差异处丢候选，仍必须由 P0/P1 trace 决定；#440 与 `.lnk` 无关。
+这些都是源码可证的机制。#437 已确认过“shortcut 只带文件身份”和 stock Low 规则两条链，但当前版本是否还在 provider readiness、引擎截断或标题差异处丢候选，仍必须由 P1 trace 决定；#440 与 `.lnk` 无关。
 
 ### 6.3 目标处理
 
@@ -499,7 +499,9 @@ mustAppearBefore / mustBeTopK / mustBeAbsent
 
 下面每个阶段都应单独完成、单独评审。禁止一个模型同时“补日志 + 改拼音 + 换排序”，否则回归无法归因。
 
-### P0：冻结 #437 / #440 复现证据（只加文档/fixture，不改行为）
+### P0：冻结 #437 / #440 复现证据（已完成，2026-10-23）
+
+**产物**：`Tests/Core/SearchRanking/Fixtures/reported-search-cases.v1.json`。它冻结五个脱敏 case、5.10.0 工单事实、`c13746c` 已知修复、V3 断言与逐项 unknown；此阶段没有 loader，也不改变运行时行为。P2 负责把这份数据接入回放器。
 
 **前置**：工单正文和文字评论已核对，事实见 §1.1/§1.2；截图里没有被文字重抄的精确名次仍标 `unknown`，不得凭像素印象补写。
 
@@ -845,7 +847,7 @@ P4 与 P5 可以由不同模型并行，但都必须建立在 P3 的 evidence �
 | 引擎质量打包/截断 | `Core/IndexV2/Search/SearchResultRelevance.cs`、`Core/SearchIndex/SearchCandidateComparer.cs` |
 | 现有校准日志 | `Core/SearchIndex/RankingEventLog.cs` |
 
-## 16. #437 / #440 案例矩阵（来源已核对，P0 fixture 待落盘）
+## 16. #437 / #440 案例矩阵（P0 fixture 已落盘，P1 trace 待录制）
 
 | Case | 原始查询 | 工单环境/期望 | 5.10.0 实际 | 当前基线判断 | Fixture 断言 |
 | --- | --- | --- | --- | --- | --- |
@@ -856,4 +858,4 @@ P4 与 P5 可以由不同模型并行，但都必须建立在 P3 的 evidence �
 | 437-shortcut-low | `cfwj` 等 | `.lnk` 位于有无扩展名祖先的用户工具树；应用类型靠前 | 祖先命中 `/^[^.]+$/` 后整树 Low，folder/file 可压住 shortcut | `e62621ae`、`f8bc512f` 已修 stock 默认与 shortcut rank；显式 Low 仍应生效 | stock-old 迁移后非 Low；显式 Low 仍 Low；同 Grade app-first |
 | 440-zbl-alias-scatter | `zbl` | 精确模式；长 epub 名不应命中 | 返回结果且无高亮；ASCII `z/b/l` 散点跨度 15，而 painter 上限 12 | `3bda77df` 已修，current HEAD 有原文件名回归测试 | `mustBeAbsent`；紧凑 `zL` 正例 `mustBePresent`；matcher/painter 同 witness |
 
-P0 的剩余工作不是“寻找工单正文”，而是把上表变成脱敏、可执行的 fixture，并在 Windows/.NET 环境录制 **current HEAD** 的候选阶段快照。截图中没有文字转录的精确 rank 与 437-fscapture-source 的 raw query 保持 unknown，直到有人手工核对原附件。
+P0 已把上表写成脱敏 fixture；它此时只是数据契约，不提前实现 P2 的 loader。下一步 P1 要在 Windows/.NET 环境录制 **current HEAD** 的候选阶段快照。截图中没有文字转录的精确 rank 与 `437-fscapture-source` 的 raw query 继续保持 unknown，直到有人手工核对原附件。

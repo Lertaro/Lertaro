@@ -1,0 +1,436 @@
+{
+  "schemaVersion": 1,
+  "capturedAgainst": "c13746c",
+  "sourceReviewedAt": "2026-10-23",
+  "contract": {
+    "purpose": "P0 evidence freeze only; P2 will define and implement the replay loader.",
+    "nullMeans": "Unknown in the written report. It is never a wildcard or an inferred default.",
+    "privacy": "Every path is synthetic. Display names are retained only when the public issue text supplied them or the row is explicitly marked synthetic.",
+    "states": [
+      "issue-5.10.0",
+      "current-c13746c",
+      "v3-expected"
+    ]
+  },
+  "cases": [
+    {
+      "id": "437-cfwj-order",
+      "provenance": {
+        "issue": "https://github.com/Lertaro/Lertaro/issues/437",
+        "evidence": "Issue body and written comments; screenshot-only ranks were not transcribed."
+      },
+      "window": "Quick",
+      "queryVariants": [
+        {
+          "raw": "cfwj",
+          "origin": "issue-comment"
+        }
+      ],
+      "settings": {
+        "fuzzyEnabled": null,
+        "history": "empty-confirmed",
+        "actualTypeOrder": null,
+        "expectedPreference": "ApplicationBeforeFiles",
+        "ruleVariants": [
+          "no-rules",
+          "previous-stock-list-with-retired-extensionless-low-rule",
+          "explicit-user-low-rule"
+        ]
+      },
+      "corpus": [
+        {
+          "token": "target-shortcut-exact",
+          "displayName": "重复文件.lnk",
+          "syntheticPath": "X:\\Fixture\\Apps\\重复文件.lnk",
+          "kind": ["File", "Shortcut"],
+          "role": "expected",
+          "expectedV3Grade": 0
+        },
+        {
+          "token": "target-shortcut-delete",
+          "displayName": "重复文件删除.lnk",
+          "syntheticPath": "X:\\Fixture\\Apps\\重复文件删除.lnk",
+          "kind": ["File", "Shortcut"],
+          "role": "expected",
+          "expectedV3Grade": 1
+        },
+        {
+          "token": "target-shortcut-noclone",
+          "displayName": "NoClone 重复文件.lnk",
+          "syntheticPath": "X:\\Fixture\\Apps\\NoClone 重复文件.lnk",
+          "kind": ["File", "Shortcut"],
+          "role": "expected",
+          "expectedV3Grade": 1
+        },
+        {
+          "token": "target-shortcut-search",
+          "displayName": "重复文件搜索 DuplicateCleaner.lnk",
+          "syntheticPath": "X:\\Fixture\\Apps\\重复文件搜索 DuplicateCleaner.lnk",
+          "kind": ["File", "Shortcut"],
+          "role": "expected",
+          "expectedV3Grade": 1
+        },
+        {
+          "token": "target-shortcut-long",
+          "displayName": "重复文件文档图片照片视频音频查找搜索清理Duplicate Cleaner 5.lnk",
+          "syntheticPath": "X:\\Fixture\\Apps\\重复文件文档图片照片视频音频查找搜索清理Duplicate Cleaner 5.lnk",
+          "kind": ["File", "Shortcut"],
+          "role": "expected",
+          "expectedV3Grade": 1
+        },
+        {
+          "token": "target-folder-exact",
+          "displayName": "重复文件",
+          "syntheticPath": "X:\\Fixture\\Folders\\重复文件",
+          "kind": ["Directory"],
+          "role": "relevant-competitor",
+          "expectedV3Grade": 0
+        },
+        {
+          "token": "incidental-mixed-hit",
+          "displayName": "ETC服务监督热线.txt",
+          "syntheticPath": "X:\\Fixture\\Noise\\ETC服务监督热线.txt",
+          "kind": ["File"],
+          "role": "reported-incidental-hit",
+          "matchExplanation": "C + 服(f) + 务(w) + 监(j)",
+          "expectedV3Grade": 1
+        }
+      ],
+      "issueActual": {
+        "state": "issue-5.10.0",
+        "facts": [
+          "Ordinary files or folders, including ETC服务监督热线, appeared before the desired application shortcuts.",
+          "The exact screenshot ranks are unknown because the comments did not transcribe them."
+        ]
+      },
+      "currentBaseline": {
+        "state": "current-c13746c",
+        "knownFixed": [
+          {
+            "mechanism": "An untouched previous stock rule list drops /^[^.]+$/ instead of demoting the whole extensionless ancestor tree.",
+            "pinnedBy": "Tests/Core/Settings/IndexRuleMigrationTests.cs#Ensure_PreviousStockList_DropsTheRetiredRule"
+          },
+          {
+            "mechanism": "A shortcut file can borrow the better Application/Files type rank.",
+            "pinnedBy": "Tests/App/ViewModels/Search/Mapping/ShortcutTypeRankTests.cs#AShortcutFileOnTheFilesRankTakesTheBetterRankNextToTheFolderItCompetedWith"
+          }
+        ],
+        "unknown": "Current end-to-end order has not been replayed with the reporter's settings and candidate snapshot."
+      },
+      "v3Expected": {
+        "state": "v3-expected",
+        "assertions": [
+          "target-shortcut-exact has Grade 0",
+          "incidental-mixed-hit has Grade 1 or worse",
+          "target-shortcut-exact appears before incidental-mixed-hit",
+          "target-shortcut-exact appears before target-folder-exact when Application precedes Files",
+          "An explicit user Low rule remains a hard demotion"
+        ]
+      },
+      "unknowns": [
+        "fuzzyEnabled",
+        "actualTypeOrder",
+        "exact issue ranks",
+        "current C0/C1/R0/D0 snapshots"
+      ]
+    },
+    {
+      "id": "437-db-intent",
+      "provenance": {
+        "issue": "https://github.com/Lertaro/Lertaro/issues/437#issuecomment-6318924399",
+        "evidence": "The comment transcribes query db and the Telegram/电报/TG intent, but not the result names."
+      },
+      "window": "Quick",
+      "queryVariants": [
+        {
+          "raw": "db",
+          "origin": "issue-comment"
+        }
+      ],
+      "settings": {
+        "fuzzyEnabled": null,
+        "history": "empty-confirmed-for-thread",
+        "actualTypeOrder": null
+      },
+      "corpusStatus": "synthetic-intent-and-collision-set; not a transcription of the screenshot",
+      "corpus": [
+        {
+          "token": "target-telegram",
+          "displayName": "Telegram.lnk",
+          "syntheticPath": "X:\\Fixture\\Apps\\Telegram.lnk",
+          "kind": ["Application", "Shortcut"],
+          "trustedAliases": ["电报", "TG"],
+          "role": "expected",
+          "expectedV3Grade": 3
+        },
+        {
+          "token": "collision-electric-meter",
+          "displayName": "电表.txt",
+          "syntheticPath": "X:\\Fixture\\Noise\\电表.txt",
+          "kind": ["File"],
+          "role": "synthetic-direct-pinyin-collision"
+        },
+        {
+          "token": "collision-todo",
+          "displayName": "待办.txt",
+          "syntheticPath": "X:\\Fixture\\Noise\\待办.txt",
+          "kind": ["File"],
+          "role": "synthetic-direct-pinyin-collision"
+        },
+        {
+          "token": "collision-package",
+          "displayName": "打包工具.txt",
+          "syntheticPath": "X:\\Fixture\\Noise\\打包工具.txt",
+          "kind": ["File"],
+          "role": "synthetic-direct-pinyin-collision"
+        },
+        {
+          "token": "collision-baseplate",
+          "displayName": "底板.dwg",
+          "syntheticPath": "X:\\Fixture\\Noise\\底板.dwg",
+          "kind": ["File"],
+          "role": "synthetic-direct-pinyin-collision"
+        },
+        {
+          "token": "collision-northeast",
+          "displayName": "东北资料.pdf",
+          "syntheticPath": "X:\\Fixture\\Noise\\东北资料.pdf",
+          "kind": ["File"],
+          "role": "synthetic-direct-pinyin-collision"
+        }
+      ],
+      "issueActual": {
+        "state": "issue-5.10.0",
+        "facts": [
+          "The reporter wanted Telegram/电报/TG.",
+          "Many unwanted files made the target difficult to find.",
+          "The screenshot's exact candidate names and ranks are unknown."
+        ]
+      },
+      "currentBaseline": {
+        "state": "current-c13746c",
+        "unknown": "Target Recall and rank require a current trace; no source snapshot exists in the issue text."
+      },
+      "v3Expected": {
+        "state": "v3-expected",
+        "assertions": [
+          "target-telegram enters C0 through a trusted alias with provenance",
+          "target-telegram appears in the first 10 rows",
+          "No collision is declared absent merely because the user's intent was Telegram",
+          "Alias false-positive count is reported beside Alias Recall@10"
+        ]
+      },
+      "unknowns": [
+        "fuzzyEnabled",
+        "actualTypeOrder",
+        "reported distractor names and ranks",
+        "current C0/C1/R0/D0 snapshots"
+      ]
+    },
+    {
+      "id": "437-fscapture-source",
+      "provenance": {
+        "issue": "https://github.com/Lertaro/Lertaro/issues/437#issuecomment-6319253710",
+        "evidence": "Written comments identify FSCapture.exe and history state, but do not repeat the screenshot query."
+      },
+      "window": "Quick",
+      "queryVariants": [
+        {
+          "raw": null,
+          "origin": "screenshot-only",
+          "unknownReason": "The issue comments never transcribed the active query."
+        }
+      ],
+      "settings": {
+        "fuzzyEnabled": null,
+        "history": "empty-confirmed-and-keyword-deleted",
+        "actualTypeOrder": null
+      },
+      "corpus": [
+        {
+          "token": "unexpected-fscapture",
+          "displayName": "FSCapture.exe",
+          "syntheticPath": "X:\\Fixture\\Tools\\Capture\\FSCapture.exe",
+          "kind": ["File"],
+          "role": "reported-unexpected-row"
+        }
+      ],
+      "issueActual": {
+        "state": "issue-5.10.0",
+        "facts": [
+          "FSCapture.exe remained in the first 10 after history and keyword records were cleared.",
+          "Appending 1 to the filename made the row disappear."
+        ]
+      },
+      "currentBaseline": {
+        "state": "current-c13746c",
+        "status": "blocked-by-unknown-query-and-source",
+        "possibleSourcesToTrace": [
+          "FileIndex",
+          "SearchableProvider",
+          "WindowsRecent",
+          "History",
+          "Plugin"
+        ]
+      },
+      "v3Expected": {
+        "state": "v3-expected",
+        "conditionalAssertions": [
+          "Record Source, Field, Mode, QueryVariant and Witness before assigning a cause.",
+          "If no accepted witness exists, unexpected-fscapture must be absent."
+        ]
+      },
+      "unknowns": [
+        "rawQuery",
+        "fuzzyEnabled",
+        "actual source",
+        "accepted match witness",
+        "exact issue rank",
+        "current C0/C1/R0/D0 snapshots"
+      ]
+    },
+    {
+      "id": "437-pinyin-space",
+      "provenance": {
+        "issue": "https://github.com/Lertaro/Lertaro/issues/437#issuecomment-6337127642",
+        "evidence": "The issue says inserting a middle space made ordering look normal; this task supplies the concrete pair sousuojieguo / sousuo jieguo."
+      },
+      "window": "Quick",
+      "queryVariants": [
+        {
+          "raw": "sousuojieguo",
+          "origin": "task"
+        },
+        {
+          "raw": "sousuo jieguo",
+          "origin": "task"
+        }
+      ],
+      "settings": {
+        "issueFuzzyEnabled": null,
+        "replayFuzzyMatrix": [true, false],
+        "history": "empty",
+        "typeOrder": ["Application", "Files"]
+      },
+      "corpusStatus": "20-row synthetic controlled corpus",
+      "corpus": [
+        { "token": "target-lnk", "displayName": "搜索结果.lnk", "syntheticPath": "X:\\Fixture\\Apps\\搜索结果.lnk", "kind": ["File", "Shortcut"], "role": "expected", "expectedV3Grade": 0 },
+        { "token": "target-txt", "displayName": "搜索结果.txt", "syntheticPath": "X:\\Fixture\\Files\\搜索结果.txt", "kind": ["File"], "role": "expected", "expectedV3Grade": 0 },
+        { "token": "target-folder", "displayName": "搜索结果", "syntheticPath": "X:\\Fixture\\Folders\\搜索结果", "kind": ["Directory"], "role": "expected", "expectedV3Grade": 0 },
+        { "token": "target-old", "displayName": "搜索结果旧版.txt", "syntheticPath": "X:\\Fixture\\Files\\搜索结果旧版.txt", "kind": ["File"], "role": "near-target", "expectedV3Grade": 1 },
+        { "token": "scattered", "displayName": "搜-x-索-y-结-z-果.txt", "syntheticPath": "X:\\Fixture\\Files\\搜-x-索-y-结-z-果.txt", "kind": ["File"], "role": "weak-control", "expectedV3Grade": 2 },
+        { "token": "search-log", "displayName": "搜索记录.txt", "syntheticPath": "X:\\Fixture\\Noise\\搜索记录.txt", "kind": ["File"], "role": "distractor" },
+        { "token": "search-backup", "displayName": "搜索结果备份.zip", "syntheticPath": "X:\\Fixture\\Noise\\搜索结果备份.zip", "kind": ["File"], "role": "near-target" },
+        { "token": "reverse", "displayName": "结果搜索.txt", "syntheticPath": "X:\\Fixture\\Noise\\结果搜索.txt", "kind": ["File"], "role": "reverse-order-control" },
+        { "token": "fast", "displayName": "快速搜索结果.txt", "syntheticPath": "X:\\Fixture\\Noise\\快速搜索结果.txt", "kind": ["File"], "role": "near-target" },
+        { "token": "calc", "displayName": "搜索计算结果.csv", "syntheticPath": "X:\\Fixture\\Noise\\搜索计算结果.csv", "kind": ["File"], "role": "distractor" },
+        { "token": "fulltext", "displayName": "全文搜索.md", "syntheticPath": "X:\\Fixture\\Noise\\全文搜索.md", "kind": ["File"], "role": "distractor" },
+        { "token": "sougou", "displayName": "搜狗输入法.lnk", "syntheticPath": "X:\\Fixture\\Noise\\搜狗输入法.lnk", "kind": ["File", "Shortcut"], "role": "distractor" },
+        { "token": "index-result", "displayName": "索引结果.json", "syntheticPath": "X:\\Fixture\\Noise\\索引结果.json", "kind": ["File"], "role": "distractor" },
+        { "token": "search-page", "displayName": "搜索页面.html", "syntheticPath": "X:\\Fixture\\Noise\\搜索页面.html", "kind": ["File"], "role": "distractor" },
+        { "token": "query-result", "displayName": "查询结果.txt", "syntheticPath": "X:\\Fixture\\Noise\\查询结果.txt", "kind": ["File"], "role": "distractor" },
+        { "token": "report", "displayName": "搜索结果报告.docx", "syntheticPath": "X:\\Fixture\\Noise\\搜索结果报告.docx", "kind": ["File"], "role": "near-target" },
+        { "token": "summary", "displayName": "结果汇总.xlsx", "syntheticPath": "X:\\Fixture\\Noise\\结果汇总.xlsx", "kind": ["File"], "role": "distractor" },
+        { "token": "history", "displayName": "搜索历史.db", "syntheticPath": "X:\\Fixture\\Noise\\搜索历史.db", "kind": ["File"], "role": "distractor" },
+        { "token": "tutorial", "displayName": "搜索教程.pdf", "syntheticPath": "X:\\Fixture\\Noise\\搜索教程.pdf", "kind": ["File"], "role": "distractor" },
+        { "token": "list", "displayName": "结果列表.txt", "syntheticPath": "X:\\Fixture\\Noise\\结果列表.txt", "kind": ["File"], "role": "distractor" }
+      ],
+      "issueActual": {
+        "state": "issue-5.10.0",
+        "facts": [
+          "Adding a middle space changed ordering enough to look normal.",
+          "The exact screenshot ranks were not transcribed."
+        ]
+      },
+      "currentBaseline": {
+        "state": "current-c13746c",
+        "knownMechanism": [
+          "The no-space query is one continuous pinyin walk.",
+          "The spaced query is two independently placed AND terms.",
+          "Only the lone-word shape receives the whole-stem +40 bonus."
+        ],
+        "unknown": "Current ranks and C0 membership have not been replayed against this corpus."
+      },
+      "v3Expected": {
+        "state": "v3-expected",
+        "assertions": [
+          "target-lnk, target-txt and target-folder are recalled by both query variants",
+          "Each target keeps the same EvidenceGrade across variants",
+          "Each target rank delta is at most 1 in this controlled corpus",
+          "Highlight positions are identical for each target",
+          "reverse keeps original multi-term behavior but cannot receive the joined ExactIdentity grade"
+        ]
+      },
+      "unknowns": [
+        "issueFuzzyEnabled",
+        "exact issue ranks",
+        "current C0/C1/R0/D0 snapshots"
+      ]
+    },
+    {
+      "id": "440-zbl-alias-scatter",
+      "provenance": {
+        "issue": "https://github.com/Lertaro/Lertaro/issues/440",
+        "evidence": "Issue text, reduction comment, and current regression test."
+      },
+      "window": "Quick",
+      "queryVariants": [
+        {
+          "raw": "zbl",
+          "origin": "issue-body"
+        }
+      ],
+      "settings": {
+        "fuzzyEnabled": false,
+        "history": "irrelevant",
+        "actualTypeOrder": "irrelevant"
+      },
+      "corpus": [
+        {
+          "token": "loose-alias-negative",
+          "displayName": "著 z-aaa-b-aaaaa-l.epub",
+          "syntheticPath": "X:\\Fixture\\Books\\著 z-aaa-b-aaaaa-l.epub",
+          "kind": ["File"],
+          "role": "synthetic-structural-negative",
+          "aliasOccurrenceSpan": 15,
+          "expectedAcceptanceBySharedTightnessGate": false
+        },
+        {
+          "token": "tight-alias-positive",
+          "displayName": "著 z-aa-b-aa-l.epub",
+          "syntheticPath": "X:\\Fixture\\Books\\著 z-aa-b-aa-l.epub",
+          "kind": ["File"],
+          "role": "synthetic-tight-positive",
+          "aliasOccurrenceSpan": 11,
+          "expectedAcceptanceBySharedTightnessGate": true
+        }
+      ],
+      "issueActual": {
+        "state": "issue-5.10.0",
+        "facts": [
+          "Exact query zbl returned a long epub filename through a loose alias scatter.",
+          "The result had no highlight because matcher and painter used different span limits.",
+          "The reported loose span was 15 while the painter limit for a three-character term was 12."
+        ]
+      },
+      "currentBaseline": {
+        "state": "current-c13746c",
+        "knownFixed": [
+          {
+            "mechanism": "Alias acceptance and highlighting share AliasMatchRules.IsTightOccurrence.",
+            "pinnedBy": "Tests/Core/SearchIndex/AliasLooseReadingTests.cs#ExactMode_DoesNotReachANameByAliasScatter"
+          }
+        ]
+      },
+      "v3Expected": {
+        "state": "v3-expected",
+        "assertions": [
+          "loose-alias-negative must be absent",
+          "tight-alias-positive must be present",
+          "Matcher, EvidenceGrade and painter consume the same accepted witness"
+        ]
+      },
+      "unknowns": []
+    }
+  ]
+}
