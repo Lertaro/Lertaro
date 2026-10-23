@@ -34,7 +34,7 @@ internal static class HighlightMask
         var marks = text.Length <= 512 ? stackalloc bool[text.Length] : new bool[text.Length];
         marks.Clear();
         string? materialized = null;
-        Mark(text, pattern, marks, ref materialized, RentSlab(), default, out _, out _);
+        Mark(text, pattern, marks, ref materialized, RentSlab(), pinyinWitness: null, out _, out _);
 
         for (var i = 0; i < marks.Length; i++)
         {
@@ -82,12 +82,12 @@ internal static class HighlightMask
         ReadOnlySpan<char> fullText,
         FzfPattern pattern,
         out AcceptedMatchWitness witness) =>
-        ComputeRank(fullText, pattern, default, out witness);
+        ComputeRank(fullText, pattern, null, out witness);
 
     internal static MatchRank ComputeRank(
         ReadOnlySpan<char> fullText,
         FzfPattern pattern,
-        IndexV2.Search.PinyinNameEvaluator.PinyinMatchWitness pinyinWitness,
+        IndexV2.Search.PinyinNameEvaluator.PinyinMatchWitness? pinyinWitness,
         out AcceptedMatchWitness witness)
     {
         witness = AcceptedMatchWitness.LegacyUnknown;
@@ -150,14 +150,17 @@ internal static class HighlightMask
         Span<bool> highlights,
         ref string? materialized,
         FzfSlab slab,
-        IndexV2.Search.PinyinNameEvaluator.PinyinMatchWitness pinyinWitness,
+        IndexV2.Search.PinyinNameEvaluator.PinyinMatchWitness? pinyinWitness,
         out int shape,
         out AcceptedMatchWitness witness)
     {
         witness = AcceptedMatchWitness.LegacyUnknown;
-        var joined = pinyinWitness;
-        if (!joined.IsJoined)
+        var joined = pinyinWitness ?? default;
+        if (pinyinWitness is null)
         {
+            // No accepted witness from the caller: ask the evaluator which branch won. A caller that already
+            // holds the matcher's answer must not ask twice -- the second TryScore scored the same text a
+            // second time for every multi-term row whose joined branch lost.
             var live = IndexV2.Search.PinyinNameEvaluator.ForPattern(pattern);
             if (!live.HasJoinedBranch || !live.TryScore(fullText, null, out _, out joined) || !joined.IsJoined)
                 joined = default;

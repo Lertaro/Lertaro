@@ -205,11 +205,12 @@ public static class FuzzyMatcher
         // satisfies one term would still produce a mask. The rank is a WHOLE-QUERY rank: ask the matcher
         // first for the shapes where the mask cannot imply the same answer. A single positive term needs no
         // extra pass -- its mask is empty exactly when it did not match.
-        var pinyinWitness = default(PinyinNameEvaluator.PinyinMatchWitness);
-        if ((pattern.TermSets.Length > 1 || pattern.HasExclusions || pattern.OrGroups != null)
-            && !IsMatch(pattern, text, out pinyinWitness))
+        PinyinNameEvaluator.PinyinMatchWitness? pinyinWitness = null;
+        if (pattern.TermSets.Length > 1 || pattern.HasExclusions || pattern.OrGroups != null)
         {
-            return MatchRank.NoMatch;
+            if (!IsMatch(pattern, text, out var accepted))
+                return MatchRank.NoMatch;
+            pinyinWitness = accepted;
         }
 
         var rank = HighlightMask.ComputeRank(text, pattern, pinyinWitness, out witness);
