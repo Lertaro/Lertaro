@@ -141,8 +141,8 @@ public readonly record struct MatchEvidence(
         MatchEvidenceField field,
         in MatchRank rank,
         MatchQueryVariant variant,
-        int spanStart,
-        int spanLength,
+        int spanStart = -1,
+        int spanLength = 0,
         bool isDirectory = false)
     {
         var trimExtension = field == MatchEvidenceField.FileName && !isDirectory;

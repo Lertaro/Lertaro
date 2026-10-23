@@ -66,6 +66,24 @@ public sealed class SearchResultRankingTests
     }
 
     [TestMethod]
+    public void Decorate_WholeStemReading_GradesSpacedQueryLikeTheQuickWindow()
+    {
+        // One reading run over the whole stem of a CJK name whose syllables the query happens to swap:
+        // "sousuo jieguo" finds 搜索 and 结果 in the other order, so the quick window's joined branch
+        // declines and leaves the row at Grade 2. The packed key cannot tell the two apart, so claiming a
+        // joined witness here handed the full window's copy of the same row Grade 0.
+        var reading = PackRank(new MatchRank(MatchRank.TierInitials, 0, 0.5d, 1d, MatchRank.ShapeWordStart));
+        var spaced = Result(@"D:\dir\结果搜索.txt", reading);
+        var joined = Result(@"D:\dir\结果搜索.txt", reading);
+
+        SearchResultRanking.Decorate(spaced, Context(query: "sousuo jieguo"));
+        SearchResultRanking.Decorate(joined, Context(query: "sousuojieguo"));
+
+        Assert.AreEqual(MatchEvidenceGrade.DirectStrong, SearchResultRanking.GradeOf(spaced));
+        Assert.AreEqual(MatchEvidenceGrade.ExactIdentity, SearchResultRanking.GradeOf(joined));
+    }
+
+    [TestMethod]
     public void Decorate_StrongLowPriority_StaysInLowSection()
     {
         var result = Result(@"D:\dir\a.txt", StrongKey());

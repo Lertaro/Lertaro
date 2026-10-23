@@ -100,16 +100,18 @@ public static class SearchResultRanking
             var start = (int)((high >> 13) & 0x7F);
             var coverageInv = (int)((high >> 4) & 0x1FF);
             var tier = (int)(high & 0xF);
-            var approxCoverage = 1d - coverageInv / 511d;
-            var approxRank = new MatchRank(tier, start, approxCoverage, notLeft == 0 ? 1d : 0.5d, shape);
+            var approxRank = new MatchRank(tier, start, 1d - coverageInv / 511d, notLeft == 0 ? 1d : 0.5d, shape);
+            // The variant stays Original: the packed key says how well the name matched, never whether a
+            // joined reading walk or one term per syllable run produced it, and claiming the joined witness
+            // would hand Grade 0 to a swapped-order hit ("sousuo jieguo" on "结果搜索") that the quick window
+            // refuses. A single-term reading still earns ExactIdentity, which is the case with no order to
+            // get wrong; a spaced query keeps the grade the quick window's failed joined branch gives it.
             if (MatchEvidence.IsExactIdentityOrWholeStemReading(
                     query,
                     result.Name,
                     MatchEvidenceField.FileName,
                     approxRank,
-                    MatchQueryVariant.PinyinJoined,
-                    spanStart: start,
-                    spanLength: (int)Math.Round(approxCoverage * result.Name.AsSpan().Trim().Length, MidpointRounding.AwayFromZero),
+                    MatchQueryVariant.Original,
                     isDirectory: result.IsDir))
             {
                 return MatchEvidenceGrade.ExactIdentity;
