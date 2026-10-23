@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using Lertaro.Core;
 using Lertaro.Core.Services.Installation;
+using Lertaro.Core.Services.Search;
 
 namespace Lertaro.App.Services;
 
@@ -74,7 +75,17 @@ public static class ServiceInstallManager
     // Raised from 30 s: --repair-permissions performs the same install-directory lock walk as service startup
     // (see Program.LockDirectories), so the old budget no longer described the work it was bounding.
     private const int InstallerTimeoutMs = 120000;
-    private const int StartTimeoutMs = 10000;
+
+    // sc start blocks until the service reaches a terminal state, and the SCM's own verdict takes 30 s, so a
+    // shorter budget killed sc.exe while the service was still legitimately coming up and reported that as
+    // "installed but could not be started" -- on a slow boot, every time.
+    private const int StartTimeoutMs = 35000;
+
+    // Sits past the SCM's 30-second window on purpose: before that bound a pending start means the service is
+    // slow and a reinstall would destroy the work in progress; after it the start has failed and a reinstall is
+    // the answer. See ServiceStartSettleHelper.
+    private const int StartSettleTimeoutMs = 45000;
+    private const int StartSettlePollMs = 500;
     private static int _silentInstallInFlight;
 
     public enum SilentInstallResult
@@ -187,6 +198,14 @@ public static class ServiceInstallManager
 
         // The elevated process cannot answer us once it runs -- nothing about its stdout or stderr survives
         // UseShellExecute -- so it records its steps in this file and the reason is read back from there.
+        //
+        // A start that is merely slow is waited out first, never reinstalled underneath: --install stops the
+        // service and re-ACLs its own directory tree as its first two steps, which is how one machine that
+        // needed longer than the App was willing to wait ended up with no service registered at all. Every
+        // caller reaches this on a background thread, so the wait cannot stall a window.
+        if (!ServiceStartSettleHelper.Wait(() => ServicePipe.IsStartPending, StartSettleTimeoutMs, StartSettlePollMs))
+            Logger.Log($"[ServiceInstallManager] {operation}: LertaroService was still starting after {StartSettleTimeoutMs}ms; installing anyway.", LogLevel.Warn);
+
         PermissionRepairReport.Clear();
         using var proc = Process.Start(psi);
         if (proc == null)

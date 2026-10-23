@@ -21,6 +21,28 @@ internal static class ServiceConnectionMonitor
     internal static bool _globalAutoInstallAttempted;
     internal static DateTime _globalReconnectUntilUtc = DateTime.MinValue;
 
+    // One failed install used to be the last attempt for the whole process: at boot the service is frequently
+    // still coming up, a single failed ping spent the budget, and every window then sat in Degraded Mode until
+    // the App was restarted or the user started the service by hand. Retry on a growing cooldown instead, with
+    // a cap so an install that is genuinely broken stops prompting for elevation forever.
+    internal const int MaximumAutoInstallAttempts = 3;
+    internal static int _globalAutoInstallAttempts;
+    internal static DateTime _globalAutoInstallRetryAfterUtc = DateTime.MinValue;
+
+    /// <summary>Whether an attempt may start now: budget left, and the cooldown between attempts run out.</summary>
+    internal static bool MayAttemptAutoInstall(int attempts, DateTime nowUtc, DateTime retryAfterUtc) =>
+        attempts < MaximumAutoInstallAttempts && nowUtc >= retryAfterUtc;
+
+    /// <summary>
+    /// Whether to keep reporting "reconnecting" instead of degrading: attempts remain but the cooldown has not
+    /// run out. Without this the caller would give up in the middle of a backoff it just scheduled.
+    /// </summary>
+    internal static bool ShouldWaitForAutoInstallRetry(int attempts, DateTime nowUtc, DateTime retryAfterUtc) =>
+        attempts > 0 && attempts < MaximumAutoInstallAttempts && nowUtc < retryAfterUtc;
+
+    /// <summary>60 s after the first attempt, then 120, then 240: longer than a slow start, short enough to matter.</summary>
+    internal static TimeSpan AutoInstallCooldown(int attempts) => TimeSpan.FromSeconds(30L << Math.Min(attempts, 4));
+
     internal static void EnsureSharedTimer_NoLock()
     {
         if (_sharedStatusTimer == null)
