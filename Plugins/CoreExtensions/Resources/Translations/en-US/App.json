@@ -473,7 +473,7 @@
   "General_KeepSearchTextHint": "Neither closing the quick search window nor pressing Escape in the full window empties the search box. This lasts for the current session only: the text itself is never saved.",
   "General_LayoutReset": "Reset Layout Settings",
   "General_ResultTypeOrderTitle": "Result Type Priority",
-  "General_ResultTypeOrderHint": "Decide how much each result type counts in the quick window: the higher a type sits, the bigger its bonus, so it wins near-ties and can still lead with a weaker match. The bonus is scaled by match quality, so a barely-matching row cannot jump past a more accurate match elsewhere. History and Favorites are global signals and ignore this list. Optionally, give a type a single-character trigger below -- typing it as the very first character shows only that type's results.",
+  "General_ResultTypeOrderHint": "Choose which result types come first among similarly relevant matches in the quick window. Ordinary type priority never overrides a clearly stronger match: exact and clean direct matches always stay ahead of weaker or secondary matches. Strong Favorites and explicit Always-on-Top rules still pin to the top, while History refines similarly relevant matches or recalls learned items after direct matches. Optionally assign a single-character trigger below -- typing it first filters results to that type only.",
   "General_ResultTypeFiles": "Files",
   "General_ResultTypeTriggerTooltip": "Optional trigger character. Typing this as the first character of your search shows only this type's results. Leave empty for none.",
   "General_ResultTypeTriggerTaken": "This trigger character is already used by {0}. Only the first match takes effect; pick another character.",
@@ -802,5 +802,11 @@
   "About_TutorialTitle": "Interactive Tutorial",
   "About_TutorialHint": "Learn and master the core high-efficiency features of Lertaro step-by-step",
   "About_TutorialBtn": "Start Guide",
-  "Search_WelcomeTitle": "Start typing to search files"
+  "Search_WelcomeTitle": "Start typing to search files",
+  "Search_AliasSourceFormat": "Alias: {0}",
+  "Search_TargetSourceFormat": "Target: {0}",
+  "Search_MetadataSourceFormat": "Metadata: {0}",
+  "Settings_History_Tab_Associations": "Query Associations",
+  "Settings_History_AssociationsHint": "Learned query-to-target associations recall an item after direct matches once you have organically opened it at least 3 times for the same query. Deleting entries here never resets path frecency.",
+  "Settings_History_AssociationsPlaceholder": "Filter learned query associations..."
 }

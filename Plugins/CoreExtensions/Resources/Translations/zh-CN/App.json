@@ -473,7 +473,7 @@
   "General_KeepSearchTextHint": "关闭快速搜索窗口、或在完整搜索窗口中按 Esc，都不会再清空搜索框里的内容。仅在本次运行期间有效，搜索内容不会被保存。",
   "General_LayoutReset": "重置布局设置",
   "General_ResultTypeOrderTitle": "结果类型优先级",
-  "General_ResultTypeOrderHint": "决定快速窗口里哪种类型的匹配更占优：类型越靠上，加成越大——分数接近时它先胜出，匹配稍弱也仍可能排在前面。加成按匹配质量缩放：只是勉强对上的结果，不会因此压过别处更准确的匹配。历史记录和收藏是全局信号，不受这个列表影响。也可以给某个类型配一个单字符触发符，把它当成查询的第一个字符打出来，就只会显示这个类型的结果。",
+  "General_ResultTypeOrderHint": "决定快速窗口中相关性相近的结果按哪种类型优先排列。普通类型顺序不会越过明显更强的文本命中：完整与干净的直接命中始终排在模糊命中或次要别名之前。强匹配的收藏与显式“始终置顶”规则仍固定在前，历史记录则用于在相近相关性内微调顺序或在直接命中之后召回已学习的关联项。也可以为某个类型设置单字符触发符，作为首个字符输入时只筛选该类型的结果。",
   "General_ResultTypeFiles": "文件",
   "General_ResultTypeTriggerTooltip": "可选的触发字符。把它当成搜索内容的第一个字符打出来，就只显示这个类型的结果。留空表示不设置。",
   "General_ResultTypeTriggerTaken": "该触发字符已被「{0}」使用，只有先匹配的一项会生效；请换一个字符。",
@@ -802,5 +802,11 @@
   "About_TutorialTitle": "新手引导教程",
   "About_TutorialHint": "通过一步步的交互引导，快速掌握 Lertaro 的核心效率特性",
   "About_TutorialBtn": "开始引导",
-  "Search_WelcomeTitle": "开始输入以检索文件"
+  "Search_WelcomeTitle": "开始输入以检索文件",
+  "Search_AliasSourceFormat": "别名：{0}",
+  "Search_TargetSourceFormat": "目标：{0}",
+  "Search_MetadataSourceFormat": "元数据：{0}",
+  "Settings_History_Tab_Associations": "查询关联",
+  "Settings_History_AssociationsHint": "已学习的“查询 → 目标”关联仅在同一查询下自然打开至少 3 次后生效，并始终排在直接命中之后；在此删除关联不会清空路径使用频率。",
+  "Settings_History_AssociationsPlaceholder": "筛选已学习的查询关联…"
 }

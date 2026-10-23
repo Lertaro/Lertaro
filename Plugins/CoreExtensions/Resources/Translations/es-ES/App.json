@@ -473,7 +473,7 @@
   "General_KeepSearchTextHint": "Ni al cerrar la ventana de búsqueda rápida ni al pulsar Escape en la ventana completa se vacía el cuadro de búsqueda. Solo dura la sesión actual: el texto nunca se guarda.",
   "General_LayoutReset": "Restablecer Configuración de Diseño",
   "General_ResultTypeOrderTitle": "Prioridad de Tipo de Resultado",
-  "General_ResultTypeOrderHint": "Decide cuánto cuenta cada tipo de resultado en la ventana rápida: cuanto más arriba esté un tipo, mayor será su bonus, así que gana los empates ajustados y puede liderar incluso con una coincidencia más débil. El bonus se escala según la calidad de la coincidencia, de modo que una coincidencia apenas válida no adelanta a otra más precisa en otro lugar. El Historial y los Favoritos son señales globales y no se ven afectados por esta lista. Opcionalmente, asigna a un tipo un activador de un solo carácter a continuación: al escribirlo como primer carácter se mostrarán solo los resultados de ese tipo.",
+  "General_ResultTypeOrderHint": "Decide qué tipos de resultado tienen prioridad entre coincidencias con relevancia similar en la ventana rápida. El orden de tipos nunca supera a una coincidencia claramente más fuerte: las coincidencias directas exactas y limpias siempre permanecen por delante de las aproximadas o secundarias. Los Favoritos fuertes y las reglas explícitas de Siempre arriba siguen fijándose al inicio, mientras que el Historial afina empates de relevancia similar o recupera asociaciones aprendidas después de las coincidencias directas. Opcionalmente, asigna abajo un activador de un solo carácter para filtrar exclusivamente ese tipo.",
   "General_ResultTypeFiles": "Archivos",
   "General_ResultTypeTriggerTooltip": "Carácter de activación opcional. Al escribirlo como primer carácter de tu búsqueda se mostrarán solo los resultados de este tipo. Déjalo vacío para no usar ninguno.",
   "General_ResultTypeTriggerTaken": "Este carácter de activación ya lo usa «{0}». Solo se aplica la primera coincidencia; elige otro carácter.",
@@ -802,5 +802,11 @@
   "About_TutorialTitle": "Tutorial Interactivo",
   "About_TutorialHint": "Aprende y domina paso a paso las funciones principales de alta eficiencia de Lertaro",
   "About_TutorialBtn": "Iniciar Guía",
-  "Search_WelcomeTitle": "Empieza a escribir para buscar archivos"
+  "Search_WelcomeTitle": "Empieza a escribir para buscar archivos",
+  "Search_AliasSourceFormat": "Alias: {0}",
+  "Search_TargetSourceFormat": "Destino: {0}",
+  "Search_MetadataSourceFormat": "Metadatos: {0}",
+  "Settings_History_Tab_Associations": "Asociaciones de consulta",
+  "Settings_History_AssociationsHint": "Las asociaciones aprendidas consulta-destino recuperan un elemento después de las coincidencias directas cuando se ha abierto de forma orgánica al menos 3 veces para la misma consulta. Eliminar entradas aquí nunca reinicia la frecuencia por ruta.",
+  "Settings_History_AssociationsPlaceholder": "Filtrar asociaciones aprendidas..."
 }

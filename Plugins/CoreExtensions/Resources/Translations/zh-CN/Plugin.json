@@ -234,5 +234,7 @@
   "Plugin_Comp_Desc_CommandQuickNavigationProvider": "在快速导航菜单的来源目录执行命令，并选择使用的命令解释器。",
   "Command_Shell_Cmd": "CMD",
   "Command_Shell_WindowsPowerShell": "Windows PowerShell",
-  "Command_Shell_Pwsh": "PowerShell (pwsh)"
+  "Command_Shell_Pwsh": "PowerShell (pwsh)",
+  "Action_BindQueryAsUserAlias": "将“{0}”绑定为此项搜索别名",
+  "Action_ClearUserAliases": "清除此项搜索别名"
 }

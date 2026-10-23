@@ -201,6 +201,33 @@ public sealed class HistorySearchCandidateMapperTests
     }
 
     [TestMethod]
+    public void CollectLearned_EnforcesOrganicThresholdSingleCandidateCapAndLowPriorityExclusion()
+    {
+        var entries = new[]
+        {
+            Entry("edit", @"C:\Apps\AccidentalOnce.exe", HistoryEntryKind.File, count: 2, time: 500),
+            Entry("edit", @"C:\Apps\LowCacheHit.exe", HistoryEntryKind.File, count: 6, time: 400),
+            Entry("edit", @"C:\Apps\ConfirmedPrimary.exe", HistoryEntryKind.File, count: 4, time: 300),
+            Entry("edit", @"C:\Apps\ConfirmedSecondary.exe", HistoryEntryKind.File, count: 3, time: 200),
+        };
+        var context = new RankContext((path, _) => path.Contains("LowCacheHit", StringComparison.OrdinalIgnoreCase)
+            ? new Core.ExclusionRuleSet.PriorityVerdict(IndexRuleEffect.Low, false)
+            : new Core.ExclusionRuleSet.PriorityVerdict(IndexRuleEffect.Normal, false));
+
+        var recalled = HistorySearchCandidateMapper.CollectLearned(
+            FuzzyQuery.Parse("edit"),
+            null,
+            entries,
+            _ => true,
+            _ => false,
+            context);
+
+        Assert.HasCount(1, recalled);
+        Assert.AreEqual(@"C:\Apps\ConfirmedPrimary.exe", recalled[0].Result.FullPath);
+        Assert.AreEqual(MatchEvidenceGrade.LearnedAlias, recalled[0].Evidence.Grade);
+    }
+
+    [TestMethod]
     public void Collect_UncPathUsesLexicalPathAndChecksExistence()
     {
         var entries = new[] { Entry("report", @"\\remote-server\share\report.docx", HistoryEntryKind.File) };

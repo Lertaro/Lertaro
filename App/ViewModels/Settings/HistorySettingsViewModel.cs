@@ -37,6 +37,12 @@ public class HistorySettingsViewModel : ViewModelBase
             () => _userSettings.EnableKeywordHistory,
             v => _userSettings.EnableKeywordHistory = v);
 
+        QueryAssociations = new HistoryListViewModel<HistoryEntry>(
+            () => SearchHistoryStore.GetAssociationEntries().ToList(),
+            MapAssociationEntry,
+            () => _userSettings.EnableHistory,
+            v => _userSettings.EnableHistory = v);
+
         // Live counts: the store raises Changed on every Record/Save/Delete, so the visible rows stay
         // in step with what the user just opened in any search window -- no manual refresh needed.
         // Record runs on a background thread (SearchHistoryStore.Record's Task.Run), so the refresh
@@ -46,6 +52,7 @@ public class HistorySettingsViewModel : ViewModelBase
             _refreshDebounce.Stop();
             SearchHistory.RefreshFromStore();
             KeywordHistory.RefreshFromStore();
+            QueryAssociations.RefreshFromStore();
         };
         SearchHistoryStore.Changed += OnStoreChanged;
         KeywordHistoryStore.Changed += OnStoreChanged;
@@ -75,6 +82,7 @@ public class HistorySettingsViewModel : ViewModelBase
 
     public HistoryListViewModel<HistoryEntry> SearchHistory { get; }
     public HistoryListViewModel<KeywordHistoryEntry> KeywordHistory { get; }
+    public HistoryListViewModel<HistoryEntry> QueryAssociations { get; }
 
     // Segoe MDL2 Assets glyphs (U+E160 Page2, U+E8B7 Folder, U+E737 AppIconDefault, U+E81C). These are
     // private-use-area characters, invisible in a plain-text diff/editor view -- a hand-retyped edit
@@ -117,16 +125,41 @@ public class HistorySettingsViewModel : ViewModelBase
         UsageCount = entry.Count
     };
 
+    private static HistoryEntryViewModel<HistoryEntry> MapAssociationEntry(HistoryEntry entry)
+    {
+        var isVirtual = UserPathResolver.IsVirtualPath(entry.Path);
+        var targetName = isVirtual
+            ? ShellPathHelper.GetVirtualFolderDisplayName(entry.Path, entry.Path)
+            : (Path.GetFileName(entry.Path) is { Length: > 0 } name ? name : entry.Path);
+        var iconGlyph = entry.Kind switch
+        {
+            HistoryEntryKind.Folder => FolderIconGlyph,
+            HistoryEntryKind.Application => ApplicationIconGlyph,
+            _ => FileIconGlyph
+        };
+
+        return new HistoryEntryViewModel<HistoryEntry>
+        {
+            RawValue = entry,
+            Primary = $"{entry.Keyword} → {targetName}",
+            Secondary = entry.Path,
+            IconGlyph = iconGlyph,
+            UsageCount = entry.Count
+        };
+    }
+
     public void Save()
     {
         SearchHistoryStore.SaveEntries(SearchHistory.GetEntriesToSave());
         KeywordHistoryStore.SaveEntries(KeywordHistory.GetEntriesToSave());
+        SearchHistoryStore.SaveAssociationEntries(QueryAssociations.GetEntriesToSave());
     }
 
     public void NotifyLanguageChanged()
     {
         SearchHistory.NotifyLanguageChanged();
         KeywordHistory.NotifyLanguageChanged();
+        QueryAssociations.NotifyLanguageChanged();
     }
 
     public void Cleanup()

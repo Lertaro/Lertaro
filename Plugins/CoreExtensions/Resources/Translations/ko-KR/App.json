@@ -473,7 +473,7 @@
   "General_KeepSearchTextHint": "빠른 검색 창을 닫을 때나 전체 창에서 Esc를 누를 때 검색 상자 내용이 지워지지 않습니다. 이번 실행 중에만 유지되며 검색 내용은 저장되지 않습니다.",
   "General_LayoutReset": "레이아웃 설정 초기화",
   "General_ResultTypeOrderTitle": "결과 유형 우선순위",
-  "General_ResultTypeOrderHint": "빠른 창에서 각 결과 유형의 비중을 정합니다. 유형이 위에 있을수록 보너스가 커져 근소한 차이에서 먼저 이기고, 일치가 다소 약해도 앞설 수 있습니다. 보너스는 일치 품질에 따라 조정되므로, 간신히 일치한 행이 다른 곳의 더 정확한 일치를 앞지르지는 못합니다. 기록과 즐겨찾기는 전역 신호이며 이 목록의 영향을 받지 않습니다. 선택적으로 유형에 단일 문자 트리거를 지정할 수 있습니다 -- 검색어의 첫 글자로 입력하면 해당 유형의 결과만 표시됩니다.",
+  "General_ResultTypeOrderHint": "빠른 창에서 관련성이 비슷한 결과들 사이의 유형 우선순위를 정합니다. 일반 유형 우선순위는 더 명확한 직접 일치를 앞지르지 않으며, 정확한 일치와 깔끔한 직접 일치가 항상 약한 일치나 보조 별칭보다 앞에 놓입니다. 강한 즐겨찾기와 명시적 항상 위 규칙은 상단에 고정되며, 기록은 비슷한 관련성 안에서 순서를 세밀하게 조정하거나 직접 일치 뒤에 학습된 항목을 보여줍니다. 선택적으로 단일 문자 트리거를 지정해 첫 글자로 입력하면 해당 유형만 필터링할 수 있습니다.",
   "General_ResultTypeFiles": "파일",
   "General_ResultTypeTriggerTooltip": "선택적 트리거 문자입니다. 검색어의 첫 글자로 입력하면 이 유형의 결과만 표시됩니다. 없으면 비워두세요.",
   "General_ResultTypeTriggerTaken": "이 트리거 문자는 이미 '{0}'에서 사용 중입니다. 먼저 일치하는 항목만 적용되므로 다른 문자를 선택하세요.",
@@ -802,5 +802,11 @@
   "About_TutorialTitle": "대화형 튜토리얼",
   "About_TutorialHint": "Lertaro의 핵심 고효율 기능을 단계별로 배우고 익히세요",
   "About_TutorialBtn": "가이드 시작",
-  "Search_WelcomeTitle": "파일을 검색하려면 입력을 시작하세요"
+  "Search_WelcomeTitle": "파일을 검색하려면 입력을 시작하세요",
+  "Search_AliasSourceFormat": "별칭: {0}",
+  "Search_TargetSourceFormat": "대상: {0}",
+  "Search_MetadataSourceFormat": "메타데이터: {0}",
+  "Settings_History_Tab_Associations": "검색어 연결",
+  "Settings_History_AssociationsHint": "학습된 검색어-대상 연결은 동일한 검색어에서 3회 이상 직접 선택한 항목만 직접 일치 뒤에 보조로 불러옵니다. 여기서 삭제해도 경로별 사용 빈도는 유지됩니다.",
+  "Settings_History_AssociationsPlaceholder": "학습된 검색어 연결 필터링..."
 }

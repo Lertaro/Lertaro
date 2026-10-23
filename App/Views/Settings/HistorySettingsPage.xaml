@@ -57,7 +57,7 @@
                         </Border.Style>
                     </Border>
                 </StackPanel>
-                <StackPanel>
+                <StackPanel Margin="0,0,28,0">
                     <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_History_Tab_Keyword]}"
                             Command="{Binding SelectTabCommand}" CommandParameter="Keyword">
                         <Button.Style>
@@ -83,6 +83,32 @@
                         </Border.Style>
                     </Border>
                 </StackPanel>
+                <StackPanel>
+                    <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_History_Tab_Associations]}"
+                            Command="{Binding SelectTabCommand}" CommandParameter="Associations">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabHeaderButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedTab}" Value="Associations">
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Border>
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource TabUnderlineStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedTab}" Value="Associations">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </StackPanel>
             </StackPanel>
             </ctrl:TabStripScrollView>
             <Border Height="1" Background="{DynamicResource SettingsRowBorderBrush}" Margin="0,0,0,10"/>
@@ -94,6 +120,9 @@
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding SelectedTab}" Value="Keyword">
                                 <Setter Property="Text" Value="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_History_KeywordHint]}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding SelectedTab}" Value="Associations">
+                                <Setter Property="Text" Value="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_History_AssociationsHint]}"/>
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
@@ -124,6 +153,21 @@
                     <Setter Property="Visibility" Value="Collapsed"/>
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding DataContext.SelectedTab, ElementName=Root}" Value="Keyword">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </ctrl:HistoryListControl.Style>
+        </ctrl:HistoryListControl>
+
+        <!-- Tab: Query Associations -->
+        <ctrl:HistoryListControl x:Name="TabQueryAssociations" Grid.Row="1" DataContext="{Binding QueryAssociations}"
+                                  PlaceholderText="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_History_AssociationsPlaceholder]}">
+            <ctrl:HistoryListControl.Style>
+                <Style TargetType="ctrl:HistoryListControl">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding DataContext.SelectedTab, ElementName=Root}" Value="Associations">
                             <Setter Property="Visibility" Value="Visible"/>
                         </DataTrigger>
                     </Style.Triggers>

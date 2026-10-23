@@ -473,7 +473,7 @@
   "General_KeepSearchTextHint": "クイック検索ウィンドウを閉じたときも、フルウィンドウで Esc を押したときも、検索ボックスの内容は消去されません。保持されるのは今回の起動中だけで、検索内容が保存されることはありません。",
   "General_LayoutReset": "レイアウト設定をリセット",
   "General_ResultTypeOrderTitle": "結果タイプの優先順位",
-  "General_ResultTypeOrderHint": "クイックウィンドウで結果タイプがどれだけ優先されるかを決めます。上にあるタイプほど加算が大きく、僅差では先に勝ち、一致がやや弱くても前に出られます。加算は一致の質で調整されるため、かろうじて一致した行が他でより正確に一致した行を追い越すことはありません。履歴とお気に入りは全体に効く信号で、このリストの影響を受けません。任意で、あるタイプに1文字のトリガーを設定できます。検索の最初の文字としてそれを入力すると、そのタイプの結果のみが表示されます。",
+  "General_ResultTypeOrderHint": "クイックウィンドウで関連度が近い候補同士の優先順位を結果タイプごとに決めます。通常のタイプ優先順が明確に強い一致を追い越すことはなく、完全一致や明確な直接一致は常に曖昧な一致や補助別名より前に並びます。強いお気に入りや明示的な常時最上位ルールは先頭に固定され、履歴は同程度の関連度内での微調整または直接一致の後に学習済み項目を補うために使われます。任意で1文字のトリガーを設定すると、先頭に入力したときそのタイプのみに絞り込めます。",
   "General_ResultTypeFiles": "ファイル",
   "General_ResultTypeTriggerTooltip": "任意のトリガー文字です。検索の最初の文字としてこれを入力すると、このタイプの結果のみが表示されます。空欄で未設定にできます。",
   "General_ResultTypeTriggerTaken": "このトリガー文字は既に「{0}」が使用しています。先に一致したものだけが有効になるため、別の文字を選んでください。",
@@ -802,5 +802,11 @@
   "About_TutorialTitle": "インタラクティブチュートリアル",
   "About_TutorialHint": "Lertaro の中核となる高効率機能を、段階を追って学び習得できます",
   "About_TutorialBtn": "ガイドを開始",
-  "Search_WelcomeTitle": "入力を開始してファイルを検索"
+  "Search_WelcomeTitle": "入力を開始してファイルを検索",
+  "Search_AliasSourceFormat": "別名: {0}",
+  "Search_TargetSourceFormat": "リンク先: {0}",
+  "Search_MetadataSourceFormat": "メタデータ: {0}",
+  "Settings_History_Tab_Associations": "クエリ関連付け",
+  "Settings_History_AssociationsHint": "学習されたクエリと項目の関連付けは、同じクエリで3回以上手動で開かれた項目を直接一致の後に補完表示します。ここを削除してもパスごとの使用頻度はリセットされません。",
+  "Settings_History_AssociationsPlaceholder": "学習済みの関連付けを絞り込む..."
 }

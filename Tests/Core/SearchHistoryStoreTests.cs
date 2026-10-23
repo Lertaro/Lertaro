@@ -312,4 +312,37 @@ public sealed class SearchHistoryStoreTests
 
         Assert.IsEmpty(cache);
     }
+
+    [TestMethod]
+    public void MigrateAssociationsFromLegacyBuckets_ClampsOrganicOpensToAtMostOne()
+    {
+        var buckets = Buckets(Entry(path: @"X:\Fixture\legacy.txt", time: 500, count: 9, score: 9d));
+
+        var migrated = SearchHistoryStore.MigrateAssociationsFromLegacyBuckets(buckets);
+        var recalled = SearchHistoryStore.FlattenAssociations(migrated, SearchHistoryStore.MinAssociationOrganicOpens);
+        var visible = SearchHistoryStore.FlattenAssociations(migrated, minOrganicOpens: 1);
+
+        Assert.IsEmpty(recalled, "legacy self-reinforced counts must not cross the organic recall threshold on upgrade");
+        Assert.HasCount(1, visible);
+        Assert.AreEqual(1, visible[0].Count);
+    }
+
+    [TestMethod]
+    public void RecordAssociationInMemory_RequiresOrganicOpensAndIgnoresLearnedFeedback()
+    {
+        var associations = new Dictionary<string, List<SearchHistoryStore.StoredAssociationEntry>>(StringComparer.OrdinalIgnoreCase);
+
+        SearchHistoryStore.RecordAssociationInMemory(associations, "  Pix   Pin ", @"X:\Fixture\Target.exe", HistoryEntryKind.File, 100, fromLearnedRecall: false);
+        SearchHistoryStore.RecordAssociationInMemory(associations, "pix pin", @"X:\Fixture\Target.exe", HistoryEntryKind.File, 200, fromLearnedRecall: false);
+        // Self-feedback open from a recalled row must NOT push count from 2 -> 3.
+        SearchHistoryStore.RecordAssociationInMemory(associations, "pix pin", @"X:\Fixture\Target.exe", HistoryEntryKind.File, 300, fromLearnedRecall: true);
+
+        Assert.IsEmpty(SearchHistoryStore.FlattenAssociations(associations, SearchHistoryStore.MinAssociationOrganicOpens));
+
+        SearchHistoryStore.RecordAssociationInMemory(associations, "PIX PIN", @"X:\Fixture\Target.exe", HistoryEntryKind.File, 400, fromLearnedRecall: false);
+        var confirmed = SearchHistoryStore.FlattenAssociations(associations, SearchHistoryStore.MinAssociationOrganicOpens);
+        Assert.HasCount(1, confirmed);
+        Assert.AreEqual("pix pin", confirmed[0].Keyword);
+        Assert.AreEqual(3, confirmed[0].Count);
+    }
 }

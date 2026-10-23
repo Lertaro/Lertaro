@@ -234,5 +234,7 @@
   "Plugin_Comp_Desc_CommandQuickNavigationProvider": "빠른 탐색 메뉴를 연 폴더에서 선택한 인터프리터로 명령을 실행합니다.",
   "Command_Shell_Cmd": "CMD",
   "Command_Shell_WindowsPowerShell": "Windows PowerShell",
-  "Command_Shell_Pwsh": "PowerShell (pwsh)"
+  "Command_Shell_Pwsh": "PowerShell (pwsh)",
+  "Action_BindQueryAsUserAlias": "\"{0}\"을(를) 검색 별칭으로 연결",
+  "Action_ClearUserAliases": "검색 별칭 지우기"
 }

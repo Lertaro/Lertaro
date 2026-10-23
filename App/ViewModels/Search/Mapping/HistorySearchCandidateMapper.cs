@@ -11,9 +11,42 @@ namespace Lertaro.App.ViewModels.Search.Mapping;
 internal static class HistorySearchCandidateMapper
 {
     private const int MaxCandidates = 50;
+    public const int MaxLearnedCandidatesPerQuery = 1;
 
     public static List<SearchResultMapper.RankedCandidate> Collect(FuzzyQuery fuzzy, string? scope, int typeRank = int.MaxValue) =>
-        Collect(fuzzy, scope, SearchHistoryStore.GetEntries(), SafeFileExists, SafeDirectoryExists, typeRank);
+        CollectLearned(fuzzy, scope, rankContext: null, typeRank);
+
+    public static List<SearchResultMapper.RankedCandidate> CollectLearned(
+        FuzzyQuery fuzzy,
+        string? scope,
+        RankContext? rankContext,
+        int typeRank = int.MaxValue) =>
+        CollectLearned(
+            fuzzy,
+            scope,
+            SearchHistoryStore.GetLearnedAssociationEntries(),
+            SafeFileExists,
+            SafeDirectoryExists,
+            rankContext,
+            typeRank);
+
+    internal static List<SearchResultMapper.RankedCandidate> CollectLearned(
+        FuzzyQuery fuzzy,
+        string? scope,
+        IEnumerable<HistoryEntry> associationEntries,
+        Func<string, bool> fileExists,
+        Func<string, bool> directoryExists,
+        RankContext? rankContext = null,
+        int typeRank = int.MaxValue) =>
+        CollectCore(
+            fuzzy,
+            scope,
+            associationEntries.Where(entry => entry.Count >= SearchHistoryStore.MinAssociationOrganicOpens),
+            fileExists,
+            directoryExists,
+            typeRank,
+            rankContext,
+            MaxLearnedCandidatesPerQuery);
 
     private static bool SafeFileExists(string path)
     {
@@ -37,7 +70,18 @@ internal static class HistorySearchCandidateMapper
         Func<string, bool> directoryExists,
         // The caller's rank for the Files type: history rows ARE file paths, so they have to land in the
         // same type group as the index's file rows instead of a group of their own.
-        int typeRank = int.MaxValue)
+        int typeRank = int.MaxValue) =>
+        CollectCore(fuzzy, scope, entries, fileExists, directoryExists, typeRank, rankContext: null, MaxCandidates);
+
+    private static List<SearchResultMapper.RankedCandidate> CollectCore(
+        FuzzyQuery fuzzy,
+        string? scope,
+        IEnumerable<HistoryEntry> entries,
+        Func<string, bool> fileExists,
+        Func<string, bool> directoryExists,
+        int typeRank,
+        RankContext? rankContext,
+        int maxCandidates)
     {
         if (fuzzy.IsEmpty)
             return [];
@@ -55,16 +99,18 @@ internal static class HistorySearchCandidateMapper
             .ThenByDescending(candidate => candidate.Entry.Count)
             // Shape is gone; the shared quality ladder is the only textual order.
             .ThenBy(candidate => candidate.Matched.Rank, MatchRankQualityComparer.Instance);
-        var candidates = new List<SearchResultMapper.RankedCandidate>(MaxCandidates);
+        var candidates = new List<SearchResultMapper.RankedCandidate>(Math.Min(maxCandidates, MaxCandidates));
         var candidatePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var normalizedScope = string.IsNullOrEmpty(scope) ? null : SearchResultHelper.NormalizePath(scope);
 
         foreach (var (entry, matched) in matches)
         {
-            if (candidates.Count >= MaxCandidates)
+            if (candidates.Count >= maxCandidates)
                 break;
             if (!TryCreateResult(entry, query, normalizedScope, fileExists, directoryExists, out var result, out var normalizedPath) ||
                 !candidatePaths.Add(normalizedPath))
+                continue;
+            if (rankContext != null && rankContext.PriorityOf(normalizedPath, result.IsDir).Effect == IndexRuleEffect.Low)
                 continue;
             if (IsExcludedFromSearch(result))
                 continue;

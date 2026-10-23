@@ -234,5 +234,7 @@
   "Plugin_Comp_Desc_CommandQuickNavigationProvider": "クイックナビゲーションメニューを開いたフォルダーで、選択したインタープリターを使ってコマンドを実行します。",
   "Command_Shell_Cmd": "CMD",
   "Command_Shell_WindowsPowerShell": "Windows PowerShell",
-  "Command_Shell_Pwsh": "PowerShell (pwsh)"
+  "Command_Shell_Pwsh": "PowerShell (pwsh)",
+  "Action_BindQueryAsUserAlias": "「{0}」を検索別名として登録",
+  "Action_ClearUserAliases": "検索別名をクリア"
 }

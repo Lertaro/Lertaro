@@ -234,5 +234,7 @@
   "Plugin_Comp_Desc_CommandQuickNavigationProvider": "在快速導航選單的來源目錄執行命令，並選擇命令解譯器。",
   "Command_Shell_Cmd": "CMD",
   "Command_Shell_WindowsPowerShell": "Windows PowerShell",
-  "Command_Shell_Pwsh": "PowerShell (pwsh)"
+  "Command_Shell_Pwsh": "PowerShell (pwsh)",
+  "Action_BindQueryAsUserAlias": "將「{0}」綁定為此項搜尋別名",
+  "Action_ClearUserAliases": "清除此項搜尋別名"
 }

@@ -234,5 +234,7 @@
   "Plugin_Comp_Desc_CommandQuickNavigationProvider": "Ejecuta comandos en la carpeta de origen del menú de Navegación Rápida con el intérprete seleccionado.",
   "Command_Shell_Cmd": "CMD",
   "Command_Shell_WindowsPowerShell": "Windows PowerShell",
-  "Command_Shell_Pwsh": "PowerShell (pwsh)"
+  "Command_Shell_Pwsh": "PowerShell (pwsh)",
+  "Action_BindQueryAsUserAlias": "Vincular \"{0}\" como alias de búsqueda",
+  "Action_ClearUserAliases": "Borrar alias de búsqueda"
 }
