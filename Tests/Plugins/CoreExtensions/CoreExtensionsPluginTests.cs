@@ -17,6 +17,22 @@ public sealed class CoreExtensionsPluginTests
     }
 
     [TestMethod]
+    public void TranslationResources_AreStrictJson()
+    {
+        // System.Text.Json rejects trailing commas by default; one bad byte silently empties every key
+        // and the UI renders placeholders such as [Plugins_StartMenuAppItemProviderName].
+        var assembly = typeof(CoreExtensionsPlugin).Assembly;
+        foreach (var name in assembly.GetManifestResourceNames()
+                     .Where(n => n.Contains(".Translations.", StringComparison.Ordinal) && n.EndsWith(".json", StringComparison.Ordinal)))
+        {
+            using var stream = assembly.GetManifestResourceStream(name);
+            Assert.IsNotNull(stream, name);
+            using var reader = new StreamReader(stream!);
+            using var _ = System.Text.Json.JsonDocument.Parse(reader.ReadToEnd());
+        }
+    }
+
+    [TestMethod]
     public void GetConfigSchema_ContainsInlineSearchGroupWithAlwaysOpenFieldEnabledByDefault()
     {
         var plugin = new CoreExtensionsPlugin();

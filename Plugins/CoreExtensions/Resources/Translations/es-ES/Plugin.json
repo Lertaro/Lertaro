@@ -40,6 +40,7 @@
   "Action_Cut": "Cortar",
   "Action_CopyName": "Copiar nombre",
   "Action_CopyPath": "Copiar Ruta al Portapapeles",
+  "Action_ExportRankingDetails": "Exportar detalles de clasificación de esta página",
   "Action_Rename": "Cambiar nombre",
   "Action_Rename_Desc": "Cambia el nombre del archivo o carpeta seleccionado mediante el Shell de Windows.",
   "Action_Rename_DialogTitle": "Cambiar nombre",
