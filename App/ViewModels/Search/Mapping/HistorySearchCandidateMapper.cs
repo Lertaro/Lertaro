@@ -131,7 +131,7 @@ internal static class HistorySearchCandidateMapper
                 Evidence: matched.Evidence with
                 {
                     Mode = MatchEvidenceMode.LearnedAlias,
-                    QueryVariant = MatchQueryVariant.Original,
+                    QueryVariant = MatchQueryVariant.HistoryExact,
                 }));
         }
 

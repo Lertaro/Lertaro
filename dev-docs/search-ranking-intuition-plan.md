@@ -328,9 +328,8 @@ P4 与 P5 可并行，但都依赖 P3，且不能提前切换排序。P9 可跳�
 3. **两窗 Grade 仍有一档差**：拼接分支确实胜出的空格拼音行，快速窗口判 `ExactIdentity`、完整窗口判 `DirectStrong`。完整窗口只有 32 位打包质量键，键里没有“胜出分支”这一位；闭合它要把该位带过引擎/管道边界，也就是 P9 里排最后的第 4 项，须由 1、2 的测量决定是否需要。
 4. **`Low` 与强收藏的优先级未定**：段判定先于 `Low`，被规则降权的强收藏仍进 `Pinned`。目标模型只写了“强收藏可 pin”和“Low 是降级”，没规定两者相撞。这是产品决定，不是实现缺陷。
 5. **P8 的 canonical query 未复用 P4 等价资格**：`NormalizeAssociationQuery` 只做大小写折叠与空白归一，`sousuojieguo` 与 `sousuo jieguo` 仍是两个关联键，约束 5 在存储层未满足。改动涉及已存键的迁移与合并，需要单独设计。
-6. **`MatchQueryVariant.HistoryExact` 在生产路径从不写入**：`HistorySearchCandidateMapper` 把关联行的变体硬写成 `Original`，schema 4 里这个枚举值目前只有离线夹具会用到。
-7. **P0 工单断言仍是散文**：`reported-search-cases.v1.json` 的 `v3Expected.assertions` 没有可执行回放，`LoadReportedCases` 只读 id/window/查询/路径。它的候选缺少 `match`/`priority` 等数据，要执行必须补成完整回放 fixture 或接真实索引。
-8. **两窗质量精度不同**：完整窗口用量化键（连续性 1/255、覆盖率 1/511），快速窗口用原始 double。差异小于一格的成对比较两窗可能给不同名次。
+6. **P0 工单断言仍是散文**：`reported-search-cases.v1.json` 的 `v3Expected.assertions` 没有可执行回放，`LoadReportedCases` 只读 id/window/查询/路径。它的候选缺少 `match`/`priority` 等数据，要执行必须补成完整回放 fixture 或接真实索引。
+7. **两窗质量精度不同**：完整窗口用量化键（连续性 1/255、覆盖率 1/511），快速窗口用原始 double。差异小于一格的成对比较两窗可能给不同名次。
 
 ## 关键位置
 

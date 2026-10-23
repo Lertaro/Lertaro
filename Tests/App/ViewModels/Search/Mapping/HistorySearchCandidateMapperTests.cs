@@ -226,6 +226,11 @@ public sealed class HistorySearchCandidateMapperTests
         Assert.HasCount(1, recalled);
         Assert.AreEqual(@"C:\Apps\ConfirmedPrimary.exe", recalled[0].Result.FullPath);
         Assert.AreEqual(MatchEvidenceGrade.LearnedAlias, recalled[0].Evidence.Grade);
+        Assert.AreEqual(MatchEvidenceField.HistoryKeyword, recalled[0].Evidence.Field);
+        Assert.AreEqual(MatchEvidenceMode.LearnedAlias, recalled[0].Evidence.Mode);
+        // A recalled association is a canonical query -> path lookup, not the literal text the box holds:
+        // the schema has HistoryExact for exactly this route, and nothing else ever writes it.
+        Assert.AreEqual(MatchQueryVariant.HistoryExact, recalled[0].Evidence.QueryVariant);
     }
 
     [TestMethod]
