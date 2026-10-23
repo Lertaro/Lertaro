@@ -37,15 +37,22 @@ public static class FuzzyMatcher
     // every registered alias provider's GetQueryForms) per candidate when the same query is tested
     // against many texts. The empty-pattern guard above stays on the string overload: a caller holding
     // a pattern is responsible for its own empty-pattern semantics, which differ per call site.
-    internal static bool IsMatch(FzfPattern fzf, string text)
+    internal static bool IsMatch(FzfPattern fzf, string text) =>
+        IsMatch(fzf, text, out _);
+
+    private static bool IsMatch(
+        FzfPattern fzf,
+        string text,
+        out PinyinNameEvaluator.PinyinMatchWitness pinyinWitness)
     {
+        pinyinWitness = default;
         if (fzf.IsEmpty || string.IsNullOrEmpty(text))
             return false;
         text = SearchTextNormalizer.Normalize(text);
         var live = PinyinNameEvaluator.ForPattern(fzf);
         if (live.HasProviders)
         {
-            if (live.TryScore(text, null, out _))
+            if (live.TryScore(text, null, out _, out pinyinWitness))
                 return true;
         }
         else if (fzf.TryMatch(text, out _, FzfScoringScheme.Default))
@@ -182,8 +189,15 @@ public static class FuzzyMatcher
     // Parsed-pattern overload -- same reason as ComputeHighlightMask's: the per-candidate string form
     // re-parses the query on every call, which measured over 6x slower across a candidate set once an
     // alias provider (pinyin) is registered, because Parse consults every provider's GetQueryForms.
-    internal static MatchRank ComputeMatchRank(string? text, FzfPattern pattern)
+    internal static MatchRank ComputeMatchRank(string? text, FzfPattern pattern) =>
+        ComputeMatchRank(text, pattern, out _);
+
+    internal static MatchRank ComputeMatchRank(
+        string? text,
+        FzfPattern pattern,
+        out AcceptedMatchWitness witness)
     {
+        witness = AcceptedMatchWitness.LegacyUnknown;
         if (string.IsNullOrEmpty(text))
             return MatchRank.NoMatch;
 
@@ -191,13 +205,18 @@ public static class FuzzyMatcher
         // satisfies one term would still produce a mask. The rank is a WHOLE-QUERY rank: ask the matcher
         // first for the shapes where the mask cannot imply the same answer. A single positive term needs no
         // extra pass -- its mask is empty exactly when it did not match.
-        if ((pattern.TermSets.Length > 1 || pattern.HasExclusions || pattern.OrGroups != null)
-            && !IsMatch(pattern, text))
-            return MatchRank.NoMatch;
+        PinyinNameEvaluator.PinyinMatchWitness? pinyinWitness = null;
+        if (pattern.TermSets.Length > 1 || pattern.HasExclusions || pattern.OrGroups != null)
+        {
+            if (!IsMatch(pattern, text, out var accepted))
+                return MatchRank.NoMatch;
+            pinyinWitness = accepted;
+        }
 
-        var rank = HighlightMask.ComputeRank(text, pattern);
+        var rank = HighlightMask.ComputeRank(text, pattern, pinyinWitness, out witness);
         if (rank.IsMatch)
             return rank;
+        witness = AcceptedMatchWitness.LegacyUnknown;
         if (!pattern.HasPositiveTerms)
             return MatchRank.NoPositiveTerms;
         // A positive match the mask cannot paint (an alias form, or a character the highlighter does not
