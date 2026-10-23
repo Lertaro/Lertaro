@@ -4,28 +4,38 @@ using PriorityVerdict = Lertaro.Core.ExclusionRuleSet.PriorityVerdict;
 
 namespace Lertaro.App.ViewModels.Search.Mapping;
 
-// What this window hands the ranking kernel and what it does with the answer. Every ranking rule -- the four
-// sections, the score, the key order inside each section and the shared path tail -- lives in Core
-// (RankPolicy, RankKeyComparer), so the quick window and the full window cannot disagree; see
-// dev-docs/search-ranking-redesign.md 3.2-3.3 for the numbers and their reasons.
-//
-// Only two things are here: which row owns a path when several describe the same one, and where each row's
-// signals come from. Merging happens before the history budget, so a file the index returned and the same
-// file in the history share one row -- that is what lets an indexed row be lifted by its own history.
+// Quick-window adapter for RankPolicy. It merges paths before assigning history tiers so duplicate sources
+// share one row. Scores and comparison order remain in Core/SearchIndex.
 internal static class RankedCandidateOrdering
 {
     private const string ApplicationKind = "Application";
 
     public static List<SearchResultMapper.RankedCandidate> Order(
         List<SearchResultMapper.RankedCandidate> candidates,
-        RankContext? context = null,
-        string? query = null,
-        IReadOnlyList<string>? typeOrder = null)
+        RankContext? context = null) =>
+        OrderCore(candidates, context, captureTrace: false, out _);
+
+    /// <summary>Orders normally and retains the computed keys for final-page diagnostics.</summary>
+    internal static List<SearchResultMapper.RankedCandidate> OrderWithTrace(
+        List<SearchResultMapper.RankedCandidate> candidates,
+        RankContext? context,
+        out RankingPassTrace trace) =>
+        OrderCore(candidates, context, captureTrace: true, out trace);
+
+    private static List<SearchResultMapper.RankedCandidate> OrderCore(
+        List<SearchResultMapper.RankedCandidate> candidates,
+        RankContext? context,
+        bool captureTrace,
+        out RankingPassTrace trace)
     {
         if (candidates.Count == 0)
+        {
+            trace = RankingPassTrace.Empty;
             return [];
+        }
 
-        var rows = MergeByPath(candidates);
+        List<SearchResultMapper.RankedCandidate>? mergedAway = captureTrace ? new() : null;
+        var rows = MergeByPath(candidates, mergedAway);
         var signals = new RankSignals[rows.Length];
         for (var i = 0; i < rows.Length; i++)
             signals[i] = ToSignals(rows[i], context);
@@ -50,7 +60,9 @@ internal static class RankedCandidateOrdering
         }
 
         Array.Sort(keys, rows, RankKeyComparer.Instance);
-        RecordPage(query, rows, keys, context, budget, typeOrder);
+        trace = captureTrace
+            ? new RankingPassTrace(candidates.Count, rows, keys, context, budget, mergedAway ?? [])
+            : RankingPassTrace.Empty;
         return [.. rows];
     }
 
@@ -99,48 +111,37 @@ internal static class RankedCandidateOrdering
         return kept;
     }
 
-    // The calibration sample: the leading rows of the page the user is about to see, ranked, with the
-    // decomposition of each key. Nothing is allocated for it while the log is off.
-    private static void RecordPage(
-        string? query,
-        SearchResultMapper.RankedCandidate[] rows,
-        RankKey[] keys,
+    internal static RankingLogRow Describe(
+        SearchResultMapper.RankedCandidate candidate,
+        RankKey key,
+        int kernelRank,
         RankContext? context,
         IReadOnlyDictionary<string, HistoryTier> budget,
-        IReadOnlyList<string>? typeOrder)
+        RankingProviderState providerState = RankingProviderState.Unknown)
     {
-        if (query is null || !RankingEventLog.IsEnabled)
-            return;
-
-        var taken = Math.Min(rows.Length, RankingEventLog.DisplayRowLimit);
-        var page = new RankingLogRow[taken];
-        for (var i = 0; i < taken; i++)
-        {
-            // The pre-sort signal array is not permuted with the sort, so it cannot be indexed in step
-            // with the rows. Rebuilding the row's own signals keeps the logged decomposition attached
-            // to the row it belongs to; only the page's leading rows pay for it.
-            var signal = ToSignals(rows[i], context);
-            page[i] = new RankingLogRow(
-                rows[i].NormalizedPath,
-                i + 1,
-                (RankSection)keys[i].Section,
-                keys[i].Score,
-                keys[i].TypeRank,
-                signal.Priority,
-                budget.GetValueOrDefault(signal.NormalizedPath, HistoryTier.None),
-                keys[i].HistoryTie,
-                signal.Match,
-                signal.IsFavorite,
-                signal.IsHistoryOnly,
-                signal.IsDir,
-                IsApplication(rows[i]));
-        }
-
-        RankingEventLog.RecordQuery(query, page, typeOrder);
+        var signal = ToSignals(candidate, context);
+        return new RankingLogRow(
+            candidate.NormalizedPath,
+            kernelRank,
+            (RankSection)key.Section,
+            key.Score,
+            key.TypeRank,
+            signal.Priority,
+            budget.GetValueOrDefault(signal.NormalizedPath, HistoryTier.None),
+            key.HistoryTie,
+            signal.Match,
+            signal.IsFavorite,
+            signal.IsHistoryOnly,
+            signal.IsDir,
+            IsApplication(candidate),
+            candidate.Source,
+            candidate.Result.SourceProvider?.GetType().Name,
+            providerState);
     }
 
     private static SearchResultMapper.RankedCandidate[] MergeByPath(
-        List<SearchResultMapper.RankedCandidate> candidates)
+        List<SearchResultMapper.RankedCandidate> candidates,
+        List<SearchResultMapper.RankedCandidate>? mergedAway)
     {
         var merged = new List<SearchResultMapper.RankedCandidate>(candidates.Count);
         var slotByPath = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -154,19 +155,17 @@ internal static class RankedCandidateOrdering
                 continue;
             }
 
-            merged[slot] = PreferRow(merged[slot], candidate);
+            var previous = merged[slot];
+            var combined = PreferRow(previous, candidate);
+            if (mergedAway != null)
+                mergedAway.Add(ReferenceEquals(combined.Result, candidate.Result) ? previous : candidate);
+            merged[slot] = combined;
         }
 
         return [.. merged];
     }
 
-    // One path, several views: an indexed shortcut row ("File") and a provider's application row describe the
-    // same on-disk .lnk, and a history row can name a file the index also returned. Only the application row
-    // can launch the app, so it owns its path -- leaving the choice to the text keys used to hand the path to
-    // the plain-file view, which came back named "....lnk" with a file icon.
-    //
-    // Favorite and history are facts to combine, not reasons to pick a row, so PreferRow never looks at
-    // HistoryCount: the two views of one path share one score, and the merge below decides what it is.
+    // Application views own duplicate paths for execution; favorite, history and source signals combine.
     private static SearchResultMapper.RankedCandidate PreferRow(
         SearchResultMapper.RankedCandidate a,
         SearchResultMapper.RankedCandidate b)
@@ -179,9 +178,9 @@ internal static class RankedCandidateOrdering
             IsFavorite = a.IsFavorite || b.IsFavorite,
             HistoryCount = Math.Max(a.HistoryCount, b.HistoryCount),
             TypeRank = Math.Min(a.TypeRank, b.TypeRank),
-            // Only a path every view agrees is history-only stays that way: once the index returned the
-            // file, the row is a real name match with history on top.
+            // Any direct source makes the merged path a direct result.
             IsHistoryOnly = a.IsHistoryOnly && b.IsHistoryOnly,
+            Source = a.Source | b.Source,
         };
     }
 

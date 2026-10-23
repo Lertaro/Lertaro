@@ -198,6 +198,10 @@ internal sealed class SearchDispatchController
         // every other lifted history row keeps ranking by score inside Boosted/HistoryTail. AlwaysTop is a
         // user checkbox and does not spend a history slot, so pinning still works in the card.
         var isInlineContext = _getIsInlineSearchContext();
+        // One trace session covers all streaming paints of this quick-window query.
+        var rankingTrace = !isInlineContext && RankingEventLog.IsEnabled
+            ? new QuickSearchRankingTrace(originalValue, searchQuery)
+            : null;
         var rankContext = new RankContext(
             rankRules.GetPriorityVerdict,
             SearchHistoryStore.ScoreSnapshot(DateTimeOffset.UtcNow),
@@ -213,9 +217,9 @@ internal sealed class SearchDispatchController
             _getIsInlineSearchContext(),
             fileLimit,
             appLimit,
-            (resp, contextDir) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope || filenameLike, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass, rankContext: rankContext),
+            (resp, contextDir) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope || filenameLike, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass, rankContext: rankContext, rankingTrace: rankingTrace),
             state => _setIsSearching(state),
-            (results, status, final) => ApplySearchResults(originalValue, searchQuery, results, status, final),
+            (results, status, final) => ApplySearchResults(originalValue, searchQuery, results, status, final, rankingTrace),
             HandleLocalServiceUnavailable,
             () => _getResultsCount() == 0,
             _bypassExclusions,
@@ -308,7 +312,7 @@ internal sealed class SearchDispatchController
     // `query` is the untouched box text (what the staleness check compares against); `searchQuery` is what
     // the rows were actually matched and highlighted against, with a plugin's trigger word taken off. The
     // "N more" row describes the search, so it is built from the second one -- see ComposeAndApplyAsync.
-    private void ApplySearchResults(string query, string searchQuery, List<AppSearchResult> uiResults, string statusText, bool final)
+    private void ApplySearchResults(string query, string searchQuery, List<AppSearchResult> uiResults, string statusText, bool final, QuickSearchRankingTrace? rankingTrace)
     {
         if (_getSearchQuery() != query)
             return;
@@ -319,11 +323,11 @@ internal sealed class SearchDispatchController
             // assembled (e.g. the inline window's "Current Folder"/"Global Search" split, each with its
             // own files right under its own header) -- token mode is the only case that needs to
             // extract/re-filter/re-cap that structure, since it collapses it into a flat file list anyway.
-            ApplyUntokenized(uiResults, statusText);
+            ApplyUntokenized(uiResults, statusText, final, rankingTrace);
             return;
         }
 
-        _ = ComposeAndApplyGuardedAsync(query, searchQuery, uiResults, _queryTokens, statusText, final);
+        _ = ComposeAndApplyGuardedAsync(query, searchQuery, uiResults, _queryTokens, statusText, final, rankingTrace);
     }
 
     /// <summary>
@@ -334,11 +338,11 @@ internal sealed class SearchDispatchController
     /// rather than "one plugin failed". Rendering the untokenized rows is the honest fallback: the search
     /// still answers, just without the token's refinement.
     /// </summary>
-    private async Task ComposeAndApplyGuardedAsync(string query, string searchQuery, List<AppSearchResult> uiResults, IReadOnlyList<string> tokensSnapshot, string statusText, bool final)
+    private async Task ComposeAndApplyGuardedAsync(string query, string searchQuery, List<AppSearchResult> uiResults, IReadOnlyList<string> tokensSnapshot, string statusText, bool final, QuickSearchRankingTrace? rankingTrace)
     {
         try
         {
-            await ComposeAndApplyAsync(query, searchQuery, uiResults, tokensSnapshot, statusText, final).ConfigureAwait(false);
+            await ComposeAndApplyAsync(query, searchQuery, uiResults, tokensSnapshot, statusText, final, rankingTrace).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -346,12 +350,13 @@ internal sealed class SearchDispatchController
             if (_getSearchQuery() != query || !ReferenceEquals(_queryTokens, tokensSnapshot))
                 return; // a newer query already owns the list; falling back would undo it
 
-            ApplyUntokenized(uiResults, statusText);
+            ApplyUntokenized(uiResults, statusText, final, rankingTrace);
         }
     }
 
-    private void ApplyUntokenized(List<AppSearchResult> uiResults, string statusText)
+    private void ApplyUntokenized(List<AppSearchResult> uiResults, string statusText, bool final, QuickSearchRankingTrace? rankingTrace)
     {
+        rankingTrace?.RecordDisplayedPage(uiResults, uiResults, final);
         _replaceResults(uiResults);
 
         var hasResults = uiResults.Count > 0;
@@ -369,7 +374,7 @@ internal sealed class SearchDispatchController
     // file rows] and caps the combined count like an ordinary quick search. QueryTokenDispatcher only
     // transforms a plain list -- deciding what any of this means for the rest of the UI (capping, "no
     // results", visibility) lives here.
-    private async Task ComposeAndApplyAsync(string query, string searchQuery, List<AppSearchResult> uiResults, IReadOnlyList<string> tokensSnapshot, string statusText, bool final)
+    private async Task ComposeAndApplyAsync(string query, string searchQuery, List<AppSearchResult> uiResults, IReadOnlyList<string> tokensSnapshot, string statusText, bool final, QuickSearchRankingTrace? rankingTrace)
     {
         var fileRows = uiResults.Where(IsFileOrDirectory).ToList();
         // ResultKind == "InstantResult" alone isn't enough: ISearchableItemProvider (a static catalog --
@@ -393,6 +398,7 @@ internal sealed class SearchDispatchController
         if (composed.Count == 0 && final)
             composed.Add(SearchResultMapper.CreateNoResultsResult(query));
 
+        rankingTrace?.RecordDisplayedPage(uiResults, composed, final, fileRows, processedFileRows);
         // ReplaceResults reconciles row-by-row and no-ops when nothing changed, so no pre-check needed.
         _replaceResults(composed);
 

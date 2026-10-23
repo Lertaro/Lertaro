@@ -40,6 +40,7 @@
   "Action_Cut": "切り取り",
   "Action_CopyName": "名前をコピー",
   "Action_CopyPath": "パスをクリップボードにコピー",
+  "Action_CopyRankingExplanation": "ランキング説明をコピー",
   "Action_Rename": "名前を変更",
   "Action_Rename_Desc": "Windows Shell を使用して、選択したファイルまたはフォルダーの名前を変更します。",
   "Action_Rename_DialogTitle": "名前を変更",

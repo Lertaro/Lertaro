@@ -2,21 +2,7 @@ using System.Windows;
 
 namespace Lertaro.App;
 
-/// <summary>
-/// Everything an <see cref="AppSearchResult"/> needs beyond the index record it came from, allocated
-/// only for the rows that actually need it.
-/// </summary>
-/// <remarks>
-/// Most rows in a large result set are never looked at. They exist because the grid's scrollbar has to
-/// know how far it goes, and nothing reads a single property on them -- so anything stored per row is
-/// paid six hundred thousand times to answer no questions. What is left on the row itself is the
-/// handful of fields every row genuinely needs; everything here is either a synthetic row's own values
-/// (there are never many of those) or something a row caches once the grid realizes it (there are never
-/// many of those on screen at a time either).
-///
-/// Every field is nullable, or has a default the row returns when there is no Extras at all, so that
-/// "not allocated" and "allocated but untouched" are the same answer.
-/// </remarks>
+/// <summary>Lazily allocated state not stored on an index-backed <see cref="AppSearchResult"/>.</summary>
 internal sealed class AppSearchResultExtras
 {
     // Overrides for what would otherwise be read off the source record. Set by the object-initializer
@@ -47,6 +33,10 @@ internal sealed class AppSearchResultExtras
     public Func<bool>? InstantResultOnExecuteFunc;
     public string? TabCompletion;
     public object? SourceProvider;
+
+    // Final quick-search diagnostics; unset for full-search rows.
+    public Core.SearchIndex.RankingImpression? RankingImpression;
+    public Core.SearchIndex.RankingExplanation? RankingExplanation;
 
     // Filled in once the grid realizes the row and it starts loading its own visuals.
     public System.Windows.Media.ImageSource? Icon;

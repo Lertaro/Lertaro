@@ -77,7 +77,8 @@ internal static class HistorySearchCandidateMapper
                 TypeRank: typeRank,
                 Match: match,
                 NormalizedPath: normalizedPath,
-                IsHistoryOnly: true));
+                IsHistoryOnly: true,
+                Source: RankingCandidateSource.History));
         }
 
         return candidates;

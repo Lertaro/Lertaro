@@ -43,11 +43,9 @@ public class QuickSearchWindowResultExecutor
     {
         if (result.IsEmptyResult || result.IsSearchSectionHeader)
             return;
-        // The calibration log's other half: which row the user picked. Position is not recorded, because
-        // the list may already have been re-ranked by a later batch when the click lands. A row with no path
-        // (a calculator answer, an instant row) would still spend a hash bucket, so it is skipped.
+        // Use the row's painted impression; the collection may repaint before execution.
         if (!string.IsNullOrWhiteSpace(result.FullPath))
-            RankingEventLog.RecordOpened(result.SearchQuery, result.FullPath);
+            RankingEventLog.RecordOpened(result.SearchQuery, result.FullPath, result.RankingImpression);
         _window.RecordKeywordHistory();
         if (!result.IsPluginSearchAction && !result.IsInstantResult)
         {

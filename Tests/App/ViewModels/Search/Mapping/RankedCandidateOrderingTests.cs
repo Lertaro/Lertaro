@@ -1,5 +1,4 @@
 using System.IO;
-using System.Text.Json;
 
 using Lertaro.App.ViewModels.Search.Mapping;
 using Lertaro.Core;
@@ -192,52 +191,49 @@ public sealed class RankedCandidateOrderingTests
         Assert.IsTrue(kept.Exists(c => c.Result.FullPath == @"C:\tail\t.txt"));
     }
 
-    // The page is written after the sort, and the sort permutes the rows without permuting the signal
-    // array. Indexing the pre-sort signals in step with the ranked rows would label every row with the
-    // signals of whatever candidate happened to sit at that index before the sort.
+    // Array.Sort must keep each retained key paired with its row.
     [TestMethod]
-    public void RecordedPageKeepsEachRowsOwnSignalsAfterTheSort()
+    public void TraceKeepsEachRowsOwnSignalsAfterTheSort()
     {
-        var directory = Path.Combine(Path.GetTempPath(), "LertaroRankedPage_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(directory);
-        RankingEventLog.DirectoryOverride = directory;
-        RankingEventLog.EnabledOverride = true;
-        try
-        {
-            // Input order is the reverse of the ranked order: z-high is Normal in input position 2.
-            RankedCandidateOrdering.Order(
-                new List<SearchResultMapper.RankedCandidate>
-                {
-                    Candidate(@"C:\a-normal.txt", coverage: 0.5),
-                    Candidate(@"C:\z-high.txt", coverage: 0.2),
-                },
-                new RankContext(Priorities()),
-                "atlas");
-
-            var rows = File.ReadAllLines(Path.Combine(directory, "ranking-events.jsonl"))
-                .Skip(1)
-                .Select(line => JsonDocument.Parse(line).RootElement)
-                .ToArray();
-
-            Assert.AreEqual(2, rows.Length);
-            Assert.AreEqual(1, rows[0].GetProperty("rank").GetInt32());
-            Assert.AreEqual(2, rows[0].GetProperty("prio").GetInt32());
-            Assert.AreEqual(1, rows[1].GetProperty("prio").GetInt32());
-            // The weak-coverage row must keep its own match, not the one that used to sit above it.
-            Assert.AreEqual(200, rows[0].GetProperty("mCov").GetInt32());
-            Assert.AreEqual(500, rows[1].GetProperty("mCov").GetInt32());
-        }
-        finally
-        {
-            RankingEventLog.DirectoryOverride = null;
-            RankingEventLog.EnabledOverride = false;
-            try
+        var context = new RankContext(Priorities());
+        var ranked = RankedCandidateOrdering.OrderWithTrace(
+            new List<SearchResultMapper.RankedCandidate>
             {
-                Directory.Delete(directory, recursive: true);
-            }
-            catch (IOException)
-            {
-            }
-        }
+                Candidate(@"C:\a-normal.txt", coverage: 0.5),
+                Candidate(@"C:\z-high.txt", coverage: 0.2),
+            },
+            context,
+            out var trace);
+
+        var first = trace.DescribeAt(0, RankingProviderState.Unknown);
+        var second = trace.DescribeAt(1, RankingProviderState.Unknown);
+        Assert.AreEqual(@"C:\z-high.txt", ranked[0].Result.FullPath);
+        Assert.AreEqual(1, first.KernelRank);
+        Assert.AreEqual(IndexRuleEffect.High, first.Priority);
+        Assert.AreEqual(IndexRuleEffect.Normal, second.Priority);
+        Assert.AreEqual(0.2, first.Match.Coverage, 0.0001);
+        Assert.AreEqual(0.5, second.Match.Coverage, 0.0001);
     }
+
+    [TestMethod]
+    public void MergeCombinesDiagnosticSourcesWithoutChangingTheWinningRow()
+    {
+        var indexed = Candidate(@"C:\same.lnk") with { Source = RankingCandidateSource.FileIndex };
+        var history = Candidate(@"C:\same.lnk") with
+        {
+            Source = RankingCandidateSource.History,
+            IsHistoryOnly = true,
+            HistoryCount = 5,
+        };
+
+        var ranked = RankedCandidateOrdering.OrderWithTrace([indexed, history], null, out var trace);
+        var described = trace.DescribeAt(0, RankingProviderState.Unknown);
+
+        Assert.HasCount(1, ranked);
+        Assert.AreSame(indexed.Result, ranked[0].Result);
+        Assert.AreEqual(RankingCandidateSource.FileIndex | RankingCandidateSource.History, described.Source);
+        Assert.AreEqual(2, trace.PreMergeCount);
+        Assert.AreEqual(1, trace.PostMergeCount);
+    }
+
 }

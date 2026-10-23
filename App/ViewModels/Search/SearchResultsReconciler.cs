@@ -86,6 +86,9 @@ internal static class SearchResultsReconciler
             live[i].InstantResultOnExecute = target[i].InstantResultOnExecute;
             live[i].InstantResultOnExecuteFunc = target[i].InstantResultOnExecuteFunc;
             live[i].TabCompletion = target[i].TabCompletion;
+            // Retained rows must carry the latest page/rank used by open-event joins.
+            live[i].RankingImpression = target[i].RankingImpression;
+            live[i].RankingExplanation = target[i].RankingExplanation;
             // Read by the full window's type filter, from the freshly-built list rather than from the
             // displayed one, so a stale value here is currently benign -- kept in step anyway so a future
             // reader of a retained row cannot be handed the previous search's answer.

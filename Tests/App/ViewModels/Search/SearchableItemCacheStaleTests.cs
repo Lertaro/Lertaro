@@ -1,15 +1,10 @@
 using Lertaro.App.ViewModels.Search;
+using Lertaro.Core.SearchIndex;
+using Lertaro.PluginSdk.Abstractions.Plugins;
 
 namespace Lertaro.App.Tests.ViewModels.Search;
 
-// What a search gets to show while a provider is being reloaded. The rebuild itself is unavoidable --
-// a change under a watched folder has to be picked up -- but it must never be something the user can
-// see, and taking the entries away for its duration is exactly that: every application drops out of
-// the results until each shortcut has been resolved through COM and each icon re-extracted.
-//
-// It matters more than it looks, because the rebuild is not always warranted: a change the index cannot
-// pin to a directory is reported against the whole drive, so a busy C: still produces the occasional
-// refresh for something that never touched these folders.
+// Stale provider entries remain available during reload.
 [TestClass]
 public sealed class SearchableItemCacheStaleTests
 {
@@ -53,5 +48,35 @@ public sealed class SearchableItemCacheStaleTests
 
         Assert.IsFalse(SearchableItemCache.TryGetEntries(id, out _));
         Assert.IsFalse(SearchableItemCache.IsStale(id));
+    }
+
+    [TestMethod]
+    public void ReadinessSnapshot_DistinguishesReadyWithHitsFromStale()
+    {
+        var provider = new ReadinessProvider();
+        var id = provider.GetType().Name;
+        SearchableItemCache.Seed(id,
+        [
+            new SearchableItemCache.CacheEntry(
+                new SearchableItem { Title = "App" },
+                new List<string>(),
+                null)
+        ]);
+
+        var ready = SearchableItemCache.ReadinessSnapshot([provider],
+            new Dictionary<string, int> { [id] = 1 }).Single();
+        Assert.AreEqual(RankingProviderState.ReadyWithItems, ready.State);
+        Assert.AreEqual(1, ready.ItemCount);
+        Assert.AreEqual(1, ready.HitCount);
+
+        SearchableItemCache.Invalidate(id);
+        var stale = SearchableItemCache.ReadinessSnapshot([provider]).Single();
+        Assert.AreEqual(RankingProviderState.Stale, stale.State);
+    }
+
+    private sealed class ReadinessProvider : ISearchableItemProvider
+    {
+        public event Action? ItemsChanged;
+        public IEnumerable<SearchableItem> GetSearchableItems() => Array.Empty<SearchableItem>();
     }
 }

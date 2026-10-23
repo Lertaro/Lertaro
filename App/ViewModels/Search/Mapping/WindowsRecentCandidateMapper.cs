@@ -94,7 +94,8 @@ internal static class WindowsRecentCandidateMapper
                 HistoryCount: 0,
                 TypeRank: typeRank,
                 Match: match,
-                NormalizedPath: normalizedPath));
+                NormalizedPath: normalizedPath,
+                Source: RankingCandidateSource.WindowsRecent));
         }
 
         return candidates;

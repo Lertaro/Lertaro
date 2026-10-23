@@ -5,6 +5,7 @@ using Lertaro.App.Services.Plugin;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services.PluginManagerCore;
 using Lertaro.App.ViewModels.Settings.Plugins;
+using Lertaro.Core.SearchIndex;
 namespace Lertaro.App.Services.ShellMenu.ActionFlyout;
 
 internal static class ActionMenuBuilder
@@ -81,10 +82,6 @@ internal static class ActionMenuBuilder
             return uiItems;
 
         var itemHeight = Math.Round(UiMetrics.ListItemHeight * UiMetrics.ActionMenuCompactRowScale);
-        // Unified to the exact same height a normal row gets (was a shorter, independently-derived
-        // value) -- height-sum calculations elsewhere that assume a uniform row size can't drift from
-        // what a header row actually renders at if the two are never allowed to be different numbers
-        // in the first place.
         var headerHeight = itemHeight;
 
         var builtinLabel = TranslationManager.Instance["Action_BuiltinGroup"];
@@ -140,7 +137,68 @@ internal static class ActionMenuBuilder
                 });
             }
         }
+
+        AddRankingExplanationAction(uiItems, selection, builtinLabel, itemHeight, headerHeight);
         return uiItems;
+    }
+
+    private static void AddRankingExplanationAction(
+        List<ActionMenuItem> items,
+        IReadOnlyList<AppSearchResult> selection,
+        string builtinLabel,
+        double itemHeight,
+        double headerHeight)
+    {
+        if (selection.Count != 1 || selection[0].RankingExplanation is null)
+            return;
+
+        var result = selection[0];
+        var insertAt = -1;
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (!items[i].IsSectionHeader || items[i].SectionGroupId != BuildStaticGroupId(builtinLabel, builtinLabel))
+                continue;
+            insertAt = i + 1;
+            while (insertAt < items.Count && !items[insertAt].IsSectionHeader)
+                insertAt++;
+            break;
+        }
+
+        if (insertAt < 0)
+        {
+            items.Add(new ActionMenuItem
+            {
+                IsSectionHeader = true,
+                SectionTitle = builtinLabel,
+                SectionGroupId = BuildStaticGroupId(builtinLabel, builtinLabel),
+                ItemHeight = headerHeight
+            });
+            insertAt = items.Count;
+        }
+
+        items.Insert(insertAt, new ActionMenuItem
+        {
+            Text = TranslationManager.Instance["Action_CopyRankingExplanation"],
+            ItemHeight = itemHeight,
+            OnExecute = () =>
+            {
+                try
+                {
+                    if (result.RankingExplanation is { } explanation)
+                    {
+                        System.Windows.Clipboard.SetText(RankingExplanationFormatter.Format(
+                            explanation,
+                            result.SearchQuery,
+                            result.Name,
+                            result.FullPath));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Core.Logger.Log($"[RankingTrace] Failed to copy ranking explanation: {ex.Message}", Core.LogLevel.Warn);
+                }
+            }
+        });
     }
 
     // Builds the dynamic-provider items (shell context menu, etc). This can be slow (loading shell
@@ -158,14 +216,11 @@ internal static class ActionMenuBuilder
             return uiItems;
 
         var itemHeight = Math.Round(UiMetrics.ListItemHeight * UiMetrics.ActionMenuCompactRowScale);
-        // Same unified header-height rationale as BuildStatic above -- see its comment there.
         var headerHeight = itemHeight;
 
         if (hMenu == IntPtr.Zero)
         {
-            // Root: every dynamic provider (e.g. shell context menu), sorted by Priority ascending
-            // (lower values first, matching IDynamicActionProvider.Priority's own doc comment -- this
-            // was previously OrderByDescending, silently contradicting that doc).
+            // Root providers use ascending Priority (lower values first).
             foreach (var provider in PluginManager.Instance.DynamicActionProviders.OrderBy(p => p.Priority))
             {
                 if (provider.Keywords.Count > 0)

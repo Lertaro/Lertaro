@@ -4,25 +4,9 @@ using Lertaro.App.ViewModels.Search;
 namespace Lertaro.App;
 
 /// <summary>
-/// One row of a result list.
+/// One result row. Index-backed rows retain their source and derive display fields lazily; synthetic,
+/// realized and traced rows keep additional state in <see cref="AppSearchResultExtras"/>.
 /// </summary>
-/// <remarks>
-/// A row built from the index keeps the record it came from and derives its displayed values from that
-/// on demand, rather than copying them out at construction. It used to copy: measured over 300,000
-/// rows, each one cost 577 bytes, of which 353 were strings it had built and would hold for the life of
-/// the search. Two thirds of those were a duplicate -- the parent directory was computed once here and
-/// again inside GetParentDisplayText, and both copies were kept.
-///
-/// That was affordable when the full window showed a page of a thousand results. It is not now that it
-/// shows every match on the drive: a single-letter query returns six hundred thousand rows, of which the
-/// grid ever realizes a few dozen, and the rest were paying 366MB to hold strings nobody would read.
-///
-/// Everything a row needs beyond its source record lives in a lazily-allocated
-/// <see cref="AppSearchResultExtras"/> -- see there for what and why. A synthetic row (a section header,
-/// a plugin action, "no results") has no source record and writes through the same property setters,
-/// which allocate one; there are never many of those. A row the grid realizes allocates one too, to
-/// cache its icon and its parent-directory text; there are never many of those on screen at once.
-/// </remarks>
 public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, PluginSdk.Abstractions.ISearchResult
 {
     public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
@@ -36,6 +20,7 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
     private AppSearchResultExtras Extras => _extras ??= new AppSearchResultExtras();
     internal AppSearchResultExtras DisplayExtras => Extras;
     internal AppSearchResultExtras? ExistingExtras => _extras;
+    internal bool IsIndexBacked => _source != null;
     internal void NotifyDisplayPropertyChanged(string propertyName) => OnPropertyChanged(propertyName);
 
     /// <summary>
@@ -132,11 +117,7 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
 
     private string _searchQuery = string.Empty;
 
-    // The query this row's highlighting is drawn from (TextHighlighter binds to it). Notifies, unlike the
-    // plain properties around it, because a row can now OUTLIVE the query it was built for:
-    // SearchResultsReconciler.ItemsEqual treats equal path/name/kind as the same row and keeps the
-    // existing instance, so typing another character no longer replaces every row. A surviving row must
-    // be told the new query or its highlight would freeze at the previous keystroke's query.
+    // Notifies because reconciled rows can survive into the next query.
     public string SearchQuery
     {
         get => _searchQuery;
@@ -151,15 +132,7 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
 
     private bool _isFrequent;
 
-    /// <summary>
-    /// True when the ranking gave this row a history tier (H5 or H3): the path is opened often enough for
-    /// this query to count as a habit. Drives the "frequent" badge in the result list.
-    /// </summary>
-    /// <remarks>
-    /// Notifies because <see cref="ViewModels.Search.SearchResultsReconciler"/> may keep an existing row
-    /// instance across searches and copy the fresh value onto it; without the notification the badge would
-    /// stay at the previous query's answer on a row the grid never re-creates.
-    /// </remarks>
+    /// <summary>Whether this row received an H5/H3 tier. Drives the frequent badge.</summary>
     public bool IsFrequent
     {
         get => _isFrequent;
@@ -187,13 +160,7 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
     // a blank ParentDir, or the "no results" placeholder) -- single source of truth for both that
     // visibility and the name-line font size below, so they can never drift out of sync with each other.
     public bool HasPathSubtitle => !IsApplication && ParentDir != "" && !IsEmptyResult;
-    // A row must be at least as tall as its own icon plus the row border's own vertical margin (see
-    // UiMetrics.ResultRowVerticalMargin) -- otherwise the icon can exceed the row and either get clipped
-    // or force it to overflow past its allotted layout space. Section headers used to get their own
-    // (shorter) SearchSectionHeaderHeight here, independent of what a normal row actually measures --
-    // deliberately unified to the exact same height a normal row gets, so every row-height-sum
-    // calculation that assumes a uniform row size (see InlineSearchWindowLayoutManager) can't drift from
-    // what headers actually render at.
+    // Non-list rows share one height and must contain their icon plus vertical margins.
     public double ItemHeight => IsListItem ? UiMetrics.ListItemHeight : Math.Max(UiMetrics.SearchResultItemHeight, UiMetrics.ResultIconSize + UiMetrics.ResultRowVerticalMargin + UiMetrics.IconRowBreathingRoom);
 
     // Base visual metrics (inline/full windows use these — no scaling). A row with no path subtitle
@@ -202,9 +169,7 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
     public double PathFontSize => UiMetrics.ResultPathFontSize;
     public double ResultIconSize => UiMetrics.ResultIconSize;
 
-    // Scaled variants — bound only in the quick window, so it alone grows/shrinks with the
-    // configured search box height. Section headers unified to the normal row height here too (see
-    // ItemHeight's own comment).
+    // Scaled variants are used only by the quick window.
     public double ScaledItemHeight => IsListItem ? UiMetrics.ScaledListItemHeight : UiMetrics.ScaledNormalRowHeight;
     public double ScaledNameFontSize => HasPathSubtitle ? UiMetrics.ScaledResultNameFontSize : UiMetrics.ScaledResultNameFontSizeSingleLine;
     public double ScaledPathFontSize => UiMetrics.ScaledResultPathFontSize;
@@ -245,6 +210,18 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
     public Func<bool>? InstantResultOnExecuteFunc { get => _extras?.InstantResultOnExecuteFunc; set => Extras.InstantResultOnExecuteFunc = value; }
     public string? TabCompletion { get => _extras?.TabCompletion; set => Extras.TabCompletion = value; }
     public object? SourceProvider { get => _extras?.SourceProvider; set => Extras.SourceProvider = value; }
+
+    internal Core.SearchIndex.RankingImpression? RankingImpression
+    {
+        get => _extras?.RankingImpression;
+        set => Extras.RankingImpression = value;
+    }
+
+    internal Core.SearchIndex.RankingExplanation? RankingExplanation
+    {
+        get => _extras?.RankingExplanation;
+        set => Extras.RankingExplanation = value;
+    }
 
     public bool[]? GetHighlightMask(string text, string query) => AppSearchResultDisplaySupport.GetHighlightMask(this, text, query);
 
