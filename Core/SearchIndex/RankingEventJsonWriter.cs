@@ -108,8 +108,7 @@ internal static class RankingEventJsonWriter
             .Append(",\"canonicalQueryHash\":\"").Append(session.CanonicalQueryHash).Append('"')
             .Append(",\"pathHash\":\"").Append(pathHash).Append('"');
 
-    private static void AppendRankFields(StringBuilder builder, RankingLogRow row)
-    {
+    private static void AppendRankFields(StringBuilder builder, RankingLogRow row) =>
         builder.Append(",\"kernelRank\":").Append(row.KernelRank)
             .Append(",\"bucket\":").Append((int)row.Section)
             .Append(",\"score\":").Append(row.Score)
@@ -143,11 +142,6 @@ internal static class RankingEventJsonWriter
                 ? row.Identity.Kind
                 : CandidateIdentity.Create(row.Source, row.IsDir, row.IsApplication, string.Empty, row.Path).Kind))
             .Append(",\"policyVersion\":").Append(RankPolicy.Version);
-        if (row.ShadowV3Rank is { } shadowRank)
-            builder.Append(",\"shadowRank\":").Append(shadowRank);
-        if (row.ShadowV3RankDelta is { } shadowDelta)
-            builder.Append(",\"shadowRankDelta\":").Append(shadowDelta);
-    }
 
     private static void AppendUnknownRankFields(StringBuilder builder, string path) =>
         builder.Append(",\"bucket\":-1,\"score\":-1,\"typeRank\":-1,\"prio\":-1")

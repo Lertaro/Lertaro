@@ -116,34 +116,6 @@ public sealed class RankingEventLogReaderTests
         }
     }
 
-    [TestMethod]
-    public void ReaderAndFormatter_PreserveShadowV3RankAndDelta()
-    {
-        var session = RankingEventLog.BeginSession("raw", "canonical");
-        var page = new RankingPageStamp(session.SearchSessionId, "p-shadow", RankingTraceWindow.Quick, session.QuerySequence);
-        var ranked = Row(@"D:\pixpin.lnk", 4) with
-        {
-            ShadowV3Rank = 1,
-            ShadowV3RankDelta = 3,
-        };
-        var displayed = new RankingDisplayedRow(
-            ranked.Path, 4, RankingCandidateSource.SearchableProvider, RankingSelectionStage.KernelOrder,
-            null, RankingProviderState.ReadyWithItems, ranked);
-        var json = RankingEventJsonWriter.DisplayedRowJson(1700000000000, page, session, "deadbeefcafe", displayed);
-
-        Assert.IsTrue(RankingEventLogReader.TryReadLine(json, out var parsed));
-        Assert.AreEqual(1, parsed.ShadowV3Rank);
-        Assert.AreEqual(3, parsed.ShadowV3RankDelta);
-
-        var text = RankingExplanationFormatter.Format(
-            new RankingExplanation(session, page, default, displayed),
-            "pixpin",
-            "PixPin",
-            ranked.Path);
-        StringAssert.Contains(text, "rank.shadowV3=1");
-        StringAssert.Contains(text, "rank.shadowV3Delta=3");
-    }
-
     private static RankingLogRow Row(string path, int kernelRank) => new(
         path,
         kernelRank,

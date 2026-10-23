@@ -70,7 +70,6 @@ public static class RankPolicy
     public const int HistoryThreeThresholdX100 = 300;
     public const int HistoryFiveMax = 3;
     public const int HistoryThreeMax = 10;
-    public const int DefaultLearnedAliasMax = 1;
 
     public static bool IsPreferenceEligible(MatchEvidenceGrade grade) =>
         grade is MatchEvidenceGrade.ExactIdentity or MatchEvidenceGrade.DirectStrong;
@@ -99,23 +98,6 @@ public static class RankPolicy
         if (priority == IndexRuleEffect.Low)
             return RankSection.Low;
         return RankSection.Boosted;
-    }
-
-    public static RankSection Section(
-        bool isStrong,
-        bool isFavorite,
-        bool isHistoryOnly,
-        IndexRuleEffect priority,
-        bool alwaysTop,
-        HistoryTier tier,
-        MatchEvidenceGrade grade = MatchEvidenceGrade.LegacyUnknown)
-    {
-        var resolved = MatchEvidence.ResolveGrade(default, default, isHistoryOnly, isStrong);
-        if (grade != MatchEvidenceGrade.LegacyUnknown && !isHistoryOnly)
-            resolved = grade;
-        var explicitAlwaysTop = alwaysTop && priority == IndexRuleEffect.High;
-        var favoritePin = !explicitAlwaysTop && isFavorite && !isHistoryOnly && IsPreferenceEligible(resolved);
-        return Section(priority, explicitAlwaysTop, favoritePin, isHistoryOnly, resolved);
     }
 
     public static RankSection Section(in RankSignals s, HistoryTier tier, in MatchEvidence evidence = default)

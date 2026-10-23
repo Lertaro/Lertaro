@@ -116,39 +116,13 @@ internal static class RankedCandidateOrdering
         return kept;
     }
 
-    internal static int[] ComputeShadowV3Ranks(
-        SearchResultMapper.RankedCandidate[] rows,
-        RankContext? context,
-        IReadOnlyDictionary<string, HistoryTier> budget)
-    {
-        if (rows.Length == 0)
-            return Array.Empty<int>();
-
-        var v3Keys = new V3RankKey[rows.Length];
-        var indices = new int[rows.Length];
-        for (var i = 0; i < rows.Length; i++)
-        {
-            var signal = ToSignals(rows[i], context);
-            var tier = budget.GetValueOrDefault(signal.NormalizedPath, HistoryTier.None);
-            v3Keys[i] = RankPolicyV3.BuildKey(signal, tier, rows[i].Evidence);
-            indices[i] = i;
-        }
-
-        Array.Sort(v3Keys, indices, V3RankKeyComparer.Instance);
-        var shadowRanks = new int[rows.Length];
-        for (var v3Position = 0; v3Position < indices.Length; v3Position++)
-            shadowRanks[indices[v3Position]] = v3Position + 1;
-        return shadowRanks;
-    }
-
     internal static RankingLogRow Describe(
         SearchResultMapper.RankedCandidate candidate,
         RankKey key,
         int kernelRank,
         RankContext? context,
         IReadOnlyDictionary<string, HistoryTier> budget,
-        RankingProviderState providerState = RankingProviderState.Unknown,
-        int? shadowV3Rank = null)
+        RankingProviderState providerState = RankingProviderState.Unknown)
     {
         var signal = ToSignals(candidate, context);
         var isApplication = IsApplication(candidate);
@@ -176,9 +150,7 @@ internal static class RankedCandidateOrdering
             candidate.Result.SourceProvider?.GetType().Name,
             providerState,
             candidate.Evidence,
-            identity,
-            shadowV3Rank,
-            shadowV3Rank.HasValue ? kernelRank - shadowV3Rank.Value : null);
+            identity);
     }
 
     /// <summary>

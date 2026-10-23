@@ -71,10 +71,6 @@ internal static class RankingExplanationFormatter
             lines.Add($"evidence.spanStart={(rank.Evidence.SpanStart >= 0 ? rank.Evidence.SpanStart.ToString(CultureInfo.InvariantCulture) : "unknown")}");
             lines.Add($"evidence.spanLength={rank.Evidence.SpanLength.ToString(CultureInfo.InvariantCulture)}");
             lines.Add($"candidate.kindFlags={rank.Identity.Kind}");
-            if (rank.ShadowV3Rank is { } shadowRank)
-                lines.Add($"rank.shadowV3={shadowRank.ToString(CultureInfo.InvariantCulture)}");
-            if (rank.ShadowV3RankDelta is { } shadowDelta)
-                lines.Add($"rank.shadowV3Delta={shadowDelta.ToString(CultureInfo.InvariantCulture)}");
         }
         else
         {
