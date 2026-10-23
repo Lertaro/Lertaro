@@ -17,6 +17,10 @@ internal static class RankingExplanationFormatter
         var ranked = row.Ranking;
         var lines = new List<string>
         {
+            // Unlike the event log, this text is not hashed: it carries the query, the display name and the
+            // path in the clear. Said out loud on the first line because the paste is what reaches a bug
+            // report, not this window.
+            "# plaintext: the query, display name and path below are written as typed",
             $"rankingTraceVersion={RankingEventLog.SchemaVersion.ToString(CultureInfo.InvariantCulture)}",
             $"rankingPolicyVersion={RankPolicy.Version.ToString(CultureInfo.InvariantCulture)}",
             $"searchSessionId={explanation.Session.SearchSessionId}",

@@ -99,6 +99,8 @@ public sealed class RankingEventLogReaderTests
         {
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("fr-FR");
             var text = RankingExplanationFormatter.Format(explanation, "raw", "Atlas", ranked.Path);
+            // The copy action's only privacy gate is this header: the log hashes, this text does not.
+            Assert.StartsWith("# plaintext:", text, StringComparison.Ordinal);
             StringAssert.Contains(text, $"rankingPolicyVersion={RankPolicy.Version}");
             StringAssert.Contains(text, "result.finalDisplayedRank=5");
             StringAssert.Contains(text, "result.selectionStage=type-coverage");
