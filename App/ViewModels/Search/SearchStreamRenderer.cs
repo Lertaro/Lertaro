@@ -77,7 +77,7 @@ internal sealed class SearchStreamRenderer
             fileLimit, foldersOnly, searchScope, scopeDirective);
         // Set by Accumulate the moment a row the supplement would have contributed arrives; read once, after
         // the main query has streamed. Volatile because the engine hands rows in from its own threads.
-        int shortcutSurfaced = 0;
+        var shortcutSurfaced = 0;
 
         // Scoped searches answer from N per-folder engine queries, so the same file can arrive from two
         // overlapping configured folders -- dedupe by path at accumulation. High-priority and shortcut
