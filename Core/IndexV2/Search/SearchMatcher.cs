@@ -295,12 +295,14 @@ internal static class SearchMatcher
             return;
         }
 
-        // An alias can never contain the text a `!term` excluded, so the tiers below have to be vetoed on
-        // the name themselves -- otherwise the candidate TryMatch just rejected is revived through its
-        // pinyin (see FzfPatternExclusionExtensions.ExclusionsPass). The string-alias tiers also take
-        // `name` themselves now, but the grid tier decides readings from the positive terms alone and
-        // never sees the name, so this caller-side veto is what covers it.
+        // An alias can never contain the text a `:term` excluded, nor satisfy a `/.../` clause, so the
+        // tiers below have to be vetoed on the name itself -- otherwise the candidate TryMatch just
+        // rejected is revived through its pinyin or through the mixed-alphabet lane. The live tier above
+        // answers both clauses from the name; only the alias and mixed lanes below need this veto (the
+        // exclusion half is FzfPatternExclusionExtensions.ExclusionsPass, the regex half RegexClauses).
         if (ctx.Pattern.HasExclusions && !ctx.Pattern.ExclusionsPass(name))
+            return;
+        if (ctx.Pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, name))
             return;
 
         if (snapshot.HasAliases(uid) && TryMatchAliases(snapshot, ctx, uid, worker, name, out var best))

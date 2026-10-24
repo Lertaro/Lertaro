@@ -21,7 +21,7 @@ namespace Lertaro.Core.SearchIndex.Fzf;
 // reading of "jt" matches wide across a 188-character alias, the quality gate rejects that match, and the
 // tight "jt" run is never examined at all.
 //
-// What deliberately does NOT get a second reading: an exclusion (`!term` is only ever compared against the
+// What deliberately does NOT get a second reading: an exclusion (`:term` is only ever compared against the
 // candidate's own name), an operator kind (it says exactly what it means), and a provider's query form (it
 // is already a rewrite of the typed term, whose own second reading supplies the loose one).
 //

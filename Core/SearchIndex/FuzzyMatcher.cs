@@ -58,9 +58,12 @@ public static class FuzzyMatcher
         {
             return true;
         }
-        // Same veto as the index scan: the alias tiers below match a transliteration, which can never
-        // contain the text a `!term` excluded -- see FzfPatternExclusionExtensions.ExclusionsPass.
+        // Same veto as the index scan: the alias and mixed lanes below match a transliteration, which can
+        // never contain the text a `:term` excluded nor the characters a `/.../` clause describes -- see
+        // FzfPatternExclusionExtensions.ExclusionsPass and RegexClauses.
         if (fzf.HasExclusions && !fzf.ExclusionsPass(text))
+            return false;
+        if (fzf.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, text))
             return false;
 
         if (!AliasProviderRegistry.HasNonAscii(text))
@@ -206,10 +209,12 @@ public static class FuzzyMatcher
 
         // HighlightMask paints positive terms independently, so a multi-term query whose name only
         // satisfies one term would still produce a mask. The rank is a WHOLE-QUERY rank: ask the matcher
-        // first for the shapes where the mask cannot imply the same answer. A single positive term needs no
-        // extra pass -- its mask is empty exactly when it did not match.
+        // first for the shapes where the mask cannot imply the same answer -- several terms, an exclusion,
+        // an OR group, or a `/.../` clause, none of which the mask paints. A single positive term with no
+        // clause needs no extra pass: its mask is empty exactly when it did not match.
         PinyinNameEvaluator.PinyinMatchWitness? pinyinWitness = null;
-        if (pattern.TermSets.Length > 1 || pattern.HasExclusions || pattern.OrGroups != null)
+        if (pattern.TermSets.Length > 1 || pattern.HasExclusions || pattern.OrGroups != null
+            || pattern.Regexes is { Length: > 0 })
         {
             if (!IsMatch(pattern, text, out var accepted))
                 return MatchRank.NoMatch;
