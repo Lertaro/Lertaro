@@ -5,6 +5,24 @@
 符号：* 核心功能　+ 小功能添加　# 修复。只写"改了什么"。
 -->
 
+## v5.10.0.2
+
+## 更新内容
+
+```
+# 修复 Directory Opus 弹出右键菜单时内联搜索抢走按键，导致菜单快捷键失效
++ 自动更新只检查本仓库的发行
++ 保留鼠标平滑滚动
+```
+
+## What's changed
+
+```
+# Fix inline search taking keys while a Directory Opus context menu is open, which broke the menu's own shortcuts
++ Auto-update only checks this repository's releases
++ Keeps the smooth wheel scrolling
+```
+
 ## v5.10.0.1
 
 ## 更新内容

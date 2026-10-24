@@ -42,6 +42,17 @@ internal static class KeyboardHookServiceInlineSearchExtensions
             return false;
         }
 
+        // Those flags belong to the system's own menu loop, so a host that draws its own context menu
+        // (Directory Opus renders one itself) never sets them -- while the user is looking straight at a
+        // menu whose mnemonic keys must reach it, not become the card's first character. hwndMenuOwner is
+        // the signal both kinds fill in, and it is the only one the host cannot skip.
+        if (hasGuiInfo && guiInfo.hwndMenuOwner != IntPtr.Zero)
+        {
+            if (Logger.IsEnabled(LogLevel.Debug))
+                Logger.Log(string.Format("[KeyboardHookService] a menu is open (owner=0x{0:X}, flags=0x{1:X}); not taking the key", guiInfo.hwndMenuOwner.ToInt64(), (uint)guiInfo.flags), LogLevel.Debug);
+            return false;
+        }
+
         // The menu isn't confirmed open yet, but a right-click or Menu-key press landed very recently --
         // most likely the menu it opens just hasn't finished being built. Give it a short grace window
         // before treating a fast trigger-then-mnemonic as inline-search input. Compared using the raw
