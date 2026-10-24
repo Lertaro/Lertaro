@@ -130,7 +130,14 @@ internal sealed class InlineSearchWindowSummonSupport
         // other cached window in this app carries (see AppWindowManager).
         window.Closed += (_, _) =>
         {
-            if (_manager.Window == window) _manager.Window = null;
+            // A superseded card can outlive the manager's reference to it; only the cached one may touch the
+            // manager, and only it can be the card Win32 took down with its host.
+            if (_manager.Window != window) return;
+            _manager.Window = null;
+            // Heal the hook flags right here, not on the next foreground change: with no cached window every
+            // later CloseInlineSearch call returns before the reset, and the user's keystrokes stay swallowed
+            // in whatever window they moved to until something makes the hook raise ExplorerActivated again.
+            _manager.CloseInlineSearch("CardClosedByOwner");
         };
 
         return window;

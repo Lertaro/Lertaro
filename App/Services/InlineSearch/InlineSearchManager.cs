@@ -216,7 +216,15 @@ public class InlineSearchManager : IDisposable
     // keeps looking "active").
     private void CloseInlineSearch(string reason, DateTime? deferUntil)
     {
-        if (_window == null) return;
+        if (_window == null)
+        {
+            // Win32 destroys the card together with the dialog that owned it (see
+            // InlineSearchWindowSummonSupport.Create), which nulls the cached window without ever reaching the
+            // reset below. The hook flags must not outlive the card: a stale IsInlineSearchVisible keeps the
+            // hook swallowing Enter/Backspace/IME keys in windows whose text input it does not recognize.
+            ResetHookState();
+            return;
+        }
 
         var dragActive = Views.Controls.Results.ResultsDragDropHelper.IsDragActive;
         var pendingMouseDown = _window.HasPendingMouseDown;
@@ -252,11 +260,7 @@ public class InlineSearchManager : IDisposable
         }
         IsExecuting = false;
 
-        _mouseHook.Stop();
-        _keyboardHook.IsInlineSearchVisible = false;
-        _keyboardHook.IsInlineWindowOnScreen = false;
-        _keyboardHook.Start();
-        _searchText = string.Empty;
+        ResetHookState();
 
         var win = _window;
         _currentHostHwnd = IntPtr.Zero;
@@ -285,6 +289,17 @@ public class InlineSearchManager : IDisposable
         IdleWorkingSetTrimmer.WindowHidden();
 
         Logger.Log($"[InlineSearchManager] InlineSearchWindow dismissed and parked. Reason: {reason}", LogLevel.Debug);
+    }
+
+    // Idempotent: the only state that outlives the card lives in the hook process, so it is also reachable
+    // when the card was destroyed underneath us and there is nothing left to hide or park.
+    private void ResetHookState()
+    {
+        _mouseHook.Stop();
+        _keyboardHook.IsInlineSearchVisible = false;
+        _keyboardHook.IsInlineWindowOnScreen = false;
+        _keyboardHook.Start();
+        _searchText = string.Empty;
     }
 
     public bool IsInlineSearchActive => _window is { IsVisible: true };
