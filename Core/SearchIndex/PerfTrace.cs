@@ -22,6 +22,12 @@ public static class PerfTrace
     private const long MaxFileBytes = 4 * 1024 * 1024;
 
     private static readonly object Gate = new();
+    // ponytail: one buffer per process, not per search. Work that is genuinely concurrent (a streaming
+    // report and the next keystroke, or two service clients) interleaves its stages into the next flushed
+    // line, so a bundle reads as an approximation once searches overlap. Exact attribution needs an
+    // AsyncLocal buffer per request; not worth it while the trace only exists to answer "where did the
+    // time go", and the alternative -- locking the search path to serialize traces -- costs more than the
+    // measurement is worth.
     private static readonly List<string> Pending = new(32);
     private static string? _file;
     private static long _written;

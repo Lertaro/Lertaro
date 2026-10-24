@@ -15,7 +15,11 @@ public sealed class DirectoryScopeAllocationTests
         using var fixture = BuildDrive(fileCount: 10_000);
 
         Search(fixture, "item", null); // Warm JIT and thread-static search scratch state.
+        // Both measurements must run as cold scans: a page stored by the warm-up call would answer the
+        // unscoped side with a replay (~600 B) and make the scoped scan look like an allocation spike.
+        fixture.Index.SearchPages.Clear();
         var unscopedBytes = MeasureAllocatedBytes(() => Search(fixture, "item", null));
+        fixture.Index.SearchPages.Clear();
         var scopedBytes = MeasureAllocatedBytes(() => Search(fixture, "item", @"C:\Scope"));
         var unscopedTime = MeasureMedianElapsed(() => Search(fixture, "item", null));
         var scopedTime = MeasureMedianElapsed(() => Search(fixture, "item", @"C:\Scope"));
@@ -35,7 +39,10 @@ public sealed class DirectoryScopeAllocationTests
         using var fixture = BuildDrive(fileCount: 10_000);
 
         Search(fixture, @"scope\ item", null);
+        // Same as the directory-scope case: compare two cold scans, not a replay against a scan.
+        fixture.Index.SearchPages.Clear();
         var unscopedBytes = MeasureAllocatedBytes(() => Search(fixture, @"scope\ item", null));
+        fixture.Index.SearchPages.Clear();
         var scopedBytes = MeasureAllocatedBytes(() => Search(fixture, @"scope\ item", @"C:\Scope"));
         var unscopedTime = MeasureMedianElapsed(() => Search(fixture, @"scope\ item", null));
         var scopedTime = MeasureMedianElapsed(() => Search(fixture, @"scope\ item", @"C:\Scope"));

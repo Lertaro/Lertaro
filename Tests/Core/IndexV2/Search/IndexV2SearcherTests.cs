@@ -248,4 +248,34 @@ public sealed class IndexV2SearcherTests
 
         Assert.IsEmpty(results);
     }
+
+    [TestMethod]
+    public void SearchStreaming_LargerLimitAfterASmallPage_ScansInsteadOfTruncating()
+    {
+        // The quick window asks with a small limit first; a later, larger request must not be answered
+        // with the short page that the small request cached.
+        using var fixture = BuildSampleDrive();
+        var small = new List<SearchResult>();
+        IndexV2Searcher.SearchStreaming(fixture.Index, "c:", 2, small.Add, CancellationToken.None);
+        Assert.HasCount(2, small);
+
+        var large = new List<SearchResult>();
+        IndexV2Searcher.SearchStreaming(fixture.Index, "c:", 10, large.Add, CancellationToken.None);
+
+        Assert.HasCount(5, large);
+    }
+
+    [TestMethod]
+    public void SearchStreaming_SameQueryUnderADirectoryFilter_IsNotServedFromTheUnfilteredPage()
+    {
+        using var fixture = BuildSampleDrive();
+        var unfiltered = Search(fixture, "readme");
+        Assert.HasCount(1, unfiltered);
+
+        var filtered = new List<SearchResult>();
+        IndexV2Searcher.SearchStreaming(fixture.Index, "readme", 10, filtered.Add, CancellationToken.None,
+            directoryFilter: @"C:\Downloads");
+
+        Assert.IsEmpty(filtered);
+    }
 }
