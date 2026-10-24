@@ -81,6 +81,12 @@ public sealed class UsnMetadataReaderTests
         Assert.IsTrue(UsnMetadataReader.IsUnavailableError(5));
         Assert.IsTrue(UsnMetadataReader.IsUnavailableError(32));
         Assert.IsTrue(UsnMetadataReader.IsUnavailableError(33));
+        // A removable drive that spun down: the first open after waking answers 21/1167, and the volume
+        // transiently disappears while it is re-enumerated (55). Throwing on these aborted the whole USN
+        // batch and froze the monitor, so they must count as "unavailable, keep what we have".
+        Assert.IsTrue(UsnMetadataReader.IsUnavailableError(21));
+        Assert.IsTrue(UsnMetadataReader.IsUnavailableError(55));
+        Assert.IsTrue(UsnMetadataReader.IsUnavailableError(1167));
         Assert.IsFalse(UsnMetadataReader.IsUnavailableError(2));
         Assert.IsFalse(UsnMetadataReader.IsUnavailableError(87));
     }

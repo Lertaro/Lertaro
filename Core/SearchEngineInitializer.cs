@@ -39,7 +39,7 @@ internal class SearchEngineInitializer
     internal static string ResolveStateAfterFailure(string stateAtFailure) =>
         stateAtFailure is "ready" or "cached" or "idle" ? stateAtFailure : "error";
 
-    private void EnsureDriveStatuses(IReadOnlyList<string> detectedDrives, IReadOnlyList<string> enabledDrives)
+    private void EnsureDriveStatuses(IReadOnlyList<string> detectedDrives, IReadOnlyList<string> enabledDrives, CancellationToken parentToken)
     {
         var enabled = new HashSet<string>(enabledDrives, StringComparer.OrdinalIgnoreCase);
         var statuses = detectedDrives.Select(d => new UsnIndexer.DriveIndexStatus
@@ -50,6 +50,27 @@ internal class SearchEngineInitializer
             State = enabled.Contains(d) ? "pending" : "disabled",
             CachePath = LocalDriveCacheLocator.GetCachePath(_indexCacheDir, d)
         }).ToList();
+
+        // A drive with a cached index that is not mounted has no detection row, so nothing would ever list
+        // it again -- and its cache would then be restored only if some status poll happened to watch the
+        // volume come back. Give it the row the Settings list needs and hand it the same re-insertion
+        // recovery a drive loses mid-monitoring gets, so a disk that was still in a bag when the service
+        // started is indexed once it is plugged in. GetCachePath cannot name its file: an unplugged volume
+        // has no live identity to query, so the path comes from the cached header instead.
+        foreach (var cached in LocalDriveCacheLocator.ListCachedDrives(_indexCacheDir))
+        {
+            if (detectedDrives.Contains(cached.Drive, StringComparer.OrdinalIgnoreCase))
+                continue;
+            statuses.Add(new UsnIndexer.DriveIndexStatus
+            {
+                Drive = cached.Drive,
+                Enabled = false,
+                Kind = "-",
+                State = "unavailable",
+                CachePath = cached.Path
+            });
+            DriveArrivalRecovery.ArmForReinsertion(_indexer, cached.Drive, parentToken, _onReindexRequired);
+        }
 
         _indexer.SetDriveStatuses(statuses);
     }
@@ -84,7 +105,7 @@ internal class SearchEngineInitializer
                 .Where(d => machineSettings.IsLocalDriveEnabled(VolumeHelper.GetVolumeId(d)))
                 .ToList();
 
-            EnsureDriveStatuses(detectedDrives, supportedDrives);
+            EnsureDriveStatuses(detectedDrives, supportedDrives, cts.Token);
 
             var loadedFromCache = false;
             List<(string Drive, ulong JournalId, long NextUsn)> cachedMetadata = new();
@@ -198,8 +219,14 @@ internal class SearchEngineInitializer
             var monitorDrives = new HashSet<string>(monitorsToStart.Select(m => m.Drive), StringComparer.OrdinalIgnoreCase);
             foreach (var drive in supportedDrives)
             {
-                if (!monitorDrives.Contains(drive))
-                    _indexer.SetDriveState(drive, "failed");
+                if (monitorDrives.Contains(drive))
+                    continue;
+                // No monitor means nobody is reading this volume's journal: whatever index it still holds can
+                // no longer be reconciled, and writing "failed" alone left those rows serving searches for the
+                // rest of the session. Ask for the drive's own recovery instead -- that path ends in "failed"
+                // too if the rebuild cannot work, and parks the drive if the volume has since left.
+                Logger.Log($"[SearchEngineInitializer] Drive {drive} ended initialization with no monitor; requesting its own recovery.", LogLevel.Error);
+                _onReindexRequired?.Invoke(drive);
             }
 
             foreach (var (drive, journalId, nextUsn) in monitorsToStart)

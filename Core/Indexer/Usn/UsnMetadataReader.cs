@@ -58,7 +58,13 @@ internal static class UsnMetadataReader
         }
     }
 
-    internal static bool IsUnavailableError(int errorCode) => errorCode is 5 or 32 or 33;
+    // "Unavailable right now" is not "deleted". A USB drive that has spun down answers
+    // ERROR_NOT_READY (21) or ERROR_DEVICE_NOT_CONNECTED (1167) on the first access after waking, and a
+    // volume arriving or going away answers ERROR_DEV_NOT_EXIST (55) / ERROR_LOCK_VIOLATION (33) for a
+    // moment. Letting those throw aborted the whole USN batch after it had already been merged, which is
+    // what put a monitor into its error loop and froze the index until a rebuild (see UsnMonitor).
+    internal static bool IsUnavailableError(int errorCode) =>
+        errorCode is 5 or 21 or 31 or 32 or 33 or 55 or 109 or 121 or 1167 or 1235;
 
     internal static bool IsNtfsInternalPath(string path)
     {

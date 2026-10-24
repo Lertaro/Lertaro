@@ -39,7 +39,7 @@ internal static class DriveMaintenanceHelper
                 existing.Files = 0;
                 existing.Dirs = 0;
             }
-            else if (ShouldRestoreAfterEnable(wasEnabled, isEnabled, existing.State))
+            else if (ShouldRestoreAfterEnable(wasEnabled, isEnabled, existing.State) || IsPendingRestoreWithoutARebuild(existing.State))
             {
                 existing.State = "pending";
                 drivesToBuild.Add(drive);
@@ -66,4 +66,11 @@ internal static class DriveMaintenanceHelper
 
     internal static bool ShouldRestoreAfterEnable(bool wasEnabled, bool isEnabled, string state) =>
         !wasEnabled && isEnabled && state is not "indexing" and not "pending";
+
+    // A mounted, enabled drive still sitting at "pending" has a build request nobody is honouring:
+    // QueueDriveRebuild refuses one while a full rebuild is running (and a re-insertion waiter can fire
+    // inside exactly that window), and the disabled->enabled edge that queued it will never fire again.
+    // Re-queue on every refresh until the drive leaves "pending" -- a rebuild that really started sets it
+    // to "indexing", so this cannot spin once the work is underway.
+    internal static bool IsPendingRestoreWithoutARebuild(string state) => state == "pending";
 }
