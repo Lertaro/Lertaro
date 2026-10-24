@@ -26,9 +26,10 @@ internal sealed class InlineCardSizingSupport
     private readonly Lertaro.App.InlineSearchWindow _window;
     private int? _searchAreaRows;
 
-    // The row budget that currently fits on screen: never more than the Ctrl+1..9 range, and never more than
-    // the space this card actually has (see InlineCardSpace.AvailableHeight). Starts at the full budget so the
-    // first sizing pass, which runs before any screen query has happened, behaves exactly as it always did.
+    // The row budget that currently fits on screen, in LIST rows: never more than the configured result count
+    // plus the titles it rides on (RowCap + TitleRows), and never more than the space this card actually has
+    // (see InlineCardSpace.AvailableHeight). Starts at the default result count so the first sizing pass, which
+    // runs before any screen query has happened, behaves as it always did.
     private int _rowBudget = InlineCardMetrics.DefaultRows;
 
     internal InlineCardSizingSupport(Lertaro.App.InlineSearchWindow window) => _window = window;
@@ -36,13 +37,33 @@ internal sealed class InlineCardSizingSupport
     /// <summary>The row budget in force right now: what the results area, and the actions area, size to.</summary>
     internal int RowBudget => _rowBudget;
 
-    // How tall the card may get where it is now. A file dialog caps at four rows because the card is a guest
-    // over somebody else's window, and the shorter it is the less of that window it costs the user; a card
-    // over a file manager's window has that window's whole list to fill, and keeps the Ctrl+1..9 budget. This
-    // is also what FullCardHeight prices, so the two cannot disagree about which corner to hang from.
-    private int RowCap => _window.Manager.ExplorerTracker.IsActiveWindowDialog
-        ? InlineCardMetrics.DialogRows
-        : InlineCardMetrics.DefaultRows;
+    // How tall the card may get where it is now, in RESULTS: the count the user set for this context. An
+    // ordinary window and a file dialog are two separate boxes in General settings, because the card over a
+    // dialog is a guest over somebody else's controls and the shorter it is the less of those it costs the user.
+    // This is also what FullCardHeight prices, so the two cannot disagree about which corner to hang from.
+    // Read per sizing pass, like the card's width: the screen, the host and the setting can all change while
+    // the card is open, and a saved setting has to reach the very next layout.
+    private int RowCap => InlineCardMetrics.ResolveRowCap(
+        _window.Manager.ExplorerTracker.IsActiveWindowDialog
+            ? UserSettings.Load().InlineSearchDialogMaxRows
+            : UserSettings.Load().InlineSearchWindowMaxRows);
+
+    // How many section titles the bound list carries right now. A title costs the card height but not one of
+    // the user's rows, so they are added to the ceiling the screen fit is clamped against -- and clamped to
+    // what FullCardHeight prices, so a list with more titles than that still stays inside the room the
+    // placement chose a corner with.
+    private int TitleRows => Math.Min(CountTitleRows(), InlineCardMetrics.MaxSectionTitleRows);
+
+    private int CountTitleRows()
+    {
+        var count = 0;
+        foreach (var result in _window.ViewModel.Results)
+        {
+            if (result.IsSearchSectionHeader) count++;
+        }
+
+        return count;
+    }
 
     /// <summary>Re-applies the card's size once the window has been laid out at least once.</summary>
     internal void Attach()
@@ -150,7 +171,7 @@ internal sealed class InlineCardSizingSupport
         for (var i = 0; i < results.Count; i++)
             isHeader[i] = results[i].IsSearchSectionHeader;
 
-        return InlineCardMetrics.ComputeLayout(isHeader, isSearching, _rowBudget);
+        return InlineCardMetrics.ComputeLayout(isHeader, isSearching, RowCap, _rowBudget);
     }
 
     /// <summary>Sizes the window shell to the settled row count.</summary>
@@ -196,7 +217,7 @@ internal sealed class InlineCardSizingSupport
         Logger.Log(
             "[InlineCardSize] "
             + $"forSummon={forSummon} searching={_window.ViewModel.IsSearching} "
-            + $"areaRows={layout.AreaRows} shown={layout.ShownItems} rowBudget={_rowBudget} rowCap={RowCap} "
+            + $"areaRows={layout.AreaRows} shown={layout.ShownItems} rowBudget={_rowBudget} rowCap={RowCap} titles={TitleRows} "
             + $"results={_window.ViewModel.Results.Count} frozen={_searchAreaRows?.ToString() ?? "null"} "
             + $"panel={_window.ResultsPanelControl.Visibility} banner={_window.PathPreviewBorder.Visibility} "
             + $"visibleContent={HasVisibleContent} height={_window.Height:F0}->{shellHeight:F0}",
@@ -251,8 +272,8 @@ internal sealed class InlineCardSizingSupport
         return InlineCardMetrics.ResultsAreaHeight(rows) + ChromeHeight();
     }
 
-    /// <summary>The tallest the STABLE card can be, in DIP: the full row budget plus the search bar and the
-    /// shell margin, but deliberately NOT the path banner.</summary>
+    /// <summary>The tallest the STABLE card can be, in DIP: the row ceiling plus the section titles it is priced
+    /// with, the search bar and the shell margin, but deliberately NOT the path banner.</summary>
     /// <remarks>
     /// Excluding the banner is what makes this a constant the placement can be decided against: the banner
     /// flicks on and off as the selection moves between truncated and ordinary paths, so charging it here
@@ -262,7 +283,7 @@ internal sealed class InlineCardSizingSupport
     /// into the room below rather than forcing the card to the top when there is none.
     /// </remarks>
     internal double FullCardHeight() =>
-        InlineCardMetrics.ResultsAreaHeight(RowCap)
+        InlineCardMetrics.ResultsAreaHeight(RowCap + InlineCardMetrics.MaxSectionTitleRows)
         + StableChromeHeight() + CardMargin * 3;
 
     // Everything the card spends that is not a result row and does not come and go with the selection: the
@@ -294,7 +315,7 @@ internal sealed class InlineCardSizingSupport
         var available = InlineCardSpace.AvailableHeight(_window, FullCardHeight());
 
         _rowBudget = InlineCardMetrics.ComputeRowBudget(
-            available, ChromeHeight() + margin, UiMetrics.InlineRowHeight, maxRows: RowCap);
+            available, ChromeHeight() + margin, UiMetrics.InlineRowHeight, maxRows: RowCap + TitleRows);
     }
 
     /// <summary>Measures the search bar at its natural height for the current card width.</summary>

@@ -5,6 +5,32 @@
 符号：* 核心功能　+ 小功能添加　# 修复。只写"改了什么"。
 -->
 
+## v5.10.0.3
+
+## 更新内容
+
+```
+# 合并上游对查询缓存的加固：缓存页面挂在产生它的索引上、单页上限 512 行、按请求长度裁剪
+# 修复索引预热存下的页面比客户端请求短而被拒绝，导致预热没有生效
+# 修复服务在开机时启动失败后不再重试，需要手动去设置里启动
+# 修复结果列表在非流式来源替换后仍沿用上一次的刷新判断
+* 移除未接入任何路径的持久化结果缓存，不再向用户目录写文件
++ 自动更新只检查本仓库的发行
++ 保留鼠标平滑滚动
+```
+
+## What's changed
+
+```
+# Merged upstream hardening of the query page cache: a page belongs to the index that produced it, is capped at 512 rows and is trimmed to the request
+# Fixed the index warm-up storing pages shorter than the client asks for, which made the warm-up a no-op
+# Fixed the service not retrying after a failed start at boot, which needed a manual start from settings
+# Fixed the result list keeping the previous refresh decision after a non-streamed replacement
+* Removed the persisted result cache that nothing read, so nothing writes to the user profile any more
++ Auto-update only checks this repository's releases
++ Keeps the smooth wheel scrolling
+```
+
 ## v5.10.0.2
 
 ## 更新内容

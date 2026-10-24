@@ -166,10 +166,11 @@ public static class SearchResultMapper
         var typeRanks = SearchResultTypePriority.BuildRanks(typeOrder);
         var filesTypeRank = SearchResultTypePriority.Rank(SearchResultTypePriority.FilesTypeId, typeRanks);
 
-        // A .lnk/.url/.appref-ms is a file row that is also an application shortcut. Taking the better of
+        // A .lnk/.appref-ms is a file row that is also an application shortcut. Taking the better of
         // the two ranks keeps the user's "Applications first" order working for shortcuts the app provider
         // never scanned (a folder that is not in 自定义应用搜索文件夹), and makes the mirrored "Files first"
-        // order harmless instead of silently demoting every shortcut to the file rank.
+        // order harmless instead of silently demoting every shortcut to the file rank. A .url keeps the
+        // file rank: it points at a web page, so the application type has nothing to say about it.
         var shortcutTypeRank = SearchResultTypePriority.ShortcutRank(
             SearchResultTypePriority.RankForResultKind(
                 SearchResultTypePriority.ApplicationResultKind,

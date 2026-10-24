@@ -123,13 +123,9 @@ internal static class KeyboardHookServiceInlineSearchExtensions
             && service._hotkeyDetector.CheckModifiersMatchOnly(service._settings.Hotkeys.SelectJumpModifier);
         if (isIndexModifierDown && service.IsInlineSearchVisible)
         {
-            var num = -1;
-            if (vkCode >= 0x31 && vkCode <= 0x39)
-                num = vkCode - 0x31 + 1;
-            else if (vkCode >= 0x61 && vkCode <= 0x69)
-                num = vkCode - 0x61 + 1;
+            var num = KeyboardUtils.GetJumpSlotNumber(vkCode);
 
-            if (num >= 1 && num <= 9)
+            if (num >= 1)
             {
                 service.RaiseCtrlNumberPressed(num);
                 return true; // Consume

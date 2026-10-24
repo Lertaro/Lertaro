@@ -79,7 +79,6 @@ public sealed class SearchResultTypePriorityTests
     public void IsShortcutPath_RecognisesTheShortcutExtensionsRegardlessOfCase()
     {
         Assert.IsTrue(SearchResultTypePriority.IsShortcutPath(@"D:\tools\smalltools\Auslogics Duplicate File Finder.lnk"));
-        Assert.IsTrue(SearchResultTypePriority.IsShortcutPath(@"D:\tools\Portal.URL"));
         Assert.IsTrue(SearchResultTypePriority.IsShortcutPath(@"D:\tools\App.APPREF-MS"));
     }
 
@@ -89,6 +88,8 @@ public sealed class SearchResultTypePriorityTests
         Assert.IsFalse(SearchResultTypePriority.IsShortcutPath(@"D:\tools\smalltools\重复文件"));
         Assert.IsFalse(SearchResultTypePriority.IsShortcutPath(@"D:\tools\app.exe"));
         Assert.IsFalse(SearchResultTypePriority.IsShortcutPath(@"D:\tools\notes.lnk.txt"));
+        Assert.IsFalse(SearchResultTypePriority.IsShortcutPath(@"D:\tools\Portal.URL"),
+            "a web shortcut opens a page, so it is not an application identity");
     }
 
     [TestMethod]
@@ -101,6 +102,8 @@ public sealed class SearchResultTypePriorityTests
             "a directory keeps whatever rank its type gave it");
         Assert.AreEqual(files, SearchResultTypePriority.TypeRankForRow(files, false, @"D:\a.exe", files, app),
             "an executable is a file, not an application shortcut");
+        Assert.AreEqual(files, SearchResultTypePriority.TypeRankForRow(files, false, @"D:\a.url", files, app),
+            "a .url is a file, not an application shortcut");
         Assert.AreEqual(1, SearchResultTypePriority.TypeRankForRow(1, false, @"D:\a.lnk", files, app),
             "a row already carrying the app rank is left alone");
     }

@@ -88,6 +88,12 @@ public class UserSettings
     // which keeps the wider default floor that a plain 40% would not reach on a small window -- the rule
     // itself lives with the rest of the card's geometry in App's InlineCardMetrics.ResolveDockedWidth.
     public int? InlineSearchWindowWidthPercent { get; set; }
+    // How many result rows the inline card may show, section titles not counted. The two boxes are the two
+    // contexts the card is docked in: an ordinary window, and a file dialog it covers. Both default to the
+    // count the card has always used there, both are clamped by App's InlineCardMetrics.ResolveRowCap because
+    // user-settings.json is hand-editable, and a screen too short for the count gives fewer rows either way.
+    public int InlineSearchWindowMaxRows { get; set; } = 10;
+    public int InlineSearchDialogMaxRows { get; set; } = 4;
     public string GlobalTokenPrefix { get; set; } = ":";
     public string LogLevel { get; set; } = "Info";
     public string PreferredLanguage { get; set; } = GetDefaultSystemLanguage();

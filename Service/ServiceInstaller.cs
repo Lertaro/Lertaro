@@ -59,7 +59,9 @@ static class ServiceInstaller
             if (!ServiceControlRunner.WaitForStopped("LertaroService"))
                 throw new InvalidOperationException("sc stop timed out before the service reached STOPPED.");
 
-            var serviceArguments = $"binPath= \"\\\"{serviceExePath}\\\" --service\" start= auto DisplayName= \"Lertaro Background Service\"";
+            // No start type here: sc create takes no `delayed-auto`, so the start type is settled once for both
+            // paths by ApplyDelayedStart below.
+            var serviceArguments = $"binPath= \"\\\"{serviceExePath}\\\" --service\" DisplayName= \"Lertaro Background Service\"";
             PermissionRepairReport.Write("registering or reconfiguring the service");
             var configure = ServiceControlRunner.Run($"config LertaroService {serviceArguments}", 0, 1060);
             if (!configure.IsSuccess(0))
@@ -67,13 +69,15 @@ static class ServiceInstaller
                 if (!configure.IsSuccess(1060))
                     throw new InvalidOperationException("sc config failed. See service.log for details.");
 
-                Logger.Log($"Installing service: sc.exe create LertaroService {serviceArguments}");
-                var create = ServiceControlRunner.Run($"create LertaroService {serviceArguments}");
+                Logger.Log($"Installing service: sc.exe create LertaroService {serviceArguments} start= auto");
+                var create = ServiceControlRunner.Run($"create LertaroService {serviceArguments} start= auto");
                 if (!create.IsSuccess(0))
                     throw new InvalidOperationException("sc create failed. See service.log for details.");
             }
 
+            ApplyDelayedStart();
             ApplySecurity();
+            ApplyRecovery();
 
             PermissionRepairReport.Write("starting the service");
             Logger.Log("Starting service: sc.exe start LertaroService");
@@ -91,6 +95,46 @@ static class ServiceInstaller
             PermissionRepairReport.Write($"install failed: {ex.Message}");
             Logger.Log($"Failed to install service: {ex}", LogLevel.Error);
         }
+    }
+
+    /// <summary>
+    /// Makes the service start after the boot-time logon storm instead of inside it. An ordinary AUTO_START
+    /// service competes with everything else that happens at boot for the same disk, and on the slowest
+    /// machines that is what loses the SCM's 30-second start window: the service is declared dead, its process
+    /// is left running, and local search stays down until someone starts it by hand.
+    /// </summary>
+    /// <remarks>
+    /// Run on both install paths rather than baked into the create arguments because sc create does not accept
+    /// `delayed-auto`, and because a service registered by an older build is never re-created: it is only ever
+    /// reconfigured, and this is the step that converges it. Deliberately not re-applied on every start, unlike
+    /// the two below -- a start type is a choice someone can make for their machine, and a service that is
+    /// already running has no business overruling it. A refusal here leaves the plain auto start type in place,
+    /// which still starts; failing the whole install over it would be the worse outcome.
+    /// </remarks>
+    internal static void ApplyDelayedStart()
+    {
+        var result = ServiceControlRunner.Run("config LertaroService start= delayed-auto");
+        if (!result.IsSuccess(0))
+            Logger.Log($"[ServiceInstaller] Could not set the delayed automatic start: {result.Error}", LogLevel.Warn);
+    }
+
+    /// <summary>
+    /// Lets the SCM retry a start that failed. A service with no recovery actions stays stopped after one loss,
+    /// so a single lost 30-second window became "local search is dead until the user opens the settings page" --
+    /// and on a machine that boots slowly, that window is lost often.
+    /// </summary>
+    /// <remarks>
+    /// Reapplied on every start, like <see cref="ApplySecurity"/>: an in-place upgrade does not run --install,
+    /// so this is the only route by which a service registered by an older build gets retry behavior at all.
+    /// Not a failure boundary -- a machine that refuses this still starts, it just loses the retries -- so a
+    /// refusal is logged rather than thrown.
+    /// </remarks>
+    internal static void ApplyRecovery()
+    {
+        var result = ServiceControlRunner.Run(
+            "failure LertaroService reset= 86400 actions= restart/15000/restart/30000/restart/60000");
+        if (!result.IsSuccess(0))
+            Logger.Log($"[ServiceInstaller] Could not set the service recovery actions: {result.Error}", LogLevel.Warn);
     }
 
     internal static void ApplySecurity()

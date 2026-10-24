@@ -127,6 +127,9 @@ static class Program
             if (cmd == "--service")
             {
                 ServiceInstaller.ApplySecurity();
+                // Also on this path, not just --install: in-place upgrades never run --install, and a machine
+                // that has never had recovery actions set needs the SCM to retry its next failed start.
+                ServiceInstaller.ApplyRecovery();
                 Logger.Log("Running as Windows Service.");
                 ServiceBase.Run(new UsnService());
                 return;

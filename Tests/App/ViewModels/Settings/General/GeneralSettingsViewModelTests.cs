@@ -61,7 +61,7 @@ public sealed class GeneralSettingsViewModelTests
     }
 
     [TestMethod]
-    public void InlineSearchWindowWidthPercent_DefaultsToFortyAndTakesOnlyTheBoxsRange()
+    public void InlineSearchWindowWidthPercent_DefaultsToSixtyAndTakesOnlyTheBoxsRange()
     {
         var settings = new UserSettings();
         var vm = new GeneralSettingsViewModel(settings);
@@ -80,13 +80,48 @@ public sealed class GeneralSettingsViewModelTests
     }
 
     [TestMethod]
-    public void InlineSearchWindowWidthPercent_DefaultIsStoredAsUnsetNotAsForty()
+    public void InlineSearchWindowWidthPercent_DefaultIsStoredAsUnsetNotAsSixty()
     {
-        // Writing 40 back would read as an explicit choice and cost the card the screen floor it keeps when
+        // Writing 60 back would read as an explicit choice and cost the card the screen floor it keeps when
         // nobody picked a number.
         Assert.IsNull(GeneralSettingsApplier.ToStoredInlineCardWidthPercent(UiMetrics.DefaultInlineCardWidthPercent));
         Assert.AreEqual(30, GeneralSettingsApplier.ToStoredInlineCardWidthPercent(30));
         Assert.AreEqual(UiMetrics.MaxInlineCardWidthPercent, GeneralSettingsApplier.ToStoredInlineCardWidthPercent(UiMetrics.MaxInlineCardWidthPercent));
+    }
+
+    [TestMethod]
+    public void InlineSearchWindowMaxRows_DefaultsToTenAndTakesOnlyTheBoxsRange()
+    {
+        var settings = new UserSettings();
+        var vm = new GeneralSettingsViewModel(settings);
+
+        Assert.AreEqual(UiMetrics.DefaultInlineCardRows, vm.InlineSearchWindowMaxRows);
+
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => vm.InlineSearchWindowMaxRows = UiMetrics.MinInlineCardRows - 1);
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => vm.InlineSearchWindowMaxRows = UiMetrics.MaxInlineCardRows + 1);
+
+        vm.InlineSearchWindowMaxRows = 6;
+
+        // Staged per the page's rule: the box shows 6, the settings keep the default until Apply() runs.
+        Assert.AreEqual(6, vm.InlineSearchWindowMaxRows);
+        Assert.AreEqual(UiMetrics.DefaultInlineCardRows, settings.InlineSearchWindowMaxRows);
+    }
+
+    [TestMethod]
+    public void InlineSearchDialogMaxRows_DefaultsToFourAndTakesTheSameRangeAsTheWindowBox()
+    {
+        var settings = new UserSettings();
+        var vm = new GeneralSettingsViewModel(settings);
+
+        // The dialog starts where the card used to be capped over one, and the two boxes are independent.
+        Assert.AreEqual(UiMetrics.DefaultInlineCardDialogRows, vm.InlineSearchDialogMaxRows);
+
+        vm.InlineSearchDialogMaxRows = 8;
+        Assert.AreEqual(8, vm.InlineSearchDialogMaxRows);
+        Assert.AreEqual(UiMetrics.DefaultInlineCardRows, vm.InlineSearchWindowMaxRows, "the window box keeps its own count");
+
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => vm.InlineSearchDialogMaxRows = UiMetrics.MinInlineCardRows - 1);
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => vm.InlineSearchDialogMaxRows = UiMetrics.MaxInlineCardRows + 1);
     }
 
     // Apply() is deliberately not called from these: it ends in UserSettings.Save(), which would overwrite

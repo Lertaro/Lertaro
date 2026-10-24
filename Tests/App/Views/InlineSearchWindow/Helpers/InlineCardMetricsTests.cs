@@ -3,15 +3,19 @@ using Lertaro.App.Views.InlineSearchWindow.Helpers;
 
 namespace Lertaro.App.Tests.Views.InlineSearchWindow.Helpers;
 
-// The inline card's geometry. The card shows up to a fixed number of list rows -- 9, matching the
-// Ctrl+1..9 jump range -- and trims to what actually came back once a search is not running.
+// The inline card's geometry. The card shows up to the configured number of RESULT rows -- ten by default, the
+// same count the Ctrl jump shortcuts reach -- and trims to what actually came back once a search is not running.
 //
-// The point of the layout arithmetic is that section titles must not make the bounded card grow to a tenth
-// row. They are ordinary list rows for sizing purposes and are kept only when a result follows them.
+// The point of the layout arithmetic is that a section title takes height but none of the user's rows: the count
+// they set is how many results show, whatever the list's headers cost on top of it. A header is kept only while
+// a result follows it.
 [TestClass]
 public sealed class InlineCardMetricsTests
 {
     private static double RowHeight => UiMetrics.InlineRowHeight;
+
+    // The ceiling an untouched card uses, so these cases read the same way the card does.
+    private static int Budget => InlineCardMetrics.DefaultRows;
 
     // isHeader describes the bound items in display order: true for a section title, false for a result.
     private static bool[] Items(params bool[] isHeader) => isHeader;
@@ -22,38 +26,60 @@ public sealed class InlineCardMetricsTests
         var layout = InlineCardMetrics.ComputeLayout(Items(false, false, false), isSearching: true);
 
         Assert.AreEqual(3, layout.ShownItems);
-        Assert.AreEqual(9, layout.AreaRows, "the area keeps the full result budget while searching");
+        Assert.AreEqual(Budget, layout.AreaRows, "the area keeps the full result budget while searching");
     }
 
     [TestMethod]
-    public void ComputeLayout_WithHeaders_AreaStaysWithinTheBudget()
+    public void ComputeLayout_HeadersTakeHeightButNotASlotOfTheBudget()
     {
         // The reported case: a "Current Folder" title, its results, then a "Global Search" title and more.
         var items = Items(false, false, false, true, false, false);
         var layout = InlineCardMetrics.ComputeLayout(items, isSearching: true);
 
-        Assert.AreEqual(9, layout.AreaRows);
         Assert.AreEqual(6, layout.ShownItems, "all five results plus their title");
+        Assert.AreEqual(Budget + 1, layout.AreaRows, "the count reserved plus the one title it rides on");
     }
 
     [TestMethod]
-    public void ComputeLayout_HeadersDoNotMakeTheListTaller()
+    public void ComputeLayout_HeadersDoNotCostResults()
     {
-        // Nine plain rows versus the same bounded list split across two titles. The second list must not grow
-        // just because category titles are present.
-        var plain = new bool[9];
-        var plainLayout = InlineCardMetrics.ComputeLayout(plain, isSearching: true);
+        // A full count of plain rows versus the same count split under two titles. Both show ten results, and
+        // the second card is two rows taller -- which is what "a title spends no slot of the count" means.
+        var plain = new bool[Budget];
+        var plainLayout = InlineCardMetrics.ComputeLayout(plain, isSearching: false);
 
-        var withHeaders = new bool[11];
+        var withHeaders = new bool[Budget + 2];
         withHeaders[0] = true;   // "Current Folder"
         withHeaders[5] = true;   // "Global Search"
-        var splitLayout = InlineCardMetrics.ComputeLayout(withHeaders, isSearching: true);
+        var splitLayout = InlineCardMetrics.ComputeLayout(withHeaders, isSearching: false);
 
-        // Both lists occupy at most nine rows. The split list contains seven results and two titles.
-        Assert.AreEqual(9, plainLayout.ShownItems);
-        Assert.AreEqual(9, splitLayout.ShownItems, "two titles share the bounded list rows");
-        Assert.AreEqual(9, plainLayout.AreaRows);
-        Assert.AreEqual(9, splitLayout.AreaRows);
+        Assert.AreEqual(Budget, plainLayout.ShownItems);
+        Assert.AreEqual(Budget + 2, splitLayout.ShownItems, "ten results plus the two titles that group them");
+    }
+
+    [TestMethod]
+    public void ComputeLayout_SearchingNeverReservesMoreThanTheRowBudget()
+    {
+        // Four titles in a room priced for two: the reservation stops at the room, rather than asking the card
+        // to be taller than the space the placement gave it.
+        var items = Items(true, true, true, true, false, false);
+        var layout = InlineCardMetrics.ComputeLayout(items, isSearching: true, resultBudget: 10, listRowBudget: 12);
+
+        Assert.AreEqual(12, layout.AreaRows);
+    }
+
+    [TestMethod]
+    public void ComputeLayout_ListRowBudget_CutsResultsBeforeOverrunningTheRoom()
+    {
+        // The screen has room for six rows and the list carries two titles: four results show rather than the
+        // ten asked for, because the room the card was given is the harder bound and the list scrolls.
+        var items = new bool[20];
+        items[0] = true;
+        items[3] = true;
+
+        var layout = InlineCardMetrics.ComputeLayout(items, isSearching: false, resultBudget: 10, listRowBudget: 6);
+
+        Assert.AreEqual(6, layout.ShownItems, "two titles and the four results that fit under them");
     }
 
     [TestMethod]
@@ -94,15 +120,15 @@ public sealed class InlineCardMetricsTests
         var items = new bool[40];
         var layout = InlineCardMetrics.ComputeLayout(items, isSearching: false);
 
-        Assert.AreEqual(9, layout.ShownItems);
-        Assert.AreEqual(9, layout.AreaRows);
+        Assert.AreEqual(Budget, layout.ShownItems);
+        Assert.AreEqual(Budget, layout.AreaRows);
     }
 
     [TestMethod]
-    public void ComputeLayout_WhileSearching_IsNeverTallerThanTheBudget()
+    public void ComputeLayout_WhileSearching_HoldsOneHeightWhileResultsArrive()
     {
-        // Guards the property that keeps a streaming search from resizing the card: the area is capped by
-        // the total list-row budget, never by how many results or titles have arrived.
+        // Guards the property that keeps a streaming search from resizing the card: the reserved area is the
+        // count plus the titles in the list, and it does not move as more of either arrives.
         for (var results = 0; results <= 30; results++)
         {
             var items = new bool[results + 2];
@@ -110,8 +136,9 @@ public sealed class InlineCardMetricsTests
             items[1] = true;
             var layout = InlineCardMetrics.ComputeLayout(items, isSearching: true);
 
-            Assert.IsLessThanOrEqualTo(InlineCardMetrics.DefaultRows, layout.AreaRows);
-            Assert.IsGreaterThanOrEqualTo(layout.ShownItems, layout.AreaRows);
+            Assert.AreEqual(Budget + InlineCardMetrics.MaxSectionTitleRows, layout.AreaRows,
+                "the two titles are reserved alongside the count, whatever has landed yet");
+            Assert.IsLessThanOrEqualTo(Budget + InlineCardMetrics.MaxSectionTitleRows, layout.ShownItems);
         }
     }
 
@@ -134,26 +161,26 @@ public sealed class InlineCardMetricsTests
         Assert.AreEqual(7, InlineCardMetrics.ComputeRowBudget(Chrome + (RowHeight * 7), Chrome, RowHeight));
 
     [TestMethod]
-    public void ComputeRowBudget_RoomForMoreRowsThanTheRange_StopsAtNine()
+    public void ComputeRowBudget_RoomForMoreRowsThanTheRange_StopsAtTheCeiling()
     {
         Assert.AreEqual(InlineCardMetrics.DefaultRows, InlineCardMetrics.ComputeRowBudget(2000, Chrome, RowHeight));
-        Assert.AreEqual(InlineCardMetrics.DefaultRows, InlineCardMetrics.ComputeRowBudget(Chrome + (RowHeight * 9), Chrome, RowHeight));
+        Assert.AreEqual(Budget, InlineCardMetrics.ComputeRowBudget(Chrome + (RowHeight * Budget), Chrome, RowHeight));
     }
 
     [TestMethod]
-    public void ComputeRowBudget_DialogCap_StopsAtFourWhateverTheRoom()
+    public void ComputeRowBudget_DialogSizedCap_StopsAtFourWhateverTheRoom()
     {
-        // A file dialog card is capped by its host at four rows, not by the screen: the room under a
-        // dialog's button row is mostly empty desktop, so the cap alone has to say "short card here".
-        Assert.AreEqual(InlineCardMetrics.DialogRows,
-            InlineCardMetrics.ComputeRowBudget(2000, Chrome, RowHeight, maxRows: InlineCardMetrics.DialogRows));
-        Assert.AreEqual(InlineCardMetrics.DialogRows,
-            InlineCardMetrics.ComputeRowBudget(Chrome + (RowHeight * 9), Chrome, RowHeight, maxRows: InlineCardMetrics.DialogRows));
+        // What a file-dialog card is configured with, capped by the room the dialog leaves: the ceiling alone
+        // says "short card here", because the space under a dialog's button row is mostly empty desktop.
+        Assert.AreEqual(UiMetrics.DefaultInlineCardDialogRows,
+            InlineCardMetrics.ComputeRowBudget(2000, Chrome, RowHeight, maxRows: UiMetrics.DefaultInlineCardDialogRows));
+        Assert.AreEqual(UiMetrics.DefaultInlineCardDialogRows,
+            InlineCardMetrics.ComputeRowBudget(Chrome + (RowHeight * 9), Chrome, RowHeight, maxRows: UiMetrics.DefaultInlineCardDialogRows));
         // The floor and the cap stay independent: a space that fits two rows gets two, not four.
         Assert.AreEqual(2,
-            InlineCardMetrics.ComputeRowBudget(Chrome + (RowHeight * 2), Chrome, RowHeight, maxRows: InlineCardMetrics.DialogRows));
+            InlineCardMetrics.ComputeRowBudget(Chrome + (RowHeight * 2), Chrome, RowHeight, maxRows: UiMetrics.DefaultInlineCardDialogRows));
         Assert.AreEqual(InlineCardMetrics.MinRows,
-            InlineCardMetrics.ComputeRowBudget(0, Chrome, RowHeight, maxRows: InlineCardMetrics.DialogRows));
+            InlineCardMetrics.ComputeRowBudget(0, Chrome, RowHeight, maxRows: UiMetrics.DefaultInlineCardDialogRows));
     }
 
     [TestMethod]
@@ -188,6 +215,41 @@ public sealed class InlineCardMetricsTests
     public void ComputeRowBudget_ImpossibleRowHeight_FallsBackToTheFullRange() =>
         // A degenerate row height must not divide by zero; the card keeps the budget it always had.
         Assert.AreEqual(InlineCardMetrics.DefaultRows, InlineCardMetrics.ComputeRowBudget(500, Chrome, 0));
+
+    // The row ceiling the settings boxes decide. Numbers outside the box only reach the card through a
+    // hand-edited user-settings.json, and then read as the nearest edge.
+    [TestMethod]
+    public void ResolveRowCap_AConfiguredCountIsTakenAsIs()
+    {
+        Assert.AreEqual(4, InlineCardMetrics.ResolveRowCap(4));
+        Assert.AreEqual(7, InlineCardMetrics.ResolveRowCap(7));
+        Assert.AreEqual(UiMetrics.MaxInlineCardRows, InlineCardMetrics.ResolveRowCap(UiMetrics.MaxInlineCardRows));
+    }
+
+    [TestMethod]
+    public void ResolveRowCap_CountsOutsideTheBoxReadAsTheNearestEdge()
+    {
+        Assert.AreEqual(UiMetrics.MinInlineCardRows, InlineCardMetrics.ResolveRowCap(1));
+        Assert.AreEqual(UiMetrics.MinInlineCardRows, InlineCardMetrics.ResolveRowCap(0));
+        Assert.AreEqual(UiMetrics.MaxInlineCardRows, InlineCardMetrics.ResolveRowCap(99));
+    }
+
+    [TestMethod]
+    public void ResolveRowCap_BothContextDefaultsSurviveIt() =>
+        // An ordinary window and a file dialog are separate settings with separate defaults, and both have to
+        // read back unchanged: four is the whole of what a dialog card shows by default, ten the window's.
+        Assert.AreEqual(UiMetrics.DefaultInlineCardDialogRows, InlineCardMetrics.ResolveRowCap(UiMetrics.DefaultInlineCardDialogRows));
+
+    [TestMethod]
+    [DataRow(1, "1")]
+    [DataRow(9, "9")]
+    public void JumpSlotLabel_TheFirstNineSlotsAreTheirOwnNumbers(int slot, string expected) =>
+        Assert.AreEqual(expected, InlineCardMetrics.JumpSlotLabel(slot));
+
+    [TestMethod]
+    public void JumpSlotLabel_TheTenthSlotIsZero() =>
+        // Ctrl+0, the key the hook process maps back to slot ten.
+        Assert.AreEqual("0", InlineCardMetrics.JumpSlotLabel(InlineCardMetrics.MaxJumpSlots));
 
     [TestMethod]
     public void AvailableCardHeight_RoomBelowTheWindow_IsUsedWithoutCoveringIt() =>

@@ -85,7 +85,6 @@ public class SearchService : IDisposable
         var effectiveBypassExclusions = bypassExclusions || parsed.IsPathMode;
 
         var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var cacheable = new List<SearchResult>();
         var uniqueOnResult = new Action<SearchResult>(result =>
         {
             // Unconditional, even in bypass mode: "*" only opts out of the user's own
@@ -99,8 +98,7 @@ public class SearchService : IDisposable
                 if (!seenPaths.Add(result.Path))
                     return;
             }
-            lock (cacheable)
-                cacheable.Add(result);
+
             if (System.Threading.Interlocked.Exchange(ref __firstRow, 1) == 0)
                 Lertaro.Core.SearchIndex.PerfTrace.Mark("client.firstRow", __trace);
             onResult(result);
@@ -117,10 +115,6 @@ public class SearchService : IDisposable
                         uniqueOnResult(result);
                 }, token).ConfigureAwait(false);
                 Lertaro.Core.SearchIndex.PerfTrace.Mark("client.pipe", __pipeStart);
-                // Keep this page for the next session to start from. Only the plain name-search shape:
-                // a scoped or token query is cheap to re-run and has no reuse worth storing.
-                if (directoryFilter == null && fileNameFilter == null)
-                    QueryResultCache.Store(query, null, cacheable);
                 Lertaro.Core.SearchIndex.PerfTrace.Flush("client", "ok", __trace, seenPaths.Count);
                 return true;
             }

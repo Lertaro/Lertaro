@@ -123,10 +123,16 @@ internal sealed class SearchDispatchController
     private void ClearForTokenOnlyQuery()
     {
         _setIsSearching(false);
+        InvalidateAppliedSignature();
         _replaceResults(new[] { SearchResultMapper.CreateKeepTypingPromptResult() });
         _setResultsPanelVisibility(Visibility.Visible);
         _setResultsSeparatorVisibility(Visibility.Visible);
     }
+
+    // Drops the streamed-report de-duplication signature. The rows now on screen did not come from a
+    // streamed report, so the next one must repaint even if it repeats the rows of the previous query
+    // (a cleared list, an empty-state prompt or an error message would otherwise stay put).
+    private void InvalidateAppliedSignature() => _lastAppliedSignature = null;
     // DispatchSearch (debounced) and PerformSearch (blocking) both resolve to the same set of
     // search parameters -- only which SearchExecutionEngine method runs them differs.
     //
@@ -175,21 +181,6 @@ internal sealed class SearchDispatchController
         // to the streamed candidates after each per-folder search, so the in-pattern matches must
         // reach the accumulator in the first place. Apps are dropped from a scoped search entirely
         // (a folder scope says nothing about applications), so no app budget is needed at all.
-        // Paint the previous session's rows for this exact query before asking the service for
-        // them again. The service needs ~4 s to load its index after a boot, and everything that
-        // runs before that is slow; the cached page puts a real result list on screen in the first
-        // frame, and the fresh rows replace it as soon as they arrive.
-        if (_queryTokens.Count == 0 && scopeDirective == null)
-        {
-            var cachedRows = Lertaro.Core.Services.Search.QueryResultCache.TryGetStartupPage(searchQuery, null);
-            if (cachedRows is { Count: > 0 })
-            {
-                var cachedUi = new List<AppSearchResult>(cachedRows.Count);
-                for (var i = 0; i < cachedRows.Count; i++)
-                    cachedUi.Add(AppSearchResult.FromIndexResult(cachedRows[i], searchQuery, i, isApplication: false, scope: null));
-                ApplyUntokenized(cachedUi, string.Empty);
-            }
-        }
 
         var hasTokens = _queryTokens.Count > 0;
         var hasScope = scopeDirective != null;
@@ -281,12 +272,14 @@ internal sealed class SearchDispatchController
                 TranslationManager.Instance["Search_OpenedFoldersHeader"]);
             if (emptyStateResults.Count > 0)
             {
+                InvalidateAppliedSignature();
                 _replaceResults(emptyStateResults);
                 _setResultsPanelVisibility(Visibility.Visible);
                 _setResultsSeparatorVisibility(Visibility.Visible);
             }
             else
             {
+                InvalidateAppliedSignature();
                 _replaceResults(Array.Empty<AppSearchResult>());
                 _setResultsPanelVisibility(Visibility.Collapsed);
                 _setResultsSeparatorVisibility(Visibility.Collapsed);

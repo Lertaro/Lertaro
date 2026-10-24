@@ -83,6 +83,21 @@ internal static class KeyboardUtils
         return 0;
     }
 
+    /// <summary>
+    /// The inline card's jump slot a virtual key code names, or -1: the digit row and the numpad give 1..9 and
+    /// either 0 gives <see cref="MaxJumpSlots"/>. The tenth slot is Ctrl+0, the same key the quick window's
+    /// launch panel labels 0 with, and the card's own row ceiling is the same ten rows.
+    /// </summary>
+    public const int MaxJumpSlots = 10;
+
+    public static int GetJumpSlotNumber(int vkCode) => vkCode switch
+    {
+        >= 0x31 and <= 0x39 => vkCode - 0x31 + 1,
+        >= 0x61 and <= 0x69 => vkCode - 0x61 + 1,
+        0x30 or 0x60 => MaxJumpSlots,
+        _ => -1,
+    };
+
     internal static bool CheckModifiersMatch(string expected, ModifierKeyState state, string defaultModifier)
     {
         var mask = ParseModifiers(expected ?? defaultModifier);

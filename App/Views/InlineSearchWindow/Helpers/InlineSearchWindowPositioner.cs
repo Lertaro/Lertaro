@@ -453,6 +453,23 @@ public class InlineSearchWindowPositioner
     public void RememberUserDrag() => _dragOffset.RememberDrag();
 
     /// <summary>
+    /// Drops the displacement the user dragged into this host's card and puts it back where it docks. Wired to
+    /// the logo's right click, the same gesture the quick window uses to bring itself back to the middle.
+    /// </summary>
+    /// <remarks>
+    /// The pass that placed the card cached the inputs it placed from, and a reset changes none of them, so the
+    /// cache is cleared along with the offset. Without that the pass below would answer "nothing moved" and the
+    /// card would stay exactly where the drag left it.
+    /// </remarks>
+    public void ResetUserDrag()
+    {
+        var tracker = _window.Manager.ExplorerTracker;
+        _dragOffset.ClearFor(tracker.IsDesktop ? InlineCardDragOffset.DesktopHost : tracker.ActiveProcessName);
+        _hasCachedInputs = false;
+        PositionWindowCore();
+    }
+
+    /// <summary>
     /// Where the card's window starts horizontally, in physical pixels.
     /// </summary>
     /// <remarks>

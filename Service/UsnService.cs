@@ -66,82 +66,70 @@ public class UsnService : ServiceBase
             // Warm the search path while nobody is waiting for it, then pre-answer the queries a user is
             // most likely to type first.
             //
-            // The first half used to be the whole warm-up and it was not enough: the scan is bound by the
-            // index pages being resident, so a query still cost 40-450 ms per drive whenever those pages had
-            // been handed back to the OS -- measured on this machine, and the 40-450 ms landed straight on
-            // the user's first keystroke. Running one query only kept the pages it touched.
+            // The scan is bound by the index pages being resident: a query costs 40-450 ms per drive
+            // whenever those pages have been handed back to the OS (measured on this machine), and that
+            // time landed straight on the user's first keystroke. Walking every letter keeps those pages
+            // and the query cache warm; the rows never reach a client, and the service records no search
+            // history (the App does), so nothing here looks like a search the user made.
             //
-            // So this walks every single letter instead. Each result is kept by IndexV2Searcher's query cache,
-            // so the keystroke that used to pay the scan now replays it. The rows never reach a client and the
-            // service records no search history (the App does), so nothing here looks like a search the user
-            // made.
-            //
-            // It has to wait for the index first: run right after Start, the indexes are still empty, so the
-            // search returns in 0 ms with 0 rows and warms nothing (measured exactly that).
-            // One query: run it, keep whatever the query cache keeps, and report how many rows it
-            // produced. Rows are discarded here -- the point is the cache entry, not the answer.
-            // Re-enabled after an A/B run: with the warm-up off the first searches were measurably
-            // slower while later ones were unchanged, so the scan it hides does land on the user.
-            const bool WarmUpEnabled = true;
+            // It has to wait for the index first: run right after Start, the indexes are still empty, so
+            // the search returns in 0 ms with 0 rows and warms nothing (measured exactly that).
+            // The quick window's candidate budget: the client shows 51 rows and asks the service for
+            // four times that (SearchService's Math.Max(maxResults * 4, maxResults)). The warm-up must
+            // store at least this many rows, or IndexV2Searcher refuses the page as shorter than the
+            // request and the keystroke still pays the scan.
+            const int WarmUpFileLimit = 204;
 
             int Warm(string query)
             {
-                if (!WarmUpEnabled)
-                    return 0;
                 var produced = 0;
                 try
                 {
-                    _engine?.SearchStreaming(query, 200, 20, null, _ => produced++, CancellationToken.None);
+                    _engine?.SearchStreaming(query, WarmUpFileLimit, 20, null, _ => produced++, CancellationToken.None);
                 }
                 catch (Exception ex)
                 {
-                    // One query failing must not end the warm-up: measured, the whole run was
-                    // cancelled 8.4 s in by a real search arriving mid-way, which left the last
-                    // letters cold and made the first keystroke slow or fast depending on what
-                    // the user did after launch.
-                    Lertaro.Core.SearchIndex.PerfTrace.Mark("warm.fail", Lertaro.Core.SearchIndex.PerfTrace.Begin(), 0);
+                    // One query failing must not end the warm-up: a real search arriving mid-way used to
+                    // cancel the whole run, which left the last letters cold and made the first
+                    // keystroke slow or fast depending on what the user did after launch.
+                    Logger.Log($"[UsnService] Warm-up query '{query}' failed: {ex.Message}", LogLevel.Debug);
                 }
 
                 return produced;
             }
 
-            _ = Task.Factory.StartNew(async () =>
+            // No per-thread priority here: the service process itself is already BelowNormal (set above),
+            // which covers this background work, and an async continuation would not stay on a thread
+            // whose priority had been raised anyway.
+            _ = Task.Run(async () =>
             {
-                // Actually below normal, which is what the comment below always claimed: LongRunning only
-                // makes a dedicated thread, it does not lower anything, so the warm-up ran at Normal and
-                // competed with the search the user was typing. The first keystroke of a session lands
-                // inside this window and felt heavy because of it.
-                try
-                {
-                    Thread.CurrentThread.Priority = ThreadPriority.BelowNormal;
-                }
-                catch
-                {
-                }
                 var started = Environment.TickCount64;
                 try
                 {
+                    var loaded = 0;
                     var deadline = started + 120_000;
-                    while (Environment.TickCount64 < deadline)
+                    while (loaded == 0 && Environment.TickCount64 < deadline)
                     {
                         var status = _engine?.GetStatus();
-                        var loaded = status?.Drives?.Count(d =>
+                        loaded = status?.Drives?.Count(d =>
                             string.Equals(d.State, "ready", StringComparison.OrdinalIgnoreCase)
                             || string.Equals(d.State, "cached", StringComparison.OrdinalIgnoreCase)) ?? 0;
-                        if (loaded > 0)
-                            break;
-                        await Task.Delay(500).ConfigureAwait(false);
+                        if (loaded == 0)
+                            await Task.Delay(500).ConfigureAwait(false);
+                    }
+
+                    if (loaded == 0)
+                    {
+                        Logger.Log("[UsnService] Search warm-up skipped: no drive became ready within 120 s.", LogLevel.Info);
+                        return;
                     }
 
                     var searchedAt = Environment.TickCount64;
-                    var warmed = 0;
                     var rows = 0;
-                    // Serially, on purpose. Four at a time was tried and was worse: every query reads
-                    // the same drive index, so the four competed for the read lock and the memory
-                    // bandwidth the scan is bound by, which made the warm-up slower and stole CPU
-                    // from the summon handshake at the same time.
-                    // was time the summon handshake could not get a reply. Four at a time keeps
-                    // every core busy without starving the hook/pipe work the double-Ctrl waits on.
+                    // Serial on purpose. Four at a time was tried and was worse: every query reads the
+                    // same drive index, so the four competed for the read lock and the memory bandwidth
+                    // the scan is bound by, which made the warm-up slower and stole CPU from the summon
+                    // handshake at the same time.
                     // Two waves. The first letter a session asks for is the one the user is waiting on,
                     // so the letters people actually start with are warmed immediately; the rest follow
                     // once the app has been up long enough that nobody is looking at the first rows any
@@ -169,15 +157,14 @@ public class UsnService : ServiceBase
                             continue;
                         rows += Warm(letter);
                     }
-                    warmed = letters.Count;
 
-                    Logger.Log($"[UsnService] Search warm-up finished in {Environment.TickCount64 - searchedAt} ms after waiting {searchedAt - started} ms for the index ({warmed} queries pre-answered, {rows} rows discarded).", LogLevel.Info);
+                    Logger.Log($"[UsnService] Search warm-up finished in {Environment.TickCount64 - searchedAt} ms after waiting {searchedAt - started} ms for the index ({letters.Count} queries pre-answered, {rows} rows discarded).", LogLevel.Info);
                 }
                 catch (Exception ex)
                 {
                     Logger.Log($"[UsnService] Search warm-up failed after {Environment.TickCount64 - started} ms: {ex.Message}", LogLevel.Info);
                 }
-            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap();
+            });
         }
         catch (Exception ex)
         {

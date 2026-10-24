@@ -1,7 +1,6 @@
 using System.IO;
 
 using Lertaro.App.ViewModels.Search.Mapping;
-using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 
 namespace Lertaro.App.Tests.ViewModels.Search.Mapping;
@@ -44,14 +43,16 @@ public sealed class ShortcutTypeRankTests
     }
 
     [TestMethod]
-    public void AnApplicationRowAndAnExecutableKeepTheirOwnRanks()
+    public void AnApplicationRowAnExecutableAndAWebShortcutKeepTheirOwnRanks()
     {
         var rows = Apply(
             Candidate(@"C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Chrome.lnk", AppRank, resultKind: "Application"),
-            Candidate(@"C:\Program Files\Notepad++\notepad++.exe", FilesRank));
+            Candidate(@"C:\Program Files\Notepad++\notepad++.exe", FilesRank),
+            Candidate(@"D:\tools\GitHub.url", FilesRank));
 
         Assert.AreEqual(AppRank, rows[0].TypeRank, "an indexed .lnk already carries the app rank");
         Assert.AreEqual(FilesRank, rows[1].TypeRank, "an .exe is a file, not an application shortcut");
+        Assert.AreEqual(FilesRank, rows[2].TypeRank, "a .url points at a page, so it stays a file row");
     }
 
     // The mirrored order must be a no-op: min(app, files) is never worse than the row's file identity, so

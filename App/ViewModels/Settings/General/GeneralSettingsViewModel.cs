@@ -30,6 +30,8 @@ public class GeneralSettingsViewModel : ViewModelBase
     private bool _enableRankingEventLog;
     private bool _showOpenedFoldersInInlineSearch;
     private int _inlineSearchWindowWidthPercent;
+    private int _inlineSearchWindowMaxRows;
+    private int _inlineSearchDialogMaxRows;
     private bool _hideTrayIcon;
     private bool _openFoldersInNewExplorerTabs;
     private string _globalTokenPrefix;
@@ -73,6 +75,8 @@ public class GeneralSettingsViewModel : ViewModelBase
         _enableRankingEventLog = userSettings.EnableRankingEventLog;
         _showOpenedFoldersInInlineSearch = userSettings.ShowOpenedFoldersInInlineSearch;
         _inlineSearchWindowWidthPercent = userSettings.InlineSearchWindowWidthPercent ?? UiMetrics.DefaultInlineCardWidthPercent;
+        _inlineSearchWindowMaxRows = userSettings.InlineSearchWindowMaxRows;
+        _inlineSearchDialogMaxRows = userSettings.InlineSearchDialogMaxRows;
         _hideTrayIcon = userSettings.HideTrayIcon;
         _openFoldersInNewExplorerTabs = userSettings.DefaultFileManager.OpenFoldersInNewExplorerTabs;
         _globalTokenPrefix = userSettings.GlobalTokenPrefix;
@@ -211,9 +215,9 @@ public class GeneralSettingsViewModel : ViewModelBase
     /// <summary>How wide the inline card may get, as a percent of the window it docks to.</summary>
     /// <remarks>
     /// The box takes 20-100, but the number is a request rather than a size: the placement bounds the result
-    /// by the anchored window and its screen, so 40 over a maximized window and 40 over a 400px dialog come
-    /// out different widths. Saving the default back stores null, not 40 -- see GeneralSettingsApplier --
-    /// because null keeps the floor an untouched card has always had on a small window.
+    /// by the anchored window and its screen, so the same percent over a maximized window and over a 400px
+    /// dialog come out different widths. Saving the default -- 60 -- back stores null rather than the number,
+    /// because null is the floor an untouched card has always had on a small window.
     /// </remarks>
     public int InlineSearchWindowWidthPercent
     {
@@ -227,6 +231,48 @@ public class GeneralSettingsViewModel : ViewModelBase
                     $"Width must be between {UiMetrics.MinInlineCardWidthPercent} and {UiMetrics.MaxInlineCardWidthPercent} percent.");
             }
             SetProperty(ref _inlineSearchWindowWidthPercent, value);
+        }
+    }
+
+    /// <summary>How many results the inline card shows over an ordinary window.</summary>
+    /// <remarks>
+    /// The ceiling is 10 because that is as far as the Ctrl jump shortcuts reach (1..9, then 0). Section titles
+    /// are not counted: the card shows this many results plus whatever headers group them. A screen too short
+    /// for the chosen count gives fewer rows and scrolls. The file dialog has its own box below, because the
+    /// card over a dialog covers somebody else's controls.
+    /// </remarks>
+    public int InlineSearchWindowMaxRows
+    {
+        get => _inlineSearchWindowMaxRows;
+        set
+        {
+            if (value < UiMetrics.MinInlineCardRows || value > UiMetrics.MaxInlineCardRows)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(value),
+                    $"Row count must be between {UiMetrics.MinInlineCardRows} and {UiMetrics.MaxInlineCardRows}.");
+            }
+            SetProperty(ref _inlineSearchWindowMaxRows, value);
+        }
+    }
+
+    /// <summary>How many results the inline card shows over a file dialog.</summary>
+    /// <remarks>
+    /// Same box range, its own default: a dialog is mostly other people's controls, so the card that covers one
+    /// starts shorter than the one over a file manager's own list, and the two are adjusted apart on purpose.
+    /// </remarks>
+    public int InlineSearchDialogMaxRows
+    {
+        get => _inlineSearchDialogMaxRows;
+        set
+        {
+            if (value < UiMetrics.MinInlineCardRows || value > UiMetrics.MaxInlineCardRows)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(value),
+                    $"Row count must be between {UiMetrics.MinInlineCardRows} and {UiMetrics.MaxInlineCardRows}.");
+            }
+            SetProperty(ref _inlineSearchDialogMaxRows, value);
         }
     }
 
@@ -299,6 +345,8 @@ public class GeneralSettingsViewModel : ViewModelBase
         _enableRankingEventLog,
         _showOpenedFoldersInInlineSearch,
         _inlineSearchWindowWidthPercent,
+        _inlineSearchWindowMaxRows,
+        _inlineSearchDialogMaxRows,
         _hideTrayIcon,
         _openFoldersInNewExplorerTabs,
         _globalTokenPrefix,

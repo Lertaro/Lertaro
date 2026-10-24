@@ -2,25 +2,36 @@ using Lertaro.App.Services;
 
 namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 
-// The inline card's geometry. The card shows up to a fixed number of list rows while a search runs, and
-// trims to what actually came back once it is not.
+// The inline card's geometry. The card shows up to the configured number of result rows while a search runs,
+// and trims to what actually came back once it is not.
 //
 // Split from the window and the layout manager so the arithmetic is testable without a visual tree.
 internal static class InlineCardMetrics
 {
-    // How many rows the result list shows. 9 matches the Ctrl+1..9 jump range while keeping the complete
-    // card bounded: section titles are rows in the list and cannot make a tenth row appear.
-    internal const int DefaultRows = 9;
+    // How many result rows the card shows when the user has not chosen a count. A section title is not one of
+    // them: it takes a row of the card's height but no slot of the count, so a card set to ten rows can show
+    // ten results and the titles that group them.
+    internal const int DefaultRows = UiMetrics.DefaultInlineCardRows;
 
-    // The cap over a file dialog: a dialog is mostly other people's controls, and the card that covers one
-    // should leave as much of it usable as possible. The jump shortcuts keep working 1..4; 5..9 simply have
-    // nothing to jump to here.
-    internal const int DialogRows = 4;
+    // The Ctrl jump shortcuts reach 1..9 and then 0, so ten slots. This is the key space, not the card's
+    // ceiling -- UiMetrics.MaxInlineCardRows is the largest count the settings box accepts. The hook process
+    // maps the same ten keys in KeyboardUtils.MaxJumpSlots.
+    internal const int MaxJumpSlots = 10;
+
+    // How many section titles the tallest card is priced with. Titles are free in the user's count but not in
+    // height, and the placement decides which corner to hang from against a CONSTANT height
+    // (InlineCardSizingSupport.FullCardHeight) because the row count follows what the search returned: measure
+    // the card as it is now and it picks a different corner between two result counts, which is the card
+    // jumping while the user types. Two is the shape the inline list is built from -- "Current Folder" over
+    // "Global Search". A rarer third title (a plugin's own command group, the empty state's opened-folders and
+    // recent headers) makes the card one row taller than the room the placement asked for, and the on-screen
+    // clamp keeps it reachable.
+    internal const int MaxSectionTitleRows = 2;
 
     // The floor a screen-aware budget never drops below, and it is deliberately low: an over-tall card is
-    // the one thing that actually blocks the window it is docked to, so in a space too short for four rows
-    // the card takes two and scrolls rather than pushing further over the host window. Two rows still show a
-    // selection with a neighbour, which is the least the list can be and stay legible.
+    // the one thing that actually blocks the window it is docked to, so in a space too short for the rows the
+    // user asked for the card takes two and scrolls rather than pushing further over the host window. Two rows
+    // still show a selection with a neighbour, which is the least the list can be and stay legible.
     internal const int MinRows = 2;
 
     // How much of the monitor's working area, and how much of the window the card is anchored to, the card
@@ -50,32 +61,56 @@ internal static class InlineCardMetrics
     /// still running.
     /// </summary>
     /// <remarks>
-    /// <paramref name="isHeader"/> must be in display order and describe the bound items. The walk stops
-    /// after <paramref name="resultBudget"/> LIST ROWS, and keeps everything before the last included result
-    /// so a trailing title is not shown without a result beneath it.
+    /// <paramref name="isHeader"/> must be in display order and describe the bound items. The walk stops after
+    /// <paramref name="resultBudget"/> RESULTS and keeps everything before the last one of them, so a section
+    /// title takes height without costing the user a slot, and a trailing title is not shown with no result
+    /// beneath it. <paramref name="listRowBudget"/> is the ceiling on TOTAL rows -- titles included -- which is
+    /// what keeps a card whose list carries more titles than the screen has room for inside that room.
     ///
-    /// While searching the area stays at the full list-row budget for sizing stability; once settled it
-    /// shrinks to exactly what is there. No synthetic rows are rendered for the reserved space.
+    /// While searching the area keeps the full budget plus the titles in it, never more rows than
+    /// <paramref name="listRowBudget"/> allows, for sizing stability; once settled it shrinks to exactly what is
+    /// there. No synthetic rows are rendered for the reserved space.
     /// </remarks>
-    internal static CardLayout ComputeLayout(IReadOnlyList<bool> isHeader, bool isSearching, int resultBudget = DefaultRows)
+    internal static CardLayout ComputeLayout(
+        IReadOnlyList<bool> isHeader,
+        bool isSearching,
+        int resultBudget = DefaultRows,
+        int listRowBudget = int.MaxValue)
     {
         var budget = Math.Max(0, resultBudget);
+        var scanLimit = Math.Min(Math.Max(0, listRowBudget), isHeader.Count);
 
-        var scanLimit = Math.Min(budget, isHeader.Count);
+        var resultsKept = 0;
         var lastIncludedResult = -1;
         for (var i = 0; i < scanLimit; i++)
         {
-            if (!isHeader[i]) lastIncludedResult = i;
+            if (isHeader[i]) continue;
+            if (resultsKept == budget) break;
+            resultsKept++;
+            lastIncludedResult = i;
         }
 
         // A category heading is useful only when a result follows it. Dropping trailing headings also
         // means the settled card cannot retain an empty category at the bottom of the bounded list.
         var shownItems = lastIncludedResult + 1;
 
-        // While searching, the area keeps the full budget for sizing stability. Once settled, it is exactly
-        // the bounded list contents.
-        var areaRows = isSearching ? budget : shownItems;
+        // While searching, the area keeps the full budget, titles and all, without ever asking for more rows
+        // than the room the card was given. Once settled, it is exactly the bounded list contents.
+        var areaRows = isSearching
+            ? Math.Min(listRowBudget, budget + CountHeaders(isHeader, scanLimit))
+            : shownItems;
         return new CardLayout(shownItems, areaRows);
+    }
+
+    private static int CountHeaders(IReadOnlyList<bool> isHeader, int limit)
+    {
+        var count = 0;
+        for (var i = 0; i < limit; i++)
+        {
+            if (isHeader[i]) count++;
+        }
+
+        return count;
     }
 
     /// <summary>The pixel height of the row area for <paramref name="rows"/> rows.</summary>
@@ -126,8 +161,26 @@ internal static class InlineCardMetrics
     }
 
     /// <summary>
+    /// The card's row ceiling as the count the user set for the context it is docked in, held to the range the
+    /// settings box takes. A ceiling, not a promise -- <see cref="ComputeRowBudget"/> still decides how many of
+    /// those rows plus their titles the space the card has can hold.
+    /// </summary>
+    /// <remarks>
+    /// user-settings.json is hand-editable, so a stored number outside the box reads as its nearest edge.
+    /// </remarks>
+    internal static int ResolveRowCap(int configuredRows) =>
+        Math.Clamp(configuredRows, UiMetrics.MinInlineCardRows, UiMetrics.MaxInlineCardRows);
+
+    /// <summary>
+    /// The key a jump slot is labeled with: slots 1..9 keep their number, and the tenth is "0" -- the key the
+    /// hook process maps back to slot ten.
+    /// </summary>
+    internal static string JumpSlotLabel(int slot) => slot == MaxJumpSlots ? "0" : slot.ToString();
+
+    /// <summary>
     /// How many list rows fit in <paramref name="availableHeight"/> once the card's non-row height is paid
-    /// for, bounded by the Ctrl+1..9 budget and never below <paramref name="minRows"/>.
+    /// for, bounded by <paramref name="maxRows"/> -- the user's count plus the titles it rides on -- and never
+    /// below <paramref name="minRows"/>.
     /// </summary>
     /// <remarks>
     /// When not even <paramref name="minRows"/> fit, the minimum wins: the card then takes more of the screen

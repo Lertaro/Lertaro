@@ -27,6 +27,8 @@ internal static class GeneralSettingsApplier
         bool enableRankingEventLog,
         bool showOpenedFoldersInInlineSearch,
         int inlineSearchWindowWidthPercent,
+        int inlineSearchWindowMaxRows,
+        int inlineSearchDialogMaxRows,
         bool hideTrayIcon,
         bool openFoldersInNewExplorerTabs,
         string globalTokenPrefix,
@@ -56,6 +58,8 @@ internal static class GeneralSettingsApplier
         userSettings.EnableRankingEventLog = enableRankingEventLog;
         userSettings.ShowOpenedFoldersInInlineSearch = showOpenedFoldersInInlineSearch;
         userSettings.InlineSearchWindowWidthPercent = ToStoredInlineCardWidthPercent(inlineSearchWindowWidthPercent);
+        userSettings.InlineSearchWindowMaxRows = inlineSearchWindowMaxRows;
+        userSettings.InlineSearchDialogMaxRows = inlineSearchDialogMaxRows;
         userSettings.HideTrayIcon = hideTrayIcon;
         userSettings.DefaultFileManager.OpenFoldersInNewExplorerTabs = openFoldersInNewExplorerTabs;
         userSettings.GlobalTokenPrefix = string.IsNullOrWhiteSpace(globalTokenPrefix) ? ":" : globalTokenPrefix;
@@ -97,7 +101,7 @@ internal static class GeneralSettingsApplier
     /// <summary>Stores the inline card's width percent, keeping the default unset rather than as a number.</summary>
     /// <remarks>
     /// null is what tells the card's placement (InlineCardMetrics.ResolveDockedWidth) to take the screen floor
-    /// an untouched card has always had; a stored 40 would read as an explicit choice and lose it.
+    /// an untouched card has always had; a stored 60 would read as an explicit choice and lose it.
     /// </remarks>
     internal static int? ToStoredInlineCardWidthPercent(int percent) =>
         percent == UiMetrics.DefaultInlineCardWidthPercent ? null : percent;

@@ -77,6 +77,12 @@ internal static class ServicePipe
 
     internal static bool IsStopped => QueryServiceState().CurrentState == 1;
 
+    /// <summary>
+    /// True while the SCM has a start in flight (SERVICE_START_PENDING). A slow start is not a failed one, and
+    /// the caller that asks this has a destructive next step: see ServiceInstallManager's use of it.
+    /// </summary>
+    internal static bool IsStartPending => QueryServiceState().CurrentState == 2;
+
     internal static async Task<bool> WaitForStoppedAsync(CancellationToken token)
     {
         while (!token.IsCancellationRequested)

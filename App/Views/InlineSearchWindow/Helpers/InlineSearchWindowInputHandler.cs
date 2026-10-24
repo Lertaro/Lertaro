@@ -151,7 +151,9 @@ public class InlineSearchWindowInputHandler
                 num = (int)actualKey - (int)Key.D1 + 1;
             else if (actualKey >= Key.NumPad1 && actualKey <= Key.NumPad9)
                 num = (int)actualKey - (int)Key.NumPad1 + 1;
-            if (num >= 1 && num <= 9)
+            else if (actualKey == Key.D0 || actualKey == Key.NumPad0)
+                num = InlineCardMetrics.MaxJumpSlots;
+            if (num >= 1 && num <= InlineCardMetrics.MaxJumpSlots)
             {
                 e.Handled = true;
                 LaunchByShortcutIndex(num);
