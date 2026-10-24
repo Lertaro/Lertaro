@@ -15,7 +15,8 @@ public sealed class RankContext
         IReadOnlySet<string>? favoritePaths = null,
         int historyFiveMax = RankPolicy.HistoryFiveMax,
         int historyThreeMax = RankPolicy.HistoryThreeMax,
-        string? query = null)
+        string? query = null,
+        bool demoteDirectoryIdentity = true)
     {
         PriorityResolver = priorityResolver;
         HistoryScoreX100 = historyScoreX100 ?? NoScores;
@@ -23,6 +24,7 @@ public sealed class RankContext
         HistoryFiveMax = Math.Max(0, historyFiveMax);
         HistoryThreeMax = Math.Max(0, historyThreeMax);
         Query = query;
+        DemoteDirectoryIdentity = demoteDirectoryIdentity;
     }
 
     public Func<string, bool, PriorityVerdict>? PriorityResolver { get; }
@@ -33,4 +35,10 @@ public sealed class RankContext
 
     /// <summary>Clean query string used by full-window decoration to detect ExactIdentity stem matches.</summary>
     public string? Query { get; }
+
+    /// <summary>
+    /// Whether an exact-named directory is capped at DirectStrong. True (today's behaviour) unless the
+    /// caller established that the file bucket is the user's top-ranked type; see RankPolicy.GradeForRanking.
+    /// </summary>
+    public bool DemoteDirectoryIdentity { get; }
 }

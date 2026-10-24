@@ -276,6 +276,42 @@ public sealed class RankedCandidateOrderingTests
     }
 
     [TestMethod]
+    public void ContextDecidesWhetherAnExactDirectoryKeepsItsIdentity()
+    {
+        // Reported case: order "Files, Applications, System settings" and a query whose only settings hit
+        // matched a keyword. With the cap on, the folder name is demoted to DirectStrong and that keyword
+        // ExactIdentity wins; with the cap off (Files first) the folder's stronger match orders first.
+        var folderMatch = new MatchRank(MatchRank.TierName, 0, 1, 1, MatchRank.ShapeWholeWord);
+        var folder = Candidate(@"D:\VPN") with
+        {
+            Result = new AppSearchResult { FullPath = @"D:\VPN", Name = "VPN", IsDir = true },
+            Match = folderMatch,
+            Evidence = MatchEvidence.Accepted("vpn", "VPN", MatchEvidenceField.FileName, folderMatch),
+        };
+        var settingsMatch = new MatchRank(MatchRank.TierInitials, 1, 0.5, 0.5, MatchRank.ShapeScattered);
+        var settings = Candidate(@"__builtin::Settings::ncpa.cpl", typeRank: 2) with
+        {
+            Result = new AppSearchResult { FullPath = @"__builtin::Settings::ncpa.cpl", Name = "查看网络连接" },
+            Match = settingsMatch,
+            Evidence = new MatchEvidence(
+                MatchEvidenceField.Keyword,
+                MatchEvidenceMode.Literal,
+                MatchQueryVariant.Original,
+                MatchEvidenceGrade.ExactIdentity,
+                true,
+                false),
+        };
+
+        var capped = RankedCandidateOrdering.Order([folder, settings], new RankContext(Priorities()));
+        var filesFirst = RankedCandidateOrdering.Order(
+            [folder, settings],
+            new RankContext(Priorities(), demoteDirectoryIdentity: false));
+
+        Assert.AreEqual("查看网络连接", capped[0].Result.Name);
+        Assert.AreEqual("VPN", filesFirst[0].Result.Name);
+    }
+
+    [TestMethod]
     public void MergeKeepsApplicationExecutionObjectAndFilePathSignals()
     {
         const string path = @"C:\Apps\PixPin.lnk";

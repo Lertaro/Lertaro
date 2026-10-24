@@ -30,7 +30,8 @@ public sealed class RankPolicyTests
         int drive = 3,
         ulong engineTie = 0,
         MatchRank? match = null,
-        bool typeRankApplies = true) =>
+        bool typeRankApplies = true,
+        bool demoteDirectoryIdentity = true) =>
         new(
             match ?? (strong ? Strong() : Weak()),
             isHistoryOnly,
@@ -44,7 +45,8 @@ public sealed class RankPolicyTests
             path,
             drive,
             engineTie,
-            typeRankApplies);
+            typeRankApplies,
+            demoteDirectoryIdentity);
 
     private static RankKey KeyOf(
         RankSignals s,
@@ -162,6 +164,26 @@ public sealed class RankPolicyTests
 
         Assert.AreEqual(MatchEvidenceGrade.DirectStrong, folder.Grade);
         Assert.IsLessThan(0, RankKeyComparer.Instance.Compare(app, folder));
+    }
+
+    [TestMethod]
+    public void Compare_ExactDirectoryKeepsItsIdentityWhenTheCapIsOff()
+    {
+        // The cap exists only to protect a type the user ranked ABOVE Files. With Files first there is
+        // nothing to protect, so the exact folder name must stand as ExactIdentity -- keeping it at
+        // DirectStrong let a settings row that only matched a keyword outrank the very bucket ranked first.
+        var evidence = EvidenceOf(MatchEvidenceGrade.ExactIdentity);
+        var capped = KeyOf(
+            Signals(typeRank: 0, isDir: true, name: "VPN", path: @"D:\VPN"),
+            HistoryTier.None,
+            evidence);
+        var uncapped = KeyOf(
+            Signals(typeRank: 0, isDir: true, name: "VPN", path: @"D:\VPN", demoteDirectoryIdentity: false),
+            HistoryTier.None,
+            evidence);
+
+        Assert.AreEqual(MatchEvidenceGrade.DirectStrong, capped.Grade);
+        Assert.AreEqual(MatchEvidenceGrade.ExactIdentity, uncapped.Grade);
     }
 
     [TestMethod]

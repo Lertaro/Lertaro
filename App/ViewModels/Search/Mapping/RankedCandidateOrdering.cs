@@ -220,8 +220,7 @@ internal static class RankedCandidateOrdering
 
             var previous = merged[slot];
             var combined = PreferRow(previous, candidate);
-            if (mergedAway != null)
-                mergedAway.Add(ReferenceEquals(combined.Result, candidate.Result) ? previous : candidate);
+            mergedAway?.Add(ReferenceEquals(combined.Result, candidate.Result) ? previous : candidate);
             merged[slot] = combined;
         }
 
@@ -355,6 +354,7 @@ internal static class RankedCandidateOrdering
             Name: c.Result.Name,
             NormalizedPath: path,
             Drive: RankPolicy.DriveRank(c.Result.Drive),
-            TypeRankApplies: c.TypeRankApplies);
+            TypeRankApplies: c.TypeRankApplies,
+            DemoteDirectoryIdentity: context?.DemoteDirectoryIdentity ?? true);
     }
 }

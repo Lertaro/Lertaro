@@ -10,6 +10,20 @@ namespace Lertaro.App.Tests.ViewModels.Search;
 public sealed class SearchResultTypePriorityTests
 {
     [TestMethod]
+    public void FilesComesFirst_ReadsTheTopOfTheSavedOrder()
+    {
+        Assert.IsTrue(SearchResultTypePriority.FilesComesFirst(
+            [SearchResultTypePriority.FilesTypeId, "apps", "settings"]));
+        Assert.IsFalse(SearchResultTypePriority.FilesComesFirst(
+            ["apps", SearchResultTypePriority.FilesTypeId, "settings"]));
+        Assert.IsFalse(SearchResultTypePriority.FilesComesFirst(
+            ["apps", "settings", SearchResultTypePriority.FilesTypeId]));
+        // No saved order at all is not "Files first": unlisted types stay neutral and the cap keeps applying.
+        Assert.IsFalse(SearchResultTypePriority.FilesComesFirst([]));
+        Assert.IsFalse(SearchResultTypePriority.FilesComesFirst(["apps", "settings"]));
+    }
+
+    [TestMethod]
     public void BuildRanks_MatchesTheListOverload()
     {
         var orders = new[]

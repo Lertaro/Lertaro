@@ -39,7 +39,10 @@ public readonly record struct RankSignals(
     string NormalizedPath,
     int Drive,
     ulong EngineTie = 0,
-    bool TypeRankApplies = true);
+    bool TypeRankApplies = true,
+    // False when the caller knows nothing outranks the file bucket in the user's result-type order: an
+    // exact-named directory then keeps its ExactIdentity (see RankPolicy.GradeForRanking).
+    bool DemoteDirectoryIdentity = true);
 
 public readonly record struct RankKey(
     byte AlwaysTop,
@@ -185,14 +188,18 @@ public static class RankPolicy
             s.TypeRankApplies);
     }
 
-    // Directories are containers, not identities: an exact folder name is a strong direct match but
-    // never an ExactIdentity. That keeps the configured type order (Applications before Files) able to
-    // put a versioned app shortcut ahead of an unrelated folder with the same leading word.
+    // Directories are containers, not identities: an exact folder name is a strong direct match but never
+    // an ExactIdentity -- as long as the user ranks the file bucket behind another type, so that the
+    // configured type order (Applications before Files) can put an app ahead of an unrelated folder with the
+    // same leading word. Once Files is the top of that order the cap has nothing left to protect, and
+    // demoting would instead strip the strongest evidence from the bucket the user ranked first: a settings
+    // row that only matched through a keyword would outrank every exact-named folder while the file bucket
+    // still led the order. Callers turn the cap off for exactly that case (RankContext.DemoteDirectoryIdentity).
     private static MatchEvidenceGrade GradeForRanking(in RankSignals s, in MatchEvidence evidence)
     {
         var strong = !s.IsHistoryOnly && s.Match.IsStrong;
         var grade = MatchEvidence.ResolveGrade(evidence, s.Match, s.IsHistoryOnly, strong);
-        return s.IsDir && grade == MatchEvidenceGrade.ExactIdentity
+        return s.IsDir && s.DemoteDirectoryIdentity && grade == MatchEvidenceGrade.ExactIdentity
             ? MatchEvidenceGrade.DirectStrong
             : grade;
     }

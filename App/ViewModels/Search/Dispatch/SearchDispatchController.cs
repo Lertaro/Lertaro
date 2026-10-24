@@ -198,6 +198,13 @@ internal sealed class SearchDispatchController
         // every other lifted history row keeps ranking by score inside Boosted/HistoryTail. AlwaysTop is a
         // user checkbox and does not spend a history slot, so pinning still works in the card.
         var isInlineContext = _getIsInlineSearchContext();
+        // The directory grade cap exists to keep a preferred application/settings row ahead of an unrelated
+        // folder with the same leading word. That only makes sense while some other type outranks Files: when
+        // the user puts the file bucket first, the cap would demote the exact-named folder to DirectStrong and
+        // hand the win to a settings row that merely matched through a keyword, i.e. the exact opposite of the
+        // order they configured. Read once per query, like the type order the mapper resolves later.
+        var demoteDirectoryIdentity = isInlineContext
+            || !SearchResultTypePriority.FilesComesFirst(UserSettings.Load().ResultTypeOrder);
         // One trace session covers all streaming paints of this quick-window query. The switch only
         // controls whether the export action is offered; the trace itself never writes anything.
         var rankingTrace = !isInlineContext && UserSettings.Load().EnableRankingDetailsExport
@@ -207,7 +214,8 @@ internal sealed class SearchDispatchController
             rankRules.GetPriorityVerdict,
             SearchHistoryStore.ScoreSnapshot(DateTimeOffset.UtcNow),
             historyFiveMax: isInlineContext ? 1 : RankPolicy.HistoryFiveMax,
-            historyThreeMax: isInlineContext ? 3 : RankPolicy.HistoryThreeMax);
+            historyThreeMax: isInlineContext ? 3 : RankPolicy.HistoryThreeMax,
+            demoteDirectoryIdentity: demoteDirectoryIdentity);
         // The engine truncates before the App can rank, so a high-priority row that matches weakly could
         // never arrive at all. Only high rules pay for the wider window; the default rule set has none.
         if (rankRules.HasHighPriorityRules)

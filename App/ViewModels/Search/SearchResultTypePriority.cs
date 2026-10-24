@@ -52,6 +52,13 @@ public static class SearchResultTypePriority
 
     public static int Rank(string typeId, List<string> order) => Rank(typeId, BuildRanks(order));
 
+    // "Files comes first": the file bucket is the top of the user's saved order, so no other type sits
+    // above it for the type tie-break to favour. The quick window uses this to stop capping an exact-named
+    // directory at DirectStrong (RankPolicy.GradeForRanking): with Files first the cap protects nothing and
+    // would only let a keyword-only ExactIdentity on a settings row outrank every folder.
+    public static bool FilesComesFirst(List<string> order) =>
+        order.Count > 0 && string.Equals(order[0], FilesTypeId, StringComparison.Ordinal);
+
     // The type rank of the provider(s) declaring this ResultKind -- the best one when several do.
     // int.MaxValue when none of them declares it or the type is not in the saved order, i.e. the same
     // "unlisted" fallback every other lookup uses.
