@@ -55,6 +55,14 @@ public class DirectoryOpusInlineSearchAdapter : IInlineSearchAdapter
         if (focusedHwnd == IntPtr.Zero || string.IsNullOrEmpty(className))
             return false;
 
+        // The host's own context menu. It is a top-level window named "dopus.button.display.popup"
+        // (observed: present while a menu is open, gone when it closes), and it is not a system menu --
+        // GUITHREADINFO reports neither the menu-mode flags nor a menu owner for it, while the keyboard
+        // focus stays on the file view the whole time. So nothing upstream can see it is a menu: this has
+        // to ask for the window. Without it, a menu mnemonic key became the card's first character.
+        if (FindWindow("dopus.button.display.popup", null) != IntPtr.Zero)
+            return false;
+
         // Thumbnails/Tiles/Large Icons render the file list in a separate child window class
         // ("dopus.iconfiledisplay") from Details/List's "dopus.filedisplay" -- confirmed via the
         // targetFocus/className debug log (see HandleInlineSearchKeys) while focused in that mode.
