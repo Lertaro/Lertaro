@@ -119,9 +119,9 @@ internal static class SearchMatcherPath
             return;
         }
 
-        // Same veto as SearchMatcher.MatchOne: a `!term` can only be checked against the name, and the
-        // alias tier below would otherwise revive the candidate the name match rejected -- the grid tier
-        // most of all, which decides readings from the positive terms and never reads the name.
+        // Same veto as SearchMatcher.MatchOne: a `:term` can only be checked against the name, and the
+        // alias tier below would otherwise revive the candidate the name match rejected. The live tier
+        // above answers both name-level clauses; the alias tier reads the name for the `/.../` half itself.
         if (ctx.Pattern.HasExclusions && !ctx.Pattern.ExclusionsPass(name))
             return;
 

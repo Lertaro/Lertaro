@@ -31,9 +31,12 @@ internal static class SearchMatcherRow
         else if (pattern.TryMatch(name, out match, FzfScoringScheme.Default, slab))
             return true;
 
-        // A `!term` has nothing to compare against in a transliteration, so the alias tiers below have to
-        // be vetoed on the name -- see FzfPatternExclusionExtensions.ExclusionsPass.
+        // A `:term` and a `/.../` clause have nothing to compare against in a transliteration, so the
+        // alias and mixed lanes below have to be vetoed on the name -- see
+        // FzfPatternExclusionExtensions.ExclusionsPass and RegexClauses.
         if (pattern.HasExclusions && !pattern.ExclusionsPass(name))
+            return false;
+        if (pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, name))
             return false;
 
         var uid = (int)snapshot.NameIds[row];
@@ -120,6 +123,8 @@ internal static class SearchMatcherRow
         else if (pattern.TryMatch(name, out result, FzfScoringScheme.Default, slab))
             return true;
         if (pattern.HasExclusions && !pattern.ExclusionsPass(name))
+            return false;
+        if (pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, name))
             return false;
         if (aliases == null)
             return false;
