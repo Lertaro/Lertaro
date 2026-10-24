@@ -61,4 +61,28 @@ internal sealed class DirectChildrenListingCache
         if (!string.IsNullOrWhiteSpace(directory))
             _ = GetAsync(directory);
     }
+
+    /// <summary>
+    /// Drops the listing for <paramref name="directory"/>, so the next search walks it again. The window
+    /// keeps a folder as fixed only while nothing reports a change in it: a directory watcher calls this
+    /// when Explorer or another app creates, deletes or renames an item in the folder on screen.
+    /// </summary>
+    public void Invalidate(string? directory)
+    {
+        if (string.IsNullOrWhiteSpace(directory))
+            return;
+
+        lock (_gate)
+        {
+            if (!_listings.Remove(directory))
+                return;
+            // Keep the insertion-order queue in step: an entry left behind would evict a live folder when
+            // it reaches the front of the queue (the queue is what bounds MaxFolders, the dictionary alone
+            // does not). The queue is tiny -- rewriting it is cheaper than tracking a second structure.
+            var kept = _insertionOrder.Where(d => !d.Equals(directory, StringComparison.OrdinalIgnoreCase)).ToArray();
+            _insertionOrder.Clear();
+            foreach (var d in kept)
+                _insertionOrder.Enqueue(d);
+        }
+    }
 }

@@ -217,6 +217,20 @@ internal sealed class SearchExecutionEngine : IDisposable
     /// </remarks>
     public void PrewarmDirectoryListing(string? directory) => _directChildrenListing.Prewarm(directory);
 
+    /// <summary>
+    /// Drops the listing cached for <paramref name="directory"/>, so the next search walks it again.
+    /// </summary>
+    /// <remarks>
+    /// The listing is otherwise treated as fixed for the window's life (see DirectChildrenListingCache).
+    /// A folder on screen is not fixed, though: delete a file in Explorer and the row stayed because every
+    /// later keystroke re-filtered the same stale entries. The window's directory watcher invalidates on
+    /// any change and re-runs the query.
+    /// </remarks>
+    public void InvalidateDirectoryListing(string? directory)
+    {
+        _directChildrenListing.Invalidate(directory);
+    }
+
     public void CancelPendingSearch()
     {
         try
