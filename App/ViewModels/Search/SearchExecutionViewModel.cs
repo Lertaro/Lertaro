@@ -167,6 +167,8 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
     // that matches instantly and one that waits for a whole folder walk.
     public void PrewarmDirectoryListing(string? directory) => _engine.PrewarmDirectoryListing(directory);
 
+    public void InvalidateDirectoryListing(string? directory) => _engine.InvalidateDirectoryListing(directory);
+
     public void Dispose()
     {
         SearchableItemMapper.ProviderLoaded -= OnSearchableItemProviderLoaded;

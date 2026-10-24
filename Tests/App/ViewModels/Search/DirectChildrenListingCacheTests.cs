@@ -151,6 +151,52 @@ public sealed class DirectChildrenListingCacheTests
         new DirectChildrenListingCache().Prewarm(null);
 
     [TestMethod]
+    public void Invalidate_NullOrEmpty_DoesNothing() =>
+        // The window can exist without a scope yet, and a watcher can report an empty path.
+        new DirectChildrenListingCache().Invalidate(null);
+
+    [TestMethod]
+    public async Task Invalidate_ForcesTheNextGetToWalkTheFolderAgain()
+    {
+        // What the inline window's folder watcher relies on: Explorer deletes a file, the watcher
+        // invalidates, and the re-run must no longer see the stale listing (it previously kept showing
+        // the deleted row until the window was destroyed).
+        using var dir = new TempDirectory("a.txt", "b.txt");
+        var cache = new DirectChildrenListingCache();
+
+        var before = await cache.GetAsync(dir.Path);
+        File.Delete(System.IO.Path.Combine(dir.Path, "a.txt"));
+        cache.Invalidate(dir.Path);
+        var after = await cache.GetAsync(dir.Path);
+
+        Assert.AreNotSame(before, after, "the invalidated folder must be walked again");
+        Assert.HasCount(1, after);
+        Assert.AreEqual("b.txt", after[0].Name);
+    }
+
+    [TestMethod]
+    public async Task Invalidate_LeavesTheOtherFoldersCached()
+    {
+        // Invalidation is per folder, and it must not consume the eviction budget: a stale insertion-order
+        // entry left behind would push a live folder out when the queue reached its cap.
+        using var a = new TempDirectory("a.txt");
+        using var b = new TempDirectory("b.txt");
+        using var c = new TempDirectory("c.txt");
+        using var d = new TempDirectory("d.txt");
+        var cache = new DirectChildrenListingCache();
+
+        var firstB = await cache.GetAsync(b.Path);
+        await cache.GetAsync(a.Path);
+        await cache.GetAsync(c.Path);
+        await cache.GetAsync(d.Path);
+        cache.Invalidate(a.Path);
+        await cache.GetAsync(a.Path);
+        var secondB = await cache.GetAsync(b.Path);
+
+        Assert.AreSame(firstB, secondB, "invalidating one folder must not evict another");
+    }
+
+    [TestMethod]
     public void MatchInto_AgainstAPrebuildListing_MatchesNamesAndReportsDirectories()
     {
         var listing = new List<DirectChildrenLocator.Entry>
