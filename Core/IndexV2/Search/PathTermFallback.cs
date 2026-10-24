@@ -246,7 +246,9 @@ internal static class PathTermFallback
             // The existing fallback algorithm operates on an AND list of term sets. Reusing it per DNF
             // branch preserves its bounded name/ancestor walk while the outer callback deduplicates rows
             // that satisfy more than one OR branch.
-            var branch = new FzfPattern(pattern.TargetDrive, group.Sets);
+            // The query's clauses ride along: group.Sets only carries this branch's terms, and dropping
+            // the regexes here would let this fallback report rows the user's `/.../` clause excludes.
+            var branch = new FzfPattern(pattern.TargetDrive, group.Sets, orGroups: null, pattern.Regexes);
             SearchStreaming(snapshot, delta, branch, limit, result =>
             {
                 if (emitted >= limit || !seen.Add(result.Path))
