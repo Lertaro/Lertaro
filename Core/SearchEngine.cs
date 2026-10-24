@@ -35,7 +35,21 @@ public class SearchEngine : IDisposable
             () => _cts?.Token ?? CancellationToken.None,
             () => _isRebuilding,
             TryReleaseRuntimeAfterActivity);
+        // The device-removal path arms per-drive waiters, but that path needs a removal event at all: a
+        // surprise unplug or a monitor that gave up earlier leaves no waiter behind. A volume arrival is
+        // the one signal that reaches the engine regardless, so refresh the drive table on it as well --
+        // the same refresh the periodic status poll performs, just immediately.
+        VolumeArrivalMonitor.EnsureStarted();
+        VolumeArrivalMonitor.Arrived += OnVolumeArrived;
         _idleTimer = new Timer(OnIdleTimerTick, null, IdleTrimAfterMs, IdleTrimAfterMs);
+    }
+
+    // Runs on the PnP callback thread, which must not block: the refresh enumerates volumes and touches
+    // disk caches, so it is handed to the pool.
+    private void OnVolumeArrived(object? sender, EventArgs e)
+    {
+        try { _ = Task.Run(() => _drives.RefreshDrivesInStatus()); }
+        catch (Exception ex) { Logger.Log($"[SearchEngine] Failed to refresh drives after a volume arrival: {ex.Message}", LogLevel.Error); }
     }
 
     /// <summary>Every applied change batch: which drive, and where in it -- see UsnIndexer.</summary>
@@ -272,6 +286,7 @@ public class SearchEngine : IDisposable
 
     public void Dispose()
     {
+        VolumeArrivalMonitor.Arrived -= OnVolumeArrived;
         _idleTimer?.Dispose();
         _initializationReady.Set();
         // Cancel without Dispose (see the restart path above): in-flight loops still reference
