@@ -110,6 +110,24 @@ public class TextHighlighterTests
     }
 
     [TestMethod]
+    public void MarksTheSpanARegexClauseSelected()
+    {
+        // A "/.../" clause narrows on the candidate's own name, so the name column has to show the
+        // characters it matched. The clause used to reach the mask computation and then be ignored
+        // there, so a regex-only search rendered every row completely unmarked.
+        Assert.AreEqual("Report", Marked("Q3 Report.docx", "/report/"));
+        Assert.AreEqual("Report|.docx", Marked("Q3 Report 2024.docx", @"report /\.docx$/"));
+    }
+
+    [TestMethod]
+    public void MarksACaseSensitiveRegexClauseWithTheCaseTheUserTyped()
+    {
+        // The query used to be lowercased before it was parsed for display, which folded a "(?-i)"
+        // clause into a pattern that could no longer match the uppercase span the search matched on.
+        Assert.AreEqual("Report", Marked("Report report", "/(?-i)Report/"));
+    }
+
+    [TestMethod]
     public void ToleratesTextShorterThanADrivePrefix()
     {
         Assert.AreEqual(string.Empty, Marked("T", "t:"));

@@ -62,6 +62,36 @@ internal static class RegexClauses
         return true;
     }
 
+    // Display highlighting for a clause: paint every span the regex matched. The matcher has already
+    // admitted the candidate, so a clause timing out here can only cost the paint, never the row -- and
+    // unlike AllMatch, an empty match marks nothing rather than deciding anything.
+    internal static void MarkMatches(string pattern, ReadOnlySpan<char> text, Span<bool> highlights)
+    {
+        if (highlights.Length == 0)
+            return;
+
+        var regex = GetOrCreate(pattern);
+        try
+        {
+            // EnumerateMatches over the span: highlighting runs once per rendered row, so materializing
+            // the text (or a MatchCollection) here would allocate on the UI thread per row.
+            foreach (var match in regex.EnumerateMatches(text))
+            {
+                if (match.Length <= 0)
+                    continue;
+
+                var end = Math.Min(match.Index + match.Length, highlights.Length);
+                for (var i = match.Index; i < end; i++)
+                    highlights[i] = true;
+            }
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            if (TimeoutLog.ShouldLog(pattern, Environment.TickCount64))
+                Logger.Log($"[Search] Regex clause '{pattern}' exceeded its match budget while highlighting; that row was left unmarked.", LogLevel.Warn);
+        }
+    }
+
     // The fast path is a plain read, so the common case (a pattern already compiled) never takes the
     // lock. The cap is enforced inside it, where the count cannot change underneath the check.
     private static Regex GetOrCreate(string pattern)
