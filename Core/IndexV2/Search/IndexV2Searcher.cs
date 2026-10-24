@@ -17,6 +17,22 @@ public static class IndexV2Searcher
             return;
 
         var parsed = SearchQueryParser.Parse(query);
+        // Only the plain name-search shape is cached: a path-mode query walks one directory and returns
+        // almost instantly, and its row count is unbounded (the full window asks for int.MaxValue), so a
+        // stored page would either be huge or answer a later listing with a truncated one.
+        var cache = index.SearchPages;
+        var cacheKey = parsed.IsPathMode ? null : QueryPageCache.KeyFor(query, directoryFilter, fileNameFilter);
+        var __cacheLookup = Lertaro.Core.SearchIndex.PerfTrace.Begin();
+        if (cacheKey != null && cache.TryReplay(cacheKey, limit, onResult, token))
+            return;
+
+        var cached = new List<SearchResult>(capacity: 64);
+        void Capture(SearchResult row)
+        {
+            cached.Add(row);
+            onResult(row);
+        }
+
         // ponytail: the whole search, every onResult callback included, runs inside this read lock. The
         // production callback is a blocking write to SearchStreamPump's bounded channel, so one slow pipe
         // client parks the search thread holding the lock -- and ReaderWriterLockSlim blocks new readers
@@ -26,23 +42,33 @@ public static class IndexV2Searcher
         // ExitReadLock removes progressive streaming for large result sets -- rows arrive all at once --
         // and needs a memory bound the full window cannot state while its limit is int.MaxValue. The
         // inline window already searches against a bounded limit. Reopen on an observed stall.
+        var __t = Lertaro.Core.SearchIndex.PerfTrace.Begin();
         index.Read<object?>((snapshot, delta) =>
         {
+            Lertaro.Core.SearchIndex.PerfTrace.Mark("idx.readLock", __t);
             var directoryFilterLower = DirectoryFilterResolver.NormalizeFilter(directoryFilter);
             if (directoryFilterLower != null && directoryFilterLower.Equals(snapshot.SourceRoot.ToLowerInvariant(), StringComparison.Ordinal))
                 directoryFilterLower = null;
 
             if (parsed.IsPathMode)
             {
-                PathSearch.SearchStreaming(snapshot, delta, parsed, limit, onResult, token, directoryFilterLower);
+                PathSearch.SearchStreaming(snapshot, delta, parsed, limit, Capture, token, directoryFilterLower);
                 return null;
             }
 
+            var __parse = Lertaro.Core.SearchIndex.PerfTrace.Begin();
             var pattern = FzfPattern.Parse(query);
-            NameSearch.SearchStreaming(snapshot, delta, pattern, limit, onResult, token, directoryFilterLower,
+            Lertaro.Core.SearchIndex.PerfTrace.Mark("idx.parse", __parse);
+            var __name = Lertaro.Core.SearchIndex.PerfTrace.Begin();
+            NameSearch.SearchStreaming(snapshot, delta, pattern, limit, Capture, token, directoryFilterLower,
                 FilterPatternHelper.SplitOrNullIfMatchAll(fileNameFilter));
+            Lertaro.Core.SearchIndex.PerfTrace.Mark("idx.nameSearch", __name);
             return null;
         });
+
+        if (cacheKey != null)
+            cache.Store(cacheKey, cached);
+        Lertaro.Core.SearchIndex.PerfTrace.Mark("idx.cacheMiss", __cacheLookup);
     }
 
     // Directory listing rather than search (see DirectoryEnumerator): no query, no ranking, walks the
@@ -55,4 +81,5 @@ public static class IndexV2Searcher
                                                                                                                                    RecentFilesV2.CollectFromDirectory(snapshot, delta, dirLower, snapshot.SourceKey, cutoffUtc, candidates);
                                                                                                                                    return null;
                                                                                                                                });
+
 }

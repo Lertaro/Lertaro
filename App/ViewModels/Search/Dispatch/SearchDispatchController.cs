@@ -123,10 +123,16 @@ internal sealed class SearchDispatchController
     private void ClearForTokenOnlyQuery()
     {
         _setIsSearching(false);
+        InvalidateAppliedSignature();
         _replaceResults(new[] { SearchResultMapper.CreateKeepTypingPromptResult() });
         _setResultsPanelVisibility(Visibility.Visible);
         _setResultsSeparatorVisibility(Visibility.Visible);
     }
+
+    // Drops the streamed-report de-duplication signature. The rows now on screen did not come from a
+    // streamed report, so the next one must repaint even if it repeats the rows of the previous query
+    // (a cleared list, an empty-state prompt or an error message would otherwise stay put).
+    private void InvalidateAppliedSignature() => _lastAppliedSignature = null;
     // DispatchSearch (debounced) and PerformSearch (blocking) both resolve to the same set of
     // search parameters -- only which SearchExecutionEngine method runs them differs.
     //
@@ -157,6 +163,11 @@ internal sealed class SearchDispatchController
         string searchQuery,
         FileFilterScopeDirective? scopeDirective)
     {
+        // A new search always paints, whatever the previous one left behind. The signature below
+        // exists to skip a STREAMING report that carries the rows already on screen; carried across
+        // searches it also skipped the first report of a query whose rows had been cleared since --
+        // the card was hidden and re-summoned -- and the list stayed empty for that first keystroke.
+        _lastAppliedSignature = null;
         // A query token (e.g. "::bzsc") filters/reorders whatever candidate set it's handed in
         // ComposeAndApplyAsync, AFTER this search already ran -- the usual 51/51 quick-window budget
         // (and BuildQuickResults' own ~50-item display cap) exists to keep every ordinary keystroke
@@ -170,6 +181,7 @@ internal sealed class SearchDispatchController
         // to the streamed candidates after each per-folder search, so the in-pattern matches must
         // reach the accumulator in the first place. Apps are dropped from a scoped search entirely
         // (a folder scope says nothing about applications), so no app budget is needed at all.
+
         var hasTokens = _queryTokens.Count > 0;
         var hasScope = scopeDirective != null;
         // A filename-like query (contains a dot, e.g. "plan.md") is a request for a specific file, not a
@@ -213,7 +225,15 @@ internal sealed class SearchDispatchController
             _getIsInlineSearchContext(),
             fileLimit,
             appLimit,
-            (resp, contextDir) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope || filenameLike, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass, rankContext: rankContext),
+            (resp, contextDir) =>
+            {
+                // BuildQuickResults runs on the UI thread, before ui.apply, and was never timed. The
+                // UI-lag probe caught stalls larger than any paint, which points here.
+                var __buildAt = Lertaro.Core.SearchIndex.PerfTrace.Begin();
+                var __built = SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope || filenameLike, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass, rankContext: rankContext);
+                Lertaro.Core.SearchIndex.PerfTrace.Mark("ui.build", __buildAt, __built.Count);
+                return __built;
+            },
             state => _setIsSearching(state),
             (results, status, final) => ApplySearchResults(originalValue, searchQuery, results, status, final),
             HandleLocalServiceUnavailable,
@@ -252,12 +272,14 @@ internal sealed class SearchDispatchController
                 TranslationManager.Instance["Search_OpenedFoldersHeader"]);
             if (emptyStateResults.Count > 0)
             {
+                InvalidateAppliedSignature();
                 _replaceResults(emptyStateResults);
                 _setResultsPanelVisibility(Visibility.Visible);
                 _setResultsSeparatorVisibility(Visibility.Visible);
             }
             else
             {
+                InvalidateAppliedSignature();
                 _replaceResults(Array.Empty<AppSearchResult>());
                 _setResultsPanelVisibility(Visibility.Collapsed);
                 _setResultsSeparatorVisibility(Visibility.Collapsed);
@@ -352,16 +374,62 @@ internal sealed class SearchDispatchController
 
     private void ApplyUntokenized(List<AppSearchResult> uiResults, string statusText)
     {
-        _replaceResults(uiResults);
+        var __ui = Lertaro.Core.SearchIndex.PerfTrace.Begin();
+
+        // A streaming search reports its rows more than once, and the later reports usually carry exactly the
+        // set already on screen -- the same rows in the same order, only the status line differs. Applying
+        // those again rebuilt every container for no visible change, which is what reads as "the list
+        // refreshed" mid-typing. The signature covers what a row draws from the search itself (its path and the
+        // query used for highlighting); everything else a row displays lives in DisplayExtras and updates by
+        // itself.
+        var signature = BuildResultSignature(uiResults, _getSearchQuery());
+        var unchanged = string.Equals(signature, _lastAppliedSignature, StringComparison.Ordinal);
+
+        if (!unchanged)
+        {
+            _lastAppliedSignature = signature;
+            var __replaceAt = Lertaro.Core.SearchIndex.PerfTrace.Begin();
+            _replaceResults(uiResults);
+            Lertaro.Core.SearchIndex.PerfTrace.Mark("ui.replace", __replaceAt, uiResults.Count);
+        }
 
         var hasResults = uiResults.Count > 0;
         _setResultsPanelVisibility(hasResults ? Visibility.Visible : Visibility.Collapsed);
         _setResultsSeparatorVisibility(hasResults ? Visibility.Visible : Visibility.Collapsed);
         _mainVm.Monitor.StatusBarVisibility = Visibility.Visible;
         _mainVm.Monitor.StatusText = statusText;
+        Lertaro.Core.SearchIndex.PerfTrace.Mark("ui.apply", __ui, uiResults.Count);
+
+        if (unchanged)
+            return;
+
+        var __vm = _mainVm;
+        System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+            new Action(() => Lertaro.Core.SearchIndex.PerfTrace.Mark("ui.painted", __ui, __vm.Results?.Count ?? 0)),
+            System.Windows.Threading.DispatcherPriority.Render);
     }
 
-    // Token mode only: extracts the file/directory subset -- the only thing a query token is allowed to
+    /// <summary>
+    /// Cheap identity for a result list: enough to tell "the same rows, drawn the same way" from a real change.
+    /// </summary>
+    private static string BuildResultSignature(List<AppSearchResult> results, string query)
+    {
+        var builder = new System.Text.StringBuilder(query.Length + (results.Count * 24));
+        builder.Append(query);
+
+        foreach (var row in results)
+        {
+            builder.Append('\u0001');
+            builder.Append(row.FullPath);
+        }
+
+        return builder.ToString();
+    }
+
+    // What the list is currently showing, so a repeat report of the same rows can be ignored.
+    private string? _lastAppliedSignature;
+
+    // Token mode only: extracts the file/directory subset (the only thing a query token is allowed to
     // see or reorder -- and everything else is pruned down to just instant results (a calculator answer,
     // etc.); applications, plugin actions, and section headers have nothing to do with what the token is
     // sorting/filtering and would just clutter a result set that's now specifically about files. Runs the

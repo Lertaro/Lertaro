@@ -43,8 +43,11 @@ public class SearchService : IDisposable
     // to unfilter here; recovering that is CheckNeedsLiveSearch's live-scan fallback's job instead.
     public async Task<bool> SearchStreamingAsync(string query, int maxResults, int maxAppResults, string? directoryFilter, Action<SearchResult> onResult, CancellationToken token = default, Action? onLocalSearchFailed = null, bool bypassExclusions = false, string? fileNameFilter = null)
     {
+        var __trace = Lertaro.Core.SearchIndex.PerfTrace.Begin();
+        var __firstRow = 0L;
         var settings = UserSettings.Load();
         var exclusionRules = ExclusionRuleSet.From(settings);
+        Lertaro.Core.SearchIndex.PerfTrace.Mark("client.setup", __trace);
         // No longer clamped to 2000. The service returns everything that matches and the caller decides
         // what to do with it; asking for a multiple of maxResults existed only to leave headroom for the
         // exclusion filtering below, which is pointless once maxResults is itself unbounded.
@@ -95,6 +98,9 @@ public class SearchService : IDisposable
                 if (!seenPaths.Add(result.Path))
                     return;
             }
+
+            if (System.Threading.Interlocked.Exchange(ref __firstRow, 1) == 0)
+                Lertaro.Core.SearchIndex.PerfTrace.Mark("client.firstRow", __trace);
             onResult(result);
         });
 
@@ -102,11 +108,14 @@ public class SearchService : IDisposable
         {
             try
             {
+                var __pipeStart = Lertaro.Core.SearchIndex.PerfTrace.Begin();
                 await SearchPipeClient.SendSearchPipeCommandAsync(msg, result =>
                 {
                     if (effectiveBypassExclusions || !exclusionRules.IsExcluded(result, directoryFilter))
                         uniqueOnResult(result);
                 }, token).ConfigureAwait(false);
+                Lertaro.Core.SearchIndex.PerfTrace.Mark("client.pipe", __pipeStart);
+                Lertaro.Core.SearchIndex.PerfTrace.Flush("client", "ok", __trace, seenPaths.Count);
                 return true;
             }
             catch (OperationCanceledException)

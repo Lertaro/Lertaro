@@ -30,6 +30,8 @@ public static class SearchStreamPump
     internal static async Task RunAsync(SearchEngine? engine, SearchRequestMessage msg, Stream stream, CallerVisibility visibility,
         CancellationToken token)
     {
+        var __trace = Lertaro.Core.SearchIndex.PerfTrace.Begin();
+        var __firstRow = 0L;
         Logger.Log($"[SearchStreamPump] Starting request {msg.Id}, limit={msg.Limit}, appLimit={msg.AppLimit}", LogLevel.Debug);
         using var queryCts = CancellationTokenSource.CreateLinkedTokenSource(token);
         var queryToken = queryCts.Token;
@@ -66,6 +68,8 @@ public static class SearchStreamPump
             // The consumer applies the caller's profile exclusions before anything reaches the pipe.
             void Emit(SearchResult result)
             {
+                if (System.Threading.Interlocked.Exchange(ref __firstRow, 1) == 0)
+                    Lertaro.Core.SearchIndex.PerfTrace.Mark("svc.firstEmit", __trace);
                 channel.Writer.WriteAsync(result, queryToken).AsTask().GetAwaiter().GetResult();
             }
 
@@ -92,8 +96,10 @@ public static class SearchStreamPump
 
                     var directory = msg.Id == SearchRequestId.SearchDir ? msg.DirectoryFilter : null;
 
+                    var __engStart = Lertaro.Core.SearchIndex.PerfTrace.Begin();
                     engine?.SearchStreaming(msg.Query ?? string.Empty, msg.Limit, msg.AppLimit, directory, Emit, queryToken,
                         msg.FileNameFilter);
+                    Lertaro.Core.SearchIndex.PerfTrace.Mark("svc.engine", __engStart);
                     channel.Writer.TryComplete();
                 }
                 catch (Exception ex)
@@ -127,6 +133,7 @@ public static class SearchStreamPump
             {
                 try
                 {
+                    Lertaro.Core.SearchIndex.PerfTrace.Flush("service", "ok", __trace, 0);
                     await SearchResponseBinarySerializer.WriteEndAsync(bufferedStream, token).ConfigureAwait(false);
                     await bufferedStream.FlushAsync(token).ConfigureAwait(false);
                 }
