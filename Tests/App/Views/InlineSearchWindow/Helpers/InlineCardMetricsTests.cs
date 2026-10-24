@@ -102,6 +102,29 @@ public sealed class InlineCardMetricsTests
     }
 
     [TestMethod]
+    public void CardHeight_SettledShortList_ChargesTheRowsItDrawsNotTheRowBudget()
+    {
+        // Empty state over a file dialog: two section headers and two folders, against a four-result budget
+        // with room for six rows. The card is four rows tall -- reserving the budget left a blank band under
+        // the list until the first real search filled the card.
+        var isHeader = new[] { true, false, true, false };
+        var layout = InlineCardMetrics.ComputeLayout(isHeader, isSearching: false, resultBudget: 4, listRowBudget: 6);
+
+        Assert.AreEqual(4, layout.AreaRows);
+        Assert.AreEqual(
+            InlineCardMetrics.ResultsAreaHeight(4) + 33,
+            InlineCardMetrics.CardHeight(layout.AreaRows, listDrawn: true, chrome: 33),
+            0.001);
+    }
+
+    [TestMethod]
+    public void CardHeight_ListNotDrawn_IsTheSearchBarAlone()
+    {
+        // A card whose list is not drawn has no rows to charge, however many the last layout held.
+        Assert.AreEqual(33, InlineCardMetrics.CardHeight(6, listDrawn: false, chrome: 33), 0.001);
+    }
+
+    [TestMethod]
     public void ComputeLayout_TrailingHeaderWithNoResultsUnderIt_IsNotCounted()
     {
         // Two results, then a title whose own section is empty (possible while a search streams in). The
@@ -354,10 +377,41 @@ public sealed class InlineCardMetricsTests
 
     // The desktop card keeps its own share and never reaches this math. A screen width of 0 is the degenerate
     // read -- nothing was measurable for the monitor -- and then only the window's own shares bound the card.
+    // The desktop card keeps its own share and never reaches this math. A screen width of 0 is the degenerate
+    // read -- nothing was measurable for the monitor -- and then only the window's own shares bound the card.
     [TestMethod]
     public void ResolveDockedWidth_WithNoScreenReadable_UsesOnlyTheWindowsOwnShares()
     {
         Assert.AreEqual(480, InlineCardMetrics.ResolveDockedWidth(1200, 0, null), 0.001);
         Assert.AreEqual(240, InlineCardMetrics.ResolveDockedWidth(1200, 0, 20), 0.001);
     }
+
+    [TestMethod]
+    public void CanApplyWhileSearching_ASettledSearchAlwaysApplies() =>
+        Assert.IsTrue(InlineCardMetrics.CanApplyWhileSearching(false, false, null, false));
+
+    [TestMethod]
+    public void CanApplyWhileSearching_ASummonIsNeverVetoed() =>
+        // The summon is the only pass that runs before the card is on screen: vetoing it leaves the card at the
+        // XAML's own 550 DIP, which is the slab that read as a black frame.
+        Assert.IsTrue(InlineCardMetrics.CanApplyWhileSearching(true, true, null, false));
+
+    [TestMethod]
+    public void CanApplyWhileSearching_RowsThatAreStillArrivingAreNotASize() =>
+        Assert.IsFalse(InlineCardMetrics.CanApplyWhileSearching(true, false, null, true));
+
+    [TestMethod]
+    public void CanApplyWhileSearching_AFrozenAreaAppliesWhatTheHostOrBannerChanged()
+    {
+        // Six rows frozen and the list drawn: the height no longer depends on the rows arriving, so a new host,
+        // a smaller monitor or a shown banner must apply mid-search instead of waiting for a settle that a
+        // cancelled search never reaches.
+        Assert.IsTrue(InlineCardMetrics.CanApplyWhileSearching(true, false, 6, true));
+    }
+
+    [TestMethod]
+    public void CanApplyWhileSearching_AFrozenAreaWithNoListDrawnStillWaits() =>
+        // A frozen count with the panel collapsed would charge the search bar alone and then grow back when the
+        // first rows land -- the shrink-then-grow flash the veto exists to prevent.
+        Assert.IsFalse(InlineCardMetrics.CanApplyWhileSearching(true, false, 6, false));
 }
