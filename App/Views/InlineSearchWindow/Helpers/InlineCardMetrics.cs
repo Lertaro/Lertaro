@@ -116,6 +116,29 @@ internal static class InlineCardMetrics
     /// <summary>The pixel height of the row area for <paramref name="rows"/> rows.</summary>
     internal static double ResultsAreaHeight(int rows) => Math.Max(0, rows) * UiMetrics.InlineRowHeight;
 
+    /// <summary>The height of the card for the rows it draws, plus the chrome the caller measured.</summary>
+    /// <remarks>
+    /// Deliberately takes no row budget. The budget is a ceiling on what the list may show and on the room the
+    /// card may use, never a floor to reserve: charging it is what left the empty-state card (two section
+    /// headers and two rows against a four-result budget) standing at the full row budget with a blank band
+    /// under the list until a real search filled the card. Rows are charged only while the list is actually
+    /// drawn -- a card with nothing on screen is a search bar, whatever a stale visibility binding said a pass
+    /// earlier.
+    /// </remarks>
+    internal static double CardHeight(int areaRows, bool listDrawn, double chrome) =>
+        ResultsAreaHeight(listDrawn && areaRows > 0 ? areaRows : 0) + chrome;
+
+    /// <summary>Whether a sizing pass may run while a search is still streaming results in.</summary>
+    /// <remarks>
+    /// Rows that are still arriving are not a size: a pass driven by them walks the card up and down the screen,
+    /// which is why a streaming search normally waits for the settled pass. Once the area is frozen and the list
+    /// is actually drawn, the height is a function of the row budget, the chrome and the banner alone, so a pass
+    /// driven by a new host, a monitor change or the banner appearing has to apply -- one that is vetoed instead
+    /// pins the card to whatever the previous host settled at, and a search that never settles keeps it there.
+    /// </remarks>
+    internal static bool CanApplyWhileSearching(bool searching, bool forSummon, int? frozenAreaRows, bool listDrawn) =>
+        !searching || forSummon || (frozenAreaRows is > 0 && listDrawn);
+
     /// <summary>
     /// Whether the space under an anchored window can hold the tallest the card can ever be. The one place
     /// that answers it, because the height budget and the placement have to agree: a card sized to hang
