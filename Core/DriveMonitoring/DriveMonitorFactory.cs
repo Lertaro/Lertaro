@@ -29,7 +29,8 @@ internal static class DriveMonitorFactory
             // Keep a linked source per monitor so disposal stops only THIS instance. UsnMonitor.Dispose
             // closes the volume handle immediately; cancellation then lets its loop unwind cleanly.
             var cts = CancellationTokenSource.CreateLinkedTokenSource(parentToken);
-            var monitor = new UsnMonitor(drive, journalId, nextUsn, indexer, cts.Token, onReindexRequired);
+            var startUsn = ResolveStartUsn(drive, journalId, nextUsn);
+            var monitor = new UsnMonitor(drive, journalId, startUsn, indexer, cts.Token, onReindexRequired);
             var removal = RegisterRemovalMonitor(indexer, drive, parentToken, onReindexRequired, onRemovalRequested, onReindexAfterRemoval);
             indexer.RegisterDriveMonitor(drive, new DriveMonitorRegistration(new CancellationDisposable(monitor, cts), removal));
             monitor.Start();
@@ -47,6 +48,22 @@ internal static class DriveMonitorFactory
         var folderRemoval = RegisterRemovalMonitor(indexer, drive, parentToken, onReindexRequired, onRemovalRequested, onReindexAfterRemoval);
         indexer.RegisterDriveMonitor(drive, new DriveMonitorRegistration(folderMonitor, folderRemoval));
         folderMonitor.Start();
+    }
+
+    // Every monitor start funnels through here -- cold start, per-drive rebuild, hot-plug recovery -- so
+    // this is the one place that can stop a rebuild from handing its monitor a position the journal has
+    // already dropped (see UsnJournalStart for why that used to cost a rebuild every time).
+    private static long ResolveStartUsn(string drive, ulong journalId, long nextUsn)
+    {
+        if (UsnJournalInfo.TryQuery(drive) is not { } journal)
+            return nextUsn;
+
+        var decision = UsnJournalStart.Resolve(nextUsn, journalId, journal);
+        if (!decision.SkippedGap)
+            return decision.StartUsn;
+
+        Logger.Log($"[Monitor] Drive {drive}: USN {nextUsn} is no longer in the journal (window {journal.FirstUsn}..{journal.NextUsn}); monitoring resumes from {decision.StartUsn} instead of re-indexing, leaving that gap to the next catch-up or rebuild.", LogLevel.Warn);
+        return decision.StartUsn;
     }
 
     private static DriveDeviceRemovalMonitor? RegisterRemovalMonitor(

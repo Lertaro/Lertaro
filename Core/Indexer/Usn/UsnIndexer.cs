@@ -26,6 +26,9 @@ public partial class UsnIndexer : IDisposable
     // drive -- see UsnIndexerExtensions.ApplyFolderChange (sets it) and ConsumeMissedFolderChangeDuringRebuild
     // (consumes it to queue one follow-up refresh once the rebuild finishes).
     internal readonly HashSet<string> _missedFolderChangeDuringRebuild = new(StringComparer.OrdinalIgnoreCase);
+    // Drives currently replaying a journal catch-up -- see UsnIndexerCatchUpExtensions (sets/clears it)
+    // and UsnIndexerDurabilityExtensions.CompactIdleDeltas (stays out of a replay's way).
+    internal readonly HashSet<string> _replayingDrives = new(StringComparer.OrdinalIgnoreCase);
     private readonly DirectoryChangeNotificationGate _directoryChangeNotificationGate;
 
     public UsnIndexer() => _directoryChangeNotificationGate = new DirectoryChangeNotificationGate(RaiseDirectoriesChangedImmediately);

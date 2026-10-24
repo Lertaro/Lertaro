@@ -252,14 +252,16 @@ public class UsnMonitor : IDisposable
 
             _handleState.Set(handle);
 
-            var journal = QueryJournal(handle);
-            if (journal.HasValue && journal.Value.JournalId == _journalId)
+            var journal = UsnJournalInfo.TryQuery(handle);
+            if (journal is { } info && info.JournalId == _journalId)
             {
-                if (_startUsn < journal.Value.LowestValidUsn || _startUsn > journal.Value.NextUsn)
+                // FirstUsn, not LowestValidUsn: the latter is 0 on a live NTFS journal, so this check used
+                // to pass for every already-wrapped position and the next read answered 1181 instead.
+                if (!info.Contains(_startUsn))
                 {
                     handle.Dispose();
                     _handleState.Clear(handle);
-                    Logger.Log($"[Monitor] USN {_startUsn} on drive {_drive} is outside journal range {journal.Value.LowestValidUsn}..{journal.Value.NextUsn}. Stopping monitor for re-index.", LogLevel.Error);
+                    Logger.Log($"[Monitor] USN {_startUsn} on drive {_drive} is outside journal range {info.FirstUsn}..{info.NextUsn}. Stopping monitor for re-index.", LogLevel.Error);
                     _onReindexRequired?.Invoke(_drive);
                     return new SafeFileHandle(IntPtr.Zero, ownsHandle: true);
                 }
@@ -290,20 +292,4 @@ public class UsnMonitor : IDisposable
         err is Win32Api.ERROR_NOT_READY or Win32Api.ERROR_INVALID_HANDLE or Win32Api.ERROR_DEVICE_NOT_CONNECTED;
     private static bool IsJournalReindexError(int err) =>
         err is Win32Api.ERROR_JOURNAL_DELETE_IN_PROGRESS or Win32Api.ERROR_JOURNAL_NOT_ACTIVE or Win32Api.ERROR_JOURNAL_ENTRY_DELETED;
-
-    private static (ulong JournalId, long LowestValidUsn, long NextUsn)? QueryJournal(SafeFileHandle handle)
-    {
-        var queryBuf = new byte[56];
-        var success = Win32Api.DeviceIoControl(
-            handle,
-            Win32Api.FSCTL_QUERY_USN_JOURNAL,
-            IntPtr.Zero, 0,
-            queryBuf, (uint)queryBuf.Length,
-            out _,
-            IntPtr.Zero);
-
-        return success
-            ? (BitConverter.ToUInt64(queryBuf, 0), BitConverter.ToInt64(queryBuf, 24), BitConverter.ToInt64(queryBuf, 16))
-            : null;
-    }
 }
