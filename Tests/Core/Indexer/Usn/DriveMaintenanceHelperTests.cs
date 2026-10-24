@@ -112,13 +112,14 @@ public sealed class DriveMaintenanceHelperTests
         var existing = new UsnIndexer.DriveIndexStatus { Drive = drive, State = "pending", Enabled = true };
         var current = new Dictionary<string, UsnIndexer.DriveIndexStatus>(StringComparer.OrdinalIgnoreCase) { [drive] = existing };
         var drivesToBuild = new List<string>();
-        var forced = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         DriveMaintenanceHelper.UpdateStatus(drive, isPresent: true, isEnabled: true, "ignored", current, drivesToBuild,
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase), forced);
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
 
+        // Queued, but through the restore path: forcing here re-ran a whole $MFT scan on every poll that
+        // still saw "pending".
         CollectionAssert.AreEqual(new[] { drive }, drivesToBuild);
-        Assert.IsTrue(forced.Contains(drive));
+        Assert.AreEqual("pending", existing.State);
     }
 
     [TestMethod]
