@@ -123,10 +123,16 @@ internal sealed class SearchDispatchController
     private void ClearForTokenOnlyQuery()
     {
         _setIsSearching(false);
+        InvalidateAppliedSignature();
         _replaceResults(new[] { SearchResultMapper.CreateKeepTypingPromptResult() });
         _setResultsPanelVisibility(Visibility.Visible);
         _setResultsSeparatorVisibility(Visibility.Visible);
     }
+
+    // Drops the streamed-report de-duplication signature. The rows now on screen did not come from a
+    // streamed report, so the next one must repaint even if it repeats the rows of the previous query
+    // (a cleared list, an empty-state prompt or an error message would otherwise stay put).
+    private void InvalidateAppliedSignature() => _lastAppliedSignature = null;
     // DispatchSearch (debounced) and PerformSearch (blocking) both resolve to the same set of
     // search parameters -- only which SearchExecutionEngine method runs them differs.
     //
@@ -266,12 +272,14 @@ internal sealed class SearchDispatchController
                 TranslationManager.Instance["Search_OpenedFoldersHeader"]);
             if (emptyStateResults.Count > 0)
             {
+                InvalidateAppliedSignature();
                 _replaceResults(emptyStateResults);
                 _setResultsPanelVisibility(Visibility.Visible);
                 _setResultsSeparatorVisibility(Visibility.Visible);
             }
             else
             {
+                InvalidateAppliedSignature();
                 _replaceResults(Array.Empty<AppSearchResult>());
                 _setResultsPanelVisibility(Visibility.Collapsed);
                 _setResultsSeparatorVisibility(Visibility.Collapsed);
