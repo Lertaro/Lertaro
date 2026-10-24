@@ -27,37 +27,27 @@ public static class JournalReaderHelper
             return -1;
         }
 
-        var queryBuf = new byte[56];
-        var success = Win32Api.DeviceIoControl(
-            handle,
-            Win32Api.FSCTL_QUERY_USN_JOURNAL,
-            IntPtr.Zero, 0,
-            queryBuf, (uint)queryBuf.Length,
-            out var bytesReturned,
-            IntPtr.Zero
-        );
-
-        if (!success)
+        if (UsnJournalInfo.TryQuery(handle) is not { } journal)
         {
             Logger.Log($"[JournalReaderHelper] Failed to query USN journal for catch-up on {drive}.", LogLevel.Error);
             return -1;
         }
 
-        var currentJournalId = BitConverter.ToUInt64(queryBuf, 0);
-        var currentNextUsn = BitConverter.ToInt64(queryBuf, 16);
-        var lowestValidUsn = BitConverter.ToInt64(queryBuf, 24);
-
-        if (currentJournalId != journalId)
+        if (journal.JournalId != journalId)
         {
-            Logger.Log($"[JournalReaderHelper] Journal ID mismatch on {drive} (expected {journalId}, got {currentJournalId}). Need full re-index.", LogLevel.Warn);
+            Logger.Log($"[JournalReaderHelper] Journal ID mismatch on {drive} (expected {journalId}, got {journal.JournalId}). Need full re-index.", LogLevel.Warn);
             return -1;
         }
 
-        if (startUsn < lowestValidUsn || startUsn > currentNextUsn)
+        // FirstUsn, not LowestValidUsn: NTFS reports the latter as 0 for a live journal, so checking it let
+        // every already-wrapped position through and the first read below failed with 1181 instead.
+        if (!journal.Contains(startUsn))
         {
-            Logger.Log($"[JournalReaderHelper] Cached USN {startUsn} on {drive} is outside journal range {lowestValidUsn}..{currentNextUsn}. Need full re-index.", LogLevel.Warn);
+            Logger.Log($"[JournalReaderHelper] Cached USN {startUsn} on {drive} is outside journal range {journal.FirstUsn}..{journal.NextUsn}. Need full re-index.", LogLevel.Warn);
             return -1;
         }
+
+        var currentNextUsn = journal.NextUsn;
 
         var currentUsn = startUsn;
         var recordVersion = UsnJournalRead.RecordVersion(new DriveInfo(drive).DriveFormat);
@@ -70,7 +60,7 @@ public static class JournalReaderHelper
         while (currentUsn < currentNextUsn)
         {
             token.ThrowIfCancellationRequested();
-            success = UsnJournalRead.Read(handle, currentUsn, journalId, recordVersion, outBuf, out bytesReturned);
+            var success = UsnJournalRead.Read(handle, currentUsn, journalId, recordVersion, outBuf, out var bytesReturned);
 
             if (!success)
             {

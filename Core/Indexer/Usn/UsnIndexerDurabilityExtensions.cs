@@ -83,6 +83,14 @@ internal static class UsnIndexerDurabilityExtensions
                 if (live.PendingChangeCount < IdleCompactPendingThreshold)
                     continue;
 
+                // A replay owns its drive until it finishes: Compact holds the LiveIndex write lock
+                // across the merge and the whole snapshot rewrite, and taking it in the middle of a
+                // catch-up drain stalls exactly the replay that is trying to catch up before the journal
+                // moves on. The watermark stays where it is, so the next tick after the drain persists
+                // the same changes -- nothing is lost by waiting.
+                if (indexer.IsReplayInProgress(drive))
+                    continue;
+
                 // Stamp read BEFORE Compact, never after: a batch landing in between can only make the
                 // persisted content NEWER than the stamp, so the next cold start replays a few records
                 // that were already applied (harmless, and RemoveLink reports them). The opposite order
