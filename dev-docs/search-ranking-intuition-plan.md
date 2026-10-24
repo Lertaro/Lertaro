@@ -100,18 +100,18 @@ Section
 
 段内：
   EvidenceGrade ↑
-  → TypeRank ↑
   → High before Normal
   → DirectHistoryTier / frecency ↓
   → MatchRank quality
+  → TypeRank ↑（仅应用/系统设置/文件，且其余键全平）
   → stable common tail
 ```
 
 约束：
 
 - TypeRank 是 ordinal key，不再映射为 `16/8/4/1`。
-- 类型偏好在**同一 Grade 内**对所有等级生效（2026-10-23 用户裁决）：Grade 仍是第一优先级，强匹配文件不会被弱匹配应用越过；但 `DirectApproximate` 不再把类型置中性，近似行也按类型成组。
-- 目录是容器而非身份：精确同名目录不占 `ExactIdentity`，降为 `DirectStrong`。这样同一 Grade 内配置的类型顺序可以把 `PowerShell 7 (x64).lnk` 排在 `F:\Documents\PowerShell` 之前，而不会让目录仅凭“精确同名”越过所有应用。
+- 类型偏好只是**最后平局键**（2026-10-24 用户裁决）：只在双方都属于“应用/系统设置/文件”三个内建桶、且 section/Grade/Priority/Band/Tie/Quality 全部相等时参与；不跨 Grade、不压质量。`DirectApproximate` 也不再按类型成组。
+- 目录是容器而非身份：精确同名目录不占 `ExactIdentity`，降为 `DirectStrong`；类型只在质量完全平局后决胜，不能替目录跨级。
 - H5/H3 只在同 Grade 内细排，不生成跨 Grade 的 34/22 分。
 - learned alias 独立在最后；没有直接结果时仍可成为首项。
 - AlwaysTop 保留显式越级；Low 保留显式降级。
@@ -225,12 +225,12 @@ alias 仅在导出开关开启、快速窗口内存 trace 构建时、且标题/
 ### P7：切换到 V3
 
 1. bump `RankPolicy.Version`。
-2. 生产路径移除 `16/8/4/1`，TypeRank 在同一 Grade 内比较（含 Grade 2/3）；Low 与 HistoryTail 也在各自段内先比类型。
+2. 生产路径移除 `16/8/4/1`；TypeRank 只在所有其他键相等后、且双方都是三个内建类型时作为最后平局键。
 3. High/Normal 不跨 Grade；Low、AlwaysTop 保持显式段。
 4. direct H5/H3 只做同 Grade tie-break。
 5. learned alias 进入 Grade 4；P8 前保守读取旧存储。
 6. 启用 P5 的 secondary alias，并显示来源；先跑 alias false-positive 集。
-7. 更新 7 种语言的类型顺序说明为“同一匹配等级内类型先于质量”。
+7. 更新 7 种语言的类型顺序说明为“仅在应用/系统设置/文件之间、其余排序键全部相等时决胜”。
 8. 用 I1/I2 属性测试替换允许弱类型越过强命中的旧断言。
 9. 逐入口接快速、完整和内联窗口。
 

@@ -193,17 +193,17 @@ public sealed class RankAndDedupeTests
     }
 
     [TestMethod]
-    public void RankAndDedupe_TypeGroupDecidesAtEqualScore()
+    public void RankAndDedupe_QualityBeatsTypeAtEqualGrade()
     {
-        // Both rows are strong (whole-word, common reading) so both score 18, and the display type order
-        // decides. The weaker-looking start and coverage only split them later, inside the quality keys.
+        // Both rows are strong (whole-word, common reading), so they share a grade; match quality decides
+        // before the display type order, which is only the final tie-break.
         var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
             Candidate(@"C:\files-perfect", typeRank: 2, start: 0, coverage: 1.0, contiguity: 1.0),
             Candidate(@"C:\apps-weak", typeRank: 1, start: 9, coverage: 0.2, contiguity: 0.4),
         });
 
-        Assert.AreEqual(@"C:\apps-weak", ranked[0].FullPath);
+        Assert.AreEqual(@"C:\files-perfect", ranked[0].FullPath);
     }
 
     [TestMethod]
@@ -222,8 +222,8 @@ public sealed class RankAndDedupeTests
     public void RankAndDedupe_FavoriteStrongMatch_BeatsTypeGroupOrder()
     {
         // The favorite enters Pinned, so it outranks the application row's Boosted section before any type
-        // order is consulted. "Same grade, then TypeRank" is pinned by
-        // RankAndDedupe_TypeGroupDecidesAtEqualScore.
+        // order is consulted. Type only breaks a complete quality tie, pinned by
+        // RankedCandidateOrderingTests.TypeRank_DecidesInsideOnePriorityBand.
         var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
             Candidate(@"C:\app", typeRank: 0),
@@ -372,15 +372,15 @@ public sealed class RankAndDedupeTests
     }
 
     [TestMethod]
-    public void RankAndDedupe_TypeOrderDecidesWithinStrongGrades_AndNeverLiftsWeakOverStrong()
+    public void RankAndDedupe_QualityDecidesWithinStrongGrades_AndTypeNeverLiftsWeakOverStrong()
     {
-        // I2: within clean direct matches, user type priority still puts preferred types first.
+        // I2: within clean direct matches, match quality still comes before the type tie-break.
         var sameGrade = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
             Candidate(@"C:\files.txt", typeRank: 2),
             Candidate(@"C:\apps.txt", typeRank: 0, start: 3, coverage: 0.5),
         });
-        Assert.AreEqual(@"C:\apps.txt", sameGrade[0].FullPath);
+        Assert.AreEqual(@"C:\files.txt", sameGrade[0].FullPath);
 
         // I1: a rare/weak match of the leading type cannot jump across EvidenceGrade over a strong match.
         var acrossGrades = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
@@ -393,10 +393,10 @@ public sealed class RankAndDedupeTests
     }
 
     [TestMethod]
-    public void RankAndDedupe_TypeOrderGroupsApproximateGrades()
+    public void RankAndDedupe_QualityGroupsApproximateGrades()
     {
-        // Both rows are DirectApproximate; the worse-quality application row still groups before the file
-        // row, so a pinyin-abbreviation search no longer interleaves shortcuts with files.
+        // Both rows are DirectApproximate; the better-quality file row wins, and type only breaks a
+        // complete quality tie.
         var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
             Candidate(@"C:\files.txt", typeRank: 2, start: 0, coverage: 1.0, contiguity: 1.0,
@@ -405,14 +405,14 @@ public sealed class RankAndDedupeTests
                 shape: MatchRank.ShapeScattered),
         });
 
-        Assert.AreEqual(@"C:\apps.lnk", ranked[0].FullPath);
-        Assert.AreEqual(@"C:\files.txt", ranked[1].FullPath);
+        Assert.AreEqual(@"C:\files.txt", ranked[0].FullPath);
+        Assert.AreEqual(@"C:\apps.lnk", ranked[1].FullPath);
     }
 
-    // The bonus is capped by the row's own match quality: a barely matching row of the leading type does not
-    // ride the type order past a strong match further down.
+    // Type only breaks a complete quality tie: a weaker grade of the leading type still loses to a strong
+    // match further down.
     [TestMethod]
-    public void RankAndDedupe_TypeBonusDoesNotLiftABarelyMatchingRow()
+    public void RankAndDedupe_TypeRankDoesNotLiftABarelyMatchingRow()
     {
         var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {

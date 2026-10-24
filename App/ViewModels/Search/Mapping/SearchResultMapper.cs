@@ -168,9 +168,9 @@ public static class SearchResultMapper
 
         // Quick-window-only: the user-orderable result-type order (RankedCandidate.TypeRank) is a
         // section-local group inside RankPolicy.BuildKey/RankKeyComparer, not a group above the sections
-        // or above the evidence grade. Pinned, Boosted and Low compare it before quality on every grade,
-        // so approximate rows stay grouped by type instead of interleaving; HistoryTail compares it before
-        // the common tail. Every file-backed row (index files,
+        // or above the evidence grade. Pinned, Boosted and Low compare it only as the final tie-break
+        // after grade, priority, history band and match quality have tied, and only between the three
+        // built-in buckets. Every file-backed row (index files,
         // favorites, history, Windows' Recent) starts on FilesTypeRank so those rows stay one group; a
         // shortcut then borrows the better of that rank and the application type's (below). The inline
         // window never consults the list at all.
@@ -184,8 +184,7 @@ public static class SearchResultMapper
         // order harmless instead of silently demoting every shortcut to the file rank. A .url keeps the
         // file rank: it points at a web page, so the application type has nothing to say about it.
         var shortcutTypeRank = SearchResultTypePriority.ShortcutRank(
-            SearchResultTypePriority.RankForResultKind(
-                SearchResultTypePriority.ApplicationResultKind,
+            SearchResultTypePriority.RankForApplication(
                 PluginManager.Instance.SearchableItemProviders,
                 typeRanks),
             filesTypeRank);
@@ -312,7 +311,8 @@ public static class SearchResultMapper
                     matched.Rank,
                     normalizedFavPath,
                     Source: RankingCandidateSource.Favorite,
-                    Evidence: matched.Evidence));
+                    Evidence: matched.Evidence,
+                    TypeRankApplies: SearchResultTypePriority.IsCoreTypeRank(filesTypeRank)));
             }
         }
 
@@ -354,15 +354,17 @@ public static class SearchResultMapper
                 // lookup key has to skip it here too or an app's history priority would never resolve.
                 var lookupPath = result.IsApplication ? result.FullPath.Trim() : SearchResultHelper.NormalizePath(result.FullPath);
                 var usage = historyUsage.TryGetValue(lookupPath, out var uc) ? uc : 0;
+                var typeRank = SearchResultTypePriority.Rank(typeId, typeRanks);
                 candidates.Add(new RankedCandidate(
                     result,
                     IsFavorite: false,
                     HistoryCount: usage,
-                    SearchResultTypePriority.Rank(typeId, typeRanks),
+                    typeRank,
                     match,
                     SearchResultHelper.NormalizePath(result.FullPath),
                     Source: RankingCandidateSource.SearchableProvider,
-                    Evidence: evidence));
+                    Evidence: evidence,
+                    TypeRankApplies: SearchResultTypePriority.IsCoreTypeRank(typeRank)));
             }
 
             // Alias hits are a parallel diagnostic stream. They never join candidates, and therefore
@@ -378,15 +380,17 @@ public static class SearchResultMapper
                         ? hit.Result.FullPath.Trim()
                         : SearchResultHelper.NormalizePath(hit.Result.FullPath);
                     var usage = historyUsage.TryGetValue(lookupPath, out var uc) ? uc : 0;
+                    var typeRank = SearchResultTypePriority.Rank(typeId, typeRanks);
                     shadowAliasCandidates!.Add(new RankedCandidate(
                         hit.Result,
                         IsFavorite: false,
                         HistoryCount: usage,
-                        SearchResultTypePriority.Rank(typeId, typeRanks),
+                        typeRank,
                         hit.Match,
                         SearchResultHelper.NormalizePath(hit.Result.FullPath),
                         Source: RankingCandidateSource.SearchableProvider,
-                        Evidence: hit.Evidence));
+                        Evidence: hit.Evidence,
+                        TypeRankApplies: SearchResultTypePriority.IsCoreTypeRank(typeRank)));
                 }
             }
         }
@@ -435,7 +439,8 @@ public static class SearchResultMapper
                     matched.Rank,
                     SearchResultHelper.NormalizePath(result.Path),
                     Source: RankingCandidateSource.FileIndex,
-                    Evidence: matched.Evidence));
+                    Evidence: matched.Evidence,
+                    TypeRankApplies: SearchResultTypePriority.IsCoreTypeRank(filesTypeRank)));
             }
         }
 
@@ -593,7 +598,8 @@ public static class SearchResultMapper
         string NormalizedPath,
         bool IsHistoryOnly = false,
         RankingCandidateSource Source = RankingCandidateSource.Unknown,
-        MatchEvidence Evidence = default);
+        MatchEvidence Evidence = default,
+        bool TypeRankApplies = true);
 
     // A shortcut file is both a file row and an application shortcut, and it ranks as whichever identity the
     // user put first -- where the app provider never indexed it, the file row is the only row it has, so
@@ -612,7 +618,11 @@ public static class SearchResultMapper
             var rank = SearchResultTypePriority.TypeRankForRow(
                 row.TypeRank, row.Result.IsDir, row.NormalizedPath, filesTypeRank, shortcutTypeRank);
             if (rank != row.TypeRank)
-                candidates[i] = row with { TypeRank = rank };
+                candidates[i] = row with
+                {
+                    TypeRank = rank,
+                    TypeRankApplies = SearchResultTypePriority.IsCoreTypeRank(rank),
+                };
         }
     }
 

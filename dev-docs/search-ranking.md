@@ -28,15 +28,15 @@ CLI 与 Everything IPC 的名称排序仍使用 `SearchResultRankComparer`，不
 快速窗口（`RankPolicy.BuildKey` + `RankKeyComparer`）与完整窗口（`SearchResultRanking` + `RankedSearchResultComparer`）比较同一组结构化键，不使用手工加减的跨档总分。段内键序并非一条通用链，而是每段各一条，两窗只在“完整窗口没有类型秩”这一点上不同（完整窗口的 `TypeOrder` 比较恒等，也不按类型分组）：
 
 ```text
-Pinned       AlwaysTop ↑ → FavoritePin ↑ → Grade ↑ → TypeOrder ↑ → Priority ↑ → Band ↓ → Tie ↓ → Quality ↑ → Tail ↑
-Boosted      Grade ↑ → TypeOrder ↑ → IsFavorite ↑ → Priority ↑ → Band ↓ → Tie ↓ → Quality ↑ → Tail ↑
-Low          Grade ↑ → TypeOrder ↑ → Band ↓ → Tie ↓ → Quality ↑ → Tail ↑
-HistoryTail  Band ↓ → TypeOrder ↑ → Tie ↓ → Tail ↑
+Pinned       AlwaysTop ↑ → FavoritePin ↑ → Grade ↑ → Priority ↑ → Band ↓ → Tie ↓ → Quality ↑ → TypeOrder ↑ → Tail ↑
+Boosted      Grade ↑ → IsFavorite ↑ → Priority ↑ → Band ↓ → Tie ↓ → Quality ↑ → TypeOrder ↑ → Tail ↑
+Low          Grade ↑ → Band ↓ → Tie ↓ → Quality ↑ → TypeOrder ↑ → Tail ↑
+HistoryTail  Band ↓ → Tie ↓ → TypeOrder ↑ → Tail ↑
 ```
 
-完整窗口对同一段使用同一顺序，只是把 `TypeOrder ↑` 位置留空（恒等），并把 `Quality ↑` 换成打包后的 32 位质量键——两者键序一致，仅在量化精度上不同（连续性 1/255、覆盖率 1/511），因此两窗对“差异小于一个量化格”的两行可能给出不同名次。
+`TypeOrder ↑` 是**最后的平局键**，且只在双方都属于“应用 / 系统设置 / 文件”这三个内建桶时参与；第三方 provider 或未列类型的中性值不参与。它不跨段、不跨 `Grade`、不压 `Priority`/`Band`/`Tie`/`Quality`。完整窗口没有这一层（恒等），其余键序一致，并把 `Quality ↑` 换成打包后的 32 位质量键——两者只在量化精度上不同（连续性 1/255、覆盖率 1/511），因此两窗对“差异小于一个量化格”的两行可能给出不同名次。
 
-质量键里的连续性按**正词**计算，而不是把整个匹配跨度当成一个 run：多词查询允许每个词各自连续（如 `cf wj` 对 `cf 桌面文件`，`Contiguity = 1`），再由覆盖率区分；单个词内部散点仍会降低连续性。这个定义只作用于 `Quality`，Grade/类型/历史仍先于质量键。
+质量键里的连续性按**正词**计算，而不是把整个匹配跨度当成一个 run：多词查询允许每个词各自连续（如 `cf wj` 对 `cf 桌面文件`，`Contiguity = 1`），再由覆盖率区分；单个词内部散点仍会降低连续性。这个定义只作用于 `Quality`；`Grade`/历史仍先于质量键，类型只在质量完全相等后参与。
 
 ### 四段硬边界（`RankSection`）
 
@@ -49,14 +49,14 @@ HistoryTail  Band ↓ → TypeOrder ↑ → Tie ↓ → Tail ↑
 
 ### 五级单调证据分级（`MatchEvidenceGrade`）
 
-普通偏好（结果类型顺序、`High/Normal` 目录优先级、历史打开次数）只能在**同一 `EvidenceGrade`** 内微调，绝不跨级反超：
+普通偏好（`High/Normal` 目录优先级、历史打开次数）只能在**同一 `EvidenceGrade`** 内微调，绝不跨级反超；结果类型顺序更窄，只在其他键全部相等后决胜：
 
 | 等级 | 名称 | 判定条件 | 普通类型顺序参与度 |
 | ---: | --- | --- | --- |
-| `0` | `ExactIdentity` | 文件或应用的直接名称/显示标题完整命中（`.lnk/.url/.appref-ms` 容器后缀或普通文件扩展名按 stem 归一），且 `IsStrong`；系统设置/应用项声明的 `Keyword` 干净前缀命中（如 `env` → `envvar`）；目录不算身份，精确同名目录降为 `DirectStrong` | 参与（序数比较，无加分） |
-| `1` | `DirectStrong` | 直接名称/显示标题命中且 `Match.IsStrong`（词首、词中连续、整词、普通全拼/简拼） | 参与（序数比较，无加分） |
-| `2` | `DirectApproximate` | 跳跃子序列、生僻多音读音等弱直接命中 | 参与（序数比较，无加分；同等级内先按类型成组，再比质量） |
-| `3` | `SecondaryField` | 干净（`IsStrong`）的非标题表示：`ShortcutTarget`、`ProductMetadata`、`CuratedAlias`、`ProviderAlias`；以及引擎无名回退（如仅父路径解释）的命中 | 参与（序数比较，无加分）；副标题显示本地化来源（如 `别名：…`、`目标：…`） |
+| `0` | `ExactIdentity` | 文件或应用的直接名称/显示标题完整命中（`.lnk/.url/.appref-ms` 容器后缀或普通文件扩展名按 stem 归一），且 `IsStrong`；系统设置/应用项声明的 `Keyword` 干净前缀命中（如 `env` → `envvar`）；目录不算身份，精确同名目录降为 `DirectStrong` | 仅在质量完全平局时参与（序数比较，无加分） |
+| `1` | `DirectStrong` | 直接名称/显示标题命中且 `Match.IsStrong`（词首、词中连续、整词、普通全拼/简拼） | 仅在质量完全平局时参与（序数比较，无加分） |
+| `2` | `DirectApproximate` | 跳跃子序列、生僻多音读音等弱直接命中 | 仅在质量完全平局时参与（序数比较，无加分） |
+| `3` | `SecondaryField` | 干净（`IsStrong`）的非标题表示：`ShortcutTarget`、`ProductMetadata`、`CuratedAlias`、`ProviderAlias`；以及引擎无名回退（如仅父路径解释）的命中 | 仅在质量完全平局时参与（序数比较，无加分）；副标题显示本地化来源（如 `别名：…`、`目标：…`） |
 | `4` | `LearnedAlias` | `IsHistoryOnly` 查询→路径关联召回 | 固定落入 `HistoryTail` |
 
 次要别名（provider 声明的 `ShortcutTarget`、`ProductMetadata`、`CuratedAlias`）要求 `MatchRank.IsStrong`，拒绝零散子序列（防止 `#440` 类误召回）。用户别名功能已彻底移除，不再读取旧 `ResultAliases` 数据，也不提供动作菜单绑定/清除入口。不支持全局同义词表。
@@ -67,7 +67,7 @@ HistoryTail  Band ↓ → TypeOrder ↑ → Tie ↓ → Tail ↑
 
 common-only 把每个字表内频率最高的两个读音都视为常见（如 `重` 的 `zhong/chong`、`乐` 的 `le/yue`），不查词表，因此 `重复` 和 `重要` 都会接受 `chong`；第三个及以后读音仍只属于 all-readings 分支，才可能落入 `DirectApproximate`。
 
-目录是容器而非身份：精确同名目录仍是强直接命中（`DirectStrong`），但不占用 `ExactIdentity`。否则搜索 `powershell` 时，`F:\Documents\PowerShell` 会以 Grade 0 压过标题为 `PowerShell 7 (x64)` 的快捷方式，用户配置的“应用先于文件”类型顺序永远无法生效。
+目录是容器而非身份：精确同名目录仍是强直接命中（`DirectStrong`），但不占用 `ExactIdentity`。否则搜索 `powershell` 时，`F:\Documents\PowerShell` 会以 Grade 0 压过标题为 `PowerShell 7 (x64)` 的快捷方式；类型顺序只能在质量完全平局后决胜，不能替目录跨级。
 
 上表的 0..4 是文档语义号；枚举 `MatchEvidenceGrade` 另用 `LegacyUnknown = 0` 表示“未知”，真实等级从 1 开始，未知值永不参与排序。回放夹具因此用名字声明等级（`"expectedV3Grade": "ExactIdentity"`），避免编号口径分歧。
 

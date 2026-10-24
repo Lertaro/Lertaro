@@ -354,6 +354,7 @@ internal static class RankedCandidateOrdering
             IsDir: c.Result.IsDir,
             Name: c.Result.Name,
             NormalizedPath: path,
-            Drive: RankPolicy.DriveRank(c.Result.Drive));
+            Drive: RankPolicy.DriveRank(c.Result.Drive),
+            TypeRankApplies: c.TypeRankApplies);
     }
 }

@@ -38,7 +38,8 @@ public readonly record struct RankSignals(
     string Name,
     string NormalizedPath,
     int Drive,
-    ulong EngineTie = 0);
+    ulong EngineTie = 0,
+    bool TypeRankApplies = true);
 
 public readonly record struct RankKey(
     byte AlwaysTop,
@@ -56,12 +57,13 @@ public readonly record struct RankKey(
     MatchEvidenceGrade Grade = MatchEvidenceGrade.DirectStrong,
     bool IsFavorite = false,
     IndexRuleEffect Priority = IndexRuleEffect.Normal,
-    HistoryTier Tier = HistoryTier.None)
+    HistoryTier Tier = HistoryTier.None,
+    bool TypeRankApplies = true)
 {
     public RankTail Tail => new(IsDir, Name, NormalizedPath, Drive, EngineTie);
-    // The configured result-type order is a group inside one evidence grade, not a tie-break that only
-    // strong matches may use: a weaker grade still loses first, but every grade now keeps its types
-    // contiguous instead of dissolving approximate rows into quality order.
+    // The configured result-type order is a final tie-break, not a group: section, grade, priority,
+    // history band and match quality all run first. It only compares the three built-in buckets
+    // (Applications, System settings, Files); an unlisted provider's rank is neutral.
     public int EffectiveTypeRank => TypeRank;
 }
 
@@ -179,7 +181,8 @@ public static class RankPolicy
             grade,
             s.IsFavorite,
             s.Priority,
-            effectiveTier);
+            effectiveTier,
+            s.TypeRankApplies);
     }
 
     // Directories are containers, not identities: an exact folder name is a strong direct match but
@@ -341,9 +344,6 @@ public sealed class RankKeyComparer : IComparer<RankKey>
                 c = x.Grade.CompareTo(y.Grade);
                 if (c != 0)
                     return c;
-                c = x.EffectiveTypeRank.CompareTo(y.EffectiveTypeRank);
-                if (c != 0)
-                    return c;
                 c = RankPolicy.PriorityOrder(x.Priority).CompareTo(RankPolicy.PriorityOrder(y.Priority));
                 if (c != 0)
                     return c;
@@ -354,13 +354,13 @@ public sealed class RankKeyComparer : IComparer<RankKey>
                 if (c != 0)
                     return c;
                 c = MatchRank.CompareQuality(x.Match, y.Match);
+                if (c != 0)
+                    return c;
+                c = CompareTypeRank(x, y);
                 return c != 0 ? c : RankPolicy.CompareCommonTail(x.Tail, y.Tail);
 
             case RankSection.Low:
                 c = x.Grade.CompareTo(y.Grade);
-                if (c != 0)
-                    return c;
-                c = x.EffectiveTypeRank.CompareTo(y.EffectiveTypeRank);
                 if (c != 0)
                     return c;
                 c = y.Tier.CompareTo(x.Tier);
@@ -370,23 +370,23 @@ public sealed class RankKeyComparer : IComparer<RankKey>
                 if (c != 0)
                     return c;
                 c = MatchRank.CompareQuality(x.Match, y.Match);
+                if (c != 0)
+                    return c;
+                c = CompareTypeRank(x, y);
                 return c != 0 ? c : RankPolicy.CompareCommonTail(x.Tail, y.Tail);
 
             case RankSection.HistoryTail:
                 c = y.Tier.CompareTo(x.Tier);
                 if (c != 0)
                     return c;
-                c = x.TypeRank.CompareTo(y.TypeRank);
+                c = y.HistoryTie.CompareTo(x.HistoryTie);
                 if (c != 0)
                     return c;
-                c = y.HistoryTie.CompareTo(x.HistoryTie);
+                c = CompareTypeRank(x, y);
                 return c != 0 ? c : RankPolicy.CompareCommonTail(x.Tail, y.Tail);
 
             default:
                 c = x.Grade.CompareTo(y.Grade);
-                if (c != 0)
-                    return c;
-                c = x.EffectiveTypeRank.CompareTo(y.EffectiveTypeRank);
                 if (c != 0)
                     return c;
                 if (x.IsFavorite != y.IsFavorite)
@@ -401,7 +401,15 @@ public sealed class RankKeyComparer : IComparer<RankKey>
                 if (c != 0)
                     return c;
                 c = MatchRank.CompareQuality(x.Match, y.Match);
+                if (c != 0)
+                    return c;
+                c = CompareTypeRank(x, y);
                 return c != 0 ? c : RankPolicy.CompareCommonTail(x.Tail, y.Tail);
         }
     }
+
+    // Type order is deliberately neutral unless both rows belong to one of the three built-in buckets
+    // (Applications / System settings / Files) and every earlier key has already tied.
+    private static int CompareTypeRank(in RankKey x, in RankKey y) =>
+        x.TypeRankApplies && y.TypeRankApplies ? x.TypeRank.CompareTo(y.TypeRank) : 0;
 }

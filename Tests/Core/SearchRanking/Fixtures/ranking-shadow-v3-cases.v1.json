@@ -111,10 +111,10 @@
       "assertions": {
         "mustAppearBefore": [
           { "before": "cfwj-exact-lnk", "after": "cfwj-exact-dir" },
-          { "before": "cfwj-clean-lnk", "after": "cfwj-exact-dir" },
-          { "before": "cfwj-compare-lnk", "after": "cfwj-exact-dir" },
-          { "before": "cfwj-find-lnk", "after": "cfwj-exact-dir" },
-          { "before": "cfwj-delete-lnk", "after": "cfwj-exact-dir" },
+          { "before": "cfwj-exact-dir", "after": "cfwj-clean-lnk" },
+          { "before": "cfwj-exact-dir", "after": "cfwj-compare-lnk" },
+          { "before": "cfwj-exact-dir", "after": "cfwj-find-lnk" },
+          { "before": "cfwj-exact-dir", "after": "cfwj-delete-lnk" },
           { "before": "cfwj-exact-dir", "after": "cfwj-etc-txt" },
           { "before": "cfwj-clean-lnk", "after": "cfwj-etc-txt" }
         ],

@@ -29,7 +29,8 @@ public sealed class RankPolicyTests
         string path = @"D:\item",
         int drive = 3,
         ulong engineTie = 0,
-        MatchRank? match = null) =>
+        MatchRank? match = null,
+        bool typeRankApplies = true) =>
         new(
             match ?? (strong ? Strong() : Weak()),
             isHistoryOnly,
@@ -42,7 +43,8 @@ public sealed class RankPolicyTests
             name,
             path,
             drive,
-            engineTie);
+            engineTie,
+            typeRankApplies);
 
     private static RankKey KeyOf(
         RankSignals s,
@@ -61,7 +63,11 @@ public sealed class RankPolicyTests
 
     [TestMethod]
     public void PolicyVersion_IsThree() =>
-        Assert.AreEqual(3, RankPolicy.Version);
+        Assert.AreEqual(3, CurrentVersion);
+
+    // RankPolicy.Version is a const, so comparing it to a literal folds to AreEqual(3, 3) and trips
+    // MSTEST0032. Reading it through a property keeps the guard able to fail when the version is bumped.
+    private static int CurrentVersion => RankPolicy.Version;
 
     [TestMethod]
     public void Section_PinnedRequiresHighAndAlwaysTop_OrStrongFavorite()
@@ -110,8 +116,8 @@ public sealed class RankPolicyTests
                 @"D:\Normal\report.docx",
                 @"D:\High\report-old.docx",
                 @"D:\Normal\report-final.docx",
-                @"D:\High\r-e-p-o-r-t.txt",
                 @"D:\Fav\r-e-p-o-r-t.txt",
+                @"D:\High\r-e-p-o-r-t.txt",
                 @"D:\High\target-match.lnk",
                 @"D:\Low\report.pdf",
                 @"D:\Low\misc.txt",
@@ -121,16 +127,16 @@ public sealed class RankPolicyTests
     }
 
     [TestMethod]
-    public void Compare_BoostedTypeRankBeatsQualityOnEveryGrade()
+    public void Compare_BoostedQualityBeatsTypeRankOnEveryGrade()
     {
         var preferredStrongType = KeyOf(Signals(
             typeRank: 0,
             match: Strong(shape: MatchRank.ShapeInsideWord, coverage: 0.2, start: 5)));
         var betterQualityLowerType = KeyOf(Signals(typeRank: 1, match: Strong()));
-        Assert.IsLessThan(0, RankKeyComparer.Instance.Compare(preferredStrongType, betterQualityLowerType));
+        Assert.IsGreaterThan(0, RankKeyComparer.Instance.Compare(preferredStrongType, betterQualityLowerType));
 
-        // Same DirectApproximate grade: the worse-quality type 0 row still wins, so the configured
-        // type order groups approximate matches instead of letting quality interleave the types.
+        // Same DirectApproximate grade: the better-quality type 1 row wins, so type only breaks a
+        // complete quality tie instead of grouping approximate matches by type.
         var approximatePreferredType = KeyOf(Signals(
             typeRank: 0,
             strong: false,
@@ -139,7 +145,7 @@ public sealed class RankPolicyTests
             typeRank: 1,
             strong: false,
             match: new MatchRank(MatchRank.TierName, 0, 1.0, 1.0, MatchRank.ShapeScattered)));
-        Assert.IsLessThan(0, RankKeyComparer.Instance.Compare(approximatePreferredType, approximateBetterQualityLowerType));
+        Assert.IsGreaterThan(0, RankKeyComparer.Instance.Compare(approximatePreferredType, approximateBetterQualityLowerType));
     }
 
     [TestMethod]
@@ -159,20 +165,29 @@ public sealed class RankPolicyTests
     }
 
     [TestMethod]
-    public void Compare_LowTypeRankBeatsQuality()
+    public void Compare_LowQualityBeatsTypeRank()
     {
         var preferredType = KeyOf(Signals(
             IndexRuleEffect.Low, typeRank: 0, match: Strong(shape: MatchRank.ShapeInsideWord, coverage: 0.2, start: 5)));
         var betterQualityLowerType = KeyOf(Signals(
             IndexRuleEffect.Low, typeRank: 5, match: Strong(coverage: 1, start: 0)));
 
-        // Low is still a section, not a free-for-all: within it the configured type order comes before
-        // match quality, the same as every other grade-bearing section.
-        Assert.IsLessThan(0, RankKeyComparer.Instance.Compare(preferredType, betterQualityLowerType));
+        // Low is still a section, not a free-for-all: match quality decides before the type tie-break.
+        Assert.IsGreaterThan(0, RankKeyComparer.Instance.Compare(preferredType, betterQualityLowerType));
     }
 
     [TestMethod]
-    public void Compare_HistoryTailGroupsByTypeBeforeRecency()
+    public void Compare_TypeRankIsNeutralForUnlistedTypes()
+    {
+        var listedType = KeyOf(Signals(typeRank: 0, name: "z-listed", path: @"D:\z-listed"));
+        var unlistedType = KeyOf(Signals(typeRank: 9, typeRankApplies: false, name: "a-unlisted", path: @"D:\a-unlisted"));
+
+        // If the unlisted rank participated, type 0 would win; neutral means the common tail decides.
+        Assert.IsGreaterThan(0, RankKeyComparer.Instance.Compare(listedType, unlistedType));
+    }
+
+    [TestMethod]
+    public void Compare_HistoryTailKeepsRecencyBeforeType()
     {
         var preferredType = KeyOf(
             Signals(isHistoryOnly: true, typeRank: 0, historyScoreX100: 100, name: "older", path: @"D:\h\older"),
@@ -181,7 +196,8 @@ public sealed class RankPolicyTests
             Signals(isHistoryOnly: true, typeRank: 1, historyScoreX100: 900, name: "recent", path: @"D:\h\recent"),
             HistoryTier.H3);
 
-        Assert.IsLessThan(0, RankKeyComparer.Instance.Compare(preferredType, recentLowerType));
+        // HistoryTail is recency-first; the configured type order is only the final tie-break.
+        Assert.IsGreaterThan(0, RankKeyComparer.Instance.Compare(preferredType, recentLowerType));
     }
 
     [TestMethod]
