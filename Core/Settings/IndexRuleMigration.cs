@@ -7,8 +7,8 @@ namespace Lertaro.Core;
 public static class IndexRuleMigration
 {
     /// <summary>
-    /// Returns the settings' rules, migrating once when they are absent and retiring a rule the shipped
-    /// defaults no longer carry when the saved list is still exactly the previous stock one. Migration is
+    /// Returns the settings' rules, migrating once when they are absent, retiring the extensionless regex
+    /// from any saved list and adding the stock System Settings demotion when it is missing. Migration is
     /// in-memory only: startup never writes settings, so a read-only install directory cannot break the app;
     /// the next normal save persists the result.
     /// </summary>
@@ -16,7 +16,7 @@ public static class IndexRuleMigration
     {
         if (settings.IndexRules != null)
         {
-            RetirePreviousStockDefault(settings.IndexRules);
+            NormalizeStockRules(settings.IndexRules);
             return settings.IndexRules;
         }
 
@@ -102,46 +102,37 @@ public static class IndexRuleMigration
         rules.Add(new IndexRuleSetting { Pattern = text, Effect = IndexRuleEffect.Exclude });
     }
 
-    private static bool IsLegacyDefault(UserSettings settings)
-    {
-        return SameSet(settings.ExcludedPaths, IndexRuleDefaults.LegacyExcludedPaths)
+    private static bool IsLegacyDefault(UserSettings settings) => SameSet(settings.ExcludedPaths, IndexRuleDefaults.LegacyExcludedPaths)
                && SameSet(settings.IgnoredPathGlobs, IndexRuleDefaults.LegacyIgnoredGlobs)
                && settings.IgnoredPathRegexes.Count == 0;
-    }
 
-    // The shipped list before IndexRuleDefaults.RetiredExtensionlessRegex was dropped, as stable keys.
-    private static readonly string[] PreviousStockKeys = IndexRuleDefaults.Create()
-        .Append(new IndexRuleSetting
-        {
-            Pattern = IndexRuleDefaults.RetiredExtensionlessRegex,
-            Effect = IndexRuleEffect.Low,
-        })
-        .Select(KeyOf)
-        .OrderBy(key => key, StringComparer.Ordinal)
-        .ToArray();
-
-    /// <summary>
-    /// Removes <see cref="IndexRuleDefaults.RetiredExtensionlessRegex"/> from a settings file that still
-    /// holds the exact previous stock list. A list the user touched is left alone -- the rule is theirs at
-    /// that point, and deleting something someone typed on purpose is worse than leaving a demotion they can
-    /// see and delete themselves. In memory, like the rest of the migration: the next save persists it.
-    /// </summary>
-    private static void RetirePreviousStockDefault(List<IndexRuleSetting> rules)
+    // Runs on every load against a saved list, so it must be idempotent: a second pass finds the retired
+    // rule already gone and the demotion already present.
+    private static void NormalizeStockRules(List<IndexRuleSetting> rules)
     {
-        if (rules.Count != PreviousStockKeys.Length)
+        // Retirement is unconditional, unlike the stock defaults below: the regex demoted whole trees
+        // through extensionless ancestors, so keeping a copy the user re-added would silently undo every
+        // other rule in that tree. Removing it never changes what is excluded -- it only ever demoted.
+        rules.RemoveAll(rule =>
+            string.Equals(IndexRuleSyntax.Clean(rule.Pattern), IndexRuleDefaults.RetiredExtensionlessRegex,
+                StringComparison.Ordinal));
+
+        // An explicitly emptied list is the user asking for no rules at all; leave it empty.
+        if (rules.Count == 0)
             return;
 
-        var keys = rules.Select(KeyOf).OrderBy(key => key, StringComparer.Ordinal).ToArray();
-        if (!keys.SequenceEqual(PreviousStockKeys, StringComparer.Ordinal))
-            return;
-
-        rules.RemoveAll(rule => rule.Pattern == IndexRuleDefaults.RetiredExtensionlessRegex
-                                && rule.Effect == IndexRuleEffect.Low);
+        // The System Settings demotion is a stock default, so a list created before it existed gains it.
+        // Rules are stored, not derived, so without this only fresh installs would ever see it.
+        if (!rules.Any(rule => string.Equals(rule.Pattern, IndexRuleDefaults.SystemSettingsLowPattern,
+                StringComparison.Ordinal)))
+        {
+            rules.Add(new IndexRuleSetting
+            {
+                Pattern = IndexRuleDefaults.SystemSettingsLowPattern,
+                Effect = IndexRuleEffect.Low,
+            });
+        }
     }
-
-    // The effect is part of the identity: the same pattern may legitimately appear as an exclusion and as a
-    // demotion, and a conflict is reported rather than rewritten.
-    private static string KeyOf(IndexRuleSetting rule) => $"{(int)rule.Effect}|{rule.Pattern}";
 
     private static bool SameSet(IReadOnlyList<string> actual, IReadOnlyList<string> expected)
     {

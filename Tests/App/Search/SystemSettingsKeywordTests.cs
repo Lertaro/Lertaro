@@ -1,5 +1,6 @@
 using Lertaro.App.ViewModels.Search;
 using Lertaro.App.ViewModels.Search.Mapping;
+using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.Plugins.SystemSettings;
@@ -100,6 +101,19 @@ public sealed class SystemSettingsKeywordTests
         Assert.AreEqual(MatchEvidenceField.Keyword, keyword.Evidence.Field);
         Assert.AreEqual(MatchEvidenceGrade.ExactIdentity, keyword.Evidence.Grade);
         Assert.AreEqual(MatchEvidenceMode.LegacyUnknown, alias.Evidence.Mode);
+    }
+
+    [TestMethod]
+    public void SyntheticPath_UsesTheProviderTypeName_SoTheStockDemotionWorksInEveryLanguage()
+    {
+        var provider = new SystemSettingsItemProvider();
+        var path = SearchableItemMapper.SyntheticPath(provider, "查看网络连接");
+
+        Assert.AreEqual("__SEARCHABLE_ITEM__:" + nameof(SystemSettingsItemProvider) + ":查看网络连接", path);
+        var rules = ExclusionRuleSet.From(new UserSettings());
+        Assert.AreEqual(IndexRuleEffect.Low, rules.GetPriority(path, isDirectory: false));
+        Assert.AreEqual(IndexRuleEffect.Low,
+            rules.GetPriority(SearchableItemMapper.SyntheticPath(provider, "View network connections"), isDirectory: false));
     }
 
     private static SearchableItemCache.CacheEntry Entry(string title, string[] keywords) =>

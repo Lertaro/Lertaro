@@ -112,11 +112,12 @@ public enum IndexRuleKind { Path, Glob, Regex }
 
 ## 默认规则与旧配置迁移
 
-新装默认是 1 条排除加 14 条低档（`Core/Settings/IndexRuleDefaults.cs:25`）：
+新装默认是 1 条排除加 15 条低档（`Core/Settings/IndexRuleDefaults.cs:25`）：
 
 | 档位 | Pattern |
 | --- | --- |
 | 排除 | `node_modules` |
+| 低 | `__SEARCHABLE_ITEM__:SystemSettingsItemProvider:*` |
 | 低 | `%SystemDrive%\Windows.old` |
 | 低 | `%SystemDrive%\$WINDOWS.~BT` |
 | 低 | `%SystemDrive%\$Windows.~WS` |
@@ -132,17 +133,19 @@ public enum IndexRuleKind { Path, Glob, Regex }
 | 低 | `/^~/` |
 | 低 | `/^\$/` |
 
+系统设置项没有文件系统路径，合成路径是 `__SEARCHABLE_ITEM__:{provider.GetType().Name}:{Title}`（`SearchableItemMapper.SyntheticPath`）。provider 段取 CLR 类型名而不是本地化显示名，所以上面那条规则在 7 种界面语言下都命中；除此之外没有代码解析这一段，所有消费者只检查 `__SEARCHABLE_ITEM__:` 前缀。整组降到 Low 的取舍是：`Keyword` 命中仍能让英文查询找到中文设置项，但不再越过任何 Boosted 行——Windows 会给多个控制面板任务挂同一个关键词（`vpn` 同时出现在「查看网络连接」和「设置虚拟专用网络(VPN)连接」上），关键词身份不足以压过可见名称的直接命中。
+
 旧的三条默认 glob（`.*`、`~*`、`\$*`）由三条低档正则接管（`/^\./`、`/^~/`、`/^\$/`），同一个意图从「隐藏」换成「降权」；`node_modules` 仍是排除。系统目录和应用目录从默认排除改成默认低档，属于行为变化：老用户会突然在结果里看到 `Program Files` 或 `AppData` 下的文件，它们排在最后而不是消失。
 
-`/^[^.]+$/` 曾经是第四条，已从默认值退休（`IndexRuleDefaults.RetiredExtensionlessRegex`）。原因是对它的实测：regex 除了叶名还要测「相对搜索根的路径」，于是 `D:\tools\smalltools\Auslogics Duplicate File Finder.lnk` 会在祖先 `tools\smalltools` 那一层命中，整棵树继承 Low——任何把程序放在 `Program Files` 之外的人，程序目录都被无声压到最低档，这与「降权没有扩展名的名字」差得太远。`D:\tools\smalltools\重复文件`（文件夹）和同目录的 `.lnk` 都被压成 Low，结果就是一个文件夹压过它旁边的快捷方式，唯一在起作用的是「文件名匹配得更贴切」。想恢复这个意图，用显式路径规则（如 `-D:\tools`）或更窄的正则，别再用 `/^[^.]+$/`。
+`/^[^.]+$/` 曾经是默认低档的一员，已从默认值退休（`IndexRuleDefaults.RetiredExtensionlessRegex`）。原因是对它的实测：regex 除了叶名还要测「相对搜索根的路径」，于是 `D:\tools\smalltools\Auslogics Duplicate File Finder.lnk` 会在祖先 `tools\smalltools` 那一层命中，整棵树继承 Low——任何把程序放在 `Program Files` 之外的人，程序目录都被无声压到最低档，这与「降权没有扩展名的名字」差得太远。`D:\tools\smalltools\重复文件`（文件夹）和同目录的 `.lnk` 都被压成 Low，结果就是一个文件夹压过它旁边的快捷方式，唯一在起作用的是「文件名匹配得更贴切」。想恢复这个意图，用显式路径规则（如 `-D:\tools`）或更窄的正则，别再用 `/^[^.]+$/`。现在它不只是从默认值退休：`IndexRuleMigration.Ensure` 每次加载都会把它从任何已保存列表里强制删掉，不看档位、不看列表是否被改过——它只会降权，删掉不会改变任何排除结果。
 
-`IndexRules` 是可空字段，null 表示这份设置文件早于该字段，是迁移信号；空列表是用户主动清空，绝不再迁移（`Core/Settings/UserSettings.cs:30-36`）。旧的三列继续保留，读取时不参与匹配，只在保存时回写镜像。
+`IndexRules` 是可空字段，null 表示这份设置文件早于该字段，是迁移信号；空列表是用户主动清空，绝不再迁移（`Core/Settings/UserSettings.cs:30-36`），也不会被补加默认低档。旧的三列继续保留，读取时不参与匹配，只在保存时回写镜像。
 
 迁移算法在 `IndexRuleMigration.Ensure`（`Core/Settings/IndexRuleMigration.cs:14`），加载设置后调用（`Core/Settings/UserSettingsPersistence.cs:47/86`），只在内存里算：
 
-1. `IndexRules != null`，先做一次「退休规则清理」再用，旧三列忽略。清理只对**完全等于上一版默认列表**的设置生效（条数先比，再按 `(档位, Pattern)` 排序逐项比）：把 `/^[^.]+$/` 这条低档删掉。用户改过列表就不动——那时规则是他自己写的，背着人删一条比留着一条看得见的降权更糟。重复调用拿到同一个列表，幂等（`Ensure_IsIdempotentAndKeepsTheSameList`、`Ensure_PreviousStockList_DropsTheRetiredRule`、`Ensure_CustomisedList_KeepsTheRetiredRule`）。
+1. `IndexRules != null`，先规范化一次再用，旧三列忽略：无条件删掉 `/^[^.]+$/`；非空列表如果还没有 `__SEARCHABLE_ITEM__:SystemSettingsItemProvider:*` 这条低档，就补上。重复调用拿到同一个列表，幂等（`Ensure_IsIdempotentAndKeepsTheSameList`、`Ensure_PreviousStockList_DropsTheRetiredRule`、`Ensure_CustomisedList_StillDropsTheRetiredRule`、`Ensure_ExistingSystemSettingsDemotion_IsNotDuplicated`）。
 2. 为 null，且旧三列与旧默认等价，换成新默认。等价判断走集合语义：每项先清洗，`/` 转 `\`，去掉尾部分隔符，再排序后忽略大小写逐项比；`IgnoredPathRegexes` 必须为空（`:101-118`）。全新安装落在这条路上，因为 `UserSettings` 的旧三列默认值就是那份旧默认。
-3. 为 null 且用户改过，旧条目逐条转成 `Effect = Exclude`（正则补上 `/` 定界符，`WrapLegacyRegex`），然后把 14 条默认低档全部追加。跟同文本排除项重复的低档规则保留，运行期排除优先，冲突横幅是让用户看见并自行取舍的入口（`Ensure_CustomLegacyLists_KeepEveryEntryAsExclusionAndAppendDefaults`）。
+3. 为 null 且用户改过，旧条目逐条转成 `Effect = Exclude`（正则补上 `/` 定界符，`WrapLegacyRegex`），然后把 15 条默认低档全部追加。跟同文本排除项重复的低档规则保留，运行期排除优先，冲突横幅是让用户看见并自行取舍的入口（`Ensure_CustomLegacyLists_KeepEveryEntryAsExclusionAndAppendDefaults`）。
 
 迁移不在加载时写盘，避免启动期的写权限问题；下一次正常保存（应用设置）时落盘。重复启动会重复计算，结果一样。
 

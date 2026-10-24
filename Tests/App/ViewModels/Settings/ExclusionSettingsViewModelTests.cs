@@ -22,9 +22,12 @@ public sealed class ExclusionSettingsViewModelTests
             new IndexRuleSetting { Pattern = @"C:\temp", Effect = IndexRuleEffect.Exclude },
             new IndexRuleSetting { Pattern = "*.tmp", Effect = IndexRuleEffect.Low }));
 
-        Assert.HasCount(2, vm.Rules);
+        Assert.HasCount(3, vm.Rules);
         Assert.AreEqual(IndexRuleEffect.Exclude, vm.Rules.Single(r => r.Value == @"C:\temp").Effect);
         Assert.AreEqual(IndexRuleEffect.Low, vm.Rules.Single(r => r.Value == "*.tmp").Effect);
+        // IndexRuleMigration adds the stock System Settings demotion to a saved list that predates it.
+        Assert.AreEqual(IndexRuleEffect.Low,
+            vm.Rules.Single(r => r.Value == IndexRuleDefaults.SystemSettingsLowPattern).Effect);
     }
 
     [TestMethod]
@@ -75,7 +78,7 @@ public sealed class ExclusionSettingsViewModelTests
         vm.NewRuleText = "*.TMP";
         vm.AddRuleCommand.Execute(null);
 
-        Assert.HasCount(1, vm.Rules);
+        Assert.HasCount(2, vm.Rules);
         Assert.IsTrue(vm.HasStatusMessage);
     }
 
@@ -122,7 +125,8 @@ public sealed class ExclusionSettingsViewModelTests
 
         vm.RemoveRuleCommand.Execute(vm.Rules[0]);
 
-        Assert.HasCount(0, vm.Rules);
+        Assert.HasCount(1, vm.Rules);
+        Assert.AreEqual(IndexRuleDefaults.SystemSettingsLowPattern, vm.Rules[0].Value);
     }
 
     [TestMethod]
@@ -197,11 +201,12 @@ public sealed class ExclusionSettingsViewModelTests
         vm.Filter = nameof(IndexRuleEffect.Low);
 
         var visible = Visible(vm);
-        Assert.HasCount(1, visible);
-        Assert.AreEqual("b", visible[0].Value);
+        Assert.HasCount(2, visible);
+        Assert.IsTrue(visible.Any(r => r.Value == "b"));
+        Assert.IsTrue(visible.Any(r => r.Value == IndexRuleDefaults.SystemSettingsLowPattern));
 
         vm.Filter = "All";
-        Assert.HasCount(3, Visible(vm));
+        Assert.HasCount(4, Visible(vm));
     }
 
     [TestMethod]
@@ -313,7 +318,7 @@ public sealed class ExclusionSettingsViewModelTests
     {
         var vm = new ExclusionSettingsViewModel(SettingsWith(
             new IndexRuleSetting { Pattern = @"C:\temp", Effect = IndexRuleEffect.Exclude },
-            new IndexRuleSetting { Pattern = @"/^[^.]+$/", Effect = IndexRuleEffect.Low }));
+            new IndexRuleSetting { Pattern = @"/^\d+$/", Effect = IndexRuleEffect.Low }));
 
         Assert.IsFalse(vm.HasConflicts);
     }
@@ -324,7 +329,7 @@ public sealed class ExclusionSettingsViewModelTests
         var vm = new ExclusionSettingsViewModel(SettingsWith(
             new IndexRuleSetting { Pattern = "cache", Effect = IndexRuleEffect.Exclude },
             new IndexRuleSetting { Pattern = "cache", Effect = IndexRuleEffect.Low }));
-        var low = vm.Rules.Single(r => r.Effect == IndexRuleEffect.Low);
+        var low = vm.Rules.Single(r => r.Effect == IndexRuleEffect.Low && r.Value == "cache");
         low.IsEditing = true;
         low.EditValue = "cache2";
         low.EditEffectValue = nameof(IndexRuleEffect.Normal);
@@ -347,7 +352,9 @@ public sealed class ExclusionSettingsViewModelTests
 
         var ordered = Visible(vm).Select(r => r.Value).ToList();
 
-        CollectionAssert.AreEqual(new[] { @"C:\x", @"D:\x", "a*", "b*", "/z/" }, ordered);
+        CollectionAssert.AreEqual(
+            new[] { @"C:\x", @"D:\x", "a*", "b*", IndexRuleDefaults.SystemSettingsLowPattern, "/z/" },
+            ordered);
     }
 
     [TestMethod]
@@ -359,7 +366,7 @@ public sealed class ExclusionSettingsViewModelTests
             new IndexRuleSetting { Pattern = "c", Effect = IndexRuleEffect.Normal }));
 
         Assert.AreEqual(1, vm.Rules.Count(r => r.Effect == IndexRuleEffect.Exclude));
-        Assert.AreEqual(1, vm.Rules.Count(r => r.Effect == IndexRuleEffect.Low));
+        Assert.AreEqual(2, vm.Rules.Count(r => r.Effect == IndexRuleEffect.Low));
         Assert.AreEqual(1, vm.Rules.Count(r => r.Effect == IndexRuleEffect.Normal));
         Assert.IsFalse(string.IsNullOrEmpty(vm.CountSummary));
     }

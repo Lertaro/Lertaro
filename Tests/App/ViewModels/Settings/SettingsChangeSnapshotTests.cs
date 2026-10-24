@@ -20,8 +20,13 @@ public sealed class SettingsChangeSnapshotTests
 
         var snapshot = SettingsChangeSnapshot.CaptureExclusions(settings);
 
-        CollectionAssert.AreEqual(new[] { @"C:\a", "*.tmp" }, snapshot.Rules.Select(r => r.Pattern).ToList());
-        CollectionAssert.AreEqual(new[] { IndexRuleEffect.Exclude, IndexRuleEffect.Low }, snapshot.Rules.Select(r => r.Effect).ToList());
+        // The stock System Settings demotion is part of the snapshot: CaptureExclusions reads the same
+        // normalized list the index would use, not the raw saved one.
+        CollectionAssert.AreEqual(new[] { @"C:\a", "*.tmp", IndexRuleDefaults.SystemSettingsLowPattern },
+            snapshot.Rules.Select(r => r.Pattern).ToList());
+        CollectionAssert.AreEqual(
+            new[] { IndexRuleEffect.Exclude, IndexRuleEffect.Low, IndexRuleEffect.Low },
+            snapshot.Rules.Select(r => r.Effect).ToList());
     }
 
     [TestMethod]

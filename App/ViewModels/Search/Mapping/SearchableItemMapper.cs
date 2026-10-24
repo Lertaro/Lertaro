@@ -271,6 +271,13 @@ public static class SearchableItemMapper
         return string.Format(template, matchedText);
     }
 
+    // No filesystem path exists for a provider row, so the row carries a synthetic one. Its provider
+    // segment is the CLR type name, not the localized display name: index rules and exported traces must
+    // not depend on the UI language. Nothing parses the segment -- every consumer only checks the
+    // "__SEARCHABLE_ITEM__:" prefix.
+    internal static string SyntheticPath(ISearchableItemProvider provider, string title) =>
+        $"__SEARCHABLE_ITEM__:{provider.GetType().Name}:{title}";
+
     private static (AppSearchResult Result, MatchRank Match) BuildCandidate(
         SearchableItemCache.CacheEntry entry,
         ISearchableItemProvider provider,
@@ -346,7 +353,9 @@ public static class SearchableItemMapper
         return (new AppSearchResult
         {
             Name = item.Title,
-            FullPath = (isRealFile || isRealDir || isApplication) ? item.ActionArgument : $"__SEARCHABLE_ITEM__:{provider.Name}:{item.Title}",
+            FullPath = (isRealFile || isRealDir || isApplication)
+                ? item.ActionArgument
+                : SyntheticPath(provider, item.Title),
             // Direct-title applications show name-only; secondary-alias hits surface their matched
             // provenance ("Alias: ...", "Target: ...") so non-title matches explain themselves visually.
             ParentDir = item.ResultKind == "Application"

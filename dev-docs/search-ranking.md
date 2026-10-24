@@ -61,7 +61,9 @@ HistoryTail  Band ↓ → Tie ↓ → TypeOrder ↑ → Tail ↑
 
 次要别名（provider 声明的 `ShortcutTarget`、`ProductMetadata`、`CuratedAlias`）要求 `MatchRank.IsStrong`，拒绝零散子序列（防止 `#440` 类误召回）。用户别名功能已彻底移除，不再读取旧 `ResultAliases` 数据，也不提供动作菜单绑定/清除入口。不支持全局同义词表。
 
-`Keyword` 是 provider 声明的同义词（当前用于系统设置的 `System.Keywords`），不是零散猜测：只有每个查询词都干净前缀命中一个声明词时才成立，质量按最短匹配词计算（`env` → `envvar` 覆盖 0.5），并按 `ExactIdentity` 参与类型顺序。这样用户配置的“设置先于文件”能让 `env` 命中“编辑账户的环境变量”，而不是被 `env.h` 等文件压到 40 名以后。2026-10-24 决策；若将来其他 provider 也提供 `Keywords`，需确认其同义词质量是否同样可信。
+`Keyword` 是 provider 声明的同义词（当前用于系统设置的 `System.Keywords`），不是零散猜测：只有每个查询词都干净前缀命中一个声明词时才成立，质量按最短匹配词计算（`env` → `envvar` 覆盖 0.5），并按 `ExactIdentity` 参与类型顺序。2026-10-24 决策；若将来其他 provider 也提供 `Keywords`，需确认其同义词质量是否同样可信。
+
+同一天的第二条裁决给这类命中加了降级边界：默认规则里的 `__SEARCHABLE_ITEM__:SystemSettingsItemProvider:*`（`IndexRuleDefaults.SystemSettingsLowPattern`）把整组系统设置行放进 `TextualLow`。`Keyword` 仍负责跨语言召回（英文查询能找到中文设置项），但不再越过任何 `Boosted` 行：Windows 会给多个控制面板任务挂同一个关键词——`vpn` 同时在「查看网络连接」和「设置虚拟专用网络(VPN)连接」的 `System.Keywords` 里——关键词身份不足以压过可见名称的直接命中。早先「让 `env` 排在 `env.h` 前面」的写法由此作废；设置项现在整体排在直接命中之后，`ExactIdentity` 只在 Low 段内部生效。合成路径的 provider 段用 CLR 类型名而不是本地化显示名（`SearchableItemMapper.SyntheticPath`），所以这条默认规则在 7 种界面语言下都成立。
 
 同一候选的标题强命中优先于任何别名；别名只在标题未强命中时参与最佳证据选择。否则较长的别名可能以覆盖率优势覆盖标题的拼音直接命中，把 `DirectStrong` 降成 `SecondaryField`。
 
