@@ -4,7 +4,7 @@
 
 ## 适用范围与核对基线
 
-本文写的是 `feat-search-reimpl` 分支的语法，该分支仍未合入 main。核对基线：分支已 rebase 到 main = `5a754391`（领先 24 个提交、落后 0），合并基就是 `5a754391`。引用任何 `:term`、`/regex/` 结论前先确认在哪条线上。文末附录的 `file:line` 已对着这次 rebase 后的工作树（`feat-search-reimpl` = `eba02cfb`、main = `5a754391`）逐条重核；分支再次 rebase 后行号与哈希仍会过期，核对不上时以文件与函数名为准。
+本文写的是 `feat-search-reimpl` 分支的语法，该分支仍未合入 main。核对基线：main = `06145fda`，分支 HEAD = `9ed7facd`（领先 28 个提交、落后 0，合并基就是 `06145fda`）。引用任何 `:term`、`/regex/` 结论前先确认在哪条线上。文末附录的 `file:line` 已对着这棵工作树逐条重核（含正则子句接线的修正）；分支再次 rebase 后行号与哈希仍会过期，核对不上时以文件与函数名为准。
 
 只在 `feat-search-reimpl` 上成立的语法：
 
@@ -23,7 +23,7 @@
 
 两条线上都成立的：普通词空格 AND、两侧带空格的 `|` OR 与优先级开关、模糊开关、普通词恒忽略大小写、含分隔符进入全路径模式、路径末尾分隔符列出直属内容。
 
-设置侧的规则语法是另一套判定，别和查询侧混：`IndexRuleSyntax`（main 的 `Core/Settings/IndexRuleSetting.cs:58`，Path/Glob/Regex 三个 kind，同样以 `/.../` 包裹正则、基选项带 `IgnoreCase`、每条 50ms 匹配预算，正则判定排在分隔符归一之前）只存在于 main，`feat-search-reimpl` 上还没有这个文件。
+设置侧的规则语法是另一套判定，别和查询侧混：`IndexRuleSyntax`（`Core/Settings/IndexRuleSetting.cs:74`，Path/Glob/Regex 三个 kind，同样以 `/.../` 包裹正则、基选项带 `IgnoreCase`、每条 50ms 匹配预算，正则判定排在分隔符归一之前）与查询侧共用"`/.../` 包裹"这个形状，但两侧各自解析、互不调用；该文件在 main 与 `feat-search-reimpl` 上逐字节一致。
 
 已否决的方向不在本文范围内：`/regex/i` 尾随标志位、`>cs` / `>ci` 大小写标记、`+keyword`、`~keyword`、`#tag`。大小写能力的现状见「大小写」一节。文末附录给出每条事实的 `file:line`。
 
@@ -58,13 +58,13 @@ main 上那套旧运算符正好是这个判据的反例：`'` `^` `$` 都合法
 
 四处约束需要记住。
 
-**摘除顺序是契约。** `/\.exe$/` 同时含 `\` 与 `/`，晚摘一步整条查询就会被读成一条不可能存在的路径，`SearchQueryParser.Parse` 方法开头因此调用正则摘除（`Core/SearchIndex/Query/SearchQueryParser.cs:12`）。
+**摘除顺序是契约。** `/\.exe$/` 同时含 `\` 与 `/`，晚摘一步整条查询就会被读成一条不可能存在的路径，`SearchQueryParser.Parse` 方法开头因此调用正则摘除（`Core/SearchIndex/Query/SearchQueryParser.cs:14`）。
 
 **词级语法不在 Token 链里。** `:` `?` `|` 在 `FzfPatternParser` 内部读取，`QueryTokenScanner` 只负责可配置前缀与 `<` `>`。两层是不同的东西。
 
 **Token 链跑在匹配之后。** `QueryTokenDispatcher` 的输入是搜索已经产出的文件行；快速窗口先取有限候选再执行排序与分类过滤，未取回的匹配不参与处理。任何需要影响匹配判定的开关都放不进这一层。
 
-**`:term` 与 `/re/` 只回答候选自己的名称。** 两者都不走拼音别名、不看路径段、也不在任何 mask 里占位：`:temp` 否决的是名字里含 `temp` 的行，`/\.pdf$/` 描述的是名字里真实存在的字符。凡是改成"从读音、别名或路径段判定一行"的层，都必须把名称一并交进去、在门口先否决这两项，否则一个读音命中就把名称不合格式的行收下。展开的经过与判据见下一节。
+**`:term` 与 `/re/` 只回答候选自己的名称。** 两者都不走拼音别名、不看路径段：`:temp` 否决的是名字里含 `temp` 的行，`/\.pdf$/` 描述的是名字里真实存在的字符。`:term` 不占 mask 位；`/re/` 只把提取出的必需字面量并进 `RequiredMask` 做预筛（`SearchMatcher.BuildContext`），预筛只淘汰、不判决，真正的接受与否仍由整条子句在名称上回答。凡是改成"从读音、别名或路径段判定一行"的层，都必须把名称一并交进去、在门口先否决这两项，否则一个读音命中就把名称不合格式的行收下。展开的经过与判据见下一节。
 
 词首触发字符被扫描器摘出后，如果没有 provider 认领，结果是空集，不会退回普通文本。
 
@@ -86,13 +86,14 @@ OR 已经存在（两侧带空格的 `|`，默认 AND 结合更紧，优先级�
 
 ## 名字级子句的落点
 
-`:term` 与 `/.../` 必须由候选自己的名称回答，这条规则在本分支上被修过三次，每次都是新写法的消费者没被告知这件事。文档留在这里，是为了下次再加一层判定时能一句话想起来。规则本身在 `Core/SearchIndex/Fzf/FzfPatternMatcher.cs` 的 `TryMatchAlias(pattern, alias, name, ...)` 注释里，以及 `Site/*/user-guide/search-syntax.md`。
+`:term` 与 `/.../` 必须由候选自己的名称回答，这条规则在本分支上被修过四次，每次都是新写法的消费者没被告知这件事。文档留在这里，是为了下次再加一层判定时能一句话想起来。规则本身在 `Core/SearchIndex/Fzf/FzfPatternMatcher.cs` 的 `TryMatchAlias(pattern, alias, name, ...)` 注释里，以及 `Site/*/user-guide/search-syntax.md`。
 
-三次落点：
+四次落点：
 
 1. **ancestor pass（`PathTermFallback`）** —— `:term` 在分支语法下不占 mask 位（`HasPositiveTerm` 让纯排除项的逐词 pattern 零命中），占位就永远填不满，整条 fallback 对带排除项的查询返回空；而 `/.../` 在这个 pass 根本没人问，靠文件夹就能把名称不合格式的行捞回来。改法：排除项集合不进 `termPatterns`，名称级子句统一由 `NamePassesClauses` 在**行的名称**上否决。
 2. **grid 层（已随 main 的 `b8e1061c` 删除）** —— 曾经给 `TryMatchEntry`/`TryMatchPayload` 加过 `ReadOnlySpan<char> name`，让物化读音只回答词、子句回答名称。grid 没了，那两次提交在本次 rebase 里被跳过/清空，规则改由下面第 3 条承接。注意「把 live tier 的候选名交进去」那条现在只剩别名视图测试的迁移，commit message 还在讲 TryMatchProvider —— squash 时改掉。
-3. **live 读音判定（`PinyinNameEvaluator`）** —— main 用它取代了 `FzfPattern.TryMatch` 作为名称 tier。它逐词读 NFA、并且自己处理排除项（`term.Inverse` 命中字面就 fail，缺席就满足），但整个类里没有 `Regexes` 这个词：查询带 `/.../` 时，一个读音命中就把名称不合格式的行收下。修前量出来的一条：`bg /\.pdf$/` 对 `报告` 返回 true（`FakeLiveProvider` 供 `bg` 的跨度）。改法是在 `TryScore` 门口按**整个名称**判一次子句，位置在 `'|'` 分段之前 —— 子句说的是名称，不是它的某一段。覆盖：`PinyinNameEvaluatorTests.RegexClause_IsAnsweredFromTheNameNeverFromTheReadings`（两侧各留一条对照，免得"任何读音都供不出的子句"和"根本没被查过的子句"混成一件事）。
+3. **live 读音判定（`PinyinNameEvaluator`）** —— main 用它取代了 `FzfPattern.TryMatch` 作为名称 tier。它逐词读 NFA、并且自己处理排除项（`term.Inverse` 命中字面就 fail，缺席就满足），但修前整个类里没有 `Regexes` 这个词：查询带 `/.../` 时，一个读音命中就把名称不合格式的行收下。修前量出来的一条：`bg /\.pdf$/` 对 `报告` 返回 true（`FakeLiveProvider` 供 `bg` 的跨度）。改法是在 `TryScore` 门口按**整个名称**判一次子句，位置在 `'|'` 分段之前 —— 子句说的是名称，不是它的某一段。覆盖：`PinyinNameEvaluatorTests.RegexClause_IsAnsweredFromTheNameNeverFromTheReadings`（两侧各留一条对照，免得"任何读音都供不出的子句"和"根本没被查过的子句"混成一件事）。
+4. **别名层、mixed lane 与 DNF 分支重建** —— 这三条路径的共同点是没有可问的整句 pattern：`SearchMatcher.MatchOne` 在 `pattern.TryMatch` 之后还要试别名，而 `MixedQueryMatcher.TryMatch` 连 pattern 都不接；`PathTermFallback` 给 AND-first 的分支重建 pattern 时只带 `group.Sets`。于是 `/.../` 在这三处要么无人执行，要么被重建时丢掉。改法：前两处按**名称**补一条调用方否决（`SearchMatcher.cs:305`；行匹配走同一逻辑的两处在 `SearchMatcherRow.cs:39, 127`），第三处让重建的 pattern 一并带上 `pattern.Regexes`（`PathTermFallback.cs:252`）；公共 seam 侧在 `FuzzyMatcher.IsMatch`（`:66`）与 `ComputeMatchRank` 的整句门（`:217`）补同样的判定 —— App 侧的目录行只凭 `Rank.IsMatch` 准入（`SearchableItemMapper.MatchCatalogEntryWithProvenance` 的 `RankWithEvidence`），不会再做第二次 `TryMatch`。覆盖：`PathTermFallbackTests.SearchStreaming_AndFirstBranchRegexClauseStillVetoesTheAncestorRow`（`report | summary 2024 /^zzz/` 必须为空，回退 pass 是唯一能捞回该行的路径）。
 
 新增一层"从读音/别名/路径段判定"的地方时，问两句：
 
@@ -185,25 +186,27 @@ main 有两条测试原先靠旧语法守着这些 kind：`OperatorTerms_AreLite
 
 ## 附录：证据
 
-以下 `file:line` 逐条对着 `feat-search-reimpl`（`eba02cfb`）与 main（`5a754391`）的当前工作树核过。分支每次 rebase 都会让行号过期，核对不上时以文件与函数名为准——行号随分支变动；提交一律按标题引用，rebase 会重写哈希。
+以下 `file:line` 逐条对着 `feat-search-reimpl`（`9ed7facd`）与 main（`06145fda`）的当前工作树核过。分支每次 rebase 都会让行号过期，核对不上时以文件与函数名为准——行号随分支变动；提交一律按标题引用，rebase 会重写哈希。
 
 | 事实 | 出处 |
 |---|---|
-| 顶级触发字符集合 `\ < > : * / ? \|`，`# $ %` 由 provider 认领 | `App/Helpers/SearchSyntaxReserved.cs:8-20` |
+| 顶级触发字符集合 `\ < > : * / ? \|`，`# $ %` 由 provider 认领 | `App/Helpers/SearchSyntaxReserved.cs:12-20` |
 | 扫描器只认 `<` `>` 与可配置前缀；双倍前缀留给 UNC | `Core/SearchIndex/Query/QueryTokenScanner.cs:51-63`（`IsToken`） |
 | 词内转义空白仅对 Token 生效；整句 `*` 必须在 Scan 之前读取 | `QueryTokenScanner.cs:66`（`SplitWords`，转义判定在 `:86`）、`:116`（`StripExclusionBypass`） |
-| 正则子句的形状规则与三条路径保护 | `Core/SearchIndex/Query/RegexQueryParser.cs:13-24`（类注释）、`:83-115`（`TryReadClause`） |
-| 摘除早于路径判定 | `RegexQueryParser.cs:5-12`，`Core/SearchIndex/Query/SearchQueryParser.cs:7-15` |
-| 含分隔符进入全路径模式；裸盘符恰好两字符 | `SearchQueryParser.cs:14-36`、`:63-64`（`IsBareDriveSpec`） |
+| 正则子句的形状规则与三条路径保护 | `Core/SearchIndex/Query/RegexQueryParser.cs:3-29`（类注释）、`:37`（`Split`）、`:83-116`（`TryReadClause`） |
+| 摘除早于路径判定 | `RegexQueryParser.cs:5-12`，`Core/SearchIndex/Query/SearchQueryParser.cs:9-14`（`Parse` 在 `:5`） |
+| 含分隔符进入全路径模式；裸盘符恰好两字符 | `SearchQueryParser.cs:16-38`、`:63-64`（`IsBareDriveSpec`） |
 | main 的裸盘符取盘后余文仍是词；路径判定无正则摘除 | main `Core/SearchIndex/Fzf/FzfPatternParser.cs:17-25`，main `Core/SearchIndex/Query/SearchQueryParser.cs:8` |
-| 正则基选项带 `IgnoreCase`，共享缓存 256 条，活动查询另有弱键表 | `Core/SearchIndex/Fzf/RegexClauses.cs:19-31`、`:90-105`（NonBacktracking 与 250ms 回退） |
+| 正则基选项带 `IgnoreCase`，共享缓存 256 条，活动查询另有弱键表 | `Core/SearchIndex/Fzf/RegexClauses.cs:19-24`（`BaseOptions`）、`:39`（`AllMatch`）、`:93-108`（NonBacktracking 与 250ms 回退）、`:124-130`（`Unmatchable`/`IsUncompilable`） |
 | 普通词恒忽略大小写，smart case 已退役 | `Core/SearchIndex/Fzf/FzfPatternParser.cs:191-193`，main 同文件 `:194-196` |
 | `caseSensitive` 参数已通到匹配与高亮 | `Core/SearchIndex/Fzf/FzfAlgorithm.cs:40`、`FzfByteExactMatcher.cs:9`、`Core/SearchIndex/HighlightMask.cs:133-168`、`Core/SearchIndex/AliasHighlightMarker.cs:64-102` |
 | `(?-i)` 覆盖 `IgnoreCase`，两种引擎一致 | `Tests/Core/SearchIndex/FuzzyMatcherTests.cs:34-38`（`/(?-i)Report/` 对 `report` 为 false，`(?=…)` 写法走回退引擎） |
 | `:exclusion` 恒 Exact，`?` 是模糊↔精确反转，`:` 先于 `?` 读取 | `Core/SearchIndex/Fzf/TermTriggers.cs:20-25, 37-66` |
-| 名称级子句在每一层都由名称否决 | `Core/SearchIndex/Fzf/FzfPatternMatcher.cs:11-21, 86-96`（注释写明读的是名称）、`Core/IndexV2/Search/PathTermFallback.cs:264-273`（`NamePassesClauses`）、`Core/IndexV2/Search/PinyinNameEvaluator.cs:146`、`SearchMatcher.cs:303`、`PathMode/SearchMatcherPath.cs:125`、`Core/IndexV2/Search/SearchMatcherRow.cs:34-37, 122` |
-| 名称级对照测试两侧各一条 | `Tests/Core/IndexV2/Search/PinyinNameEvaluatorTests.cs:199`（`RegexClause_IsAnsweredFromTheNameNeverFromTheReadings`） |
-| 纯排除的 pattern 不占 mask 位 | `Core/SearchIndex/Fzf/FzfPattern.cs:112`（`HasPositiveTerm`）、`Core/IndexV2/Search/PathTermFallback.cs:195-196`；main 侧为 `FzfPattern.cs:53` 的 `HasPositiveTerms` |
+| 名称级子句在每一层都由名称否决 | `Core/SearchIndex/Fzf/FzfPatternMatcher.cs:21, 86-91`（`TryMatchAlias` 注释写明子句读的是名称，判定在 `:91` 用 `exclusionText`）、`Core/IndexV2/Search/PathTermFallback.cs:195-196`（门口）与 `:266-276`（`NamePassesClauses`）、`Core/IndexV2/Search/PinyinNameEvaluator.cs:235`、`Core/IndexV2/Search/SearchMatcher.cs:305`、`PathMode/SearchMatcherPath.cs:125`、`Core/IndexV2/Search/SearchMatcherRow.cs:39, 127` |
+| 别名层与 mixed lane 在没有 pattern 时也否决 | `Core/IndexV2/Search/SearchMatcher.cs:305`、`Core/IndexV2/Search/SearchMatcherRow.cs:39, 127`；公共 seam 侧为 `Core/SearchIndex/FuzzyMatcher.cs:66`（`IsMatch`）与 `:217`（`ComputeMatchRank` 的整句门） |
+| 正则子句随 AND-first 的 DNF 分支重建一起进入 fallback | `Core/IndexV2/Search/PathTermFallback.cs:252`（`orGroups: null` + `pattern.Regexes`），回归测试 `Tests/Core/IndexV2/Search/PathTermFallbackTests.cs`（`SearchStreaming_AndFirstBranchRegexClauseStillVetoesTheAncestorRow`） |
+| 名称级对照测试两侧各一条 | `Tests/Core/IndexV2/Search/PinyinNameEvaluatorTests.cs:322`（`RegexClause_IsAnsweredFromTheNameNeverFromTheReadings`） |
+| 纯排除的 pattern 不占 mask 位；正则只借必需字面量预筛 | `Core/SearchIndex/Fzf/FzfPattern.cs:112`（`HasPositiveTerm`）、`:78-99`（`RequiredRegexLiteral`）、`Core/IndexV2/Search/SearchMatcher.cs:119-121`（并进 `RequiredMask`）、`Core/IndexV2/Search/PathTermFallback.cs:196`；main 侧为 `FzfPattern.cs:53` 的 `HasPositiveTerms` |
 | `! ' ^ $` 退役为字面字符 | `TermTriggers.cs:10`，`Tests/Core/SearchIndex/FuzzyMatcherTests.cs:71-83`（`IsMatch_RetiredOperatorCharacters_AreLiteralText`） |
 | main 靠旧语法守 kind 的两条测试 | main `Tests/Core/IndexV2/Search/PinyinNameEvaluatorTests.cs:156`（`OperatorTerms_AreLiteralOnly`）、main `Tests/Core/SearchIndex/Fzf/FzfPatternAliasReadingTests.cs:52`（`AliasReading_LeavesAnOperatorsOwnKindAlone`） |
 | 锚定 kind 的删除 | `refactor(search): drop the anchored term kinds nothing produces`；`Core/SearchIndex/Fzf/FzfAlgorithm.cs:3-6`（`FzfTermKind` 只剩两个成员）、`:36`（`Match` 只剩 `Fuzzy`/`Exact` 两条 arm）、`FzfBytePattern.cs:78` 同形，main 同文件 `:3-10` 仍带 `ExactBoundary`/`Prefix`/`Suffix`/`Equal` |
