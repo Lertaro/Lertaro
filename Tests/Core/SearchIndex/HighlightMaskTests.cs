@@ -78,6 +78,51 @@ public sealed class HighlightMaskTests
         Assert.IsFalse(Array.Exists(mask, m => m));
     }
 
+    // A "/.../" clause is a name-level clause: the display mask has to show the span it selected, or a
+    // regex-only search renders as one long unmarked run and the user cannot tell why the row matched.
+    [TestMethod]
+    public void Compute_RegexClause_MarksTheSpanItSelected()
+    {
+        Assert.AreEqual(".txt", Marked("readme.txt", @"/\.txt$/"));
+        Assert.AreEqual("2024", Marked("report 2024 final", "/\\d{4}/"));
+    }
+
+    [TestMethod]
+    public void Compute_TermAndRegexClause_MarksBothRuns()
+    {
+        Assert.AreEqual("report|.docx", Marked("Q3 report 2024.docx", @"report /\.docx$/"));
+    }
+
+    [TestMethod]
+    public void Compute_RegexClause_IsCaseInsensitiveUnlessTheClauseSaysOtherwise()
+    {
+        Assert.AreEqual("READ", Marked("READ.txt", "/read/"));
+        Assert.AreEqual("read", Marked("Read read", "/(?-i)read/"));
+    }
+
+    [TestMethod]
+    public void Compute_RegexClauseThatDoesNotMatch_MarksNothing()
+    {
+        Assert.AreEqual(string.Empty, Marked("readme", "/zzz/"));
+    }
+
+    // Paints the marked stretches as substrings, which reads better in a failure than a bool[].
+    private static string Marked(string text, string query)
+    {
+        var mask = HighlightMask.Compute(text, FzfPattern.Parse(query));
+        Assert.HasCount(text.Length, mask, "the mask must cover the text exactly");
+
+        var parts = new List<string>();
+        for (var i = 0; i < mask.Length;)
+        {
+            if (!mask[i]) { i++; continue; }
+            var start = i;
+            while (i < mask.Length && mask[i]) i++;
+            parts.Add(text[start..i]);
+        }
+        return string.Join("|", parts);
+    }
+
     [TestMethod]
     public void ComputeWeight_EmptyText_ReturnsZero() => Assert.AreEqual(0, HighlightMask.ComputeWeight("", FzfPattern.Parse("read")));
 

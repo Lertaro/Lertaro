@@ -130,15 +130,37 @@ public static class TextHighlighter
         // be split on spaces (folder/file names can contain them) -- everything else goes
         // through Core's real FzfPattern-based term splitting, so display highlighting is
         // provably the same computation the ranking weight scores against (HighlightMask).
-        var normalizedHighlight = NormalizePathSeparators(highlight.Trim()).ToLowerInvariant();
+        //
+        // The query is NOT lowercased: terms are folded by the parser anyway, and a "/.../" clause may
+        // carry its own "(?-i)" -- lowercasing it here would make the display mask miss exactly the
+        // case-sensitive spans the search matched on.
+        //
+        // The clauses are pulled out FIRST, before separator normalization and the path split: a clause
+        // describes the candidate's own name, and its body is full of characters that mean something
+        // else to that split -- "/report/" would have its slashes rewritten to "\", and "/\.docx$/" its
+        // escaped dot read as a directory separator. Both used to end up as a bogus path part and paint
+        // nothing (see ClauseMask).
+        var text = RegexQueryParser.Split(highlight.Trim(), out var regexClauses);
+        var normalizedHighlight = NormalizePathSeparators(text);
         var plan = PlanFor(normalizedHighlight);
 
         var highlights = new bool[fullText.Length];
         foreach (var part in plan.Parts)
             OrInto(highlights, part.HighlightMask(fullText));
+        if (regexClauses is { Length: > 0 })
+            OrInto(highlights, ClauseMask(fullText, regexClauses));
 
         MarkDrivePrefix(highlights, fullText, plan.Drive);
         return highlights;
+    }
+
+    // A "/.../" clause is a name-level clause, so it paints the column text once instead of riding on a
+    // path part: RegexQueryParser.Split hands back the clause bodies, and a body can never contain a bare
+    // '/', so wrapping each in slashes reproduces the query the matcher itself compiled.
+    private static bool[] ClauseMask(string fullText, string[] clauses)
+    {
+        var clauseQuery = string.Join(' ', Array.ConvertAll(clauses, clause => "/" + clause + "/"));
+        return FuzzyQuery.Parse(clauseQuery).HighlightMask(fullText);
     }
 
     // What a highlight string resolves to once: the term(s) to light up and the drive filter (if any).

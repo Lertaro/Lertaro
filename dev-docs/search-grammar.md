@@ -100,6 +100,8 @@ OR 已经存在（两侧带空格的 `|`，默认 AND 结合更紧，优先级�
 - 它拿去做匹配的文本，是**候选的名称**还是**名称的另一种写法**？后者必须把名称一并交进去。
 - `FzfPattern` 的哪些要求不在这次判定的词汇里？现在有两个：`Regexes` 与 `:term`。
 
+高亮是这条规则的第五个消费者。显示走 `HighlightMask.Compute`（`TextHighlighter` → `FuzzyMatcher.ComputeHighlightMask`，与判定同一个 `FzfPattern`），所以 `/re/` 命中的那段也会被画上：只画在 `Compute` 里，`ComputeRank`/`ComputeWeight` 故意不画 —— 子句可能与正词相距很远，把它算成额外的 run 会拉低 contiguity，`report` 加 `/\.txt$/` 就会莫名其妙比单独 `report` 分数低。App 侧还要在路径判定之前先把子句摘出来（`RegexQueryParser.Split`）：`/report/` 的斜杠会被 `NormalizePathSeparators` 改写成 `\`，`/\.docx$/` 的转义点会被当成目录分隔符，整条子句因此被切成假路径段而丢掉。摘出后子句按整列文本画一次，不参与路径切分。
+
 ## 大小写
 
 普通词恒忽略大小写，没有开关，两条线都一样。`FzfPatternParser` 读取每个词时执行大写归一并固定传 `CaseSensitive: false`，smart case 已退役。底层 `FzfAlgorithm`、`FzfExactMatcher`、`FzfByteExactMatcher`、`HighlightMask`、`AliasHighlightMarker` 都接收 `bool caseSensitive`，参数已经通到匹配与高亮，只是没有任何调用方传 true。
