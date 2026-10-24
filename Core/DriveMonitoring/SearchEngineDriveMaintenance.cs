@@ -18,11 +18,6 @@ internal sealed class SearchEngineDriveMaintenance
     // monitor also derives from. internal rather than private so that extension method can reach it.
     internal readonly Dictionary<string, CancellationTokenSource> _activeRebuildCts = new(StringComparer.OrdinalIgnoreCase);
     internal readonly HashSet<string> _rebuildAfterRemoval = new(StringComparer.OrdinalIgnoreCase);
-    // Rebuild requests that arrived while the initial full rebuild was running. They used to be refused
-    // and forgotten, which left a drive that was plugged in during startup sitting in "unavailable" until
-    // a status poll happened to observe "pending" -- and nothing sets "pending" after a refusal. The
-    // engine flushes this set once the full rebuild reports completion.
-    internal readonly HashSet<string> _deferredRebuilds = new(StringComparer.OrdinalIgnoreCase);
     public bool HasPendingRebuilds { get { lock (_pendingDriveRebuilds) return _pendingDriveRebuilds.Count > 0; } }
 
     public SearchEngineDriveMaintenance(
@@ -51,13 +46,13 @@ internal sealed class SearchEngineDriveMaintenance
             var supported = detected.Where(d => settings.IsLocalDriveEnabled(VolumeHelper.GetVolumeId(d))).ToList();
             var enabled = new HashSet<string>(supported, StringComparer.OrdinalIgnoreCase);
             var disabled = visible.Where(d => !enabled.Contains(d)).ToList();
-            var drivesToBuild = new List<string>(); var forceRebuildDrives = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var drivesToBuild = new List<string>();
             lock (_indexer.LockObj)
             {
                 var current = _indexer.Status.Drives.ToDictionary(d => d.Drive, StringComparer.OrdinalIgnoreCase);
                 var next = new List<UsnIndexer.DriveIndexStatus>();
                 foreach (var drive in visible)
-                    next.Add(DriveMaintenanceHelper.UpdateStatus(drive, detectedSet.Contains(drive), enabled.Contains(drive), IndexCacheDir, current, drivesToBuild, cachedPaths, forceRebuildDrives));
+                    next.Add(DriveMaintenanceHelper.UpdateStatus(drive, detectedSet.Contains(drive), enabled.Contains(drive), IndexCacheDir, current, drivesToBuild, cachedPaths));
                 _indexer.Status.Drives = next;
             }
             foreach (var drive in disabled)
@@ -65,8 +60,11 @@ internal sealed class SearchEngineDriveMaintenance
                 _indexer.RemoveDriveMonitor(drive);
                 _indexer.DropDriveFromRuntime(drive);
             }
+            // Not forced: QueueDriveRebuild restores from the cache and catches up through the USN
+            // journal, and only falls back to a full $MFT scan when that cache cannot be used. Forcing
+            // here turned every status poll that still saw "pending" into another whole-volume scan.
             foreach (var drive in drivesToBuild)
-                QueueDriveRebuild(drive, forceRebuildDrives.Contains(drive));
+                QueueDriveRebuild(drive, forceRebuild: false);
         }
         catch (Exception ex)
         {
@@ -144,53 +142,28 @@ internal sealed class SearchEngineDriveMaintenance
 
     internal bool QueueDriveRebuild(string drive, bool forceRebuild)
     {
-        var deferred = false;
         lock (_pendingDriveRebuilds)
         {
             if (_isRebuilding())
             {
-                // Defer instead of ignoring: a drive re-inserted during startup hits exactly this window,
-                // and the request is the only record that it still needs a rebuild.
-                deferred = _deferredRebuilds.Add(drive);
+                // Dropped on purpose, not parked: the startup initializer owns its own deferred set for
+                // the requests it makes, and every caller that matters (a status poll for a pending
+                // drive, a re-insertion waiter) asks again. Parking here as well duplicated the whole
+                // startup build -- one flush of five parked drives re-ran every $MFT scan after the
+                // initial build had just finished.
+                Logger.Log($"[SearchEngine] Ignored rebuild request for drive {drive}: a full rebuild is running.", LogLevel.Debug);
+                return false;
             }
-            else if (!_pendingDriveRebuilds.Add(drive))
+            if (!_pendingDriveRebuilds.Add(drive))
             {
                 Logger.Log($"[SearchEngine] Ignored duplicate rebuild request for drive {drive}.");
                 return false;
             }
         }
-        if (deferred)
-        {
-            // "pending" keeps the drive visible as work outstanding to a status poll, in case the flush
-            // below is lost (e.g. the rebuild ends by cancellation before reaching its completion hook).
-            _indexer.SetDriveState(drive, "pending");
-            Logger.Log($"[SearchEngine] Deferred drive {drive} rebuild request until the running full rebuild completes.", LogLevel.Info);
-            return false;
-        }
         UpdateMaintenanceBusyState();
         _indexer.SetDriveState(drive, "indexing", resetCounts: true);
         Task.Run(() => RebuildDrive(drive, forceRebuild));
         return true;
-    }
-
-    /// <summary>
-    /// Runs the rebuild requests that were parked while the initial full rebuild was running.
-    /// Called by the engine once that rebuild reports completion; a no-op otherwise.
-    /// </summary>
-    internal void FlushDeferredRebuilds()
-    {
-        List<string> deferred;
-        lock (_pendingDriveRebuilds)
-        {
-            if (_deferredRebuilds.Count == 0)
-                return;
-            deferred = new List<string>(_deferredRebuilds);
-            _deferredRebuilds.Clear();
-        }
-        if (_token().IsCancellationRequested)
-            return;
-        foreach (var drive in deferred)
-            QueueDriveRebuild(drive, forceRebuild: false);
     }
 
     private void RebuildDrive(string drive, bool forceRebuild)

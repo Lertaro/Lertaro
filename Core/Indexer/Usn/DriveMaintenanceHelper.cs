@@ -13,8 +13,7 @@ internal static class DriveMaintenanceHelper
         string indexCacheDir,
         Dictionary<string, UsnIndexer.DriveIndexStatus> current,
         List<string> drivesToBuild,
-        IReadOnlyDictionary<string, string> cachedPaths,
-        ISet<string>? forceRebuildDrives = null)
+        IReadOnlyDictionary<string, string> cachedPaths)
     {
         // GetCachePath derives the filename from a live volume identity query, which only works while
         // the drive is actually mounted -- a not-present drive (unplugged) has no way to re-derive that
@@ -41,9 +40,11 @@ internal static class DriveMaintenanceHelper
             }
             else if (ShouldRestoreAfterEnable(wasEnabled, isEnabled, existing.State) || IsPendingRestoreWithoutARebuild(existing.State))
             {
+                // Restore (and catch up) rather than force: the caller's QueueDriveRebuild falls back to
+                // a full scan on its own when the cache is unusable, and forcing here made every status
+                // poll that still saw "pending" re-run a whole-volume $MFT scan.
                 existing.State = "pending";
                 drivesToBuild.Add(drive);
-                forceRebuildDrives?.Add(drive);
             }
             return existing;
         }
