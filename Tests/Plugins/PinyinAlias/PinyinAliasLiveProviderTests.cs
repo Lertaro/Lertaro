@@ -1,4 +1,7 @@
 using System.Text;
+using Lertaro.Core.IndexV2.Search;
+using Lertaro.Core.SearchIndex;
+using Lertaro.Core.SearchIndex.Fzf;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 
 namespace Lertaro.Plugins.PinyinAlias.Tests;
@@ -32,6 +35,30 @@ public sealed class PinyinAliasLiveProviderTests
         Assert.IsTrue(matcher.TryFind("报告", default, out var start, out var end));
         Assert.AreEqual(0, start);
         Assert.AreEqual(2, end);
+    }
+
+    [TestMethod]
+    public void CreateMatcher_CommonModeAcceptsTwoReadings()
+    {
+        // 重复 reads chong (重's second reading), so cfwj spans all four characters.
+        var matcher = Provider.CreateMatcher("cfwj", true);
+        Assert.IsNotNull(matcher);
+
+        Assert.IsTrue(matcher.TryFind("重复文件2", default, out var start, out var end));
+        Assert.AreEqual(0, start);
+        Assert.AreEqual(4, end);
+    }
+
+    [TestMethod]
+    public void CommonMatcher_ReportsTheTwoReadingMatchAsInitials()
+    {
+        var evaluator = PinyinNameEvaluator.Build(
+            FzfPattern.Parse("cfwj"),
+            new IAliasLiveMatcherProvider[] { Provider });
+
+        Assert.IsTrue(evaluator.TryPaintTerm(
+            "重复文件2", "cfwj", FzfTermKind.Exact, new bool[5], out var tier));
+        Assert.AreEqual(MatchRank.TierInitials, tier, "重's second reading makes this TierInitials");
     }
 
     [TestMethod]

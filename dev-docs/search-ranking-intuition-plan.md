@@ -18,7 +18,7 @@
 | P9 跨盘与快捷方式检索召回 | 完成 | 多网络索引有界全局排序截断；快捷方式补召回改为主查询之后、且仅在主结果没有 `*.lnk`/`*.url` 时才跑 |
 | P10 文档同步与影子路径收口 | 进行中 | `RankPolicyV3` 委托至线上 `RankPolicy`；P7 之后恒等的影子排名通道已删除；dev-docs 与 7 语种用户文档同步 |
 
-Windows/.NET 10 实测状态（2026-10-24）：移除排序日志后 Tests/Core 2262、Tests/App 2330 通过；`dotnet build Lertaro.slnx` 0 警告 0 错误。PinyinAlias 242、CoreExtensions 401、ContentSearch 173 在本次改动前通过，本次未触及这些工程。P10 未做完的部分见文末“仍未闭合”。
+Windows/.NET 10 实测状态（2026-10-24）：移除排序日志、common-only 接受前两个读音并改为多词连续性后 Tests/Core 2265、Tests/App 2338、PinyinAlias 246、CoreExtensions 402、ContentSearch 173 通过；`dotnet build Lertaro.slnx` 0 警告 0 错误。P10 未做完的部分见文末“仍未闭合”。
 
 P0 fixture：`Tests/Core/SearchRanking/Fixtures/reported-search-cases.v1.json`，P6 回放套件：`Tests/Core/SearchRanking/Fixtures/ranking-shadow-v3-cases.v1.json`（基线 `ranking-replay-cases.v1.json`，冻结的 V2 与离线策略在 `OfflineRankingPolicies.cs`）。当前 trace schema 4；导出文本只由本次搜索的内存 trace 生成，不读取旧文件。P7 后干净（`IsStrong`）的 provider 次要别名进入 `SecondaryField` 并展示来源副标题，零散子序列仍仅保留在 `ShadowAliasGate` 观测通道。P8 的 learned alias 只走 canonical exact lookup；完整窗口不设历史配额（产品决定，见文末）。
 
@@ -187,7 +187,9 @@ P3 提交时 matcher 只返回 `MatchRank`，所以普通文本、拼音和 prov
 
 original 多词与 joined 单词在同一 scorer 中竞争。有字面词时，joined 仍须原始分更高；全读音多词的逐词位置 bonus 会随空格数重复，不能与单词分直接比较，此时只在 joined 起点不更晚且源覆盖不更小时采用 canonical joined 分。否则保留 original。多 provider 同分再按 span/tier/provider 稳定决胜。胜出 witness 含 provider、tier 和源 span，`HighlightMask` 直接涂该 span，`FuzzyQuery` 同时写出 `PinyinJoined`、实际拼音 mode 和 span。比较器、候选集和非 joined evidence 不读这些字段。
 
-Core fake-provider 测试覆盖资格、strict winner、跨 provider、枚举顺序、操作符、非 ASCII 与 64 字符；真实 provider 的 snapshot/delta 测试覆盖 `sousuojieguo`、`sousuo jieguo`、`sou suo jie guo` 的召回、Grade、`MatchRank`、高亮和受控 target rank delta，并在 fuzzy 开关两态核对反序、`visual studio`、`fast stone` 与含 `-` 的候选。普通多词仍走原分支，单 token 不跨候选分隔符。
+common-only 只消费表内按频率排序的前两个读音：`重` 的 `zhong/chong`、`行` 的 `xing/hang`、`乐` 的 `le/yue` 都算常见，避免把 `chong` 误判为 `TierFullRare`。第三个及以后读音仍只属于 all-readings 分支。
+
+Core fake-provider 测试覆盖资格、strict winner、跨 provider、枚举顺序、操作符、非 ASCII 与 64 字符；`PinyinTermMatcher` 测试覆盖 common-only 接受前两读音、排除第三读音；真实 provider 的 snapshot/delta 测试覆盖 `sousuojieguo`、`sousuo jieguo`、`sou suo jie guo` 的召回、Grade、`MatchRank`、高亮和受控 target rank delta，并在 fuzzy 开关两态核对反序、`visual studio`、`fast stone` 与含 `-` 的候选。普通多词仍走原分支，单 token 不跨候选分隔符。
 
 Windows/.NET 10 已跑 Core/PinyinAlias/App MSTest；端到端 p95 按 2026-10-23 决策放弃测量，合入门槛仍未闭合（见文末“仍未闭合”第 1 条）。
 
@@ -339,6 +341,7 @@ P4 与 P5 可并行，但都依赖 P3，且不能提前切换排序。P9 可跳�
 11. **absence/recall 门槛**：`#440` 已补真实索引/候选生成层 harness（`Tests/Plugins/PinyinAlias/PinyinExactModeTests.cs`，真实 `Snapshot → LiveIndex → IndexV2Searcher`）：精确 `zbl` 只召回 11 字符紧凑行、不召回 15 字符松散布。这不是通过终局排序过滤得到的，而是候选层本身的行为。其余 case 的 `mustBeAbsent` 仍只检查回放 run 的已排序候选 token，`MissingExpectedTokens` 因 loader 要求 expected token 必须是候选而恒为 0；Recall@50=100% 仍不能由离线回放单独背书。
 12. **`#440` 紧凑正例（已闭合，未放宽）**：`zbl` 对 11 字符紧凑名在 `AliasMatchRules.IsTightOccurrence(3, 11)` 为真；精确模式下字面 `FzfPattern.TryMatch` 因连字符不连续而失败，但共享 alias 门接受该 11 字符 span（实测 score 72，门槛 `queryLen * 5 = 15`），`FuzzyMatcher.IsMatch` 在真实 pinyin provider 下为真。原“被分数门槛拒掉”的判断不成立，因此没有改阈值；真实索引测试 `Reported440_RealIndexCandidateLayerKeepsOnlyTheTightAlias` 已钉住该行为。
 13. **系统设置 `Keyword` 前缀（已决定 2026-10-24）**：`SearchableItemMapper` 的 Control Panel 关键词兜底原先产出 `Keyword / SecondaryField` 和 `ShapeScattered / coverage=0`，导致 `env` 只命中 `envvar` 前缀时被 `env.h` 等文件压到 40 名以后。现改为：每个查询词都干净前缀命中声明词时，按最短匹配词计算 coverage，判 `ExactIdentity` 并参与类型顺序；`env` → `envvar` 覆盖 0.5，设置项因此与精确文件同级，再按“设置先于文件”排到文件前。字段仍是 `Keyword` 以保留 provenance；当前只有 `SystemSettingsItemProvider` 提供 `Keywords`，其他 provider 若启用需先确认同义词质量。
+14. **多词连续性（试验 2026-10-24）**：`HighlightMask.RankFromMarks` 对多词查询改为按正词计数 run（`positiveTermCount / runCount`），使 `cf wj` 对 `cf 桌面文件` 的 `Contiguity` 从 0.5 升到 1，再以覆盖率 0.571 胜过 `牧场粪污技术交流.doc` 的 0.333；单词查询仍用原来的 run 平方和。已知边界：OR 分支的两个 alternative 同时出现会给一个词贡献多个 run；当前只加注释，未做逐词 mask，避免热路径重复匹配。
 
 ## 关键位置
 

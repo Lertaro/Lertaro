@@ -156,6 +156,37 @@ public sealed class FuzzyMatcherTests
         Assert.AreEqual(0, rank.Weight);
     }
 
+    [TestMethod]
+    public void ComputeMatchRank_MultiTermContiguityAllowsOneRunPerTerm()
+    {
+        // Two literal terms separated by a gap: each term is still a clean, contiguous hit. The old
+        // whole-span measure scored this 0.41; the per-term measure must score it 1.
+        var rank = FuzzyMatcher.ComputeMatchRank("alpha x beta", "alpha beta");
+
+        Assert.IsTrue(rank.IsMatch);
+        Assert.AreEqual(1d, rank.Contiguity);
+    }
+
+    [TestMethod]
+    public void ComputeMatchRank_MultiTermContiguityStillPenalizesAScatteredTerm()
+    {
+        // The first term is a fuzzy subsequence, so it contributes one run per character; only the
+        // second term is clean. Contiguity must stay below 1.
+        var rank = FuzzyMatcher.ComputeMatchRank("a-l-p-h-a beta", "alpha beta");
+
+        Assert.IsTrue(rank.IsMatch);
+        Assert.IsLessThan(1d, rank.Contiguity);
+    }
+
+    [TestMethod]
+    public void ComputeMatchRank_SingleTermContiguityKeepsTheRunSquareMeasure()
+    {
+        var rank = FuzzyMatcher.ComputeMatchRank("a-l-p-h-a.txt", "alpha");
+
+        Assert.IsTrue(rank.IsMatch);
+        Assert.IsLessThan(1d, rank.Contiguity);
+    }
+
     // The same shorter-name case that defeated a multiplicative position factor: start position is
     // compared on its own, so "wxfef.doc" (start 0) beats "iwxfe.mp" (start 1) even though the shorter
     // name has the larger coverage share.

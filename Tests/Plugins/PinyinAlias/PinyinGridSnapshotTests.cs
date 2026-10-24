@@ -141,6 +141,22 @@ public sealed class PinyinLiveSnapshotTests
     }
 
     [TestMethod]
+    public void MultiTermContiguity_CountsEachTermAsOneRun()
+    {
+        // "cf" is literal and "wj" is the initials of 文件; they sit in two clean runs. The per-term
+        // measure must not merge the gap between them into a broken single span.
+        var desktop = FuzzyQuery.Parse("cf wj").Rank("cf 桌面文件");
+        var ranch = FuzzyQuery.Parse("cf wj").Rank("牧场粪污技术交流.doc");
+
+        Assert.IsTrue(desktop.IsMatch);
+        Assert.IsTrue(ranch.IsMatch);
+        Assert.AreEqual(1d, desktop.Contiguity);
+        Assert.IsGreaterThan(0.5, desktop.Coverage, "precondition: the match explains more than half the name");
+        Assert.IsLessThan(0, MatchRank.CompareQuality(desktop, ranch),
+            "the two clean terms must beat the single pinyin run on coverage");
+    }
+
+    [TestMethod]
     public void JoinedBranch_DoesNotChangeOrdinaryMultiWordGrammar()
     {
         var previous = SearchContext.FuzzyMatchEnabled;

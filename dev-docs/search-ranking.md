@@ -36,6 +36,8 @@ HistoryTail  Band ↓ → TypeOrder ↑ → Tie ↓ → Tail ↑
 
 完整窗口对同一段使用同一顺序，只是把 `TypeOrder ↑` 位置留空（恒等），并把 `Quality ↑` 换成打包后的 32 位质量键——两者键序一致，仅在量化精度上不同（连续性 1/255、覆盖率 1/511），因此两窗对“差异小于一个量化格”的两行可能给出不同名次。
 
+质量键里的连续性按**正词**计算，而不是把整个匹配跨度当成一个 run：多词查询允许每个词各自连续（如 `cf wj` 对 `cf 桌面文件`，`Contiguity = 1`），再由覆盖率区分；单个词内部散点仍会降低连续性。这个定义只作用于 `Quality`，Grade/类型/历史仍先于质量键。
+
 ### 四段硬边界（`RankSection`）
 
 | 段 | 编号 | 进入条件 | 语义 |
@@ -62,6 +64,8 @@ HistoryTail  Band ↓ → TypeOrder ↑ → Tie ↓ → Tail ↑
 `Keyword` 是 provider 声明的同义词（当前用于系统设置的 `System.Keywords`），不是零散猜测：只有每个查询词都干净前缀命中一个声明词时才成立，质量按最短匹配词计算（`env` → `envvar` 覆盖 0.5），并按 `ExactIdentity` 参与类型顺序。这样用户配置的“设置先于文件”能让 `env` 命中“编辑账户的环境变量”，而不是被 `env.h` 等文件压到 40 名以后。2026-10-24 决策；若将来其他 provider 也提供 `Keywords`，需确认其同义词质量是否同样可信。
 
 同一候选的标题强命中优先于任何别名；别名只在标题未强命中时参与最佳证据选择。否则较长的别名可能以覆盖率优势覆盖标题的拼音直接命中，把 `DirectStrong` 降成 `SecondaryField`。
+
+common-only 把每个字表内频率最高的两个读音都视为常见（如 `重` 的 `zhong/chong`、`乐` 的 `le/yue`），不查词表，因此 `重复` 和 `重要` 都会接受 `chong`；第三个及以后读音仍只属于 all-readings 分支，才可能落入 `DirectApproximate`。
 
 目录是容器而非身份：精确同名目录仍是强直接命中（`DirectStrong`），但不占用 `ExactIdentity`。否则搜索 `powershell` 时，`F:\Documents\PowerShell` 会以 Grade 0 压过标题为 `PowerShell 7 (x64)` 的快捷方式，用户配置的“应用先于文件”类型顺序永远无法生效。
 

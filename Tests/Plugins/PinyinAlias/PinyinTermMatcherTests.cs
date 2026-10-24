@@ -2,8 +2,8 @@ namespace Lertaro.Plugins.PinyinAlias.Tests;
 
 // The NFA's own semantics, ported from WinShun (pinyin::Matcher): any non-empty prefix of any reading
 // may be consumed by a character, the matched span must be contiguous, 'v' accepts 'u', and a word is
-// 2..63 ASCII letters/digits with at least one letter. The common-only cases are pinned to the
-// frequency-ordered table (tools/make_pinyin_bin.py): most common reading first.
+// 2..63 ASCII letters/digits with at least one letter. Common-only falls back to the frequency-ordered
+// table's two most frequent readings.
 [TestClass]
 public sealed class PinyinTermMatcherTests
 {
@@ -91,13 +91,24 @@ public sealed class PinyinTermMatcherTests
     }
 
     [TestMethod]
-    public void CommonOnly_KeepsTheFirstReadingOnly()
+    public void CommonOnly_AcceptsTheTwoMostFrequentReadings()
     {
         // 重 = zhong, chong, tong, most common first (the regenerated table's order).
-        Assert.IsTrue(Find("zhong", "重", false, out _, out _));
         Assert.IsTrue(Find("zhong", "重", true, out _, out _));
-        Assert.IsTrue(Find("chong", "重", false, out _, out _));
-        Assert.IsFalse(Find("chong", "重", true, out _, out _));
+        Assert.IsTrue(Find("chong", "重", true, out _, out _));
+        Assert.IsFalse(Find("tong", "重", true, out _, out _));
+    }
+
+    [TestMethod]
+    public void CommonOnly_AcceptsBothReadingsRegardlessOfWord()
+    {
+        // No word dictionary: the second reading is common everywhere, not only in 重复/银行/音乐.
+        Assert.IsTrue(Find("zhong", "重复", true, out _, out _));
+        Assert.IsTrue(Find("chong", "重复", true, out _, out _));
+        Assert.IsTrue(Find("xing", "银行", true, out _, out _));
+        Assert.IsTrue(Find("hang", "银行", true, out _, out _));
+        Assert.IsTrue(Find("le", "音乐", true, out _, out _));
+        Assert.IsTrue(Find("yue", "音乐", true, out _, out _));
     }
 
     [TestMethod]

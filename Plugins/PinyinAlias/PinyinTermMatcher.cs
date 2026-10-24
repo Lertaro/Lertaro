@@ -81,7 +81,8 @@ internal sealed class PinyinTermMatcher : IAliasTermMatcher
             var j = begin;
             while (j < text.Length)
             {
-                states = Step(Decode(text, ref j), states);
+                var cp = Decode(text, ref j);
+                states = Step(cp, states);
                 if ((states & done) != 0)
                 {
                     start = begin;
@@ -108,21 +109,29 @@ internal sealed class PinyinTermMatcher : IAliasTermMatcher
         if (cp > 0xFFFF || !PinyinEngine.TryGetPinyins((char)cp, out var readings))
             return 0;
 
-        var count = _commonOnly && readings.Length > 1 ? 1 : readings.Length;
+        // Common-only treats the table's two most frequent readings as common. The table is ordered by
+        // frequency, so this covers zhong/chong, chang/zhang, xing/hang and le/yue without a word
+        // dictionary; rarer readings still belong to the all-readings walk.
+        var count = _commonOnly ? Math.Min(readings.Length, 2) : readings.Length;
         ulong next = 0;
         for (var k = 0; k < count; k++)
+            next |= Consume(states, readings[k]);
+        return next;
+    }
+
+    private ulong Consume(ulong states, string reading)
+    {
+        // Every non-empty prefix of the syllable: after k letters, `t` holds the positions
+        // reached. 'v' (ü) also accepts 'u'.
+        var t = states;
+        ulong next = 0;
+        foreach (var letter in reading)
         {
-            // Every non-empty prefix of the syllable: after k letters, `t` holds the positions
-            // reached. 'v' (ü) also accepts 'u'.
-            var t = states;
-            foreach (var letter in readings[k])
-            {
-                var l = (byte)letter;
-                t = (t & (letter == 'v' ? _at[l] | _at['u'] : _at[l])) << 1;
-                if (t == 0)
-                    break;
-                next |= t;
-            }
+            var l = (byte)letter;
+            t = (t & (letter == 'v' ? _at[l] | _at['u'] : _at[l])) << 1;
+            if (t == 0)
+                break;
+            next |= t;
         }
         return next;
     }

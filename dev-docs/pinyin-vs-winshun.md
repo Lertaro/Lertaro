@@ -52,7 +52,7 @@ Qt 专属那一大类在这里不适用，不再逐条列：`startSystemMove`、
 
 关键代码位置（已核对）：`Core/IndexV2/Search/PinyinNameEvaluator.cs:255`（可读词的 Exact 化处理）、`:313-329`（覆盖加分 25、整茎拼满 +40）、`:341-342`（`PinyinBonus`）、`:346`（`StemLength`）；掩码预筛与 OR-first 关预筛在 `Core/IndexV2/Search/SearchMatcher.cs:66-115`；混合 lane 在 `Core/IndexV2/Search/SearchMatcherAliasExtensions.cs:36-52`，它要的拼写由 `IAliasLiveMatcherProvider.AppendSpellings` 现拼；兜底闸门在 `Core/IndexV2/Search/NameSearch.cs:101`（`emitted < limit`）与 `Core/IndexV2/Search/PathTermFallback.cs:71,85`（`MaxTerms = 16`、少于 2 词直接返回）。
 
-排序键只有一条顺序：contiguity → shape → left-contiguous → start → coverage → tier（`Core/SearchIndex/MatchRank.cs:4-17`，完整窗打包成 `contiguity(8)|shape(3)|not-left-contiguous(1)|start(7)|coverage(9)|tier(4)`，`Core/IndexV2/Search/SearchResultRelevance.cs:18`）。tier 的四档是 字面名(0) > 首字母(1) > 整读音(2) > 生僻读音(3)（`MatchRank.cs:29-35`），所以拼音命中打不过同形状的字面命中，但 shape 与 coverage 仍能把它往上顶。生僻档由 `PinyinNameEvaluator.TryPaintTerm`（`:198-219`）在高亮 pass 里定，同一个信号在加分表里是 −12。
+排序键只有一条顺序：contiguity → shape → left-contiguous → start → coverage → tier（`Core/SearchIndex/MatchRank.cs:4-17`，完整窗打包成 `contiguity(8)|shape(3)|not-left-contiguous(1)|start(7)|coverage(9)|tier(4)`，`Core/IndexV2/Search/SearchResultRelevance.cs:18`）。多词查询的 contiguity 按“每个正词各一个 run”计，单词查询仍是整段 run 的平方和（`Core/SearchIndex/HighlightMask.cs:329-390`）。tier 的四档是 字面名(0) > 首字母(1) > 整读音(2) > 生僻读音(3)（`MatchRank.cs:29-35`），所以拼音命中打不过同形状的字面命中，但 shape 与 coverage 仍能把它往上顶。生僻档由 `PinyinNameEvaluator.TryPaintTerm`（`:198-219`）在高亮 pass 里定，同一个信号在加分表里是 −12。
 
 ### 表、读音序与体积
 

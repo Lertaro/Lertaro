@@ -107,7 +107,7 @@ internal static class HighlightMask
             pinyinWitness,
             out var shape,
             out witness);
-        var rank = RankFromMarks(marks);
+        var rank = RankFromMarks(marks, CountPositiveTerms(pattern));
         if (!rank.IsMatch)
             return rank;
 
@@ -329,13 +329,23 @@ internal static class HighlightMask
     // The ranking measure for one candidate's mask: how much of the string the match covers, weighted by
     // how contiguous that coverage is (coverage * contiguity). Shape is filled in by ComputeRank, which
     // knows which path produced the mask; the mask alone cannot classify the term.
-    private static MatchRank RankFromMarks(ReadOnlySpan<bool> mask)
+    //
+    // A multi-term query is allowed to have one run per term: "cf wj" against "cf 桌面文件" is two clean
+    // terms, not one broken span. Counting runs (instead of the single-run sum of squares) gives such a
+    // match contiguity 1, so Coverage decides between it and a single-term hit. A term that is itself
+    // scattered still adds extra runs and keeps contiguity below 1.
+    //
+    // ponytail: runs are counted on the union mask, so an OR set whose alternatives both appear adds
+    // extra runs for one typed term. Per-term masks would be exact but would double the matcher work on
+    // the hot path; revisit if an OR-heavy query starts mis-ranking.
+    private static MatchRank RankFromMarks(ReadOnlySpan<bool> mask, int positiveTermCount)
     {
         if (mask.Length == 0)
             return MatchRank.NoMatch;
 
         var matchedLength = 0;
         var leftmost = -1;
+        var runCount = 0;
         var sumOfSquares = 0L;
         var runLength = 0;
         for (var i = 0; i < mask.Length; i++)
@@ -344,6 +354,7 @@ internal static class HighlightMask
             {
                 if (runLength > 0)
                 {
+                    runCount++;
                     sumOfSquares += (long)runLength * runLength;
                     runLength = 0;
                 }
@@ -356,13 +367,36 @@ internal static class HighlightMask
             runLength++;
         }
         if (runLength > 0)
+        {
+            runCount++;
             sumOfSquares += (long)runLength * runLength;
+        }
 
         if (matchedLength == 0)
             return MatchRank.NoMatch;
 
         var coverage = (double)matchedLength / mask.Length;
-        var contiguity = (double)sumOfSquares / ((long)matchedLength * matchedLength);
+        var contiguity = positiveTermCount > 1
+            ? Math.Min(1d, (double)positiveTermCount / runCount)
+            : (double)sumOfSquares / ((long)matchedLength * matchedLength);
         return new MatchRank(MatchRank.TierFull, leftmost, coverage, contiguity);
+    }
+
+    private static int CountPositiveTerms(FzfPattern pattern)
+    {
+        var count = 0;
+        foreach (var set in pattern.EffectiveSets)
+        {
+            foreach (var term in set.Terms)
+            {
+                if (!term.Inverse)
+                {
+                    count++;
+                    break;
+                }
+            }
+        }
+
+        return count;
     }
 }

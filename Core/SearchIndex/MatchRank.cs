@@ -2,7 +2,7 @@ namespace Lertaro.Core.SearchIndex;
 
 // One candidate's match quality, as both search windows rank it. There is exactly one key order:
 //
-//   Contiguity (how much of the matched span is one run)
+//   Contiguity (how many matched terms are one run: a multi-term query gets one run per term)
 //   -> Shape (whole word > word start > inside word > scattered)
 //   -> left-contiguous (Start == 0, only to break a shape tie)
 //   -> Start (leftmost matched character)
