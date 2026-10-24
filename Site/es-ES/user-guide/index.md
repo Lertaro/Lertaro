@@ -3,7 +3,7 @@
 ¡Te damos la bienvenida a la Guía oficial del usuario de Lertaro! Lertaro es un lanzador de búsqueda de archivos y una herramienta de productividad diseñada a medida para Windows. Al mantener un árbol de índices en memoria en segundo plano (mediante diarios de cambios USN de NTFS/ReFS y eventos del sistema de archivos en tiempo real), ofrece respuestas de búsqueda en submilisegundos en millones de archivos.
 
 - **[Primeros pasos](./getting-started)** —— Instalación, versión portátil, resumen de arquitectura, tres modalidades de ventana (Rápida / Principal / Incrustada) y operaciones básicas.
-- **[Sintaxis de búsqueda](./search-syntax)** —— Coincidencia difusa, operadores (`!` exclusión, `'` exacta, `^` prefijo, `$` sufijo, `|` OR), prefijos de unidad, modo ruta y alias de pinyin.
+- **[Sintaxis de búsqueda](./search-syntax)** —— Coincidencia difusa, operadores (`:` exclusión, `?` inversión difusa/exacta, `/regex/` cláusula de nombre, `|` OR), prefijos de unidad, modo ruta y alias de pinyin.
 - **[Atajos de teclado y gestos](./hotkeys)** —— Tabla de atajos globales, gestos de ratón en el logotipo, menús de Navegación rápida y teclas fijas.
 - **[Acciones y vista previa](./actions-and-preview)** —— Menú contextual de acciones (`Ctrl+O`), lista de la Ventana principal, vista previa multimedia/documentos con QuickLook y tarjetas de plugins.
 - **[Analizador de espacio](./space-analyzer)** —— Visualización Treemap con cero operaciones de E/S y desglose ordenado por tamaño para limpiar almacenamiento.
