@@ -5,12 +5,22 @@ namespace Lertaro.Core.DriveMonitoring;
 internal static class DeviceNotificationNative
 {
     internal const uint Success = 0;
+    internal const int DeviceInterfaceFilter = 0;
     internal const int DeviceHandleFilter = 1;
     internal const int DeviceQueryRemove = 2;
     internal const int DeviceQueryRemoveFailed = 3;
     internal const int DeviceRemovePending = 4;
     internal const int DeviceRemoveComplete = 5;
     internal const int DeviceCustomEvent = 6;
+
+    // Device interface notifications are not DBT_* codes, they reuse the device broadcast event
+    // numbers (CM_NOTIFY_ACTION): arrival 0x8000, removal complete 0x8004.
+    internal const int DeviceInterfaceArrival = 0x8000;
+    internal const int DeviceInterfaceRemoveComplete = 0x8004;
+
+    // The volume device interface. It belongs to the volume device, so it arrives and is removed with
+    // the mounted volume itself and the filesystem driver (NTFS, exFAT, ...) plays no part in it.
+    internal static readonly Guid VolumeDeviceInterface = new("53F5630D-B6BF-11D0-94F2-00A0C91EFB8B");
 
     internal static readonly Guid VolumeLockEvent = new("50708874-c9af-11d1-8fef-00a0c9a06d32");
     internal static readonly Guid VolumeLockFailedEvent = new("ae2eed10-0ba8-11d2-8ffb-00a0c9a06d32");
