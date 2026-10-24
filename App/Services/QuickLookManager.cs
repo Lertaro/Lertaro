@@ -3,6 +3,7 @@ using System.Windows;
 using Lertaro.PluginSdk.Services;
 
 using Lertaro.App.Services.AppWindow;
+using Lertaro.App.Helpers.Visuals;
 using Lertaro.App.Views.Controls.Dialogs;
 namespace Lertaro.App.Services;
 
@@ -284,6 +285,11 @@ public partial class QuickLookManager
         if (isFirstShow)
         {
             _window.Owner = owner;
+            // The window is opaque, so the frame it presents before its own content is composed is the
+            // window-class brush -- a black 400x529 card. Parking it first lands that frame off screen;
+            // PositionWindow below places it, and the slide-in starts from its own computed edge, never from
+            // here. Same gate the inline card and the quick window use.
+            WindowParking.Park(_window);
             _window.Show();
         }
 
