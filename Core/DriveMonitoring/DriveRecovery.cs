@@ -56,10 +56,10 @@ internal static class DriveRecovery
             getToken: _ => rebuildToken, onDriveCancelled: _ => wasCancelled = true);
         if (metadata.Count == 0)
         {
-            // A Stop request reverts to "cached" (mirrors NetworkIndexer's own CancelDrive), not "failed"
-            // -- the user asked for this, it isn't an error.
-            var present = VolumeHelper.DetectIndexableLocalDrives().Contains(drive, StringComparer.OrdinalIgnoreCase);
-            indexer.SetDriveState(drive, wasCancelled ? (present ? "cached" : "unavailable") : "failed");
+            // Settles as "cached" (a Stop, not an error), "failed", or -- when the volume is simply not
+            // mounted any more -- a drive parked for re-insertion. See DriveArrivalRecovery for why the
+            // last one must not end here.
+            DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled, token, onReindexRequired);
             return;
         }
 

@@ -92,4 +92,48 @@ public sealed class DriveMaintenanceHelperTests
         bool expected) =>
         Assert.AreEqual(expected, DriveMaintenanceHelper.ShouldRestoreAfterEnable(wasEnabled, isEnabled, state));
 
+    // The retry half of the same decision: a drive that is present and enabled but still "pending" has a
+    // build request that was refused (QueueDriveRebuild drops it while a full rebuild is running) and whose
+    // disabled->enabled edge is already spent, so without a retry it never gets indexed again.
+    [TestMethod]
+    [DataRow("pending", true)]
+    [DataRow("indexing", false)]
+    [DataRow("ready", false)]
+    [DataRow("failed", false)]
+    public void IsPendingRestoreWithoutARebuild_OnlyRequeuesAPendingDrive(string state, bool expected) =>
+        Assert.AreEqual(expected, DriveMaintenanceHelper.IsPendingRestoreWithoutARebuild(state));
+
+    [TestMethod]
+    public void UpdateStatus_MountedEnabledDriveStillPending_IsQueuedAgain()
+    {
+        // A real mounted letter: with isPresent the helper reads the drive's own cache path, which needs a
+        // live volume identity.
+        var drive = VolumeHelper.DetectIndexableLocalDrives().First();
+        var existing = new UsnIndexer.DriveIndexStatus { Drive = drive, State = "pending", Enabled = true };
+        var current = new Dictionary<string, UsnIndexer.DriveIndexStatus>(StringComparer.OrdinalIgnoreCase) { [drive] = existing };
+        var drivesToBuild = new List<string>();
+        var forced = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        DriveMaintenanceHelper.UpdateStatus(drive, isPresent: true, isEnabled: true, "ignored", current, drivesToBuild,
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase), forced);
+
+        CollectionAssert.AreEqual(new[] { drive }, drivesToBuild);
+        Assert.IsTrue(forced.Contains(drive));
+    }
+
+    [TestMethod]
+    public void UpdateStatus_DriveWhoseRebuildIsActuallyRunning_IsNotQueuedAgain()
+    {
+        var drive = VolumeHelper.DetectIndexableLocalDrives().First();
+        var existing = new UsnIndexer.DriveIndexStatus { Drive = drive, State = "indexing", Enabled = true };
+        var current = new Dictionary<string, UsnIndexer.DriveIndexStatus>(StringComparer.OrdinalIgnoreCase) { [drive] = existing };
+        var drivesToBuild = new List<string>();
+
+        DriveMaintenanceHelper.UpdateStatus(drive, isPresent: true, isEnabled: true, "ignored", current, drivesToBuild,
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
+
+        Assert.AreEqual("indexing", existing.State);
+        Assert.IsEmpty(drivesToBuild);
+    }
+
 }

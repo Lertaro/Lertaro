@@ -18,6 +18,11 @@ internal sealed class SearchEngineDriveMaintenance
     // monitor also derives from. internal rather than private so that extension method can reach it.
     internal readonly Dictionary<string, CancellationTokenSource> _activeRebuildCts = new(StringComparer.OrdinalIgnoreCase);
     internal readonly HashSet<string> _rebuildAfterRemoval = new(StringComparer.OrdinalIgnoreCase);
+    // Rebuild requests that arrived while the initial full rebuild was running. They used to be refused
+    // and forgotten, which left a drive that was plugged in during startup sitting in "unavailable" until
+    // a status poll happened to observe "pending" -- and nothing sets "pending" after a refusal. The
+    // engine flushes this set once the full rebuild reports completion.
+    internal readonly HashSet<string> _deferredRebuilds = new(StringComparer.OrdinalIgnoreCase);
     public bool HasPendingRebuilds { get { lock (_pendingDriveRebuilds) return _pendingDriveRebuilds.Count > 0; } }
 
     public SearchEngineDriveMaintenance(
@@ -90,9 +95,22 @@ internal sealed class SearchEngineDriveMaintenance
         drive = DriveMaintenanceHelper.NormalizeDrive(drive);
         if (drive.Length == 0)
             return false;
-        var driveId = VolumeHelper.GetVolumeId(drive) ?? string.Empty;
+        var driveId = VolumeHelper.GetVolumeId(drive);
+        if (driveId == null)
+            // An unmounted volume cannot answer for its own volume id (GetVolumeInformationW needs the
+            // mount), so the enabled check below is impossible here. Refusing on that floor is exactly what
+            // made a rebuild clicked while the disk was unplugged never happen after it went back in: the
+            // request was recorded nowhere. Take it, park the stale cache, and rebuild on re-insertion.
+            return DriveArrivalRecovery.ArmRebuildForReinsertion(_indexer, IndexCacheDir, drive, _token(),
+                name => RebuildDriveIndex(name));
         if (!_settings().IsLocalDriveEnabled(driveId))
+        {
+            // The App discards a false reply without saying anything, so this is the only trace a rebuild
+            // click that did nothing leaves -- and "the volume id changed" is the one reason a user cannot
+            // fix by re-clicking.
+            Logger.Log($"[SearchEngine] Ignored rebuild request for drive {drive}: its volume is not among the indexed drives.", LogLevel.Warn);
             return false;
+        }
         return QueueDriveRebuild(drive, forceRebuild: true);
     }
     public bool DeleteDriveIndex(string drive)
@@ -126,24 +144,53 @@ internal sealed class SearchEngineDriveMaintenance
 
     internal bool QueueDriveRebuild(string drive, bool forceRebuild)
     {
+        var deferred = false;
         lock (_pendingDriveRebuilds)
         {
             if (_isRebuilding())
             {
-                Logger.Log($"[SearchEngine] Ignored drive {drive} rebuild request because a full rebuild is running.");
-                return false;
+                // Defer instead of ignoring: a drive re-inserted during startup hits exactly this window,
+                // and the request is the only record that it still needs a rebuild.
+                deferred = _deferredRebuilds.Add(drive);
             }
-
-            if (!_pendingDriveRebuilds.Add(drive))
+            else if (!_pendingDriveRebuilds.Add(drive))
             {
                 Logger.Log($"[SearchEngine] Ignored duplicate rebuild request for drive {drive}.");
                 return false;
             }
         }
+        if (deferred)
+        {
+            // "pending" keeps the drive visible as work outstanding to a status poll, in case the flush
+            // below is lost (e.g. the rebuild ends by cancellation before reaching its completion hook).
+            _indexer.SetDriveState(drive, "pending");
+            Logger.Log($"[SearchEngine] Deferred drive {drive} rebuild request until the running full rebuild completes.", LogLevel.Info);
+            return false;
+        }
         UpdateMaintenanceBusyState();
         _indexer.SetDriveState(drive, "indexing", resetCounts: true);
         Task.Run(() => RebuildDrive(drive, forceRebuild));
         return true;
+    }
+
+    /// <summary>
+    /// Runs the rebuild requests that were parked while the initial full rebuild was running.
+    /// Called by the engine once that rebuild reports completion; a no-op otherwise.
+    /// </summary>
+    internal void FlushDeferredRebuilds()
+    {
+        List<string> deferred;
+        lock (_pendingDriveRebuilds)
+        {
+            if (_deferredRebuilds.Count == 0)
+                return;
+            deferred = new List<string>(_deferredRebuilds);
+            _deferredRebuilds.Clear();
+        }
+        if (_token().IsCancellationRequested)
+            return;
+        foreach (var drive in deferred)
+            QueueDriveRebuild(drive, forceRebuild: false);
     }
 
     private void RebuildDrive(string drive, bool forceRebuild)
@@ -167,13 +214,12 @@ internal sealed class SearchEngineDriveMaintenance
         catch (Exception ex) when (ex is OperationCanceledException
                                    || (ex is ObjectDisposedException && cts.Token.IsCancellationRequested))
         {
-            var present = VolumeHelper.DetectIndexableLocalDrives().Contains(drive, StringComparer.OrdinalIgnoreCase);
-            _indexer.SetDriveState(drive, present ? "cached" : "unavailable");
+            DriveArrivalRecovery.SettleFailedBuild(_indexer, drive, wasCancelled: true, _token(), QueueDriveRebuild);
         }
         catch (Exception ex)
         {
             Logger.Log($"[SearchEngine] Failed to build drive {drive}: {ex.Message}", LogLevel.Error);
-            _indexer.SetDriveState(drive, "failed");
+            DriveArrivalRecovery.SettleFailedBuild(_indexer, drive, wasCancelled: false, _token(), QueueDriveRebuild);
         }
         finally
         {
@@ -209,9 +255,11 @@ internal sealed class SearchEngineDriveMaintenance
             getToken: _ => token, onDriveCancelled: _ => wasCancelled = true, forceFullScan: true);
         if (metadata.Count == 0)
         {
-            // A Stop request reverts to "cached", not "failed" -- see DriveRecovery.RestoreOrRebuild.
-            var present = VolumeHelper.DetectIndexableLocalDrives().Contains(drive, StringComparer.OrdinalIgnoreCase);
-            _indexer.SetDriveState(drive, wasCancelled ? (present ? "cached" : "unavailable") : "failed");
+            // "cached" for a Stop, "failed" for an error, and -- if the volume went away mid-scan -- a
+            // forced rebuild queued for the moment it is back, since this is the request the user made
+            // against this one drive. See DriveRecovery.RestoreOrRebuild for the same three-way settle.
+            DriveArrivalRecovery.SettleFailedBuild(_indexer, drive, wasCancelled, _token(),
+                name => RebuildDriveIndex(name));
             return;
         }
 

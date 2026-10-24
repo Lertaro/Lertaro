@@ -11,6 +11,9 @@ public class UsnMonitor : IDisposable
     private long _startUsn;
     private readonly UsnIndexer _indexer;
     private readonly CancellationToken _token;
+    // The caller's token, not the loop's: a give-up arms a recovery that has to outlive this monitor, and
+    // the loop token is cancelled as soon as the monitor is disposed. See DriveArrivalRecovery.
+    private readonly CancellationToken _parentToken;
     private readonly Action<string>? _onReindexRequired;
     private readonly UsnMonitorHandleState _handleState = new();
     // Own token (linked to the caller's), so Dispose can stop the loop itself -- see MonitorLoopJoin.
@@ -30,6 +33,7 @@ public class UsnMonitor : IDisposable
         _journalId = journalId;
         _startUsn = startUsn;
         _indexer = indexer;
+        _parentToken = token;
         _loopCts = CancellationTokenSource.CreateLinkedTokenSource(token);
         _token = _loopCts.Token;
         _onReindexRequired = onReindexRequired;
@@ -127,6 +131,11 @@ public class UsnMonitor : IDisposable
                     if (consecutiveUnexpectedErrors > 10)
                     {
                         Logger.Log($"[Monitor] Too many consecutive unexpected errors on drive {_drive}. Stopping monitor.", LogLevel.Error);
+                        // Stopping alone leaves a still-mounted drive with a frozen index nobody
+                        // reconciles, and on a drive that is already gone it leaves no waiter for the
+                        // re-insertion. Same settle as the reopen give-up below, and off this thread for
+                        // the same reason: the re-index may dispose this monitor while the loop unwinds.
+                        _ = Task.Run(() => DriveArrivalRecovery.SettleMonitorGiveUp(_indexer, _drive, _parentToken, _onReindexRequired));
                         break;
                     }
                 }
@@ -270,6 +279,10 @@ public class UsnMonitor : IDisposable
         }
 
         Logger.Log($"[Monitor] Drive {_drive} did not recover after reopen attempts. Stopping monitor.", LogLevel.Error);
+        // Stopping alone leaves the drive with a frozen index nobody reconciles -- see DriveArrivalRecovery.
+        // Off this thread because the re-index it may ask for disposes this monitor, and MonitorLoopJoin
+        // would otherwise wait on the very loop task it is called from.
+        _ = Task.Run(() => DriveArrivalRecovery.SettleMonitorGiveUp(_indexer, _drive, _parentToken, _onReindexRequired));
         return new SafeFileHandle(IntPtr.Zero, ownsHandle: true);
     }
 

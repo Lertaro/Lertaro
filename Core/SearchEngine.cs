@@ -265,6 +265,11 @@ public class SearchEngine : IDisposable
                 if (!isRebuilding)
                 {
                     _initializationReady.Set();
+                    // Rebuild requests parked while the full rebuild ran are only recorded, never run
+                    // (see SearchEngineDriveMaintenance.QueueDriveRebuild). Flush them now that the
+                    // "full rebuild running" gate is down, or a drive plugged in during startup stays
+                    // without an index until the next restart.
+                    _drives.FlushDeferredRebuilds();
                     TryReleaseRuntimeAfterActivity();
                 }
             });
