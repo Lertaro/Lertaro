@@ -95,4 +95,9 @@ public struct SearchRequestMessage
     // settings file. Phrased as the positive "OR-first" because default(bool) is false, and a caller
     // that forgets it must fall back to the AND-first reading, which is the product default.
     public bool OrFirstPrecedence { get; set; }
+
+    // Search/SearchDir: restrict the answer to one kind of entry (see SearchCategoryFilter). Carried per
+    // request for the same identity reason as the flags above, and defaulting to All so a caller that does
+    // not set it keeps the historical behaviour of receiving every kind.
+    public SearchCategoryFilter Category { get; set; }
 }

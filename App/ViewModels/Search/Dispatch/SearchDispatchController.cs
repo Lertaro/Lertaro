@@ -230,7 +230,7 @@ internal sealed class SearchDispatchController
                 // BuildQuickResults runs on the UI thread, before ui.apply, and was never timed. The
                 // UI-lag probe caught stalls larger than any paint, which points here.
                 var __buildAt = Lertaro.Core.SearchIndex.PerfTrace.Begin();
-                var __built = SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope || filenameLike, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass, rankContext: rankContext);
+                var __built = SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope || filenameLike, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass, rankContext: rankContext, category: _mainVm.SelectedCategory);
                 Lertaro.Core.SearchIndex.PerfTrace.Mark("ui.build", __buildAt, __built.Count);
                 return __built;
             },

@@ -359,13 +359,8 @@ public static class RankPolicy
         if (byContiguity != 0)
             return byContiguity;
 
-        var byCoverage = y.Coverage.CompareTo(x.Coverage);
-        if (byCoverage != 0)
-            return byCoverage;
-
         // Usage next, as a band: among rows that matched equally well, one the user opens is ahead of one
-        // they never touch. It cannot lift a worse match over a better one -- that ordering was already
-        // settled above.
+        // they never touch.
         //
         // Low is excluded. That section exists because the user explicitly demoted the path, and an explicit
         // instruction outranks an implicit one: letting history lead there would silently undo the setting
@@ -377,14 +372,31 @@ public static class RankPolicy
                 return byHistory;
         }
 
-        // The strong/weak flag, plus the priority and tier folded into Score. Both windows read it here so
+        // The configured result-type order, ahead of coverage.
+        //
+        // Coverage divides the matched length by the NAME's length, so a short name fills a larger share of
+        // itself and beats a longer one no matter what type the user ranked first: a three-letter query
+        // against a ten-letter application name scores 0.3 while against a five-letter file name it scores
+        // 0.6, purely because the file name is shorter. Reading the type order first is what lets "I put
+        // applications first" mean something when the names differ in length.
+        //
+        // No section exemption. History and other implicit signals are dropped in Low, but the type order is
+        // an explicit setting and applies wherever two rows of different types compete.
+        var byType = x.TypeRank.CompareTo(y.TypeRank);
+        if (byType != 0)
+            return byType;
+
+        // How much of the name the query fills, then the strong/weak flag. Both windows read these here so
         // they cannot disagree.
+        var byCoverage = y.Coverage.CompareTo(x.Coverage);
+        if (byCoverage != 0)
+            return byCoverage;
+
         var byScore = y.Score.CompareTo(x.Score);
         if (byScore != 0)
             return byScore;
 
-        // Low is the one section that reads match quality before the display type order, and quality is
-        // the caller's to compare, so this stops here and leaves TypeRank to it.
+        // Low stops here: match quality is the caller's to compare, and TypeRank was already settled above.
         if (section == RankSection.Low)
             return 0;
 
@@ -474,15 +486,8 @@ public sealed class RankKeyComparer : IComparer<RankKey>
         if (compare != 0)
             return compare;
 
-        // Only the low-priority bucket places the display type order after quality; every other section
-        // consumed TypeRank inside CompareSectionRank.
-        if (section == RankSection.Low)
-        {
-            compare = x.TypeRank.CompareTo(y.TypeRank);
-            if (compare != 0)
-                return compare;
-        }
-
+        // TypeRank is compared inside CompareSectionRank for every section, Low included, so it is already
+        // settled by the time this point is reached.
         return RankPolicy.CompareCommonTail(x.Tail, y.Tail);
     }
 }

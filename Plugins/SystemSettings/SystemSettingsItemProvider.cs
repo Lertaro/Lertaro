@@ -21,6 +21,12 @@ public class SystemSettingsItemProvider : ISearchableItemProvider
     // GodMode — "All Tasks" virtual folder that lists every Control Panel item and task.
     private const string GodModePath = "shell:::{ED7BA470-8E54-465E-825C-99712043E01C}";
 
+    // Declares the result kind this provider contributes. The host uses it for two things: filing rows under
+    // the settings filter, and looking up this provider type in the user ordered result-type list -- that
+    // lookup matches on this string, so leaving it unset meant the saved position for this type was never
+    // read, and these rows stayed pinned at the front of the list as default instant results.
+    public string? ItemResultKind => "Settings";
+
     public IEnumerable<SearchableItem> GetSearchableItems()
     {
         var list = new List<SearchableItem>();
@@ -58,6 +64,9 @@ public class SystemSettingsItemProvider : ISearchableItemProvider
                     Description = desc,
                     HBitmapIcon = hBitmap,
                     ActionType = "None",
+                    // Names the kind of row this is, so the host can file it under the settings filter and
+                    // order it by the user preferred type instead of the default instant-result bucket.
+                    ResultKind = "Settings",
                     OnExecute = () => ShellInvokeHelper.InvokeShellItem(GodModePath, capturedPath)
                 });
             }

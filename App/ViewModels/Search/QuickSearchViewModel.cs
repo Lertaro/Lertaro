@@ -69,6 +69,55 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
 
     public ObservableCollection<AppSearchResult> Results => Search.Results;
 
+    /// <summary>
+    /// The category tabs, in display order. All is first and is the default.
+    /// </summary>
+    /// <remarks>
+    /// An instance property, not a static one: WPF cannot resolve a static member through a binding path,
+    /// so a static list here leaves the ListBox with no items to create containers for and every click lands
+    /// on nothing.
+    /// </remarks>
+    public IReadOnlyList<SearchResultCategory> Categories { get; } = new[]
+    {
+        SearchResultCategory.All,
+        SearchResultCategory.Folder,
+        SearchResultCategory.Application,
+        SearchResultCategory.Settings,
+        SearchResultCategory.Document,
+        SearchResultCategory.Image,
+        SearchResultCategory.Audio,
+        SearchResultCategory.Video,
+    };
+
+    /// <summary>
+    /// Which tab is active. Setting it re-projects the rows already loaded; it never re-runs the query.
+    /// </summary>
+    public SearchResultCategory SelectedCategory
+    {
+        get => Search.SelectedCategory;
+        set => Search.SelectedCategory = value;
+    }
+
+    /// <summary>Moves the selection one tab left/right, wrapping at either end.</summary>
+    public void CycleCategory(int delta)
+    {
+        var current = 0;
+        for (var i = 0; i < Categories.Count; i++)
+        {
+            if (Categories[i] == SelectedCategory)
+            {
+                current = i;
+                break;
+            }
+        }
+
+        var next = (current + delta) % Categories.Count;
+        if (next < 0)
+            next += Categories.Count;
+
+        SelectedCategory = Categories[next];
+    }
+
     public AppSearchResult? SelectedResult
     {
         get => Search.SelectedResult;

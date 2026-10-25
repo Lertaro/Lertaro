@@ -1,3 +1,4 @@
+using Lertaro.Core.Wire;
 using Lertaro.Core.SearchIndex.Fzf;
 
 using Lertaro.Core.IndexV2.Search.PathMode;
@@ -11,7 +12,7 @@ namespace Lertaro.Core.IndexV2.Search;
 // the whole search sees one consistent (Snapshot, DeltaOverlay) pair.
 public static class IndexV2Searcher
 {
-    public static void SearchStreaming(LiveIndex index, string query, int limit, Action<SearchResult> onResult, CancellationToken token, string? directoryFilter = null, string? fileNameFilter = null)
+    public static void SearchStreaming(LiveIndex index, string query, int limit, Action<SearchResult> onResult, CancellationToken token, string? directoryFilter = null, string? fileNameFilter = null, SearchCategoryFilter category = SearchCategoryFilter.All)
     {
         if (limit <= 0 || string.IsNullOrWhiteSpace(query))
             return;
@@ -21,7 +22,7 @@ public static class IndexV2Searcher
         // almost instantly, and its row count is unbounded (the full window asks for int.MaxValue), so a
         // stored page would either be huge or answer a later listing with a truncated one.
         var cache = index.SearchPages;
-        var cacheKey = parsed.IsPathMode ? null : QueryPageCache.KeyFor(query, directoryFilter, fileNameFilter);
+        var cacheKey = parsed.IsPathMode ? null : QueryPageCache.KeyFor(query, directoryFilter, fileNameFilter, (byte)category);
         var __cacheLookup = Lertaro.Core.SearchIndex.PerfTrace.Begin();
         if (cacheKey != null && cache.TryReplay(cacheKey, limit, onResult, token))
             return;
@@ -61,7 +62,7 @@ public static class IndexV2Searcher
             Lertaro.Core.SearchIndex.PerfTrace.Mark("idx.parse", __parse);
             var __name = Lertaro.Core.SearchIndex.PerfTrace.Begin();
             NameSearch.SearchStreaming(snapshot, delta, pattern, limit, Capture, token, directoryFilterLower,
-                FilterPatternHelper.SplitOrNullIfMatchAll(fileNameFilter));
+                FilterPatternHelper.SplitOrNullIfMatchAll(fileNameFilter), category);
             Lertaro.Core.SearchIndex.PerfTrace.Mark("idx.nameSearch", __name);
             return null;
         });

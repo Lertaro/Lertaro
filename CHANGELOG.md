@@ -5,6 +5,32 @@
 符号：* 核心功能　+ 小功能添加　# 修复。只写"改了什么"。
 -->
 
+## v5.11.1.2
+
+## 更新内容
+
+```
+* 快速搜索新增分类筛选：全部、文件夹、应用、设置、文档、图片、音频、视频
++ 引擎按分类检索，切到某一类时返回该类的全部命中，不再被综合排序挤出
+# 修复类型顺序排在匹配质量之后才比较，用户设置的类型先后被忽略
+# 修复系统设置项被归入应用分类
+# 修复分类结果被重复过滤而丢失行
++ 自动更新只检查本仓库的发行
++ 保留鼠标平滑滚动
+```
+
+## What's changed
+
+```
+* The quick window gains category filters: all, folders, applications, settings, documents, images, audio, video
++ The engine searches by category, so a filter returns every match of that kind instead of being crowded out by the combined ranking
+# Fixed the type order being compared only after match quality, which ignored the order the user set
+# Fixed system settings entries being filed under applications
+# Fixed category results being filtered twice and losing rows
++ Auto-update only checks this repository's releases
++ Keeps the smooth wheel scrolling
+```
+
 ## v5.11.1.1
 
 ## 更新内容

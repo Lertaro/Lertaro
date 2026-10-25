@@ -27,6 +27,14 @@ internal sealed class QuickSearchWindowShowSupport
         IdleWorkingSetTrimmer.WindowShowing();
         ShellOverlayDismissHelper.DismissOverlayIfForeground();
 
+        // Every summon starts on the full list. The filter is a view of the current search, not a mode the
+        // window stays in: reopening it to look something up must not silently hide six of seven categories.
+        _controller.Window.ViewModel.SelectedCategory =
+            Lertaro.App.ViewModels.Search.SearchResultCategory.All;
+        // And the underline follows it there without sliding: that glide belongs to a switch the user just
+        // made, not to the window appearing.
+        _controller.Window.ReaimIndicatorImmediately();
+
         _controller.LastActiveHwnd = QuickSearchWindowNative.GetForegroundWindow();
         if (_controller.LastActiveHwnd != IntPtr.Zero)
         {

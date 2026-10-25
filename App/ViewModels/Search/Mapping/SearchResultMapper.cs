@@ -84,7 +84,7 @@ public static class SearchResultMapper
     private static readonly IReadOnlyDictionary<string, int> EmptyUsage =
         new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-    internal static List<AppSearchResult> BuildQuickResults(List<SearchResult>? fileResults, string query, string? scope, string? contextDirectory, bool isInlineWindow, string? rawQuery = null, bool skipDisplayCap = false, FileFilterScopeDirective? fileFilterScope = null, bool folderScope = false, InstantPassCache? instantPass = null, RankContext? rankContext = null)
+    internal static List<AppSearchResult> BuildQuickResults(List<SearchResult>? fileResults, string query, string? scope, string? contextDirectory, bool isInlineWindow, string? rawQuery = null, bool skipDisplayCap = false, FileFilterScopeDirective? fileFilterScope = null, bool folderScope = false, InstantPassCache? instantPass = null, RankContext? rankContext = null, ViewModels.Search.SearchResultCategory category = ViewModels.Search.SearchResultCategory.All)
     {
         var uiResults = new List<AppSearchResult>();
         // One pass over the plugin providers per search, not per paint. This method IS a paint callback --
@@ -295,11 +295,13 @@ public static class SearchResultMapper
                 // lookup key has to skip it here too or an app's history priority would never resolve.
                 var lookupPath = result.IsApplication ? result.FullPath.Trim() : SearchResultHelper.NormalizePath(result.FullPath);
                 var usage = historyUsage.TryGetValue(lookupPath, out var uc) ? uc : 0;
+                var rowTypeRank = SearchResultTypePriority.Rank(typeId, typeRanks);
+
                 candidates.Add(new RankedCandidate(
                     result,
                     IsFavorite: false,
                     HistoryCount: usage,
-                    SearchResultTypePriority.Rank(typeId, typeRanks),
+                    rowTypeRank,
                     match,
                     SearchResultHelper.NormalizePath(result.FullPath)));
             }
@@ -349,6 +351,14 @@ public static class SearchResultMapper
         // window's are 3/10. Mixed into one log that has no window field, the bucket distribution would tilt
         // toward Boosted, so the inline window is not sampled.
         var ordered = RankedCandidateOrdering.Order(candidates, rankContext, isInlineWindow ? null : query, typeOrder);
+
+
+        // The category filter runs HERE, before any cap. Filtering afterwards meant the cap had already
+        // thrown those rows away under the whole-result ordering: a short query ranks applications and
+        // folders first, so an Audio tab received a list with no audio in it. Filtering first also makes the
+        // display cap meaningful again, because it then counts rows of the type the user asked for.
+        if (category != ViewModels.Search.SearchResultCategory.All)
+            ordered = ordered.Where(row => ViewModels.Search.SearchResultCategorizer.Matches(category, row.Result)).ToList();
         // Capped here (not deferred to the caller) because this display cap has to respect whatever
         // header/grouping layout the caller (or InlineListSearchHelper.MergeLocalMatches, downstream)
         // builds around these rows -- e.g. the inline window's "Current Folder"/"Global Search" split
@@ -358,7 +368,12 @@ public static class SearchResultMapper
         // everything under 10 total, else pad to ~8 then allow up to 50 with a "N more" marker) --
         // just applied to the now-unified candidate list instead of only file results.
 
-        if (skipDisplayCap || uiResults.Count + ordered.Count < 10)
+        // A filtered list skips the display cap entirely. The cap exists to keep the unfiltered list scrollable
+        // and to hand the overflow to "show more"; applying it to a filtered list would mean any magic number
+        // could hide the row the user is actually looking for, however far down the whole-result ordering it
+        // sits. Inside one category there is nothing to overflow into -- the user asked for that type, so the
+        // list shows that type.
+        if (skipDisplayCap || category != ViewModels.Search.SearchResultCategory.All || uiResults.Count + ordered.Count < 10)
         {
             foreach (var candidate in ordered)
             {
@@ -370,11 +385,16 @@ public static class SearchResultMapper
             return uiResults;
         }
 
-        var hasMoreAtEnd = ordered.Count > 50;
+        // How much the unfiltered list scrolls before the "show more" row takes over. A filtered list never
+        // reaches here (see above), so this number no longer has to be guessed large enough to cover every
+        // category -- which was the wrong shape for a limit: the row being looked for could always sit past
+        // whichever value was picked.
+        const int CandidatePool = 50;
+        var hasMoreAtEnd = ordered.Count > CandidatePool;
         // A type the user bothered to order must not vanish behind the cap: keep its best few rows and let
         // the rest of the slots follow the global order (EnsureTypeCoverage never reorders, only selects).
         if (hasMoreAtEnd)
-            ordered = RankedCandidateOrdering.EnsureTypeCoverage(ordered, 50);
+            ordered = RankedCandidateOrdering.EnsureTypeCoverage(ordered, CandidatePool);
 
         var firstCount = Math.Min(ordered.Count, Math.Max(0, 8 - uiResults.Count));
         for (var i = 0; i < firstCount; i++)
@@ -426,7 +446,7 @@ public static class SearchResultMapper
                 continue;
 
             byPath ??= BuildPathIndex(rows);
-            var target = ShortcutTarget(row.Path);
+            var target = Lertaro.App.Helpers.ShortcutTargetResolver.Resolve(row.Path);
             if (target is null)
                 continue;
 
@@ -496,25 +516,6 @@ public static class SearchResultMapper
         return trimmed.Equals("lnk", StringComparison.OrdinalIgnoreCase);
     }
 
-    // Resolving a shortcut walks IShellLink and IPersistFile, and a BuildQuickResults call happens on every
-    // streaming paint -- the same .lnk would be resolved again and again within one search. One entry per
-    // shortcut for the life of the process: the target of a .lnk does not change under it in practice, and a
-    // stale answer only costs the de-duplication, never a wrong row.
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string?> ShortcutTargetCache =
-        new(StringComparer.OrdinalIgnoreCase);
-
-    private static string? ShortcutTarget(string shortcutPath)
-    {
-        if (ShortcutTargetCache.TryGetValue(shortcutPath, out var cached))
-            return cached;
-
-        var target = Lertaro.PluginSdk.Helpers.StartMenuShortcutResolver.ResolveShortcutTarget(shortcutPath);
-        if (string.IsNullOrEmpty(target))
-            return null;
-
-        ShortcutTargetCache[shortcutPath] = target;
-        return target;
-    }
 
     // IsFavorite: an explicit user pick. HistoryCount is how many times the path was opened (0 when not
     // in history), which the kernel only uses when it has no decayed score for the path. TypeRank is the

@@ -1,3 +1,4 @@
+using Lertaro.Core.Wire;
 using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 using Lertaro.App.Services;
@@ -20,9 +21,15 @@ internal sealed class SearchExecutionEngine : IDisposable
     private CancellationTokenSource? _debounceCts;
     private int _searchVersion;
 
-    public SearchExecutionEngine(SearchService searchService)
+    // Which kind of entry to ask the engine for. Supplied as a callback rather than a value because the
+    // filter changes between searches while this engine lives as long as the window does; the full window
+    // passes nothing and keeps the historical "every kind" behaviour.
+    private readonly Func<SearchCategoryFilter> _getCategory;
+
+    public SearchExecutionEngine(SearchService searchService, Func<SearchCategoryFilter>? getCategory = null)
     {
         _searchService = searchService;
+        _getCategory = getCategory ?? (() => SearchCategoryFilter.All);
         _streamRenderer = new SearchStreamRenderer(searchService, () => Volatile.Read(ref _searchVersion));
     }
 
@@ -184,7 +191,7 @@ internal sealed class SearchExecutionEngine : IDisposable
 
                 var streamingScope = tracker.IsActiveWindowExplorer ? searchScope : null;
                 var streamingContextDirectory = commandDirectory;
-                await _streamRenderer.RenderAsync(query, streamingScope, streamingContextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable: onLocalServiceUnavailable, bypassExclusions: bypassExclusions, resultMapperConsumesBatches: resultMapperConsumesBatches, onReceivedCountUpdated: onReceivedCountUpdated, scopeDirective: scopeDirective, foldersOnly: folderScope, priorityRoots: priorityRoots).ConfigureAwait(false);
+                await _streamRenderer.RenderAsync(query, streamingScope, streamingContextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable: onLocalServiceUnavailable, bypassExclusions: bypassExclusions, resultMapperConsumesBatches: resultMapperConsumesBatches, onReceivedCountUpdated: onReceivedCountUpdated, scopeDirective: scopeDirective, foldersOnly: folderScope, priorityRoots: priorityRoots, category: _getCategory()).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -329,7 +336,7 @@ internal sealed class SearchExecutionEngine : IDisposable
 
         await _streamRenderer.RenderAsync(query, null, contextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token,
             GetLocalSnapshot, () => Volatile.Read(ref localUpdateVersion), localSearchTask, onLocalServiceUnavailable, bypassExclusions,
-            foldersOnly: folderScope, priorityRoots: priorityRoots).ConfigureAwait(false);
+            foldersOnly: folderScope, priorityRoots: priorityRoots, category: _getCategory()).ConfigureAwait(false);
     }
 
     private void EmitInstantResults(

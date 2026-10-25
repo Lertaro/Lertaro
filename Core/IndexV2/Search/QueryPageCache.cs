@@ -34,8 +34,10 @@ internal sealed class QueryPageCache
     private readonly Dictionary<string, Entry> _pages = new(StringComparer.Ordinal);
     private readonly object _gate = new();
 
-    public static string KeyFor(string query, string? directoryFilter, string? fileNameFilter)
-        => string.Concat(query, "\u0001", directoryFilter ?? string.Empty, "\u0001", fileNameFilter ?? string.Empty);
+    public static string KeyFor(string query, string? directoryFilter, string? fileNameFilter, byte category = 0)
+        // The category is part of the identity: the same text under two filters is two different pages, and
+        // a page built for one filter would answer the other with rows it must not show.
+        => string.Concat(query, "\u0001", directoryFilter ?? string.Empty, "\u0001", fileNameFilter ?? string.Empty, "\u0001", category.ToString());
 
     public bool TryReplay(string key, int limit, Action<SearchResult> onResult, CancellationToken token)
     {
