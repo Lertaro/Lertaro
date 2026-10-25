@@ -33,17 +33,13 @@ public class OneCommanderPathCollector : IActivePathCollector
             return null;
 
         var hwnd = windowHwnd != IntPtr.Zero ? windowHwnd : activeHwnd;
-
-        // Called on window-activation tracking, before any inline-search window has had a chance to steal
-        // focus away -- the best opportunity to snapshot which pane is actually active (see UiaPathAccessor).
-        UiaPathAccessor.RefreshFocusAnchor(hwnd);
-
         var path = UiaPathAccessor.GetCurrentPath(hwnd);
         return string.IsNullOrWhiteSpace(path) ? null : path;
     }
 
     /// <summary>
-    /// Returns every OneCommander pane/tab currently exposed through UI Automation in each open window.
+    /// Returns the folder each open OneCommander window is showing. Only the active pane/tab has an exposed
+    /// path; see UiaPathAccessor.
     /// </summary>
     public IReadOnlyList<OpenedFolder> GetOpenedFolders()
     {

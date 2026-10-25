@@ -57,10 +57,6 @@ public class OneCommanderInlineSearchAdapter : IInlineSearchAdapter
 
     public string? GetSearchScope(IntPtr hwnd)
     {
-        // Called before the inline search window steals focus away, so this is also a good opportunity to
-        // (re-)snapshot the active pane in case OneCommanderPathCollector didn't already (see UiaPathAccessor).
-        UiaPathAccessor.RefreshFocusAnchor(hwnd);
-
         var path = UiaPathAccessor.GetCurrentPath(hwnd);
         return string.IsNullOrWhiteSpace(path) ? null : path;
     }

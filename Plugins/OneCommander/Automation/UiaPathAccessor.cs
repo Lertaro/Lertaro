@@ -1,77 +1,26 @@
-using System.Runtime.InteropServices;
-using System.Collections.Concurrent;
 using System.Windows.Automation;
 
 namespace Lertaro.Plugins.OneCommander.Automation;
 
 /// <summary>
-/// Reads/writes OneCommander's current-folder path via UI Automation. OneCommander is a WPF host with no
-/// distinct native child HWNDs to P/Invoke against, and (per live testing) supports multiple panes/tabs
-/// that each expose their own "CurrentPathGet"/"CurrentPathSet" automation ID -- searching the whole window
-/// blindly always finds the same (first) pane regardless of which one is actually active.
-///
-/// To target the right pane: every time OneCommander plausibly still holds OS focus (from
-/// OneCommanderPathCollector.TryGetPath and OneCommanderInlineSearchAdapter.GetSearchScope, both called
-/// before the inline search window steals focus away), we snapshot AutomationElement.FocusedElement and
-/// cache it per window handle. Later calls (notably ExecuteItem, which only runs after focus has already
-/// moved to our own window) walk UP from that cached anchor, searching each ancestor's subtree for the
-/// target automation ID, so the *nearest* pane's controls win over some other, inactive pane's. If no
-/// anchor was ever captured, this falls back to a whole-window search (the original behavior).
+/// Reads/writes OneCommander's current-folder path via UI Automation. The top-level window exposes a single
+/// "CurrentPathGet"/"CurrentPathSet" pair as direct children that mirror the active pane/tab; inactive tabs
+/// expose no path of their own, so one window can only contribute its active folder.
 /// </summary>
+/// <remarks>
+/// These are located with <see cref="TreeWalker"/> instead of FindFirst/FindAll on purpose: Find* searches the
+/// control view, and current .NET WPF hosts (OneCommander 3.108 on Windows 11 26H2) report every element as
+/// IsControlElement=false to a cross-process client, so Find* silently returns nothing while the raw-view walk
+/// and the ValuePattern below keep working. .NET Framework WPF hosts do not show this.
+/// </remarks>
 internal static class UiaPathAccessor
 {
-    // ConcurrentDictionary, not Dictionary: RefreshFocusAnchor writes from the Hook's tracker thread
-    // (WinEvent-driven focus tracking) while GetCurrentPath/SetCurrentPath can now read from whatever
-    // thread is running an IInlineSearchAdapter call -- each ExecuteItem/etc. gets its own dedicated STA
-    // thread (see InlineAdapterCommandHandler.RunOnSta), so a read here can genuinely race a write.
-    private static readonly ConcurrentDictionary<IntPtr, AutomationElement> _focusAnchors = new();
-    // Keep this cache across focus refreshes: the active-path poller can refresh the anchor concurrently
-    // with ExecuteItem, and clearing it there would put the slow UIA tree search back on the click path.
-    private static readonly ConcurrentDictionary<IntPtr, AutomationElement> _currentPathSetElements = new();
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool IsWindow(IntPtr hWnd);
-
-    /// <summary>
-    /// Snapshots the currently-focused UI element for later use, while OneCommander (hwnd) still plausibly
-    /// holds it. Only called from window-activation tracking / session-start code, never per-keystroke, so
-    /// the cost of a UIA property read here is acceptable.
-    /// </summary>
-    public static void RefreshFocusAnchor(IntPtr hwnd)
-    {
-        try
-        {
-            // Sweep entries whose window is gone: only the per-hwnd lookup in
-            // FindNearestPaneElement removed them before, so a window that closed and was never
-            // queried again kept its AutomationElement (a UIA COM RCW) alive in this static
-            // dictionary for the process lifetime.
-            foreach (var cached in _focusAnchors)
-            {
-                if (!IsWindow(cached.Key))
-                    _focusAnchors.TryRemove(cached.Key, out _);
-            }
-
-            var focused = AutomationElement.FocusedElement;
-            if (focused != null)
-                _focusAnchors[hwnd] = focused;
-        }
-        catch
-        {
-            // Best-effort; a failed snapshot just means the whole-window fallback below kicks in later.
-        }
-    }
+    private const string GetPathAutomationId = "CurrentPathGet";
+    private const string SetPathAutomationId = "CurrentPathSet";
 
     public static string? GetCurrentPath(IntPtr hwnd)
     {
-        // Locate both controls while the host still has focus. ExecuteItem runs after focus has moved to
-        // Lertaro, so retaining the exact write control avoids repeating the expensive cross-process UIA
-        // ancestor/subtree search on every selected result.
-        var elements = FindNearestPaneElements(hwnd);
-        if (elements.SetElement != null)
-            _currentPathSetElements[hwnd] = elements.SetElement;
-
-        var element = elements.GetElement;
+        var element = FindPathElements(hwnd).GetElement;
         if (element == null) return null;
         try
         {
@@ -85,169 +34,91 @@ internal static class UiaPathAccessor
     }
 
     /// <summary>
-    /// Gets every currently materialized OneCommander pane/tab path in a window. Inactive virtualized tabs
-    /// are intentionally absent because they do not expose an automation element until displayed.
+    /// Gets the paths this window exposes, which is the active pane/tab only -- OneCommander publishes no path
+    /// for the tabs that are not displayed.
     /// </summary>
     public static IReadOnlyList<string> GetCurrentPaths(IntPtr hwnd)
     {
         var paths = new List<string>();
-        try
+        foreach (var child in TopLevelChildren(hwnd))
         {
-            var root = AutomationElement.FromHandle(hwnd);
-            var condition = new PropertyCondition(AutomationElement.AutomationIdProperty, "CurrentPathGet");
-            var elements = root.FindAll(TreeScope.Descendants, condition);
-            foreach (AutomationElement element in elements)
+            try
             {
-                if (!element.TryGetCurrentPattern(ValuePattern.Pattern, out var patternObj)) continue;
+                if (child.Current.AutomationId != GetPathAutomationId) continue;
+                if (!child.TryGetCurrentPattern(ValuePattern.Pattern, out var patternObj)) continue;
                 var path = ((ValuePattern)patternObj).Current.Value;
                 if (!string.IsNullOrWhiteSpace(path))
                     paths.Add(path);
             }
-        }
-        catch
-        {
-            // UI Automation is best-effort; a closed or busy window contributes no paths.
+            catch
+            {
+                // Skip an element whose provider went away mid-walk.
+            }
         }
         return paths;
     }
 
     public static bool SetCurrentPath(IntPtr hwnd, string path)
     {
-        var usedCache = _currentPathSetElements.TryGetValue(hwnd, out var element);
-        if (!usedCache)
-            element = FindNearestPaneElement(hwnd, "CurrentPathSet");
+        var element = FindPathElements(hwnd).SetElement;
         if (element == null) return false;
 
         try
         {
-            if (!element.TryGetCurrentPattern(ValuePattern.Pattern, out var patternObj))
-            {
-                if (usedCache)
-                {
-                    _currentPathSetElements.TryRemove(hwnd, out _);
-                    return SetCurrentPath(hwnd, path);
-                }
-
-                return false;
-            }
-
+            if (!element.TryGetCurrentPattern(ValuePattern.Pattern, out var patternObj)) return false;
             ((ValuePattern)patternObj).SetValue(path);
             return true;
         }
         catch
         {
-            if (usedCache)
-            {
-                // UIA elements can become stale when OneCommander recreates a pane or tab. Remove only
-                // this window's cached control and retry the original scoped lookup once.
-                _currentPathSetElements.TryRemove(hwnd, out _);
-                return SetCurrentPath(hwnd, path);
-            }
-
             return false;
         }
     }
 
-    private static (AutomationElement? GetElement, AutomationElement? SetElement) FindNearestPaneElements(IntPtr hwnd)
+    private static (AutomationElement? GetElement, AutomationElement? SetElement) FindPathElements(IntPtr hwnd)
     {
-        try
+        AutomationElement? getElement = null;
+        AutomationElement? setElement = null;
+        foreach (var child in TopLevelChildren(hwnd))
         {
-            var root = AutomationElement.FromHandle(hwnd);
-            var condition = new OrCondition(
-                new PropertyCondition(AutomationElement.AutomationIdProperty, "CurrentPathGet"),
-                new PropertyCondition(AutomationElement.AutomationIdProperty, "CurrentPathSet"));
+            string automationId;
+            try { automationId = child.Current.AutomationId; } catch { continue; }
 
-            if (_focusAnchors.TryGetValue(hwnd, out var anchor))
+            switch (automationId)
             {
-                var walker = TreeWalker.RawViewWalker;
-                var node = anchor;
-                AutomationElement? getElement = null;
-                AutomationElement? setElement = null;
-                for (var depth = 0; depth < 25 && node != null; depth++)
-                {
-                    try
-                    {
-                        var matches = node.FindAll(TreeScope.Subtree, condition);
-                        for (var index = 0; index < matches.Count; index++)
-                        {
-                            var match = matches[index];
-                            switch (match.Current.AutomationId)
-                            {
-                                case "CurrentPathGet":
-                                    getElement ??= match;
-                                    break;
-                                case "CurrentPathSet":
-                                    setElement ??= match;
-                                    break;
-                            }
-                        }
-                    }
-                    catch { }
-
-                    if (getElement != null && setElement != null)
-                        return (getElement, setElement);
-
-                    var isRoot = false;
-                    try { isRoot = System.Windows.Automation.Automation.Compare(node, root); } catch { }
-                    if (isRoot) break;
-
-                    try { node = walker.GetParent(node); } catch { node = null; }
-                }
+                case GetPathAutomationId:
+                    getElement ??= child;
+                    break;
+                case SetPathAutomationId:
+                    setElement ??= child;
+                    break;
             }
 
-            return (
-                root.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, "CurrentPathGet")),
-                root.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, "CurrentPathSet")));
+            if (getElement != null && setElement != null)
+                break;
         }
-        catch
-        {
-            return (null, null);
-        }
+
+        return (getElement, setElement);
     }
 
-    private static AutomationElement? FindNearestPaneElement(IntPtr hwnd, string automationId)
+    private static List<AutomationElement> TopLevelChildren(IntPtr hwnd)
     {
+        var children = new List<AutomationElement>();
         try
         {
             var root = AutomationElement.FromHandle(hwnd);
-            var condition = new PropertyCondition(AutomationElement.AutomationIdProperty, automationId);
-
-            if (_focusAnchors.TryGetValue(hwnd, out var anchor))
+            var walker = TreeWalker.RawViewWalker;
+            var child = walker.GetFirstChild(root);
+            while (child != null)
             {
-                if (!IsWindow(hwnd))
-                {
-                    _focusAnchors.TryRemove(hwnd, out _);
-                    anchor = null;
-                }
-
-                if (anchor == null)
-                {
-                    return root.FindFirst(TreeScope.Descendants, condition);
-                }
-
-                var walker = TreeWalker.RawViewWalker;
-                var node = anchor;
-                for (var depth = 0; depth < 25 && node != null; depth++)
-                {
-                    AutomationElement? found = null;
-                    try { found = node.FindFirst(TreeScope.Subtree, condition); } catch { }
-                    if (found != null) return found;
-
-                    var isRoot = false;
-                    try { isRoot = System.Windows.Automation.Automation.Compare(node, root); } catch { }
-                    if (isRoot) break;
-
-                    try { node = walker.GetParent(node); } catch { node = null; }
-                }
+                children.Add(child);
+                child = walker.GetNextSibling(child);
             }
-
-            // No anchor captured (or it led nowhere) -- fall back to the whole window, matching a
-            // single-pane OneCommander or a session where we never observed focus in time.
-            return root.FindFirst(TreeScope.Descendants, condition);
         }
         catch
         {
-            return null;
+            // A window that is gone (or whose provider is wedged) has no children to offer.
         }
+        return children;
     }
 }
