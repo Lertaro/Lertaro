@@ -5,6 +5,36 @@
 符号：* 核心功能　+ 小功能添加　# 修复。只写"改了什么"。
 -->
 
+## v5.11.1.1
+
+## 更新内容
+
+```
+# 排序改为命中位置优先：左侧、连续、覆盖率决定顺序，使用次数与类型排在其后
+# 修复常用文件被当作纯历史行而丢失命中位置，排在只在中段匹配的名字之后
+# 修复应用结果从别名取匹配位置，与文件行不在同一标准上比较
+# 历史权重改为以打开次数为主，时间只占很小比例且不会归零
+# 拼音读音不再自带权重，匹配方式不参与排序
+* 同名快捷方式被去重，其打开次数转移给目标文件
++ 内联搜索可用单个字母通过拼音首字母命中中文名
++ 自动更新只检查本仓库的发行
++ 保留鼠标平滑滚动
+```
+
+## What's changed
+
+```
+# Ranking orders by match position first: left edge, contiguity and coverage decide, usage and type order follow
+# Fixed a frequently used file losing its match position after being flagged history-only, which sorted it below names the query only touched mid-word
+# Fixed applications taking their match position from an alias, so they were compared on a different key than file rows
+# History weight now follows the open count, with time trimming only a small share and never retiring a habit
+# Pinyin readings no longer carry weight of their own, so how a row was reached does not order it
+* Same-named shortcuts are de-duplicated and their opens move onto the target
++ The inline card reaches han-character names from a single letter through the initials spelling
++ Auto-update only checks this repository's releases
++ Keeps the smooth wheel scrolling
+```
+
 ## v5.10.0.3
 
 ## 更新内容
