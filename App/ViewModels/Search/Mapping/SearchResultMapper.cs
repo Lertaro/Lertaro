@@ -168,9 +168,9 @@ public static class SearchResultMapper
 
         // Quick-window-only: the user-orderable result-type order (RankedCandidate.TypeRank) is a
         // section-local group inside RankPolicy.BuildKey/RankKeyComparer, not a group above the sections
-        // or above the evidence grade. Pinned, Boosted and Low compare it only as the final tie-break
-        // after grade, priority, history band and match quality have tied, and only between the three
-        // built-in buckets. Every file-backed row (index files,
+        // or above the evidence grade. Pinned, Boosted and Low compare it after grade, priority, history
+        // band and match placement (contiguity, shape, start) have tied, but before coverage, and only
+        // between the three built-in buckets. Every file-backed row (index files,
         // favorites, history, Windows' Recent) starts on FilesTypeRank so those rows stay one group; a
         // shortcut then borrows the better of that rank and the application type's (below). The inline
         // window never consults the list at all.
