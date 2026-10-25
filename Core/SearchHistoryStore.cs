@@ -77,13 +77,14 @@ public static class SearchHistoryStore
 
             // A path belongs to at most one keyword -- drop it from wherever it currently lives
             // (including its own bucket, if it's already there) before re-adding it under the keyword
-            // it was JUST opened with. Its previous open count and decayed score are carried forward so a
-            // repeatedly opened item accumulates rather than restarting on every open.
+            // it was JUST opened with. Its previous open count and accumulated score are carried forward so
+            // a repeatedly opened item accumulates rather than restarting on every open.
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var previous = RemovePathFromAllBuckets(buckets, normalizedPath);
-            var previousScore = previous is { } p
-                ? SearchHistoryBucketSupport.EffectiveScore(p, now)
-                : 0d;
+            // The stored score is a plain running total; decay belongs to EffectiveScore, which is read at
+            // ranking time and never written back. Feeding the decayed value in here would apply the decay
+            // twice and, against ScoreCap, saturate the total after the first open.
+            var previousScore = previous?.Score ?? 0d;
             var score = Math.Min(SearchHistoryBucketSupport.ScoreCap, previousScore + 1d);
 
             if (!buckets.TryGetValue(keyword, out var list))

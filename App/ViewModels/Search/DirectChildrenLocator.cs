@@ -40,11 +40,44 @@ internal static class DirectChildrenLocator
         // Parsed once for the whole listing: every entry would otherwise re-parse the query.
         var fuzzy = FuzzyQuery.Parse(query);
 
+        // A one-letter query needs its own path. IAliasLiveMatcherProvider states that "single letters are
+        // not this provider's words" -- CreateMatcher returns null for them, so IsAliasMatch answers false
+        // for every han-character name and the folder the user is looking at stays unreachable at one
+        // character. The initials spelling has no such floor, so ask the provider for it directly.
+        // ponytail: one entry per name, no per-name cache. A folder listing is at most a few thousand names
+        // and this only runs for single letters; the ceiling is the reading lookup per entry per keystroke.
+        // Upgrade path: fold it into DirectChildrenListingCache alongside the names it already keeps.
+        var initialsLetter = query.Length == 1 && char.IsAsciiLetter(query[0])
+            ? char.ToLowerInvariant(query[0])
+            : '\0';
+        var aliveProviders = initialsLetter == '\0'
+            ? null
+            : Lertaro.Core.SearchIndex.AliasProviderRegistry.GetActiveProviders()
+                .OfType<Lertaro.PluginSdk.Abstractions.Plugins.IAliasLiveMatcherProvider>()
+                .ToArray();
+        var spellingScratch = aliveProviders is { Length: > 0 } ? new List<string>(4) : null;
+
+        // TEMP diagnostics: what each entry actually matched on, so a han-character name that should have
+        // been reachable but was not can be told apart from a ranking problem. Remove once this is settled.
+        var probe = Lertaro.Core.SearchIndex.PerfTrace.IsEnabled && entries.Count < 14
+            ? new System.Text.StringBuilder()
+            : null;
+
         foreach (var entry in entries)
         {
             if (token.IsCancellationRequested || emitted >= maxMatches)
                 break;
-            if (!fuzzy.IsMatch(entry.Name))
+            // IsMatch compares characters, which is all an English name needs. A han-character name is not
+            // reachable that way at all, so an initials query returned nothing from the folder the user was
+            // looking at while the same query worked in the global results -- the index rows carry a baked
+            // alias and these enumeration rows do not. The alias check is second on purpose: it is the
+            // expensive one, and an English name never reaches it.
+            var byChar = fuzzy.IsMatch(entry.Name);
+            var byAlias = !byChar && fuzzy.IsAliasMatch(entry.Name);
+            var byInitial = !byChar && !byAlias && spellingScratch != null && StartsWithInitial(entry.Name, initialsLetter, aliveProviders!, spellingScratch);
+            if (probe != null)
+                probe.Append(entry.Name).Append(byChar ? "+c " : byAlias ? "+a " : byInitial ? "+i " : "- ");
+            if (!byChar && !byAlias && !byInitial)
                 continue;
 
             onMatch(new SearchResult
@@ -58,7 +91,29 @@ internal static class DirectChildrenLocator
             emitted++;
         }
 
+        if (probe != null)
+            Logger.Log($"[DirectMatch] q='{query}' dir={directory} entries={entries.Count} emitted={emitted} [{probe}]", LogLevel.Info);
+
         return emitted;
+    }
+
+    // Whether the name's initials spelling starts with `letter` -- "动漫" answers 'd' through "dm", which
+    // the reading matcher refuses to do for a one-letter term.
+    private static bool StartsWithInitial(string name, char letter,
+        Lertaro.PluginSdk.Abstractions.Plugins.IAliasLiveMatcherProvider[] providers, List<string> scratch)
+    {
+        foreach (var provider in providers)
+        {
+            scratch.Clear();
+            provider.AppendSpellings(name, scratch);
+            foreach (var spelling in scratch)
+            {
+                if (spelling.Length > 0 && char.ToLowerInvariant(spelling[0]) == letter)
+                    return true;
+            }
+        }
+
+        return false;
     }
 
     // Convenience for callers that have no listing to reuse: walk, then match. The inline search goes

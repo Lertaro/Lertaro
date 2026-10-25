@@ -105,8 +105,22 @@ public static class SearchableItemMapper
 
     internal static MatchRank MatchCatalogEntry(FuzzyQuery query, string[] queryWords, SearchableItemCache.CacheEntry entry)
     {
-        var match = query.BestMatch(entry.Item.Title, entry.Aliases);
-        if (match.IsMatch) return match;
+        // The title's own match comes first. Its Start is the position inside the name the user reads on
+        // screen, and that is the position the ranking ladder orders by -- file rows get theirs the same way
+        // (see SearchResultMapper: fuzzy.Rank(result.Name)). Taking the best across title and aliases here,
+        // as this used to, handed an application a Start from whichever representation scored highest, so its
+        // name position never reached the ladder and it competed on a key that meant something different
+        // from every file row beside it.
+        var byTitle = query.Rank(entry.Item.Title);
+        if (byTitle.IsMatch)
+            return byTitle;
+
+        // Reachable only through an alias or a reading: still a hit, but the alias offset says nothing about
+        // the displayed name, so it enters at the left edge rather than inheriting a meaningless position.
+        var byAlternate = query.BestMatch(entry.Item.Title, entry.Aliases);
+        if (byAlternate.IsMatch)
+            return byAlternate with { Start = 0 };
+
         // Match Windows Control Panel task links: every query token prefixes a title/keyword word.
         // Keyword-only hits have no title highlight evidence, so retain zero weight as a fallback.
         return queryWords.Length > 0 && queryWords.All(token => entry.KeywordWords.Any(

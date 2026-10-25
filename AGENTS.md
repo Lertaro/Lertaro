@@ -84,7 +84,10 @@ Not lazy about: input validation at trust boundaries, error handling that preven
 - 改完直接部署，不必请示；部署后必须核对：安装 ProductVersion、服务 Status、install 与 publish 哈希、app.log 有无异常。
 
 ## 搜索语义（已与 owner 逐条确认，**不要擅自"优化"**）
-- 排序梯子（2026-10-19 定稿，**两侧同序**）：`左侧连续`（Start==0 且连续度>=1）→ `Contiguity` → `IsCurated/Priority`（收藏/历史，**已确认排在覆盖率之前**）→ `覆盖率`（Weight/Contiguity）→ `Tier` → `TypeRank` → `IsDir` → `NameOrderComparer` → `Name.Length`（**名字长度在最后**）。
+- 排序梯子（2026-10-25 定稿，**两侧同序**）：`历史/收藏`（有效分降序，`Count` 为主、时间只占 15% 且永不归零）→ **以下按匹配质量** `左侧连续`（Start==0 且连续度>=1）→ `Contiguity` → `覆盖率`（Weight/Contiguity）→ `Tier` → `TypeRank` → `IsDir` → `NameOrderComparer` → `Name.Length`（**名字长度在最后**）。
+  - **匹配是门槛，使用次数是首要排序键**：能匹配到才进候选，进候选后按用过多少次排。这样短名字不再靠“覆盖率天然高”压掉用户天天用的长名字。
+  - `Low` 段例外：`RankSection.Low` 是用户**显式**降权，历史不在该段参与比较 —— 显式指令优先于隐含统计。
+  - 历史名额（H5 3 条 / H3 10 条）只用于历史行之间的分层与 Tail 判定，**不再是历史分能否参与排序的门槛**。
 - 引擎键 `SearchResultRelevance.HighKey` 同步为：`contiguity(10) | start(6) | coverage(10) | tier(4) | folder(1)`。
 - ⚠️ 多词查询**不再**强制 `Contiguity=0`（那会把空格查询的位置/覆盖率信号全抹平）：空格也按左侧优先排序。
 - `NameOrderComparer`：数字 < 字母 < 符号；字母内**大写在前**；数字按数值（a2 < a10）。

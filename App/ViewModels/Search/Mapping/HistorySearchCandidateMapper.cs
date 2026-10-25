@@ -67,17 +67,26 @@ internal static class HistorySearchCandidateMapper
             if (IsExcludedFromSearch(result))
                 continue;
 
-            // The row is marked history-only: the keyword matched, not the displayed name, so the
-            // quality ladder must not treat its perfect keyword rank as a name hit. Its open count feeds the
-            // decayed-score budget instead of a separate priority signal.
+            // A history row exists because a stored KEYWORD matched -- nothing has been asked yet about the
+            // path's own name. When the name matches too, the row is an ordinary name match and must rank
+            // like one: its Start is the position inside the name the user reads, which is the key the
+            // ladder orders by. Marking every history row history-only threw that position away and left the
+            // row competing on a NoMatch, so a frequently opened file whose name STARTS with the query
+            // sorted below names the query only touched mid-word.
+            //
+            // History-only therefore covers the rows the keyword reached and the name did not; those keep
+            // ranking as learned associations instead of pretending to be textual hits.
+            var byName = fuzzy.Rank(result.Name);
+            var nameMatched = byName.IsMatch;
+
             candidates.Add(new SearchResultMapper.RankedCandidate(
                 result,
                 IsFavorite: false,
                 HistoryCount: entry.Count,
                 TypeRank: typeRank,
-                Match: match,
+                Match: nameMatched ? byName : match,
                 NormalizedPath: normalizedPath,
-                IsHistoryOnly: true));
+                IsHistoryOnly: !nameMatched));
         }
 
         return candidates;

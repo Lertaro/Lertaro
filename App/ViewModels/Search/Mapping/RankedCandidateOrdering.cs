@@ -51,7 +51,40 @@ internal static class RankedCandidateOrdering
 
         Array.Sort(keys, rows, RankKeyComparer.Instance);
         RecordPage(query, rows, keys, context, budget, typeOrder);
+        LogQuickOrder(query, rows, keys, budget);
         return [.. rows];
+    }
+
+    // TEMP diagnostics: the keys that actually decided the order, for answering "why is this row here"
+    // from the log instead of guessing. Gated on PerfTrace and a short query. Remove once settled.
+    private static void LogQuickOrder(
+        string? query,
+        SearchResultMapper.RankedCandidate[] rows,
+        RankKey[] keys,
+        IReadOnlyDictionary<string, HistoryTier> budget)
+    {
+        if (!Lertaro.Core.SearchIndex.PerfTrace.IsEnabled || string.IsNullOrEmpty(query) || query.Length > 3)
+            return;
+
+        var text = new System.Text.StringBuilder(512);
+        var limit = Math.Min(rows.Length, 12);
+        for (var i = 0; i < limit; i++)
+        {
+            var k = keys[i];
+            if (i > 0)
+                text.Append(" | ");
+            text.Append(i + 1).Append(':').Append(rows[i].Result.Name)
+                .Append(",sec=").Append((int)(RankSection)k.Section)
+                .Append(",st=").Append(k.Match.Start)
+                .Append(",c=").Append(k.Match.Contiguity.ToString("F2"))
+                .Append(",cov=").Append(k.Match.Coverage.ToString("F2"))
+                .Append(",h=").Append(k.HistoryTie)
+                .Append(",tier=").Append((int)budget.GetValueOrDefault(rows[i].NormalizedPath, HistoryTier.None))
+                .Append(",ty=").Append(k.TypeRank)
+                .Append(",k=").Append(rows[i].Result.ResultKind);
+        }
+
+        Logger.Log($"[QuickOrder] q='{query}' n={rows.Length} head=[{text}]", LogLevel.Info);
     }
 
     /// <summary>

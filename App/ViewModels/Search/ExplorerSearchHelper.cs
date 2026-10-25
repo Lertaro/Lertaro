@@ -146,13 +146,42 @@ public static class ExplorerSearchHelper
         // grouping by letting a tightly matched file sit between the folders. The global ladder still
         // orders descendants and outside matches.
         var orderedDirect = direct
-            .OrderBy(row => row.Match.Start)
+            .OrderBy(row => OrderingMatch(row.Match).Start)
             .ThenBy(row => row.Result.IsDir ? 0 : 1)
-            .ThenBy(row => row.Match.Tier)
+            .ThenBy(row => OrderingMatch(row.Match).Tier)
             .ThenBy(row => row.Result.Name, NaturalNameComparer.Instance)
-            .Select(row => row.Result);
+            .ToList();
 
-        return orderedDirect.Concat(orderedOthers).ToList();
+        // A row that reached the folder through its initials spelling carries no MatchRank: the one it has
+        // was computed by comparing the query's characters against the name, which for "动漫" and "d" finds
+        // nothing (NoMatch: Start = int.MaxValue, Contiguity = 0). Ordering on that value put it behind every
+        // character hit -- which is how the folder the user was looking at ended up under "Code" for "d".
+        // An initials hit means the reading starts at the first character, so it orders as one.
+        static MatchRank OrderingMatch(in MatchRank match) =>
+            match.Start == int.MaxValue
+                ? new MatchRank(MatchRank.TierName, 0, 1.0, 1.0, MatchRank.ShapeWordStart)
+                : match;
+
+        // TEMP diagnostics: what the direct-children ordering actually keyed on, so "the folder I expected
+        // is not first" can be answered from the log instead of guessed. Remove once this is settled.
+        if (Lertaro.Core.SearchIndex.PerfTrace.IsEnabled && direct.Count is > 0 and < 14)
+        {
+            var probe = new System.Text.StringBuilder();
+            foreach (var row in direct)
+            {
+                var m = row.Match;
+                probe.Append(row.Result.Name).Append('{')
+                    .Append("dir=").Append(row.Result.IsDir ? 1 : 0)
+                    .Append(",st=").Append(m.Start)
+                    .Append(",c=").Append(m.Contiguity.ToString("F2"))
+                    .Append(",sh=").Append(m.Shape)
+                    .Append(",ti=").Append(m.Tier)
+                    .Append("} ");
+            }
+            Logger.Log($"[DirectOrder] dir={contextDirectory} n={direct.Count} ordered=[{string.Join(" > ", orderedDirect.Select(r => r.Result.Name))}] rows=[{probe}]", LogLevel.Info);
+        }
+
+        return orderedDirect.Select(row => row.Result).Concat(orderedOthers).ToList();
     }
 
     // A result paired with the match rank that placed it, so the ordering above can consult the rank even

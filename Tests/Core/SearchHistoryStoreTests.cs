@@ -254,21 +254,45 @@ public sealed class SearchHistoryStoreTests
     }
 
     [TestMethod]
-    public void EffectiveScore_NinetyDays_HalvesScore()
+    public void EffectiveScore_CountLeads_RecencyOnlyTrims()
     {
+        // The weight is the open count. Recency may only scale it, and only by RecencyWeight: an entry used
+        // long ago must still outweigh one that was never used, which is the whole point of keeping history
+        // for the things a user opens rarely.
         const long now = 2_000_000_000;
-        var entry = Entry(time: now - 90 * 86_400, count: 8, score: 8d);
+        var recent = Entry(time: now, count: 5, score: 5d);
+        var longAgo = Entry(time: now - 3650 * 86_400, count: 5, score: 5d);
 
-        Assert.AreEqual(4d, SearchHistoryBucketSupport.EffectiveScore(entry, now), 1e-9);
+        var recentScore = SearchHistoryBucketSupport.EffectiveScore(recent, now);
+        var longAgoScore = SearchHistoryBucketSupport.EffectiveScore(longAgo, now);
+
+        Assert.IsTrue(recentScore > longAgoScore, "a recent entry must outweigh an old one at equal count");
+        Assert.IsTrue(longAgoScore > 0d, "an old entry must never decay to zero");
+        Assert.IsTrue(longAgoScore / recentScore >= 1d - SearchHistoryBucketSupport.RecencyWeight - 1e-9,
+            "recency must not cost more than its configured share of the weight");
     }
 
     [TestMethod]
-    public void EffectiveScore_ThreeHalfLives_IsEighth()
+    public void EffectiveScore_ScalesWithCount()
     {
         const long now = 2_000_000_000;
-        var entry = Entry(time: now - 270 * 86_400, count: 10, score: 10d);
+        var once = Entry(time: now, count: 1, score: 1d);
+        var tenTimes = Entry(time: now, count: 10, score: 10d);
 
-        Assert.AreEqual(1.25d, SearchHistoryBucketSupport.EffectiveScore(entry, now), 1e-9);
+        var onceScore = SearchHistoryBucketSupport.EffectiveScore(once, now);
+        var tenTimesScore = SearchHistoryBucketSupport.EffectiveScore(tenTimes, now);
+
+        Assert.AreEqual(10d * onceScore, tenTimesScore, 1e-9, "count must scale the weight linearly");
+    }
+
+    [TestMethod]
+    public void EffectiveScore_NoCount_IsZero()
+    {
+        const long now = 2_000_000_000;
+        var never = Entry(time: now, count: 0, score: 0d);
+
+        Assert.AreEqual(0d, SearchHistoryBucketSupport.EffectiveScore(never, now), 1e-9,
+            "a row the user never opened must carry no history weight at all");
     }
 
     [TestMethod]
@@ -278,8 +302,8 @@ public sealed class SearchHistoryStoreTests
         var cache = SearchHistoryBucketSupport.BuildScoreCache(
             Buckets(Entry(time: now - 30 * 86_400, count: 1, score: 1d)), now);
 
-        // 1 * 0.5^(1/3) = 0.7937, kept to 0.01 precision.
-        Assert.AreEqual(79, cache[@"C:\path\file.txt"]);
+        // One open, thirty days ago: 1 * (0.85 + 0.15 * 0.5^(30/365)) = 0.9917, kept to 0.01 precision.
+        Assert.AreEqual(99, cache[@"C:\path\file.txt"]);
     }
 
     [TestMethod]

@@ -35,21 +35,24 @@ public sealed class RankedSearchResultComparer : IComparer<SearchResult>
         // history-only rows, so isHistoryOnly is false on both sides.
         var tierX = (HistoryTier)((x.RankFlags >> 3) & 3);
         var tierY = (HistoryTier)((y.RankFlags >> 3) & 3);
-        // Fork: the left edge and coverage lead the keys inside a section, so they have to reach the kernel.
-        // Both live in the high 32 bits the engine packed (start << 24, coverage at 13..22); unpack them here
-        // instead of widening the signal fields, so the packed key stays the single source of truth.
+        // Fork: the left edge, contiguity and coverage lead the keys inside a section, so they have to reach
+        // the kernel. All three live in the high 32 bits the engine packed (start << 24, coverage at 13..21,
+        // contiguity at 5..12); unpack them here instead of widening the signal fields, so the packed key
+        // stays the single source of truth.
         var rankX = new SectionRank(
             x.RankScore,
             RankPolicy.HistoryTie(isHistoryOnly: false, tierX, x.HistoryScoreX100),
             0,
             (int)((x.RankSortKey >> 56) & 0x7F),
-            CoverageOf(x.RankSortKey));
+            CoverageOf(x.RankSortKey),
+            ContiguityOf(x.RankSortKey));
         var rankY = new SectionRank(
             y.RankScore,
             RankPolicy.HistoryTie(isHistoryOnly: false, tierY, y.HistoryScoreX100),
             0,
             (int)((y.RankSortKey >> 56) & 0x7F),
-            CoverageOf(y.RankSortKey));
+            CoverageOf(y.RankSortKey),
+            ContiguityOf(y.RankSortKey));
 
         compare = RankPolicy.CompareSectionRank(sectionX, in rankX, in rankY);
         if (compare != 0)
@@ -81,9 +84,14 @@ public sealed class RankedSearchResultComparer : IComparer<SearchResult>
             result.RankSortKey & 0xFFFF_FFFFUL);
     }
 
-    // Coverage lives in bits 13..22 of the high 32 as "smaller is better" (see SearchResultRelevance.HighKey:
+    // Coverage lives in bits 13..21 of the high 32 as "smaller is better" (see SearchResultRelevance:
     // coveragePoint = (1 - coverage) * CoverageMax, CoverageMax = 0x1FF). Unpack it back to 0..1 so the kernel
     // compares it the same way the quick window does.
     private static double CoverageOf(ulong rankSortKey)
         => 1.0 - (((rankSortKey >> 45) & 0x3FF) / 511.0);
+
+    // Contiguity sits in bits 5..12 of the high 32, same "smaller is better" encoding with an 8-bit span
+    // (contiguityPoint = (1 - contiguity) * 0xFF), so the packed bits 37..44 of the full key.
+    private static double ContiguityOf(ulong rankSortKey)
+        => 1.0 - (((rankSortKey >> 37) & 0xFF) / 255.0);
 }

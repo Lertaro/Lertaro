@@ -10,22 +10,38 @@ internal static class SearchHistoryBucketSupport
 {
     internal const int MaxEntriesPerKeyword = 20;
 
-    // The history weight lives on a 0..10 scale and decays with a 90-day half-life: an open today is
-    // worth half as much in three months, so an old habit cannot hold the top of the list forever.
+    // Cap on the accumulated score and on the count fallback used for entries that carry no score. It no
+    // longer scales the effective weight (that follows the open count below), it only keeps the stored
+    // number bounded.
     internal const double ScoreCap = 10d;
-    internal const double HalfLifeDays = 90d;
+
+    // How much the history weight may depend on WHEN a row was last used, as opposed to how often. Counting
+    // is the signal the user asked for -- "opened once, so it should lead" -- so time only scales the count
+    // within this fraction, and the scale never reaches zero:
+    //
+    //     effective = count * (1 - weight + weight * decay)
+    //
+    // with decay running 1.0 (used today) down to 0.0 (used very long ago). At weight 0.15 an entry used
+    // today counts in full, and the same entry used long ago still counts 85%: recency breaks ties between
+    // similar counts and cannot retire a habit.
+    //
+    // The half-life is deliberately long. At 90 days an annual tool fell to a small fraction of itself,
+    // which is exactly the case "I still want to find it when I remember it" describes.
+    internal const double RecencyWeight = 0.15d;
+    internal const double RecencyHalfLifeDays = 365d;
     internal const double SecondsPerDay = 86400d;
 
-    /// <summary>The score as of `nowUnix`. Decay is computed at read time and never written back; a
-    /// timestamp in the future simply reads as undecayed.</summary>
+    /// <summary>The score as of `nowUnix`: open count, scaled slightly by how recently it was last opened.</summary>
+    /// <remarks>Decay is computed at read time and never written back; a future timestamp reads as fresh.</remarks>
     internal static double EffectiveScore(in SearchHistoryStore.StoredEntry entry, long nowUnix)
     {
-        var score = Math.Clamp(entry.Score, 0d, ScoreCap);
-        if (score <= 0d)
+        var count = Math.Max(0, entry.Count);
+        if (count == 0)
             return 0d;
 
         var days = Math.Max(0d, (nowUnix - entry.Time) / SecondsPerDay);
-        return score * Math.Pow(0.5, days / HalfLifeDays);
+        var decay = Math.Pow(0.5, days / RecencyHalfLifeDays);
+        return count * (1d - RecencyWeight + RecencyWeight * decay);
     }
 
     // Rebuilds a clean bucket set from a most-recent-first sequence: a path lands in whichever keyword

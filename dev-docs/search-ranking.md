@@ -13,7 +13,7 @@
 - 两个窗口共用一个内核 `Core/SearchIndex/RankPolicy.cs`：强/弱判定、分值、四段、段内键序与公共尾。快速窗口把候选装饰成 `RankKey[]` 后 `Array.Sort`；完整窗口把同一答案写在 `SearchResult` 的三个字段上，比较器只读字段。
 - 先分段，再在段内排序。段序固定：Pinned（始终置顶）→ Boosted（收藏强匹配、H5/H3、正常或高优先的未提升行）→ Low（低优先且未被提升）→ HistoryTail（纯历史、有效分 < 3）。分段是必需的：没有任何一组权重能同时让低优先整段高于历史尾部、又让六档分值保持单调。
 - 分值 `S = 10*C + 8*P`：强匹配 C=1；高优先 P=2、正常 P=1、低 P=0。五档 26/18/16/8，收藏强匹配 44，历史 H5 34、H3 22，纯历史尾部 6。0.8 的含义是“一个优先档抵 0.8 个匹配档”：高优先弱匹配（16）排在正常优先强匹配（18）之后。
-- 历史用衰减分（半衰期 90 天，封顶 10），不是打开次数：有效分 ≥ 5 进 H5、≥ 3 进 H3。快速窗口 H5 最多 3 条、H3 最多 10 条；内联窗口降到 1/3；完整窗口只按阈值判定、不设名额，也不加历史行。
+- 历史以打开次数为主，时间只做小幅修正：`Effective = Count * (1 - 0.15 + 0.15 * 0.5^(days/365))`。时间最多只削掉 15%，且永不归零 —— 打开过一次的东西，隔多久都还带着正分。H5/H3 名额只用于历史行之间的分层与 Tail 判定，不再是历史分能否参与排序的门槛。快速窗口 H5 最多 3 条、H3 最多 10 条；内联窗口降到 1/3；完整窗口只按阈值判定、不设名额，也不加历史行。
 - 收藏只在强匹配时置顶；弱匹配不加分。Windows Recent 的历史分恒为 0，只按匹配质量竞争，不会因为“最近用过”被抬。
 - 索引规则的“始终置顶”只对高优先生效，且不是加行：命中的行仍须匹配查询，只是进 Pinned 段。
 - 引擎截断（每盘缓冲 → 排序 → `Take`）用 `SearchCandidateComparer`，只读匹配质量与公共尾，不读优先级/历史/收藏。“改截断不改终局”是刻意解耦，免得规则一改，被截掉的候选也跟着变。
@@ -114,17 +114,19 @@ S = 10*C + 8*P
 
 ### 历史
 
-存储：`SearchHistoryStore` 的 `StoredEntry` 带 `Score`（0–10），`Count` 保留但不再决定排序。
+存储：`SearchHistoryStore` 的 `StoredEntry` 带 `Count`（打开次数，权重来源）与 `Score`（0–10 的运行总分，仅作存储，不参与排序）。
 
-衰减：`Effective = clamp(Score * 0.5^(days/90), 0, 10)`（`SearchHistoryBucketSupport.EffectiveScore`）；未来时间不放大。
+权重：`Effective = Count * (1 - RecencyWeight + RecencyWeight * 0.5^(days/365))`（`SearchHistoryBucketSupport.EffectiveScore`），`RecencyWeight = 0.15`；未来时间不放大。次数线性计入且不封顶，时间最多只占 15%、且 `Count = 0` 时才为 0 —— 打开过一次的行永远带正分。
 
-打开一次：`Score = min(10, Effective + 1)`，`Time` 更新，`Count += 1`。加的是“当前有效分 + 1”，不是“打开次数 + 1”——放了一个月再打开，从衰减后的分往上走，而不是从 10 往上撞顶。
+打开一次：`Count += 1`，`Score = min(10, 上一个 Score + 1)`，`Time` 更新。`Score` 只做存储，衰减在读取时算，不写回；把衰减后的值喂回这里是双重衰减、且会立刻撞上 `ScoreCap`。
 
-迁移：旧 JSON 没有 `score` 字段时，`Score = min(Count, 10)`，再按 `Time` 自然衰减；幂等（重读重写不改结果）。`SaveEntries` 在锁内保留旧记录的分数，缺分时才用 `Count` 兜底。
+迁移：旧 JSON 没有 `score` 字段时，`Score = min(Count, 10)`；`SaveEntries` 在锁内保留旧记录的分数，缺分时才用 `Count` 兜底。
 
 读取：`ScoreSnapshot(now)` 在锁内算一次 `path → round(effective*100)`，每次查询取一次（流式重绘不得二次衰减）。`RecordCore` 只由“打开”触发；`GetEntries`/`Flatten` 读原始分，不衰减。
 
 档位：`Effective >= 5` → H5，`>= 3` → H3；资格是“纯历史行”或“强匹配的索引行”。快速窗口按有效分降序（同分按路径 Ordinal）取前 3 条进 H5、接下来 10 条进 H3；第 4 条 5+ 掉进 H3 而不是掉出提升；3–5 分的行不会补 H5 的空位；没进 H5/H3 的纯历史行落 Tail。内联窗口名额 1/3；完整窗口只看阈值，没有 Tail。
+
+排序：历史的有效分在任何非 `Low` 段内都是第一个键（`CompareSectionRank` 的 `HistoryTie` 提前比较），排在分值、左边界、覆盖率之前 —— 匹配决定“能不能进候选”，使用次数决定“谁在前面”。`Low` 段例外：那是用户显式降权，显式指令优先于隐含统计。
 
 scope：`HistorySearchCandidateMapper` 只收集当前 scope 内的历史行；scope 外的路径不参与预算，不会被提升。
 

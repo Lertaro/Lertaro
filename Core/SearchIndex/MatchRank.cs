@@ -85,6 +85,12 @@ public readonly record struct MatchRank(
     /// The shared quality comparison, smallest/best first. Both windows use this exact sequence so they
     /// cannot order the same two rows differently.
     /// </summary>
+    /// <remarks>
+    /// Tier is deliberately not compared. It records HOW the query was reached -- literal characters, an
+    /// initials reading, a full reading, a rare polyphone -- and the owner's rule is that the route must not
+    /// carry weight: a name reached through its pinyin is neither better nor worse than one whose letters
+    /// were typed directly. Only where the match sits, how tightly, and how much of the name it fills count.
+    /// </remarks>
     public static int CompareQuality(in MatchRank left, in MatchRank right)
     {
         var compare = right.Contiguity.CompareTo(left.Contiguity);
@@ -108,6 +114,6 @@ public readonly record struct MatchRank(
         if (compare != 0)
             return compare;
 
-        return left.Tier.CompareTo(right.Tier);
+        return 0;
     }
 }

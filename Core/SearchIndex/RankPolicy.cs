@@ -207,16 +207,21 @@ public static class RankPolicy
         Section(s.Match.IsStrong, s.IsFavorite, s.IsHistoryOnly, s.Priority, s.AlwaysTop, tier);
 
     /// <summary>
-    /// The in-bucket history order, precise to 0.01. H5 and H3 rows break a score tie by their history
-    /// score; only a history-only row carries one at Tail, so an indexed row sitting at Tail (Score still
-    /// counts its C/P) and a row without history are both zero and stay tied.
+    /// The history key, on a 0..1000 scale: how much the user actually uses this row, as the store already
+    /// decayed it.
     /// </summary>
-    public static int HistoryTie(bool isHistoryOnly, HistoryTier tier, int historyScoreX100) => tier switch
-    {
-        HistoryTier.H5 or HistoryTier.H3 => historyScoreX100,
-        HistoryTier.Tail when isHistoryOnly => historyScoreX100,
-        _ => 0,
-    };
+    /// <remarks>
+    /// It used to hand back the score only for H5/H3 rows and zero for everything else, which made the
+    /// budget's thirteen slots decide whether a row's own history counted at all. A name opened every day
+    /// but ranked eleventh in some other query fell to zero here and then lost on coverage to any short
+    /// name -- the history was recorded, displayed ("常用"), and never reached the ordering. The budget
+    /// still shapes the sections and the tail; it no longer gates the key.
+    ///
+    /// A row with no history scores 0 here, so this key is neutral between rows the user never touched and
+    /// matching decides between them.
+    /// </remarks>
+    public static int HistoryTie(bool isHistoryOnly, HistoryTier tier, int historyScoreX100) =>
+        historyScoreX100;
 
     public static int HistoryTie(in RankSignals s, HistoryTier tier) =>
         HistoryTie(s.IsHistoryOnly, tier, s.HistoryScoreX100);
@@ -340,31 +345,48 @@ public static class RankPolicy
             return x.TypeRank.CompareTo(y.TypeRank);
         }
 
-        var byScore = y.Score.CompareTo(x.Score);
-        if (byScore != 0)
-            return byScore;
-
-        // Fork: the left edge leads the keys inside every section, then coverage (how much of the name the
-        // query fills). Both are read here rather than in the caller so the two windows cannot disagree.
+        // Match quality is one layer, and it is the layer that decides order: where the query sits in the
+        // name, then how tightly it sits there, then how much of the name it fills.
+        //
+        // The left edge leads. A name whose query lands at its first character is what the user meant, and no
+        // amount of usage or type preference changes that -- a row used every day must not outrank a row
+        // whose name simply starts with what was typed.
         var byStart = x.Start.CompareTo(y.Start);
         if (byStart != 0)
             return byStart;
+
+        var byContiguity = y.Contiguity.CompareTo(x.Contiguity);
+        if (byContiguity != 0)
+            return byContiguity;
 
         var byCoverage = y.Coverage.CompareTo(x.Coverage);
         if (byCoverage != 0)
             return byCoverage;
 
-        // Low is the one section that reads match quality before the display type order, and quality is
-        // the caller's to compare, so this stops here and leaves TypeRank to it.
-        if (section == RankSection.Low)
-            return 0;
-
-        if (section == RankSection.Boosted)
+        // Usage next, as a band: among rows that matched equally well, one the user opens is ahead of one
+        // they never touch. It cannot lift a worse match over a better one -- that ordering was already
+        // settled above.
+        //
+        // Low is excluded. That section exists because the user explicitly demoted the path, and an explicit
+        // instruction outranks an implicit one: letting history lead there would silently undo the setting
+        // for exactly the paths someone bothered to mark.
+        if (section != RankSection.Low)
         {
             var byHistory = y.HistoryTie.CompareTo(x.HistoryTie);
             if (byHistory != 0)
                 return byHistory;
         }
+
+        // The strong/weak flag, plus the priority and tier folded into Score. Both windows read it here so
+        // they cannot disagree.
+        var byScore = y.Score.CompareTo(x.Score);
+        if (byScore != 0)
+            return byScore;
+
+        // Low is the one section that reads match quality before the display type order, and quality is
+        // the caller's to compare, so this stops here and leaves TypeRank to it.
+        if (section == RankSection.Low)
+            return 0;
 
         return x.TypeRank.CompareTo(y.TypeRank);
     }
@@ -411,9 +433,16 @@ public static class RankPolicy
 }
 
 /// <summary>Per-section ordering inputs. See RankPolicy.CompareSectionRank for what each section reads.</summary>
-/// <param name="Start">Leftmost matched character; the fork's first key inside a section (0 for rows with no name match).</param>
-/// <param name="Coverage">How much of the name the query fills, 0..1; the fork's second key inside a section.</param>
-public readonly record struct SectionRank(int Score, int HistoryTie, int TypeRank, int Start = 0, double Coverage = 0);
+/// <param name="Start">Leftmost matched character; the first key inside a section (0 for rows with no name match).</param>
+/// <param name="Contiguity">How tightly the matched characters sit together, 0..1; the second key.</param>
+/// <param name="Coverage">How much of the name the query fills, 0..1; the third key.</param>
+public readonly record struct SectionRank(
+    int Score,
+    int HistoryTie,
+    int TypeRank,
+    int Start = 0,
+    double Coverage = 0,
+    double Contiguity = 0);
 
 /// <summary>The tail every section shares, already reduced to values a comparer can read.</summary>
 public readonly record struct RankTail(bool IsDir, string Name, string NormalizedPath, int Drive, ulong EngineTie);
@@ -434,8 +463,8 @@ public sealed class RankKeyComparer : IComparer<RankKey>
             return compare;
 
         var section = (RankSection)x.Section;
-        var rankX = new SectionRank(x.Score, x.HistoryTie, x.TypeRank, x.Match.Start, x.Match.Coverage);
-        var rankY = new SectionRank(y.Score, y.HistoryTie, y.TypeRank, y.Match.Start, y.Match.Coverage);
+        var rankX = new SectionRank(x.Score, x.HistoryTie, x.TypeRank, x.Match.Start, x.Match.Coverage, x.Match.Contiguity);
+        var rankY = new SectionRank(y.Score, y.HistoryTie, y.TypeRank, y.Match.Start, y.Match.Coverage, y.Match.Contiguity);
 
         compare = RankPolicy.CompareSectionRank(section, in rankX, in rankY);
         if (compare != 0)

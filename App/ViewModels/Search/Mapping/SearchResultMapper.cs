@@ -97,6 +97,11 @@ public static class SearchResultMapper
 
         RemoveQueriedDirectoryItself(fileResults, query);
 
+        // A start-menu entry, a desktop shortcut and the program it points at are three rows for one thing.
+        // Drop the shortcut when it merely spells its target's name, and move its history onto the target --
+        // before ranking, so the row that survives inherits the position the shortcut had earned.
+        fileResults = DedupeShortcutRows(fileResults, rawQuery ?? query, ref rankContext);
+
         // If a directory scope is provided, keep only file/folder results that reside inside the scoped path.
         if (!string.IsNullOrEmpty(scope) && fileResults != null)
         {
@@ -391,6 +396,124 @@ public static class SearchResultMapper
 
         StampWindow(uiResults, isInlineWindow);
         return uiResults;
+    }
+
+    // A start-menu entry, a desktop shortcut and the program they point at are three rows for one thing:
+    // the index carries the .exe, the shell's recent list carries the .lnk, the start menu carries another.
+    //
+    // Only a shortcut that repeats its target's own name is dropped -- "Apex.lnk" pointing at "Apex.exe".
+    // A shortcut the user renamed ("我的工具.lnk" -> "Apex.exe") is a name they chose, so it stays. A query
+    // that asks for shortcuts by name is left alone entirely: typing "lnk" means the extension is the thing
+    // being searched for.
+    //
+    // The dropped row's history moves to the target before ranking, not after: ranking with the shortcut
+    // still present would place the survivor using a score it never earned, and then dropping the shortcut
+    // would leave that position behind.
+    private static List<SearchResult>? DedupeShortcutRows(List<SearchResult>? rows, string query, ref RankContext? rankContext)
+    {
+        if (rows is not { Count: > 1 })
+            return rows;
+
+        if (LooksLikeShortcutQuery(query))
+            return rows;
+
+        var dropped = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, int>? merged = null;
+        Dictionary<string, SearchResult>? byPath = null;
+        foreach (var row in rows)
+        {
+            if (!row.Path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            byPath ??= BuildPathIndex(rows);
+            var target = ShortcutTarget(row.Path);
+            if (target is null)
+                continue;
+
+            // Compare through the shared normalizer: the index stores a path without its trailing separator
+            // and a shortcut's target arrives from GetFullPath, so a raw string compare on the two forms can
+            // miss the row that is right there.
+            var targetKey = SearchResultHelper.NormalizePath(target);
+            if (!byPath.ContainsKey(targetKey) && !byPath.ContainsKey(target))
+                continue;
+
+            // Renamed by the user: the shortcut's own name is the name to keep.
+            if (!string.Equals(System.IO.Path.GetFileNameWithoutExtension(row.Path), System.IO.Path.GetFileNameWithoutExtension(target), StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            dropped.Add(row.Path);
+            var shortcutKey = SearchResultHelper.NormalizePath(row.Path);
+            if (rankContext is { } context && context.HistoryScoreX100.TryGetValue(shortcutKey, out var score) && score > 0)
+            {
+                // Take the larger of the two, not the sum: two same-named shortcuts in different folders must
+                // not add up to a score higher than either of them ever earned.
+                merged ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                merged[targetKey] = Math.Max(merged.GetValueOrDefault(targetKey), score);
+            }
+        }
+
+        if (dropped.Count == 0)
+            return rows;
+
+        if (rankContext is { } existing && merged is { Count: > 0 })
+        {
+            var combined = new Dictionary<string, int>(existing.HistoryScoreX100, StringComparer.OrdinalIgnoreCase);
+            foreach (var (path, score) in merged)
+                combined[path] = Math.Max(combined.GetValueOrDefault(path), score);
+            rankContext = new RankContext(existing.PriorityResolver, combined, existing.FavoritePaths,
+                existing.HistoryFiveMax, existing.HistoryThreeMax);
+        }
+
+        if (Logger.IsEnabled(LogLevel.Debug))
+            Logger.Log($"[ShortcutDedupe] dropped {dropped.Count} shortcut(s): {string.Join("; ", dropped)}", LogLevel.Debug);
+
+        return rows.FindAll(row => !dropped.Contains(row.Path));
+    }
+
+    private static Dictionary<string, SearchResult> BuildPathIndex(List<SearchResult> rows)
+    {
+        var index = new Dictionary<string, SearchResult>(rows.Count * 2, StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows)
+        {
+            index[row.Path] = row;
+            // Also under the normalized form, so a target compared after NormalizePath finds the row even
+            // when the two spellings differ by a trailing separator.
+            index[SearchResultHelper.NormalizePath(row.Path)] = row;
+        }
+        return index;
+    }
+
+    // Whether the query is asking for shortcut files themselves rather than for whatever they point at.
+    // A bare "lnk" or a name ending in ".lnk" means the extension is the thing being searched for; the
+    // letters "lnk" inside an ordinary word must not switch de-duplication off.
+    private static bool LooksLikeShortcutQuery(string query)
+    {
+        var trimmed = query.Trim();
+        if (trimmed.Length == 0)
+            return false;
+        if (trimmed.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+            return true;
+        return trimmed.Equals("lnk", StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Resolving a shortcut walks IShellLink and IPersistFile, and a BuildQuickResults call happens on every
+    // streaming paint -- the same .lnk would be resolved again and again within one search. One entry per
+    // shortcut for the life of the process: the target of a .lnk does not change under it in practice, and a
+    // stale answer only costs the de-duplication, never a wrong row.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string?> ShortcutTargetCache =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private static string? ShortcutTarget(string shortcutPath)
+    {
+        if (ShortcutTargetCache.TryGetValue(shortcutPath, out var cached))
+            return cached;
+
+        var target = Lertaro.PluginSdk.Helpers.StartMenuShortcutResolver.ResolveShortcutTarget(shortcutPath);
+        if (string.IsNullOrEmpty(target))
+            return null;
+
+        ShortcutTargetCache[shortcutPath] = target;
+        return target;
     }
 
     // IsFavorite: an explicit user pick. HistoryCount is how many times the path was opened (0 when not
