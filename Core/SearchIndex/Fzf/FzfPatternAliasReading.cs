@@ -15,15 +15,17 @@ namespace Lertaro.Core.SearchIndex.Fzf;
 //     taking it away with the fuzzy setting is what left such a query unable to reach its own file at all
 //     (measured: 0.3% of these reached their name in exact mode against 76% in fuzzy mode).
 //
-// So the alias tiers read every positive Exact/Fuzzy term BOTH ways, CONTIGUOUS FIRST: a term that is a
+// So the alias tiers read every positive Exact/Fuzzy term of a transliteration BOTH ways, CONTIGUOUS FIRST: a term that is a
 // real run is still explained by that run (with its own score, span and tier), and the loose reading only
 // decides terms no run can. The order is load-bearing, not cosmetic -- the other way round, the loose
 // reading of "jt" matches wide across a 188-character alias, the quality gate rejects that match, and the
 // tight "jt" run is never examined at all.
 //
-// What deliberately does NOT get a second reading: an exclusion (`!term` is only ever compared against the
-// candidate's own name), an operator kind (it says exactly what it means), and a provider's query form (it
-// is already a rewrite of the typed term, whose own second reading supplies the loose one).
+// What deliberately does NOT get a second reading: an exclusion (`!term` is only ever compared against
+// the candidate's own name), an operator kind (it says exactly what it means), a provider's query form (it
+// is already a rewrite of the typed term, whose own second reading supplies the loose one), and an alias
+// that is the candidate's text rewritten rather than a spelling of it (see the overload of ReadingFor that
+// takes the alias).
 //
 // The syllable-alignment rule applies to this view like any other (FzfPattern.RequiresAlignedAliases is
 // unconditional now): a match may not BEGIN inside one of the candidate's readings, in either mode. The
@@ -44,6 +46,20 @@ internal static class FzfPatternAliasReading
     /// </remarks>
     internal static FzfPattern ReadingFor(this FzfPattern pattern, char separator)
         => separator == '\0' ? pattern : pattern.AliasReading;
+
+    /// <summary>
+    /// The reading ONE alias of a provider is matched with: the alias-side view when that alias is a
+    /// transliteration, the query itself when it is the candidate's own text rewritten.
+    /// </summary>
+    /// <remarks>
+    /// The second reading exists for spellings -- "gxiao" is 高's initial plus 效's whole reading and is no
+    /// run in any alias of that name. An alias that carries the source script instead (pinyin's Simplified
+    /// spelling) says nothing about syllables, and every letter in it is already a letter of the name, so
+    /// reading it loosely is the user's own precision overridden by coincidence: with fuzzy matching off,
+    /// "zbl" reached 著作zsbsls.txt that way. See <see cref="AliasMatchRules.IsTransliteration(ReadOnlySpan{char})"/>.
+    /// </remarks>
+    internal static FzfPattern ReadingFor(this FzfPattern pattern, char separator, ReadOnlySpan<char> alias)
+        => AliasMatchRules.IsTransliteration(alias) ? pattern.ReadingFor(separator) : pattern;
 
     internal static FzfPattern Build(FzfPattern source)
         => new(

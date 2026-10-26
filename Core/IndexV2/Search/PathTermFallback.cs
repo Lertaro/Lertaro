@@ -91,17 +91,16 @@ internal static class PathTermFallback
 
         var termPatterns = new FzfPattern[termCount];
         var termBytePatterns = new FzfBytePattern[termCount];
-        // The alias-side reading of each term (see FzfPatternAliasReading), used only where the helper below
-        // asks about a candidate's ALIASES -- the term's own name is still matched with the user's own
-        // precision, which is what the two arrays above are for.
-        var termAliasPatterns = new FzfPattern[termCount];
+        // The alias-side byte reading of each term (see FzfPatternAliasReading), used only where the helper
+        // below asks about a candidate's ALIASES -- the term's own name is still matched with the user's own
+        // precision, which is what the two arrays above are for. An alias that rewrites the ancestor's own
+        // script is not a spelling, so the char path of that helper keeps `termPatterns`.
         var termAliasBytePatterns = new FzfBytePattern[termCount];
         for (var i = 0; i < termCount; i++)
         {
             termPatterns[i] = FzfPattern.ForTermSet(pattern, i);
             termBytePatterns[i] = FzfBytePattern.From(termPatterns[i]);
-            termAliasPatterns[i] = termPatterns[i].AliasReading;
-            termAliasBytePatterns[i] = FzfBytePattern.From(termAliasPatterns[i]);
+            termAliasBytePatterns[i] = FzfBytePattern.From(termPatterns[i].AliasReading);
         }
 
         // Phase A once per term instead of once per query: which unique names satisfy term i, and with
@@ -193,7 +192,7 @@ internal static class PathTermFallback
                     var parent = snapshot.ParentIndexes[row];
                     if (parent == row || parent < 0)
                         continue;
-                    if ((nameMask | PathTermFallbackAncestorHelper.AncestorMask(snapshot, delta, parent, termPatterns, termBytePatterns, termAliasPatterns, termAliasBytePatterns, worker, ancestorMemo, fullMask, rootMask, ancestorChain)) != fullMask)
+                    if ((nameMask | PathTermFallbackAncestorHelper.AncestorMask(snapshot, delta, parent, termPatterns, termBytePatterns, termAliasBytePatterns, worker, ancestorMemo, fullMask, rootMask, ancestorChain)) != fullMask)
                         continue;
 
                     topN.Add(new FzfRank(row, hit.Score, hit.SortKey));

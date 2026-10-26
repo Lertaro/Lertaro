@@ -46,7 +46,7 @@ P0 fixture：`Tests/Core/SearchRanking/Fixtures/reported-search-cases.v1.json`�
 | `437-fscapture-source` | 原始查询未转录；历史已清 | 未有 trace 前不归因；无 witness 时必须 absent |
 | `437-pinyin-space` | `sousuojieguo` / `sousuo jieguo` | 都召回、同 Grade、rank delta ≤ 1、高亮一致 |
 | `437-shortcut-low` | shortcut 位于工具目录 | stock 规则不得误降级；用户显式 Low 继续生效 |
-| `440-zbl-alias-scatter` | 精确 `zbl` 与长 EPUB 名 | 必须 absent；紧凑 alias 正例保留；matcher 与 painter 共用 witness |
+| `440-zbl-alias-scatter` | 精确 `zbl` 与长 EPUB 名 | 必须 absent；同文种别名在精确模式下紧凑散布也 absent（2026-10-26 反转，见第 12 条）；matcher 与 painter 共用 witness |
 
 ## 目标模型
 
@@ -333,13 +333,13 @@ P4 与 P5 可并行，但都依赖 P3，且不能提前切换排序。P9 可跳�
 3. **两窗 Grade 仍有一档差**：拼接分支确实胜出的空格拼音行，快速窗口判 `ExactIdentity`、完整窗口判 `DirectStrong`。完整窗口只有 32 位打包质量键，键里没有“胜出分支”这一位；闭合它要把该位带过引擎/管道边界，也就是 P9 里排最后的第 4 项，须由 1、2 的测量决定是否需要。
 4. **`Low` 与强收藏的优先级（已决定）**：产品决定“收藏优先”，段判定先于 `Low`，被规则降权的强收藏仍进 `Pinned`。实现与决定一致，不再作为待决项。
 5. **P8 canonical query（已实施）**：`NormalizeAssociationQuery` 在折叠大小写/空白后，仅对全部由 ASCII 字母组成的词做无空格拼接，`sousuojieguo` 与 `sousuo jieguo` 归并到同一键；引号、操作符、非 ASCII 查询不拼接。加载、旧版迁移与新增关联都走同一规范化并合并计数，已有键在加载时幂等迁移。
-6. **P0 工单断言（部分可执行）**：`#440` 已补候选生成层断言——跨 15 字符的松散布被 `AliasMatchRules.IsTightOccurrence` 拒绝，11 字符紧凑正例通过；其余 `v3Expected.assertions` 仍是散文，`LoadReportedCases` 现在读 id/window/查询/路径及候选的 token/displayName/role/tightness 期望，但仍不执行散文契约。要执行剩余断言必须补成完整回放 fixture 或接真实索引。
+6. **P0 工单断言（部分可执行）**：`#440` 已补候选生成层断言——跨 15 字符的松散布被 `AliasMatchRules.IsTightOccurrence` 拒绝，11 字符紧凑正例在**门级**仍通过（候选层不再收它，见第 12 条）；其余 `v3Expected.assertions` 仍是散文，`LoadReportedCases` 现在读 id/window/查询/路径及候选的 token/displayName/role/tightness 期望，但仍不执行散文契约。要执行剩余断言必须补成完整回放 fixture 或接真实索引。
 7. **两窗质量精度不同**：完整窗口用量化键（连续性 1/255、覆盖率 1/511），快速窗口用原始 double。差异小于一格的成对比较两窗可能给不同名次。
 8. **P0 仍缺一条 case**：`reported-search-cases.v1.json` 只有 5 条；`437-shortcut-low` 没有查询与候选数据，无法回放。P0 仍只能算 5/6；没有原始工单时无法凭空补录，需继续向工单/用户取数，或明确接受该条不进入门槛。
 9. **learned alias（已实施 exact）**：`HistorySearchCandidateMapper.CollectCore` 现在只按规范化查询键精确查 `search-query-associations.json`，不再对所有关联调用 `BestMatchWithEvidence(entry.Keyword)`。换来的边界是：只有规范化后完全相同的查询才召回学习项，旧版模糊能命中的前缀/变体不再命中；这是 P8.4 的本意，不是召回退化。
 10. **完整窗口没有历史配额（已决定）**：快速窗口 H5/H3 限 3/10、内联 1/3，完整窗口不设配额。产品决定优先保证“展开全部”时相关行不被配额藏掉；同分相邻行两窗差一档名次作为已知差异接受，已写入 `search-ranking.md`。
-11. **absence/recall 门槛**：`#440` 已补真实索引/候选生成层 harness（`Tests/Plugins/PinyinAlias/PinyinExactModeTests.cs`，真实 `Snapshot → LiveIndex → IndexV2Searcher`）：精确 `zbl` 只召回 11 字符紧凑行、不召回 15 字符松散布。这不是通过终局排序过滤得到的，而是候选层本身的行为。其余 case 的 `mustBeAbsent` 仍只检查回放 run 的已排序候选 token，`MissingExpectedTokens` 因 loader 要求 expected token 必须是候选而恒为 0；Recall@50=100% 仍不能由离线回放单独背书。
-12. **`#440` 紧凑正例（已闭合，未放宽）**：`zbl` 对 11 字符紧凑名在 `AliasMatchRules.IsTightOccurrence(3, 11)` 为真；精确模式下字面 `FzfPattern.TryMatch` 因连字符不连续而失败，但共享 alias 门接受该 11 字符 span（实测 score 72，门槛 `queryLen * 5 = 15`），`FuzzyMatcher.IsMatch` 在真实 pinyin provider 下为真。原“被分数门槛拒掉”的判断不成立，因此没有改阈值；真实索引测试 `Reported440_RealIndexCandidateLayerKeepsOnlyTheTightAlias` 已钉住该行为。
+11. **absence/recall 门槛**：`#440` 已补真实索引/候选生成层 harness（`Tests/Plugins/PinyinAlias/PinyinExactModeTests.cs`，真实 `Snapshot → LiveIndex → IndexV2Searcher`）：精确 `zbl` 两行都不召回，模糊模式只召回 11 字符紧凑行（见第 12 条的反转）。这不是通过终局排序过滤得到的，而是候选层本身的行为。其余 case 的 `mustBeAbsent` 仍只检查回放 run 的已排序候选 token，`MissingExpectedTokens` 因 loader 要求 expected token 必须是候选而恒为 0；Recall@50=100% 仍不能由离线回放单独背书。
+12. **`#440` 紧凑正例（已作废 2026-10-26）**：这一条原先记的是"`zbl` 对 11 字符紧凑名在 `AliasMatchRules.IsTightOccurrence(3, 11)` 为真，共享 alias 门接受该 span（实测 score 72，门槛 `queryLen * 5 = 15`），所以精确模式收下它是正确行为"。工单里那条 `著作zsbsls.txt` 把这个判断证伪：同一个别名（繁转简写法 `着作zsbsls.txt`）里 `z b l` 的跨度只有 5，任何按跨度分的门都拦不住，而名字层已经明确拒绝了这个词。现行规则不看跨度看别名是不是拼写——同文种别名按用户键入的精度判（`AliasMatchRules.IsTransliteration`、`FzfPatternAliasReading` 带 alias 的 `ReadingFor` 重载），精确模式下紧凑散布与松散布一起不召回，模糊模式里紧凑度门才继续分工（`IsTightOccurrence` 本身与 `Reported440_CandidateGate_*` 那条门级断言不变）。测试换成 `PinyinExactModeTests.Reported440_ExactModeReachesNoAliasScatterAndFuzzyKeepsTheTightOne` 与 `ScatteredAsciiIsland_StaysOutOfExactMode`；`AliasLooseReadingTests.ExactMode_DoesNotReachANameByAliasScatter` 里"`zL` 仍命中"的断言一并反转。跨音节的写法（`gxiao`）不受影响，那是纯 ASCII 转写别名的第二读法。
 13. **系统设置 `Keyword` 前缀（已决定 2026-10-24）**：`SearchableItemMapper` 的 Control Panel 关键词兜底原先产出 `Keyword / SecondaryField` 和 `ShapeScattered / coverage=0`，导致 `env` 只命中 `envvar` 前缀时被 `env.h` 等文件压到 40 名以后。现改为：每个查询词都干净前缀命中声明词时，按最短匹配词计算 coverage，判 `ExactIdentity` 并参与类型顺序。字段仍是 `Keyword` 以保留 provenance；当前只有 `SystemSettingsItemProvider` 提供 `Keywords`，其他 provider 若启用需先确认同义词质量。同日后续裁决作废了「设置项与精确文件同级」这半句：默认规则 `__SEARCHABLE_ITEM__:SystemSettingsItemProvider:*` 把整组设置行降进 Low 段，`Keyword` 只保留跨语言召回，不再越过任何直接命中（见 `dev-docs/index-rules.md`、`dev-docs/search-ranking.md`）。
 14. **多词连续性（试验 2026-10-24）**：`HighlightMask.RankFromMarks` 对多词查询改为按正词计数 run（`positiveTermCount / runCount`），使 `cf wj` 对 `cf 桌面文件` 的 `Contiguity` 从 0.5 升到 1，再以覆盖率 0.571 胜过 `牧场粪污技术交流.doc` 的 0.333；单词查询仍用原来的 run 平方和。已知边界：OR 分支的两个 alternative 同时出现会给一个词贡献多个 run；当前只加注释，未做逐词 mask，避免热路径重复匹配。
 

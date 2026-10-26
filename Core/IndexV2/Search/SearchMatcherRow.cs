@@ -44,14 +44,14 @@ internal static class SearchMatcherRow
         var matched = false;
         // Aliases are read the alias side's way -- each term as a run if it can be, as a subsequence
         // otherwise (see FzfPatternAliasReading) -- while the name tier above stays on `pattern`, and so does
-        // the alignment rule. A provider that declares no structure has no boundary to align to, so it keeps
-        // the strict reading.
+        // the alignment rule. A provider that declares no structure has no boundary to align to, and an alias
+        // that rewrites the candidate's own script spells nothing out, so both keep the strict reading.
         foreach (var (alias, providerId) in aliasScratch)
         {
             if (disabledIds != null && disabledIds.Contains(providerId))
                 continue;
             var separator = AliasProviderRegistry.GetSyllableSeparator(providerId);
-            var aliasPattern = pattern.ReadingFor(separator);
+            var aliasPattern = pattern.ReadingFor(separator, alias);
             if (!aliasPattern.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default, slab))
                 continue;
 
@@ -131,7 +131,7 @@ internal static class SearchMatcherRow
             if (disabledIds != null && providerIds != null && j < providerIds.Length && disabledIds.Contains(providerIds[j]))
                 continue;
             var separator = AliasProviderRegistry.GetSyllableSeparator(providerIds?[j] ?? 0);
-            var aliasPattern = pattern.ReadingFor(separator);
+            var aliasPattern = pattern.ReadingFor(separator, aliases[j]);
             if (!aliasPattern.TryMatch(aliases[j], out var aliasMatch, FzfScoringScheme.Default, slab))
                 continue;
 

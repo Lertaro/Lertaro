@@ -13,7 +13,7 @@ internal static class PathTermFallbackAncestorHelper
 {
     internal static int AncestorMask(Snapshot snapshot, DeltaOverlay delta, int parentRow,
         FzfPattern[] termPatterns, FzfBytePattern[] termBytePatterns,
-        FzfPattern[] termAliasPatterns, FzfBytePattern[] termAliasBytePatterns, SearchMatcher.Worker worker,
+        FzfBytePattern[] termAliasBytePatterns, SearchMatcher.Worker worker,
         Dictionary<int, int> memo, int fullMask, int rootMask, List<int> chain)
     {
         if (memo.TryGetValue(parentRow, out var cached))
@@ -59,7 +59,7 @@ internal static class PathTermFallbackAncestorHelper
                 var uid = (int)snapshot.NameIds[node];
                 var nameUtf8 = snapshot.UniqueNameUtf8(uid);
                 if (nameUtf8.Length > 0)
-                    mask |= MaskForSegment(snapshot, uid, nameUtf8, termPatterns, termBytePatterns, termAliasPatterns, termAliasBytePatterns, worker, mask, fullMask);
+                    mask |= MaskForSegment(snapshot, uid, nameUtf8, termPatterns, termBytePatterns, termAliasBytePatterns, worker, mask, fullMask);
             }
 
             if (composable)
@@ -75,7 +75,7 @@ internal static class PathTermFallbackAncestorHelper
 
     private static int MaskForSegment(Snapshot snapshot, int uid, ReadOnlySpan<byte> nameUtf8,
         FzfPattern[] termPatterns, FzfBytePattern[] termBytePatterns,
-        FzfPattern[] termAliasPatterns, FzfBytePattern[] termAliasBytePatterns, SearchMatcher.Worker worker, int already, int fullMask)
+        FzfBytePattern[] termAliasBytePatterns, SearchMatcher.Worker worker, int already, int fullMask)
     {
         var mask = 0;
         var ascii = snapshot.IsUniqueAscii(uid);
@@ -119,16 +119,16 @@ internal static class PathTermFallbackAncestorHelper
 
         var unresolved = fullMask & ~(already | mask);
         if (unresolved != 0)
-            mask |= MaskFromAliases(snapshot, uid, termPatterns, termBytePatterns, termAliasPatterns, termAliasBytePatterns, worker, unresolved);
+            mask |= MaskFromAliases(snapshot, uid, termPatterns, termBytePatterns, termAliasBytePatterns, worker, unresolved);
         return mask;
     }
 
-    // Only ever asked about a candidate's ALIASES, so it works off the alias-side readings of the terms
-    // (FzfPatternAliasReading): each term as a contiguous run if it can be, as a subsequence otherwise --
-    // for a provider that declares syllable structure, and only for one.
+    // Only ever asked about a candidate's ALIASES, so the transliteration byte path uses the alias-side
+    // readings of the terms (FzfPatternAliasReading): each term as a contiguous run if it can be, as a
+    // subsequence otherwise -- for a provider that declares syllable structure, and only for one.
     private static int MaskFromAliases(Snapshot snapshot, int uid, FzfPattern[] termPatterns,
-        FzfBytePattern[] termBytePatterns, FzfPattern[] termAliasPatterns,
-        FzfBytePattern[] termAliasBytePatterns, SearchMatcher.Worker worker, int unresolved)
+        FzfBytePattern[] termBytePatterns, FzfBytePattern[] termAliasBytePatterns,
+        SearchMatcher.Worker worker, int unresolved)
     {
         var mask = 0;
         var disabledIds = SearchContext.DisabledAliasIds;
@@ -150,8 +150,9 @@ internal static class PathTermFallbackAncestorHelper
                 written = Encoding.UTF8.GetChars(aliasUtf8, worker.AliasScratch);
             }
 
-            // Same reading choice the other alias tiers make: both readings for a provider that declares
-            // syllable structure, the strict one for a provider that declares none.
+            // Same reading choice the other alias tiers make: both readings for a structured provider's
+            // transliteration, the strict one for a provider that declares no boundary and for an alias that
+            // rewrites the ancestor's own script.
             var separator = AliasProviderRegistry.GetSyllableSeparator(snapshot.AliasProviderId(e));
             for (var i = 0; i < termPatterns.Length; i++)
             {
@@ -161,7 +162,7 @@ internal static class PathTermFallbackAncestorHelper
                 var hit = ascii
                     ? (separator == '\0' ? termBytePatterns[i] : termAliasBytePatterns[i])
                         .TryMatchSegmented(aliasUtf8, out _, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers)
-                    : (separator == '\0' ? termPatterns[i] : termAliasPatterns[i])
+                    : termPatterns[i]
                         .TryMatch(worker.AliasScratch.AsSpan(0, written), out _, FzfScoringScheme.Default, worker.Slab);
                 if (hit)
                     mask |= bit;

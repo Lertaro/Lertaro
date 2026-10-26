@@ -45,7 +45,7 @@ Qt 专属那一大类在这里不适用，不再逐条列：`startSystemMove`、
      ├─ 一个词的可读形态在模糊模式下也按连续子串判（两模式同答的根据）
      ├─ 字面命中的词用 fzf 自己的分数，只有需要读出来的词用参考实现的加分表
      └─ 排除词只按字面否决，别名层不得复活被 ! 排除的候选
-名字层不中 → 字符串别名层（只剩繁转简写法）→ 混合字母 lane（电nao 类，现拼一份单读音拼写）
+名字层不中 → 字符串别名层（只剩繁转简写法；它按用户键入的精度判，不获得第二读法）→ 混合字母 lane（电nao 类，现拼一份单读音拼写）
 名字层没填满一页时 → PathTermFallback（逐词兜底，≥2 词、≤16 词）
 即时接缝 FuzzyMatcher.IsMatch 与高亮走同一套判定
 ```
@@ -96,7 +96,11 @@ Qt 专属那一大类在这里不适用，不再逐条列：`startSystemMove`、
 | 大小写 | 一律不敏感；全角与 NFD 在解析前折叠（`:10-14`，正是 `Version` 14 那一 bump 的内容） |
 | `!x` | 完全不展开别名或拼音形态（`AddAliasQueryForms` 对 inverse 直接 return，`:200-205`） |
 
-出厂默认是模糊匹配开启（`Core/Settings/UserSettings.cs:62`，`EnableFuzzyMatch = true`），精确模式指把它关掉。设置只决定候选自己文本怎么读：精确要连续子串，模糊要子序列。拼音层在两种模式下给同一个答案，机制是 `PinyinNameEvaluator.cs:255`：一个读音能判定的词，它的字面一侧即使在模糊模式下也按连续判；让这样的词散到名字的字母上是两模式答案不同的唯一来源。断言在 `PinyinExactModeTests.BothModes_ReachTheSameNamesForPinyinQueries` 与 `PinyinMultiBlockQueryTests.SameQuery_ReachesTheSameFileWithFuzzyMatchingOnAndOff`。
+出厂默认是模糊匹配开启（`Core/Settings/UserSettings.cs:62`，`EnableFuzzyMatch = true`），精确模式指把它关掉。设置只决定候选自己文本怎么读：精确要连续子串，模糊要子序列。拼音层在两种模式下给同一个答案，机制是 `PinyinNameEvaluator.cs` 里可读词的 Exact 化：一个读音能判定的词，它的字面一侧即使在模糊模式下也按连续判；让这样的词散到名字的字母上是两模式答案不同的唯一来源。断言在 `PinyinExactModeTests.BothModes_ReachTheSameNamesForPinyinQueries` 与 `PinyinMultiBlockQueryTests.SameQuery_ReachesTheSameFileWithFuzzyMatchingOnAndOff`。
+
+字符串别名层守同一条精度：别名里还带着源文种的字（繁转简写法就是这样）就不是拼写，只按用户键入的 kind 判，不再获得 Exact 的第二读法（`AliasMatchRules.IsTransliteration` 与 `FzfPatternAliasReading` 里带 alias 的 `ReadingFor` 重载；高亮在 `AliasHighlightPositions.ForProbe` 同调）。这条是 2026-10-26 为工单"精确 `zbl` 搜到 著作zsbsls.txt"补的：该名的别名是 着作zsbsls.txt，`z b l` 是它自己 ASCII 段里的三个字母，跨度 5 通过紧凑度门（`max(4q, 8)`）与分数门（实测 42 对 15），于是精确模式收下了一个名字层已经拒绝的行。纯 ASCII 的转写别名不受影响，`gxiao` 这类跨音节的写法照旧走第二读法。
+
+残留的两模式差异（本次没动，已量测）：模糊模式下这类同文种别名仍允许散，所以有改写别的名字命中、没有的同形名字不命中——`著作zsbsls.txt` 与 `电脑zsbsls.txt` 在模糊模式下 `zbl` 一个命中一个不中。要消掉它得让别名层也按名字层那条"可读词只认连续段"判，那需要各站点手上都有 live provider 的判定结果，改动比这条规则本身大。
 
 无空格的拼音串是一个词，必须在名字里找一段连续位置；空格分隔的词原本彼此独立、顺序自由（`MultiTermTokens_AreIndependent`）。对至少两个普通 ASCII 字母正词，系统还会让同一个 live provider 试一次去空格拼接；drive、OR、排除、显式操作符、长度超过 63 或需要跨 provider 的查询不试。逐词分支照常计算。含字面命中时 joined 仍须分数更高；全读音分支的逐词位置 bonus 会随 token 数重复，改用源起点与覆盖选 canonical winner。这样反序和普通多词保留原语义，拼音加空格不因 bonus 重复而抬分。joined 胜出时，判定、高亮和诊断共用它返回的 provider/tier/span witness。
 
@@ -342,3 +346,4 @@ Lertaro 曾经走过相反的路线（`af5de5b5` 引入，`b8e1061c` 删除）�
 - 覆盖加分要按茎（去扩展名）量，不按整名量：把扩展算进分母时 `报告.txt` 与文件夹 `报告` 的解释度一样，文件会以 6 比 25 输给自己的文件夹（参考实现的 pitfall 2360，`PinyinNameEvaluator.cs:313-329`、`dd4a2029`）。
 - 拼音 provider 的 `GetReadingSets` 返回的是可复用的线程 scratch，可能比名字长、条目只在下次同线程调用前有效，用之前要拷（`IAliasLiveMatcherProvider` remarks）。
 - 名字里带真实 `|` 的候选（浏览器标签标题那类）必须逐段判定，不能跨边界匹配；别名生成里 `|` 用 U+0001 占位，否则会被当成读音分隔符切错（`PinyinAliasCombinationGenerator.cs:19-32`、`PinyinNameEvaluator.cs:148-180`）。
+- `#440` 的"11 字符紧凑 alias 正例"已作废：同文种别名不再获得第二读法，精确模式下紧凑散布和松散布一起不召回，模糊模式里紧凑度门才继续分工。别再拿 `IsTightOccurrence(3, 11) == true` 论证精确模式该收下这一类——工单里的 `zbl` 对 著作zsbsls.txt 跨度只有 5，任何按跨度分的门都拦不住它，拦得住的是"别名是不是拼写"。测试名换成 `PinyinExactModeTests.Reported440_ExactModeReachesNoAliasScatterAndFuzzyKeepsTheTightOne`。

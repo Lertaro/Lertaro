@@ -106,13 +106,14 @@ internal static class SearchMatcherAliasExtensions
             // Aliases are read the alias side's way -- each term as a run if it can be, as a subsequence
             // otherwise (see FzfPatternAliasReading) -- while the boundary rule below stays keyed on what
             // the user actually typed. A provider that declares no structure has no boundary to align to,
-            // so it keeps the strict reading.
+            // so it keeps the strict reading, and so does an alias that rewrites the candidate's own
+            // script instead of spelling it out.
             var separator = AliasProviderRegistry.GetSyllableSeparator(snapshot.AliasProviderId(e));
-            var aliasPattern = ctx.Pattern.ReadingFor(separator);
             FzfPatternResult aliasMatch;
             bool hit;
             var decodedLength = -1; // -1: not decoded to chars yet (the ASCII/byte fast path below skips it)
             var isAsciiAlias = Ascii.IsValid(aliasUtf8);
+            var aliasPattern = isAsciiAlias ? ctx.Pattern.ReadingFor(separator) : ctx.Pattern;
             if (isAsciiAlias)
             {
                 var bytePattern = separator == '\0' ? ctx.BytePattern : ctx.AliasBytePattern;

@@ -6,12 +6,11 @@ using Lertaro.PluginSdk.Abstractions.Plugins;
 
 namespace Lertaro.Core.Tests.SearchIndex;
 
-// The alias lane reads an Exact term a second, loose way (see FzfPatternAliasReading) so an
-// abbreviation that straddles syllables still reaches its file in exact mode. That loose reading is
-// gated by the same tightness the painter applies; without the gate it also accepted a scatter the
-// painter refuses, and since the literal read used to be skipped whenever a live provider existed, such
-// a row could rank on a hit the user cannot see ("zbl" against a name whose only "z b l" are the
-// letters of "z-library" and "1lib").
+// The alias lane reads an Exact term loosely only where the alias is a SPELLING of the candidate: on a
+// same-script alias -- here the identity provider, the shape a Simplified spelling has -- the alias is the
+// candidate's own text rewritten, so it keeps the precision the user typed and no abbreviation of it can
+// straddle. Without that rule, a row could rank on a hit the user cannot see ("zbl" against a name whose
+// only "z b l" are the letters of "z-library" and "1lib").
 [TestClass]
 [DoNotParallelize]
 public sealed class AliasLooseReadingTests
@@ -29,8 +28,9 @@ public sealed class AliasLooseReadingTests
             SearchContext.DefaultFuzzyMatchEnabled = false;
             Assert.IsFalse(FuzzyMatcher.IsMatch("zbl", Text));
 
-            // The loose reading still admits a tight abbreviation inside the same alias.
-            Assert.IsTrue(FuzzyMatcher.IsMatch("zL", Text));
+            // Not even a tighter abbreviation: a run of two letters is what an exact "zL" asks for, and
+            // this name's own letters are scattered.
+            Assert.IsFalse(FuzzyMatcher.IsMatch("zL", Text));
         }
         finally
         {
@@ -82,13 +82,13 @@ public sealed class AliasLooseReadingTests
         SearchContext.FuzzyMatchEnabled = false;
         try
         {
-            var pattern = Lertaro.Core.SearchIndex.Fzf.FzfPattern.Parse("zbl");
+            var pattern = FzfPattern.Parse("zbl");
             var reading = pattern.ReadingFor('\'');
-            Assert.IsTrue(reading.TryMatch(tight.DisplayName, out var tightMatch, Lertaro.Core.SearchIndex.Fzf.FzfScoringScheme.Default));
+            Assert.IsTrue(reading.TryMatch(tight.DisplayName, out var tightMatch, FzfScoringScheme.Default));
             Assert.IsTrue(
                 pattern.IsAcceptableAliasMatch(tightMatch),
                 "the 11-character tight occurrence must pass the shared candidate gate");
-            Assert.IsTrue(reading.TryMatch(loose.DisplayName, out var looseMatch, Lertaro.Core.SearchIndex.Fzf.FzfScoringScheme.Default));
+            Assert.IsTrue(reading.TryMatch(loose.DisplayName, out var looseMatch, FzfScoringScheme.Default));
             Assert.IsFalse(
                 pattern.IsAcceptableAliasMatch(looseMatch),
                 "the 15-character scatter must not pass the shared candidate gate");

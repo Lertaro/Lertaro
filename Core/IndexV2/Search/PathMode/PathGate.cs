@@ -1,13 +1,11 @@
 using System.Collections.Concurrent;
 using System.Text;
-using Lertaro.Core.IndexV2.Alias;
 using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Fzf;
 
 using Lertaro.Core.IndexV2.Delta;
 
 using Lertaro.Core.IndexV2.Persistence;
-using Lertaro.PluginSdk.Abstractions.Plugins;
 namespace Lertaro.Core.IndexV2.Search.PathMode;
 
 // Directory-segment verification for path mode. Replaces the old per-candidate
@@ -187,11 +185,12 @@ internal sealed class PathGate
             if (aliasUtf8.Length == 0)
                 continue;
             var separator = AliasProviderRegistry.GetSyllableSeparator(_snapshot.AliasProviderId(e));
+            var isAsciiAlias = Ascii.IsValid(aliasUtf8);
             // A structured provider reads each term as a run first and as a subsequence second (see
-            // FzfPatternAliasReading); one that declares no boundary has nothing to align to, so it keeps
-            // the strict reading.
-            var aliasPattern = separator == '\0' ? _segmentPatterns[q] : _segmentAliasPatterns[q];
-            if (Ascii.IsValid(aliasUtf8))
+            // FzfPatternAliasReading); one that declares no boundary has nothing to align to, and an alias
+            // that rewrites the segment's own script spells nothing out, so both keep the strict reading.
+            var aliasPattern = isAsciiAlias && separator != '\0' ? _segmentAliasPatterns[q] : _segmentPatterns[q];
+            if (isAsciiAlias)
             {
                 var aliasBytePattern = separator == '\0' ? _segmentBytePatterns[q] : _segmentAliasBytePatterns[q];
                 if (aliasBytePattern.TryMatchSegmented(aliasUtf8, out var aliasMatch, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers)
@@ -252,7 +251,7 @@ internal sealed class PathGate
 
                 foreach (var alias in provider.GetAliases(segment))
                 {
-                    var aliasPattern = provider.SyllableSeparator == '\0' ? _segmentPatterns[q] : _segmentAliasPatterns[q];
+                    var aliasPattern = _segmentPatterns[q].ReadingFor(provider.SyllableSeparator, alias);
                     if (!aliasPattern.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default, worker.Slab))
                         continue;
                     if (!AliasMatchRules.AllowsMatch(_segmentPatterns[q], provider.SyllableSeparator, alias, aliasMatch.MinBegin))

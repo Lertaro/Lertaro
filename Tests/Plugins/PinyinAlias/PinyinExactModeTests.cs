@@ -59,27 +59,11 @@ public sealed class PinyinExactModeTests
         Assert.IsEmpty(Search("ex", fuzzy: true, names), "and fuzzy matching does not license it either");
     }
 
-    // #440's compact positive: a literal exact term cannot cross the hyphens, but the shared alias gate
-    // still accepts the 11-character occurrence. This pins the real provider path the user sees.
+    // #440's ghost class: query letters that really are in the name, scattered. A same-script alias (the
+    // Simplified spelling) is not a spelling, so it is read with the precision the user typed: exact mode
+    // reaches NEITHER occurrence, while fuzzy mode still sorts the tight one from the wide scatter.
     [TestMethod]
-    public void Reported440_TightAliasPositiveCandidatesWithRealProvider()
-    {
-        var previous = SearchContext.FuzzyMatchEnabled;
-        try
-        {
-            SearchContext.FuzzyMatchEnabled = false;
-            Assert.IsTrue(FuzzyMatcher.IsMatch("zbl", "著 z-aa-b-aa-l.epub"));
-        }
-        finally
-        {
-            SearchContext.FuzzyMatchEnabled = previous;
-        }
-    }
-
-    // The real pipeline: snapshot -> LiveIndex -> searcher. This is the candidate layer #440's absence
-    // claim is about, so the loose row must not appear at all while the tight row still does.
-    [TestMethod]
-    public void Reported440_RealIndexCandidateLayerKeepsOnlyTheTightAlias()
+    public void Reported440_ExactModeReachesNoAliasScatterAndFuzzyKeepsTheTightOne()
     {
         const string loose = "著 z-aaa-b-aaaaa-l.epub";
         const string tight = "著 z-aa-b-aa-l.epub";
@@ -88,9 +72,34 @@ public sealed class PinyinExactModeTests
         try
         {
             SearchContext.FuzzyMatchEnabled = false;
-            var results = fixture.Search("zbl");
-            CollectionAssert.Contains(results, tight, "the 11-character tight occurrence must be a candidate");
-            CollectionAssert.DoesNotContain(results, loose, "the 15-character scatter must not be a candidate");
+            Assert.IsFalse(FuzzyMatcher.IsMatch("zbl", tight), "exact zbl is no run in that name");
+            CollectionAssert.DoesNotContain(fixture.Search("zbl"), tight, "and the candidate layer must not generate it either");
+            CollectionAssert.DoesNotContain(fixture.Search("zbl"), loose, "the 15-character scatter stays out as always");
+
+            SearchContext.FuzzyMatchEnabled = true;
+            CollectionAssert.Contains(fixture.Search("zbl"), tight, "fuzzy mode asks for the scatter, so the 11-character occurrence is a candidate");
+            CollectionAssert.DoesNotContain(fixture.Search("zbl"), loose, "and the shared tightness gate still refuses the 15-character one");
+        }
+        finally
+        {
+            SearchContext.FuzzyMatchEnabled = previous;
+        }
+    }
+
+    // The reported file: the name's own ASCII island is short, so its scatter is "tight" and the gate alone
+    // never refused it. The alias must be read the user's way instead. 电脑zsbsls.txt rides along as the
+    // control -- the same shape with no Simplified spelling to leak through.
+    [TestMethod]
+    [DataRow("著作zsbsls.txt")]
+    [DataRow("電腦zsbsls.txt")]
+    public void ScatteredAsciiIsland_StaysOutOfExactMode(string name)
+    {
+        using var fixture = new RealIndexFixture(name, "电脑zsbsls.txt");
+        var previous = SearchContext.FuzzyMatchEnabled;
+        try
+        {
+            SearchContext.FuzzyMatchEnabled = false;
+            Assert.IsEmpty(fixture.Search("zbl"), $"'{name}' must not answer an exact zbl");
         }
         finally
         {

@@ -81,11 +81,12 @@ public static class FuzzyMatcher
             // Every provider is read the alias side's way -- each term as a contiguous run if it can
             // be, as a subsequence otherwise (see FzfPatternAliasReading: "gxiao" is 高's initial plus 效's
             // whole reading and exists as no run at all, while "jt" is a run inside 出版集团's initials
-            // alias). The boundary rule below stays keyed on what the user typed.
+            // alias) -- but only where the alias is a spelling: one that rewrites the candidate's own script
+            // keeps the precision the user typed. The boundary rule below stays keyed on what the user typed.
             var separator = provider.SyllableSeparator;
-            var aliasPattern = fzf.ReadingFor(separator);
             foreach (var alias in provider.GetAliases(text))
             {
+                var aliasPattern = fzf.ReadingFor(separator, alias);
                 if (!aliasPattern.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default))
                     continue;
 

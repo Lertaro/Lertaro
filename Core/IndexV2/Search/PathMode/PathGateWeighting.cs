@@ -5,7 +5,6 @@ using Lertaro.Core.SearchIndex.Fzf;
 using Lertaro.Core.IndexV2.Delta;
 
 using Lertaro.Core.IndexV2.Persistence;
-using Lertaro.PluginSdk.Abstractions.Plugins;
 namespace Lertaro.Core.IndexV2.Search.PathMode;
 
 // Ranking-only weight (percentage*consecutiveness, product across matched segments), computed
@@ -152,11 +151,12 @@ internal sealed class PathGateWeighting
             var aliasUtf8 = _snapshot.AliasUtf8(e);
             if (aliasUtf8.Length == 0)
                 continue;
-            // Same reading choice PathGate makes for the same entry: a structured provider gets both
-            // readings, one that declares no boundary keeps the strict one.
+            // Same reading choice PathGate makes for the same entry: both readings for a structured
+            // provider's transliteration, the strict one for an alias that rewrites the segment's own script.
             var separator = AliasProviderRegistry.GetSyllableSeparator(_snapshot.AliasProviderId(e));
-            var aliasPattern = separator == '\0' ? pattern : _segmentAliasPatterns[q];
-            var isMatch = Ascii.IsValid(aliasUtf8)
+            var isAsciiAlias = Ascii.IsValid(aliasUtf8);
+            var aliasPattern = isAsciiAlias && separator != '\0' ? _segmentAliasPatterns[q] : pattern;
+            var isMatch = isAsciiAlias
                 ? (separator == '\0' ? _segmentBytePatterns[q] : _segmentAliasBytePatterns[q])
                     .TryMatchSegmented(aliasUtf8, out _, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers)
                 : MatchesAliasChars(aliasPattern, aliasUtf8, worker);
@@ -223,7 +223,7 @@ internal sealed class PathGateWeighting
 
                 foreach (var alias in provider.GetAliases(segment))
                 {
-                    if ((provider.SyllableSeparator == '\0' ? pattern : _segmentAliasPatterns[q])
+                    if (pattern.ReadingFor(provider.SyllableSeparator, alias)
                         .TryMatch(alias, out _, FzfScoringScheme.Default, worker.Slab))
                     {
                         weight = HighlightMask.ComputeWeight(segment, pattern);

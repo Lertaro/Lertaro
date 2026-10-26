@@ -30,9 +30,9 @@ internal static class AliasHighlightPositions
         if (kind is not (FzfTermKind.Fuzzy or FzfTermKind.Exact))
             return Contiguous(aliasLower, probe, separator);
 
-        // A provider with no declared structure has nothing to align to, so it gets the one reading its
-        // term kind implies.
-        if (separator == '\0')
+        // A provider with no declared structure has nothing to align to, and an alias that rewrites the
+        // candidate's own script spells nothing out, so either gets the one reading its term kind implies.
+        if (separator == '\0' || !AliasMatchRules.IsTransliteration(aliasLower))
         {
             return kind == FzfTermKind.Fuzzy
                 ? Tightest(aliasLower, probe, separator, precise)

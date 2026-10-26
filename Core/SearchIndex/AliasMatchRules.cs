@@ -86,6 +86,25 @@ internal static class AliasMatchRules
     }
 
     /// <summary>
+    /// Whether an alias is a TRANSLITERATION -- the candidate written in another alphabet -- rather than
+    /// the same text rewritten (pinyin's Simplified spelling of a Traditional name). Only a transliteration
+    /// is a spelling a term may consume syllable by syllable; a same-script alias is the candidate's own
+    /// text, so it is matched with the precision the user typed. Without this, a word the readings cannot
+    /// decide still scattered across the name's own ASCII letters in exact mode ("zbl" reaching
+    /// 著作zsbsls.txt through its 着作 spelling).
+    /// </summary>
+    /// <remarks>
+    /// ponytail: keyed on "the alias is pure ASCII", because every transliteration this host reads is
+    /// ASCII -- a pinyin alias is letters plus its own separator, and the byte fast path already treats a
+    /// non-ASCII alias as text. A provider that transliterates INTO a non-ASCII alphabet would have to
+    /// declare that instead of being read by this rule.
+    /// </remarks>
+    public static bool IsTransliteration(ReadOnlySpan<char> alias) => System.Text.Ascii.IsValid(alias);
+
+    /// <summary>Byte twin of <see cref="IsTransliteration(ReadOnlySpan{char})"/>.</summary>
+    public static bool IsTransliteration(ReadOnlySpan<byte> aliasUtf8) => System.Text.Ascii.IsValid(aliasUtf8);
+
+    /// <summary>
     /// How wide an occurrence of a <paramref name="termLength"/>-character term may be and still count as
     /// an explanation of a match. Shared by the alias gate and by highlighting, so a candidate cannot be
     /// found by one rule and painted by another: without it, highlighting paints the greedy earliest
