@@ -37,19 +37,17 @@ public class QuickSearchWindowInputHandler
         if (SearchInputHelper.HandleCommonSearchKeys(e, _window, _window.MenuPresenter))
             return;
 
-        // Alt+Left/Right cycles the category filter. Ahead of the caret and actions-menu handling below,
-        // which both read the bare Left/Right key: Alt held means the gesture is about the whole result list,
-        // not about where the caret sits. Key must come from GetActualKey because Alt turns the event into
-        // Key.System and parks the real key in SystemKey.
-        if (Keyboard.Modifiers == ModifierKeys.Alt)
+        // Tab / Shift+Tab cycle the category filter, but only while the bar is on screen. The bar is hidden
+        // whenever the result list is, so Tab has to mean nothing then -- claiming it unconditionally would
+        // take the key away from whatever else may want it (the actions submenu among others) even in the
+        // state where there is no bar to move.
+        if ((e.Key == Key.Tab || e.Key == Key.System && e.SystemKey == Key.Tab)
+            && (Keyboard.Modifiers == ModifierKeys.None || Keyboard.Modifiers == ModifierKeys.Shift)
+            && _window.CategoryBar.Visibility == Visibility.Visible)
         {
-            var categoryKey = WpfUiHelper.GetActualKey(e);
-            if (categoryKey is Key.Left or Key.Right)
-            {
-                _window.ViewModel.CycleCategory(categoryKey == Key.Right ? 1 : -1);
-                e.Handled = true;
-                return;
-            }
+            _window.ViewModel.CycleCategory(Keyboard.Modifiers == ModifierKeys.Shift ? -1 : 1);
+            e.Handled = true;
+            return;
         }
 
         if (e.Key == Key.Escape && Keyboard.Modifiers == ModifierKeys.None)

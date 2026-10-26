@@ -149,7 +149,10 @@
                  keystroke goes nowhere the user is looking.
                  The trailing pipe closes the row: every filter draws one on its left, so this one bounds the
                  right end and the row is symmetrical. -->
-            <Grid Grid.Row="1" Margin="12,1,12,2" HorizontalAlignment="Left">
+            <!-- Follows the result list's own visibility: the bar is a way to narrow what is on screen, so it
+                 has no business occupying a row while there is nothing to narrow. -->
+            <Grid Grid.Row="1" Margin="12,1,12,2" HorizontalAlignment="Left"
+                  Visibility="{Binding ResultsPanelVisibility}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <!-- Breathing room between the labels and the underline. -->

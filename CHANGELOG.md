@@ -5,6 +5,26 @@
 符号：* 核心功能　+ 小功能添加　# 修复。只写"改了什么"。
 -->
 
+## v5.11.1.3
+
+## 更新内容
+
+```
+* 快速搜索可用 Tab / Shift+Tab 循环切换分类标签
++ 分类标签在结果出现时显示，没有结果时隐藏
++ 自动更新只检查本仓库的发行
++ 保留鼠标平滑滚动
+```
+
+## What's changed
+
+```
+* The quick window cycles its category filters with Tab and Shift+Tab
++ The category bar appears with the results and stays hidden when there are none
++ Auto-update only checks this repository's releases
++ Keeps the smooth wheel scrolling
+```
+
 ## v5.11.1.2
 
 ## 更新内容
@@ -299,6 +319,7 @@
 + Auto-update only checks this repository's releases
 + Keeps the smooth wheel scrolling
 ```
+
 ## v5.9.1.4
 
 ## 更新内容
