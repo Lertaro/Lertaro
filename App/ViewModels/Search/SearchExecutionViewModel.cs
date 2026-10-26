@@ -259,6 +259,7 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
         var rows = _unfilteredResults;
 
 
+
         SearchResultsReconciler.Replace(Results, rows, SelectedResult, v => SelectedResult = v);
     }
 

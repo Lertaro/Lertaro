@@ -124,13 +124,13 @@
             <Border CornerRadius="7" helpers:RoundedClip.IsEnabled="True">
                 <Grid Width="{Binding SearchBarWidth}">
             <Grid.RowDefinitions>
-                <!-- Filter tabs -->
-                <RowDefinition Height="Auto"/>
                 <!-- Search bar -->
                 <RowDefinition Height="Auto"/>
                 <!-- Separator -->
                 <RowDefinition Height="Auto"/>
                 <!-- Results panel (grows with content) -->
+                <RowDefinition Height="Auto"/>
+                <!-- Category filter, under the list -->
                 <RowDefinition Height="Auto"/>
                 <!-- Status bar -->
                 <RowDefinition Height="Auto"/>
@@ -151,7 +151,9 @@
                  right end and the row is symmetrical. -->
             <!-- Follows the result list's own visibility: the bar is a way to narrow what is on screen, so it
                  has no business occupying a row while there is nothing to narrow. -->
-            <Grid Grid.Row="1" Margin="12,1,12,2" HorizontalAlignment="Left"
+            <!-- ZIndex: the ContentBg layer below spans this row too and is declared after this grid, so
+                 without an explicit index it paints over the filters and leaves an empty band. -->
+            <Grid Grid.Row="3" Margin="12,4,12,2" HorizontalAlignment="Left" Panel.ZIndex="10"
                   Visibility="{Binding ResultsPanelVisibility}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -206,7 +208,7 @@
 
             <!-- ═══════════ 3. Separator ═══════════ -->
             <Rectangle x:Name="ResultsSeparator"
-                       Grid.Row="2"
+                       Grid.Row="1"
                        Height="1"
                        Margin="12,0,12,0"
                        Fill="{DynamicResource SeparatorBrush}"
@@ -216,13 +218,13 @@
                  "Main Results Grid" (Background=ContentBg, a shade back from the outer CardBackground
                  chrome/search bar) so every window's results area reads the same instead of being flat
                  CardBackground everywhere with no depth. -->
-            <Border Grid.Row="3" Grid.RowSpan="2" Background="{DynamicResource ContentBg}"/>
+            <Border Grid.Row="2" Grid.RowSpan="2" Background="{DynamicResource ContentBg}"/>
 
-            <quick:QuickSearchLaunchPanel x:Name="LaunchPanelControl" Grid.Row="3"
+            <quick:QuickSearchLaunchPanel x:Name="LaunchPanelControl" Grid.Row="2"
                                           Visibility="{Binding LaunchPanelVisibility}"/>
 
             <!-- ═══════════ 4. Results Panel ═══════════ -->
-            <results:ResultsControl x:Name="ResultsPanelControl" Grid.Row="3"
+            <results:ResultsControl x:Name="ResultsPanelControl" Grid.Row="2"
                                   UsesFloatingActionsLayout="True"
                                   ItemsSource="{Binding Results}"
                                   SelectedItem="{Binding SelectedResult, Mode=TwoWay}"

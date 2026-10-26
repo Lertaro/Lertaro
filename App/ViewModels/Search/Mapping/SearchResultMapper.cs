@@ -352,6 +352,31 @@ public static class SearchResultMapper
         // toward Boosted, so the inline window is not sampled.
         var ordered = RankedCandidateOrdering.Order(candidates, rankContext, isInlineWindow ? null : query, typeOrder);
 
+        // One program, one row -- across BOTH sources. The app provider contributes the installed entry while
+        // the file index contributes every shortcut the user has to it, and DedupeShortcutRows only ever sees
+        // the file side, so the same program arrived twice: once named by the provider and once as a shortcut.
+        // Collapsing here, after the two lists have been merged and ranked, is the only place that can see both
+        // and keep whichever ranked higher.
+        // Unless the query is asking for shortcut files themselves. "lnk" or a name ending in ".lnk" means the
+        // shortcut IS the thing being searched for, so collapsing several of them into one would hide exactly
+        // what was asked for -- the same rule DedupeShortcutRows already follows on the file side.
+        if (!LooksLikeShortcutQuery(rawQuery ?? query))
+        {
+            var seenLauncherTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            ordered = ordered.Where(row =>
+            {
+                var path = row.Result.FullPath;
+                if (string.IsNullOrEmpty(path))
+                    return true;
+
+                if (!row.Result.IsApplication && !path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                var target = Lertaro.App.Helpers.ShortcutTargetResolver.Resolve(path);
+                var key = SearchResultHelper.NormalizePath(target ?? path);
+                return seenLauncherTargets.Add(key);
+            }).ToList();
+        }
 
         // The category filter runs HERE, before any cap. Filtering afterwards meant the cap had already
         // thrown those rows away under the whole-result ordering: a short query ranks applications and
@@ -438,6 +463,11 @@ public static class SearchResultMapper
             return rows;
 
         var dropped = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // One entry per target: the same program is reachable from a Start-menu entry, a Quick Launch entry,
+        // a taskbar pin and an installed-folder shortcut, and those are four rows for one thing on screen.
+        // This set is what collapses them, and it has to be separate from the name test below -- that test
+        // deliberately keeps a shortcut the user renamed, while these rows all carry the same name anyway.
+        var seenTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         Dictionary<string, int>? merged = null;
         Dictionary<string, SearchResult>? byPath = null;
         foreach (var row in rows)
@@ -454,6 +484,15 @@ public static class SearchResultMapper
             // and a shortcut's target arrives from GetFullPath, so a raw string compare on the two forms can
             // miss the row that is right there.
             var targetKey = SearchResultHelper.NormalizePath(target);
+
+            // A second, third, fourth shortcut to the same target: drop it whatever it is called.
+            if (!seenTargets.Add(targetKey))
+            {
+                dropped.Add(row.Path);
+                MergeHistory(row.Path, targetKey, ref rankContext, ref merged);
+                continue;
+            }
+
             if (!byPath.ContainsKey(targetKey) && !byPath.ContainsKey(target))
                 continue;
 
@@ -462,14 +501,7 @@ public static class SearchResultMapper
                 continue;
 
             dropped.Add(row.Path);
-            var shortcutKey = SearchResultHelper.NormalizePath(row.Path);
-            if (rankContext is { } context && context.HistoryScoreX100.TryGetValue(shortcutKey, out var score) && score > 0)
-            {
-                // Take the larger of the two, not the sum: two same-named shortcuts in different folders must
-                // not add up to a score higher than either of them ever earned.
-                merged ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-                merged[targetKey] = Math.Max(merged.GetValueOrDefault(targetKey), score);
-            }
+            MergeHistory(row.Path, targetKey, ref rankContext, ref merged);
         }
 
         if (dropped.Count == 0)
@@ -488,6 +520,19 @@ public static class SearchResultMapper
             Logger.Log($"[ShortcutDedupe] dropped {dropped.Count} shortcut(s): {string.Join("; ", dropped)}", LogLevel.Debug);
 
         return rows.FindAll(row => !dropped.Contains(row.Path));
+    }
+
+    // Moves a dropped shortcut's open count onto its target, taking the LARGER of the two rather than a sum:
+    // several shortcuts to one program must not add up to a score higher than any of them ever earned.
+    private static void MergeHistory(string shortcutPath, string targetKey, ref RankContext? rankContext,
+        ref Dictionary<string, int>? merged)
+    {
+        var shortcutKey = SearchResultHelper.NormalizePath(shortcutPath);
+        if (rankContext is not { } context || !context.HistoryScoreX100.TryGetValue(shortcutKey, out var score) || score <= 0)
+            return;
+
+        merged ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        merged[targetKey] = Math.Max(merged.GetValueOrDefault(targetKey), score);
     }
 
     private static Dictionary<string, SearchResult> BuildPathIndex(List<SearchResult> rows)
@@ -513,7 +558,18 @@ public static class SearchResultMapper
             return false;
         if (trimmed.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
             return true;
-        return trimmed.Equals("lnk", StringComparison.OrdinalIgnoreCase);
+
+        // Any word, not just the whole query: "xx lnk" asks for the shortcut of xx, and testing the whole string
+        // missed it because the trailing word is neither equal to "lnk" nor ends in ".lnk" once the leading word
+        // is part of the text. Both spellings mean the same thing here -- a bare "lnk" and a trailing ".lnk".
+        foreach (var word in trimmed.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (word.Equals("lnk", StringComparison.OrdinalIgnoreCase)
+                || word.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
     }
 
 

@@ -11,7 +11,9 @@
 
 ```
 * 快速搜索可用 Tab / Shift+Tab 循环切换分类标签
-+ 分类标签在结果出现时显示，没有结果时隐藏
++ 分类标签在结果出现时显示，没有结果时隐藏，并移到列表下方
+# 同一程序的多个快捷方式合并为一条，不再一个应用占多行
+# 搜索 lnk 时不合并，便于查看全部快捷方式
 + 自动更新只检查本仓库的发行
 + 保留鼠标平滑滚动
 ```
@@ -20,7 +22,9 @@
 
 ```
 * The quick window cycles its category filters with Tab and Shift+Tab
-+ The category bar appears with the results and stays hidden when there are none
++ The category bar appears with the results, stays hidden when there are none, and sits under the list
+# Several shortcuts to one program collapse into a single row
+# Searching for lnk skips that collapse, so every shortcut can be seen
 + Auto-update only checks this repository's releases
 + Keeps the smooth wheel scrolling
 ```
