@@ -83,6 +83,7 @@ internal static class UserSettingsPersistence
             if (settings?.DisabledPluginAssemblies is null) return null;
             LegacyPluginSettingsMigration.ReadLegacy(json, settings);
             NormalizeHotkeys(settings);
+            settings.UiFontFamilies = UiFontSettings.Normalize(settings.UiFontFamilies);
             IndexRuleMigration.Ensure(settings);
             return settings;
         }
@@ -107,6 +108,7 @@ internal static class UserSettingsPersistence
     public static bool Save(UserSettings settings)
     {
         NormalizeHotkeys(settings);
+        settings.UiFontFamilies = UiFontSettings.Normalize(settings.UiFontFamilies);
         lock (CacheLock)
         {
             if (!SavePluginSettings(settings)) return false;

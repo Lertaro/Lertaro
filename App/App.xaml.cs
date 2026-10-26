@@ -107,7 +107,7 @@ public partial class App : Application
             Shutdown(1);
             return;
         }
-        AppTypography.Initialize(Resources, TranslationManager.Instance.CurrentCulture);
+        AppTypography.Initialize(Resources, TranslationManager.Instance.CurrentCulture, settings.UiFontFamilies);
         // The other process-wide rendering decision, and made here because it has to be made before any window
         // exists: this is what the settings page's "enable hardware acceleration (requires restart)" switch has
         // always said it does. Until now it only took the hardware off the quick window's own composition

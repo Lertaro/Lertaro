@@ -26,6 +26,20 @@ public sealed class UserSettingsParseTests
     public void TryParse_TruncatedJson_ReturnsNull() => Assert.IsNull(UserSettings.TryParse("{ truncated"));
 
     [TestMethod]
+    public void TryParse_CleansTheUiFontFallbackChain()
+    {
+        var json = JsonSerializer.Serialize(new UserSettings
+        {
+            UiFontFamilies = [" Microsoft YaHei ", "microsoft yahei", "", "Bad,Name", "微软雅黑", "Tahoma", "Extra"]
+        });
+
+        var settings = UserSettings.TryParse(json);
+
+        Assert.IsNotNull(settings);
+        CollectionAssert.AreEqual(new[] { "Microsoft YaHei", "微软雅黑", "Tahoma" }, settings.UiFontFamilies);
+    }
+
+    [TestMethod]
     public void TryParse_BlankToggleWindowHotkey_FallsBackToDefault()
     {
         var json = JsonSerializer.Serialize(new UserSettings { Hotkeys = new HotkeyPageSettings { ToggleWindowHotkey = "" } });

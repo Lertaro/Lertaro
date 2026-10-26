@@ -144,6 +144,48 @@ public sealed class AppTypographyTests
         Assert.AreEqual("ko-kr", icon.Language.IetfLanguageTag);
     }
 
+    // The fallback chain itself: custom families keep the user's order, duplicates collapse, and the
+    // built-in pair is always the final entry so an uninstalled font cannot leave the UI unstyled.
+    [TestMethod]
+    public void UiFontChainPlacesCustomFamiliesAheadOfTheBuiltInFallback()
+    {
+        var fallback = AppTypography.UiFont.Source;
+        Assert.AreEqual(fallback, AppTypography.BuildUiFont(null).Source);
+        Assert.AreEqual(fallback, AppTypography.BuildUiFont([]).Source);
+        Assert.AreEqual(
+            $"Microsoft YaHei, Meiryo, {fallback}",
+            AppTypography.BuildUiFont(["Microsoft YaHei", "Meiryo"]).Source);
+        Assert.AreEqual(
+            $"Microsoft YaHei, meiryo, {fallback}",
+            AppTypography.BuildUiFont([" Microsoft YaHei ", "meiryo", "Microsoft YaHei"]).Source);
+    }
+
+    [StaTestMethod]
+    public void ApplyingAUserFontChainUpdatesAnAlreadyLoadedWindowAndResets()
+    {
+        var root = new Window();
+        AppTypography.Initialize(root.Resources, "zh-CN");
+        var text = new TextBlock { Text = "中文 日本語 한국어" };
+        root.Content = text;
+        try
+        {
+            root.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
+            AppTypography.ApplyUiFont(root.Resources, ["Microsoft YaHei", "Meiryo"]);
+
+            Assert.AreEqual(
+                $"Microsoft YaHei, Meiryo, {AppTypography.UiFont.Source}",
+                text.FontFamily.Source,
+                "an open window must follow the central font resource");
+
+            AppTypography.ApplyUiFont(root.Resources, []);
+            Assert.AreEqual(AppTypography.UiFont, text.FontFamily);
+        }
+        finally
+        {
+            root.Close();
+        }
+    }
+
     // The rectangles that survived in the settings page were on plain CheckBox and Button instances: no
     // style of this app touches them, so nothing was ever going to null the property per style. Checked as
     // a local value rather than as the resolved property, because a theme style is not applied to a window

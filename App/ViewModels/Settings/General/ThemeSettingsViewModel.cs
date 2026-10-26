@@ -27,6 +27,7 @@ public class ThemeSettingsViewModel : ViewModelBase
     public ThemeSettingsViewModel(UserSettings userSettings)
     {
         _userSettings = userSettings;
+        Fonts = new UiFontSettingsViewModel(userSettings);
 
         _selectedTheme = ThemeOptions.FirstOrDefault(o => o.Value == _userSettings.Theme)
                          ?? ThemeOptions.FirstOrDefault();
@@ -74,6 +75,10 @@ public class ThemeSettingsViewModel : ViewModelBase
     }
 
     public IReadOnlyList<ThemeOption> ThemeOptions => _themeOptions ??= SettingsOptionGenerator.GetThemeOptions();
+
+    // The same page's interface-font fallback chain; kept as its own view model because it has no
+    // theme-provider work to do and applies its changes independently.
+    public UiFontSettingsViewModel Fonts { get; }
 
     // Filtered to each half's own flavor -- a dark-flavored theme showing up as a candidate for the
     // "light" side (or vice versa) would defeat the point of "follow system" in the first place.

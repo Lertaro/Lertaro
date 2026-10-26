@@ -102,6 +102,9 @@ public class UserSettings
     // including the host's Light/Dark resources when the theme plugins are disabled.
     public string LightThemeId { get; set; } = string.Empty;
     public string DarkThemeId { get; set; } = string.Empty;
+    // Ordered UI font fallback list: each family covers glyphs the previous one lacks, and the app's
+    // built-in Segoe UI/Global User Interface pair remains the final fallback. Empty means default.
+    public List<string> UiFontFamilies { get; set; } = new();
     public HotkeyPageSettings Hotkeys { get; set; } = new();
     public SearchWindowSettings SearchWindow { get; set; } = new();
     public bool EnableQuickSearchClipboardAutoFill { get; set; } = false;

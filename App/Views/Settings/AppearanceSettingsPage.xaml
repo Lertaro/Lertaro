@@ -224,6 +224,65 @@
                              SelectedValue="{Binding Appearance.SelectedDarkThemeId, Mode=TwoWay}"/>
                 </Border>
             </StackPanel>
+
+            <!-- UI font fallback chain: custom families are tried in order, then the app's default. -->
+            <TextBlock Style="{StaticResource SettingsGroupTitle}"
+                        Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Appearance_FontGroupTitle]}"/>
+            <Border Style="{StaticResource SettingsCard}">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource SettingsHintText}"
+                                Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Appearance_FontHint]}"/>
+                    <ItemsControl x:Name="FontSlotsList" ItemsSource="{Binding Appearance.Fonts.Slots}" Margin="0,8,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource SettingsRow}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="28"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Width="20" Height="20" CornerRadius="10" VerticalAlignment="Center"
+                                                Background="{DynamicResource ControlBackground}">
+                                            <TextBlock Text="{Binding Position}" FontSize="11"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource TextSecondary}"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="1" Margin="8,0" FontSize="13" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="{Binding Family}"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasFamily}" Value="False">
+                                                            <Setter Property="Text" Value="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Appearance_FontUnset]}"/>
+                                                            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Appearance_FontChoose]}"
+                                                    Style="{StaticResource LinkButton}" FontSize="12"
+                                                    IsEnabled="{Binding CanChoose}"
+                                                    Command="{Binding DataContext.Appearance.Fonts.ChooseFontCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding Position}"/>
+                                            <Button Content="&#xE74D;" Width="26" Height="26" Margin="10,0,0,0"
+                                                    Style="{StaticResource RuleIconButton}"
+                                                    ToolTip="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Appearance_FontRemove]}"
+                                                    Visibility="{Binding HasFamily, Converter={StaticResource BoolToVis}}"
+                                                    Command="{Binding DataContext.Appearance.Fonts.ClearFontCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding Position}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

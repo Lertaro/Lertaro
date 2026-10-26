@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Markup;
+using Lertaro.Core;
 using FontFamily = System.Windows.Media.FontFamily;
 using Control = System.Windows.Controls.Control;
 using ContextMenu = System.Windows.Controls.ContextMenu;
@@ -20,15 +21,16 @@ internal static class AppTypography
 
     // WPF's built-in composite selects Windows fonts by script AND Language, including regional
     // CJK glyphs. Keep that maintained fallback table instead of ordering CJK families ourselves.
-    internal static FontFamily UiFont { get; } = new("Segoe UI, Global User Interface");
+    internal const string UiFontFallback = "Segoe UI, Global User Interface";
+    internal static FontFamily UiFont { get; } = new(UiFontFallback);
     internal static FontFamily MonospaceFont { get; } = new("Consolas, Global User Interface");
     // Prefer Windows 11 icons; WPF falls back to the Windows 10 font when unavailable.
     internal static FontFamily IconFont { get; } = new("Segoe Fluent Icons, Segoe MDL2 Assets");
     private static bool _registered;
 
-    internal static void Initialize(ResourceDictionary resources, string? culture)
+    internal static void Initialize(ResourceDictionary resources, string? culture, IEnumerable<string?>? uiFontFamilies = null)
     {
-        resources[UiFontKey] = UiFont;
+        ApplyUiFont(resources, uiFontFamilies);
         resources[MonospaceFontKey] = MonospaceFont;
         resources[IconFontKey] = IconFont;
         UpdateLanguage(resources, culture);
@@ -52,6 +54,23 @@ internal static class AppTypography
         EventManager.RegisterClassHandler(typeof(Control), FrameworkElement.LoadedEvent,
             new RoutedEventHandler(OnControlLoaded));
     }
+
+    // Custom families are tried in the user's order; WPF's per-glyph fallback moves to the next name
+    // when one cannot draw a character, so the built-in pair stays at the end as the final safety net.
+    internal static FontFamily BuildUiFont(IEnumerable<string?>? uiFontFamilies)
+    {
+        var families = UiFontSettings.Normalize(uiFontFamilies);
+        return families.Count == 0
+            ? UiFont
+            : new FontFamily($"{string.Join(", ", families)}, {UiFontFallback}");
+    }
+
+    /// <summary>
+    /// Replaces the shared font resource. Every root that used SetResourceReference re-resolves it,
+    /// so already-open windows follow a live selection.
+    /// </summary>
+    internal static void ApplyUiFont(ResourceDictionary resources, IEnumerable<string?>? uiFontFamilies)
+        => resources[UiFontKey] = BuildUiFont(uiFontFamilies);
 
     private static void OnControlLoaded(object sender, RoutedEventArgs e)
     {
