@@ -42,8 +42,19 @@ internal sealed class ActionsMenuExecutor
             RecordQuickSearchKeyword();
             if (!item.KeepWindowVisible)
             {
+                // Leaving actions mode is not optional here: hiding parks the window instead of destroying
+                // it, and the inline card's keyboard router reads IsInActionsMode before the path that
+                // summons it, so a flag left set sends every later first character into the parked card's
+                // own text box and the card stops opening by itself for the rest of the session.
                 _view.HideWindow();
-                item.OnExecute();
+                try
+                {
+                    item.OnExecute();
+                }
+                finally
+                {
+                    _exitActionsMode();
+                }
                 return;
             }
 

@@ -73,6 +73,56 @@ public sealed class ActionsMenuExecutorTests
 
         CollectionAssert.AreEqual(new[] { "execute", "hide" }, calls);
     }
+
+    // A CustomActions entry is a direct delegate that does not keep the window visible, so it takes the
+    // hide-then-execute path. KeepWindowVisible stays at its default false because the plugin's
+    // DynamicMenuItem carries no such field and ActionMenuBuilder only copies OnExecute.
+    [StaTestMethod]
+    public void Execute_DirectDelegateHidesTheWindow_LeavesActionsMode()
+    {
+        var calls = new List<string>();
+        var view = new FakeSearchWindow(calls);
+        view.LstActions.Items.Add(new ActionMenuItem { OnExecute = () => calls.Add("execute") });
+        view.LstActions.SelectedIndex = 0;
+
+        var executor = new ActionsMenuExecutor(
+            view,
+            new Dictionary<uint, IDynamicActionProvider>(),
+            new ActionsMenuNavigator(view, _ => { }, () => { }),
+            () => calls.Add("exit"));
+        var result = new AppSearchResult { Name = "result", FullPath = "result" };
+
+        executor.Execute(result, [result]);
+
+        CollectionAssert.AreEqual(new[] { "hide", "execute", "exit" }, calls);
+    }
+
+    [StaTestMethod]
+    public void Execute_DirectDelegateThrows_StillLeavesActionsMode()
+    {
+        var calls = new List<string>();
+        var view = new FakeSearchWindow(calls);
+        view.LstActions.Items.Add(new ActionMenuItem
+        {
+            OnExecute = () =>
+            {
+                calls.Add("execute");
+                throw new InvalidOperationException("action failed");
+            }
+        });
+        view.LstActions.SelectedIndex = 0;
+
+        var executor = new ActionsMenuExecutor(
+            view,
+            new Dictionary<uint, IDynamicActionProvider>(),
+            new ActionsMenuNavigator(view, _ => { }, () => { }),
+            () => calls.Add("exit"));
+        var result = new AppSearchResult { Name = "result", FullPath = "result" };
+
+        Assert.ThrowsExactly<InvalidOperationException>(() => executor.Execute(result, [result]));
+
+        CollectionAssert.AreEqual(new[] { "hide", "execute", "exit" }, calls);
+    }
     private sealed class RecordingSearchAction(Action onExecute) : ISearchResultAction
     {
         public string GroupName => "Test";
