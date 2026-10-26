@@ -27,9 +27,13 @@ public sealed class RankedSearchResultComparer : IComparer<SearchResult>
 
         var sectionX = (RankSection)(x.RankFlags & 3);
         var sectionY = (RankSection)(y.RankFlags & 3);
-        var compare = ((byte)sectionX).CompareTo((byte)sectionY);
-        if (compare != 0)
-            return compare;
+
+        // Same skeleton as the quick window's kernel: the two boundaries outrank quality, and quality outranks
+        // the section. Pinned is the user's explicit "always on top"; HistoryTail is a weak history-only row.
+        if ((sectionX == RankSection.Pinned) != (sectionY == RankSection.Pinned))
+            return sectionX == RankSection.Pinned ? -1 : 1;
+        if ((sectionX == RankSection.HistoryTail) != (sectionY == RankSection.HistoryTail))
+            return sectionX == RankSection.HistoryTail ? 1 : -1;
 
         // One rule for the tier->tie decision, shared with the quick window's kernel: this window has no
         // history-only rows, so isHistoryOnly is false on both sides.
@@ -53,6 +57,20 @@ public sealed class RankedSearchResultComparer : IComparer<SearchResult>
             (int)((y.RankSortKey >> 56) & 0x7F),
             CoverageOf(y.RankSortKey),
             ContiguityOf(y.RankSortKey));
+
+        // Match quality first, then the section -- see RankKeyComparer for why: a demoted path must lose to an
+        // equally good row, not to one whose letters were scattered across the name.
+        var byStart = rankX.Start.CompareTo(rankY.Start);
+        if (byStart != 0)
+            return byStart;
+
+        var byContiguity = rankY.Contiguity.CompareTo(rankX.Contiguity);
+        if (byContiguity != 0)
+            return byContiguity;
+
+        var compare = ((byte)sectionX).CompareTo((byte)sectionY);
+        if (compare != 0)
+            return compare;
 
         compare = RankPolicy.CompareSectionRank(sectionX, in rankX, in rankY);
         if (compare != 0)

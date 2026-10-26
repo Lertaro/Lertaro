@@ -470,11 +470,37 @@ public sealed class RankKeyComparer : IComparer<RankKey>
 
     public int Compare(RankKey x, RankKey y)
     {
+        var xSection = (RankSection)x.Section;
+        var ySection = (RankSection)y.Section;
+
+        // Pinned stays on top whatever the match looks like: "always on top" is an explicit instruction and
+        // the only section that is meant to outrank quality outright.
+        if ((xSection == RankSection.Pinned) != (ySection == RankSection.Pinned))
+            return xSection == RankSection.Pinned ? -1 : 1;
+
+        // HistoryTail is a weak history-only row; it belongs behind anything that matched the query itself.
+        if ((xSection == RankSection.HistoryTail) != (ySection == RankSection.HistoryTail))
+            return xSection == RankSection.HistoryTail ? 1 : -1;
+
+        // Match quality BEFORE the section. Where the query sits in the name and how tightly it sits there is
+        // what the user actually typed. Ranking the section first meant a demoted path lost to any row in a
+        // normal bucket, including one whose letters were scattered across the name -- so a scattered match
+        // came back at the top while a dozen contiguous ones followed it.
+        var byStart = x.Match.Start.CompareTo(y.Match.Start);
+        if (byStart != 0)
+            return byStart;
+
+        var byContiguity = y.Match.Contiguity.CompareTo(x.Match.Contiguity);
+        if (byContiguity != 0)
+            return byContiguity;
+
+        // Only now does the section decide: a demoted row still ranks behind an equally good one, so the
+        // setting keeps its meaning without overriding what the user typed.
         var compare = x.Section.CompareTo(y.Section);
         if (compare != 0)
             return compare;
 
-        var section = (RankSection)x.Section;
+        var section = xSection;
         var rankX = new SectionRank(x.Score, x.HistoryTie, x.TypeRank, x.Match.Start, x.Match.Coverage, x.Match.Contiguity);
         var rankY = new SectionRank(y.Score, y.HistoryTie, y.TypeRank, y.Match.Start, y.Match.Coverage, y.Match.Contiguity);
 

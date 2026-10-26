@@ -195,6 +195,7 @@ internal static class FzfPatternParser
         var lower = token.ToLowerInvariant();
         current.Add(new FzfTerm(kind, inverse, lower, CaseSensitive: false));
         AddAliasQueryForms(current, lower, kind, inverse);
+
     }
 
     private static void AddAliasQueryForms(List<FzfTerm> current, string lower, FzfTermKind kind, bool inverse)
