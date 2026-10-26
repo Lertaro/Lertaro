@@ -93,7 +93,7 @@ public static class SearchStreamPump
                     var directory = msg.Id == SearchRequestId.SearchDir ? msg.DirectoryFilter : null;
 
                     engine?.SearchStreaming(msg.Query ?? string.Empty, msg.Limit, msg.AppLimit, directory, Emit, queryToken,
-                        msg.FileNameFilter);
+                        msg.FileNameFilter, msg.Category);
                     channel.Writer.TryComplete();
                 }
                 catch (Exception ex)

@@ -1,3 +1,4 @@
+using Lertaro.Core.Wire;
 using Lertaro.Core.SearchIndex.Fzf;
 
 using Lertaro.Core.IndexV2.Search.PathMode;
@@ -11,7 +12,7 @@ namespace Lertaro.Core.IndexV2.Search;
 // the whole search sees one consistent (Snapshot, DeltaOverlay) pair.
 public static class IndexV2Searcher
 {
-    public static void SearchStreaming(LiveIndex index, string query, int limit, Action<SearchResult> onResult, CancellationToken token, string? directoryFilter = null, string? fileNameFilter = null)
+    public static void SearchStreaming(LiveIndex index, string query, int limit, Action<SearchResult> onResult, CancellationToken token, string? directoryFilter = null, string? fileNameFilter = null, SearchCategoryFilter category = SearchCategoryFilter.All)
     {
         if (limit <= 0 || string.IsNullOrWhiteSpace(query))
             return;
@@ -40,7 +41,7 @@ public static class IndexV2Searcher
 
             var pattern = FzfPattern.Parse(query);
             NameSearch.SearchStreaming(snapshot, delta, pattern, limit, onResult, token, directoryFilterLower,
-                FilterPatternHelper.SplitOrNullIfMatchAll(fileNameFilter));
+                FilterPatternHelper.SplitOrNullIfMatchAll(fileNameFilter), category);
             return null;
         });
     }

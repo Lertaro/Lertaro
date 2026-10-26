@@ -1,3 +1,4 @@
+using Lertaro.Core.Wire;
 using Lertaro.Core.IndexV2;
 using Lertaro.Core.DriveMonitoring;
 
@@ -86,7 +87,7 @@ public partial class UsnIndexer : IDisposable
     }
 
 
-    public void SearchStreaming(string query, int limit, Action<SearchResult> onResult, CancellationToken token = default, string? directoryFilter = null, string? fileNameFilter = null) => SearchCoordinator.SearchStreaming(_recordIndexes, LockObj, query, limit, onResult, token, directoryFilter, fileNameFilter);
+    public void SearchStreaming(string query, int limit, Action<SearchResult> onResult, CancellationToken token = default, string? directoryFilter = null, string? fileNameFilter = null, SearchCategoryFilter category = SearchCategoryFilter.All) => SearchCoordinator.SearchStreaming(_recordIndexes, LockObj, query, limit, onResult, token, directoryFilter, fileNameFilter, category);
 
     public bool EnumerateDirectory(string path, bool recursive, string[]? patterns, int limit, Action<SearchResult> onResult, CancellationToken token = default)
         => SearchCoordinator.EnumerateDirectory(_recordIndexes, LockObj, path, recursive, patterns, limit, onResult, token);

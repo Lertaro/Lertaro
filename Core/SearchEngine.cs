@@ -1,3 +1,4 @@
+using Lertaro.Core.Wire;
 using Lertaro.Core.Indexer.Usn;
 
 using Lertaro.Core.DriveMonitoring;
@@ -147,7 +148,8 @@ public class SearchEngine : IDisposable
         string? directoryFilter,
         Action<SearchResult> onResult,
         CancellationToken requestToken = default,
-        string? fileNameFilter = null)
+        string? fileNameFilter = null,
+        SearchCategoryFilter category = SearchCategoryFilter.All)
     {
         // Marked in flight for the duration, and stamped again on the way out: this method blocks until
         // the whole search is done, so a query taking longer than the idle window would otherwise look
@@ -155,7 +157,7 @@ public class SearchEngine : IDisposable
         _idleTrim.SearchStarted(Environment.TickCount64);
         try
         {
-            return SearchStreamingCore(query, fileLimit, appLimit, directoryFilter, onResult, requestToken, fileNameFilter);
+            return SearchStreamingCore(query, fileLimit, appLimit, directoryFilter, onResult, requestToken, fileNameFilter, category);
         }
         finally
         {
@@ -170,7 +172,8 @@ public class SearchEngine : IDisposable
         string? directoryFilter,
         Action<SearchResult> onResult,
         CancellationToken requestToken,
-        string? fileNameFilter)
+        string? fileNameFilter,
+        SearchCategoryFilter category)
     {
         if (string.IsNullOrWhiteSpace(query))
             return true;
@@ -205,7 +208,7 @@ public class SearchEngine : IDisposable
             {
                 searchToken.ThrowIfCancellationRequested();
                 onResult(result);
-            }, searchToken, directoryFilter, fileNameFilter);
+            }, searchToken, directoryFilter, fileNameFilter, category);
 
             return true;
         }
