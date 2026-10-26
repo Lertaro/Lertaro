@@ -128,11 +128,11 @@
             <Grid.RowDefinitions>
                 <!-- Search bar -->
                 <RowDefinition Height="Auto"/>
+                <!-- Category filter (row assignment is set in code, see ApplyCategoryBarPlacement) -->
+                <RowDefinition Height="Auto"/>
                 <!-- Separator -->
                 <RowDefinition Height="Auto"/>
                 <!-- Results panel (grows with content) -->
-                <RowDefinition Height="Auto"/>
-                <!-- Category filter, under the list -->
                 <RowDefinition Height="Auto"/>
                 <!-- Status bar -->
                 <RowDefinition Height="Auto"/>
@@ -155,7 +155,7 @@
                  has no business occupying a row while there is nothing to narrow. -->
             <!-- ZIndex: the ContentBg layer below spans this row too and is declared after this grid, so
                  without an explicit index it paints over the filters and leaves an empty band. -->
-            <Grid Grid.Row="3" Margin="12,4,12,2" HorizontalAlignment="Stretch" Panel.ZIndex="10"
+            <Grid x:Name="CategoryBarHost" Grid.Row="1" Margin="12,1,12,2" HorizontalAlignment="Stretch" Panel.ZIndex="10"
                   Visibility="{Binding ResultsPanelVisibility}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -211,7 +211,7 @@
 
             <!-- ═══════════ 3. Separator ═══════════ -->
             <Rectangle x:Name="ResultsSeparator"
-                       Grid.Row="1"
+                       Grid.Row="2"
                        Height="1"
                        Margin="12,0,12,0"
                        Fill="{DynamicResource SeparatorBrush}"
@@ -221,13 +221,13 @@
                  "Main Results Grid" (Background=ContentBg, a shade back from the outer CardBackground
                  chrome/search bar) so every window's results area reads the same instead of being flat
                  CardBackground everywhere with no depth. -->
-            <Border Grid.Row="2" Grid.RowSpan="2" Background="{DynamicResource ContentBg}"/>
+            <Border x:Name="ResultsContentBackground" Grid.Row="3" Grid.RowSpan="2" Background="{DynamicResource ContentBg}"/>
 
-            <quick:QuickSearchLaunchPanel x:Name="LaunchPanelControl" Grid.Row="2"
+            <quick:QuickSearchLaunchPanel x:Name="LaunchPanelControl" Grid.Row="3"
                                           Visibility="{Binding LaunchPanelVisibility}"/>
 
             <!-- ═══════════ 4. Results Panel ═══════════ -->
-            <results:ResultsControl x:Name="ResultsPanelControl" Grid.Row="2"
+            <results:ResultsControl x:Name="ResultsPanelControl" Grid.Row="3"
                                   UsesFloatingActionsLayout="True"
                                   ItemsSource="{Binding Results}"
                                   SelectedItem="{Binding SelectedResult, Mode=TwoWay}"

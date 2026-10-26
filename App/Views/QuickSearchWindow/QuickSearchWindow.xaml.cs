@@ -54,6 +54,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         InitializeComponent();
         // Nothing between the XAML's declaration of the handle and the surface this window needs it for.
         ApplySurface();
+        ApplyCategoryBarPlacement();
         // No text-formatting override here any more: this window used to put its search box on Ideal, on
         // its own, to "smooth" the input (d7f6cd49) -- which took the one element the user actually reads
         // off the Display metrics every other element in the process renders with. Section 五 of the plan
@@ -140,6 +141,33 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         _layoutManager.UpdateActionsLayout();
     }
     internal void ExecuteFavorite(AppSearchResult result) => _resultExecutor.Execute(result);
+    // Where the category bar sits. A constant for now: making this a user setting later means replacing the
+    // const read in ApplyCategoryBarPlacement with a binding to a view-model property, and nothing else.
+    private const CategoryBarPlacement CategoryBarPosition = CategoryBarPlacement.AboveList;
+
+    // Re-assigns the rows the filters, separator and results occupy, so the bar can sit either directly under
+    // the search box or under the result list. Both layouts use the same five rows -- only the assignment
+    // changes -- so no other part of the window has to know which one is active.
+    private void ApplyCategoryBarPlacement()
+    {
+        var above = CategoryBarPosition == CategoryBarPlacement.AboveList;
+
+        Grid.SetRow(CategoryBarHost, above ? 1 : 3);
+
+        var separatorRow = above ? 2 : 1;
+        var resultsRow = above ? 3 : 2;
+
+        Grid.SetRow(ResultsSeparator, separatorRow);
+
+        // Spans this row and the one after it: the results plus whichever of the filters or the status bar
+        // follows them in the active layout.
+        Grid.SetRow(ResultsContentBackground, resultsRow);
+        Grid.SetRowSpan(ResultsContentBackground, 2);
+
+        Grid.SetRow(LaunchPanelControl, resultsRow);
+        Grid.SetRow(ResultsPanelControl, resultsRow);
+    }
+
     internal void RecordKeywordHistory()
     {
         try { KeywordHistoryStore.Record(_viewModel.SearchQuery); } catch { }
@@ -531,4 +559,13 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         _menuPresenter?.Dispose();
         base.OnClosed(e);
     }
-}
+
+/// <summary>Where the quick window's category filter row sits.</summary>
+internal enum CategoryBarPlacement
+{
+    /// <summary>Directly under the search box, above the results.</summary>
+    AboveList = 0,
+
+    /// <summary>Under the result list, just above the status bar.</summary>
+    BelowList = 1,
+}}
