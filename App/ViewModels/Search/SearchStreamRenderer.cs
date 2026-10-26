@@ -1,3 +1,4 @@
+using Lertaro.Core.Wire;
 using Lertaro.App.ViewModels.Search.Dispatch;
 using Lertaro.App.ViewModels.Search.Mapping;
 using Lertaro.Core;
@@ -63,7 +64,8 @@ internal sealed class SearchStreamRenderer
         Action<int>? onReceivedCountUpdated = null,
         FileFilterScopeDirective? scopeDirective = null,
         bool foldersOnly = false,
-        IReadOnlyList<string>? priorityRoots = null)
+        IReadOnlyList<string>? priorityRoots = null,
+        SearchCategoryFilter category = SearchCategoryFilter.All)
     {
         var streamedResponse = new List<SearchResult>();
         object responseLock = new();
@@ -255,7 +257,7 @@ internal sealed class SearchStreamRenderer
                 {
                     if (!token.IsCancellationRequested && searchVersion == _getSearchVersion())
                         onLocalServiceUnavailable?.Invoke();
-                })), bypassExclusions).ConfigureAwait(false);
+                })), bypassExclusions, category: category).ConfigureAwait(false);
             }
 
             token.ThrowIfCancellationRequested();
