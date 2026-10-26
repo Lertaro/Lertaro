@@ -1,4 +1,3 @@
-using System.IO;
 using System.Windows.Threading;
 using Lertaro.Core;
 using Lertaro.Core.Hook;
@@ -26,9 +25,12 @@ public class InlineSearchManager : IDisposable
     private readonly InlineSearchWindowSummonSupport _windowSummon;
     private string _searchText = string.Empty;
     private IntPtr _currentHostHwnd = IntPtr.Zero;
-    private FileSystemWatcher? _folderWatcher;
-    private DispatcherTimer? _folderChangeTimer;
-    private DispatcherTimer? _folderSettleTimer;
+    // The card never watches the folder itself: a live FileSystemWatcher holds a directory handle on the
+    // volume, and a removable volume carrying one cannot be ejected until this process exits -- the card
+    // parks for the whole session, so its handle would too. The index reports the same changes from the
+    // process that owns the volume handle and releases it on a PnP query-remove.
+    private const string FolderWatchKey = "__inline-search";
+    private IDisposable? _folderWatch;
     private string? _watchedFolder;
 
     public ExplorerTracker ExplorerTracker => _explorerTracker;
@@ -145,65 +147,38 @@ public class InlineSearchManager : IDisposable
 
     // The folder listing is otherwise fixed for the window's life: delete a file in Explorer and every
     // later keystroke re-filtered the same stale entries, so the row stayed on screen (see
-    // DirectChildrenListingCache). The watcher turns a folder change into an invalidation plus a re-run
-    // of whatever the box currently says.
+    // DirectChildrenListingCache). The index's change stream turns a folder change into an invalidation
+    // plus a re-run of whatever the box currently says.
+    //
+    // Deliberately not a FileSystemWatcher (see FolderWatchKey): the index is the source of truth anyway,
+    // and its notification is raised after the batch was applied, so the re-run cannot stream back a row
+    // the change already removed -- which is what the old watcher's extra settle pass existed for.
     private void WatchFolder(string folder)
     {
         if (string.Equals(_watchedFolder, folder, StringComparison.OrdinalIgnoreCase))
             return;
 
-        DisposeFolderWatcher();
+        _ = Core.Services.Plugin.DirectoryIndex.CoreDirectoryIndexManager.Instance;
+
+        _folderWatch ??= PluginSdk.Services.DirectoryIndexerService.WatchDirectories(FolderWatchKey, OnWatchedFolderChanged);
+        // One key holds one folder: dropping the previous registration is what stops the old folder's
+        // changes from still refreshing this card after Explorer moved elsewhere.
+        if (_watchedFolder != null)
+            PluginSdk.Services.DirectoryIndexerService.UnregisterDirectories(FolderWatchKey);
+
         _watchedFolder = folder;
-        try
-        {
-            _folderWatcher = new FileSystemWatcher(folder)
-            {
-                // Names are all the listing carries, so size/date churn on an existing file is not a
-                // reason to re-walk the folder.
-                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName,
-                IncludeSubdirectories = false,
-                InternalBufferSize = 64 * 1024
-            };
-            _folderWatcher.Created += (_, _) => OnWatchedFolderChanged();
-            _folderWatcher.Deleted += (_, _) => OnWatchedFolderChanged();
-            _folderWatcher.Renamed += (_, _) => OnWatchedFolderChanged();
-            // A buffer overflow means events were lost, so the listing may be stale even though nothing
-            // raised a normal event; invalidating on error is cheap compared with a wrong row.
-            _folderWatcher.Error += (_, e) =>
-            {
-                Logger.Log($"[InlineSearchManager] Folder watcher error for '{folder}': {e.GetException().Message}", LogLevel.Debug);
-                OnWatchedFolderChanged();
-            };
-            _folderWatcher.EnableRaisingEvents = true;
-        }
-        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException or NotSupportedException)
-        {
-            // A spun-down removable drive or a protected folder must not take the inline search with it:
-            // without the watcher the listing behaves exactly as it did before this existed.
-            _folderWatcher = null;
-            Logger.Log($"[InlineSearchManager] Cannot watch folder '{folder}': {ex.Message}", LogLevel.Debug);
-        }
+        // One level, because the listing carries this folder's own entries. The change matcher reports
+        // descendants as well, which can only cost one extra re-run.
+        PluginSdk.Services.DirectoryIndexerService.RegisterDirectory(FolderWatchKey, folder, recursive: false, "*");
     }
 
-    // Watcher events arrive on a pool thread and one delete raises several of them: coalesce on the UI
-    // thread, then invalidate once and re-run at most once per debounce window.
-    private void OnWatchedFolderChanged() => Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
-    {
-        _folderChangeTimer ??= CreateFolderChangeTimer();
-        _folderChangeTimer.Stop();
-        _folderChangeTimer.Start();
-    }));
-
-    private DispatcherTimer CreateFolderChangeTimer()
-    {
-        var timer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(300) };
-        timer.Tick += (_, _) => ApplyFolderChange();
-        return timer;
-    }
+    // Raised on a background thread, already debounced and already after the index caught up; the card
+    // only has to get back to its own thread.
+    private void OnWatchedFolderChanged() =>
+        Application.Current?.Dispatcher.BeginInvoke(new Action(ApplyFolderChange));
 
     private void ApplyFolderChange()
     {
-        _folderChangeTimer?.Stop();
         var scope = _window?.ViewModel.SearchScope;
         if (string.IsNullOrEmpty(scope))
             return;
@@ -214,30 +189,14 @@ public class InlineSearchManager : IDisposable
             return;
 
         _window!.ViewModel.Search.PerformSearch(_window.SearchBox.SearchText ?? string.Empty);
-        // The service applies USN batches up to a second after the file itself is gone, so the re-run
-        // above can still stream the deleted row back out of the index. One settle pass later both
-        // sources agree with the folder.
-        _folderSettleTimer ??= CreateFolderSettleTimer();
-        _folderSettleTimer.Stop();
-        _folderSettleTimer.Start();
-    }
-
-    private DispatcherTimer CreateFolderSettleTimer()
-    {
-        var timer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(1200) };
-        timer.Tick += (_, _) =>
-        {
-            timer.Stop();
-            if (_window is { IsVisible: true })
-                _window.ViewModel.Search.PerformSearch(_window.SearchBox.SearchText ?? string.Empty);
-        };
-        return timer;
     }
 
     private void DisposeFolderWatcher()
     {
-        _folderWatcher?.Dispose();
-        _folderWatcher = null;
+        _folderWatch?.Dispose();
+        _folderWatch = null;
+        if (_watchedFolder != null)
+            PluginSdk.Services.DirectoryIndexerService.UnregisterDirectories(FolderWatchKey);
         _watchedFolder = null;
     }
 
@@ -420,16 +379,6 @@ public class InlineSearchManager : IDisposable
     {
         CloseInlineSearch("Dispose");
         DisposeFolderWatcher();
-        if (_folderChangeTimer != null)
-        {
-            _folderChangeTimer.Stop();
-            _folderChangeTimer = null;
-        }
-        if (_folderSettleTimer != null)
-        {
-            _folderSettleTimer.Stop();
-            _folderSettleTimer = null;
-        }
         // The only place the card is destroyed: it outlives every summon now, and closing it is what releases
         // its view model's search-service session and its watchdog timer.
         _window?.Close();

@@ -130,6 +130,47 @@ public sealed class DriveWatcherHostTests
     }
 
     [TestMethod]
+    public async Task Release_GivesUpTheWatcherButKeepsPollingForTheRoot()
+    {
+        using var dir = new TempDirectory();
+        FileSystemWatcher? first = null;
+        var rearmed = new TaskCompletionSource<FileSystemWatcher>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var host = new DriveWatcherHost("Test", dir.Path, _ => true,
+            (current, _, _, _, _) =>
+            {
+                if (first == null) first = current;
+                else rearmed.TrySetResult(current);
+                return true;
+            },
+            _ => { }, TimeSpan.FromMilliseconds(20));
+
+        host.Start();
+        host.Release();
+
+        // A release that stopped the host from ever re-arming would leave the root unwatched for good, so
+        // what an eject-then-reinsert needs is exactly this: a second watcher on the same root.
+        var second = await rearmed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.AreNotSame(first, second);
+    }
+
+    [TestMethod]
+    public async Task Release_AfterDispose_LeavesNothingReArmed()
+    {
+        using var dir = new TempDirectory();
+        var configured = 0;
+        var host = new DriveWatcherHost("Test", dir.Path, _ => true,
+            (_, _, _, _, _) => { Interlocked.Increment(ref configured); return true; },
+            _ => { }, TimeSpan.FromMilliseconds(20));
+
+        host.Start();
+        host.Dispose();
+        host.Release();
+
+        await Task.Delay(200);
+        Assert.AreEqual(1, Volatile.Read(ref configured));
+    }
+
+    [TestMethod]
     public void Dispose_ThenStart_NeverTouchesExistsOrConfigure()
     {
         using var dir = new TempDirectory();

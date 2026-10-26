@@ -11,6 +11,7 @@ internal sealed class DriveDeviceRemovalMonitor : IDisposable
     private readonly Action _onRemovalFailed;
     private readonly Action _onRemovalComplete;
     private readonly DeviceNotificationNative.Callback _callback;
+    private readonly object _gate = new();
     private SafeFileHandle? _targetHandle;
     private IntPtr _notification;
     private int _callbackDepth;
@@ -127,11 +128,37 @@ internal sealed class DriveDeviceRemovalMonitor : IDisposable
 
     private void UnregisterCore()
     {
-        var notification = Interlocked.Exchange(ref _notification, IntPtr.Zero);
-        if (notification != IntPtr.Zero)
-            DeviceNotificationNative.CM_Unregister_Notification(notification);
-        CloseTargetHandle();
+        lock (_gate)
+        {
+            var notification = Interlocked.Exchange(ref _notification, IntPtr.Zero);
+            if (notification != IntPtr.Zero)
+                DeviceNotificationNative.CM_Unregister_Notification(notification);
+            CloseTargetHandle();
+        }
     }
+
+    // Puts the notification back after a removal attempt was refused, because answering one closed the very
+    // handle the registration reports on: an unarmed monitor never hears the next attempt, so a single eject
+    // vetoed by another program would leave the volume un-ejectable until something else rebuilt its monitor.
+    // Off the callback thread, and serialized with Dispose: CM_Unregister_Notification for a notification that
+    // is mid-callback is the same hazard Dispose() already defers for.
+    private void Rearm() => _ = Task.Run(() =>
+    {
+        lock (_gate)
+        {
+            // Skip when already armed (another refusal re-armed first), when this volume is gone for good,
+            // and while a removal request is being answered -- re-arming inside that window would put a handle
+            // back on the volume the system is trying to lock, and the next refusal would bring us back here.
+            if (Volatile.Read(ref _disposed) != 0 || _targetHandle != null || Volatile.Read(ref _removalRequested) != 0)
+                return;
+
+            var notification = Interlocked.Exchange(ref _notification, IntPtr.Zero);
+            if (notification != IntPtr.Zero)
+                DeviceNotificationNative.CM_Unregister_Notification(notification);
+
+            RegisterCore(_drive);
+        }
+    });
 
     private void CloseTargetHandle() => Interlocked.Exchange(ref _targetHandle, null)?.Dispose();
 
@@ -150,5 +177,6 @@ internal sealed class DriveDeviceRemovalMonitor : IDisposable
         Interlocked.Exchange(ref _removalRequested, 0);
         try { _onRemovalFailed(); }
         catch (Exception ex) { Logger.Log($"[DeviceNotification] Failed to restore a drive monitor: {ex.Message}", LogLevel.Error); }
+        Rearm();
     }
 }

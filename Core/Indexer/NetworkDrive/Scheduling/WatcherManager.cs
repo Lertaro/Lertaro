@@ -25,6 +25,10 @@ internal class WatcherManager : IDisposable
     // ConfigureWatcher); this is what keeps that from queueing one refresh per failed retry.
     private readonly WatcherLossRefreshGate _lossGate = new();
 
+    // One volume-removal registration per watched root, held exactly as long as that root's watcher is live.
+    private readonly Dictionary<string, DriveDeviceRemovalMonitor?> _removals = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _removalsGate = new();
+
     public WatcherManager(
         Action<string, string> queueRefresh,
         Func<string, NetworkIndex?> getIndex,
@@ -59,6 +63,10 @@ internal class WatcherManager : IDisposable
                 message => Logger.Log(message, LogLevel.Info),
                 onStarted: () =>
                 {
+                    // A live watcher is only safe to keep on a removable volume if a removal request can
+                    // take it down in time, and a re-established one owes the tree a re-walk for whatever
+                    // changed while nothing was watching.
+                    WatchVolumeRemoval(drive);
                     if (!_disposed && _lossGate.Recovered(drive))
                         _queueRefresh(drive, "watcher recovered, reconcile the outage");
                 });
@@ -69,6 +77,8 @@ internal class WatcherManager : IDisposable
 
     public void RemoveWatcher(string drive)
     {
+        TakeRemovalMonitor(drive)?.Dispose();
+
         lock (_watchers)
         {
             if (_watchers.Remove(drive, out var watcher))
@@ -84,6 +94,78 @@ internal class WatcherManager : IDisposable
         }
 
         _publishDebounce.Cancel(drive);
+    }
+
+    // Arms the removal watch for a root whose watcher just went live. Ejecting the volume under a
+    // folder-index root needs every handle on it gone by the time Windows asks, and asking is what this
+    // registration buys: it costs one read handle of our own, which the answer closes again. A UNC share or
+    // a mapped drive has no local volume to eject, so those roots are left alone.
+    private void WatchVolumeRemoval(string drive)
+    {
+        var letter = EjectableVolumeOf(PathHelpers.BuildSourceRoot(drive));
+        if (letter == null)
+            return;
+
+        // Re-armed on every (re)start: the registration that answered the last removal request closed its
+        // own handle and can never report again for this root.
+        var previous = TakeRemovalMonitor(drive);
+        DriveDeviceRemovalMonitor? monitor;
+        lock (_removalsGate)
+        {
+            monitor = DriveDeviceRemovalMonitor.Register(letter, () => ReleaseForRemoval(drive), () => { }, () => { });
+            _removals[drive] = monitor;
+        }
+        previous?.Dispose();
+    }
+
+    // Answers the removal request by giving the handle up: the watcher goes, its now-deaf registration goes
+    // with it, and the outage is recorded so the re-arm re-walks the tree. DriveWatcherHost's own polling is
+    // what brings all of this back -- the volume is either still mounted (somebody else vetoed the eject) or
+    // will be re-inserted.
+    private void ReleaseForRemoval(string drive)
+    {
+        if (_disposed)
+            return;
+
+        _ = _lossGate.ShouldRequestRefresh(drive);
+        TakeRemovalMonitor(drive)?.Dispose();
+
+        DriveWatcherHost? host;
+        lock (_watchers)
+            _watchers.TryGetValue(drive, out host);
+        host?.Release();
+    }
+
+    private DriveDeviceRemovalMonitor? TakeRemovalMonitor(string drive)
+    {
+        lock (_removalsGate)
+        {
+            if (!_removals.TryGetValue(drive, out var monitor))
+                return null;
+            _removals.Remove(drive);
+            return monitor;
+        }
+    }
+
+    // The volume an eject would be about: a local letter that is not a redirected (network) root. A USB disk
+    // reports Fixed and a stick reports Removable, so the only root excluded here is a share -- whose volume
+    // is not this machine's to release. DriveInfo throws for the UNC spelling, folded into "no volume" here.
+    private static string? EjectableVolumeOf(string path)
+    {
+        try
+        {
+            var root = Path.GetPathRoot(path);
+            if (string.IsNullOrEmpty(root) || root.StartsWith(@"\\", StringComparison.Ordinal))
+                return null;
+
+            return new DriveInfo(root).DriveType == DriveType.Network
+                ? null
+                : root[..1].ToUpperInvariant();
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or System.Security.SecurityException)
+        {
+            return null;
+        }
     }
 
     // Coalesces however many watcher events land on this drive within PublishDebounceMs into a single
@@ -272,6 +354,17 @@ internal class WatcherManager : IDisposable
     public void Dispose()
     {
         _disposed = true;
+
+        // First the registrations, so no removal request can arrive while the watchers are being torn down.
+        List<DriveDeviceRemovalMonitor?> removals;
+        lock (_removalsGate)
+        {
+            removals = _removals.Values.ToList();
+            _removals.Clear();
+        }
+        foreach (var removal in removals)
+            removal?.Dispose();
+
         lock (_watchers)
         {
             foreach (var watcher in _watchers.Values)

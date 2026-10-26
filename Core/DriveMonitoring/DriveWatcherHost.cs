@@ -36,6 +36,11 @@ internal sealed class DriveWatcherHost : IDisposable
 
     public void Start() => EnsureWatcher();
 
+    // Gives up the live watcher but keeps this host polling, for owners that have to answer a Windows
+    // removal request before a volume can be ejected. Monitoring comes back on the next retry, whether the
+    // volume stayed (the eject was vetoed elsewhere) or left and was re-inserted.
+    public void Release() => RestartWatcher();
+
     public void Dispose()
     {
         _disposed = true;
