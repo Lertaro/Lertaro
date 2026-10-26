@@ -37,6 +37,17 @@ public class QuickSearchWindowInputHandler
         if (SearchInputHelper.HandleCommonSearchKeys(e, _window, _window.MenuPresenter))
             return;
 
+        // Tab cycles the category filters, but only while the bar is actually on screen: with no results
+        // there is nothing to filter, so Tab keeps its ordinary focus behaviour instead.
+        if (e.Key == Key.Tab
+            && Keyboard.Modifiers is ModifierKeys.None or ModifierKeys.Shift
+            && _window.CategoryBar.Visibility == Visibility.Visible)
+        {
+            _window.CycleCategory(Keyboard.Modifiers == ModifierKeys.Shift ? -1 : 1);
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.Escape && Keyboard.Modifiers == ModifierKeys.None)
         {
             _window.HideWindow();
