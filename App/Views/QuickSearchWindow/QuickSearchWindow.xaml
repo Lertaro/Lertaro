@@ -35,7 +35,7 @@
             <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Margin" Value="0"/>
-            <Setter Property="Padding" Value="10,3"/>
+            <Setter Property="Padding" Value="3,3"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
@@ -43,10 +43,10 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
                         <Grid>
-                            <!-- Separator, drawn on the LEFT of every filter. Paired with the single pipe the
-                                 bar adds after its last item, the row is bounded at both ends instead of
-                                 trailing off on one side. -->
-                            <Rectangle Width="1"
+                            <!-- Pipe between filters, drawn on the left of each one and hidden on the first, so
+                                 the row starts with a label rather than a leading rule. -->
+                            <Rectangle x:Name="Pipe"
+                                       Width="1"
                                        Margin="0,3,0,3"
                                        HorizontalAlignment="Left"
                                        Fill="{DynamicResource SeparatorBrush}"
@@ -57,6 +57,11 @@
                             </Border>
                         </Grid>
                         <ControlTemplate.Triggers>
+                            <!-- No leading pipe on the first filter. Needs AlternationCount on the ListBox;
+                                 when it is unset the attached index is -1 and this simply never fires. -->
+                            <Trigger Property="ItemsControl.AlternationIndex" Value="0">
+                                <Setter TargetName="Pipe" Property="Visibility" Value="Collapsed"/>
+                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
                             </Trigger>
@@ -174,6 +179,7 @@
                 <ListBox x:Name="CategoryBar"
                          Grid.Row="0" Grid.Column="0"
                          HorizontalAlignment="Stretch"
+                         AlternationCount="64"
                          Style="{StaticResource CategoryBarStyle}"
                          ItemsSource="{Binding Categories}"
                          SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"
@@ -185,11 +191,6 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <Rectangle Grid.Row="0" Grid.Column="1"
-                           Width="1"
-                           Margin="0,3,0,3"
-                           Fill="{DynamicResource SeparatorBrush}"
-                           Opacity="0.45"/>
 
                 <!-- The selected filter's underline. Its X and width are animated by
                      UpdateCategoryIndicator, so moving between filters reads as a slide instead of a jump. -->

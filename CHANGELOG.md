@@ -11,6 +11,7 @@
 
 ```
 * 各分类标签在整行内等宽分布
++ 标签间的分隔线只出现在中间，首尾不再留空
 + 分类标签默认显示在搜索框下方，位置改为参数控制
 # 匹配质量先于降权段比较，散落的匹配不再排在连续匹配之前
 + 自动更新只检查本仓库的发行
@@ -21,6 +22,7 @@
 
 ```
 * The category filters spread evenly across the row
++ The pipes between filters only appear between them, with no extra gap at either end
 + The category filter bar sits under the search box by default, with its position driven by a parameter
 # Match quality is compared before the demotion section, so a scattered match no longer outranks a contiguous one
 + Auto-update only checks this repository's releases
