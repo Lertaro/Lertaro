@@ -375,6 +375,239 @@
         ],
         "mustBeAbsent": ["scattered-zbl-alias"]
       }
+    },
+    {
+      "id": "wand-app-beats-shorter-names-at-the-same-placement",
+      "window": "quick",
+      "rawQuery": "wand",
+      "fuzzyEnabled": true,
+      "typeOrder": ["App", "Files"],
+      "providerReadiness": "ready",
+      "candidates": [
+        {
+          "token": "wand-app",
+          "expectedV3Grade": "DirectStrong",
+          "displayName": "Wand (WeMod)",
+          "syntheticPath": "X:\\Fixture\\Start Menu\\Wand (WeMod).lnk",
+          "kind": ["Application", "Shortcut"],
+          "source": "SearchableProvider",
+          "match": { "tier": 0, "start": 0, "coverage": 0.333, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 0,
+          "relevance": 3
+        },
+        {
+          "token": "wand-gfx-dir",
+          "expectedV3Grade": "DirectStrong",
+          "displayName": "wand_gfx",
+          "syntheticPath": "X:\\Fixture\\Games\\mods\\wand_gfx",
+          "kind": ["Directory"],
+          "source": "FileIndex",
+          "match": { "tier": 0, "start": 0, "coverage": 0.5, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 1,
+          "relevance": 1
+        },
+        {
+          "token": "wand-png",
+          "expectedV3Grade": "DirectStrong",
+          "displayName": "wand_1.png",
+          "syntheticPath": "X:\\Fixture\\Games\\mods\\wand_gfx\\wand_1.png",
+          "kind": ["File"],
+          "source": "FileIndex",
+          "match": { "tier": 0, "start": 0, "coverage": 0.4, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 1,
+          "relevance": 1
+        },
+        {
+          "token": "wandbase-file",
+          "expectedV3Grade": "DirectStrong",
+          "displayName": "WandBase.as",
+          "syntheticPath": "X:\\Fixture\\Games\\Script\\WandBase.as",
+          "kind": ["File"],
+          "source": "FileIndex",
+          "match": { "tier": 0, "start": 0, "coverage": 0.364, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 1,
+          "relevance": 1
+        }
+      ],
+      "assertions": {
+        "mustAppearBefore": [
+          { "before": "wand-app", "after": "wand-gfx-dir" },
+          { "before": "wand-app", "after": "wand-png" },
+          { "before": "wand-app", "after": "wandbase-file" }
+        ],
+        "mustBeTopK": [
+          { "token": "wand-app", "k": 1 }
+        ],
+        "mustBeAbsent": []
+      }
+    },
+    {
+      "id": "ocr-exact-file-beats-later-placed-app",
+      "window": "quick",
+      "rawQuery": "ocr",
+      "fuzzyEnabled": true,
+      "typeOrder": ["App", "Files"],
+      "providerReadiness": "ready",
+      "candidates": [
+        {
+          "token": "ocr-file",
+          "expectedV3Grade": "ExactIdentity",
+          "displayName": "ocr",
+          "syntheticPath": "X:\\Fixture\\Tools\\ocr",
+          "kind": ["File"],
+          "source": "FileIndex",
+          "match": { "tier": 0, "start": 0, "coverage": 1.0, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 1,
+          "relevance": 3
+        },
+        {
+          "token": "ocr-long-lnk",
+          "expectedV3Grade": "DirectStrong",
+          "displayName": "截图截屏标注ocr屏幕批注录屏",
+          "syntheticPath": "X:\\Fixture\\Start Menu\\截图截屏标注ocr屏幕批注录屏.lnk",
+          "kind": ["Application", "Shortcut"],
+          "source": "SearchableProvider",
+          "match": { "tier": 0, "start": 6, "coverage": 0.2, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 0,
+          "relevance": 1
+        }
+      ],
+      "assertions": {
+        "mustAppearBefore": [
+          { "before": "ocr-file", "after": "ocr-long-lnk" }
+        ],
+        "mustBeTopK": [
+          { "token": "ocr-file", "k": 1 }
+        ],
+        "mustBeAbsent": []
+      }
+    },
+    {
+      "id": "long-named-app-beats-shorter-file-at-the-same-placement",
+      "window": "quick",
+      "rawQuery": "重复文件",
+      "fuzzyEnabled": true,
+      "typeOrder": ["App", "Files"],
+      "providerReadiness": "ready",
+      "candidates": [
+        {
+          "token": "long-named-app",
+          "expectedV3Grade": "DirectStrong",
+          "displayName": "重复文件删除工具大全",
+          "syntheticPath": "X:\\Fixture\\Tools\\重复文件删除工具大全.lnk",
+          "kind": ["Application", "Shortcut"],
+          "source": "SearchableProvider",
+          "match": { "tier": 0, "start": 0, "coverage": 0.4, "contiguity": 1.0, "shape": 1 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 0,
+          "relevance": 3
+        },
+        {
+          "token": "shorter-file",
+          "expectedV3Grade": "DirectStrong",
+          "displayName": "重复文件表.txt",
+          "syntheticPath": "X:\\Fixture\\Docs\\重复文件表.txt",
+          "kind": ["File"],
+          "source": "FileIndex",
+          "match": { "tier": 0, "start": 0, "coverage": 0.444, "contiguity": 1.0, "shape": 1 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 1,
+          "relevance": 1
+        }
+      ],
+      "assertions": {
+        "mustAppearBefore": [
+          { "before": "long-named-app", "after": "shorter-file" }
+        ],
+        "mustBeTopK": [
+          { "token": "long-named-app", "k": 1 }
+        ],
+        "mustBeAbsent": []
+      }
+    },
+    {
+      "id": "gog-app-beats-shorter-folder-at-the-same-placement",
+      "window": "quick",
+      "rawQuery": "gog",
+      "fuzzyEnabled": true,
+      "typeOrder": ["App", "Files"],
+      "providerReadiness": "ready",
+      "candidates": [
+        {
+          "token": "gog-galaxy-app",
+          "expectedV3Grade": "DirectStrong",
+          "displayName": "GOG GALAXY",
+          "syntheticPath": "X:\\Fixture\\Start Menu\\GOG GALAXY.lnk",
+          "kind": ["Application", "Shortcut"],
+          "source": "SearchableProvider",
+          "match": { "tier": 0, "start": 0, "coverage": 0.3, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 0,
+          "relevance": 3
+        },
+        {
+          "token": "gog-db-dir",
+          "expectedV3Grade": "DirectStrong",
+          "displayName": "gog-db",
+          "syntheticPath": "X:\\Fixture\\Data\\gog-db",
+          "kind": ["Directory"],
+          "source": "FileIndex",
+          "match": { "tier": 0, "start": 0, "coverage": 0.5, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 1,
+          "relevance": 1
+        },
+        {
+          "token": "gog-setup-log",
+          "expectedV3Grade": "DirectStrong",
+          "displayName": "gog_setup.log",
+          "syntheticPath": "X:\\Fixture\\Logs\\gog_setup.log",
+          "kind": ["File"],
+          "source": "FileIndex",
+          "match": { "tier": 0, "start": 0, "coverage": 0.231, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 1,
+          "relevance": 1
+        }
+      ],
+      "assertions": {
+        "mustAppearBefore": [
+          { "before": "gog-galaxy-app", "after": "gog-db-dir" },
+          { "before": "gog-galaxy-app", "after": "gog-setup-log" }
+        ],
+        "mustBeTopK": [
+          { "token": "gog-galaxy-app", "k": 1 }
+        ],
+        "mustBeAbsent": []
+      }
     }
   ]
 }

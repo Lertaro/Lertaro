@@ -195,8 +195,8 @@ public sealed class RankAndDedupeTests
     [TestMethod]
     public void RankAndDedupe_QualityBeatsTypeAtEqualGrade()
     {
-        // Both rows are strong (whole-word, common reading), so they share a grade; match quality decides
-        // before the display type order, which is only the final tie-break.
+        // Both rows are strong (whole-word, common reading), so they share a grade; the match placement
+        // (contiguity, start) decides before the display type order, which only outranks coverage.
         var ranked = SearchResultMapper.RankAndDedupe(new List<SearchResultMapper.RankedCandidate>
         {
             Candidate(@"C:\files-perfect", typeRank: 2, start: 0, coverage: 1.0, contiguity: 1.0),

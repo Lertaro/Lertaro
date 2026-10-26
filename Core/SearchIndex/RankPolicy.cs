@@ -64,9 +64,10 @@ public readonly record struct RankKey(
     bool TypeRankApplies = true)
 {
     public RankTail Tail => new(IsDir, Name, NormalizedPath, Drive, EngineTie);
-    // The configured result-type order is a final tie-break, not a group: section, grade, priority,
-    // history band and match quality all run first. It only compares the three built-in buckets
-    // (Applications, System settings, Files); an unlisted provider's rank is neutral.
+    // The configured result-type order is a late tie-break, not a group: section, grade, priority,
+    // history band and the match placement (contiguity, shape, start) all run first; only coverage and
+    // match tier come after it. It only compares the three built-in buckets
+    // (Applications, System settings, Files); every other row shares one rank behind them.
     public int EffectiveTypeRank => TypeRank;
 }
 
@@ -360,10 +361,7 @@ public sealed class RankKeyComparer : IComparer<RankKey>
                 c = y.HistoryTie.CompareTo(x.HistoryTie);
                 if (c != 0)
                     return c;
-                c = MatchRank.CompareQuality(x.Match, y.Match);
-                if (c != 0)
-                    return c;
-                c = CompareTypeRank(x, y);
+                c = CompareQualityThenType(x, y);
                 return c != 0 ? c : RankPolicy.CompareCommonTail(x.Tail, y.Tail);
 
             case RankSection.Low:
@@ -376,10 +374,7 @@ public sealed class RankKeyComparer : IComparer<RankKey>
                 c = y.HistoryTie.CompareTo(x.HistoryTie);
                 if (c != 0)
                     return c;
-                c = MatchRank.CompareQuality(x.Match, y.Match);
-                if (c != 0)
-                    return c;
-                c = CompareTypeRank(x, y);
+                c = CompareQualityThenType(x, y);
                 return c != 0 ? c : RankPolicy.CompareCommonTail(x.Tail, y.Tail);
 
             case RankSection.HistoryTail:
@@ -407,16 +402,29 @@ public sealed class RankKeyComparer : IComparer<RankKey>
                 c = y.HistoryTie.CompareTo(x.HistoryTie);
                 if (c != 0)
                     return c;
-                c = MatchRank.CompareQuality(x.Match, y.Match);
-                if (c != 0)
-                    return c;
-                c = CompareTypeRank(x, y);
+                c = CompareQualityThenType(x, y);
                 return c != 0 ? c : RankPolicy.CompareCommonTail(x.Tail, y.Tail);
         }
     }
 
-    // Type order is deliberately neutral unless both rows belong to one of the three built-in buckets
-    // (Applications / System settings / Files) and every earlier key has already tied.
+    // The type order sits inside the quality ladder: after where the query sits in the name, before how much
+    // of the name it covers (see MatchRank.CompareQualityPlacement). A shorter file name must not outvote the
+    // user's "Applications first" just because the same prefix explains more of it.
+    private static int CompareQualityThenType(in RankKey x, in RankKey y)
+    {
+        var c = MatchRank.CompareQualityPlacement(x.Match, y.Match);
+        if (c != 0)
+            return c;
+        c = CompareTypeRank(x, y);
+        return c != 0 ? c : MatchRank.CompareQualityDetail(x.Match, y.Match);
+    }
+
+    // Only the three built-in buckets (Applications / System settings / Files) are ordered against each other;
+    // every other row shares one rank behind them. That shared rank cannot be "skip the comparison": with
+    // coverage after the type step, a pairwise skip makes the sort cyclic (app < file by type, file <
+    // plugin row by coverage, plugin row < app by coverage).
     private static int CompareTypeRank(in RankKey x, in RankKey y) =>
-        x.TypeRankApplies && y.TypeRankApplies ? x.TypeRank.CompareTo(y.TypeRank) : 0;
+        CoreTypeRank(x).CompareTo(CoreTypeRank(y));
+
+    private static int CoreTypeRank(in RankKey key) => key.TypeRankApplies ? key.TypeRank : int.MaxValue;
 }

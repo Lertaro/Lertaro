@@ -81,6 +81,17 @@ public readonly record struct MatchRank(
     /// </summary>
     public static int CompareQuality(in MatchRank left, in MatchRank right)
     {
+        var compare = CompareQualityPlacement(left, right);
+        return compare != 0 ? compare : CompareQualityDetail(left, right);
+    }
+
+    // CompareQuality in two halves, so the quick window can slot the configured result-type order between
+    // them (RankKeyComparer): WHERE the query sits in the name (contiguity, shape, left edge, start) is a real
+    // quality difference and beats the type order, while how much of the name it explains (coverage) and how
+    // it was found (tier) only refine it. Otherwise "wand" picks wand_gfx over an app titled "Wand (WeMod)"
+    // purely because the folder name is shorter.
+    public static int CompareQualityPlacement(in MatchRank left, in MatchRank right)
+    {
         var compare = right.Contiguity.CompareTo(left.Contiguity);
         if (compare != 0)
             return compare;
@@ -94,11 +105,12 @@ public readonly record struct MatchRank(
 
         var leftStart = Math.Min(left.Start, StartCap);
         var rightStart = Math.Min(right.Start, StartCap);
-        compare = leftStart.CompareTo(rightStart);
-        if (compare != 0)
-            return compare;
+        return leftStart.CompareTo(rightStart);
+    }
 
-        compare = right.Coverage.CompareTo(left.Coverage);
+    public static int CompareQualityDetail(in MatchRank left, in MatchRank right)
+    {
+        var compare = right.Coverage.CompareTo(left.Coverage);
         if (compare != 0)
             return compare;
 
