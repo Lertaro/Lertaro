@@ -375,6 +375,9 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         Grid.SetRow(ResultsPanelControl, resultsRow);
     }
 
+    /// <summary>Whether the search box holds anything: filters have nothing to act on until it does.</summary>
+    internal bool HasSearchText => !string.IsNullOrWhiteSpace(_viewModel.SearchQuery);
+
     /// <summary>Moves the active filter by <paramref name="delta"/>; see QuickSearchViewModel.CycleCategory.</summary>
     internal void CycleCategory(int delta) => _viewModel.CycleCategory(delta);
 

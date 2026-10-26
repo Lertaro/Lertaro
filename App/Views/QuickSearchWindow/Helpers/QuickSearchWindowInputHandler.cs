@@ -31,22 +31,24 @@ public class QuickSearchWindowInputHandler
 
     public void HandleWindowPreviewKeyDown(KeyEventArgs e)
     {
+        // Tab cycles the category filters once there is something to filter. Before any input it keeps its
+        // ordinary meaning -- bare Tab enters the selected item's submenu -- which is also why this has to
+        // run BEFORE HandleCommonSearchKeys: that method binds bare Tab to EnterSubMenu and returns.
+        if (e.Key == Key.Tab
+            && Keyboard.Modifiers is ModifierKeys.None or ModifierKeys.Shift
+            && _window.HasSearchText)
+        {
+            _window.CycleCategory(Keyboard.Modifiers == ModifierKeys.Shift ? -1 : 1);
+            e.Handled = true;
+            return;
+        }
+
         if (QuickSearchLaunchPanelInputHelper.Handle(e, _window))
             return;
 
         if (SearchInputHelper.HandleCommonSearchKeys(e, _window, _window.MenuPresenter))
             return;
 
-        // Tab cycles the category filters, but only while the bar is actually on screen: with no results
-        // there is nothing to filter, so Tab keeps its ordinary focus behaviour instead.
-        if (e.Key == Key.Tab
-            && Keyboard.Modifiers is ModifierKeys.None or ModifierKeys.Shift
-            && _window.CategoryBar.Visibility == Visibility.Visible)
-        {
-            _window.CycleCategory(Keyboard.Modifiers == ModifierKeys.Shift ? -1 : 1);
-            e.Handled = true;
-            return;
-        }
 
         if (e.Key == Key.Escape && Keyboard.Modifiers == ModifierKeys.None)
         {
