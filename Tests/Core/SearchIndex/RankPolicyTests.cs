@@ -199,13 +199,44 @@ public sealed class RankPolicyTests
     }
 
     [TestMethod]
-    public void Compare_TypeRankIsNeutralForUnlistedTypes()
+    public void Compare_TypeOrderBeatsCoverageAtTheSamePlacement()
     {
-        var listedType = KeyOf(Signals(typeRank: 0, name: "z-listed", path: @"D:\z-listed"));
-        var unlistedType = KeyOf(Signals(typeRank: 9, typeRankApplies: false, name: "a-unlisted", path: @"D:\a-unlisted"));
+        // "wand": the Start Menu app "Wand (WeMod)" and a file "wand_gfx" are both whole-word hits at the
+        // left edge; only coverage differs. The user's Applications-first order must decide, not name length.
+        var app = KeyOf(Signals(typeRank: 0, name: "Wand (WeMod)", path: @"C:\Start\Wand (WeMod).lnk",
+            match: Strong(coverage: 4.0 / 12)));
+        var file = KeyOf(Signals(typeRank: 1, isDir: true, name: "wand_gfx", path: @"D:\noita\wand_gfx",
+            match: Strong(coverage: 0.5)));
 
-        // If the unlisted rank participated, type 0 would win; neutral means the common tail decides.
-        Assert.IsGreaterThan(0, RankKeyComparer.Instance.Compare(listedType, unlistedType));
+        Assert.IsLessThan(0, RankKeyComparer.Instance.Compare(app, file));
+    }
+
+    [TestMethod]
+    public void Compare_PlacementStillBeatsTypeOrder()
+    {
+        var preferredType = KeyOf(Signals(typeRank: 0, match: Strong(shape: MatchRank.ShapeWordStart)));
+        var wholeWordLowerType = KeyOf(Signals(typeRank: 1, match: Strong(shape: MatchRank.ShapeWholeWord, coverage: 0.1)));
+
+        Assert.IsGreaterThan(0, RankKeyComparer.Instance.Compare(preferredType, wholeWordLowerType));
+    }
+
+    [TestMethod]
+    public void Compare_UnlistedTypesShareOneRankBehindTheBuiltInsAndStayTransitive()
+    {
+        // A pairwise "skip the type step" for unlisted rows would cycle here: app < file by type,
+        // file < plugin by coverage, plugin < app by coverage.
+        var app = KeyOf(Signals(typeRank: 0, name: "app", path: @"D:\app", match: Strong(coverage: 0.2)));
+        var file = KeyOf(Signals(typeRank: 2, name: "file", path: @"D:\file", match: Strong(coverage: 0.8)));
+        var plugin = KeyOf(Signals(typeRank: 9, typeRankApplies: false, name: "plugin", path: @"D:\plugin",
+            match: Strong(coverage: 0.5)));
+        var otherPlugin = KeyOf(Signals(typeRank: 4, typeRankApplies: false, name: "other", path: @"D:\other",
+            match: Strong(coverage: 0.9)));
+
+        Assert.IsLessThan(0, RankKeyComparer.Instance.Compare(app, file));
+        Assert.IsLessThan(0, RankKeyComparer.Instance.Compare(file, plugin));
+        Assert.IsLessThan(0, RankKeyComparer.Instance.Compare(app, plugin));
+        // Among themselves, unlisted rows are not ordered by their raw rank: coverage decides.
+        Assert.IsLessThan(0, RankKeyComparer.Instance.Compare(otherPlugin, plugin));
     }
 
     [TestMethod]

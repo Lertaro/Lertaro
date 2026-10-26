@@ -1,0 +1,68 @@
+name: 搜索排序反馈 / Search ranking report
+description: 某个结果排得太靠后或太靠前 / A result ranks too low or too high
+title: "[Ranking] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        每份报告都会被整理成一个排序回归用例（`Tests/Core/SearchRanking/Fixtures`），之后每次排序改动都必须让它通过。所以我们需要“输入了什么、期望哪一行、实际排在它前面的是什么”，而不只是“感觉不好”。
+
+        Each report becomes a ranking regression case (`Tests/Core/SearchRanking/Fixtures`) that every later ranking change must pass. So we need what you typed, which row you expected, and what ranked above it, not just "it feels wrong".
+
+        **隐私 / Privacy:** 如果查询或文件名包含隐私信息，请换一个能复现问题的词。Use a different query if yours contains private names.
+  - type: input
+    id: version
+    attributes:
+      label: Lertaro 版本 / Lertaro version
+      placeholder: "5.11.1"
+    validations:
+      required: true
+  - type: input
+    id: type-order
+    attributes:
+      label: 结果类型优先级 / Result type priority
+      description: 设置 → 通用 → 快速搜索窗口 → 结果类型优先级 / Settings → General → Quick search window → Result Type Priority
+      placeholder: "应用 > 文件 > 系统设置 / Applications > Files > System settings"
+    validations:
+      required: true
+  - type: input
+    id: query
+    attributes:
+      label: 输入的内容 / Query typed
+      placeholder: "wand"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望排在前面的结果 / Result you expected near the top
+      description: 名称，以及它是应用、文件还是文件夹、所在文件夹的类型（不需要完整路径）。/ Its name, whether it is an app, file or folder, and what kind of folder it lives in (no full path needed).
+      placeholder: "Wand (WeMod) — 开始菜单快捷方式 / Start Menu shortcut"
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际排在它前面的结果 / What ranked above it
+      description: 前几行的名称和类型即可。/ The names and kinds of the top few rows are enough.
+      placeholder: |
+        1. wand_gfx（文件夹 / folder）
+        2. wand_1.png（文件 / file）
+    validations:
+      required: true
+  - type: textarea
+    id: ranking-details
+    attributes:
+      label: 本页排序详情（可选）/ Ranking details export (optional)
+      description: |
+        先在 设置 → 通用 → 系统 中打开“允许导出本页排序详情”，然后在快速窗口右键 → “导出本页排序详情”，把文件拖到这里。导出文件包含当前页面所有结果的文件名和路径。
+        Turn on Settings → General → System → "Enable ranking details export", then in the quick window open the actions menu → "Export this page's ranking details" and drag the file here. The export contains the names and paths of every result on the page.
+    validations:
+      required: false
+  - type: textarea
+    id: index-rules
+    attributes:
+      label: 修改过的索引规则（可选）/ Index rules you changed (optional)
+      description: 设置 → 索引规则 中与默认不同的条目，尤其是高/低优先级。/ Entries under Settings → Index rules that differ from the defaults, especially High/Low priority ones.
+    validations:
+      required: false

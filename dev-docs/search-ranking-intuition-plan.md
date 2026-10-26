@@ -111,7 +111,7 @@ Section
 
 - TypeRank 是 ordinal key，不再映射为 `16/8/4/1`。
 - 类型偏好只是**最后平局键**（2026-10-24 用户裁决）：只在双方都属于“应用/系统设置/文件”三个内建桶、且 section/Grade/Priority/Band/Tie/Quality 全部相等时参与；不跨 Grade、不压质量。`DirectApproximate` 也不再按类型成组。
-- 目录是容器而非身份：精确同名目录不占 `ExactIdentity`，降为 `DirectStrong`；类型只在质量完全平局后决胜，不能替目录跨级。
+- 目录是容器而非身份：精确同名目录不占 `ExactIdentity`，降为 `DirectStrong`；类型只在 `Placement` 平局后、覆盖率之前决胜，不能替目录跨级。
 - H5/H3 只在同 Grade 内细排，不生成跨 Grade 的 34/22 分。
 - learned alias 独立在最后；没有直接结果时仍可成为首项。
 - AlwaysTop 保留显式越级；Low 保留显式降级。
