@@ -33,6 +33,35 @@ public static class ShellPathHelper
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     private static extern int SHGetNameFromIDList(IntPtr pidl, int sigdnName, out IntPtr ppszName);
 
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern int SHGetKnownFolderPath(ref Guid rfid, uint dwFlags, IntPtr hToken, out IntPtr ppszPath);
+
+    // FOLDERID_Downloads, taken from what the shell answers rather than from memory: this id returns the folder's
+    // path on a real desktop, while the spelling quoted around the web (…-9164-10657C5941FD) fails with
+    // ERROR_FILE_NOT_FOUND, and both share the whole leading prefix that makes them look alike.
+    private static readonly Guid DownloadsFolderId = new("374DE290-123F-4565-9164-39C4925E467B");
+
+    /// <summary>The shell's own answer for where a known folder lives, redirection included.</summary>
+    /// <remarks>
+    /// <c>Environment.SpecialFolder</c> has no Downloads member, and there is no legacy CSIDL for it either --
+    /// which is why the profile-relative guess existed. That guess is wrong wherever the folder is redirected:
+    /// measured on the reporting machine, Downloads is F:\Downloads and <c>C:\Users\&lt;name&gt;\Downloads</c>
+    /// does not exist at all. Private so the resolution below is the only caller that needs it.
+    /// </remarks>
+    private static string? GetKnownFolderPath(in Guid folderId)
+    {
+        var id = folderId;
+        if (SHGetKnownFolderPath(ref id, 0, IntPtr.Zero, out var path) != 0 || path == IntPtr.Zero) return null;
+        try
+        {
+            return Marshal.PtrToStringUni(path);
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(path);
+        }
+    }
+
     // Gets the PIDL from any Shell COM object (FolderItem, IShellItem, etc.).
     [DllImport("shell32.dll")]
     private static extern int SHGetIDListFromObject([MarshalAs(UnmanagedType.IUnknown)] object punk, out IntPtr ppidl);
@@ -108,15 +137,18 @@ public static class ShellPathHelper
             }
             catch { }
         }
-        try
-        {
-            var downloadsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
-            if (Directory.Exists(downloadsPath) &&
-                (string.Equals(name, Path.GetFileName(downloadsPath), StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, GetLocalizedFolderName(downloadsPath), StringComparison.OrdinalIgnoreCase)))
-                return downloadsPath;
-        }
-        catch { }
+        // Downloads last, and asked of the shell rather than guessed from the profile: the address bar of a file
+        // dialog names this folder by its DISPLAY name ("下载" on zh-CN), and the only way to turn that back into
+        // a path is to know where the folder really is and what the shell calls it there. Building it as
+        // UserProfile\Downloads and then requiring Directory.Exists on that guess produced nothing on a machine
+        // where Downloads is redirected, so a dialog opened on 下载 reported no path at all and the inline card
+        // searched an empty scope -- the report this answers.
+        var shellDownloads = GetKnownFolderPath(DownloadsFolderId);
+        if (!string.IsNullOrEmpty(shellDownloads) &&
+            (string.Equals(name, Path.GetFileName(shellDownloads), StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(name, GetLocalizedFolderName(shellDownloads), StringComparison.OrdinalIgnoreCase)))
+            return shellDownloads;
+
         return name;
     }
 

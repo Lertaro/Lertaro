@@ -114,4 +114,32 @@ public sealed class ShellPathHelperTests
         Assert.AreEqual(@"\\?\Z:\Apps", ShellPathHelper.TryResolveVirtualPath(@"\\?\Z:\Apps"));
         Assert.AreEqual(string.Empty, ShellPathHelper.TryResolveVirtualPath(string.Empty));
     }
+
+    // Downloads is the one tracked folder with no Environment.SpecialFolder member, and the shell -- not the
+    // profile layout -- decides where it lives. The reported failure was a machine with no
+    // C:\Users\<name>\Downloads at all (Downloads is F:\Downloads there): building the path from the profile and
+    // then requiring Directory.Exists on that guess answered nothing, so a file dialog opened on 下载 had no
+    // path to report and the inline card searched an empty scope.
+    [TestMethod]
+    public void ResolveSpecialFolder_Downloads_ReturnsARealFolder()
+    {
+        var resolved = ShellPathHelper.ResolveSpecialFolder("Downloads");
+
+        Assert.IsTrue(Path.IsPathRooted(resolved), $"'{resolved}' should be a real path, not the name echoed back");
+        Assert.IsTrue(Directory.Exists(resolved), $"'{resolved}' should exist");
+    }
+
+    // The spelling a dialog's address bar actually shows. Asking the shell for the display name of the folder the
+    // resolver returned and feeding THAT back in makes this "下载" on zh-CN, "Descargas" on es-ES and plain
+    // "Downloads" on an en-US desktop without the test naming any of them -- which is the point: the localized
+    // name is not a table to maintain, it is the shell's own answer for the same folder.
+    [TestMethod]
+    public void ResolveSpecialFolder_DownloadsSpellingTheAddressBarUses_RoundTrips()
+    {
+        var resolved = ShellPathHelper.ResolveSpecialFolder("Downloads");
+        var displayName = ShellPathHelper.GetLocalizedFolderName(resolved);
+
+        Assert.AreEqual(resolved, ShellPathHelper.ResolveSpecialFolder(displayName),
+            $"'{displayName}' must resolve back to '{resolved}'");
+    }
 }
