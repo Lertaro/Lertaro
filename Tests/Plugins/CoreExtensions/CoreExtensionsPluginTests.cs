@@ -1,5 +1,6 @@
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.Plugins.CoreExtensions.Providers.Filters;
+using Lertaro.Plugins.CoreExtensions.Providers.QueryTokens;
 
 namespace Lertaro.Plugins.CoreExtensions.Tests;
 
@@ -72,7 +73,16 @@ public sealed class CoreExtensionsPluginTests
         var schema = new CoreExtensionsPlugin().GetConfigSchema();
         var searchGroup = schema.Fields.Single(field => field.Key == "SearchFiltersGroup");
         var builtInGroup = searchGroup.SubFields!.Single(field => field.Key == "BuiltInTypeFiltersGroup");
-        var customList = searchGroup.SubFields!.Single(field => field.Key == TypeFilterProvider.SidebarCustomFiltersKey);
+        // One list for both triggers: the second, look-alike list is gone from the schema, and the surviving
+        // one carries the fields that used to belong to it.
+        Assert.IsNull(searchGroup.SubFields!.FirstOrDefault(field =>
+            field.Key == CustomFilterQueryTokenProvider.LegacySidebarSettingKey),
+            "the sidebar list is no longer a settings field");
+
+        var customList = schema.Fields.Single(field => field.Key == "CustomFiltersGroup")
+            .SubFields!.Single(field => field.Key == CustomFilterQueryTokenProvider.SettingKey);
+
+
 
         CollectionAssert.AreEquivalent(
             new[]
@@ -88,7 +98,7 @@ public sealed class CoreExtensionsPluginTests
             builtInGroup.SubFields!.Select(field => field.Key).ToList());
         Assert.AreEqual(ConfigFieldType.Array, customList.FieldType);
         Assert.IsNotNull(customList.SubFields);
-        CollectionAssert.AreEquivalent(new[] { "Enabled", "Keyword", "Icon", "Rule" }, customList.SubFields!.Select(field => field.Key).ToList());
+        CollectionAssert.AreEquivalent(new[] { "Enabled", "Keyword", "Label", "Rule", "ShowAsRow", "Icon" }, customList.SubFields!.Select(field => field.Key).ToList());
         var enabled = customList.SubFields!.Single(field => field.Key == "Enabled");
         Assert.AreEqual(ConfigFieldType.Boolean, enabled.FieldType);
         Assert.IsTrue((bool)enabled.DefaultValue!);

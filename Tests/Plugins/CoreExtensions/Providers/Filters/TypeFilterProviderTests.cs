@@ -71,10 +71,10 @@ public sealed class TypeFilterProviderTests
     [TestMethod]
     public void GetFilterGroups_CustomFilter_ExpandsRuleAndKeepsIcon()
     {
-        PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == TypeFilterProvider.SidebarCustomFiltersKey
+        PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == CustomFilterQueryTokenProvider.SettingKey
             ? new List<CustomFilterItem>
             {
-                new() { Keyword = "executables", Rule = "*.ps1; *.exe", Icon = "M1 2" }
+                new() { Keyword = "executables", Rule = "*.ps1; *.exe", Icon = "M1 2", ShowAsRow = true }
             }
             : fallback;
 
@@ -93,13 +93,13 @@ public sealed class TypeFilterProviderTests
     {
         PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key switch
         {
-            TypeFilterProvider.SidebarCustomFiltersKey => new List<CustomFilterItem>
-            {
-                new() { Keyword = "executables", Rule = "@scripts; *.exe" }
-            },
             CustomFilterQueryTokenProvider.SettingKey => new List<CustomFilterItem>
             {
-                new() { Enabled = false, Keyword = "scripts", Rule = "*.ps1" }
+                new() { Keyword = "executables", Rule = "@scripts; *.exe", ShowAsRow = true },
+                // The referenced entry is disabled on purpose: a row may still borrow its rule, which is the
+                // one way the merged list differs from "enabled means reachable" -- the keyword is unreachable,
+                // the reference is not.
+                new() { Enabled = false, Keyword = "scripts", Rule = "*.ps1" },
             },
             _ => fallback
         };
@@ -113,8 +113,8 @@ public sealed class TypeFilterProviderTests
     [TestMethod]
     public void GetFilterGroups_CustomFilterWithMissingRuleReference_IsOmitted()
     {
-        PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == TypeFilterProvider.SidebarCustomFiltersKey
-            ? new List<CustomFilterItem> { new() { Keyword = "missing", Rule = "@unknown" } }
+        PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == CustomFilterQueryTokenProvider.SettingKey
+            ? new List<CustomFilterItem> { new() { Keyword = "missing", Rule = "@unknown", ShowAsRow = true } }
             : fallback;
 
         var ids = new TypeFilterProvider().GetFilterGroups().Single().Items.Select(i => i.Id).ToList();
@@ -125,8 +125,8 @@ public sealed class TypeFilterProviderTests
     [TestMethod]
     public void GetFilterGroups_CustomFilterWithEmptyName_IsOmitted()
     {
-        PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == TypeFilterProvider.SidebarCustomFiltersKey
-            ? new List<CustomFilterItem> { new() { Keyword = "  ", Rule = "*.exe" } }
+        PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == CustomFilterQueryTokenProvider.SettingKey
+            ? new List<CustomFilterItem> { new() { Keyword = "  ", Rule = "*.exe", ShowAsRow = true } }
             : fallback;
 
         var ids = new TypeFilterProvider().GetFilterGroups().Single().Items.Select(item => item.Id);
@@ -137,13 +137,47 @@ public sealed class TypeFilterProviderTests
     [TestMethod]
     public void GetFilterGroups_DisabledSidebarFilter_IsHidden()
     {
-        PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == TypeFilterProvider.SidebarCustomFiltersKey
-            ? new List<CustomFilterItem> { new() { Enabled = false, Keyword = "scripts", Rule = "*.ps1" } }
+        PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == CustomFilterQueryTokenProvider.SettingKey
+            ? new List<CustomFilterItem> { new() { Enabled = false, Keyword = "scripts", Rule = "*.ps1", ShowAsRow = true } }
             : fallback;
 
         var ids = new TypeFilterProvider().GetFilterGroups().Single().Items.Select(item => item.Id);
 
         Assert.DoesNotContain("Type_Custom_0", ids);
+    }
+
+    [TestMethod]
+    public void GetFilterGroups_AnEnabledEntry_OnlyBecomesARowWhenFlagged()
+    {
+        // One list, two triggers: typing must keep working for an entry nobody wants as a row, and the row
+        // must not appear just because the entry exists.
+        PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == CustomFilterQueryTokenProvider.SettingKey
+            ? new List<CustomFilterItem>
+            {
+                new() { Keyword = "typedonly", Rule = "*.ps1" },
+                new() { Keyword = "shown", Rule = "*.ps1", ShowAsRow = true },
+            }
+            : fallback;
+
+        var items = new TypeFilterProvider().GetFilterGroups().Single().Items;
+
+        Assert.AreEqual(1, items.Count(i => i.Id.StartsWith("Type_Custom_", StringComparison.Ordinal)));
+        Assert.AreEqual("shown", items.Single(i => i.Id.StartsWith("Type_Custom_", StringComparison.Ordinal)).DisplayName);
+    }
+
+    [TestMethod]
+    public void GetFilterGroups_ARowWithALabel_ReadsAsItsLabelAndNotItsKeyword()
+    {
+        // The keyword is what the user types and what @ references resolve against; the label is the row's
+        // display name, which is the only way a row can read 文档 while the keyword stays doc.
+        PluginSettingsService.GetSettingFunc = (pluginId, key, fallback) => key == CustomFilterQueryTokenProvider.SettingKey
+            ? new List<CustomFilterItem> { new() { Keyword = "notes", Label = "笔记", Rule = "*.md", ShowAsRow = true } }
+            : fallback;
+
+        var item = new TypeFilterProvider().GetFilterGroups().Single().Items.Single(i => i.Id.StartsWith("Type_Custom_", StringComparison.Ordinal));
+
+        Assert.AreEqual("笔记", item.DisplayName);
+        Assert.IsTrue(item.MatchPredicate(new FakeResult { Name = "a.md" }));
     }
 
     [TestMethod]

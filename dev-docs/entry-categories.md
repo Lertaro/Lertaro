@@ -17,8 +17,28 @@ It lives in PluginSdk because that is the only assembly every consumer can reach
 | Full window's sidebar type filters (`TypeFilterProvider`) | `Categorize` per row, and `Category` on each row |
 | Quick window's filter bar | the same sidebar rows: it reads `ISidebarFilterProvider`, so it is the settings, not a list |
 
-Before this, four copies existed and two of them had already drifted inside one change (one video set carried
-`.mts`/`.ogv`, its twin did not). If a category is added or an extension moves, change the table here.
+## One filter list, two triggers (2026-10-27)
+
+`CustomFilters` is the single user-editable category list: `Enabled` / `Keyword` / `Label` / `Rule` / `ShowAsRow`
+/ `Icon`. Typing `:@keyword` reaches every enabled entry; `ShowAsRow` also makes it a clickable row, which puts it
+in the full window's sidebar and, through the provider above, in the quick window's filter bar. There is no second
+list: `SidebarCustomFilters` was the same model with the same rule language, and the split let one category be
+defined twice with two different rules (the row winning for clicks, the keyword for typing) while its trigger word
+doubled as an untranslated display name.
+
+`CustomFilterQueryTokenProvider.MergeSidebarRowsIntoFiltersOnce()` folds the old list on read -- from
+`GetConfiguredFilters()` and from `SearchFiltersConfigSchema.Create()`, so neither the search path nor the settings
+page can show the pre-merge shape. Deliberately unlatched: the steady-state cost is one dictionary miss, and a
+latch would make the merge depend on which caller read first. An old row whose keyword already exists switches that
+entry on instead of appending a duplicate; anything else is appended keeping its own rule, its icon, and its old
+name as `Label`. The legacy key is then removed, so the merge is idempotent.
+
+`SidebarFilterItem.Category` is what lets the **engine** narrow the index walk: the built-in rows carry one, a
+custom `@` rule row leaves it null and filters per row only. Don't re-derive a category from a row's `Id` string.
+
+Before the merge there were five lists to keep in step by hand -- Core's wire copy, the app's copy, the
+`:@` defaults, their verbatim schema twin, and the sidebar's three shorter sets -- and two of them had already
+drifted inside a single change (one video set carried `.mts`/`.ogv`, its twin did not). If a category is added or an extension moves, change the table here.
 
 ## Decisions that look like bugs
 

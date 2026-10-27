@@ -232,9 +232,33 @@ public class CoreExtensionsPlugin : IPlugin, IActionProvider, IConfigurable
                             },
                             new PluginConfigField
                             {
+                                Key = "Label",
+                                LabelKey = "CoreExtensions_Config_CustomFilters_LabelLabel",
+                                DescriptionKey = "CoreExtensions_Config_CustomFilters_LabelDesc",
+                                FieldType = ConfigFieldType.Text,
+                                DefaultValue = ""
+                            },
+                            new PluginConfigField
+                            {
                                 Key = "Rule",
                                 LabelKey = "CoreExtensions_Config_CustomFilters_RuleLabel",
                                 DescriptionKey = "CoreExtensions_Config_CustomFilters_RuleDesc",
+                                FieldType = ConfigFieldType.Text,
+                                DefaultValue = ""
+                            },
+                            new PluginConfigField
+                            {
+                                Key = "ShowAsRow",
+                                LabelKey = "CoreExtensions_Config_CustomFilters_ShowAsRowLabel",
+                                DescriptionKey = "CoreExtensions_Config_CustomFilters_ShowAsRowDesc",
+                                FieldType = ConfigFieldType.Boolean,
+                                DefaultValue = false
+                            },
+                            new PluginConfigField
+                            {
+                                Key = "Icon",
+                                LabelKey = "CoreExtensions_Config_CustomFilters_IconLabel",
+                                DescriptionKey = "CoreExtensions_Config_CustomFilters_IconDesc",
                                 FieldType = ConfigFieldType.Text,
                                 DefaultValue = ""
                             }

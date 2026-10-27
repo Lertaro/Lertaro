@@ -1,4 +1,3 @@
-using Lertaro.Plugins.CoreExtensions.Models;
 using Lertaro.Plugins.CoreExtensions.Providers.QueryTokens;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.PluginSdk.Helpers;
@@ -16,7 +15,6 @@ public class TypeFilterProvider : ISidebarFilterProvider
     public const string ZipFilterEnabledKey = "TypeFilter_ZipEnabled";
     public const string ApplicationFilterEnabledKey = "TypeFilter_ApplicationEnabled";
     public const string SettingsFilterEnabledKey = "TypeFilter_SettingsEnabled";
-    public const string SidebarCustomFiltersKey = "SidebarCustomFilters";
 
     public int SortOrder => 1;
 
@@ -93,16 +91,17 @@ public class TypeFilterProvider : ISidebarFilterProvider
 
     private static void AddCustomFilters(SidebarFilterGroup group)
     {
-        var sidebarFilters = PluginSettingsService.GetSetting<List<CustomFilterItem>>(PluginId, SidebarCustomFiltersKey, []);
+        // The same entries the :@keyword reads, narrowed to the ones flagged as rows: one list, two triggers.
+        var customRows = CustomFilterQueryTokenProvider.GetConfiguredRows();
         var referencedFilters = CustomFilterQueryTokenProvider.GetConfiguredFilters();
         var prefix = CustomFilterQueryTokenProvider.GetConfiguredPrefix();
-        for (var i = 0; i < sidebarFilters.Count; i++)
+        for (var i = 0; i < customRows.Count; i++)
         {
-            var filter = sidebarFilters[i];
+            var filter = customRows[i];
             if (!filter.Enabled)
                 continue;
 
-            var name = filter.Keyword?.Trim();
+            var name = filter.DisplayName;
             var rule = CustomFilterRuleResolver.Expand(filter.Rule, referencedFilters, prefix, allowDisabledReferences: true);
             if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(rule))
                 continue;
