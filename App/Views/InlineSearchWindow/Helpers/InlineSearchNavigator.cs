@@ -236,16 +236,31 @@ public static class InlineSearchNavigator
                 : path;
             if (!string.IsNullOrEmpty(dialogTarget))
             {
+                // The card is what holds the keyboard here, and the adapter only confirms the path it was
+                // handed (its guarded Enter) while the dialog is the real foreground window -- so hand the
+                // foreground back to the dialog first, then navigate. This is Escape's own two steps, reused:
+                // the grant plus RestoreDialogFocus, and it clears the query on the way.
+                //
+                // Deliberately NOT NavigateDialog's restoreFocus flag, which would do the same thing on the
+                // Hook's single worker: that flag also refuses to navigate at all unless the dialog is already
+                // the foreground window or that window's owner (FileDialogCommandHandler
+                // .IsForegroundDialogOrOwnedWindow), and at this instant the foreground is this card.
+                window.ResetInlineSearchAndFocusDialog();
+
                 App.HookClient?.SendMessage(new IpcMessage
                 {
                     Id = IpcMessageId.NavigateDialog,
                     Hwnd = tracker.ActiveHwnd.ToInt64(),
                     StringVal1 = dialogTarget
-
                 });
 
-                window.UpdateSearchDisplay(string.Empty);
-                window.HideWindow();
+                // The card stays on screen. Hiding it used to be how the keyboard got back to the dialog, and
+                // it left the card gone for good: this dialog never loses the foreground, and an activation
+                // event is the only thing that re-summons this window (see
+                // InlineSearchManager.WireUpExplorerEvents), so the user had to click elsewhere and back.
+                // The focus hand-off above raises a focus event whose root owner IS the tracked dialog, which
+                // is the event ExplorerFocusChangeFilter already ignores, so nothing closes the card behind
+                // the user.
                 return;
             }
         }

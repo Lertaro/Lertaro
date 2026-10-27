@@ -300,6 +300,13 @@ public class ExplorerTracker : IDisposable
                 // The dialog can be measured now, which is the edge the card hangs from: same signal the
                 // mirrored move uses, because what changed is exactly that -- an input to the placement.
                 MoveActiveWindow();
+                // And its path has never been read, because every attempt before this one had no adapter to
+                // ask. A dialog that has finished building raises nothing further, and the poller stops
+                // retrying once the window is claimed (ExplorerActivePathPoller.RetryUnclaimedDialog), so
+                // without a demand here the card keeps the empty scope it summoned with and searches nothing.
+                // Immediate, because this is precisely the "no foreground change will ever come" case that
+                // RequestHostPathRead's own comment names.
+                RequestHostPathRead(immediate: true);
                 return;
             }
 

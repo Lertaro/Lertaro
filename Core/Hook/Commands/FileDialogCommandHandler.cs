@@ -25,7 +25,16 @@ internal static class FileDialogCommandHandler
                 // while the dialog (or its owned inline card) is still in front, never over another app.
                 if (ResolveAdapter(process, dialogHwnd) is { } adapter)
                 {
-                    if (msg.BoolVal && !IsForegroundDialogOrOwnedWindow(dialogHwnd)) return;
+                    if (msg.BoolVal && !IsForegroundDialogOrOwnedWindow(dialogHwnd))
+                    {
+                        // Its own line, because refusing here drops the navigation the user just asked for with
+                        // nothing on screen to explain it.
+                        Logger.Log(
+                            $"[FileDialogCommandHandler] Not navigating 0x{dialogHwnd:x} to '{navPath}': it is "
+                            + "neither the foreground window nor that window's owner.",
+                            LogLevel.Debug);
+                        return;
+                    }
                     Navigate(adapter, dialogHwnd, navPath, msg.BoolVal);
                 }
             }
