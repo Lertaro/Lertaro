@@ -1,3 +1,4 @@
+using Lertaro.PluginSdk.Helpers;
 using Lertaro.Core.Indexer.Usn;
 
 using Lertaro.Core.Services.Network;
@@ -41,6 +42,12 @@ public class SearchService : IDisposable
     // covers results that are already indexed -- content that was never indexed in the first place (an
     // excluded/unconfigured network or WSL root, or a local drive not enabled for indexing) has nothing
     // to unfilter here; recovering that is CheckNeedsLiveSearch's live-scan fallback's job instead.
+    //
+    // ponytail: `category` narrows only the local-index walk. Network drives and the live-scan fallback
+    // return every kind, so on those sources the category only shrinks the caller's displayed list, not the
+    // rows competing for the budget. Ceiling: a category whose rows live almost entirely on a network share
+    // can still arrive short. Upgrade path: carry the category into SearchServiceHelper.SearchNetworkDrives
+    // and LiveDirectorySearcher, both of which already take fileNameFilter and already test each row's name.
     public async Task<bool> SearchStreamingAsync(string query, int maxResults, int maxAppResults, string? directoryFilter, Action<SearchResult> onResult, CancellationToken token = default, Action? onLocalSearchFailed = null, bool bypassExclusions = false, string? fileNameFilter = null, SearchCategoryFilter category = SearchCategoryFilter.All)
     {
         var settings = UserSettings.Load();
@@ -65,6 +72,7 @@ public class SearchService : IDisposable
                 .Concat(settings.DisabledPluginAssemblies.Select(dll => dll + "::AliasProvider::*"))
                 .ToList(),
             FileNameFilter = fileNameFilter,
+            Category = category,
         };
 
         var disabledIds = AliasProviderRegistry.ResolveDisabledProviders(msg.DisabledAliasComponents);

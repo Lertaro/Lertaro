@@ -1,5 +1,6 @@
 using Lertaro.Core.IndexV2.Space;
 using Lertaro.Core.Wire;
+using Lertaro.PluginSdk.Helpers;
 
 namespace Lertaro.Core.Tests.Wire;
 
@@ -319,5 +320,78 @@ public sealed class SearchRequestBinarySerializerTests
 
         await Assert.ThrowsExactlyAsync<InvalidDataException>(
             () => SearchRequestBinarySerializer.ReadSearchRequestAsync(stream));
+    }
+
+    [TestMethod]
+    [DataRow(SearchRequestId.Search)]
+    [DataRow(SearchRequestId.SearchDir)]
+    public async Task RoundTrip_SearchAndSearchDir_PreserveTheCategory(SearchRequestId id)
+    {
+        foreach (var category in new[]
+                 {
+                     SearchCategoryFilter.All, SearchCategoryFilter.Folder, SearchCategoryFilter.Settings,
+                     SearchCategoryFilter.Archive, SearchCategoryFilter.Video,
+                 })
+        {
+            var result = await RoundTripAsync(new SearchRequestMessage
+            {
+                Id = id,
+                Query = "clip",
+                DirectoryFilter = @"D:\media",
+                Limit = 51,
+                AppLimit = 51,
+                Category = category,
+            });
+
+            Assert.AreEqual(category, result.Category, $"{id} lost {category}");
+            // The byte sits last, so anything it displaced would show up as a damaged earlier field.
+            Assert.AreEqual("clip", result.Query);
+            Assert.AreEqual(51, result.Limit);
+        }
+    }
+
+    [TestMethod]
+    public async Task RoundTrip_Search_CategoryDefaultsToAllForACallerThatNeverSetsIt()
+    {
+        // The enum is a struct field with no initializer, so the value a caller that forgot it sends has to
+        // be the one that means "no narrowing" -- anything else silently filters someone's results.
+        var result = await RoundTripAsync(new SearchRequestMessage { Id = SearchRequestId.Search, Query = "clip" });
+
+        Assert.AreEqual(SearchCategoryFilter.All, result.Category);
+    }
+
+    [TestMethod]
+    public async Task WriteSearchRequest_EveryPayloadSizeCarriesAllFieldsUndamaged()
+    {
+        // The Category byte is written last, so a frame that got shorter or longer than the size computed up
+        // front shows up as a damaged field rather than as an exception -- and one round trip proves nothing
+        // about a layout that changes with the query's length prefix. Sweep the length across every 7-bit
+        // encoding boundary the writer can reach.
+        foreach (var id in new[] { SearchRequestId.Search, SearchRequestId.SearchDir })
+            for (var length = 0; length <= 600; length++)
+            {
+                var message = new SearchRequestMessage
+                {
+                    Id = id,
+                    Query = new string('q', length),
+                    DirectoryFilter = @"D:\x",
+                    Limit = 51,
+                    AppLimit = 51,
+                    FileNameFilter = length % 7 == 0 ? "*.docx" : null,
+                    Category = SearchCategoryFilter.Audio,
+                };
+
+                using var stream = new MemoryStream();
+                await SearchRequestBinarySerializer.WriteSearchRequestAsync(stream, message);
+
+                stream.Position = 0;
+                var read = await SearchRequestBinarySerializer.ReadSearchRequestAsync(stream);
+                Assert.AreEqual(message.Query, read.Query, $"a {length}-byte query did not survive its own frame");
+                if (id == SearchRequestId.SearchDir)
+                    Assert.AreEqual(message.DirectoryFilter, read.DirectoryFilter);
+                // An absent filter is written as the empty string, which is what comes back.
+                Assert.AreEqual(message.FileNameFilter ?? string.Empty, read.FileNameFilter);
+                Assert.AreEqual(SearchCategoryFilter.Audio, read.Category);
+            }
     }
 }
