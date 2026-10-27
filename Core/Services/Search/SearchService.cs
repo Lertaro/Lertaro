@@ -41,7 +41,7 @@ public class SearchService : IDisposable
     // covers results that are already indexed -- content that was never indexed in the first place (an
     // excluded/unconfigured network or WSL root, or a local drive not enabled for indexing) has nothing
     // to unfilter here; recovering that is CheckNeedsLiveSearch's live-scan fallback's job instead.
-    public async Task<bool> SearchStreamingAsync(string query, int maxResults, int maxAppResults, string? directoryFilter, Action<SearchResult> onResult, CancellationToken token = default, Action? onLocalSearchFailed = null, bool bypassExclusions = false, string? fileNameFilter = null)
+    public async Task<bool> SearchStreamingAsync(string query, int maxResults, int maxAppResults, string? directoryFilter, Action<SearchResult> onResult, CancellationToken token = default, Action? onLocalSearchFailed = null, bool bypassExclusions = false, string? fileNameFilter = null, SearchCategoryFilter category = SearchCategoryFilter.All)
     {
         var settings = UserSettings.Load();
         var exclusionRules = ExclusionRuleSet.From(settings);
@@ -64,7 +64,7 @@ public class SearchService : IDisposable
                 .Where(c => c.Contains("::AliasProvider::", StringComparison.OrdinalIgnoreCase))
                 .Concat(settings.DisabledPluginAssemblies.Select(dll => dll + "::AliasProvider::*"))
                 .ToList(),
-            FileNameFilter = fileNameFilter
+            FileNameFilter = fileNameFilter,
         };
 
         var disabledIds = AliasProviderRegistry.ResolveDisabledProviders(msg.DisabledAliasComponents);

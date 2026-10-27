@@ -1,3 +1,4 @@
+using Lertaro.Core.Wire;
 using System.Runtime.InteropServices;
 using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Fzf;
@@ -22,7 +23,8 @@ internal static class NameSearch
     private const int RefinementHeadroomFactor = 5;
 
     public static void SearchStreaming(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, int limit,
-        Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower, string[]? fileNamePatterns = null)
+        Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower, string[]? fileNamePatterns = null,
+        SearchCategoryFilter category = SearchCategoryFilter.All)
     {
         if (!DriveAdmits(snapshot, pattern, out var matchAll))
             return;
@@ -48,7 +50,8 @@ internal static class NameSearch
         // CollectRanks hands its rented hit list back instead of recycling it, because the fallback below
         // needs to know which uids the WHOLE query already matched (see BuildReportedUids); the finally is
         // what keeps that from leaking the list whenever a superseded search cancels out of here.
-        var hits = CollectRanks(snapshot, delta, pattern, matchAll, directoryContext, topN, token, fileNamePatterns);
+        var hits = CollectRanks(snapshot, delta, pattern, matchAll, directoryContext, topN, token, fileNamePatterns, category);
+
         try
         {
             PublishRanks(snapshot, delta, pattern, hits, matchAll, topN, scanKeep, limit, directoryFilterLower, token, onResult);
@@ -252,7 +255,7 @@ internal static class NameSearch
     // when there is no pattern to match, i.e. a bare-drive listing). The caller owns that list and returns
     // it to the pool -- see the try/finally in SearchStreaming, which needs it to tell PathTermFallback
     // which uids the whole query already matched.
-    private static List<UniqueMatch>? CollectRanks(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, bool matchAll, DirectoryContext ctx, FzfTopN topN, CancellationToken token, string[]? fileNamePatterns)
+    private static List<UniqueMatch>? CollectRanks(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, bool matchAll, DirectoryContext ctx, FzfTopN topN, CancellationToken token, string[]? fileNamePatterns, SearchCategoryFilter category)
     {
         List<UniqueMatch>? rentHits = null;
         var membership = ctx.FilterLower != null ? new Dictionary<int, bool>() : null;
@@ -290,6 +293,8 @@ internal static class NameSearch
                         continue;
                     if (!MatchesFileScope(snapshot, delta, row, fileNamePatterns))
                         continue;
+                    if (!CategoryAdmits(category, snapshot, delta, row))
+                        continue;
                     topN.Add(new FzfRank(row, 0, sortKey));
                 }
             }
@@ -310,6 +315,8 @@ internal static class NameSearch
                         continue;
                     if (!MatchesFileScope(snapshot, delta, row, fileNamePatterns))
                         continue;
+                    if (!CategoryAdmits(category, snapshot, delta, row))
+                        continue;
                     // The per-unique sort key applies verbatim to every row of that unique --
                     // EntryIndex isn't packed into the key, so nothing is recomputed per row.
                     topN.Add(new FzfRank(row, m.Match.Score, m.SortKey));
@@ -320,6 +327,13 @@ internal static class NameSearch
         MatchDeltaRows(snapshot, delta, pattern, matchAll, ctx, topN, fileNamePatterns);
         return rentHits;
     }
+
+    // The engine-side category test. Applied per row inside the collection loops, not to the finished list:
+    // the point is to keep rows out of the ranking budget, so the budget is spent on the category the caller
+    // asked for rather than on every kind competing for the same slots.
+    private static bool CategoryAdmits(SearchCategoryFilter category, Snapshot snapshot, DeltaOverlay delta, int row)
+        => category == SearchCategoryFilter.All
+            || SearchCategoryClassifier.Matches(category, delta.NameOf(row), IsDirectory(snapshot, delta, row));
 
     private static bool MatchesFileScope(Snapshot snapshot, DeltaOverlay delta, int row, string[]? patterns)
         => patterns == null || IsDirectory(snapshot, delta, row) || FilterPatternHelper.Matches(delta.NameOf(row), patterns);
