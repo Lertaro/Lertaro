@@ -148,9 +148,9 @@
                             <ColumnDefinition Width="1.5*" MinWidth="260"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- Master list: height locked to the detail panel's natural height (kept
-                             in sync from code-behind, see ArrayDetailPanel_Loaded) so only the
-                             ListBox itself scrolls. Add sits on the list's header, where it stays put
+                        <!-- Master list: height locked to the detail panel's height (kept in sync from
+                             code-behind, see ArrayDetailPanel_Loaded) so only the ListBox itself
+                             scrolls. Add sits on the list's header, where it stays put
                              as the list grows, rather than under a list whose bottom edge moves. -->
                         <Grid Grid.Column="0">
                             <Grid.RowDefinitions>
@@ -245,18 +245,31 @@
                             </ListBox>
                         </Grid>
 
-                        <!-- Detail panel for the selected item. VerticalAlignment="Top" keeps its
-                             ActualHeight equal to its own natural content size regardless of the
-                             row's resolved height, which ArrayDetailPanel_Loaded (code-behind)
-                             then mirrors onto ArrayMasterListGrid: a pure Grid-Auto-row approach
-                             here creates a feedback loop where a tall item list on the left drags
-                             this panel's height up with it instead of staying at its own size. -->
+                        <!-- Detail panel for the selected item, scrolling on its own bar. Its height
+                             is capped to the pane by ArrayDetailPanel_Loaded (code-behind) and that
+                             capped height is what gets mirrored onto ArrayMasterListGrid, so a field
+                             with a dozen sub-fields scrolls itself instead of outgrowing the pane
+                             and dragging both columns under the page's single scrollbar.
+                             VerticalAlignment="Top" on the Border keeps its ActualHeight equal to its
+                             own content size regardless of the row's resolved height; a pure
+                             Grid-Auto-row approach here creates a feedback loop where a tall item
+                             list on the left drags this panel's height up with it. -->
                         <Border Grid.Column="2" VerticalAlignment="Top" BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="1,0,0,0" Padding="12,0,0,0"
-                                Visibility="{Binding SelectedArrayItem, Converter={StaticResource NullToVis}}"
-                                Loaded="ArrayDetailPanel_Loaded" SizeChanged="ArrayDetailPanel_SizeChanged">
-                            <StackPanel DataContext="{Binding SelectedArrayItem}">
-                                <ItemsControl ItemsSource="{Binding Children}" ItemTemplate="{StaticResource ArrayDetailFieldTemplate}"/>
-                            </StackPanel>
+                                Visibility="{Binding SelectedArrayItem, Converter={StaticResource NullToVis}}">
+                            <!-- CanContentScroll="False" for the same reason as the ListBox next to it
+                                 (and LstSections in SettingsWindow.xaml): the panel of the ItemsControl
+                                 inside hands itself to the nearest ancestor ScrollViewer as its scroll
+                                 host, so the default item-based scrolling takes over here, and with the
+                                 capped height that measured out as an extent of 1: a bar that lies and a
+                                 wheel that moves nothing (scratch/arrayscroll). Pixel scrolling measures
+                                 what is actually there. -->
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                          CanContentScroll="False"
+                                          Loaded="ArrayDetailPanel_Loaded" SizeChanged="ArrayDetailPanel_SizeChanged">
+                                <StackPanel DataContext="{Binding SelectedArrayItem}">
+                                    <ItemsControl ItemsSource="{Binding Children}" ItemTemplate="{StaticResource ArrayDetailFieldTemplate}"/>
+                                </StackPanel>
+                            </ScrollViewer>
                         </Border>
                     </Grid>
                     </ScrollViewer>
