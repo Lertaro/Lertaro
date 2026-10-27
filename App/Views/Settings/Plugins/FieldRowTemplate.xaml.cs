@@ -125,8 +125,12 @@ public partial class PluginConfigFieldRowTemplate : ResourceDictionary
             // at its end is not the one to answer for the wheel: it falls through to the page instead.
             // Otherwise a detail panel capped to the pane keeps the wheel for good -- its
             // ScrollableHeight stays above zero once it hits bottom, so the page under it stops moving.
+            // The walk starts at the hit element itself: a wheel over a column's blank area -- below its
+            // last row, or beside the content -- hits the ScrollViewer rather than one of its children,
+            // and starting one level up would skip the very column under the pointer and hand a notch
+            // that column still had room for to a page that cannot move.
             // The walk stops at the table's own scroller, past which the wheel belongs to the page.
-            for (var column = FindParent<System.Windows.Controls.ScrollViewer>(depObj);
+            for (var column = depObj as System.Windows.Controls.ScrollViewer ?? FindParent<System.Windows.Controls.ScrollViewer>(depObj);
                  column != null && column != scrollViewer;
                  column = FindParent<System.Windows.Controls.ScrollViewer>(column))
             {
