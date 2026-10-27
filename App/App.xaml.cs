@@ -336,7 +336,7 @@ public partial class App : Application
         _dispatcherExceptionHandler.StartupCompleted = true;
     }
 
-    public static void HideInlineSearch() => InlineSearchManager.Instance.CloseInlineSearch();
+    public static void HideInlineSearch(string reason) => InlineSearchManager.Instance.CloseInlineSearch(reason);
 
     public static void ShowSettingsWindow(string? targetSection = null) => AppWindowManager.ShowSettingsWindow(targetSection);
     public static void ShowSearchWindow() => AppWindowManager.ShowSearchWindow();

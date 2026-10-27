@@ -39,7 +39,7 @@ internal sealed class QuickSearchWindowShowSupport
         // there, so positioning is allowed again (see QuickSearchWindow._suppressPositioning).
         window.AllowPositioning();
         window.ViewModel.IsInlineSearchContext = false;
-        App.HideInlineSearch();
+        App.HideInlineSearch("QuickWindowShown");
         QuickLookManager.Instance.Reset();
         InlineSearchManager.Instance.KeyboardHook.IsQuickSearchWindowVisible = true;
         InlineSearchManager.Instance.KeyboardHook.Stop();

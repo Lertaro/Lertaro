@@ -147,7 +147,7 @@ internal static class PluginSdkBridge
                 {
                     sw.Hide();
                 }
-                App.HideInlineSearch();
+                App.HideInlineSearch("PluginSearchWindowHide");
             });
         };
 

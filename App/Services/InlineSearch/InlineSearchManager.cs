@@ -247,6 +247,11 @@ public class InlineSearchManager : IDisposable
     // mid-typing -- e.g. reading a \\wsl$ result's icon/date on a background thread wakes the WSL VM, whose
     // cold start briefly flashes a conhost that grabs the foreground. Wait a moment and only close if the
     // foreground really left both Explorer and this window (i.e. it didn't just bounce back).
+    //
+    // Note what the two exemptions below do NOT cover: a card docked to a file dialog. A dialog is neither
+    // Explorer nor desktop, so IsExplorerOrDesktopActive answers false while the user is sitting in the very
+    // dialog the card is docked to, and a foreground that landed back on the dialog is not the card either.
+    // Which dialog was foreground at the tick is therefore logged, not guessed at.
     private void ScheduleCloseOnExplorerDeactivated()
     {
         if (_window == null) return;
@@ -255,16 +260,23 @@ public class InlineSearchManager : IDisposable
         {
             timer.Stop();
             if (_window == null) return;
-            if (_explorerTracker.IsExplorerOrDesktopActive) return; // focus bounced back to Explorer/Desktop
             var fg = InlineSearchWindowNativeMethods.GetForegroundWindow();
             var self = new System.Windows.Interop.WindowInteropHelper(_window).Handle;
+            Logger.Log(
+                $"[InlineSearchManager] Deactivation settle: explorerOrDesktop={_explorerTracker.IsExplorerOrDesktopActive} "
+                + $"fg=0x{fg:x} card=0x{self:x} docked=0x{_currentHostHwnd:x} "
+                + $"dialog={_explorerTracker.IsActiveWindowDialog} tracked=0x{_explorerTracker.ActiveHwnd:x}.",
+                LogLevel.Debug);
+            if (_explorerTracker.IsExplorerOrDesktopActive) return; // focus bounced back to Explorer/Desktop
             if (fg == self) return; // focus bounced back to the inline window itself
             CloseInlineSearch("ExplorerDeactivated");
         };
         timer.Start();
     }
 
-    public void CloseInlineSearch(string reason = "Unknown") => CloseInlineSearch(reason, null);
+    // Every caller has to name itself: a dismissal that only says "Unknown" cannot be told apart from the
+    // dozen other ways this window gets put away, which is how one report took three rounds to place.
+    public void CloseInlineSearch(string reason) => CloseInlineSearch(reason, null);
 
     // deferUntil: null on the initial (outermost) call -- set to a real deadline the first time this
     // has to defer, so the recursive BeginInvoke retries below share one bounded wait instead of each

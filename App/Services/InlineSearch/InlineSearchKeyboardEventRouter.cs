@@ -64,7 +64,7 @@ internal sealed class InlineSearchKeyboardEventRouter
                 if (window != null && window.MenuPresenter.IsInActionsMode)
                     window.MenuPresenter.ExitActionsMode();
                 else
-                    InlineSearchManager.Instance.CloseInlineSearch();
+                    InlineSearchManager.Instance.CloseInlineSearch("EscapePressed");
             }));
 
         _keyboardHook.OnLeftPressed += () => Application.Current.Dispatcher.BeginInvoke(new Action(() =>
