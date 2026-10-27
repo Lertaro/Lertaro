@@ -16,7 +16,9 @@ namespace Lertaro.Core.Services.HookLaunch;
 /// consent prompt -- the session user is genuinely an administrator, so there is no one to ask. A request
 /// can only ever downgrade, never escalate: when the session's user is not an administrator the launch is
 /// refused rather than quietly started unelevated, because the callers that ask for elevation cannot work
-/// without it and would otherwise fail silently after the caller has already been told to exit.
+/// without it and would otherwise fail silently after the caller has already been told to exit. The hook is
+/// not one of those callers -- it works unelevated, and its App-side caller retries at the normal level
+/// when this refuses (see HookLaunchBroker).
 ///
 /// Lifted out of <see cref="HookProcessBroker"/>, which layers "one live hook per session" on top of this.
 /// The update applier needs the same launch with different bookkeeping -- a detached applier must never be
@@ -55,14 +57,17 @@ public static class SessionProcessLauncher
                 // The caller needs an elevated child and cannot act without one -- the updater refuses to run
                 // unelevated anyway, and starting it unelevated only turns a clear refusal into a silent
                 // no-op (the App has already been told to quit, and nothing replaced it).
-                if (TryGetLinkedToken(userToken, out linkedToken) && IsTokenAdmin(linkedToken))
-                    launchToken = linkedToken;
-                else if (IsTokenAdmin(userToken))
-                    launchToken = userToken; // UAC disabled but genuinely an admin account
-                else
+                var hasLinkedToken = TryGetLinkedToken(userToken, out linkedToken);
+                switch (DecideElevatedToken(hasLinkedToken && IsTokenAdmin(linkedToken), IsTokenAdmin(userToken)))
                 {
-                    error = $"The session's user is not an administrator, so an elevated launch was refused (session {sessionId}).";
-                    return false;
+                    case ElevatedToken.LinkedAdminToken:
+                        launchToken = linkedToken;
+                        break;
+                    case ElevatedToken.OwnTokenIsElevated:
+                        break; // UAC disabled but genuinely an admin account
+                    default:
+                        error = $"The session's user is not an administrator, so an elevated launch was refused (session {sessionId}).";
+                        return false;
                 }
             }
 
@@ -118,6 +123,23 @@ public static class SessionProcessLauncher
             if (userToken != IntPtr.Zero) CloseHandle(userToken);
         }
     }
+
+    /// <summary>
+    /// Which token an elevation request may hand the child, given what the session's own token is linked to.
+    /// A refusal is not a failure of the launch machinery: it means this session simply has no administrator
+    /// to hand over, so only a caller that cannot work unelevated should treat it as fatal.
+    /// </summary>
+    internal enum ElevatedToken
+    {
+        LinkedAdminToken,
+        OwnTokenIsElevated,
+        Refused,
+    }
+
+    internal static ElevatedToken DecideElevatedToken(bool linkedTokenIsAdmin, bool ownTokenIsAdmin)
+        => linkedTokenIsAdmin ? ElevatedToken.LinkedAdminToken
+            : ownTokenIsAdmin ? ElevatedToken.OwnTokenIsElevated
+            : ElevatedToken.Refused;
 
     // Variables the .NET runtime reads at start-up to load extra code: startup hooks, profilers, a different
     // runtime or host. The user can set any of them in HKCU\Environment without elevation, so an elevated

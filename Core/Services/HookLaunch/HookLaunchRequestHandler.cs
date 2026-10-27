@@ -41,7 +41,11 @@ internal static class HookLaunchRequestHandler
 
             if (!HookProcessBroker.TryLaunch(sessionId, hookExePath, "--hook", requestElevation, out var pid, out var error))
             {
-                Logger.Log($"[UsnService] LaunchHook failed for session {sessionId}: {error}", LogLevel.Warn);
+                // A refused elevated request is the normal shape of a standard user's session, and the App
+                // follows it with an unelevated request (see HookLaunchBroker) -- Info, so the pairing reads
+                // as one story. Failing without elevation is a real defect, and stays a Warn.
+                Logger.Log($"[UsnService] LaunchHook failed for session {sessionId}: {error}",
+                    requestElevation ? LogLevel.Info : LogLevel.Warn);
                 return new PipeResponse { Kind = PipeResponseKind.Error, Message = error ?? "Launch failed." };
             }
 

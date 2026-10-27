@@ -409,10 +409,10 @@ public sealed class HookIpcClient : IDisposable
         }
     }
 
-    // Always asks for elevation -- the Service only actually grants it when this session's user is
-    // genuinely an administrator (see HookProcessBroker), so there's nothing left for the App to decide.
+    // Asks for the elevated hook and falls back to an unelevated one when the session cannot provide it;
+    // both requests go through the Service, which decides what this session's token actually allows.
     private Task<Process?> LaunchHookProcessAsync(CancellationToken token) =>
-        _launchBroker.LaunchAsync(requestElevation: true, token);
+        _launchBroker.LaunchAsync(token);
 
     public void Dispose()
     {

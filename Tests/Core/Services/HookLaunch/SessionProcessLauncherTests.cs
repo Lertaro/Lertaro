@@ -12,6 +12,17 @@ public sealed class SessionProcessLauncherTests
     private static string[] Entries(string block) => block.Split('\0', StringSplitOptions.RemoveEmptyEntries);
 
     [TestMethod]
+    [DataRow(true, true, "LinkedAdminToken")]
+    [DataRow(true, false, "LinkedAdminToken")]
+    [DataRow(false, true, "OwnTokenIsElevated")]
+    [DataRow(false, false, "Refused")]
+    public void ElevatedLaunch_PrefersLinkedTokenThenOwnTokenThenRefuses(bool linkedTokenIsAdmin, bool ownTokenIsAdmin, string expected) =>
+        // Refusing here is what took a standard user's global hotkeys away (issue #466): the hook works
+        // unelevated, so its caller retries one level down on this refusal while the updater keeps treating
+        // it as fatal.
+        Assert.AreEqual(expected, SessionProcessLauncher.DecideElevatedToken(linkedTokenIsAdmin, ownTokenIsAdmin).ToString());
+
+    [TestMethod]
     [DataRow("DOTNET_STARTUP_HOOKS=C:\\Users\\testuser\\hook.dll")]
     [DataRow("dotnet_startup_hooks=C:\\Users\\testuser\\hook.dll")]
     [DataRow("DOTNET_ROOT=C:\\Users\\testuser\\runtime")]
