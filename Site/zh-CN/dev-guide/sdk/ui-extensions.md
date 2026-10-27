@@ -6,7 +6,7 @@
 
 ## 1. 侧边栏筛选分类提供者 `ISidebarFilterProvider`
 
-向主搜索窗口的左侧侧边栏注入自定义筛选分类：
+向主搜索窗口的左侧侧边栏注入自定义筛选分类。这些条目同时就是快速窗口类型筛选栏上显示的那一排，一行喂两个界面：
 
 ```csharp
 namespace Lertaro.PluginSdk.Abstractions.Plugins;
@@ -44,6 +44,11 @@ public class SidebarFilterItem
     // 结果必须满足该委托，此条目才算命中。默认“永不命中”，
     // 因此从不设置它的条目会显示出来，却永远选不到任何内容。
     public Func<ISearchResult, bool> MatchPredicate { get; set; } = _ => false;
+
+    // 该条目代表的条目类型（如果存在）。设置后，检索会把索引遍历直接收窄到这一类，
+    // 而不是只对引擎已经排序、已经截断的那一页做过滤；留空（默认值）表示没有任何分类
+    // 能表达它——比如大小区间、自定义通配规则——此时该条目只按上面的委托筛选结果。
+    public SearchCategoryFilter? Category { get; set; }
 }
 ```
 

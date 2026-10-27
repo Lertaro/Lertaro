@@ -6,7 +6,7 @@
 
 ## 1. 사이드바 필터 제공자 `ISidebarFilterProvider`
 
-검색 창 좌측 사이드바에 커스텀 필터 카테고리를 주입합니다:
+검색 창 좌측 사이드바에 커스텀 필터 카테고리를 주입합니다. 제공자가 반환하는 행은 그대로 퀵 윈도우 검색창 아래에 있는 유형 필터 바에 표시되는 행이며, 같은 행이 두 곳에 적용됩니다:
 
 ```csharp
 namespace Lertaro.PluginSdk.Abstractions.Plugins;
@@ -44,6 +44,12 @@ public class SidebarFilterItem
     // 이 항목과 일치하려면 결과가 만족해야 하는 조건자. 기본값은 "아무것도 일치시키지 않음"이므로,
     // 한 번도 설정하지 않은 항목은 표시되지만 아무것도 선택할 수 없다.
     public Func<ISearchResult, bool> MatchPredicate { get; set; } = _ => false;
+
+    // 이 항목이 나타내는 항목 종류(있는 경우). 설정하면 검색이 인덱스 순회를 그 종류로 좁히지,
+    // 엔진이 이미 순위를 매기고 잘라 낸 페이지만 필터링하지는 않는다. 어떤 분류로도 표현할 수
+    // 없는 것(크기 범위, 사용자 지정 와일드카드 규칙)은 null(기본값)로 두면 이 항목은
+    // 조건자만으로 결과를 필터링한다.
+    public SearchCategoryFilter? Category { get; set; }
 }
 ```
 

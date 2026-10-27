@@ -35,7 +35,9 @@ The **System Settings Search** plugin uses the localized keywords supplied by Wi
 
 ### CoreExtensions Search Type Filters
 
-Under **Settings → Plugins → CoreExtensions → Configure → Search Filters**, you can control the type filters shown in the left side of the full search window. File and Folder are always available; Document, Image, and Video can be disabled individually.
+Under **Settings → Plugins → CoreExtensions → Configure → Search Filters**, you can control the rows that narrow results by type. The same rows feed two surfaces: the type filters on the left of the full search window, and the **type filter bar** under the quick window's search box -- switch a row off and it disappears from both, rename an `@` keyword and it renames in both.
+
+Seven type rows can be switched off: Documents, Images, Videos, Audio, Archives, Programs and Settings. File and Folder are always available.
 
 The **Custom Sidebar Filters** list adds extra filters with a display name, an optional WPF Path Data icon, and a wildcard rule. Empty names or rules that become empty after expansion are hidden, and an empty icon uses the default icon. The name is display-only and is not an `@` reference. `@` references are valid only inside the Rule field: `@keyword` expands a matching keyword from the existing **Custom Filters** list, even if that filter is disabled. References are recursively expanded and duplicate patterns are removed; unknown or cyclic references produce no matching rule.
 

@@ -214,11 +214,17 @@ Lertaro는 기본 검색어 뒤에 콜론 `:`(**설정 → 일반 → 시스템 
 
 미리 정의된 확장자 카테고리 규칙을 빠르게 적용하며, `|`를 사용한 다중 지정도 가능합니다.
 
-- `:@doc`: 문서류 (`*.doc; *.docx; *.pdf; *.txt; *.ppt; *.pptx; *.xls; *.xlsx; *.csv; *.rtf; *.md; *.wps; *.et; *.dps; *.odf; *.odt; *.ods; *.odg; *.odb; *.eqp; *.mmx; *.tex`)
-- `:@img`: 이미지류 (`*.jpg; *.jpeg; *.png; *.gif; *.bmp; *.webp; *.ico; *.svg; *.tif; *.tiff; *.psd; *.ai; *.jxl; *.avif`)
-- `:@video`: 동영상류 (`*.mp4; *.mkv; *.avi; *.mov; *.wmv; *.flv; *.m4v; *.webm; *.3gp; *.rmvb; *.ts`)
-- `:@audio`: 오디오류 (`*.mp3; *.wav; *.flac; *.aac; *.ogg; *.m4a; *.wma; *.ape`)
+- `:@doc`: 문서류 (`*.txt; *.md; *.log; *.doc; *.docx; *.rtf; *.odt; *.pdf; *.xls; *.xlsx; *.csv; *.ods; *.ppt; *.pptx; *.odp; *.epub; *.mobi; *.one; *.vsdx; *.vsd; *.wps; *.et; *.dps; *.odf; *.odt; *.ods; *.odg; *.odb; *.eqp; *.mmx; *.tex; *.ini; *.conf`)
+- `:@img`: 이미지류 (`*.jpg; *.jpeg; *.png; *.jfif; *.gif; *.bmp; *.webp; *.svg; *.ico; *.tif; *.tiff; *.heic; *.heif; *.avif; *.raw; *.psd; *.ai; *.jxl`)
+- `:@video`: 동영상류 (`*.mp4; *.mkv; *.avi; *.mov; *.wmv; *.flv; *.webm; *.m4v; *.mpg; *.mpeg; *.ts; *.m2ts; *.mts; *.3gp; *.rmvb; *.rm; *.vob; *.ogv`)
+- `:@audio`: 오디오류 (`*.mp3; *.wav; *.flac; *.aac; *.ogg; *.oga; *.m4a; *.wma; *.ape; *.opus; *.aiff; *.aif; *.mid; *.midi; *.dsf; *.dff`)
 - `:@zip`: 압축 파일류 (`*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso; *.wim; *.esd`)
+- `:@app`: 앱류 (`*.exe; *.url; *.appref-ms; *.msi; *.msix; *.appx; *.bat; *.cmd; *.com`)
+
+> [!NOTE]
+> 이 여섯 가지 기본 규칙은 전체 검색 창 왼쪽의 유형 필터, 퀵 검색창 아래에 있는 **유형 필터 바**와 모두 같은 표를 참조합니다. 같은 파일이 세 곳에서 서로 다른 유형으로 판정되는 일은 없습니다. 규칙 자체는 **설정 → 플러그인 → CoreExtensions → 구성 → 사용자 지정 필터**에서 수정할 수 있으며, 수정하면 세 곳에 동시에 반영됩니다.
+>
+> 바로가기는 바로가기라는 점이 아니라 **대상**에 따라 분류됩니다. 문서로 가는 바로가기는 문서로 취급되고, 대상을 읽을 수 없는 바로가기만 앱류로 되돌아갑니다.
 
 **예시**:
 
@@ -228,7 +234,7 @@ Lertaro는 기본 검색어 뒤에 콜론 `:`(**설정 → 일반 → 시스템 
 
 **설정 → 플러그인 → CoreExtensions**에서 카테고리 규칙을 수정하거나 새 카테고리를 추가할 수 있습니다.
 
-전체 검색 창 왼쪽의 유형 필터 사이드바는 같은 플러그인의 **검색 필터** 설정 그룹에서 별도로 구성합니다. 사이드바 필터 이름은 표시 전용이며, `@키워드` 참조는 사이드바 필터의 규칙 필드에서만 처리되고 비활성화된 필터를 포함한 **사용자 지정 필터** 목록의 키워드를 참조합니다.
+전체 검색 창 왼쪽의 유형 필터 사이드바와 빠른 창의 유형 필터 바는 같은 행이며, 같은 플러그인의 **검색 필터** 설정 그룹에서 구성합니다. 두 개를 따로 설정하지 않습니다. 사이드바 필터 이름은 표시 전용이며, `@키워드` 참조는 사이드바 필터의 규칙 필드에서만 처리되고 비활성화된 필터를 포함한 **사용자 지정 필터** 목록의 키워드를 참조합니다.
 
 ### 확장자 직접 지정 필터 (`:.ext` 또는 `:.ext1.ext2`)
 

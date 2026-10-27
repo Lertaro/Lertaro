@@ -214,11 +214,17 @@ Puedes combinar varias fichas tras un solo prefijo `:` separándolas por comas `
 
 Aplica rápidamente reglas preestablecidas de extensión de archivo, admitiendo combinaciones con `|`:
 
-- `:@doc`: Documentos (`*.doc; *.docx; *.pdf; *.txt; *.ppt; *.pptx; *.xls; *.xlsx; *.csv; *.rtf; *.md; *.wps; *.et; *.dps; *.odf; *.odt; *.ods; *.odg; *.odb; *.eqp; *.mmx; *.tex`)
-- `:@img`: Imágenes (`*.jpg; *.jpeg; *.png; *.gif; *.bmp; *.webp; *.ico; *.svg; *.tif; *.tiff; *.psd; *.ai; *.jxl; *.avif`)
-- `:@video`: Vídeos (`*.mp4; *.mkv; *.avi; *.mov; *.wmv; *.flv; *.m4v; *.webm; *.3gp; *.rmvb; *.ts`)
-- `:@audio`: Audio (`*.mp3; *.wav; *.flac; *.aac; *.ogg; *.m4a; *.wma; *.ape`)
+- `:@doc`: Documentos (`*.txt; *.md; *.log; *.doc; *.docx; *.rtf; *.odt; *.pdf; *.xls; *.xlsx; *.csv; *.ods; *.ppt; *.pptx; *.odp; *.epub; *.mobi; *.one; *.vsdx; *.vsd; *.wps; *.et; *.dps; *.odf; *.odt; *.ods; *.odg; *.odb; *.eqp; *.mmx; *.tex; *.ini; *.conf`)
+- `:@img`: Imágenes (`*.jpg; *.jpeg; *.png; *.jfif; *.gif; *.bmp; *.webp; *.svg; *.ico; *.tif; *.tiff; *.heic; *.heif; *.avif; *.raw; *.psd; *.ai; *.jxl`)
+- `:@video`: Vídeos (`*.mp4; *.mkv; *.avi; *.mov; *.wmv; *.flv; *.webm; *.m4v; *.mpg; *.mpeg; *.ts; *.m2ts; *.mts; *.3gp; *.rmvb; *.rm; *.vob; *.ogv`)
+- `:@audio`: Audio (`*.mp3; *.wav; *.flac; *.aac; *.ogg; *.oga; *.m4a; *.wma; *.ape; *.opus; *.aiff; *.aif; *.mid; *.midi; *.dsf; *.dff`)
 - `:@zip`: Archivos comprimidos (`*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso; *.wim; *.esd`)
+- `:@app`: Aplicaciones (`*.exe; *.url; *.appref-ms; *.msi; *.msix; *.appx; *.bat; *.cmd; *.com`)
+
+> [!NOTE]
+> Estas seis reglas predeterminadas, los filtros de tipo de la barra lateral de la ventana de búsqueda completa y la **barra de filtros de tipo** bajo el cuadro de búsqueda de la ventana de búsqueda rápida leen una sola tabla: el mismo archivo nunca es tres tipos distintos. Las reglas se pueden editar en **Configuración → Plugins → CoreExtensions → Configurar → Filtros personalizados**, y un cambio aparece a la vez en los tres sitios.
+>
+> Un acceso directo se clasifica por aquello a lo que apunta, no por ser un acceso directo: un acceso directo a un documento cuenta como documento, y solo un acceso directo cuyo destino no se puede leer vuelve a Aplicaciones.
 
 **Ejemplos**:
 
@@ -228,7 +234,7 @@ Aplica rápidamente reglas preestablecidas de extensión de archivo, admitiendo 
 
 Puedes personalizar las reglas o añadir nuevas categorías en **Configuración → Plugins → CoreExtensions**.
 
-La barra lateral de filtros de tipo de la ventana de búsqueda completa se configura por separado en el grupo **Filtros de búsqueda** del mismo plugin. Los nombres de los filtros de la barra lateral solo sirven para mostrar texto; las referencias `@palabra-clave` solo se procesan dentro de una regla de filtro lateral y apuntan a palabras clave de la lista **Filtros personalizados**, incluidos los filtros deshabilitados.
+La barra lateral de filtros de tipo de la ventana de búsqueda completa y la barra de filtros de tipo de la ventana rápida usan las mismas filas, configuradas en el grupo **Filtros de búsqueda** del mismo plugin; no son dos ajustes aparte. Los nombres de los filtros de la barra lateral solo sirven para mostrar texto; las referencias `@palabra-clave` solo se procesan dentro de una regla de filtro lateral y apuntan a palabras clave de la lista **Filtros personalizados**, incluidos los filtros deshabilitados.
 
 ### Filtros por extensión específica (`:.ext` o `:.ext1.ext2`)
 

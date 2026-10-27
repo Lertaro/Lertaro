@@ -6,7 +6,7 @@
 
 ## 1. 側邊欄篩選提供者 `ISidebarFilterProvider`
 
-將自訂篩選分類插入搜尋視窗的左側側邊欄：
+將自訂篩選分類插入搜尋視窗的左側側邊欄。這些列同時就是快速視窗搜尋框下方的類型篩選欄上顯示的那一排，一列餵兩個介面：
 
 ```csharp
 namespace Lertaro.PluginSdk.Abstractions.Plugins;
@@ -44,6 +44,11 @@ public class SidebarFilterItem
     // 結果必須滿足、此項目才算命中的述詞。預設為「什麼都不命中」，
     // 因此從未設定它的項目會顯示，卻永遠無法選取任何東西。
     public Func<ISearchResult, bool> MatchPredicate { get; set; } = _ => false;
+
+    // 此項目所代表的條目類型（若有的話）。設定後，搜尋會把索引遍歷直接收窄到該類型，
+    // 而不只是篩選引擎已排序、已截斷的那一頁；留 null（預設值）表示沒有任何分類能表達它
+    // ——例如大小範圍、自訂萬用字元規則——此時該項目只依上面的述詞篩選結果。
+    public SearchCategoryFilter? Category { get; set; }
 }
 ```
 

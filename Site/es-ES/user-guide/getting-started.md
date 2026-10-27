@@ -36,7 +36,7 @@ Lertaro ofrece tres modalidades de ventana diseñadas a medida para distintos fl
 
 | Modalidad de ventana | Activador predeterminado | Características clave y diseño | Escenario ideal |
 | :--- | :--- | :--- | :--- |
-| **Ventana rápida (Quick Window)** | Doble pulsación de `Ctrl` (personalizable) | Barra flotante centrada en pantalla, con búsqueda al escribir, atajos numéricos y navegación completa con teclado | Inicio frecuente de apps, búsqueda rápida de archivos, cálculos y traducciones |
+| **Ventana rápida (Quick Window)** | Doble pulsación de `Ctrl` (personalizable) | Barra flotante centrada en pantalla, con búsqueda al escribir, una barra de filtros de tipo bajo el cuadro de búsqueda, atajos numéricos y navegación completa con teclado | Inicio frecuente de apps, búsqueda rápida de archivos, cálculos y traducciones |
 | **Ventana principal (Full Window)** | Barra de tareas/Menú Inicio, o `Ctrl+F` | Ventana completa con vista de tabla para grandes volúmenes de resultados, filtros laterales, ordenación y Analizador de espacio | Exploración de archivos, gestión masiva, limpieza de disco y filtrado avanzado |
 | **Ventana incrustada (Inline Window)** | Escribe una letra o un dígito dentro de un diálogo de archivos o de un explorador (o acóplala en el Explorador) | Integrada directamente en los diálogos de Windows y en los exploradores de archivos compatibles. La tarjeta nunca roba el teclado: sigue escribiendo en el campo propio del diálogo y haz una doble pulsación de `Ctrl` (tu atajo de invocación configurado) para mover el cursor a la tarjeta | Localización rápida de destinos al "Abrir" o "Guardar como" en software externo |
 

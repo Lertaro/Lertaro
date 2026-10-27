@@ -6,7 +6,8 @@ All of these live under `Lertaro.PluginSdk.Abstractions.Plugins` (preview provid
 
 ## 1. Sidebar Filter Provider `ISidebarFilterProvider`
 
-Injects custom filter categories into the left sidebar of the search window:
+Injects custom filter categories into the left sidebar of the search window. The rows a provider returns are
+also what the quick window's type filter bar shows, so one row serves both surfaces:
 
 ```csharp
 namespace Lertaro.PluginSdk.Abstractions.Plugins;
@@ -44,6 +45,12 @@ public class SidebarFilterItem
     // The predicate a result must satisfy for this item to match. Defaults to "matches nothing",
     // so an item that never sets it is shown but can never select anything.
     public Func<ISearchResult, bool> MatchPredicate { get; set; } = _ => false;
+
+    // The entry kind this row stands for, when one exists. Set it and the search narrows the index
+    // walk to that kind instead of only filtering the page the engine already ranked and capped;
+    // leave it null (the default) for anything no category can express -- a size range, a custom
+    // wildcard rule -- and the row filters results by its predicate alone.
+    public SearchCategoryFilter? Category { get; set; }
 }
 ```
 

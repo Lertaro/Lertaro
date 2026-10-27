@@ -214,11 +214,17 @@ Lertaro 支持在主搜索词后追加以冒号 `:`（可在**设置 → 通用 
 
 快速套用预设的扩展名分类规则，支持使用 `|` 组合多个分类：
 
-- `:@doc`：文档类（`*.doc; *.docx; *.pdf; *.txt; *.ppt; *.pptx; *.xls; *.xlsx; *.csv; *.rtf; *.md; *.wps; *.et; *.dps; *.odf; *.odt; *.ods; *.odg; *.odb; *.eqp; *.mmx; *.tex`）
-- `:@img`：图片类（`*.jpg; *.jpeg; *.png; *.gif; *.bmp; *.webp; *.ico; *.svg; *.tif; *.tiff; *.psd; *.ai; *.jxl; *.avif`）
-- `:@video`：视频类（`*.mp4; *.mkv; *.avi; *.mov; *.wmv; *.flv; *.m4v; *.webm; *.3gp; *.rmvb; *.ts`）
-- `:@audio`：音频类（`*.mp3; *.wav; *.flac; *.aac; *.ogg; *.m4a; *.wma; *.ape`）
+- `:@doc`：文档类（`*.txt; *.md; *.log; *.doc; *.docx; *.rtf; *.odt; *.pdf; *.xls; *.xlsx; *.csv; *.ods; *.ppt; *.pptx; *.odp; *.epub; *.mobi; *.one; *.vsdx; *.vsd; *.wps; *.et; *.dps; *.odf; *.odg; *.odb; *.eqp; *.mmx; *.tex; *.ini; *.conf`）
+- `:@img`：图片类（`*.jpg; *.jpeg; *.png; *.jfif; *.gif; *.bmp; *.webp; *.svg; *.ico; *.tif; *.tiff; *.heic; *.heif; *.avif; *.raw; *.psd; *.ai; *.jxl`）
+- `:@video`：视频类（`*.mp4; *.mkv; *.avi; *.mov; *.wmv; *.flv; *.webm; *.m4v; *.mpg; *.mpeg; *.ts; *.m2ts; *.mts; *.3gp; *.rmvb; *.rm; *.vob; *.ogv`）
+- `:@audio`：音频类（`*.mp3; *.wav; *.flac; *.aac; *.ogg; *.oga; *.m4a; *.wma; *.ape; *.opus; *.aiff; *.aif; *.mid; *.midi; *.dsf; *.dff`）
 - `:@zip`：压缩包类（`*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso; *.wim; *.esd`）
+- `:@app`：程序类（`*.exe; *.url; *.appref-ms; *.msi; *.msix; *.appx; *.bat; *.cmd; *.com`）
+
+> [!NOTE]
+> 这六条默认规则与下面两处使用同一张分类表：完整搜索窗口左侧的类型过滤器，以及快速窗口搜索框下方的**类型筛选栏**。同一个文件在三处不会被认成三种类型。规则本身可以在**设置 → 插件 → CoreExtensions → 配置 → 自定义过滤器**里改，改完三处同时生效。
+>
+> 指向某个文件的快捷方式按其**目标**归类，而不是按“它是快捷方式”归类：指向文档的快捷方式算文档，只有目标无法读取时才退回按程序处理。
 
 **示例**：
 
@@ -228,7 +234,7 @@ Lertaro 支持在主搜索词后追加以冒号 `:`（可在**设置 → 通用 
 
 你可以在**设置 → 插件 → CoreExtensions**中自由修改分类规则或新增自定义分类。
 
-完整搜索窗口左侧的类型过滤面板在同一插件的**搜索过滤器**设置组中单独配置。侧栏过滤器的名称仅用于显示；`@关键字` 引用只在侧栏过滤器的规则字段中解析，并引用**自定义过滤器**列表中的关键字，包括未启用的过滤器。
+完整搜索窗口左侧的类型过滤面板与快速窗口的类型筛选栏用的是同一批行，在同一插件的**搜索过滤器**设置组中配置，并不是两套独立设置。侧栏过滤器的名称仅用于显示；`@关键字` 引用只在侧栏过滤器的规则字段中解析，并引用**自定义过滤器**列表中的关键字，包括未启用的过滤器。
 
 ### 扩展名精准过滤（`:.ext` 或 `:.ext1.ext2`）
 

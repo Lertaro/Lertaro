@@ -214,11 +214,17 @@ Lertaro 支援在主搜尋詞後追加以冒號 `:`（可在**設定 → 一般 
 
 快速套用預設的副檔名分類規則，支援使用 `|` 組合多個分類：
 
-- `:@doc`：文件類（`*.doc; *.docx; *.pdf; *.txt; *.ppt; *.pptx; *.xls; *.xlsx; *.csv; *.rtf; *.md; *.wps; *.et; *.dps; *.odf; *.odt; *.ods; *.odg; *.odb; *.eqp; *.mmx; *.tex`）
-- `:@img`：圖片類（`*.jpg; *.jpeg; *.png; *.gif; *.bmp; *.webp; *.ico; *.svg; *.tif; *.tiff; *.psd; *.ai; *.jxl; *.avif`）
-- `:@video`：影片類（`*.mp4; *.mkv; *.avi; *.mov; *.wmv; *.flv; *.m4v; *.webm; *.3gp; *.rmvb; *.ts`）
-- `:@audio`：音訊類（`*.mp3; *.wav; *.flac; *.aac; *.ogg; *.m4a; *.wma; *.ape`）
+- `:@doc`：文件類（`*.txt; *.md; *.log; *.doc; *.docx; *.rtf; *.odt; *.pdf; *.xls; *.xlsx; *.csv; *.ods; *.ppt; *.pptx; *.odp; *.epub; *.mobi; *.one; *.vsdx; *.vsd; *.wps; *.et; *.dps; *.odf; *.odg; *.odb; *.eqp; *.mmx; *.tex; *.ini; *.conf`）
+- `:@img`：圖片類（`*.jpg; *.jpeg; *.png; *.jfif; *.gif; *.bmp; *.webp; *.svg; *.ico; *.tif; *.tiff; *.heic; *.heif; *.avif; *.raw; *.psd; *.ai; *.jxl`）
+- `:@video`：影片類（`*.mp4; *.mkv; *.avi; *.mov; *.wmv; *.flv; *.webm; *.m4v; *.mpg; *.mpeg; *.ts; *.m2ts; *.mts; *.3gp; *.rmvb; *.rm; *.vob; *.ogv`）
+- `:@audio`：音訊類（`*.mp3; *.wav; *.flac; *.aac; *.ogg; *.oga; *.m4a; *.wma; *.ape; *.opus; *.aiff; *.aif; *.mid; *.midi; *.dsf; *.dff`）
 - `:@zip`：壓縮檔類（`*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso; *.wim; *.esd`）
+- `:@app`：應用程式類（`*.exe; *.url; *.appref-ms; *.msi; *.msix; *.appx; *.bat; *.cmd; *.com`）
+
+> [!NOTE]
+> 這六條預設規則與下列兩處使用同一張分類表：完整搜尋視窗左側的類型篩選器，以及快速視窗搜尋框下方的**類型篩選欄**。同一個檔案在三處不會被認成三種類型。規則本身可以在**設定 → 外掛模組 → CoreExtensions → 設定 → 自訂篩選器**中修改，改完三處同時生效。
+>
+> 指向某個檔案的捷徑按其**目標**歸類，而不是按「它是捷徑」歸類：指向文件的捷徑算文件，只有在目標無法讀取時才退回按應用程式處理。
 
 **範例**：
 
@@ -228,7 +234,7 @@ Lertaro 支援在主搜尋詞後追加以冒號 `:`（可在**設定 → 一般 
 
 你可以在**設定 → 外掛模組 → CoreExtensions**中自由修改分類規則或新增自訂分類。
 
-完整搜尋視窗左側的類型篩選面板在同一外掛模組的**搜尋篩選器**設定群組中單獨設定。側欄篩選器的名稱只用於顯示；`@關鍵字` 引用只在側欄篩選器的規則欄位中解析，並引用**自訂篩選器**清單中的關鍵字，包括未啟用的篩選器。
+完整搜尋視窗左側的類型篩選面板與快速視窗的類型篩選列使用同一批列，在同一外掛模組的**搜尋篩選器**設定群組中設定，並非兩套獨立設定。側欄篩選器的名稱只用於顯示；`@關鍵字` 引用只在側欄篩選器的規則欄位中解析，並引用**自訂篩選器**清單中的關鍵字，包括未啟用的篩選器。
 
 ### 副檔名精準篩選（`:.ext` 或 `:.ext1.ext2`）
 

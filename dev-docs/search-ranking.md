@@ -17,6 +17,7 @@ CLI 与 Everything IPC 的名称排序仍使用 `SearchResultRankComparer`，不
 ## 召回与合并边界
 
 1. **召回与排序解耦**：缺失候选只能在 provider、索引或检索预算层修复，绝不用放大终局排序权重补召回。
+   - 选中分类筛选时，凡是带类别身份的行（见 `entry-categories.md`）会把收窄下推到索引遍历本身，预算因此花在所选类别内部；自定义规则行没有类别身份，只能继续按行过滤已返回的页。
    - 本地多盘有界查询按 `SearchCandidateComparer` 全局合并后再取 `limit`（`SearchCoordinator`）；网络盘/目录索引多源有界查询同样全局排序截断（`NetworkIndexerSearchExtensions.SearchSnapshots`）。
    - 快速/内联无范围全局查询在主查询流完之后，仅当主结果里一条 `*.lnk`/`*.url` 都没有时才补跑 `ScopedSearchRunner.RunShortcutSupplementAsync`（`fileNameFilter: "*.lnk;*.url"`），避免每次按键都付第二遍索引扫描、第二次设置读取与第二份排除规则；补召回行仍按规范化路径在 `SearchStreamRenderer` 去重。
 2. **单一路径实体合并**（`RankedCandidateOrdering.MergeByPath`）：

@@ -12,6 +12,7 @@
 | `search-grammar.md` | 搜索语法规格；文首标明尚未合入的部分 |
 | `pinyin-vs-winshun.md` | 当前拼音匹配规则、限制和测试矩阵 |
 | `index-rules.md` | 索引规则、继承、迁移和冲突处理 |
+| `entry-categories.md` | 条目分类表（唯一权威）、侧栏类型行与快速窗口筛选栏 |
 | `settings-permissions.md` | 设置目录权限与修复流程 |
 | `font-clarity.md` | 字体渲染与窗口轮廓约束 |
 | `opaque-window-flash.md` | 不透明窗口闪烁的现行约束和未决测量 |

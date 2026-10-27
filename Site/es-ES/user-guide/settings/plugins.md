@@ -31,7 +31,9 @@ Al seleccionar un plugin a la izquierda, el panel derecho muestra su icono, nomb
 
 ### Filtros de tipo de búsqueda de CoreExtensions
 
-En **Configuración → Plugins → CoreExtensions → Configurar → Filtros de búsqueda** puedes controlar los filtros de tipo que aparecen a la izquierda de la ventana de búsqueda completa. Los archivos y las carpetas siempre están disponibles; los filtros de documentos, imágenes y vídeos se pueden desactivar por separado.
+En **Configuración → Plugins → CoreExtensions → Configurar → Filtros de búsqueda** puedes controlar las filas que estrechan los resultados por tipo. Las mismas filas alimentan dos superficies: los filtros de tipo a la izquierda de la ventana de búsqueda completa y la **barra de filtros de tipo** bajo el cuadro de búsqueda de la ventana de búsqueda rápida; si desactivas una fila, desaparece de las dos, y si cambias el nombre de una palabra clave `@`, se renombra en las dos.
+
+Siete filas de tipo se pueden desactivar: Documentos, Imágenes, Vídeos, Audio, Archivos comprimidos, Aplicaciones y Configuración. Archivos y Carpetas siempre están disponibles.
 
 La lista **Filtros personalizados de la barra lateral** añade filtros con un nombre visible, un icono WPF Path Data opcional y una regla con comodines. Los nombres vacíos o las reglas que quedan vacías tras la expansión se ocultan, y un icono vacío usa el icono predeterminado. El nombre solo se muestra y no es una referencia `@`. Las referencias `@` solo son válidas en el campo Regla: `@palabra-clave` expande una palabra clave coincidente de la lista existente **Filtros personalizados**, aunque ese filtro esté deshabilitado. Las referencias se expanden de forma recursiva y los patrones duplicados se eliminan; las referencias desconocidas o cíclicas no producen reglas coincidentes.
 

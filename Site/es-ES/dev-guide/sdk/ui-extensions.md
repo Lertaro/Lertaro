@@ -6,7 +6,7 @@ Todas ellas viven en `Lertaro.PluginSdk.Abstractions.Plugins` (los proveedores d
 
 ## 1. Proveedor de filtros de la barra lateral `ISidebarFilterProvider`
 
-Inserta categorías de filtro propias en la barra lateral izquierda de la ventana de búsqueda:
+Inserta categorías de filtro propias en la barra lateral izquierda de la ventana de búsqueda. Las filas que devuelve un proveedor son las mismas que muestra la barra de filtros de tipo de la Ventana rápida, así que una fila sirve a las dos superficies:
 
 ```csharp
 namespace Lertaro.PluginSdk.Abstractions.Plugins;
@@ -47,6 +47,13 @@ public class SidebarFilterItem
     // "no coincide con nada", así que un elemento que nunca lo define se muestra, pero nunca
     // puede seleccionar nada.
     public Func<ISearchResult, bool> MatchPredicate { get; set; } = _ => false;
+
+    // El tipo de entrada que representa esta fila, cuando lo hay. Si lo defines, la búsqueda acota
+    // el recorrido del índice a ese tipo en vez de filtrar solo la página que el motor ya ordenó y
+    // recortó; déjalo en null (valor predeterminado) para aquello que ninguna categoría pueda
+    // expresar —un rango de tamaño, una regla con comodines— y la fila filtrará los resultados
+    // solo con su predicado.
+    public SearchCategoryFilter? Category { get; set; }
 }
 ```
 
