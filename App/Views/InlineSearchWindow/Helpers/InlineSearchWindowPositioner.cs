@@ -171,10 +171,11 @@ public class InlineSearchWindowPositioner
 
         var isResultsVisible = _window.ResultsPanelControl.Visibility == Visibility.Visible;
 
-        // Which application this dock belongs to, and so which remembered drag displacement applies to it.
-        // Read from the tracker's cached answer: resolving a process name is a query into another process,
-        // and this is the thread that places the card.
-        var hostKey = tracker.IsDesktop ? InlineCardDragOffset.DesktopHost : tracker.ActiveProcessName;
+        // Which bucket this dock's remembered drag displacement lives in -- one per application, with a dialog
+        // kept apart from its own process's plain windows. Read from the tracker's cached answer: resolving a
+        // process name is a query into another process, and this is the thread that places the card.
+        // ResetUserDrag below builds the same key, so a reset cannot miss a bucket this pass wrote to.
+        var hostKey = InlineCardDragOffset.HostKeyFor(tracker.ActiveProcessName, tracker.IsDesktop, tracker.IsActiveWindowDialog);
 
         var hasValidRect = false;
         var rect = new Core.Hook.ExplorerTracker.RECT();
@@ -443,12 +444,19 @@ public class InlineSearchWindowPositioner
         }
     }
 
+    /// <summary>Freezes the dock the user is dragging away from, the moment the logo's drag starts.</summary>
+    /// <remarks>
+    /// Wired to the search box logo alongside <see cref="RememberUserDrag"/>, and it is what stops a placement
+    /// pass for another window -- a dialog opening, closing, or being measured mid-drag -- from re-labelling the
+    /// travel this gesture records. See InlineCardDragOffset.RememberDrag for what that mislabel cost.
+    /// </remarks>
+    public void BeginUserDrag() => _dragOffset.BeginDrag();
+
     /// <summary>Records a drag the user has just finished, so the card keeps the position they left it at.</summary>
     /// <remarks>
     /// Wired to the search box logo's own drag (see InlineSearchWindow's constructor). Measured against the
-    /// dock position the last positioning pass applied, which is exactly what a displacement is relative to,
-    /// and kept for the host that pass docked to -- a drag performed in one application never moves the card
-    /// in another.
+    /// dock position the drag started from, which is exactly what a displacement is relative to, and kept for
+    /// the host that dock belongs to -- a drag performed in one application never moves the card in another.
     /// </remarks>
     public void RememberUserDrag() => _dragOffset.RememberDrag();
 
@@ -464,7 +472,7 @@ public class InlineSearchWindowPositioner
     public void ResetUserDrag()
     {
         var tracker = _window.Manager.ExplorerTracker;
-        _dragOffset.ClearFor(tracker.IsDesktop ? InlineCardDragOffset.DesktopHost : tracker.ActiveProcessName);
+        _dragOffset.ClearFor(InlineCardDragOffset.HostKeyFor(tracker.ActiveProcessName, tracker.IsDesktop, tracker.IsActiveWindowDialog));
         _hasCachedInputs = false;
         PositionWindowCore();
     }

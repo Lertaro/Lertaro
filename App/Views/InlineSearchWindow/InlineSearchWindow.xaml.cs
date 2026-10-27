@@ -80,6 +80,7 @@ public partial class InlineSearchWindow : Window, ISearchWindow
         // cursor) it now deserves in every host.
         SearchBox.IsIconClickable = true;
         SearchBox.IsIconDraggable = true;
+        SearchBox.IconDragStarted += _positioner.BeginUserDrag;
         SearchBox.IconDragCompleted += _positioner.RememberUserDrag;
 
         // And the same right click that brings the quick window back to the middle brings this card back to the

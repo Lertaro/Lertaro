@@ -3,9 +3,10 @@ using Lertaro.App.Views.InlineSearchWindow.Helpers;
 namespace Lertaro.App.Tests.Views.InlineSearchWindow.Helpers;
 
 // A drag the user performed on the inline card lives on as a displacement from the position the card docks to,
-// one per host application. What these pin is that the displacement is scaled by the monitor's DPI (it is
-// recorded in DIP while the dock position is in physical pixels), that the result stays reachable on the working
-// area, and that a displacement belongs to the host it was dragged off.
+// one per host -- where a process's dialogs are their own host, because the card docks to a different edge there.
+// What these pin is that the displacement is scaled by the monitor's DPI (it is recorded in DIP while the dock
+// position is in physical pixels), that the result stays reachable on the working area, that a displacement
+// belongs to the host it was dragged off, and that it is measured from the dock the drag started at.
 [TestClass]
 public sealed class InlineCardDragOffsetTests
 {
@@ -85,6 +86,7 @@ public sealed class InlineCardDragOffsetTests
         var offsets = new InlineCardDragOffset(() => (left, top));
 
         offsets.RememberBase("dopus", 1500, 500);
+        offsets.BeginDrag();
         (left, top) = (1300, 380);
         offsets.RememberDrag();
 
@@ -102,11 +104,13 @@ public sealed class InlineCardDragOffsetTests
         var offsets = new InlineCardDragOffset(() => (left, top));
 
         offsets.RememberBase("dopus", 1500, 500);
+        offsets.BeginDrag();
         (left, top) = (1300, 380);
         offsets.RememberDrag();
 
         // Explorer's card is then dragged the other way; neither one may pick up the other's travel.
         offsets.RememberBase("explorer", 900, 300);
+        offsets.BeginDrag();
         (left, top) = (1000, 400);
         offsets.RememberDrag();
 
@@ -123,6 +127,7 @@ public sealed class InlineCardDragOffsetTests
         // -600,-180 physical -- the same arithmetic the static Apply is tested with, reached through the host.
         var offsets = new InlineCardDragOffset(() => (1200.0, 380.0));
         offsets.RememberBase("dopus", 1500, 500);
+        offsets.BeginDrag();
         offsets.RememberDrag();
 
         Assert.AreEqual((2400.0, 820.0), offsets.ApplyPhysical(
@@ -136,8 +141,10 @@ public sealed class InlineCardDragOffsetTests
         // displacement dragged in another application stays where that user left it.
         var offsets = new InlineCardDragOffset(() => (1300.0, 380.0));
         offsets.RememberBase("dopus", 1500, 500);
+        offsets.BeginDrag();
         offsets.RememberDrag();
         offsets.RememberBase("explorer", 900, 300);
+        offsets.BeginDrag();
         offsets.RememberDrag();
 
         offsets.ClearFor("explorer");
@@ -148,5 +155,60 @@ public sealed class InlineCardDragOffsetTests
             "explorer", 900, 300, 1.0, 1.0, Screen1080, 465, 550), "the dock position, with nothing added to it");
         Assert.AreEqual((700.0, 180.0), offsets.ApplyPhysical(
             "dopus", 900, 300, 1.0, 1.0, Screen1080, 465, 550), "dopus still carries its own -200,-120");
+    }
+
+    [TestMethod]
+    public void APlacementPassForAnotherWindowMidDrag_LeavesTheDragInItsOwnBucket()
+    {
+        // The bug this pins: a placement pass runs for whichever window the tracker is on, not the one under the
+        // cursor. A dialog opening or closing while the user still has the logo captured used to re-label the
+        // host AND re-anchor the base, so the whole travel landed in the other window's bucket and the card was
+        // wrong in the application it was dragged in for the rest of the run.
+        var left = 1500.0;
+        var top = 500.0;
+        var offsets = new InlineCardDragOffset(() => (left, top));
+
+        offsets.RememberBase("dopus", 1500, 500);
+        offsets.BeginDrag();
+        (left, top) = (1300, 380);
+        offsets.RememberBase("explorer|dialog", 900, 300);
+        offsets.RememberDrag();
+
+        Assert.IsTrue(offsets.IsSetFor("dopus"));
+        Assert.IsFalse(offsets.IsSetFor("explorer|dialog"), "the pass that interrupted the drag owns no travel");
+        Assert.AreEqual((1300.0, 380.0), offsets.ApplyPhysical(
+            "dopus", 1500, 500, 1.0, 1.0, Screen1080, 465, 550), "measured from the dock the drag started at");
+    }
+
+    [TestMethod]
+    public void ADragWithNoAnnouncedStart_RecordsNothing()
+    {
+        // No frozen dock means nothing to measure the travel against, and guessing one is what put a wrong
+        // displacement in a bucket nobody dragged through.
+        var offsets = new InlineCardDragOffset(() => (1300.0, 380.0));
+        offsets.RememberBase("dopus", 1500, 500);
+        offsets.RememberDrag();
+
+        Assert.IsFalse(offsets.IsSetFor("dopus"));
+    }
+
+    [TestMethod]
+    public void HostKeyFor_KeepsAProcesssDialogOutOfItsPlainWindowsBucket()
+    {
+        Assert.AreEqual("explorer", InlineCardDragOffset.HostKeyFor("explorer", isDesktop: false, isDialog: false));
+        Assert.AreEqual("explorer|dialog", InlineCardDragOffset.HostKeyFor("explorer", isDesktop: false, isDialog: true));
+        Assert.AreEqual(InlineCardDragOffset.DesktopHost, InlineCardDragOffset.HostKeyFor("explorer", isDesktop: true, isDialog: false));
+
+        // The shape the report was about: a save dialog is explorer.exe, so its drag used to move every
+        // Explorer folder window's card, because the two dock to different edges.
+        var offsets = new InlineCardDragOffset(() => (1000.0, 400.0));
+        var dialogKey = InlineCardDragOffset.HostKeyFor("explorer", isDesktop: false, isDialog: true);
+        var windowKey = InlineCardDragOffset.HostKeyFor("explorer", isDesktop: false, isDialog: false);
+        offsets.RememberBase(dialogKey, 900, 300);
+        offsets.BeginDrag();
+        offsets.RememberDrag();
+
+        Assert.IsTrue(offsets.IsSetFor(dialogKey));
+        Assert.IsFalse(offsets.IsSetFor(windowKey), "a drag over a dialog must not move the folder window's card");
     }
 }

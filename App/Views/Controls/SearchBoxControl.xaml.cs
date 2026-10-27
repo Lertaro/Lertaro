@@ -26,6 +26,12 @@ public partial class SearchBoxControl : UserControl
     // same way it does after a drag started elsewhere on its own chrome.
     public event Action? IconDragCompleted;
 
+    // Raised the moment that same drag is confirmed, before the tracker starts moving the window. The inline
+    // card needs to know where the card was when the user grabbed it: its drag lives on as a displacement from
+    // the dock it was pulled away from, and reading that dock only at the drag's end lets a placement pass for
+    // some other window re-label it. See InlineCardDragOffset.BeginDrag.
+    public event Action? IconDragStarted;
+
     // Middle-clicking the logo toggles Stay Open (#197), as a second way in alongside the hotkey -- the
     // reporter asked for a mouse gesture as well, and the logo is already where this window's state is
     // shown, so it is where the state is worth being able to flip.
@@ -96,6 +102,9 @@ public partial class SearchBoxControl : UserControl
             var window = Window.GetWindow(this);
             if (window == null) return;
             _iconDragStarted = true;
+            // Announced before the tracker moves the window, so whatever the last placement pass docked to is
+            // still the answer the caller reads.
+            IconDragStarted?.Invoke();
             _iconDragTracker = new Helpers.Visuals.WindowDragTracker(window);
             _iconDragTracker.Start(current);
             return;
