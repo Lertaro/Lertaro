@@ -88,7 +88,7 @@ public static class SearchResultMapper
     private static readonly IReadOnlyDictionary<string, int> EmptyUsage =
         new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-    internal static List<AppSearchResult> BuildQuickResults(List<SearchResult>? fileResults, string query, string? scope, string? contextDirectory, bool isInlineWindow, string? rawQuery = null, bool skipDisplayCap = false, FileFilterScopeDirective? fileFilterScope = null, bool folderScope = false, InstantPassCache? instantPass = null, RankContext? rankContext = null, QuickSearchRankingTrace? rankingTrace = null)
+    internal static List<AppSearchResult> BuildQuickResults(List<SearchResult>? fileResults, string query, string? scope, string? contextDirectory, bool isInlineWindow, string? rawQuery = null, bool skipDisplayCap = false, FileFilterScopeDirective? fileFilterScope = null, bool folderScope = false, InstantPassCache? instantPass = null, RankContext? rankContext = null, QuickSearchRankingTrace? rankingTrace = null, ViewModels.Search.SearchResultCategory category = ViewModels.Search.SearchResultCategory.All)
     {
         var uiResults = new List<AppSearchResult>();
         var engineCandidateCount = fileResults?.Count ?? 0;
@@ -474,6 +474,13 @@ public static class SearchResultMapper
             ? RankedCandidateOrdering.OrderWithTrace(candidates, rankContext, out rankingPass)
             : RankedCandidateOrdering.Order(candidates, rankContext);
 
+        // The category filter runs HERE, before any cap. Filtering afterwards meant the cap had already
+        // thrown those rows away under the whole-result ordering: a short query ranks applications and
+        // folders first, so an Audio tab received a list with no audio in it. Filtering first also makes
+        // the display cap meaningful again, because it then counts rows of the type the user asked for.
+        if (category != ViewModels.Search.SearchResultCategory.All)
+            ordered = ordered.Where(row => ViewModels.Search.SearchResultCategorizer.Matches(category, row.Result)).ToList();
+
         IReadOnlyList<RankingProviderTrace> providerReadiness = Array.Empty<RankingProviderTrace>();
         if (rankingTrace != null)
         {
@@ -522,7 +529,11 @@ public static class SearchResultMapper
         // grouping anyway (see its own composition logic). Same two-tier shape as before (show
         // everything under 10 total, else pad to ~8 then allow up to 50 with a "N more" marker) --
         // just applied to the now-unified candidate list instead of only file results.
-        if (skipDisplayCap || uiResults.Count + ordered.Count < 10)
+        // A filtered list skips the display cap entirely. The cap exists to keep the unfiltered list scrollable
+        // and to hand the overflow to "show more"; applying it to a filtered list would mean any magic number
+        // could hide the row the user is actually looking for. Inside one category there is nothing to
+        // overflow into -- the user asked for that type, so the list shows that type.
+        if (skipDisplayCap || category != ViewModels.Search.SearchResultCategory.All || uiResults.Count + ordered.Count < 10)
         {
             foreach (var candidate in ordered)
             {

@@ -59,6 +59,45 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
     }
 
     public SearchExecutionViewModel Search { get; }
+
+    /// <summary>The category tabs, in display order. All is first and is the default.</summary>
+    public IReadOnlyList<SearchResultCategory> Categories { get; } = new[]
+    {
+        SearchResultCategory.All,
+        SearchResultCategory.Folder,
+        SearchResultCategory.Application,
+        SearchResultCategory.Settings,
+        SearchResultCategory.Document,
+        SearchResultCategory.Image,
+        SearchResultCategory.Audio,
+        SearchResultCategory.Video,
+    };
+
+    /// <summary>The active tab. Lives on the search view model so the filter and the query share one owner.</summary>
+    public SearchResultCategory SelectedCategory
+    {
+        get => Search.SelectedCategory;
+        set => Search.SelectedCategory = value;
+    }
+
+    /// <summary>Moves the active tab by <paramref name="delta"/>, wrapping at both ends.</summary>
+    public void CycleCategory(int delta)
+    {
+        var current = 0;
+        for (var i = 0; i < Categories.Count; i++)
+        {
+            if (Categories[i] == SelectedCategory)
+            {
+                current = i;
+                break;
+            }
+        }
+
+        var next = (current + delta) % Categories.Count;
+        if (next < 0)
+            next += Categories.Count;
+        SelectedCategory = Categories[next];
+    }
     public ServiceMonitorViewModel Monitor { get; }
     public ObservableRangeCollection<LaunchPanelSourceViewModel> LaunchSources => _launchSources.Sources;
     public LaunchPanelSourceViewModel? SelectedLaunchSource => _launchSources.Selected;

@@ -1,5 +1,6 @@
 using System.Windows;
 using Lertaro.App.Helpers;
+using Lertaro.App.Services;
 using Lertaro.App.ViewModels.Search.Dispatch;
 
 using Lertaro.Core.Services.Search;
@@ -14,6 +15,8 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
     private readonly SearchDispatchController _dispatcher;
 
     private string _searchQuery = null!;
+    private string _lastQuery = string.Empty;
+    private SearchResultCategory _selectedCategory = SearchResultCategory.All;
     private bool _isSearching;
     private bool _isResultsListEnabled = true;
     private AppSearchResult? _selectedResult;
@@ -28,7 +31,7 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
     public SearchExecutionViewModel(QuickSearchViewModel mainVm, SearchService searchService)
     {
         _mainVm = mainVm;
-        _engine = new SearchExecutionEngine(searchService);
+        _engine = new SearchExecutionEngine(searchService, () => (Lertaro.Core.Wire.SearchCategoryFilter)(byte)_mainVm.SelectedCategory);
         Results = new ObservableRangeCollection<AppSearchResult>();
 
         _dispatcher = new SearchDispatchController(
@@ -99,6 +102,7 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
         {
             if (SetProperty(ref _searchQuery, value))
             {
+                _lastQuery = value ?? string.Empty;
                 if (IsActionsMode)
                 {
                     return;
@@ -115,6 +119,43 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
             }
         }
     }
+
+    /// <summary>
+    /// The active category tab. The engine filters per category, so a change has to re-run the query --
+    /// there is no unfiltered list kept here that could be filtered differently.
+    /// </summary>
+    public SearchResultCategory SelectedCategory
+    {
+        get => _selectedCategory;
+        set
+        {
+            if (_selectedCategory == value)
+                return;
+            _selectedCategory = value;
+            OnPropertyChanged(nameof(SelectedCategory));
+            OnPropertyChanged(nameof(CategorySummary));
+            if (!IsActionsMode && !string.IsNullOrWhiteSpace(_lastQuery))
+                _dispatcher.DispatchSearch(_lastQuery);
+        }
+    }
+
+    /// <summary>The active tab's label, for the status line.</summary>
+    public string CategorySummary =>
+        _selectedCategory == SearchResultCategory.All
+            ? string.Empty
+            : TranslationManager.Instance[CategoryTranslationKey(_selectedCategory)];
+
+    internal static string CategoryTranslationKey(SearchResultCategory category) => category switch
+    {
+        SearchResultCategory.Folder => "Search_Category_Folder",
+        SearchResultCategory.Application => "Search_Category_Application",
+        SearchResultCategory.Settings => "Search_Category_Settings",
+        SearchResultCategory.Document => "Search_Category_Document",
+        SearchResultCategory.Image => "Search_Category_Image",
+        SearchResultCategory.Audio => "Search_Category_Audio",
+        SearchResultCategory.Video => "Search_Category_Video",
+        _ => "Search_Category_All",
+    };
 
     public bool IsSearching
     {
