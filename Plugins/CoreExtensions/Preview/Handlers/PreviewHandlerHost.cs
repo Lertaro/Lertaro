@@ -121,6 +121,9 @@ internal sealed class PreviewHandlerHost : HwndHost, IReusablePreview
 
         var clsid = _targetClsid;
         var path = _targetPath;
+        // Watched from before the file is handed over: a handler that refuses to parse it prompts from
+        // inside Initialize/DoPreview and never parents a window for OnChildWindowCreated to notice.
+        _focusGuard.ArmDialogWatcherForRender();
         try
         {
             if (_activeHandler == null || _activeClsid != clsid)
@@ -147,6 +150,10 @@ internal sealed class PreviewHandlerHost : HwndHost, IReusablePreview
         catch
         {
             // Handler failed on this file; leave the host blank rather than crash.
+        }
+        finally
+        {
+            _focusGuard.DisarmDialogWatcherAfterRender();
         }
     }
 

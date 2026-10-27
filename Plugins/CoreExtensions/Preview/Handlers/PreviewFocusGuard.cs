@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Windows.Interop;
 using System.Windows.Threading;
 using Lertaro.PluginSdk.Services;
 
@@ -45,6 +46,9 @@ internal sealed class PreviewFocusGuard
 
     private WinEventDelegate? _dialogHookDelegate;
     private IntPtr _hDialogHook;
+    // Which PID the running start-watcher filters on, or AnyProcess while the handler's own PID is still
+    // unknown. Null once disarmed.
+    private uint? _dialogWatcherPid;
 
     private WinEventDelegate? _dialogCloseHookDelegate;
     private IntPtr _hDialogCloseHook;
@@ -80,16 +84,75 @@ internal sealed class PreviewFocusGuard
     private void ArmDialogWatcher(uint pid)
     {
         DisarmDialogWatcher();
+        _dialogWatcherPid = pid;
         _dialogHookDelegate = (h, evt, hwnd, idObject, idChild, thread, time) =>
         {
             if (hwnd == IntPtr.Zero) return;
             PreviewHandlerInterop.GetWindowThreadProcessId(hwnd, out var dialogPid);
-            if (dialogPid != pid) return;
-            try { PreviewHandlerInterop.SetForegroundWindow(hwnd); } catch { }
+            if (!ShouldSurfaceDialog(pid, dialogPid, IsOwnWpfWindow(hwnd))) return;
+            SurfaceDialog(hwnd);
             PreviewDialogSignal.NotifyDialogOpened();
-            ArmDialogCloseWatcher(hwnd, pid);
+            ArmDialogCloseWatcher(hwnd, dialogPid);
         };
         _hDialogHook = SetWinEventHook(EVENT_SYSTEM_DIALOGSTART, EVENT_SYSTEM_DIALOGSTART, IntPtr.Zero, _dialogHookDelegate, 0, 0, WINEVENT_OUTOFCONTEXT);
+    }
+
+    /// <summary>PID marker for a start-watcher that has no PID to filter on yet.</summary>
+    private const uint AnyProcess = 0;
+
+    /// <summary>
+    /// Arms the dialog watcher for one <c>Render</c> call, before the handler is handed the file.
+    /// </summary>
+    /// <remarks>
+    /// A file the handler cannot parse -- an encrypted .doc that makes Word ask which encoding to import it
+    /// as, issue #459 -- shows its dialog inside <c>Initialize</c>/<c>DoPreview</c> and never parents a render
+    /// window, so <see cref="OnChildWindowCreated"/>, the only thing that used to arm this watcher, never
+    /// fires and the prompt goes completely unseen. No PID is knowable that early, so this arm is unscoped;
+    /// <see cref="ShouldSurfaceDialog"/> still refuses anything that is one of this app's own windows, and
+    /// the arm is dropped when the render call ends, so an unrelated app's dialog cannot keep it alive past
+    /// the one moment it could plausibly be confused for the handler's.
+    /// </remarks>
+    public void ArmDialogWatcherForRender() => ArmDialogWatcher(AnyProcess);
+
+    public void DisarmDialogWatcherAfterRender()
+    {
+        // A render that got as far as parenting a window has already been re-armed for the handler's own PID
+        // by OnChildWindowCreated. That arm belongs to the whole preview session and outlives this call.
+        if (_dialogWatcherPid is null or AnyProcess)
+            DisarmDialogWatcher();
+    }
+
+    // Which dialogs a running watcher reacts to. Once the handler's PID is known that is the only PID that
+    // counts; before then any process does, because the in-process handlers are the interesting case -- their
+    // dialog is this process's own window. Neither case may react to a window this app showed through WPF, or
+    // opening the settings page or one of our message boxes would hide the search window out from under it.
+    internal static bool ShouldSurfaceDialog(uint watcherPid, uint dialogPid, bool isOwnWpfWindow)
+        => !isOwnWpfWindow && (watcherPid == AnyProcess || watcherPid == dialogPid);
+
+    internal static bool IsOwnWpfWindow(IntPtr hwnd)
+    {
+        // HwndSource answers for the handles this process created through WPF only, so a foreign window --
+        // and a native dialog an in-process handler pumps on this thread -- both come back null here.
+        var root = PreviewHandlerInterop.GetAncestor(hwnd, PreviewHandlerInterop.GA_ROOT);
+        return root != IntPtr.Zero && HwndSource.FromHwnd(root) is not null;
+    }
+
+    // Foreground alone is the worse outcome here: a window that is not topmost can never rise above the
+    // topmost window this app previews inside, so the dialog ends up holding the keyboard while our window
+    // keeps the pixels -- an app that takes no input and shows no reason why. Putting it in the same band is
+    // what makes it both reachable and visible.
+    // ponytail: the topmost style is never taken back, because the only close signal tracked here is the
+    // window's destruction, by which point there is nothing left to un-topmost. A handler that hides a dialog
+    // instead of closing it would leave it above everything; the upgrade is a restore on EVENT_OBJECT_HIDE.
+    private static void SurfaceDialog(IntPtr hwnd)
+    {
+        try
+        {
+            PreviewHandlerInterop.SetWindowPos(hwnd, PreviewHandlerInterop.HWND_TOPMOST, 0, 0, 0, 0,
+                PreviewHandlerInterop.SWP_NOMOVE | PreviewHandlerInterop.SWP_NOSIZE);
+        }
+        catch { }
+        try { PreviewHandlerInterop.SetForegroundWindow(hwnd); } catch { }
     }
 
     private void DisarmDialogWatcher()
@@ -100,6 +163,7 @@ internal sealed class PreviewFocusGuard
             _hDialogHook = IntPtr.Zero;
         }
         _dialogHookDelegate = null;
+        _dialogWatcherPid = null;
     }
 
     // Tracks the specific dialog hwnd SetForegroundWindow was just called on, so the app's own

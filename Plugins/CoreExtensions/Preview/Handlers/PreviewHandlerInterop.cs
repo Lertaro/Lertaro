@@ -41,6 +41,10 @@ internal static class PreviewHandlerInterop
     public const uint STGM_READ = 0x0;
     public const uint STGM_SHARE_DENY_WRITE = 0x20;
     public const uint GW_CHILD = 5;
+    public const uint GA_ROOT = 2;
+    public static readonly IntPtr HWND_TOPMOST = new(-1);
+    public const uint SWP_NOSIZE = 0x0001;
+    public const uint SWP_NOMOVE = 0x0002;
 
     [DllImport("ole32.dll")]
     public static extern int CoCreateInstance(in Guid clsid, IntPtr pUnkOuter, CLSCTX dwClsContext, in Guid iid, out IntPtr ppv);
@@ -75,6 +79,13 @@ internal static class PreviewHandlerInterop
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetAncestor(IntPtr hwnd, uint gaFlags);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
 }
 
 [ComImport, Guid("8895b1c6-b41f-4c1c-a562-0d564250836f"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
