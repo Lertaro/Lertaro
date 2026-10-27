@@ -21,6 +21,8 @@ internal static class SearchFiltersConfigSchema
                 FieldType = ConfigFieldType.Group,
                 SubFields = new List<PluginConfigField>
                 {
+                    CreateToggle(TypeFilterProvider.ApplicationFilterEnabledKey, "CoreExtensions_Config_BuiltInAppFilterLabel"),
+                    CreateToggle(TypeFilterProvider.SettingsFilterEnabledKey, "CoreExtensions_Config_BuiltInSettingsFilterLabel"),
                     CreateToggle(TypeFilterProvider.DocumentFilterEnabledKey, "CoreExtensions_Config_BuiltInDocumentFilterLabel"),
                     CreateToggle(TypeFilterProvider.ImageFilterEnabledKey, "CoreExtensions_Config_BuiltInImageFilterLabel"),
                     CreateToggle(TypeFilterProvider.VideoFilterEnabledKey, "CoreExtensions_Config_BuiltInVideoFilterLabel"),

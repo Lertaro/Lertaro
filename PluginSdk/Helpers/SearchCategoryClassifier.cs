@@ -1,4 +1,5 @@
 using System.IO;
+using Lertaro.PluginSdk.Abstractions;
 
 namespace Lertaro.PluginSdk.Helpers;
 
@@ -49,6 +50,12 @@ public static class SearchCategoryClassifier
 {
     /// <summary>A shortcut is a pointer, not a kind: what it points at decides.</summary>
     public const string ShortcutExtension = ".lnk";
+
+    /// <summary>
+    /// The prefix of the placeholder path the host gives a row a plugin contributed, whose next segment is the
+    /// provider's type name: <c>__SEARCHABLE_ITEM__:{ProviderType}:{Title}</c>.
+    /// </summary>
+    public const string SearchableItemPathPrefix = "__SEARCHABLE_ITEM__:";
 
     private static readonly string[] ApplicationExtensions =
     [
@@ -180,6 +187,35 @@ public static class SearchCategoryClassifier
     }
 
     /// <summary>
+    /// The category a search row belongs to, answering what a path alone cannot: which provider contributed
+    /// it, whether it reports itself launchable, and where a shortcut points.
+    /// </summary>
+    /// <remarks>
+    /// This is what a filter row tests and what the quick window's filter bar narrows by, so the sidebar and
+    /// the bar cannot disagree about one row. A shortcut's target is read through
+    /// <see cref="StartMenuShortcutResolver.ResolveTargetInfo"/>, which remembers its answers: resolving walks
+    /// IShellLink, and callers run this per row on a batch the UI thread is about to paint.
+    /// </remarks>
+    public static SearchCategoryFilter? Categorize(ISearchResult? row)
+    {
+        if (row is null || string.IsNullOrEmpty(row.FullPath))
+            return Classify(null, row?.IsDir == true);
+
+        if (row.FullPath.EndsWith(ShortcutExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            var target = StartMenuShortcutResolver.ResolveTargetInfo(row.FullPath);
+            if (target != null)
+                return Classify(target.Path, target.IsDirectory);
+        }
+
+        // Order matters the other way for a launchable row: the app indexer marks a Start Menu shortcut's row
+        // (and its resolved target) as an application, so the path's own kind has to be asked first or a
+        // shortcut to a document would land under 应用 simply because the shell can launch it.
+        return Classify(row.FullPath, row.IsDir)
+            ?? (row.IsApplication ? SearchCategoryFilter.Application : null);
+    }
+
+    /// <summary>
     /// The same category as a 自定义过滤器 rule string, for callers that express a category as globs
     /// (see <c>CustomFilterQueryTokenProvider</c>). Empty for the categories no glob can answer.
     /// </summary>
@@ -199,5 +235,14 @@ public static class SearchCategoryClassifier
     private static bool IsSettingsEntry(string nameOrPath) =>
         nameOrPath.StartsWith("ms-settings:", StringComparison.OrdinalIgnoreCase)
         || nameOrPath.Contains("immersivecontrolpanel", StringComparison.OrdinalIgnoreCase)
-        || nameOrPath.Contains("SystemSettings.exe", StringComparison.OrdinalIgnoreCase);
+        || nameOrPath.Contains("SystemSettings.exe", StringComparison.OrdinalIgnoreCase)
+        // A plugin-contributed searchable item has no file behind it, so the host gives it a placeholder path
+        // of the shape __SEARCHABLE_ITEM__:{ProviderType}:{Title} (see SearchableItemMapper). Every entry the
+        // system-settings provider contributes is a settings entry -- Bluetooth, Device Manager, user account
+        // control, the lot -- and they also report themselves as applications, so the provider named in that
+        // placeholder is what tells them apart from real programs.
+        || (nameOrPath.StartsWith(SearchableItemPathPrefix, StringComparison.OrdinalIgnoreCase)
+            && nameOrPath[SearchableItemPathPrefix.Length..]
+                .Split(':')[0]
+                .Contains("SystemSettings", StringComparison.OrdinalIgnoreCase));
 }

@@ -1,9 +1,13 @@
 using System.Windows;
 using Lertaro.App.Helpers;
+using Lertaro.App.Services;
+using Lertaro.App.Services.Plugin;
 using Lertaro.App.ViewModels.Search.Dispatch;
 
 using Lertaro.Core.Services.Search;
 
+using Lertaro.PluginSdk.Abstractions;
+using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.PluginSdk.Helpers;
 
 using Lertaro.App.ViewModels.Search.Mapping;
@@ -17,7 +21,8 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
 
     private string _searchQuery = null!;
     private string _lastQuery = string.Empty;
-    private SearchCategoryFilter _selectedCategory = SearchCategoryFilter.All;
+    private IReadOnlyList<SidebarFilterItem> _categories = BuildCategoryTabs();
+    private SidebarFilterItem _selectedCategory = null!;
     private bool _isSearching;
     private bool _isResultsListEnabled = true;
     private AppSearchResult? _selectedResult;
@@ -32,7 +37,10 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
     public SearchExecutionViewModel(QuickSearchViewModel mainVm, SearchService searchService)
     {
         _mainVm = mainVm;
-        _engine = new SearchExecutionEngine(searchService, () => _selectedCategory);
+        // The list's own first row, not a second 全部 of the same shape: the bar selects by reference, so a
+        // look-alike would leave the row with nothing selected and no underline on the first paint.
+        _selectedCategory = _categories[0];
+        _engine = new SearchExecutionEngine(searchService, () => _selectedCategory.Category ?? SearchCategoryFilter.All);
         Results = new ObservableRangeCollection<AppSearchResult>();
 
         _dispatcher = new SearchDispatchController(
@@ -122,10 +130,19 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
-    /// The active category tab. The engine filters per category, so a change has to re-run the query --
-    /// there is no unfiltered list kept here that could be filtered differently.
+    /// The filter tabs: 全部 first, then the type rows the Core Extensions plugin's 类型设置 describes. This
+    /// bar has no list of its own -- it reads the same <see cref="SidebarFilterItem"/> rows the full search
+    /// window's sidebar builds, through the same provider list and the same per-row predicates -- so turning
+    /// a row off, renaming a :@keyword or adding one changes this bar in the same step, and the two surfaces
+    /// cannot answer differently for one row.
     /// </summary>
-    public SearchCategoryFilter SelectedCategory
+    public IReadOnlyList<SidebarFilterItem> Categories => _categories;
+
+    /// <summary>
+    /// The active tab. A change has to re-run the query: the engine narrows the index walk to the tab's
+    /// category where it can, so there is no unfiltered list kept here that could be filtered differently.
+    /// </summary>
+    public SidebarFilterItem SelectedCategory
     {
         get => _selectedCategory;
         set
@@ -139,17 +156,55 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
         }
     }
 
-    internal static string CategoryTranslationKey(SearchCategoryFilter category) => category switch
+    /// <summary>
+    /// The active tab's predicate, or null when the tab is 全部. Null is what the rest of the pipeline reads
+    /// as "no narrowing": the display cap, and the show-more row it feeds, apply to an unfiltered list and
+    /// must not apply to a filtered one -- a tab that keeps every row is not the same thing as no tab, and
+    /// handing <c>_ =&gt; true</c> downstream would silently disable the cap.
+    /// </summary>
+    public Func<ISearchResult, bool>? ActiveCategoryFilter =>
+        ReferenceEquals(_selectedCategory, _categories[0]) ? null : _selectedCategory.MatchPredicate;
+
+    /// <summary>
+    /// Re-reads the rows. Cheap, and it is the only way a settings edit while this window is open reaches the
+    /// bar: providers are asked for their groups at construction, so the host asks again.
+    /// </summary>
+    public void RebuildCategories()
     {
-        SearchCategoryFilter.Folder => "Search_Category_Folder",
-        SearchCategoryFilter.Application => "Search_Category_Application",
-        SearchCategoryFilter.Settings => "Search_Category_Settings",
-        SearchCategoryFilter.Document => "Search_Category_Document",
-        SearchCategoryFilter.Image => "Search_Category_Image",
-        SearchCategoryFilter.Audio => "Search_Category_Audio",
-        SearchCategoryFilter.Video => "Search_Category_Video",
-        SearchCategoryFilter.Archive => "Search_Category_Archive",
-        _ => "Search_Category_All",
+        var rebuilt = BuildCategoryTabs();
+        // Identity is the row's id, not the object: a provider hands back new instances every call, and a
+        // user mid-filter must not be bounced to 全部 because the list was refreshed under them.
+        var keep = rebuilt.FirstOrDefault(row => row.Id == _selectedCategory.Id) ?? rebuilt[0];
+        _categories = rebuilt;
+        OnPropertyChanged(nameof(Categories));
+        if (keep != _selectedCategory)
+        {
+            _selectedCategory = keep;
+            OnPropertyChanged(nameof(SelectedCategory));
+        }
+    }
+
+    private static IReadOnlyList<SidebarFilterItem> BuildCategoryTabs()
+    {
+        var tabs = new List<SidebarFilterItem> { AllTab() };
+        foreach (var group in PluginManager.Instance.SidebarFilterProviders.SelectMany(provider => provider.GetFilterGroups()))
+        {
+            // Only the type group: the same provider list also carries file size and date rows, which are
+            // ranges rather than kinds and would make a bar of things that are not "what kind of entry".
+            if (group.Id == "Type")
+                tabs.AddRange(group.Items);
+        }
+
+        return tabs;
+    }
+
+    // The unfiltered tab. No category, so the engine walks everything; a predicate that keeps everything, so
+    // the display cap applies to it as it always did.
+    private static SidebarFilterItem AllTab() => new()
+    {
+        Id = string.Empty,
+        DisplayName = TranslationManager.Instance["Search_Category_All"],
+        MatchPredicate = _ => true,
     };
 
     public bool IsSearching

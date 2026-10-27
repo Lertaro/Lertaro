@@ -27,6 +27,9 @@ internal static class OpenSearchWindowRefresher
                 continue;
 
             quickVm.RefreshLaunchSources();
+            // The quick window's filter bar is the plugin's type settings, and a save is exactly when those
+            // stop being what the bar shows.
+            quickVm.RebuildCategoryTabs();
 
             // Re-run the live query so favorite/history-weighted rows re-read the saved settings.
             // An empty box has nothing to re-run: its empty state contains no favorites content.

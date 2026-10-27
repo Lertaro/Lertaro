@@ -1,3 +1,5 @@
+using Lertaro.PluginSdk.Helpers;
+
 namespace Lertaro.PluginSdk.Abstractions.Plugins;
 
 /// <summary>
@@ -62,4 +64,12 @@ public class SidebarFilterItem
     /// cannot drift from the rows that a filter actually keeps.
     /// </summary>
     public Func<ISearchResult, bool> MatchPredicate { get; set; } = _ => false;
+
+    /// <summary>
+    /// The entry kind this row stands for, when one exists: the search's own row filter then narrows the
+    /// index walk to it instead of only filtering the page the engine already ranked and capped. Null -- the
+    /// default, and what any custom row leaves -- means the answer only this item's predicate can give, so
+    /// the filter applies to the results as they arrive.
+    /// </summary>
+    public SearchCategoryFilter? Category { get; set; }
 }

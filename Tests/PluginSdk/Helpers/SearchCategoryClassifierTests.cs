@@ -1,3 +1,4 @@
+using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Helpers;
 
 namespace Lertaro.PluginSdk.Tests.Helpers;
@@ -153,4 +154,61 @@ public sealed class SearchCategoryClassifierTests
             .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(pattern => pattern.TrimStart('*'))
             .ToList();
+
+    // The row-level question, which is what a filter tab and a sidebar row both ask. A path alone cannot
+    // answer it: a row reports whether it is launchable, and a shortcut's kind is its target's.
+    [TestMethod]
+    [DataRow(@"D:\libs\readme.md", SearchCategoryFilter.Document)]
+    [DataRow(@"D:\pics\shot.png", SearchCategoryFilter.Image)]
+    [DataRow(@"D:\setup\installer.msi", SearchCategoryFilter.Application)]
+    [DataRow(@"D:\media\clip.mkv", SearchCategoryFilter.Video)]
+    public void Categorize_AFileRow_TakesTheCategoryItsExtensionSays(string path, SearchCategoryFilter expected) =>
+        Assert.AreEqual(expected, SearchCategoryClassifier.Categorize(new Row(path)));
+
+    [TestMethod]
+    public void Categorize_ADirectoryRow_IsAFolder() =>
+        Assert.AreEqual(SearchCategoryFilter.Folder, SearchCategoryClassifier.Categorize(new Row(@"D:\Downloads", isDir: true)));
+
+    [TestMethod]
+    public void Categorize_APlaceholderSettingsRow_IsSettingsAndNotAnApplication()
+    {
+        // A searchable item contributed by a plugin has no file behind it: the host gives it a placeholder
+        // path naming its provider, and the system-settings ones also report themselves as applications.
+        var row = new Row("__SEARCHABLE_ITEM__:SystemSettingsItemProvider:显示网络连接", isApplication: true);
+
+        Assert.AreEqual(SearchCategoryFilter.Settings, SearchCategoryClassifier.Categorize(row));
+    }
+
+    [TestMethod]
+    public void Categorize_APlaceholderRowFromAnotherProvider_BelongsToNoCategory() =>
+        Assert.IsNull(SearchCategoryClassifier.Categorize(new Row("__SEARCHABLE_ITEM__:WebSearchProvider:cat")));
+
+    [TestMethod]
+    public void Categorize_ALaunchableRowWithNoFileKind_IsAnApplication() =>
+        Assert.AreEqual(SearchCategoryFilter.Application,
+            SearchCategoryClassifier.Categorize(new Row("shell:::{AppsFolder}\\something", isApplication: true)));
+
+    [TestMethod]
+    public void Categorize_AShortcutWithNoTarget_KeepsWhicheverKindItsRowReports()
+    {
+        Assert.AreEqual(SearchCategoryFilter.Application,
+            SearchCategoryClassifier.Categorize(new Row(@"Start Menu\Missing.lnk", isApplication: true)));
+        Assert.IsNull(SearchCategoryClassifier.Categorize(new Row(@"Desktop\Broken.lnk")));
+    }
+
+    [TestMethod]
+    public void Categorize_NoRow_IsNoCategory()
+    {
+        Assert.IsNull(SearchCategoryClassifier.Categorize(null));
+        Assert.IsNull(SearchCategoryClassifier.Categorize(new Row(string.Empty)));
+    }
+
+    private sealed class Row(string path, bool isDir = false, bool isApplication = false) : ISearchResult
+    {
+        public string Name { get; } = Path.GetFileNameWithoutExtension(path);
+        public string FullPath { get; } = path;
+        public string ContextDirectory { get; } = string.Empty;
+        public bool IsDir { get; } = isDir;
+        public bool IsApplication { get; } = isApplication;
+    }
 }

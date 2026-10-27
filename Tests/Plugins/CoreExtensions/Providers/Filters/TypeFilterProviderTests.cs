@@ -1,4 +1,5 @@
 using Lertaro.PluginSdk.Abstractions;
+using Lertaro.PluginSdk.Helpers;
 using Lertaro.PluginSdk.Services;
 using Lertaro.Plugins.CoreExtensions.Models;
 using Lertaro.Plugins.CoreExtensions.Providers.Filters;
@@ -146,19 +147,52 @@ public sealed class TypeFilterProviderTests
     }
 
     [TestMethod]
-    public void GetFilterGroups_ReturnsAllSevenTypeCategories()
+    public void GetFilterGroups_ReturnsEveryTypeCategoryInDisplayOrder()
     {
         var provider = new TypeFilterProvider();
 
         var ids = provider.GetFilterGroups().Single().Items.Select(i => i.Id).ToList();
 
-        // 音频 and 压缩包 used to be missing here while both already had a :@keyword: the row set now follows
-        // the one category table instead of three hand-kept extension lists.
-        CollectionAssert.AreEquivalent(new[]
+        // This order IS the quick window's filter bar: the bar reads these rows rather than keeping a list of
+        // its own, so 应用 and 设置 -- which the bar had and the sidebar did not -- are rows here now too.
+        CollectionAssert.AreEqual(new[]
         {
-            "Type_Folder", "Type_File", "Type_Doc", "Type_Image", "Type_Video", "Type_Audio", "Type_Zip",
+            "Type_Folder", "Type_App", "Type_Settings", "Type_File",
+            "Type_Doc", "Type_Image", "Type_Video", "Type_Audio", "Type_Zip",
         }, ids);
     }
+
+    [TestMethod]
+    public void EveryBuiltInRow_CarriesTheCategoryItsPredicateTests()
+    {
+        foreach (var item in new TypeFilterProvider().GetFilterGroups().Single().Items)
+        {
+            if (item.Category == null)
+                continue;
+
+            var category = item.Category.Value;
+            foreach (var sample in Samples(category))
+            {
+                Assert.IsTrue(item.MatchPredicate(sample),
+                    $"{category} row must keep the row the classifier files as {category}: {sample.FullPath}");
+                Assert.IsFalse(item.MatchPredicate(new FakeResult { FullPath = @"D:\other.xyz" }),
+                    "and nothing the classifier files nowhere");
+            }
+        }
+    }
+
+    private static IEnumerable<ISearchResult> Samples(SearchCategoryFilter category) => category switch
+    {
+        SearchCategoryFilter.Folder => [new FakeResult { FullPath = @"D:\dir", IsDir = true }],
+        SearchCategoryFilter.Application => [new FakeResult { FullPath = @"D:pp.exe" }],
+        SearchCategoryFilter.Settings => [new FakeResult { FullPath = "__SEARCHABLE_ITEM__:SystemSettingsItemProvider:显示网络设置", IsApplication = true }],
+        SearchCategoryFilter.Document => [new FakeResult { FullPath = @"D:.docx" }],
+        SearchCategoryFilter.Image => [new FakeResult { FullPath = @"D:.png" }],
+        SearchCategoryFilter.Video => [new FakeResult { FullPath = @"D:.mkv" }],
+        SearchCategoryFilter.Audio => [new FakeResult { FullPath = @"D:.flac" }],
+        SearchCategoryFilter.Archive => [new FakeResult { FullPath = @"D:.zip" }],
+        _ => [],
+    };
 
     [TestMethod]
     public void TheExtensionRows_AnswerTheSameTableTheFilterTabsDo()
@@ -171,8 +205,12 @@ public sealed class TypeFilterProviderTests
         Assert.IsTrue(GetPredicate("Type_Image")(new FakeResult { FullPath = @"C:\photo.jxl" }));
         Assert.IsTrue(GetPredicate("Type_Audio")(new FakeResult { FullPath = @"C:\song.opus" }));
         Assert.IsTrue(GetPredicate("Type_Zip")(new FakeResult { FullPath = @"C:\disk.iso" }));
+        Assert.IsTrue(GetPredicate("Type_App")(new FakeResult { FullPath = @"C:\setup.msi" }));
 
-        // An application row stays out of an extension row, whatever its own kind says.
-        Assert.IsFalse(GetPredicate("Type_Doc")(new FakeResult { FullPath = @"C:\report.docx", IsApplication = true }));
+        // A path's own kind outranks a row's claim to be launchable: the app indexer marks a Start Menu
+        // shortcut's row as an application, so without this a shortcut to a document would sit under 应用
+        // purely because the shell can launch it.
+        Assert.IsTrue(GetPredicate("Type_Doc")(new FakeResult { FullPath = @"C:\report.docx", IsApplication = true }));
+        Assert.IsFalse(GetPredicate("Type_App")(new FakeResult { FullPath = @"C:\report.docx", IsApplication = true }));
     }
 }

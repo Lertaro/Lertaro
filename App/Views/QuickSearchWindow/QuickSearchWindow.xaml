@@ -8,7 +8,6 @@
         xmlns:helpers="clr-namespace:Lertaro.App.Helpers.Visuals"
         xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
         xmlns:quick="clr-namespace:Lertaro.App.Views.QuickSearchWindow"
-        xmlns:converters="clr-namespace:Lertaro.App.Converters"
         Title="Lertaro"
         SizeToContent="WidthAndHeight"
         WindowStyle="None"
@@ -24,8 +23,6 @@
         PreviewKeyDown="Window_PreviewKeyDown">
 
     <Window.Resources>
-        <converters:CategoryDisplayNameConverter x:Key="CategoryName"/>
-
         <!-- One filter. The pipe is drawn on the left of each filter and hidden on the first, so the row
              starts and ends on a label instead of a rule. The selected underline is this item's own bottom
              border: the Border hugs its content, so the line is the label's width without measuring the
@@ -70,27 +67,33 @@
             </Setter>
         </Style>
 
-        <!-- A bare ItemsPresenter, with no Border, ScrollViewer or focus chrome of its own: the default
-             template draws its own chrome and lays a full-width strip behind the row. Equal-width cells
-             across the line so the filters spread out instead of bunching at the left edge. -->
+        <!-- A ScrollViewer over a bare ItemsPresenter: no Border and no focus chrome of its own, because the
+             default template draws its own and lays a full-width strip behind the row. The panel gives every
+             filter its own text width and spreads what is left over the gaps, so the row reads justified at
+             both ends; the moment the filters are wider than the card, the same rule turns into a thin
+             horizontal bar instead of a clipped label. -->
         <Style x:Key="CategoryBarStyle" TargetType="ListBox">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="ItemContainerStyle" Value="{StaticResource CategoryCardStyle}"/>
-            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
             <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled"/>
             <Setter Property="ItemsPanel">
                 <Setter.Value>
                     <ItemsPanelTemplate>
-                        <UniformGrid Rows="1"/>
+                        <helpers:JustifiedRowPanel/>
                     </ItemsPanelTemplate>
                 </Setter.Value>
             </Setter>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBox">
-                        <ItemsPresenter/>
+                        <ScrollViewer Focusable="False"
+                                      HorizontalScrollBarVisibility="Auto"
+                                      VerticalScrollBarVisibility="Disabled">
+                            <ItemsPresenter/>
+                        </ScrollViewer>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -134,25 +137,23 @@
                                     HorizontalAlignment="Stretch" IsServiceRunning="{Binding IsServiceConnected}"/>
 
             <!-- ═══════════ 2. Category filter ═══════════ -->
-            <!-- Shown with the results and hidden when there are none, so the bar never widens the card on
-                 an empty search. -->
+            <!-- Shown with the results and hidden when there are none, so the bar never widens the card on an
+                 empty search. The row is whatever the plugin's type settings say it is, so its count is not
+                 known here: AlternationCount, which only exists to hide the first separator, follows it. -->
             <ListBox x:Name="CategoryBar"
                      Grid.Row="1"
                      Margin="12,1,12,2"
-                     AlternationCount="64"
+                     AlternationCount="{Binding Categories.Count}"
                      HorizontalAlignment="Stretch"
                      HorizontalContentAlignment="Stretch"
                      Style="{StaticResource CategoryBarStyle}"
                      ItemsSource="{Binding Categories}"
                      SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"
+                     PreviewMouseWheel="CategoryBar_PreviewMouseWheel"
                      Visibility="{Binding ResultsPanelVisibility}">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <!-- Trimming rather than growth: the row is nine equal cells inside a width the user
-                             set, and a locale whose words do not fit that has to lose letters, not card width. -->
-                        <TextBlock Text="{Binding Converter={StaticResource CategoryName}}"
-                                   Opacity="0.85"
-                                   TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding DisplayName}" Opacity="0.85"/>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>

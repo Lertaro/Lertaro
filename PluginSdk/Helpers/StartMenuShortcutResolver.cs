@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
@@ -164,6 +165,39 @@ public static class StartMenuShortcutResolver
                 Marshal.FinalReleaseComObject(shellLinkObject);
         }
     }
+
+    /// <summary>
+    /// A shortcut's target and the filesystem kind it points at, remembered once per shortcut for the life of
+    /// the process.
+    /// </summary>
+    /// <remarks>
+    /// The uncached <see cref="ResolveShortcutTarget"/> stays what the paths that act on a target use -- the
+    /// app indexer and the recent-files rows want today's answer. This exists for the callers that ask the
+    /// same question per row and per paint, where a shortcut's target only decides which filter tab it shows
+    /// under and a stale answer costs a classification, never a wrong row.
+    ///
+    /// The directory kind is cached with the target because asking it separately would put a stat back on the
+    /// per-row path: on a shortcut aimed at a share that stopped answering, that stat is the SMB timeout, paid
+    /// over on every paint.
+    /// </remarks>
+    public static ShortcutTarget? ResolveTargetInfo(string shortcutPath)
+    {
+        if (!Path.GetExtension(shortcutPath).Equals(".lnk", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        return TargetCache.GetOrAdd(shortcutPath, static shortcut =>
+        {
+            var target = ResolveShortcutTarget(shortcut);
+            return string.IsNullOrEmpty(target)
+                ? null
+                : new ShortcutTarget(target, Directory.Exists(target));
+        });
+    }
+
+    /// <summary>A resolved shortcut target: where it points, and whether that is a directory.</summary>
+    public sealed record ShortcutTarget(string Path, bool IsDirectory);
+
+    private static readonly ConcurrentDictionary<string, ShortcutTarget?> TargetCache = new(StringComparer.OrdinalIgnoreCase);
 
     private static void AddIfDirectory(HashSet<string> roots, string path)
     {

@@ -3,10 +3,8 @@ using Lertaro.Core.SearchIndex;
 using Lertaro.App.ViewModels.Search.Dispatch;
 using Lertaro.App.Services.Plugin;
 using Lertaro.PluginSdk.Abstractions.Plugins;
-using Lertaro.PluginSdk.Services;
 
 using SearchWindowType = Lertaro.PluginSdk.Abstractions.SearchWindowType;
-using SearchCategoryFilter = Lertaro.PluginSdk.Helpers.SearchCategoryFilter;
 
 namespace Lertaro.App.ViewModels.Search.Mapping;
 
@@ -89,14 +87,14 @@ public static class SearchResultMapper
     private static readonly IReadOnlyDictionary<string, int> EmptyUsage =
         new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-    internal static List<AppSearchResult> BuildQuickResults(List<SearchResult>? fileResults, string query, string? scope, string? contextDirectory, bool isInlineWindow, string? rawQuery = null, bool skipDisplayCap = false, FileFilterScopeDirective? fileFilterScope = null, bool folderScope = false, InstantPassCache? instantPass = null, RankContext? rankContext = null, QuickSearchRankingTrace? rankingTrace = null, SearchCategoryFilter category = SearchCategoryFilter.All)
+    internal static List<AppSearchResult> BuildQuickResults(List<SearchResult>? fileResults, string query, string? scope, string? contextDirectory, bool isInlineWindow, string? rawQuery = null, bool skipDisplayCap = false, FileFilterScopeDirective? fileFilterScope = null, bool folderScope = false, InstantPassCache? instantPass = null, RankContext? rankContext = null, QuickSearchRankingTrace? rankingTrace = null, Func<PluginSdk.Abstractions.ISearchResult, bool>? categoryFilter = null)
     {
         var uiResults = new List<AppSearchResult>();
         var engineCandidateCount = fileResults?.Count ?? 0;
         var preRankingDrops = rankingTrace != null
             ? new List<RankingDroppedCandidate>()
             : null;
-        string[]? beforeDirectoryFilter = rankingTrace != null && fileResults != null
+        var beforeDirectoryFilter = rankingTrace != null && fileResults != null
             ? fileResults.Select(result => result.Path).ToArray()
             : null;
         // One pass over the plugin providers per search, not per paint. This method IS a paint callback --
@@ -475,12 +473,15 @@ public static class SearchResultMapper
             ? RankedCandidateOrdering.OrderWithTrace(candidates, rankContext, out rankingPass)
             : RankedCandidateOrdering.Order(candidates, rankContext);
 
-        // The category filter runs HERE, before any cap. Filtering afterwards meant the cap had already
-        // thrown those rows away under the whole-result ordering: a short query ranks applications and
-        // folders first, so an Audio tab received a list with no audio in it. Filtering first also makes
-        // the display cap meaningful again, because it then counts rows of the type the user asked for.
-        if (category != SearchCategoryFilter.All)
-            ordered = ordered.Where(row => SearchResultCategorizer.Matches(category, row.Result)).ToList();
+        // The filter runs HERE, before any cap. Filtering afterwards meant the cap had already thrown those
+        // rows away under the whole-result ordering: a short query ranks applications and folders first, so
+        // an audio tab received a list with no audio in it. Filtering first also makes the display cap
+        // meaningful again, because it then counts rows of the type the user asked for.
+        //
+        // The predicate is the one the selected filter row carries -- the same object the full window's
+        // sidebar counts and filters with -- so this list and that sidebar cannot disagree about a row.
+        if (categoryFilter != null)
+            ordered = ordered.Where(row => categoryFilter(row.Result)).ToList();
 
         IReadOnlyList<RankingProviderTrace> providerReadiness = Array.Empty<RankingProviderTrace>();
         if (rankingTrace != null)
@@ -534,7 +535,7 @@ public static class SearchResultMapper
         // and to hand the overflow to "show more"; applying it to a filtered list would mean any magic number
         // could hide the row the user is actually looking for. Inside one category there is nothing to
         // overflow into -- the user asked for that type, so the list shows that type.
-        if (skipDisplayCap || category != SearchCategoryFilter.All || uiResults.Count + ordered.Count < 10)
+        if (skipDisplayCap || categoryFilter != null || uiResults.Count + ordered.Count < 10)
         {
             foreach (var candidate in ordered)
             {

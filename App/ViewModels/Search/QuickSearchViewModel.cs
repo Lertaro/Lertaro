@@ -6,7 +6,8 @@ using Lertaro.Core;
 using Lertaro.App.ViewModels.Service;
 
 using Lertaro.Core.Services.Search;
-using Lertaro.PluginSdk.Helpers;
+using Lertaro.PluginSdk.Abstractions;
+using Lertaro.PluginSdk.Abstractions.Plugins;
 
 namespace Lertaro.App.ViewModels.Search;
 
@@ -62,25 +63,16 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
     public SearchExecutionViewModel Search { get; }
 
     /// <summary>
-    /// The category tabs, in display order. All is first and is the default. The order is the window's own
-    /// and deliberately not the enum's: the enum's numbers travel over the pipe and are frozen, while which
-    /// label sits next to which is a layout choice.
+    /// The filter tabs, in display order: 全部 first and the default. Owned by the search view model, which
+    /// is where the query and the filter over it share one state.
     /// </summary>
-    public IReadOnlyList<SearchCategoryFilter> Categories { get; } = new[]
-    {
-        SearchCategoryFilter.All,
-        SearchCategoryFilter.Folder,
-        SearchCategoryFilter.Application,
-        SearchCategoryFilter.Settings,
-        SearchCategoryFilter.Document,
-        SearchCategoryFilter.Image,
-        SearchCategoryFilter.Audio,
-        SearchCategoryFilter.Video,
-        SearchCategoryFilter.Archive,
-    };
+    public IReadOnlyList<SidebarFilterItem> Categories => Search.Categories;
 
-    /// <summary>The active tab. Lives on the search view model so the filter and the query share one owner.</summary>
-    public SearchCategoryFilter SelectedCategory
+    /// <summary>The active tab's predicate, null for 全部; what narrows the displayed page.</summary>
+    public Func<ISearchResult, bool>? ActiveCategoryFilter => Search.ActiveCategoryFilter;
+
+    /// <summary>The active tab.</summary>
+    public SidebarFilterItem SelectedCategory
     {
         get => Search.SelectedCategory;
         set => Search.SelectedCategory = value;
@@ -89,21 +81,28 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
     /// <summary>Moves the active tab by <paramref name="delta"/>, wrapping at both ends.</summary>
     public void CycleCategory(int delta)
     {
+        var categories = Categories;
         var current = 0;
-        for (var i = 0; i < Categories.Count; i++)
+        for (var i = 0; i < categories.Count; i++)
         {
-            if (Categories[i] == SelectedCategory)
+            if (categories[i] == SelectedCategory)
             {
                 current = i;
                 break;
             }
         }
 
-        var next = (current + delta) % Categories.Count;
+        var next = (current + delta) % categories.Count;
         if (next < 0)
-            next += Categories.Count;
-        SelectedCategory = Categories[next];
+            next += categories.Count;
+        SelectedCategory = categories[next];
     }
+
+    /// <summary>
+    /// Re-reads the filter tabs from the plugin's type settings. Called on every window activation and after
+    /// a settings save, which is the only moment those settings can change underneath an open window.
+    /// </summary>
+    public void RebuildCategoryTabs() => Search.RebuildCategories();
     public ServiceMonitorViewModel Monitor { get; }
     public ObservableRangeCollection<LaunchPanelSourceViewModel> LaunchSources => _launchSources.Sources;
     public LaunchPanelSourceViewModel? SelectedLaunchSource => _launchSources.Selected;
@@ -230,6 +229,10 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
     {
         Monitor.EnsureServiceMonitoringActive();
         SearchReachabilityGate.BeginSession();
+        // The filter bar is the plugin's type settings, and those are editable while this window sits open, so
+        // every activation re-reads them. Providers build their rows from cached settings, which makes this a
+        // handful of dictionary reads -- not a walk of anything.
+        Search.RebuildCategories();
     }
     public void RefreshEmptyState() => Search.RefreshEmptyState();
 

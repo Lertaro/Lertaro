@@ -14,6 +14,8 @@ public class TypeFilterProvider : ISidebarFilterProvider
     public const string VideoFilterEnabledKey = "TypeFilter_VideoEnabled";
     public const string AudioFilterEnabledKey = "TypeFilter_AudioEnabled";
     public const string ZipFilterEnabledKey = "TypeFilter_ZipEnabled";
+    public const string ApplicationFilterEnabledKey = "TypeFilter_ApplicationEnabled";
+    public const string SettingsFilterEnabledKey = "TypeFilter_SettingsEnabled";
     public const string SidebarCustomFiltersKey = "SidebarCustomFilters";
 
     public int SortOrder => 1;
@@ -22,6 +24,10 @@ public class TypeFilterProvider : ISidebarFilterProvider
     // user-editable :@keyword rules also read, so a file the sidebar calls a document cannot be something
     // else under the 文档 tab. These rows used to carry three shorter lists here, which is why the sidebar
     // never offered 音频 or 压缩包 at all.
+    //
+    // The row set, its order and its labels are also what the quick window's filter bar shows: that bar reads
+    // these rows through ISidebarFilterProvider rather than keeping a list of its own, so turning a row off
+    // here, renaming a :@keyword, or adding one changes the bar in the same step.
     public IEnumerable<SidebarFilterGroup> GetFilterGroups()
     {
         var group = new SidebarFilterGroup
@@ -36,8 +42,14 @@ public class TypeFilterProvider : ISidebarFilterProvider
             Id = "Type_Folder",
             DisplayName = TranslationService.Get("Filter_TypeFolder"),
             IconData = "M2,4 A1,1 0 0,1 3,3 H7 L9,5 H18 A1,1 0 0,1 19,6 V16 A1,1 0 0,1 18,17 H3 A1,1 0 0,1 2,16 Z",
+            Category = SearchCategoryFilter.Folder,
             MatchPredicate = res => !res.IsApplication && res.IsDir
         });
+
+        // No glyph of their own yet: an empty IconData falls back to the sidebar's default mark, which is
+        // better than shipping a path nobody has looked at.
+        AddTypeRow(group, "Type_App", "Filter_TypeApp", ApplicationFilterEnabledKey, SearchCategoryFilter.Application, null);
+        AddTypeRow(group, "Type_Settings", "Filter_TypeSettings", SettingsFilterEnabledKey, SearchCategoryFilter.Settings, null);
 
         group.Items.Add(new SidebarFilterItem
         {
@@ -53,8 +65,6 @@ public class TypeFilterProvider : ISidebarFilterProvider
             "M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5.04 10.71l-3 3.83-2.07-2.49L6 18h12l-4.04-4.29z");
         AddTypeRow(group, "Type_Video", "Filter_TypeVideo", VideoFilterEnabledKey, SearchCategoryFilter.Video,
             "M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z");
-        // No glyph of their own yet: an empty IconData falls back to the sidebar's default icon, which is
-        // better than shipping a path nobody has looked at.
         AddTypeRow(group, "Type_Audio", "Filter_TypeAudio", AudioFilterEnabledKey, SearchCategoryFilter.Audio, null);
         AddTypeRow(group, "Type_Zip", "Filter_TypeZip", ZipFilterEnabledKey, SearchCategoryFilter.Archive, null);
 
@@ -73,10 +83,11 @@ public class TypeFilterProvider : ISidebarFilterProvider
             Id = id,
             DisplayName = TranslationService.Get(labelKey),
             IconData = iconData,
-            // Applications stay out of the extension rows, as they always were here: a Start Menu shortcut
-            // names itself an application and belongs to that row, not to whichever kind its target has.
-            MatchPredicate = res => !res.IsApplication && !res.IsDir
-                && SearchCategoryClassifier.Classify(res.FullPath, isDirectory: false) == category
+            Category = category,
+            // One question, one answer: the row and the quick window's tab both ask SearchCategoryClassifier,
+            // so a file cannot be a document here and something else there -- including a shortcut, which is
+            // filed by what it points at rather than by the shell being able to launch it.
+            MatchPredicate = res => SearchCategoryClassifier.Categorize(res) == category
         });
     }
 

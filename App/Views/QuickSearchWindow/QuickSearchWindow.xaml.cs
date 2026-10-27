@@ -351,6 +351,26 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     /// <summary>Whether the search box holds anything: filters have nothing to act on until it does.</summary>
     internal bool HasSearchText => !string.IsNullOrWhiteSpace(_viewModel.SearchQuery);
 
-    /// <summary>Moves the active filter by <paramref name="delta"/>; see QuickSearchViewModel.CycleCategory.</summary>
-    internal void CycleCategory(int delta) => _viewModel.CycleCategory(delta);
+    /// <summary>
+    /// Moves the active filter by <paramref name="delta"/>; see QuickSearchViewModel.CycleCategory. A row wider
+    /// than the card scrolls instead of wrapping, so the tab reached by wheel or Tab has to be brought back into
+    /// view -- nothing else does it, because the selection arrives through a binding rather than a click.
+    /// </summary>
+    internal void CycleCategory(int delta)
+    {
+        _viewModel.CycleCategory(delta);
+        CategoryBar.ScrollIntoView(CategoryBar.SelectedItem);
+    }
+
+    // Rolling over the filter bar moves along it, in the direction the row reads. The bar swallows the event
+    // rather than passing it down: it tunnels from the window, so leaving it unhandled would scroll the
+    // results while the pointer sits on the bar above them.
+    private void CategoryBar_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (e.Delta == 0)
+            return;
+
+        _viewModel.CycleCategory(e.Delta < 0 ? 1 : -1);
+        e.Handled = true;
+    }
 }
