@@ -1,4 +1,4 @@
-using Lertaro.Core.Wire;
+using Lertaro.PluginSdk.Helpers;
 using Lertaro.App.ViewModels.Search.Dispatch;
 using Lertaro.App.ViewModels.Search.Mapping;
 using Lertaro.Core;

@@ -23,7 +23,9 @@ internal static class SearchFiltersConfigSchema
                 {
                     CreateToggle(TypeFilterProvider.DocumentFilterEnabledKey, "CoreExtensions_Config_BuiltInDocumentFilterLabel"),
                     CreateToggle(TypeFilterProvider.ImageFilterEnabledKey, "CoreExtensions_Config_BuiltInImageFilterLabel"),
-                    CreateToggle(TypeFilterProvider.VideoFilterEnabledKey, "CoreExtensions_Config_BuiltInVideoFilterLabel")
+                    CreateToggle(TypeFilterProvider.VideoFilterEnabledKey, "CoreExtensions_Config_BuiltInVideoFilterLabel"),
+                    CreateToggle(TypeFilterProvider.AudioFilterEnabledKey, "CoreExtensions_Config_BuiltInAudioFilterLabel"),
+                    CreateToggle(TypeFilterProvider.ZipFilterEnabledKey, "CoreExtensions_Config_BuiltInZipFilterLabel")
                 }
             },
             new()

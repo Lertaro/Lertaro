@@ -1,4 +1,4 @@
-using Lertaro.Core.Wire;
+using Lertaro.PluginSdk.Helpers;
 using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 using Lertaro.App.Services;

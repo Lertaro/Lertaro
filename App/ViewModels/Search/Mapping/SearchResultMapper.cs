@@ -6,6 +6,7 @@ using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.PluginSdk.Services;
 
 using SearchWindowType = Lertaro.PluginSdk.Abstractions.SearchWindowType;
+using SearchCategoryFilter = Lertaro.PluginSdk.Helpers.SearchCategoryFilter;
 
 namespace Lertaro.App.ViewModels.Search.Mapping;
 
@@ -88,7 +89,7 @@ public static class SearchResultMapper
     private static readonly IReadOnlyDictionary<string, int> EmptyUsage =
         new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-    internal static List<AppSearchResult> BuildQuickResults(List<SearchResult>? fileResults, string query, string? scope, string? contextDirectory, bool isInlineWindow, string? rawQuery = null, bool skipDisplayCap = false, FileFilterScopeDirective? fileFilterScope = null, bool folderScope = false, InstantPassCache? instantPass = null, RankContext? rankContext = null, QuickSearchRankingTrace? rankingTrace = null, ViewModels.Search.SearchResultCategory category = ViewModels.Search.SearchResultCategory.All)
+    internal static List<AppSearchResult> BuildQuickResults(List<SearchResult>? fileResults, string query, string? scope, string? contextDirectory, bool isInlineWindow, string? rawQuery = null, bool skipDisplayCap = false, FileFilterScopeDirective? fileFilterScope = null, bool folderScope = false, InstantPassCache? instantPass = null, RankContext? rankContext = null, QuickSearchRankingTrace? rankingTrace = null, SearchCategoryFilter category = SearchCategoryFilter.All)
     {
         var uiResults = new List<AppSearchResult>();
         var engineCandidateCount = fileResults?.Count ?? 0;
@@ -478,8 +479,8 @@ public static class SearchResultMapper
         // thrown those rows away under the whole-result ordering: a short query ranks applications and
         // folders first, so an Audio tab received a list with no audio in it. Filtering first also makes
         // the display cap meaningful again, because it then counts rows of the type the user asked for.
-        if (category != ViewModels.Search.SearchResultCategory.All)
-            ordered = ordered.Where(row => ViewModels.Search.SearchResultCategorizer.Matches(category, row.Result)).ToList();
+        if (category != SearchCategoryFilter.All)
+            ordered = ordered.Where(row => SearchResultCategorizer.Matches(category, row.Result)).ToList();
 
         IReadOnlyList<RankingProviderTrace> providerReadiness = Array.Empty<RankingProviderTrace>();
         if (rankingTrace != null)
@@ -533,7 +534,7 @@ public static class SearchResultMapper
         // and to hand the overflow to "show more"; applying it to a filtered list would mean any magic number
         // could hide the row the user is actually looking for. Inside one category there is nothing to
         // overflow into -- the user asked for that type, so the list shows that type.
-        if (skipDisplayCap || category != ViewModels.Search.SearchResultCategory.All || uiResults.Count + ordered.Count < 10)
+        if (skipDisplayCap || category != SearchCategoryFilter.All || uiResults.Count + ordered.Count < 10)
         {
             foreach (var candidate in ordered)
             {

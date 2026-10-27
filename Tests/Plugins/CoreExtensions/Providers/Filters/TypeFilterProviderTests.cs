@@ -146,12 +146,33 @@ public sealed class TypeFilterProviderTests
     }
 
     [TestMethod]
-    public void GetFilterGroups_ReturnsAllFiveTypeCategories()
+    public void GetFilterGroups_ReturnsAllSevenTypeCategories()
     {
         var provider = new TypeFilterProvider();
 
         var ids = provider.GetFilterGroups().Single().Items.Select(i => i.Id).ToList();
 
-        CollectionAssert.AreEquivalent(new[] { "Type_Folder", "Type_File", "Type_Doc", "Type_Image", "Type_Video" }, ids);
+        // 音频 and 压缩包 used to be missing here while both already had a :@keyword: the row set now follows
+        // the one category table instead of three hand-kept extension lists.
+        CollectionAssert.AreEquivalent(new[]
+        {
+            "Type_Folder", "Type_File", "Type_Doc", "Type_Image", "Type_Video", "Type_Audio", "Type_Zip",
+        }, ids);
+    }
+
+    [TestMethod]
+    public void TheExtensionRows_AnswerTheSameTableTheFilterTabsDo()
+    {
+        // WPS and OpenDocument formats, and .jxl: each was outside the sidebar's own shorter list while :@doc
+        // and :@img already claimed it. A file the settings page calls a document cannot be anything else
+        // under the 文档 tab.
+        Assert.IsTrue(GetPredicate("Type_Doc")(new FakeResult { FullPath = @"C:\简历.wps" }));
+        Assert.IsTrue(GetPredicate("Type_Doc")(new FakeResult { FullPath = @"C:\paper.ods" }));
+        Assert.IsTrue(GetPredicate("Type_Image")(new FakeResult { FullPath = @"C:\photo.jxl" }));
+        Assert.IsTrue(GetPredicate("Type_Audio")(new FakeResult { FullPath = @"C:\song.opus" }));
+        Assert.IsTrue(GetPredicate("Type_Zip")(new FakeResult { FullPath = @"C:\disk.iso" }));
+
+        // An application row stays out of an extension row, whatever its own kind says.
+        Assert.IsFalse(GetPredicate("Type_Doc")(new FakeResult { FullPath = @"C:\report.docx", IsApplication = true }));
     }
 }

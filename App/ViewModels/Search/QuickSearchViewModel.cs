@@ -6,6 +6,7 @@ using Lertaro.Core;
 using Lertaro.App.ViewModels.Service;
 
 using Lertaro.Core.Services.Search;
+using Lertaro.PluginSdk.Helpers;
 
 namespace Lertaro.App.ViewModels.Search;
 
@@ -60,21 +61,26 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
 
     public SearchExecutionViewModel Search { get; }
 
-    /// <summary>The category tabs, in display order. All is first and is the default.</summary>
-    public IReadOnlyList<SearchResultCategory> Categories { get; } = new[]
+    /// <summary>
+    /// The category tabs, in display order. All is first and is the default. The order is the window's own
+    /// and deliberately not the enum's: the enum's numbers travel over the pipe and are frozen, while which
+    /// label sits next to which is a layout choice.
+    /// </summary>
+    public IReadOnlyList<SearchCategoryFilter> Categories { get; } = new[]
     {
-        SearchResultCategory.All,
-        SearchResultCategory.Folder,
-        SearchResultCategory.Application,
-        SearchResultCategory.Settings,
-        SearchResultCategory.Document,
-        SearchResultCategory.Image,
-        SearchResultCategory.Audio,
-        SearchResultCategory.Video,
+        SearchCategoryFilter.All,
+        SearchCategoryFilter.Folder,
+        SearchCategoryFilter.Application,
+        SearchCategoryFilter.Settings,
+        SearchCategoryFilter.Document,
+        SearchCategoryFilter.Image,
+        SearchCategoryFilter.Audio,
+        SearchCategoryFilter.Video,
+        SearchCategoryFilter.Archive,
     };
 
     /// <summary>The active tab. Lives on the search view model so the filter and the query share one owner.</summary>
-    public SearchResultCategory SelectedCategory
+    public SearchCategoryFilter SelectedCategory
     {
         get => Search.SelectedCategory;
         set => Search.SelectedCategory = value;

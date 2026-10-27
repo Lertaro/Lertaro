@@ -1,4 +1,4 @@
-using Lertaro.Core.Wire;
+using Lertaro.PluginSdk.Helpers;
 using System.Runtime.InteropServices;
 using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Fzf;
@@ -331,6 +331,13 @@ internal static class NameSearch
     // The engine-side category test. Applied per row inside the collection loops, not to the finished list:
     // the point is to keep rows out of the ranking budget, so the budget is spent on the category the caller
     // asked for rather than on every kind competing for the same slots.
+    //
+    // Only the NAME is at hand here -- rebuilding a row's path would mean walking its parent chain once per
+    // candidate -- so the classifier is deliberately name-safe. Two ceilings follow from that and are
+    // accepted on purpose: a shortcut is admitted under every category because only the caller can resolve
+    // its target, and a path-mode query (parsed.IsPathMode, which never reaches this loop) carries no
+    // category at all -- exactly like fileNameFilter, which path mode ignores for the same reason. The
+    // caller's own classification is what the list shows either way.
     private static bool CategoryAdmits(SearchCategoryFilter category, Snapshot snapshot, DeltaOverlay delta, int row)
         => category == SearchCategoryFilter.All
             || SearchCategoryClassifier.Matches(category, delta.NameOf(row), IsDirectory(snapshot, delta, row));

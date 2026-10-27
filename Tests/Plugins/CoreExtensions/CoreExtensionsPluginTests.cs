@@ -79,7 +79,9 @@ public sealed class CoreExtensionsPluginTests
             {
                 TypeFilterProvider.DocumentFilterEnabledKey,
                 TypeFilterProvider.ImageFilterEnabledKey,
-                TypeFilterProvider.VideoFilterEnabledKey
+                TypeFilterProvider.VideoFilterEnabledKey,
+                TypeFilterProvider.AudioFilterEnabledKey,
+                TypeFilterProvider.ZipFilterEnabledKey
             },
             builtInGroup.SubFields!.Select(field => field.Key).ToList());
         Assert.AreEqual(ConfigFieldType.Array, customList.FieldType);

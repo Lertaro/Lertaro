@@ -141,4 +141,35 @@ public class CustomFilterQueryTokenProviderTests
         foreach (var ext in new[] { "*.wim", "*.esd" })
             Assert.Contains(ext, zipRule, $"zip rule missing {ext}");
     }
+
+    [TestMethod]
+    public void DefaultFilters_AlsoOfferTheAppKeywordThatTheFilterTabsAlreadyAnswer()
+    {
+        // A user asking for "only programs" had to write their own rule; the quick window's 应用 tab already
+        // knew the answer, and now :@app gives the same one.
+        var app = CustomFilterQueryTokenProvider.DefaultFilters().Single(f => f.Keyword == "app");
+
+        Assert.IsTrue(app.Enabled);
+        Assert.AreEqual(PluginSdk.Helpers.SearchCategoryClassifier
+            .RuleOf(PluginSdk.Helpers.SearchCategoryFilter.Application), app.Rule);
+    }
+
+    [TestMethod]
+    public void DefaultFiltersSchema_IsTheSameListTheRuntimeFallsBackTo()
+    {
+        // These used to be two hand-written copies of the same five rules, so a rule edited in one of them
+        // silently changed what the settings page calls its default without changing what :@doc matches.
+        var runtime = CustomFilterQueryTokenProvider.DefaultFilters();
+        var schema = CustomFilterQueryTokenProvider.DefaultFiltersSchema()
+            .Cast<Dictionary<string, object>>()
+            .ToList();
+
+        Assert.AreEqual(runtime.Count, schema.Count);
+        for (var i = 0; i < runtime.Count; i++)
+        {
+            Assert.AreEqual(runtime[i].Keyword, schema[i]["Keyword"]);
+            Assert.AreEqual(runtime[i].Rule, schema[i]["Rule"]);
+            Assert.AreEqual(runtime[i].Enabled, schema[i]["Enabled"]);
+        }
+    }
 }

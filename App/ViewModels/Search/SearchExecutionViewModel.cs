@@ -1,9 +1,10 @@
 using System.Windows;
 using Lertaro.App.Helpers;
-using Lertaro.App.Services;
 using Lertaro.App.ViewModels.Search.Dispatch;
 
 using Lertaro.Core.Services.Search;
+
+using Lertaro.PluginSdk.Helpers;
 
 using Lertaro.App.ViewModels.Search.Mapping;
 namespace Lertaro.App.ViewModels.Search;
@@ -16,7 +17,7 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
 
     private string _searchQuery = null!;
     private string _lastQuery = string.Empty;
-    private SearchResultCategory _selectedCategory = SearchResultCategory.All;
+    private SearchCategoryFilter _selectedCategory = SearchCategoryFilter.All;
     private bool _isSearching;
     private bool _isResultsListEnabled = true;
     private AppSearchResult? _selectedResult;
@@ -31,7 +32,7 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
     public SearchExecutionViewModel(QuickSearchViewModel mainVm, SearchService searchService)
     {
         _mainVm = mainVm;
-        _engine = new SearchExecutionEngine(searchService, () => (Lertaro.Core.Wire.SearchCategoryFilter)(byte)_mainVm.SelectedCategory);
+        _engine = new SearchExecutionEngine(searchService, () => _selectedCategory);
         Results = new ObservableRangeCollection<AppSearchResult>();
 
         _dispatcher = new SearchDispatchController(
@@ -124,7 +125,7 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
     /// The active category tab. The engine filters per category, so a change has to re-run the query --
     /// there is no unfiltered list kept here that could be filtered differently.
     /// </summary>
-    public SearchResultCategory SelectedCategory
+    public SearchCategoryFilter SelectedCategory
     {
         get => _selectedCategory;
         set
@@ -133,27 +134,21 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
                 return;
             _selectedCategory = value;
             OnPropertyChanged(nameof(SelectedCategory));
-            OnPropertyChanged(nameof(CategorySummary));
             if (!IsActionsMode && !string.IsNullOrWhiteSpace(_lastQuery))
                 _dispatcher.DispatchSearch(_lastQuery);
         }
     }
 
-    /// <summary>The active tab's label, for the status line.</summary>
-    public string CategorySummary =>
-        _selectedCategory == SearchResultCategory.All
-            ? string.Empty
-            : TranslationManager.Instance[CategoryTranslationKey(_selectedCategory)];
-
-    internal static string CategoryTranslationKey(SearchResultCategory category) => category switch
+    internal static string CategoryTranslationKey(SearchCategoryFilter category) => category switch
     {
-        SearchResultCategory.Folder => "Search_Category_Folder",
-        SearchResultCategory.Application => "Search_Category_Application",
-        SearchResultCategory.Settings => "Search_Category_Settings",
-        SearchResultCategory.Document => "Search_Category_Document",
-        SearchResultCategory.Image => "Search_Category_Image",
-        SearchResultCategory.Audio => "Search_Category_Audio",
-        SearchResultCategory.Video => "Search_Category_Video",
+        SearchCategoryFilter.Folder => "Search_Category_Folder",
+        SearchCategoryFilter.Application => "Search_Category_Application",
+        SearchCategoryFilter.Settings => "Search_Category_Settings",
+        SearchCategoryFilter.Document => "Search_Category_Document",
+        SearchCategoryFilter.Image => "Search_Category_Image",
+        SearchCategoryFilter.Audio => "Search_Category_Audio",
+        SearchCategoryFilter.Video => "Search_Category_Video",
+        SearchCategoryFilter.Archive => "Search_Category_Archive",
         _ => "Search_Category_All",
     };
 

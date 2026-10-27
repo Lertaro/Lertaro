@@ -1,4 +1,4 @@
-using Lertaro.Core.Wire;
+using Lertaro.PluginSdk.Helpers;
 using Lertaro.Core.SearchIndex.Fzf;
 
 using Lertaro.Core.IndexV2.Search.PathMode;
