@@ -52,7 +52,6 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
     public QuickSearchWindow()
     {
         InitializeComponent();
-        ApplyCategoryBarPlacement();
         // Nothing between the XAML's declaration of the handle and the surface this window needs it for.
         ApplySurface();
         // No text-formatting override here any more: this window used to put its search box on Ideal, on
@@ -338,6 +337,7 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         }
         return null;
     }
+
     protected override void OnClosed(EventArgs e)
     {
         if (_scaleChangedHandler != null)
@@ -348,107 +348,9 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         base.OnClosed(e);
     }
 
-    // Where the category bar sits. A constant for now: making this a user setting later means replacing the
-    // const read in ApplyCategoryBarPlacement with a binding to a view-model property, and nothing else.
-    private const CategoryBarPlacement CategoryBarPosition = CategoryBarPlacement.AboveList;
-
-    // Re-assigns the rows the filters, separator and results occupy, so the bar can sit either directly under
-    // the search box or under the result list. Both layouts use the same five rows -- only the assignment
-    // changes -- so no other part of the window has to know which one is active.
-    private void ApplyCategoryBarPlacement()
-    {
-        var above = CategoryBarPosition == CategoryBarPlacement.AboveList;
-
-        Grid.SetRow(CategoryBarHost, above ? 1 : 3);
-
-        var separatorRow = above ? 2 : 1;
-        var resultsRow = above ? 3 : 2;
-
-        Grid.SetRow(ResultsSeparator, separatorRow);
-
-        // Spans this row and the one after it: the results plus whichever of the filters or the status bar
-        // follows them in the active layout.
-        Grid.SetRow(ResultsContentBackground, resultsRow);
-        Grid.SetRowSpan(ResultsContentBackground, 2);
-
-        Grid.SetRow(LaunchPanelControl, resultsRow);
-        Grid.SetRow(ResultsPanelControl, resultsRow);
-    }
-
     /// <summary>Whether the search box holds anything: filters have nothing to act on until it does.</summary>
     internal bool HasSearchText => !string.IsNullOrWhiteSpace(_viewModel.SearchQuery);
 
     /// <summary>Moves the active filter by <paramref name="delta"/>; see QuickSearchViewModel.CycleCategory.</summary>
     internal void CycleCategory(int delta) => _viewModel.CycleCategory(delta);
-
-    private void CategoryBar_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateCategoryIndicator();
-
-    // Puts the underline under the selected label's own text. The bar spreads its filters into equal-width
-    // cells, so a cell's left edge is not where the label starts -- measuring the text is what keeps the line
-    // under the word instead of under the cell.
-    private void UpdateCategoryIndicator()
-    {
-        if (CategoryIndicator == null || CategoryBar == null)
-            return;
-
-        var selected = CategoryBar.SelectedItem;
-        if (selected == null)
-        {
-            CategoryIndicator.Width = 0;
-            return;
-        }
-
-        if (CategoryBar.ItemContainerGenerator.ContainerFromItem(selected) is not ListBoxItem container)
-        {
-            CategoryIndicator.Width = 0;
-            return;
-        }
-
-        container.ApplyTemplate();
-        var text = FindTextBlock(container);
-        if (text == null || text.ActualWidth <= 0)
-        {
-            CategoryIndicator.Width = 0;
-            return;
-        }
-
-        try
-        {
-            var box = text.TransformToAncestor(CategoryBar)
-                .TransformBounds(new System.Windows.Rect(0, 0, text.ActualWidth, text.ActualHeight));
-            CategoryIndicator.Width = box.Width;
-            CategoryIndicator.Margin = new System.Windows.Thickness(box.Left, 0, 0, 0);
-        }
-        catch (InvalidOperationException)
-        {
-            // Not in the visual tree yet (a paint between measure and arrange); the next selection fixes it.
-            CategoryIndicator.Width = 0;
-        }
-    }
-
-    private static System.Windows.Controls.TextBlock? FindTextBlock(System.Windows.DependencyObject root)
-    {
-        if (root is System.Windows.Controls.TextBlock text)
-            return text;
-
-        var count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);
-        for (var i = 0; i < count; i++)
-        {
-            var found = FindTextBlock(System.Windows.Media.VisualTreeHelper.GetChild(root, i));
-            if (found != null)
-                return found;
-        }
-
-        return null;
-    }
-}
-
-/// <summary>Where the quick window's category filter row sits.</summary>
-internal enum CategoryBarPlacement
-{
-    /// <summary>Directly under the search box, above the results.</summary>
-    AboveList = 0,
-
-    /// <summary>Under the result list, just above the status bar.</summary>
-    BelowList = 1,
 }

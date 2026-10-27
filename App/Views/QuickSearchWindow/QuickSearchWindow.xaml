@@ -27,7 +27,9 @@
         <converters:CategoryDisplayNameConverter x:Key="CategoryName"/>
 
         <!-- One filter. The pipe is drawn on the left of each filter and hidden on the first, so the row
-             starts and ends on a label instead of a rule. -->
+             starts and ends on a label instead of a rule. The selected underline is this item's own bottom
+             border: the Border hugs its content, so the line is the label's width without measuring the
+             text, and it follows a resize, a scale change, a translation, or a first paint on its own. -->
         <Style x:Key="CategoryCardStyle" TargetType="ListBoxItem">
             <Setter Property="Padding" Value="3,3"/>
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
@@ -42,7 +44,11 @@
                                        HorizontalAlignment="Left"
                                        Fill="{DynamicResource SeparatorBrush}"
                                        Opacity="0.45"/>
-                            <Border Padding="{TemplateBinding Padding}">
+                            <Border x:Name="Underline"
+                                    Padding="{TemplateBinding Padding}"
+                                    HorizontalAlignment="Center"
+                                    BorderBrush="Transparent"
+                                    BorderThickness="0,0,0,1.5">
                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                         </Grid>
@@ -51,6 +57,9 @@
                                  when it is unset the attached index is -1 and this simply never fires. -->
                             <Trigger Property="ItemsControl.AlternationIndex" Value="0">
                                 <Setter TargetName="Pipe" Property="Visibility" Value="Collapsed"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Underline" Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
@@ -108,7 +117,7 @@
             <Grid.RowDefinitions>
                 <!-- Search bar -->
                 <RowDefinition Height="Auto"/>
-                <!-- Category filter (row assignment is set in code, see ApplyCategoryBarPlacement) -->
+                <!-- Category filter -->
                 <RowDefinition Height="Auto"/>
                 <!-- Separator -->
                 <RowDefinition Height="Auto"/>
@@ -126,46 +135,27 @@
 
             <!-- ═══════════ 2. Category filter ═══════════ -->
             <!-- Shown with the results and hidden when there are none, so the bar never widens the card on
-                 an empty search. ZIndex because the ContentBg layer below spans this row too and is
-                 declared after this grid: without an explicit index it paints over the filters. -->
-            <Grid x:Name="CategoryBarHost" Grid.Row="1" Margin="12,1,12,2" HorizontalAlignment="Stretch"
-                  Panel.ZIndex="10" Visibility="{Binding ResultsPanelVisibility}">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <!-- Breathing room between the labels and the underline. -->
-                    <RowDefinition Height="4"/>
-                    <!-- The underline's rail. A real band rather than a negative margin: a line pulled past
-                         the bottom of its container is clipped away by the rounded-corner clip. -->
-                    <RowDefinition Height="2"/>
-                </Grid.RowDefinitions>
-
-                <ListBox x:Name="CategoryBar"
-                         Grid.Row="0"
-                         AlternationCount="64"
-                         HorizontalAlignment="Stretch"
-                         Style="{StaticResource CategoryBarStyle}"
-                         ItemsSource="{Binding Categories}"
-                         SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"
-                         SelectionChanged="CategoryBar_SelectionChanged">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding Converter={StaticResource CategoryName}}" Opacity="0.85"/>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-
-                <!-- The selected filter's underline. Its X and width are derived from the label's own text
-                     width, so it tracks a spread-equal cell instead of assuming the labels are contiguous. -->
-                <Rectangle x:Name="CategoryIndicator"
-                           Grid.Row="2"
-                           Height="1.5"
-                           Width="0"
-                           VerticalAlignment="Bottom"
-                           HorizontalAlignment="Left"
-                           RadiusX="1" RadiusY="1"
-                           Fill="{DynamicResource AccentBlue}"
-                           Opacity="0.55"/>
-            </Grid>
+                 an empty search. -->
+            <ListBox x:Name="CategoryBar"
+                     Grid.Row="1"
+                     Margin="12,1,12,2"
+                     AlternationCount="64"
+                     HorizontalAlignment="Stretch"
+                     HorizontalContentAlignment="Stretch"
+                     Style="{StaticResource CategoryBarStyle}"
+                     ItemsSource="{Binding Categories}"
+                     SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"
+                     Visibility="{Binding ResultsPanelVisibility}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <!-- Trimming rather than growth: the row is nine equal cells inside a width the user
+                             set, and a locale whose words do not fit that has to lose letters, not card width. -->
+                        <TextBlock Text="{Binding Converter={StaticResource CategoryName}}"
+                                   Opacity="0.85"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
 
             <!-- ═══════════ 3. Separator ═══════════ -->
             <Rectangle x:Name="ResultsSeparator"
@@ -179,7 +169,7 @@
                  "Main Results Grid" (Background=ContentBg, a shade back from the outer CardBackground
                  chrome/search bar) so every window's results area reads the same instead of being flat
                  CardBackground everywhere with no depth. -->
-            <Border x:Name="ResultsContentBackground" Grid.Row="3" Grid.RowSpan="2" Background="{DynamicResource ContentBg}"/>
+            <Border Grid.Row="3" Grid.RowSpan="2" Background="{DynamicResource ContentBg}"/>
 
             <quick:QuickSearchLaunchPanel x:Name="LaunchPanelControl" Grid.Row="3"
                                           Visibility="{Binding LaunchPanelVisibility}"/>

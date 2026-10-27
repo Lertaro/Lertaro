@@ -33,11 +33,18 @@ public class QuickSearchWindowInputHandler
     {
         // Tab cycles the category filters once there is something to filter. Before any input it is left to
         // the code below, and this has to run BEFORE HandleCommonSearchKeys because that method claims bare
-        // Tab unconditionally: it calls EnterSubMenu (a no-op here -- the quick window's action list holds
-        // search results, not ActionMenuItem entries) and then marks the key handled and returns. Left
-        // behind that call, the category switch below would never run.
+        // Tab unconditionally: it calls EnterSubMenu and then marks the key handled and returns. Left behind
+        // that call, the category switch below would never run.
+        //
+        // Actions mode keeps its own Tab: there the list really does hold ActionMenuItem entries, so
+        // EnterSubMenu descends into a submenu (ActionsMenuNavigator) and swallowing the key would take that
+        // away whenever the search box still holds the query -- which is always, in this window.
+        //
+        // Gated on the box having text rather than on the bar being visible: with text and no matches for the
+        // current filter the bar is hidden, and switching filter is precisely the way back out.
         if (e.Key == Key.Tab
             && Keyboard.Modifiers is ModifierKeys.None or ModifierKeys.Shift
+            && !_window.IsInActionsMode
             && _window.HasSearchText)
         {
             _window.CycleCategory(Keyboard.Modifiers == ModifierKeys.Shift ? -1 : 1);
@@ -50,7 +57,6 @@ public class QuickSearchWindowInputHandler
 
         if (SearchInputHelper.HandleCommonSearchKeys(e, _window, _window.MenuPresenter))
             return;
-
 
         if (e.Key == Key.Escape && Keyboard.Modifiers == ModifierKeys.None)
         {
