@@ -39,7 +39,9 @@ Under **Settings → Plugins → CoreExtensions → Configure → Search Filters
 
 Seven type rows can be switched off: Documents, Images, Videos, Audio, Archives, Programs and Settings. File and Folder are always available.
 
-The **Custom Sidebar Filters** list adds extra filters with a display name, an optional WPF Path Data icon, and a wildcard rule. Empty names or rules that become empty after expansion are hidden, and an empty icon uses the default icon. The name is display-only and is not an `@` reference. `@` references are valid only inside the Rule field: `@keyword` expands a matching keyword from the existing **Custom Filters** list, even if that filter is disabled. References are recursively expanded and duplicate patterns are removed; unknown or cyclic references produce no matching rule.
+The **Custom Filters** list is the one list of entry categories, and every entry now carries both triggers: type `:@<keyword>` in the search box to narrow the current results, or turn on **Show as a filter row** to make the same entry a clickable row in the full window's sidebar and in the quick window's filter bar. An entry with an empty name, or a rule that expands to nothing, stays hidden, and an empty icon uses the host's default mark. A rule may reference another entry with `@<keyword>`: references expand recursively, duplicate patterns are removed, unknown or cyclic references contribute no matches, and a disabled entry can still be referenced. The keyword is what both `:@` and `@` look up, so the separate display name exists only to let a row read a localized word while the keyword stays `doc`.
+
+The list that used to configure only the sidebar is gone. On first run its entries are folded into this one, switched on as rows; an entry whose keyword already existed switches that entry on rather than adding a second copy of it, and any other entry keeps its own rule and shows under the name it had.
 
 
 ### CoreExtensions Inline Search Window
