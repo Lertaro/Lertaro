@@ -32,6 +32,7 @@ Fine-tunes the dimensions, layout, and priority rankings of the centered floatin
 - **Switch to Full Window on Second Hotkey Press**: When enabled, pressing the global summon hotkey while the Quick Window is already open transitions directly into the Full Window, carrying over your active query.
 - **Lock Position**: Prevents dragging the search bar to avoid accidental displacement.
 - **Automatically Fill Clipboard Text**: Disabled by default. When the Quick Search Window opens without pre-filled text, new non-empty clipboard text is used as the search query. Manual paste and other windows are unaffected.
+- **Remember the Type Filter Bar's Last Tab**: Disabled by default, so hiding the Quick Window returns the type filter bar to **All**. When enabled, the next summon reopens on the tab you left it on; this lasts for the current session only -- restarting the app puts the bar back on All.
 - **Reset Layout Settings**: Restores all search bar layout properties to initial defaults.
 
 ### Result Type Priority & Trigger Characters

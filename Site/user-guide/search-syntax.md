@@ -234,7 +234,7 @@ Quickly apply preset file extension category rules, supporting `|` combinations:
 
 You can customize rules or add new categories under **Settings → Plugins → CoreExtensions**.
 
-The full search window's left type-filter sidebar and the quick window's filter bar are the same rows, configured in the same plugin's **Search Filters** group -- there is no separate setting for either. Sidebar filter names are display-only; `@keyword` references are parsed only inside a sidebar filter rule and refer to keywords from the **Custom Filters** list, including disabled custom filters.
+The full search window's sidebar filters and the quick window's type filter bar are the same rows, configured in the same plugin's **Search Filters** group -- there is no separate setting for either. Sidebar filter names are display-only; `@keyword` references are parsed only inside a sidebar filter rule and refer to keywords from the **Custom Filters** list, including disabled custom filters.
 
 ### Specific Extension Filters (`:.ext` or `:.ext1.ext2`)
 

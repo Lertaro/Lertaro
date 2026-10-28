@@ -31,7 +31,7 @@ Al seleccionar un plugin a la izquierda, el panel derecho muestra su icono, nomb
 
 ### Filtros de tipo de búsqueda de CoreExtensions
 
-En **Configuración → Plugins → CoreExtensions → Configurar → Filtros de búsqueda** puedes controlar las filas que estrechan los resultados por tipo. Las mismas filas alimentan dos superficies: los filtros de tipo a la izquierda de la ventana de búsqueda completa y la **barra de filtros de tipo** bajo el cuadro de búsqueda de la ventana de búsqueda rápida; si desactivas una fila, desaparece de las dos, y si cambias el nombre de una palabra clave `@`, se renombra en las dos.
+En **Configuración → Plugins → CoreExtensions → Configurar → Filtros de búsqueda** puedes controlar las filas que estrechan los resultados por tipo. Las mismas filas alimentan dos superficies: los filtros de tipo a la izquierda de la ventana de búsqueda completa y la **barra de filtros por tipo** bajo el cuadro de búsqueda de la ventana de búsqueda rápida; si desactivas una fila, desaparece de las dos, y si cambias el nombre de una palabra clave `@`, se renombra en las dos.
 
 Siete filas de tipo se pueden desactivar: Documentos, Imágenes, Vídeos, Audio, Archivos comprimidos, Aplicaciones y Configuración. Archivos y Carpetas siempre están disponibles.
 

@@ -6,7 +6,7 @@ Todas ellas viven en `Lertaro.PluginSdk.Abstractions.Plugins` (los proveedores d
 
 ## 1. Proveedor de filtros de la barra lateral `ISidebarFilterProvider`
 
-Inserta categorías de filtro propias en la barra lateral izquierda de la ventana de búsqueda. Las filas que devuelve un proveedor son las mismas que muestra la barra de filtros de tipo de la Ventana rápida, así que una fila sirve a las dos superficies:
+Inserta categorías de filtro propias en la barra lateral izquierda de la ventana de búsqueda. Las filas que devuelve un proveedor son las mismas que muestra la barra de filtros por tipo de la Ventana rápida, así que una fila sirve a las dos superficies:
 
 ```csharp
 namespace Lertaro.PluginSdk.Abstractions.Plugins;

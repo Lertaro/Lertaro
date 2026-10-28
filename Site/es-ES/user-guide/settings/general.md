@@ -32,6 +32,7 @@ Permite ajustar con precisión las dimensiones geométricas y las prioridades de
 - **Abrir ventana principal al pulsar de nuevo el atajo**: Si la Ventana rápida ya está abierta, pulsar de nuevo su atajo transfiere la búsqueda activa a la Ventana principal.
 - **Bloquear posición**: Evita que la barra se mueva accidentalmente al arrastrarla con el ratón.
 - **Rellenar automáticamente el texto del portapapeles**: Desactivado por defecto. Cuando la Ventana de búsqueda rápida se abre sin texto preintroducido, usa como consulta el texto nuevo y no vacío del portapapeles. El pegado manual y las demás ventanas no se ven afectados.
+- **Recordar la última pestaña de la barra de filtros por tipo**: Desactivado por defecto, así que al cerrar la ventana rápida la barra vuelve a **Todo**; al activarlo, la siguiente apertura se hace en la pestaña donde la dejaste. Solo dura la sesión actual: al reiniciar la aplicación la barra vuelve a «Todo».
 - **Restablecer diseño**: Restaura todas las propiedades de diseño a sus valores predeterminados.
 
 ### Prioridad de tipos de resultado y activadores
@@ -49,7 +50,7 @@ Configura las dimensiones predeterminadas y la vista de tabla para la ventana pr
 - **Cerrar al repetir el atajo**: Desactivado por defecto, pulsar de nuevo el atajo global con la ventana completa en primer plano vuelve a la ventana de búsqueda rápida manteniendo la consulta actual, alternando entre ambas ventanas hasta pulsar `Esc`. Si se activa, al pulsarlo de nuevo se cierra directamente la ventana completa. En ambos casos, si la ventana completa está visible pero sin foco, el atajo solo la trae de vuelta al frente.
 - **Restablecer configuración de ventana**: Vuelve a los tamaños predeterminados de fábrica.
 - **Orden de columnas en la tabla**: Personaliza el orden de las columnas (Nombre, Ruta, Fecha de modificación, etc.).
-- **Orden de filtros en la barra lateral**: Reordena las categorías laterales; cada una muestra en tiempo real el recuento de coincidencias activas.
+- **Orden de filtros en la barra lateral**: Reordena los filtros de la barra lateral; cada uno muestra en tiempo real el recuento de coincidencias activas.
 - **Orden de grupos del menú de acciones**: Modifica la disposición de los grupos dentro del menú de acciones contextuales (`Ctrl+O`).
 
 ## 4. Ventana de vista previa

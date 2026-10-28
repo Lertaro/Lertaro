@@ -222,7 +222,7 @@ Aplica rápidamente reglas preestablecidas de extensión de archivo, admitiendo 
 - `:@app`: Aplicaciones (`*.exe; *.url; *.appref-ms; *.msi; *.msix; *.appx; *.bat; *.cmd; *.com`)
 
 > [!NOTE]
-> Estas seis reglas predeterminadas, los filtros de tipo de la barra lateral de la ventana de búsqueda completa y la **barra de filtros de tipo** bajo el cuadro de búsqueda de la ventana de búsqueda rápida leen una sola tabla: el mismo archivo nunca es tres tipos distintos. Las reglas se pueden editar en **Configuración → Plugins → CoreExtensions → Configurar → Filtros personalizados**, y un cambio aparece a la vez en los tres sitios.
+> Estas seis reglas predeterminadas, los filtros de tipo de la barra lateral de la ventana de búsqueda completa y la **barra de filtros por tipo** bajo el cuadro de búsqueda de la ventana de búsqueda rápida leen una sola tabla: el mismo archivo nunca es tres tipos distintos. Las reglas se pueden editar en **Configuración → Plugins → CoreExtensions → Configurar → Filtros personalizados**, y un cambio aparece a la vez en los tres sitios.
 >
 > Un acceso directo se clasifica por aquello a lo que apunta, no por ser un acceso directo: un acceso directo a un documento cuenta como documento, y solo un acceso directo cuyo destino no se puede leer vuelve a Aplicaciones.
 
@@ -234,7 +234,7 @@ Aplica rápidamente reglas preestablecidas de extensión de archivo, admitiendo 
 
 Puedes personalizar las reglas o añadir nuevas categorías en **Configuración → Plugins → CoreExtensions**.
 
-La barra lateral de filtros de tipo de la ventana de búsqueda completa y la barra de filtros de tipo de la ventana rápida usan las mismas filas, configuradas en el grupo **Filtros de búsqueda** del mismo plugin; no son dos ajustes aparte. Los nombres de los filtros de la barra lateral solo sirven para mostrar texto; las referencias `@palabra-clave` solo se procesan dentro de una regla de filtro lateral y apuntan a palabras clave de la lista **Filtros personalizados**, incluidos los filtros deshabilitados.
+Los filtros de la barra lateral de la ventana de búsqueda completa y la barra de filtros por tipo de la ventana rápida usan las mismas filas, configuradas en el grupo **Filtros de búsqueda** del mismo plugin; no son dos ajustes aparte. Los nombres de los filtros de la barra lateral solo sirven para mostrar texto; las referencias `@palabra-clave` solo se procesan dentro de una regla de filtro lateral y apuntan a palabras clave de la lista **Filtros personalizados**, incluidos los filtros deshabilitados.
 
 ### Filtros por extensión específica (`:.ext` o `:.ext1.ext2`)
 
