@@ -165,6 +165,9 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
     public Func<ISearchResult, bool>? ActiveCategoryFilter =>
         ReferenceEquals(_selectedCategory, _categories[0]) ? null : _selectedCategory.MatchPredicate;
 
+    /// <summary>Puts the bar back on 全部, the way a window that was only just opened reads.</summary>
+    public void ResetCategoryFilter() => SelectedCategory = _categories[0];
+
     /// <summary>
     /// Re-reads the rows. Cheap, and it is the only way a settings edit while this window is open reaches the
     /// bar: providers are asked for their groups at construction, so the host asks again.

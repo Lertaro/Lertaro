@@ -248,6 +248,11 @@ public class QuickSearchWindowController
             // replaces it instead of appending to it.
             if (!UserSettings.Load().SearchWindow.KeepSearchText) _window.ViewModel.SearchQuery = string.Empty;
 
+            // The filter bar is a lens over the query rather than part of it, so by default the summon it
+            // belonged to is the only thing that holds it: the next one opens at 全部, the way a window that
+            // had just been created would. RememberCategoryFilter is the opt out.
+            if (!UserSettings.Load().SearchWindow.RememberCategoryFilter) _window.ViewModel.Search.ResetCategoryFilter();
+
             // Read before the hide, while this window is still on screen: Hide() makes the OS move the
             // foreground itself, so what the restore below needs to know is who held it during the fade-out.
             var ownHwnd = new WindowInteropHelper(_window).Handle;

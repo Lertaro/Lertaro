@@ -195,6 +195,10 @@ public class SearchWindowSettings
     // QuickSearchWindowShowSupport.ShowWindow), so typing still replaces it rather than appending to it.
     // Off by default: the window is meant to start clean for the usual "summon and type" gesture.
     public bool KeepSearchText { get; set; } = false;
+    // Leaves the filter bar on the tab the last summon left it on instead of returning it to 全部 when this
+    // window hides. Session-only, like KeepSearchText: the tab is never written to the settings file, so a
+    // restart starts at 全部 whichever way this is set.
+    public bool RememberCategoryFilter { get; set; } = false;
 }
 
 public class PreviewWindowSettings

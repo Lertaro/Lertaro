@@ -53,6 +53,27 @@ public sealed class QuickSearchCategoryBarTests
     }
 
     [TestMethod]
+    public void ResetCategoryFilter_LeavesWhateverTabTheBarWasOn()
+    {
+        // The quick window calls this on every hide unless the user opted into remembering the tab, so what is
+        // worth pinning is that the reset lands on the host's own tab and takes the narrowing off the pipeline
+        // with it -- a summon that reads 全部 but filters as 文档 is the failure this exists to prevent.
+        using var vm = new QuickSearchViewModel();
+        vm.SelectedCategory = new SidebarFilterItem
+        {
+            Id = "Type_Audio",
+            DisplayName = "音频",
+            MatchPredicate = _ => false,
+        };
+        Assert.IsNotNull(vm.ActiveCategoryFilter, "the stand-in tab really does narrow");
+
+        vm.Search.ResetCategoryFilter();
+
+        Assert.AreSame(vm.Categories[0], vm.SelectedCategory);
+        Assert.IsNull(vm.ActiveCategoryFilter);
+    }
+
+    [TestMethod]
     public void ActiveCategoryFilter_IsNullOnlyForTheHostsOwnTab()
     {
         // The bar's first tab means "no filter", which the pipeline reads as null. A predicate that happens to
