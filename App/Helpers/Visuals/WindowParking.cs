@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
+using Lertaro.App.Views.InlineSearchWindow.Helpers;
 using Lertaro.Core;
 
 namespace Lertaro.App.Helpers.Visuals;
@@ -42,6 +43,27 @@ internal static class WindowParking
     {
         window.Left = OffScreen;
         window.Top = OffScreen;
+    }
+
+    /// <summary>Lands a shown window's top-left on a physical screen point, in that point's own monitor
+    /// scale.</summary>
+    /// <remarks>
+    /// Both passes are needed and neither is enough alone: the DIP write is converted with the SYSTEM scale for
+    /// a window that has never been shown, which <see cref="WindowCentering"/> measured landing a window 641px
+    /// off on a mixed-DPI desktop, and the physical write alone leaves WPF's own Left/Top stale for anything it
+    /// later lays out against. Takes a physical point rather than reading one because the caller is the one who
+    /// knows where its surface is going.
+    /// </remarks>
+    internal static void PlaceAtPoint(Window window, int physicalX, int physicalY)
+    {
+        var (scaleX, scaleY) = InlineCardSpace.DpiScaleFor(
+            InlineCardSpace.MonitorForPoint(new System.Drawing.Point(physicalX, physicalY)));
+        window.Left = physicalX / scaleX;
+        window.Top = physicalY / scaleY;
+
+        var hwnd = new WindowInteropHelper(window).Handle;
+        if (hwnd == IntPtr.Zero) return;
+        SetWindowPos(hwnd, IntPtr.Zero, physicalX, physicalY, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
     }
 
     /// <summary>Shows a card one screen-height above where it belongs and runs <paramref name="place"/> once
