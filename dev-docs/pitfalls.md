@@ -81,7 +81,7 @@
    一行里三方冲突取分支的锚点 + `main` 的句子；行为矛盾以代码为准。绝不 `--ours` / `--theirs` 整份文件
    （会吞掉自动合并的块），用三份 `git show` + `git merge-file` 逐块选；`=======` 分隔行末尾没有空格，
    判错会把整段静默删掉。语义冲突 git 看不见：调用被删的 `ShowBalloonTip`、插件内联版本 vs 分支的 CPM（`NU1008`，
-   全仓版本编辑必须在 rebase 之后）、文档提交顺手删掉 `main` 刚修好的测试。`feat-search-reimpl` 中途编不过
+   全仓版本编辑必须在 rebase 之后）、文档提交顺手删掉 `main` 刚修好的测试。`feat/search-regex` 中途编不过
    （NU1015，直到那条 `chore(nuget)` 重放），只能盲解冲突、在 tip 上验。
 
 ## Windows 与 .NET 环境事实（每次都要重新确认）
@@ -135,7 +135,7 @@
 
 ## Lertaro 机制事实（会反复要用）
 
-1. **语法有两棵树**：`search-grammar.md` 描述的是 `feat-search-reimpl`（已 rebase 到 `main` = `06145fda`，领先 27、
+1. **语法有两棵树**：`search-grammar.md` 描述的是 `feat/search-regex`（已 rebase 到 `main` = `44b5173f`，领先 40、
    落后 0，仍未合入）。
    `main` 上排除标记仍是 `!term`、`'term` 仍翻精确性、`FzfTermKind` 仍有 ExactBoundary/Prefix/Suffix，
    `RegexQueryParser` / `RegexClauses` / `TermTriggers` / `SearchSyntaxReserved` / `FzfPatternMatcher` 都不存在。
