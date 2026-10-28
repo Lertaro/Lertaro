@@ -426,6 +426,8 @@
   "General_SysTitle": "系统",
   "General_SysHint": "控制开机启动方式、日志级别与界面语言。",
   "General_Startup": "开机自动启动 Lertaro",
+  "Startup_SkippedTitle": "开机自动启动被 Windows 跳过",
+  "Startup_SkippedBody": "Lertaro 被设置为以管理员身份运行。Windows 登录时会静默跳过需要提权的开机启动项，不启动、不提示、也不报错。请在 Lertaro.App.exe 的「属性 → 兼容性」中取消勾选「以管理员身份运行此程序」。",
   "General_AutoCheckUpdates": "启动时自动检查更新",
   "General_AutoSilentUpdate": "自动静默更新 (检测到新版本时)",
   "General_HardwareAcceleration": "启用硬件加速 (需重启程序)",

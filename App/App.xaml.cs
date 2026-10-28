@@ -122,6 +122,13 @@ public partial class App : Application
         SearchContext.DefaultFuzzyMatchEnabled = settings.EnableFuzzyMatch;
         SearchContext.DefaultAndFirstPrecedence = !settings.OrFirstPrecedence;
         StartupManager.SetEnabled(settings.StartWithWindows);
+        // Asked against the registry rather than the setting, and after the write: SetEnabled swallows a
+        // failed write into a Warn line, so the value actually being there is the only answer to whether
+        // Windows will run this at logon at all. That skip -- a Run entry whose program needs elevation is
+        // neither started, prompted for, nor reported -- is the one autostart failure this app could not
+        // otherwise see.
+        if (StartupManager.IsEnabled())
+            StartupElevationNotice.WarnIfMarkedElevated();
         Logger.Log("=========================================");
         Logger.Log($"Application starting with arguments: {string.Join(" ", e.Args)}");
         Logger.Log($"[App] Running as Administrator: {ElevationManager.IsRunningAsAdmin()}");

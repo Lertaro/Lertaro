@@ -426,6 +426,8 @@
   "General_SysTitle": "System",
   "General_SysHint": "Controls startup behavior, log level, and interface language.",
   "General_Startup": "Start Lertaro with Windows",
+  "Startup_SkippedTitle": "Windows skipped Lertaro at sign-in",
+  "Startup_SkippedBody": "Lertaro is marked to run as an administrator, and Windows silently skips a startup entry that needs elevation at sign-in: nothing starts, nothing prompts, nothing is logged. Clear 'Run this program as an administrator' in Lertaro.App.exe's Properties, on the Compatibility tab.",
   "General_AutoCheckUpdates": "Auto check for updates on startup",
   "General_AutoSilentUpdate": "Auto silent update (when new version is detected)",
   "General_HardwareAcceleration": "Enable hardware acceleration (requires restart)",

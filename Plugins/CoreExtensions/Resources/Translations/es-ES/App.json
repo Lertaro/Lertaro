@@ -426,6 +426,8 @@
   "General_SysTitle": "Sistema",
   "General_SysHint": "Controla el comportamiento de inicio, el nivel de registro y el idioma de la interfaz.",
   "General_Startup": "Iniciar Lertaro con Windows",
+  "Startup_SkippedTitle": "Windows omitió Lertaro al iniciar la sesión",
+  "Startup_SkippedBody": "Lertaro está marcado para ejecutarse como administrador, y Windows omite en silencio al iniciar la sesión cualquier entrada de inicio que necesite elevación: no arranca nada, no pregunta nada y no registra ningún error. Desmarca 'Ejecutar este programa como administrador' en Propiedades → Compatibilidad de Lertaro.App.exe.",
   "General_AutoCheckUpdates": "Comprobar actualizaciones automáticamente al iniciar",
   "General_AutoSilentUpdate": "Actualización silenciosa automática (al detectar una nueva versión)",
   "General_HardwareAcceleration": "Activar aceleración por hardware (requiere reiniciar)",

@@ -426,6 +426,8 @@
   "General_SysTitle": "시스템",
   "General_SysHint": "시작 동작, 로그 수준 및 인터페이스 언어를 제어합니다.",
   "General_Startup": "Windows 시작 시 Lertaro 실행",
+  "Startup_SkippedTitle": "Windows 로그인 시 자동 실행이 건너뛰어졌습니다",
+  "Startup_SkippedBody": "Lertaro가 관리자 권한으로 실행되도록 설정되어 있습니다. Windows는 로그인 시 관리자 권한이 필요한 시작 항목을 실행도 알림도 없이 조용히 건너뛰며 오류도 남기지 않습니다. Lertaro.App.exe의 '속성' → '호환성'에서 '이 프로그램을 관리자 권한으로 실행' 선택을 해제하세요.",
   "General_AutoCheckUpdates": "시작 시 자동으로 업데이트 확인",
   "General_AutoSilentUpdate": "자동 무음 업데이트(새 버전 감지 시)",
   "General_HardwareAcceleration": "하드웨어 가속 사용(다시 시작 필요)",

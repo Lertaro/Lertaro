@@ -426,6 +426,8 @@
   "General_SysTitle": "システム",
   "General_SysHint": "起動時の動作、ログレベル、インターフェース言語を設定します。",
   "General_Startup": "Windows 起動時に Lertaro を自動起動",
+  "Startup_SkippedTitle": "Windows のログオン時に自動起動がスキップされました",
+  "Startup_SkippedBody": "Lertaro が管理者として実行するよう設定されています。Windows はログオン時、昇格を必要とする起動エントリを起動も通知もエラー記録もなしに静かにスキップします。Lertaro.App.exe の「プロパティ」→「互換性」にある「このプログラムを管理者として実行する」のチェックを外してください。",
   "General_AutoCheckUpdates": "起動時に自動でアップデートを確認",
   "General_AutoSilentUpdate": "自動サイレントアップデート（新しいバージョンを検出した場合）",
   "General_HardwareAcceleration": "ハードウェアアクセラレーションを有効化（再起動が必要）",
