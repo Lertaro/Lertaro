@@ -1,7 +1,6 @@
 using Lertaro.App.Helpers;
 using Lertaro.App.Services.AppWindow;
 using Lertaro.App.Services.Notifications;
-using Lertaro.App.ViewModels.Search;
 using Lertaro.Core;
 using Lertaro.PluginSdk.Abstractions;
 using Application = System.Windows.Application;
@@ -91,6 +90,11 @@ public static class LegacySettingsNoticeService
     }
 
     // Report saved conflicts without changing any trigger. Only the notice flag is persisted above.
+    //
+    // Result-type triggers are deliberately absent: the ones this grammar cannot read are dropped silently
+    // at startup (LegacySettingsAdvisor.TakeUnusableResultTypes), so by the time this runs there is nothing
+    // left to name -- and the rest are the settings page's to report, one field at a time, when the user
+    // types one.
     internal static List<string> DescribeTriggerConflicts(UserSettings settings,
         IEnumerable<(string PluginId, string PluginName, PluginConfigField Field)> candidates)
     {
@@ -99,10 +103,6 @@ public static class LegacySettingsNoticeService
 
         if (QueryTokenPrefixRules.GlobalPrefixConflict(settings.GlobalTokenPrefix, settings.ResultTypeTriggers.Values) != null)
             items.Add($"{settings.GlobalTokenPrefix} ({TranslationManager.Instance["General_GlobalTokenPrefix"]})");
-
-        foreach (var (typeId, trigger) in settings.ResultTypeTriggers)
-            if (!string.IsNullOrEmpty(trigger) && SearchSyntaxReserved.ValidateLeadingCharacter(trigger, prefix) != null)
-                items.Add($"{trigger} ({SearchResultTypePriority.GetDisplayName(typeId) ?? typeId})");
 
         foreach (var (pluginId, pluginName, field) in candidates)
         {

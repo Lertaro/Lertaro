@@ -114,7 +114,7 @@ public sealed class SearchSyntaxReservedTests
         // it as a token start -- but only when it was handed '\' as the prefix, which is exactly what the
         // prefix fields configure. Every other character in that list is consumed regardless of them.
         Assert.IsTrue(SearchSyntaxReserved.IsReserved(SearchSyntaxReserved.TokenPrefixCharacter));
-        Assert.IsFalse(SearchSyntaxReserved.IsUnusableAsTokenPrefix(SearchSyntaxReserved.TokenPrefixCharacter));
+        Assert.IsTrue(SearchSyntaxReserved.IsUsableTokenPrefix(SearchSyntaxReserved.TokenPrefixCharacter));
     }
 
     [TestMethod]
@@ -124,7 +124,7 @@ public sealed class SearchSyntaxReservedTests
     [DataRow('*')]
     [DataRow('?')]
     public void IsUnusableAsTokenPrefix_TheOtherSyntaxCharacters_AreReported(char value)
-        => Assert.IsTrue(SearchSyntaxReserved.IsUnusableAsTokenPrefix(value));
+        => Assert.IsFalse(SearchSyntaxReserved.IsUsableTokenPrefix(value));
 
     [TestMethod]
     public void IsUnusableAsTokenPrefix_Slash_IsReported()
@@ -134,7 +134,7 @@ public sealed class SearchSyntaxReservedTests
         // compares the prefix against the first character alone and so lifts the whole clause out as a
         // token before RegexQueryParser runs. See QueryTokenScannerTests.Scan_SlashPrefix_EatsTheRegexClause.
         Assert.IsTrue(SearchSyntaxReserved.IsReserved('/'));
-        Assert.IsTrue(SearchSyntaxReserved.IsUnusableAsTokenPrefix('/'));
+        Assert.IsFalse(SearchSyntaxReserved.IsUsableTokenPrefix('/'));
         Assert.IsNotNull(SearchSyntaxReserved.ValidateLeadingCharacter("/\\.md$/"));
     }
 
@@ -147,7 +147,7 @@ public sealed class SearchSyntaxReservedTests
         // inversion trigger (see TermTriggers), so the user loses the syntax with nothing on screen to
         // explain it. That is the failure this list exists to catch, so it is refused.
         Assert.IsTrue(SearchSyntaxReserved.IsReserved(SearchSyntaxReserved.PrecisionInversionCharacter));
-        Assert.IsTrue(SearchSyntaxReserved.IsUnusableAsTokenPrefix(SearchSyntaxReserved.PrecisionInversionCharacter));
+        Assert.IsFalse(SearchSyntaxReserved.IsUsableTokenPrefix(SearchSyntaxReserved.PrecisionInversionCharacter));
         Assert.IsNotNull(SearchSyntaxReserved.ValidateLeadingCharacter("?report"));
     }
 
@@ -179,7 +179,7 @@ public sealed class SearchSyntaxReservedTests
 
         // Every one of them really is refused, which is what the help text claims.
         foreach (var c in usable)
-            Assert.IsTrue(SearchSyntaxReserved.IsUnusableAsTokenPrefix(c));
+            Assert.IsFalse(SearchSyntaxReserved.IsUsableTokenPrefix(c));
     }
 
     [TestMethod]
@@ -195,6 +195,10 @@ public sealed class SearchSyntaxReservedTests
     [TestMethod]
     [DataRow('a')]
     [DataRow('!')]
-    public void IsUnusableAsTokenPrefix_OrdinaryCharacters_AreUsable(char value)
-        => Assert.IsFalse(SearchSyntaxReserved.IsUnusableAsTokenPrefix(value));
+    [DataRow('.')]
+    public void IsUsableTokenPrefix_CharacterAFileNameMayContain_IsRefused(char value)
+        // Every character of that kind was usable until 2026-10-28, and only warned about: '.' made
+        // "plan.md" a token and the search answered with nothing. The prefix must be one a file name cannot
+        // contain, which leaves '\' as the only value the syntax does not already own.
+        => Assert.IsFalse(SearchSyntaxReserved.IsUsableTokenPrefix(value));
 }

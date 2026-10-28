@@ -43,6 +43,8 @@ main 上那套旧运算符正好是这个判据的反例：`'` `^` `$` 都合法
 
 「顶级触发字符」这句话只覆盖语法自己拥有的那一套。结果类型触发符是用户可配的单字符，同样读整条查询的第一个字符，而校验只挡住语法字符与 `#` `$` `%`（`SearchSyntaxReserved.UnusableTokenPrefixCharacters`），`;` 这类合法文件名字符是可以配的。
 
+插件前缀的方向相反：它必须是**文件名非法**字符（否则以它开头的真实文件名会被整词摘成无人认领的 Token），而这九个字符里除 `\` 外都被语法占用，所以只接受 `\`（见 `SearchSyntaxReserved.IsUsableTokenPrefix`）。
+
 ## 分层
 
 ```
@@ -85,11 +87,11 @@ main 上那套旧运算符正好是这个判据的反例：`'` `^` `$` 都合法
 
 **成本与边界**：正则按模式文本编译一次（256 条上限 + 活动查询弱键表 + `NonBacktracking`，回退引擎 250 ms/候选）；没有可提取字面量时预筛退化为全扫（应用内帮助已写明可以加普通词收窄）；`:term` 查询在每个别名上多一次解码（`ponytail:` 已标注上限）；祖先回退在完整窗口默认开启（`NameSearch` 的 `ponytail:` 标注了它不关闭的门槛）。
 
-仍未收口的三处：
+三处按 2026-10-28 的决定收口，都不再兼容旧值：
 
-- **历史遗留的结果类型触发符。** `ResultTypeTriggerHandler.Match` 不查保留字符表，`ResolveTrigger` 命中就读走首字符；`ResultTypeOrderViewModel` 只报错、按注释"不替用户改写"。于是一个旧配置里的 `?` 或 `:` 会在运行时吃掉语法的触发符并获得类型过滤，与设置页"该字符不能生效"的报错相矛盾。两条路：运行时不再认这类触发符，或保存时迁移；**未定**。
-- **插件目录的关键字兜底层**（`SearchableItemMapper`）按裸词前缀匹配，带触发符的词（`?env`）够不到关键字词表。主匹配已按 `FzfPattern` 判过，这一层只少补、不误加。
-- **插件前缀允许合法文件名字符**（只警告不拦）：设成 `.` 时任何带点的词都会成为 Token，且无人认领的结果是空集。校验只禁语法字符、`#` `$` `%`、引号与空白（`SearchSyntaxReserved.IsUnusableAsTokenPrefix`）。
+- **结果类型触发符：启动时静默迁移。** 旧配置里 `?` `:` 或前缀字符当触发符的，会在任何窗口读到之前被清掉（`LegacySettingsAdvisor.TakeUnusableResultTypes`，由 `App.OnStartup` 用 `SearchSyntaxReserved.ValidateLeadingCharacter` 判定并保存）。"没有触发符"本来就是这一特性的可用默认，所以不提示、也不指向第二个字符。`LegacySettingsNoticeService` 不再逐条罗列这类触发符——它们那时已经不存在了。
+- **插件前缀：升级为拒绝。** `SearchSyntaxReserved.IsUsableTokenPrefix` 要求前缀必须是文件名非法字符，而九个非法字符里除 `\` 外都被语法占用，所以**只有 `\` 可用**；字段对其它任何值直接报错（`BlocksSaving` 让用户刚输入的值挡住保存），`GlobalTokenPrefix.For` 在读取侧同样忽略不可用的存值、退回默认——否则一个存下的 `.` 会把每个带点的词变成无人认领的 Token。原来的"合法文件名字符只提示"警告连同 `General_GlobalTokenPrefixTextWarning` 一起删除。
+- **插件目录关键字兜底层：改用解析后的词。** `SearchableItemMapper.PositiveTermWords` 走 `TermTriggers.Read`：每个词去掉触发符、排除项整体丢弃，因此 `?env` 能命中 `environment`；排除项的否决改由 `FuzzyQuery.ExclusionsPass(entry.Item.Title)` 单独提问，这一层能补行但不能把被排除的行补回来。
 
 ## 语法清单
 
@@ -241,7 +243,9 @@ main 有两条测试原先靠旧语法守着这些 kind：`OperatorTerms_AreLite
 | Token 链在已取回的结果之上 | `QueryTokenDispatcher.cs:19`，调用点 `App/ViewModels/Search/Dispatch/SearchQueryDispatchController.cs:457`、`SearchDispatchController.cs:383`、`App/Services/Pipe/AppSearchPipeService.cs:306`；main 的 `QueryTokenDispatcher.cs:6` 注释仍写尾部 `:a,b,c` 段 |
 | OR 已存在且优先级可配 | `FzfPatternParser.cs:71-83, 127`，`Core/SearchContext.cs:45-54` |
 | 路径正则结果 8000 条上限 | `App/ViewModels/Search/Mapping/StreamingResultAccumulator.cs:28`（`RegexPathResultLimit`），main 无此常量 |
-| 前缀冲突分级与旧值只警告 | `App/Helpers/QueryTokenPrefixRules.cs:40-54`（`GlobalPrefixConflict`）、`:78`（`BlocksSaving`） |
+| 前缀分级；不可用的值拒绝保存、读取时回退 | `App/Helpers/QueryTokenPrefixRules.cs:34`（`GlobalPrefixConflict`：语法占用与"文件名可用"两种拒绝各一条消息）、`:78`（`BlocksSaving`）；`App/Helpers/SearchSyntaxReserved.cs:46`（`IsUsableTokenPrefix`：必须是文件名非法字符，故只剩 `\`）；`App/Helpers/GlobalTokenPrefix.cs:30`（`For`：存值不可用则用默认，不让它进扫描器） |
+| 结果类型触发符的静默迁移 | `Core/Settings/LegacySettingsAdvisor.cs:106`（`TakeUnusableResultTypes`，谓词由 App 传入）、调用点在 `App/App.xaml.cs:129`（读任何窗口之前，改动即保存）；`LegacySettingsNoticeService` 不再罗列这类触发符 |
+| 插件目录关键字兜底层用解析后的词 | `App/ViewModels/Search/Mapping/SearchableItemMapper.cs:133`（`PositiveTermWords` → `TermTriggers.Read`）、`:208`（排除项另行否决）、`Core/SearchIndex/FuzzyQuery.cs` 的 `ExclusionsPass` |
 | 「另一插件已认领该字符」检查被删除及其理由 | `QueryTokenPrefixRules.cs:12-15` |
 | 「词首是不是语法」只有一份答案 | `App/Helpers/SearchSyntaxReserved.cs:22`（`OpensSyntax`：前缀 + `LeadingCharacters` + `ProviderClaimedCharacters`），被 `:34` 的 `ValidateLeadingCharacter` 与 `App/ViewModels/Search/Dispatch/SearchDispatchController.cs:451-459` 的 `LooksLikeFileNameQuery` 共用；`! ^ '` 退役后它曾把 `!plan.md` 判成非文件名查询（`Tests/App/ViewModels/Search/Dispatch/SearchDispatchBudgetTests.cs` 逐条钉住） |
 | 插件通过宿主单一前缀认领 Token | `PluginSdk/Services/SearchSyntaxService.cs:17-27`，`CustomFilterQueryTokenProvider.cs:48-52, 63-67, 345`；单一前缀改造是 `feat(plugins): claim query tokens through the host's single prefix` |

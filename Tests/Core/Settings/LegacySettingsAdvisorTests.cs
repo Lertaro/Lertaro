@@ -114,77 +114,52 @@ public sealed class LegacySettingsAdvisorTests
         Assert.IsNull(LegacySettingsAdvisor.TakeLegacyFilterPrefix(settings));
     }
 
-    // The '?' collision: the precision-inversion trigger is read from a word's first character, which is
-    // exactly where the app-wide token prefix and a per-result-type trigger are read. A value saved before '?'
-    // became an operator therefore cannot work any more -- and in the prefix's case it does not merely lose
-    // the inversion, it gets the whole word lifted out of the query as a token nobody claims.
+    // A per-result-type trigger is read from the query's FIRST character -- exactly where the syntax's own
+    // triggers are read -- so a value this grammar consumes both eats the character and applies a type
+    // filter. Silent by decision (2026-10-28): "no trigger" is the feature's working default, so there is
+    // nothing to ask the user.
     [TestMethod]
-    public void TakePrecisionTriggerTokenPrefix_PrecisionValue_IsResetToTheDefault()
-    {
-        var settings = new UserSettings { GlobalTokenPrefix = "?" };
-
-        Assert.IsTrue(LegacySettingsAdvisor.HasPrecisionTriggerCollisions(settings));
-        Assert.IsTrue(LegacySettingsAdvisor.TakePrecisionTriggerTokenPrefix(settings));
-        Assert.AreEqual("\\", settings.GlobalTokenPrefix, "the shipped default is the only prefix that cannot collide");
-        Assert.IsFalse(LegacySettingsAdvisor.TakePrecisionTriggerTokenPrefix(settings), "and it must not fire twice");
-    }
-
-    [TestMethod]
-    [DataRow("\\")]
-    [DataRow(":")]
-    [DataRow("#")]
-    [DataRow("")]
-    public void TakePrecisionTriggerTokenPrefix_AnythingElse_IsLeftAlone(string prefix)
-    {
-        // ':' is the OTHER legacy, and it is a separate notice with its own meaning: it still tokenizes, it
-        // just collides with the exclusion operator. Nothing here may rewrite it.
-        var settings = new UserSettings { GlobalTokenPrefix = prefix };
-
-        Assert.IsFalse(LegacySettingsAdvisor.TakePrecisionTriggerTokenPrefix(settings));
-        Assert.AreEqual(prefix, settings.GlobalTokenPrefix);
-    }
-
-    [TestMethod]
-    public void TakePrecisionTriggerResultTypes_PrecisionTriggers_AreClearedAndReported()
+    public void TakeUnusableResultTypes_DropsEveryTriggerTheGrammarReads()
     {
         var settings = new UserSettings
         {
             ResultTypeTriggers = new Dictionary<string, string>
             {
-                ["Files"] = "?",
-                ["SomeProvider"] = "?x",
+                ["Files"] = ":",
+                ["SomeProvider"] = "?",
                 ["OtherProvider"] = ";",
             },
         };
 
-        var taken = LegacySettingsAdvisor.TakePrecisionTriggerResultTypes(settings);
+        var taken = LegacySettingsAdvisor.TakeUnusableResultTypes(
+            settings, trigger => trigger[0] is ':' or '?' or '\\');
 
         Assert.HasCount(2, taken);
-        Assert.Contains(item => item.TypeId == "Files" && item.Trigger == "?", taken);
-        Assert.Contains(item => item.TypeId == "SomeProvider" && item.Trigger == "?x", taken);
+        Assert.Contains(item => item.TypeId == "Files" && item.Trigger == ":", taken);
+        Assert.Contains(item => item.TypeId == "SomeProvider" && item.Trigger == "?", taken);
         Assert.IsTrue(settings.ResultTypeTriggers.ContainsKey("OtherProvider"), "a usable trigger must survive");
-        Assert.IsFalse(settings.ResultTypeTriggers.ContainsKey("Files"), "a cleared trigger must be gone, so the feature falls back to its working default");
+        Assert.IsFalse(settings.ResultTypeTriggers.ContainsKey("Files"),
+            "a cleared trigger is gone, so the feature falls back to its working default");
     }
 
     [TestMethod]
-    public void TakePrecisionTriggerResultTypes_IsNotRepeatable()
+    public void TakeUnusableResultTypes_IsNotRepeatable()
     {
         var settings = new UserSettings { ResultTypeTriggers = new Dictionary<string, string> { ["Files"] = "?" } };
 
-        Assert.HasCount(1, LegacySettingsAdvisor.TakePrecisionTriggerResultTypes(settings));
-        Assert.IsEmpty(LegacySettingsAdvisor.TakePrecisionTriggerResultTypes(settings));
-        Assert.IsFalse(LegacySettingsAdvisor.HasPrecisionTriggerCollisions(settings));
+        Assert.HasCount(1, LegacySettingsAdvisor.TakeUnusableResultTypes(settings, trigger => trigger[0] == '?'));
+        Assert.IsEmpty(LegacySettingsAdvisor.TakeUnusableResultTypes(settings, trigger => trigger[0] == '?'));
     }
 
     [TestMethod]
-    public void HasPrecisionTriggerCollisions_UsableSettings_SaysNothing()
+    public void TakeUnusableResultTypes_UsableSettings_ChangesNothing()
     {
         var settings = new UserSettings
         {
-            GlobalTokenPrefix = "\\",
-            ResultTypeTriggers = new Dictionary<string, string> { ["Files"] = ";" },
+            ResultTypeTriggers = new Dictionary<string, string> { ["Files"] = ";", ["Empty"] = string.Empty },
         };
 
-        Assert.IsFalse(LegacySettingsAdvisor.HasPrecisionTriggerCollisions(settings));
+        Assert.IsEmpty(LegacySettingsAdvisor.TakeUnusableResultTypes(settings, trigger => trigger[0] == '?'));
+        Assert.HasCount(2, settings.ResultTypeTriggers);
     }
 }
