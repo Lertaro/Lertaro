@@ -363,8 +363,23 @@ internal sealed class SearchDispatchController
         }
     }
 
+    /// <summary>
+    /// Whether a render carries no answer yet, so the previous one should simply stand.
+    /// </summary>
+    /// <remarks>
+    /// The stream renderer adds its "no results" row to the <em>final</em> snapshot only, so an empty
+    /// snapshot before that means rows have not arrived rather than that there are none. Applying one
+    /// anyway replaced the list with nothing, which collapsed the results panel and the filter bar -- both
+    /// bound to the same visibility -- and took the list height to zero; this window sizes to its content,
+    /// so the card shrank to the search box and grew back on the next frame. That round trip is the flash
+    /// reported when wheeling the filter bar from a tab with matches to one without: the empty tab's own
+    /// answer is a single "no results" row, which never needed the card to move at all.
+    /// </remarks>
+    internal static bool HoldsPreviousRender(int rowCount, bool final) => rowCount == 0 && !final;
+
     private void ApplyUntokenized(List<AppSearchResult> uiResults, string statusText, bool final, QuickSearchRankingTrace? rankingTrace)
     {
+        if (HoldsPreviousRender(uiResults.Count, final)) return;
         rankingTrace?.RecordDisplayedPage(uiResults, uiResults, final);
         _replaceResults(uiResults);
 
@@ -406,6 +421,7 @@ internal sealed class SearchDispatchController
         // intermediate streaming update just means results haven't arrived yet, not that there are none.
         if (composed.Count == 0 && final)
             composed.Add(SearchResultMapper.CreateNoResultsResult(query));
+        if (HoldsPreviousRender(composed.Count, final)) return;
 
         rankingTrace?.RecordDisplayedPage(uiResults, composed, final, fileRows, processedFileRows);
         // ReplaceResults reconciles row-by-row and no-ops when nothing changed, so no pre-check needed.
