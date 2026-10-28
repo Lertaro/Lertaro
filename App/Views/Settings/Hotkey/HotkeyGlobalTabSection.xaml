@@ -116,7 +116,7 @@
                 <ctrl:HotkeyRecorderControl Width="90" Height="26"
                     Value="{Binding SelectJumpModifier, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                     ModifierOnly="True" DefaultValue="Ctrl"/>
-                <TextBlock Text=" + 1~9" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                <TextBlock Text=" + 1~9" FontSize="12" VerticalAlignment="Center" Margin="6,0,0,0"/>
             </StackPanel>
         </Grid>
         <Grid x:Name="RowSelectActions" Margin="0,8,0,0">
