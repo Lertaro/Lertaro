@@ -52,6 +52,13 @@ internal sealed class FzfPattern
     // instead of mistaking the empty mask for a failed match.
     public bool HasPositiveTerms => EffectiveSets.Any(set => set.Terms.Any(term => !term.Inverse));
 
+    // Necessary condition for PinyinNameEvaluator.HasJoinedBranch (mirrors PinyinNameEvaluator's own
+    // TryBuildJoinedTerm bail-out): a joined pinyin reading is only ever possible for a plain AND query of
+    // two or more words. This is cheap to ask of the pattern alone, so the per-candidate ranking hot path
+    // (HighlightMask.Mark) checks it before asking the live evaluator for an answer that would always have
+    // been "no" anyway -- which is every bare single-word query, the overwhelmingly common case.
+    public bool CouldHaveJoinedTerm => TargetDrive == null && OrGroups == null && !HasExclusions && TermSets.Length >= 2;
+
     // Non-null only for an AND-first query that actually mixes '|' with spaces. When set, this is the
     // authoritative shape and TryMatch/TryMatchSingle evaluate it instead of TermSets.
     public FzfTermGroup[]? OrGroups { get; }

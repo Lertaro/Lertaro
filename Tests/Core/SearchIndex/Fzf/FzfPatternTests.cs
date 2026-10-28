@@ -224,4 +224,42 @@ public sealed class FzfPatternTests
         Assert.IsTrue(pattern.TryMatch("abcd|xy", out _, FzfScoringScheme.Default));
     }
 
+    // CouldHaveJoinedTerm is the cheap precondition HighlightMask.Mark and PinyinNameEvaluator's own
+    // TryBuildJoinedTerm both rely on to skip the live evaluator entirely for a query no joined reading
+    // could ever apply to -- see PinyinNameEvaluator.TryBuildJoinedTerm for the shape it actually builds.
+    [TestMethod]
+    public void CouldHaveJoinedTerm_SingleBareWord_IsFalse()
+    {
+        // The single most common query shape (a plain word, e.g. a one-letter search like "e"): there is
+        // nothing to join, so this must stay false without ever having to ask a live evaluator.
+        Assert.IsFalse(FzfPattern.Parse("e").CouldHaveJoinedTerm);
+        Assert.IsFalse(FzfPattern.Parse("readme").CouldHaveJoinedTerm);
+    }
+
+    [TestMethod]
+    public void CouldHaveJoinedTerm_TwoPlainAndWords_IsTrue()
+    {
+        Assert.IsTrue(FzfPattern.Parse("read me").CouldHaveJoinedTerm);
+    }
+
+    [TestMethod]
+    public void CouldHaveJoinedTerm_QueryWithExclusion_IsFalse()
+    {
+        // Two term sets, but one is a `!term` -- HasExclusions must veto it exactly like
+        // TryBuildJoinedTerm's own guard did before it delegated here.
+        Assert.IsFalse(FzfPattern.Parse("read !md").CouldHaveJoinedTerm);
+    }
+
+    [TestMethod]
+    public void CouldHaveJoinedTerm_TargetedAtADrive_IsFalse()
+    {
+        Assert.IsFalse(FzfPattern.Parse("c:readme report").CouldHaveJoinedTerm);
+    }
+
+    [TestMethod]
+    public void CouldHaveJoinedTerm_AndFirstOrGroups_IsFalse()
+    {
+        Assert.IsNotNull(FzfPattern.Parse("report | summary 2024").OrGroups);
+        Assert.IsFalse(FzfPattern.Parse("report | summary 2024").CouldHaveJoinedTerm);
+    }
 }
