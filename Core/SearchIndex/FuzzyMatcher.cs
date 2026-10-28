@@ -60,13 +60,13 @@ public static class FuzzyMatcher
         }
         // Same veto as the index scan: the alias and mixed lanes below match a transliteration, which can
         // never contain the text a `:term` excluded nor the characters a `/.../` clause describes -- see
-        // FzfPatternExclusionExtensions.ExclusionsPass and RegexClauses.
+        // FzfPatternExclusionExtensions.ExclusionsPass and RegexClauses. Asked only when an alias lane can
+        // run at all: the name tier above has already answered both clauses for this text.
+        if (!AliasProviderRegistry.HasNonAscii(text))
+            return false;
         if (fzf.HasExclusions && !fzf.ExclusionsPass(text))
             return false;
         if (fzf.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, text))
-            return false;
-
-        if (!AliasProviderRegistry.HasNonAscii(text))
             return false;
 
         var disabledIds = SearchContext.DisabledAliasIds;

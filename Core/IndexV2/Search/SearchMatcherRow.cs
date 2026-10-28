@@ -33,14 +33,14 @@ internal static class SearchMatcherRow
 
         // A `:term` and a `/.../` clause have nothing to compare against in a transliteration, so the
         // alias and mixed lanes below have to be vetoed on the name -- see
-        // FzfPatternExclusionExtensions.ExclusionsPass and RegexClauses.
+        // FzfPatternExclusionExtensions.ExclusionsPass and RegexClauses. Asked only when there is an
+        // alias to try: the name tier above has already answered both clauses for this candidate.
+        var uid = (int)snapshot.NameIds[row];
+        if (!snapshot.HasAliases(uid) || snapshot.GetAliases(uid, aliasScratch) == 0)
+            return false;
         if (pattern.HasExclusions && !pattern.ExclusionsPass(name))
             return false;
         if (pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, name))
-            return false;
-
-        var uid = (int)snapshot.NameIds[row];
-        if (!snapshot.HasAliases(uid) || snapshot.GetAliases(uid, aliasScratch) == 0)
             return false;
 
         var disabledIds = SearchContext.DisabledAliasIds;
@@ -122,16 +122,18 @@ internal static class SearchMatcherRow
         }
         else if (pattern.TryMatch(name, out result, FzfScoringScheme.Default, slab))
             return true;
+        // No alias lane to protect: the name tier above has already answered both clauses for this
+        // candidate, so asking again here would only repeat a regex evaluation on the candidates it
+        // just rejected.
+        if (aliases == null)
+            return false;
         if (pattern.HasExclusions && !pattern.ExclusionsPass(name))
             return false;
         if (pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, name))
             return false;
-        if (aliases == null)
-            return false;
 
         var disabledIds = SearchContext.DisabledAliasIds;
         var matched = false;
-        aliases ??= Array.Empty<string>();
         // Same alias-side reading as MatchRow above, per entry: the name tier checked `pattern`, and every
         // alias is checked with the reading its own provider's structure allows.
         for (var j = 0; j < aliases.Length; j++)
