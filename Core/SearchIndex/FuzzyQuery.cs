@@ -38,6 +38,14 @@ public readonly struct FuzzyQuery
     public bool IsMatch(string? text)
         => _pattern is not null && !string.IsNullOrEmpty(text) && FuzzyMatcher.IsMatch(_pattern, text);
 
+    /// <summary>
+    /// True when the query's `:term` exclusions all pass on this text, or when the query has none. The
+    /// name-level veto every matcher tier applies, exposed for the one caller that can add a row the name
+    /// tier already rejected (the plugin catalog's keyword-prefix tier).
+    /// </summary>
+    public bool ExclusionsPass(string? text)
+        => _pattern is null || _pattern.ExclusionsPass(text ?? string.Empty);
+
     // The shared ranking measure (start position + quality weight). NoMatch for an empty query or text.
     public MatchRank Rank(string? text)
         => _pattern is null || string.IsNullOrEmpty(text) ? MatchRank.NoMatch : FuzzyMatcher.ComputeMatchRank(text, _pattern);

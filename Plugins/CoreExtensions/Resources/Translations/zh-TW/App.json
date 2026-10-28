@@ -853,6 +853,6 @@
   "Settings_History_AssociationsPlaceholder": "篩選已學習的查詢關聯…",
   "Search_RegexLimitExceeded": "正規表示式搜尋結果超限（最多 8,000 筆）",
   "General_GlobalTokenPrefixConflictConfigured": "此字元與已設定的觸發符衝突，請換一個字元。",
-  "General_GlobalTokenPrefixTextWarning": "此字元可出現在檔名中；以它開頭的詞可能被識別為外掛標記。",
+  "General_GlobalTokenPrefixConflictFileName": "外掛標記前導字元必須是檔名中不能出現的字元，否則以它開頭的真實檔名會被當成標記。這類字元裡除 '\\' 外都被搜尋語法占用，請使用 '\\'。",
   "General_SearchTriggerConflictNotice": "這些搜尋觸發符存在衝突：{0}。已保留原設定，請在設定中手動修改。"
 }

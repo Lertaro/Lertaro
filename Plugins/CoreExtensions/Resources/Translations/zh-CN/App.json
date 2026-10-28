@@ -853,6 +853,6 @@
   "Settings_History_AssociationsPlaceholder": "筛选已学习的查询关联…",
   "Search_RegexLimitExceeded": "正则搜索结果超限（最多 8,000 条）",
   "General_GlobalTokenPrefixConflictConfigured": "该字符与已配置的触发符冲突，请换一个字符。",
-  "General_GlobalTokenPrefixTextWarning": "该字符可出现在文件名中；以它开头的词可能被识别为插件标记。",
+  "General_GlobalTokenPrefixConflictFileName": "插件标记前导字符必须是文件名中不能出现的字符，否则以它开头的真实文件名会被当成标记。这类字符里除 '\\' 外都被搜索语法占用，请使用 '\\'。",
   "General_SearchTriggerConflictNotice": "这些搜索触发符存在冲突：{0}。已保留原配置，请在设置中手动修改。"
 }

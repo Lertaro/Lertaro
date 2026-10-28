@@ -1,7 +1,7 @@
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.App.Services;
 using Lertaro.Core;
-
+using Lertaro.Core.SearchIndex.Fzf;
 using Lertaro.App.Services.Plugin;
 using Lertaro.App.Services.ShellIcons;
 using Lertaro.Core.SearchIndex;
@@ -73,7 +73,7 @@ public static class SearchableItemMapper
         // title and every alias (2+ parses per text, and Parse re-runs each alias provider's
         // GetQueryForms), which dominated this loop's cost on a single keystroke.
         var fuzzy = FuzzyQuery.Parse(q);
-        var queryWords = q.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        var queryWords = PositiveTermWords(q);
 
         // Every matched entry -- across ALL providers, not just within one -- gets ranked by the same
         // match rank the file search hot path uses (FuzzyMatcher.ComputeBestMatch, against the entry's
@@ -125,6 +125,17 @@ public static class SearchableItemMapper
 
     internal static MatchRank MatchCatalogEntry(FuzzyQuery query, string[] queryWords, SearchableItemCache.CacheEntry entry) =>
         MatchCatalogEntryWithEvidence(query, queryWords, entry, null).Rank;
+
+    // The words the keyword-prefix tier may require of an entry: the same reading the parser gives every
+    // other match, so each word's trigger is stripped and every exclusion is dropped (an exclusion is a
+    // veto, asked against the entry's own name -- see the tier itself). Exposed for the tests, which drive
+    // the tier through the same door the search does.
+    internal static string[] PositiveTermWords(string query) =>
+        query.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
+            .Select(TermTriggers.Read)
+            .Where(term => !term.Inverse && term.Body.Length > 0)
+            .Select(term => term.Body)
+            .ToArray();
 
     internal static MatchEvidenceResult MatchCatalogEntryWithEvidence(
         FuzzyQuery query,
@@ -187,7 +198,15 @@ public static class SearchableItemMapper
             return (best, best.Evidence.Field == MatchEvidenceField.DisplayTitle ? null : matchedSecondary);
 
         // Match Windows Control Panel task links: every query token prefixes a title/keyword word.
-        if (queryWords.Length > 0 && queryWords.All(token => entry.KeywordWords.Any(
+        //
+        // The words are the parser's own reading of the query, with each trigger stripped -- splitting the
+        // typed text instead meant "?env" could never prefix "environment" ('?' is not a letter), so the tier
+        // was silently unavailable for every word that carried one. An exclusion is NOT one of those words
+        // (it is a veto, not a requirement), which is why it is asked separately, against the entry's own
+        // name: this tier exists to add a row the name match missed, and it must not add one back.
+        if (queryWords.Length > 0
+            && query.ExclusionsPass(entry.Item.Title)
+            && queryWords.All(token => entry.KeywordWords.Any(
                 word => word.StartsWith(token, StringComparison.OrdinalIgnoreCase))))
         {
             // A declared keyword is a synonym for the settings/application row, not a scattered guess.

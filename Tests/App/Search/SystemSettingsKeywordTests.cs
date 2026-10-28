@@ -116,10 +116,32 @@ public sealed class SystemSettingsKeywordTests
             rules.GetPriority(SearchableItemMapper.SyntheticPath(provider, "View network connections"), isDirectory: false));
     }
 
+    [TestMethod]
+    public void NativeKeywords_WordTriggersAreStrippedBeforeTheKeywordPrefixTest()
+    {
+        var entry = Entry("System Settings", ["environment variables", "envvar"]);
+
+        // '?' inverts one word's precision; it is not part of the word a keyword has to start with.
+        Assert.IsTrue(Match("?env", entry).IsMatch);
+        // ':' is an exclusion, never a keyword requirement -- on its own it leaves nothing to prefix.
+        Assert.IsFalse(Match(":env", entry).IsMatch);
+    }
+
+    [TestMethod]
+    public void NativeKeywords_AnExclusionStillVetoesTheRowThisTierWouldAdd()
+    {
+        // The title carries "temp", so the exclusion is what keeps the row out; the keyword list is what
+        // would otherwise put it back (no title word starts with "env").
+        var entry = Entry("Temperature settings", ["environment variables"]);
+
+        Assert.IsFalse(Match("env :temp", entry).IsMatch);
+        Assert.IsTrue(Match("env :absent", entry).IsMatch);
+    }
+
     private static SearchableItemCache.CacheEntry Entry(string title, string[] keywords) =>
         new(new SearchableItem { Title = title, Keywords = keywords }, [], null);
 
     private static MatchRank Match(string query, SearchableItemCache.CacheEntry entry) =>
         SearchableItemMapper.MatchCatalogEntry(FuzzyQuery.Parse(query),
-            query.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries), entry);
+            SearchableItemMapper.PositiveTermWords(query), entry);
 }

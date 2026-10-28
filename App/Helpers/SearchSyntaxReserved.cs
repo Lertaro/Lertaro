@@ -28,8 +28,23 @@ public static class SearchSyntaxReserved
 
     public static string DescribeUnusableTokenPrefixCharacters() => string.Join(' ', UnusableTokenPrefixCharacters);
 
-    public static bool IsUnusableAsTokenPrefix(char value)
-        => char.IsWhiteSpace(value) || char.IsControl(value) || UnusableTokenPrefixCharacters.Contains(value);
+    // The characters a working Windows file name can never contain.
+    public static IReadOnlyList<char> FileNameIllegalCharacters { get; } =
+        new[] { '\\', '/', ':', '*', PrecisionInversionCharacter, '"', '<', '>', '|' };
+
+    /// <summary>
+    /// Whether this character may start a plugin query token.
+    /// </summary>
+    /// <remarks>
+    /// It has to be a character a file name cannot contain, because the scanner lifts a WHOLE WORD that opens
+    /// with the prefix: a prefix a name can contain turns a real search into a token with no provider to
+    /// claim it, and that answers with an empty result set. The syntax already owns every illegal character
+    /// except '\', so that is the only usable prefix -- which is why the field reports every other value
+    /// instead of warning about the risky ones (decision 2026-10-28; the warning it replaces said the words
+    /// "may" be read as tokens, which was true of every legal character and therefore of no help).
+    /// </remarks>
+    public static bool IsUsableTokenPrefix(char value)
+        => FileNameIllegalCharacters.Contains(value) && !UnusableTokenPrefixCharacters.Contains(value);
 
     public static string? ValidateLeadingCharacter(string? value, char? prefix = null)
     {

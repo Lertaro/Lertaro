@@ -16,14 +16,14 @@ namespace Lertaro.App.Tests.ViewModels.Settings;
 public sealed class SettingsValidationGateTests
 {
     [TestMethod]
-    public void GlobalPrefix_ConflictsWithAStoredHiddenResultType()
+    public void GlobalPrefix_ConflictsWithATriggerOnAStagedRow()
     {
         var settings = new UserSettings();
-        settings.ResultTypeTriggers["hidden-provider"] = "!";
         var general = new GeneralSettingsViewModel(settings);
         try
         {
-            general.GlobalTokenPrefix = "!";
+            general.GlobalTokenPrefix = "\\";
+            general.ResultTypeOrder.Items[0].TriggerChar = "\\";
             Assert.IsNotNull(general.PrefixError);
             Assert.IsNotEmpty(general.ValidationErrors.ToList());
         }
@@ -31,16 +31,14 @@ public sealed class SettingsValidationGateTests
     }
 
     [TestMethod]
-    public void StartupConflictNotice_PreservesSavedPrefixTypeAndPluginKeyword()
+    public void StartupConflictNotice_PreservesSavedPrefixAndPluginKeyword()
     {
         var settings = new UserSettings { GlobalTokenPrefix = "?" };
-        settings.ResultTypeTriggers["Files"] = "?";
         settings.SetPluginSetting("plugin", "keyword", "?go");
         var conflicts = Lertaro.App.Services.LegacySettingsNoticeService.DescribeTriggerConflicts(settings,
             [("plugin", "Plugin", new PluginConfigField { Key = "keyword", Validation = ConfigFieldValidation.TriggerKeyword })]);
-        Assert.HasCount(3, conflicts);
+        Assert.HasCount(2, conflicts);
         Assert.AreEqual("?", settings.GlobalTokenPrefix);
-        Assert.AreEqual("?", settings.ResultTypeTriggers["Files"]);
         Assert.AreEqual("?go", settings.GetPluginSetting<string>("plugin", "keyword", ""));
     }
 

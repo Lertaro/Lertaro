@@ -72,11 +72,34 @@ public sealed class QueryTokenPrefixRulesTests
     [TestMethod]
     public void GlobalPrefixConflict_ConfiguredTrigger_IsRejected()
     {
-        Assert.IsNotNull(QueryTokenPrefixRules.GlobalPrefixConflict("t", ["tr"]));
-        Assert.IsNotNull(QueryTokenPrefixRules.GlobalPrefixConflict("T", ["tr"]));
-        Assert.IsNull(QueryTokenPrefixRules.GlobalPrefixConflict("!", ["tr"]));
-        Assert.IsNotNull(QueryTokenPrefixRules.TriggerKeywordConflict("!tr", '!'));
-        Assert.IsNull(QueryTokenPrefixRules.TriggerKeywordConflict(@"\tr", '!'));
+        Assert.IsNotNull(QueryTokenPrefixRules.GlobalPrefixConflict("\\", ["\\tr"]));
+        Assert.IsNull(QueryTokenPrefixRules.GlobalPrefixConflict("\\", ["tr"]));
+        Assert.IsNotNull(QueryTokenPrefixRules.TriggerKeywordConflict("\\tr", '\\'));
+        Assert.IsNull(QueryTokenPrefixRules.TriggerKeywordConflict("tr", '\\'));
+    }
+
+    // A prefix a file name may contain turns real searches into tokens nobody claims: the scanner lifts a
+    // WHOLE WORD that opens with the prefix, so '.' makes "plan.md" a token and the search answers with
+    // nothing. That used to be a hint under the field; it is a refusal now (decision 2026-10-28).
+    [TestMethod]
+    [DataRow(".")]
+    [DataRow("@")]
+    [DataRow("-")]
+    [DataRow("a")]
+    [DataRow(";")]
+    public void GlobalPrefixConflict_CharacterAFileNameMayContain_IsRefused(string prefix)
+        => Assert.IsNotNull(QueryTokenPrefixRules.GlobalPrefixConflict(prefix, Array.Empty<string>()), prefix);
+
+    [TestMethod]
+    public void TokenPrefix_AnUnusableSavedValue_NeverReachesTheScanner()
+    {
+        // The read-side half of the same refusal: honoring a saved '.' would tokenize every dotted word, so
+        // the search uses the default instead. The settings page still shows the saved value and refuses to
+        // save it until the user changes it.
+        Assert.AreEqual('\\', GlobalTokenPrefix.For(new Core.UserSettings { GlobalTokenPrefix = "." }));
+        Assert.AreEqual('\\', GlobalTokenPrefix.For(new Core.UserSettings { GlobalTokenPrefix = ":" }));
+        Assert.AreEqual('\\', GlobalTokenPrefix.For(new Core.UserSettings { GlobalTokenPrefix = string.Empty }));
+        Assert.AreEqual('\\', GlobalTokenPrefix.For(new Core.UserSettings { GlobalTokenPrefix = "\\" }));
     }
 
     // An instant-answer trigger keyword is matched against the START of the query, so it competes with the

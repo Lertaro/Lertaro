@@ -853,6 +853,6 @@
   "Settings_History_AssociationsPlaceholder": "Filtrar asociaciones aprendidas...",
   "Search_RegexLimitExceeded": "Límite de resultados regex superado (máximo 8,000)",
   "General_GlobalTokenPrefixConflictConfigured": "Este carácter entra en conflicto con un activador configurado. Elige otro.",
-  "General_GlobalTokenPrefixTextWarning": "Este carácter es válido en nombres de archivos; las palabras que empiezan por él pueden interpretarse como tokens de plugins.",
+  "General_GlobalTokenPrefixConflictFileName": "El prefijo de tokens de complemento debe ser un carácter que no pueda aparecer en un nombre de archivo, para que una palabra que empiece por él nunca sea un nombre real; la sintaxis de búsqueda usa todos esos caracteres menos '\\'. Usa '\\'.",
   "General_SearchTriggerConflictNotice": "Estos activadores de búsqueda entran en conflicto: {0}. Se ha conservado la configuración. Modifícala manualmente en Configuración."
 }

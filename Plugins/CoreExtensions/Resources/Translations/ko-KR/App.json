@@ -853,6 +853,6 @@
   "Settings_History_AssociationsPlaceholder": "학습된 검색어 연결 필터링...",
   "Search_RegexLimitExceeded": "정규식 검색 결과 한도 초과(최대 8,000개)",
   "General_GlobalTokenPrefixConflictConfigured": "이 문자는 설정된 트리거와 충돌합니다. 다른 문자를 선택하세요.",
-  "General_GlobalTokenPrefixTextWarning": "파일 이름에 사용할 수 있는 문자입니다. 이 문자로 시작하는 단어는 플러그인 토큰으로 처리될 수 있습니다.",
+  "General_GlobalTokenPrefixConflictFileName": "플러그인 토큰 접두사는 파일 이름에 쓸 수 없는 문자여야 합니다(그래야 그 문자로 시작하는 실제 이름이 토큰으로 처리되지 않습니다). 검색 구문이 '\\'를 제외한 모든 해당 문자를 사용합니다. '\\'를 사용하세요.",
   "General_SearchTriggerConflictNotice": "검색 트리거가 충돌합니다: {0}. 기존 설정은 유지되었습니다. 설정에서 직접 변경하세요."
 }

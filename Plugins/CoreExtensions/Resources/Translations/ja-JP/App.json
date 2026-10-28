@@ -853,6 +853,6 @@
   "Settings_History_AssociationsPlaceholder": "学習済みの関連付けを絞り込む...",
   "Search_RegexLimitExceeded": "正規表現の検索結果が上限を超えました（最大 8,000 件）",
   "General_GlobalTokenPrefixConflictConfigured": "この文字は設定済みのトリガーと競合しています。別の文字を選んでください。",
-  "General_GlobalTokenPrefixTextWarning": "この文字はファイル名に使用できます。この文字で始まる語はプラグイントークンとして扱われる場合があります。",
+  "General_GlobalTokenPrefixConflictFileName": "プラグイントークンの接頭辞はファイル名に使えない文字である必要があります（そうでないと、その文字で始まる実在の名前がトークンとして扱われます）。検索構文はそのうち '\\' 以外のすべてを使用しています。'\\' を使用してください。",
   "General_SearchTriggerConflictNotice": "検索トリガーが競合しています：{0}。既存の設定は保持されています。設定画面で手動で変更してください。"
 }

@@ -853,6 +853,6 @@
   "Settings_History_AssociationsPlaceholder": "Filter learned query associations...",
   "Search_RegexLimitExceeded": "Regex result limit exceeded (maximum 8,000)",
   "General_GlobalTokenPrefixConflictConfigured": "This character conflicts with a configured trigger. Choose another character.",
-  "General_GlobalTokenPrefixTextWarning": "This character is valid in file names; words starting with it may be read as plugin tokens.",
+  "General_GlobalTokenPrefixConflictFileName": "A plugin token prefix must be a character a file name cannot contain, so a word starting with it can never be a real name; the search syntax owns every such character except '\\'. Use '\\'.",
   "General_SearchTriggerConflictNotice": "These search triggers conflict: {0}. Your settings were preserved. Please change them manually in Settings."
 }

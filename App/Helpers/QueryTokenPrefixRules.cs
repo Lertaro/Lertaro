@@ -15,41 +15,41 @@ namespace Lertaro.App.Helpers;
 // only one that works.
 public static class QueryTokenPrefixRules
 {
-    internal static char PrefixFor(Core.UserSettings settings)
-    {
-        var text = settings.GlobalTokenPrefix;
-        return string.IsNullOrEmpty(text) ? GlobalTokenPrefix.Default : text[0];
-    }
+    /// <summary>The prefix the search actually uses: the saved one, or the default when it cannot work.</summary>
+    internal static char PrefixFor(Core.UserSettings settings) => GlobalTokenPrefix.For(settings);
     /// <summary>The conflict to show under the app-wide prefix field, or null when it is usable.</summary>
     /// <remarks>
-    /// Any character the search syntax owns is unusable here, not just the always-on sort/filter pair
-    /// ('&lt;' '&gt;', the worst case, because QueryTokenScanner reads those as token starts whatever the
-    /// prefix says and the plugin tokens become permanently unreachable): a ':' prefix collides with
-    /// exclusion syntax, a '*' prefix with the exclusion bypass, a '/' prefix with the regex clause
-    /// delimiter, and a '?' prefix would silently retire the precision-inversion trigger for every word it
-    /// lifts.
+    /// The prefix must be a character a file name cannot contain -- the scanner lifts a whole word that opens
+    /// with it, so any other character turns real searches into tokens nobody claims (see
+    /// SearchSyntaxReserved.IsUsableTokenPrefix). The search syntax owns every illegal character but '\', so
+    /// '\' is the only value that passes; everything else is refused rather than warned about. The refusal is
+    /// what makes the value keep working: a ':' prefix would otherwise collide with exclusion syntax, a '*'
+    /// prefix with the exclusion bypass, a '/' prefix with the regex delimiter and a '?' prefix would retire
+    /// the precision-inversion trigger.
     ///
-    /// The message interpolates the set that actually applies rather than naming characters itself, so it
-    /// stays true as the syntax grows -- it used to name only '&lt;'/'&gt;', which mis-explained ':' '*'
-    /// and '/', and it used to interpolate the FULL reserved list, which told a user whose ':' was refused
-    /// that '\' is reserved too -- under a field whose default IS '\'.
-    ///
-    /// '\' is deliberately NOT one of them: it is this field's own character (see
-    /// SearchSyntaxReserved.IsUnusableAsTokenPrefix), so the shipped default reports nothing.
+    /// Two messages, because the two failures are different facts: a character the syntax owns is named
+    /// against the set that applies (so the message stays true as the syntax grows), and anything else is told
+    /// what a prefix has to be.
     /// </remarks>
     public static string? GlobalPrefixConflict(string? globalPrefix, IEnumerable<string>? otherTriggers = null)
     {
         if (string.IsNullOrEmpty(globalPrefix))
             return TranslationManager.Instance["General_GlobalTokenPrefixConflictEmpty"];
 
-        if (globalPrefix.Length != 1 || SearchSyntaxReserved.IsUnusableAsTokenPrefix(globalPrefix[0]))
-            return string.Format(
-                TranslationManager.Instance["General_GlobalTokenPrefixConflictReserved"],
-                SearchSyntaxReserved.DescribeUnusableTokenPrefixCharacters());
+        if (globalPrefix.Length != 1)
+            return TranslationManager.Instance["General_GlobalTokenPrefixConflictEmpty"];
+
+        var character = globalPrefix[0];
+        if (!SearchSyntaxReserved.IsUsableTokenPrefix(character))
+            return SearchSyntaxReserved.UnusableTokenPrefixCharacters.Contains(character)
+                ? string.Format(
+                    TranslationManager.Instance["General_GlobalTokenPrefixConflictReserved"],
+                    SearchSyntaxReserved.DescribeUnusableTokenPrefixCharacters())
+                : TranslationManager.Instance["General_GlobalTokenPrefixConflictFileName"];
 
         otherTriggers ??= ViewModels.Search.Dispatch.PluginTriggerQuery.Collect().Select(entry => entry.Word);
         return otherTriggers.Any(trigger => !string.IsNullOrEmpty(trigger)
-            && char.ToUpperInvariant(trigger[0]) == char.ToUpperInvariant(globalPrefix[0]))
+            && char.ToUpperInvariant(trigger[0]) == char.ToUpperInvariant(character))
             ? TranslationManager.Instance["General_GlobalTokenPrefixConflictConfigured"] : null;
     }
 

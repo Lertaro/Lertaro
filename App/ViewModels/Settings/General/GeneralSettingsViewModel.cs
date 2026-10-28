@@ -303,7 +303,6 @@ public class GeneralSettingsViewModel : ViewModelBase
             // value is what the user is looking at while they type it.
             OnPropertyChanged(nameof(PrefixError));
             OnPropertyChanged(nameof(HasPrefixError));
-            OnPropertyChanged(nameof(PrefixWarning));
             ResultTypeOrder.ValidateTriggers();
         }
     }
@@ -325,12 +324,7 @@ public class GeneralSettingsViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(PrefixError));
         OnPropertyChanged(nameof(HasPrefixError));
-        OnPropertyChanged(nameof(PrefixWarning));
     }
-
-    public string? PrefixWarning => _globalTokenPrefix.Length == 1 && PrefixError == null
-        && !System.IO.Path.GetInvalidFileNameChars().Contains(_globalTokenPrefix[0])
-        ? TranslationManager.Instance["General_GlobalTokenPrefixTextWarning"] : null;
 
     public bool HasPrefixError => !string.IsNullOrEmpty(PrefixError);
 

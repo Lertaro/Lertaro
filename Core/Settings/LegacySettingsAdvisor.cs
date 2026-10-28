@@ -24,10 +24,6 @@ public static class LegacySettingsAdvisor
     // value cannot drift.
     private const string ShippedLegacyTokenPrefix = ":";
 
-    // The prefix this release ships, and the one a reset collision falls back to. The App's
-    // GlobalTokenPrefix.Default and GeneralSettingsApplier's blank-to-default rule name the same character.
-    private const string DefaultTokenPrefix = "\\";
-
     /// <summary>
     /// True when the saved plugin query token prefix is the one the previous release shipped, which the
     /// current syntax no longer accepts. False once the user has changed it -- including to another value
@@ -63,7 +59,7 @@ public static class LegacySettingsAdvisor
     /// </summary>
     /// <remarks>
     /// Named "Take" rather than "Clear" because it MUTATES the settings, and the caller has to save them for
-    /// the change to stick -- the same contract as <see cref="TakePrecisionTriggerResultTypes"/>. The
+    /// the change to stick -- the same contract as <see cref="TakeUnusableResultTypes"/>. The
     /// plugin now reads the prefix from the search syntax itself (the SDK's SearchSyntaxService), so the
     /// stored copy can only ever be stale: it names a character its own tokens no longer answer to, and any
     /// sidebar filter rule written with it stops expanding. Cleared rather than migrated, because there is no
@@ -92,66 +88,32 @@ public static class LegacySettingsAdvisor
         return stored;
     }
 
-    // The precision-inversion trigger, as the parser reads it from a term's first character (see
-    // TermTriggers, the one place that reads it). The App mirrors this in SearchSyntaxReserved, which is also
-    // where the settings-time warning about it lives.
-    // Derived from the parser's own character rather than spelled out beside it: this used to be a const char
-    // nobody read next to a hardcoded "?", which is two answers to one question and only one of them moved
-    // when the trigger changed.
-    private static readonly string PrecisionInversionText =
-        SearchIndex.Fzf.TermTriggers.PrecisionInversion.ToString();
-
     /// <summary>
-    /// True when a saved value can no longer work because '?' became the precision-inversion trigger after it
-    /// was written: a '?' token prefix retires the inversion AND gets every plugin token lifted out of the
-    /// query with nobody to claim it, and a '?' per-result-type trigger eats the character before the engine
-    /// ever sees the query.
-    /// </summary>
-    public static bool HasPrecisionTriggerCollisions(UserSettings settings)
-        => settings.GlobalTokenPrefix == PrecisionInversionText || TakeableResultTypes(settings).Count > 0;
-
-    /// <summary>
-    /// Puts the app-wide token prefix back to its shipped default when a settings file holds '?', returning
-    /// whether it did. Mutates: the caller has to save.
+    /// Clears every per-result-type trigger the current grammar cannot honour, returning the ones it
+    /// cleared. Mutates: the caller has to save.
     /// </summary>
     /// <remarks>
-    /// The prefix is read before every word is offered to anything else, so a '?' there is the worse of the
-    /// two collisions: the word is lifted out as a token, no provider claims it, and the search returns
-    /// nothing at all -- which looks like the feature being broken rather than like one character being
-    /// reserved. The default is restored rather than the value being reported, because there is no way to
-    /// keep '?' working in both roles.
+    /// Silent on purpose (decision 2026-10-28): "no trigger" is the working default for this feature -- the
+    /// type is then reached like every other one -- while a trigger the syntax now reads (':', '?', the token
+    /// prefix, a provider's '#') both eats that character out of the query and applies the type filter, i.e.
+    /// the opposite of what the user typed, with nothing on screen saying so. Cleared rather than pointing
+    /// the notice machinery at it, because there is no second character to migrate to and nothing the user
+    /// could decide differently.
+    ///
+    /// The predicate is the caller's: the reserved set lives in the App (SearchSyntaxReserved), next to the
+    /// settings page that reports it, and Core must not carry a second copy that could drift.
     /// </remarks>
-    public static bool TakePrecisionTriggerTokenPrefix(UserSettings settings)
+    public static List<(string TypeId, string Trigger)> TakeUnusableResultTypes(
+        UserSettings settings, Func<string, bool> isUnusable)
     {
-        if (settings.GlobalTokenPrefix != PrecisionInversionText)
-            return false;
+        var taken = settings.ResultTypeTriggers
+            .Where(entry => entry.Value.Length > 0 && isUnusable(entry.Value))
+            .Select(entry => (entry.Key, entry.Value))
+            .ToList();
 
-        settings.GlobalTokenPrefix = DefaultTokenPrefix;
-        return true;
-    }
-
-    /// <summary>
-    /// Clears every per-result-type trigger that is now the precision-inversion character, returning the ones
-    /// it cleared so the caller can name them. Mutates: the caller has to save.
-    /// </summary>
-    /// <remarks>
-    /// Cleared rather than reset: "no trigger" is the working default for this feature (the type is then
-    /// reached like every other one), while a trigger of '?' means the quick window reads the character as
-    /// "only this result type" and searches the REST of the query with fuzzy matching -- the exact opposite
-    /// of what the user typed. Idempotent, which is what makes the notice it feeds unrepeatable.
-    /// </remarks>
-    public static List<(string TypeId, string Trigger)> TakePrecisionTriggerResultTypes(UserSettings settings)
-    {
-        var taken = TakeableResultTypes(settings);
         foreach (var (typeId, _) in taken)
             settings.ResultTypeTriggers.Remove(typeId);
 
         return taken;
     }
-
-    private static List<(string TypeId, string Trigger)> TakeableResultTypes(UserSettings settings)
-        => settings.ResultTypeTriggers
-            .Where(entry => entry.Value.StartsWith(PrecisionInversionText, StringComparison.Ordinal))
-            .Select(entry => (entry.Key, entry.Value))
-            .ToList();
 }
