@@ -439,15 +439,21 @@ internal sealed class SearchDispatchController
     private static bool IsGenuineInstantResult(AppSearchResult r) =>
         r.ResultKind == "InstantResult" && r.SourceProvider is PluginSdk.Abstractions.Plugins.IInstantResultProvider;
 
-    // A query that names a file rather than sweeping a substring. Kept deliberately narrow: a leading
-    // operator/dot is not a name, and a dot anywhere else is the one signal a filename query always has
-    // (the extension). This only chooses the candidate budget; ranking and display are unchanged.
-    internal static bool LooksLikeFileNameQuery(string? query)
+    // A query that names a file rather than sweeping a substring. Kept deliberately narrow: a word that
+    // opens with a syntax character is a query, not a name, and a dot anywhere else is the one signal a
+    // filename query always has (the extension). The leading '.' and '-' stay refused because neither has
+    // ever been an operator -- they read as an extension fragment or a switch, not a name. This only
+    // chooses the candidate budget; ranking and display are unchanged.
+    //
+    // The syntax set is the live one (SearchSyntaxReserved): this used to spell out '!' '^' '\'' itself,
+    // which are ordinary name characters now, so "!plan.md" was judged not-file-like and stayed on the
+    // narrow budget while the new triggers '?' '/' '\' '<' '>' were not excluded at all.
+    internal static bool LooksLikeFileNameQuery(string? query, char? prefix = null)
     {
         var text = query?.Trim();
         if (string.IsNullOrEmpty(text) || text.Length < 3)
             return false;
-        if (text[0] is '!' or '^' or '\'' or '-' or ':' or '.')
+        if (text[0] is '.' or '-' || SearchSyntaxReserved.OpensSyntax(text[0], prefix))
             return false;
         return text.Contains('.');
     }

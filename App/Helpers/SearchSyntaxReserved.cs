@@ -16,6 +16,13 @@ public static class SearchSyntaxReserved
 
     public static bool IsReserved(char value) => LeadingCharacters.Contains(value);
 
+    // Whether a word opening with this character is read as syntax rather than as text. One answer for
+    // both directions: a trigger field may not claim such a character, and a query that opens with one
+    // is not a file name being typed.
+    public static bool OpensSyntax(char value, char? prefix = null)
+        => GetLeadingCharacters(prefix ?? GlobalTokenPrefix.Current).Contains(value)
+            || ProviderClaimedCharacters.Contains(value);
+
     public static IReadOnlyList<char> UnusableTokenPrefixCharacters { get; } =
         new[] { '<', '>', ':', '*', '/', PrecisionInversionCharacter, '|', '#', '$', '%', '"' };
 
@@ -30,14 +37,16 @@ public static class SearchSyntaxReserved
             return TranslationManager.Instance["General_ReservedCharacterEmpty"];
 
         var first = value[0];
-        var reserved = GetLeadingCharacters(prefix ?? GlobalTokenPrefix.Current);
-        if (reserved.Contains(first))
-            return string.Format(
-                TranslationManager.Instance["General_ReservedCharacterSyntax"], string.Join(' ', reserved));
+        if (OpensSyntax(first, prefix))
+        {
+            var reserved = GetLeadingCharacters(prefix ?? GlobalTokenPrefix.Current);
+            return reserved.Contains(first)
+                ? string.Format(
+                    TranslationManager.Instance["General_ReservedCharacterSyntax"], string.Join(' ', reserved))
+                : TranslationManager.Instance["General_ReservedCharacterProvider"];
+        }
 
-        return ProviderClaimedCharacters.Contains(first)
-            ? TranslationManager.Instance["General_ReservedCharacterProvider"]
-            : null;
+        return null;
     }
 
     public static string DescribeLeadingCharacters() => string.Join(' ', LeadingCharacters);

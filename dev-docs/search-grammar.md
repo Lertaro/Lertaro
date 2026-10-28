@@ -68,6 +68,29 @@ main 上那套旧运算符正好是这个判据的反例：`'` `^` `$` 都合法
 
 词首触发字符被扫描器摘出后，如果没有 provider 认领，结果是空集，不会退回普通文本。
 
+## 入口覆盖与每次按键的成本（2026-10-28 核对）
+
+**两层，每种输入框只拿到自己需要的那层。**
+
+| 入口 | 走哪些层 | 结果 |
+| :--- | :--- | :--- |
+| 快速窗口、完整窗口、内嵌卡片 | 全部（`SearchDispatchController.DispatchSearch` / `SearchQueryDispatchController`） | 词法、Token、路径、子句、结果类型触发符都生效 |
+| CLI、Service 管道 | `SearchQueryParser` + `FzfPattern`（服务进程内） | 与窗口同一套解析 |
+| 插件 SDK seam（`FuzzyMatcher.IsMatch`） | 只到词法层 | `:term` `?word` `/re/` 生效 |
+| 快速面板过滤框、设置搜索、历史、日志、Shell 菜单过滤 | 只走 `FzfPattern` / `FuzzyMatcher` | 同上；这里没有 provider 可派发，所以 Token 与整句 `*` 没有含义（`\doc` 按字面处理） |
+
+**同一份子句只应求值一次。** 名称层（`FzfPattern.TryMatch`）已经对整条模式求值过 `:term` 与 `/re/`；别名/mixed 层再把名称交进去否决，是因为转写文本回答不了它们。所以否决只在那些层确实能跑时才有意义：`SearchMatcher.MatchOne` 先看 `HasAliases`/`MixedTerm`、`SearchMatcherRow` 先看 alias 是否为空、`FuzzyMatcher.IsMatch` 先看 `HasNonAscii`。2026-10-28 之前这三处先否决、后判断通道，等于对**刚被子句拒绝的候选**再把正则跑一遍（正则查询里最贵的一步）；现改为先判断通道、再否决。把顺序改回去只会变慢，不会改变结果。
+
+**候选预算仍按"像不像文件名"给。** `SearchDispatchController.LooksLikeFileNameQuery` 把带点、且不以语法字符开头的查询放宽到 1000 行候选。它原先自带一张 `! ^ ' - : .` 清单，其中 `!` `^` `'` 已退役成普通字符，于是 `!plan.md` 被当成非文件名查询而留在窄预算上；现改为读 `SearchSyntaxReserved.OpensSyntax`（前缀 + 语法字符 + provider 字符的同一份答案），`.` 与 `-` 仍按原意拒绝（它们从来不是运算符）。它只决定候选预算，不参与匹配判定。
+
+**成本与边界**：正则按模式文本编译一次（256 条上限 + 活动查询弱键表 + `NonBacktracking`，回退引擎 250 ms/候选）；没有可提取字面量时预筛退化为全扫（应用内帮助已写明可以加普通词收窄）；`:term` 查询在每个别名上多一次解码（`ponytail:` 已标注上限）；祖先回退在完整窗口默认开启（`NameSearch` 的 `ponytail:` 标注了它不关闭的门槛）。
+
+仍未收口的三处：
+
+- **历史遗留的结果类型触发符。** `ResultTypeTriggerHandler.Match` 不查保留字符表，`ResolveTrigger` 命中就读走首字符；`ResultTypeOrderViewModel` 只报错、按注释"不替用户改写"。于是一个旧配置里的 `?` 或 `:` 会在运行时吃掉语法的触发符并获得类型过滤，与设置页"该字符不能生效"的报错相矛盾。两条路：运行时不再认这类触发符，或保存时迁移；**未定**。
+- **插件目录的关键字兜底层**（`SearchableItemMapper`）按裸词前缀匹配，带触发符的词（`?env`）够不到关键字词表。主匹配已按 `FzfPattern` 判过，这一层只少补、不误加。
+- **插件前缀允许合法文件名字符**（只警告不拦）：设成 `.` 时任何带点的词都会成为 Token，且无人认领的结果是空集。校验只禁语法字符、`#` `$` `%`、引号与空白（`SearchSyntaxReserved.IsUnusableAsTokenPrefix`）。
+
 ## 语法清单
 
 下表是 `feat-search-reimpl` 的语法，main 侧的差异见开头那张表。
@@ -204,8 +227,8 @@ main 有两条测试原先靠旧语法守着这些 kind：`OperatorTerms_AreLite
 | `caseSensitive` 参数已通到匹配与高亮 | `Core/SearchIndex/Fzf/FzfAlgorithm.cs:40`、`FzfByteExactMatcher.cs:9`、`Core/SearchIndex/HighlightMask.cs:133-168`、`Core/SearchIndex/AliasHighlightMarker.cs:64-102` |
 | `(?-i)` 覆盖 `IgnoreCase`，两种引擎一致 | `Tests/Core/SearchIndex/FuzzyMatcherTests.cs:34-38`（`/(?-i)Report/` 对 `report` 为 false，`(?=…)` 写法走回退引擎） |
 | `:exclusion` 恒 Exact，`?` 是模糊↔精确反转，`:` 先于 `?` 读取 | `Core/SearchIndex/Fzf/TermTriggers.cs:20-25, 37-66` |
-| 名称级子句在每一层都由名称否决 | `Core/SearchIndex/Fzf/FzfPatternMatcher.cs:21, 86-91`（`TryMatchAlias` 注释写明子句读的是名称，判定在 `:91` 用 `exclusionText`）、`Core/IndexV2/Search/PathTermFallback.cs:195-196`（门口）与 `:266-276`（`NamePassesClauses`）、`Core/IndexV2/Search/PinyinNameEvaluator.cs:235`、`Core/IndexV2/Search/SearchMatcher.cs:305`、`PathMode/SearchMatcherPath.cs:125`、`Core/IndexV2/Search/SearchMatcherRow.cs:39, 127` |
-| 别名层与 mixed lane 在没有 pattern 时也否决 | `Core/IndexV2/Search/SearchMatcher.cs:305`、`Core/IndexV2/Search/SearchMatcherRow.cs:39, 127`；公共 seam 侧为 `Core/SearchIndex/FuzzyMatcher.cs:66`（`IsMatch`）与 `:217`（`ComputeMatchRank` 的整句门） |
+| 名称级子句在每一层都由名称否决 | `Core/SearchIndex/Fzf/FzfPatternMatcher.cs:21, 86-91`（`TryMatchAlias` 注释写明子句读的是名称，判定在 `:91` 用 `exclusionText`）、`Core/IndexV2/Search/PathTermFallback.cs:195-196`（门口）与 `:265-276`（`NamePassesClauses`）、`Core/IndexV2/Search/PinyinNameEvaluator.cs:235`、`Core/IndexV2/Search/SearchMatcher.cs:310`、`PathMode/SearchMatcherPath.cs:125`、`Core/IndexV2/Search/SearchMatcherRow.cs:41, 130` |
+| 别名层与 mixed lane 在没有 pattern 时也否决 | `Core/IndexV2/Search/SearchMatcher.cs:310`、`Core/IndexV2/Search/SearchMatcherRow.cs:41, 130`；公共 seam 侧为 `Core/SearchIndex/FuzzyMatcher.cs:69`（`IsMatch`）与 `:217`（`ComputeMatchRank` 的整句门）。三层都先试名称、再否决别名，所以否决只在**别名/mixed 通道确实能跑**时才付代价：`SearchMatcher` 在 `:302` 先看 `HasAliases`/`MixedTerm`、`SearchMatcherRow` 先看 `aliases == null` 与 alias 数量、`FuzzyMatcher` 先看 `HasNonAscii`。顺序是性能契约，不是可读性——见「实现现状」一节的重复求值条目 |
 | 正则子句随 AND-first 的 DNF 分支重建一起进入 fallback | `Core/IndexV2/Search/PathTermFallback.cs:252`（`orGroups: null` + `pattern.Regexes`），回归测试 `Tests/Core/IndexV2/Search/PathTermFallbackTests.cs`（`SearchStreaming_AndFirstBranchRegexClauseStillVetoesTheAncestorRow`） |
 | 名称级对照测试两侧各一条 | `Tests/Core/IndexV2/Search/PinyinNameEvaluatorTests.cs:322`（`RegexClause_IsAnsweredFromTheNameNeverFromTheReadings`） |
 | 纯排除的 pattern 不占 mask 位；正则只借必需字面量预筛 | `Core/SearchIndex/Fzf/FzfPattern.cs:112`（`HasPositiveTerm`）、`:78-99`（`RequiredRegexLiteral`）、`Core/IndexV2/Search/SearchMatcher.cs:119-121`（并进 `RequiredMask`）、`Core/IndexV2/Search/PathTermFallback.cs:196`；main 侧为 `FzfPattern.cs:53` 的 `HasPositiveTerms` |
@@ -220,6 +243,7 @@ main 有两条测试原先靠旧语法守着这些 kind：`OperatorTerms_AreLite
 | 路径正则结果 8000 条上限 | `App/ViewModels/Search/Mapping/StreamingResultAccumulator.cs:28`（`RegexPathResultLimit`），main 无此常量 |
 | 前缀冲突分级与旧值只警告 | `App/Helpers/QueryTokenPrefixRules.cs:40-54`（`GlobalPrefixConflict`）、`:78`（`BlocksSaving`） |
 | 「另一插件已认领该字符」检查被删除及其理由 | `QueryTokenPrefixRules.cs:12-15` |
+| 「词首是不是语法」只有一份答案 | `App/Helpers/SearchSyntaxReserved.cs:22`（`OpensSyntax`：前缀 + `LeadingCharacters` + `ProviderClaimedCharacters`），被 `:34` 的 `ValidateLeadingCharacter` 与 `App/ViewModels/Search/Dispatch/SearchDispatchController.cs:451-459` 的 `LooksLikeFileNameQuery` 共用；`! ^ '` 退役后它曾把 `!plan.md` 判成非文件名查询（`Tests/App/ViewModels/Search/Dispatch/SearchDispatchBudgetTests.cs` 逐条钉住） |
 | 插件通过宿主单一前缀认领 Token | `PluginSdk/Services/SearchSyntaxService.cs:17-27`，`CustomFilterQueryTokenProvider.cs:48-52, 63-67, 345`；单一前缀改造是 `feat(plugins): claim query tokens through the host's single prefix` |
 | 关键词最长匹配 | `CustomFilterQueryTokenProvider.cs:143-144` |
 | 设置页章节为静态帮助文本 | `App/Views/Settings/SearchSyntaxSettingsPage.xaml(.cs)`，`Plugins/CoreExtensions/Resources/Translations/<locale>/App.json:52, 57`（`SearchSyntax_Tab_Tokens` 与 `SearchSyntax_Tokens_Body`） |

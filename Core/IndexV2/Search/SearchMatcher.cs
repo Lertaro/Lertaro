@@ -308,6 +308,13 @@ internal static class SearchMatcher
         // rejected is revived through its pinyin or through the mixed-alphabet lane. The live tier above
         // answers both clauses from the name; only the alias and mixed lanes below need this veto (the
         // exclusion half is FzfPatternExclusionExtensions.ExclusionsPass, the regex half RegexClauses).
+        //
+        // Skipped when neither lane can run: the name tier has already evaluated both clauses, so asking
+        // them again of a candidate that has no alias and no mixed spelling is the same answer a second
+        // time -- and it is the expensive half of a `/.../` query, run on exactly the candidates the
+        // clause just rejected.
+        if (!snapshot.HasAliases(uid) && ctx.MixedTerm == null)
+            return;
         if (ctx.Pattern.HasExclusions && !ctx.Pattern.ExclusionsPass(name))
             return;
         if (ctx.Pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, name))
