@@ -47,7 +47,9 @@ internal sealed class InlineDialogGeometryProbe
         (_measure, _placementChanged) = (measure, placementChanged);
 
     /// <summary>
-    /// What is known about this dialog's inner layout right now, starting a measurement if none is running.
+    /// What is known about this window's inner layout right now, starting a measurement if none is running.
+    /// The answer belongs to the window it was measured in: an empty-handed window (a plain folder window has
+    /// no dialog adapter to ask) keeps its own edges rather than another window's rectangles.
     /// </summary>
     /// <remarks>
     /// A measurement that arrives after the dialog moved or resized is dropped rather than applied -- the card
@@ -61,6 +63,14 @@ internal sealed class InlineDialogGeometryProbe
         {
             if (_asked != key)
             {
+                // A different window is a different set of rectangles, and only a dialog can answer at all.
+                // Carrying the answer across is what parked Explorer's card on a closed Qoder dialog's file
+                // list, whose edges fall outside Explorer's own content view -- and a window that can never
+                // answer leaves that foreign anchor in place for the rest of the run, because an empty
+                // measurement below changes nothing. What one window answered for a rect it has since moved
+                // to is still kept -- see the comment below.
+                if (_asked?.Hwnd != key.Hwnd) _answer = default;
+
                 _asked = key;
                 _attempts = 0;
                 // Windows hands out the same handle again, so the window and size agreeing is not proof the

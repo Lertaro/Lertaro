@@ -105,6 +105,31 @@ public sealed class InlineDialogGeometryProbeTests
     }
 
     [TestMethod]
+    public void ADifferentWindowIsNeverPlacedAgainstTheAnswerOfTheOneBeforeIt()
+    {
+        var otherWindow = new IntPtr(0x9ABC);
+        var probe = new InlineDialogGeometryProbe(
+            // Only the dialog has anything to answer with; the other window is a plain folder window, whose
+            // tracker has no file-dialog adapter to ask.
+            hwnd => hwnd == Dialog ? AnswerAt(210) : default,
+            () => { });
+
+        Assert.IsTrue(SpinWait.SpinUntil(() => probe.Request(Dialog, 100, 200, 400, 300).FileList is not null, Wait),
+            "the dialog never answered, so there is nothing here to carry over");
+
+        // The card moves on to another window. Its own edges are the answer: the dialog's file list is a
+        // rectangle that belongs to a window elsewhere on the desktop, and measured live it put Explorer's card
+        // 131 physical pixels above the content view it was docked to. An empty answer changed nothing before,
+        // so a window that can never answer kept that foreign anchor for the rest of the run.
+        for (var pass = 0; pass < InlineDialogGeometryProbe.MaxAttemptsPerLayout + 2; pass++)
+        {
+            var answer = probe.Request(otherWindow, 700, 300, 400, 300);
+            Assert.IsNull(answer.FileList, "the card would hang from a window it is not docked to");
+            Assert.IsNull(answer.Anchor, "the card would feed a field in a window it is not docked to");
+        }
+    }
+
+    [TestMethod]
     public void ADialogWithNothingToAnswerIsAskedALimitedNumberOfTimes()
     {
         var measures = 0;
