@@ -185,12 +185,14 @@ public class InlineSearchWindowPositioner
         }
 
         // Which part of that window the card's own text lands in, and that dialog's own file list. Only a
-        // dialog's adapter can answer either, and only the ones that opt in do; no answer leaves the card on
-        // the anchored window's own edges, which is also where a plain window's card goes. Not answered here,
+        // dialog's adapter can answer either, and only the ones that opt in do -- so a plain window is never
+        // asked at all, because the only answer it can give is empty, and getting there spends the probe's
+        // attempt budget and re-derives a file-dialog adapter for a folder window. No answer leaves the card
+        // on the anchored window's own edges, which is where a plain window's card belongs. Not answered here,
         // on this thread: for a dialog whose widgets have no window handles of their own it would be a call
         // into that other process, which is how a closing WPS dialog once took the whole application down
         // with it -- InlineDialogGeometryProbe.
-        var geometry = hasValidRect
+        var geometry = hasValidRect && tracker.IsActiveWindowDialog
             ? _geometry.Request(tracker.ActiveHwnd, rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top)
             : default;
         var anchor = geometry.Anchor;
