@@ -97,8 +97,8 @@ internal static class SearchMatcherPath
         var name = worker.Scratch.AsSpan(0, written);
 
         // The live reading tier first, exactly as in SearchMatcher.MatchOne; without a live provider
-        // the name-tier match runs as always.
-        var live = PinyinNameEvaluator.ForPattern(ctx.Pattern);
+        // the name-tier match runs as always. Looked up once per search on ctx, not per candidate.
+        var live = ctx.Live;
         if (live.HasProviders)
         {
             if (live.TryScore(name, worker.Slab, out var liveMatch))

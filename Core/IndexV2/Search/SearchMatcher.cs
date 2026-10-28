@@ -44,6 +44,12 @@ internal static class SearchMatcher
         public required int QueryLen;
         public required MixedTerm? MixedTerm; // non-null only for a bare single term mixing an alias provider's own two alphabets
 
+        // PinyinNameEvaluator.ForPattern already memoizes per Pattern instance (a ConditionalWeakTable),
+        // but MatchOne/PathMatchOne used to call it again for every single candidate row -- paying a cache
+        // lookup once per name in the whole index instead of once per search. Looked up here, alongside
+        // the pattern's other once-per-search derived state, and read straight off the context instead.
+        public required PinyinNameEvaluator Live;
+
         public FzfBytePattern BytePattern => Pattern.ByteView;
 
         // The alias-side byte view of the same query (see FzfPatternAliasReading): both views are cached on
@@ -81,6 +87,7 @@ internal static class SearchMatcher
                 CanFilter = false,
                 QueryLen = pattern.GetTotalTermLength(),
                 MixedTerm = null,
+                Live = PinyinNameEvaluator.ForPattern(pattern),
             };
         }
 
@@ -116,6 +123,7 @@ internal static class SearchMatcher
             CanFilter = requiredMask != 0 || orSets != null,
             QueryLen = pattern.GetTotalTermLength(),
             MixedTerm = MixedQueryMatcher.TrySegmentPattern(pattern),
+            Live = PinyinNameEvaluator.ForPattern(pattern),
         };
     }
 
@@ -259,8 +267,8 @@ internal static class SearchMatcher
         // readings -- each term literally, then against the reading NFA, with the reference's
         // additive score (see PinyinNameEvaluator). Without one, or when the pattern has no eligible
         // word, the long-standing whole-pattern match runs exactly as before, so a pinyin-free
-        // install is unchanged.
-        var live = PinyinNameEvaluator.ForPattern(ctx.Pattern);
+        // install is unchanged. Looked up once per search on ctx, not per candidate -- see QueryContext.
+        var live = ctx.Live;
         if (live.HasProviders)
         {
             if (live.TryScore(name, worker.Slab, out var liveMatch))
