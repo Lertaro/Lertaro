@@ -784,6 +784,7 @@
   "Hotkeys_SelectActions": "打开操作菜单",
   "Hotkeys_SelectComplete": "从选中项补全搜索",
   "Hotkeys_SelectQuickLook": "快速预览",
+  "Hotkeys_CycleCategory": "切换分类筛选",
   "Hotkeys_KeywordHistoryPrevious": "上一条关键字记录",
   "Hotkeys_KeywordHistoryNext": "下一条关键字记录",
   "Hotkeys_KeywordHistoryDelete": "删除当前关键字记录",

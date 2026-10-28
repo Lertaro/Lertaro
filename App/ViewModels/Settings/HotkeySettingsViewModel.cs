@@ -36,6 +36,7 @@ public class HotkeySettingsViewModel : ViewModelBase
         _actionsMenuHotkey = hotkeys.ActionsMenuHotkey;
         _completeFromSelectionHotkey = hotkeys.CompleteFromSelectionHotkey;
         _quickLookHotkey = hotkeys.QuickLookHotkey;
+        _cycleCategoryHotkey = hotkeys.CycleCategoryHotkey;
         _keywordHistoryPreviousHotkey = hotkeys.KeywordHistoryPreviousHotkey;
         _keywordHistoryNextHotkey = hotkeys.KeywordHistoryNextHotkey;
         _keywordHistoryDeleteHotkey = hotkeys.KeywordHistoryDeleteHotkey;
@@ -178,6 +179,13 @@ public class HotkeySettingsViewModel : ViewModelBase
         set => SetProperty(ref _quickLookHotkey, value);
     }
 
+    private string _cycleCategoryHotkey;
+    public string CycleCategoryHotkey
+    {
+        get => _cycleCategoryHotkey;
+        set => SetProperty(ref _cycleCategoryHotkey, value);
+    }
+
     private string _keywordHistoryPreviousHotkey;
     public string KeywordHistoryPreviousHotkey
     {
@@ -262,6 +270,7 @@ public class HotkeySettingsViewModel : ViewModelBase
         hotkeys.ActionsMenuHotkey = ActionsMenuHotkey;
         hotkeys.CompleteFromSelectionHotkey = CompleteFromSelectionHotkey;
         hotkeys.QuickLookHotkey = QuickLookHotkey;
+        hotkeys.CycleCategoryHotkey = CycleCategoryHotkey;
         hotkeys.KeywordHistoryPreviousHotkey = KeywordHistoryPreviousHotkey;
         hotkeys.KeywordHistoryNextHotkey = KeywordHistoryNextHotkey;
         hotkeys.KeywordHistoryDeleteHotkey = KeywordHistoryDeleteHotkey;

@@ -784,6 +784,7 @@
   "Hotkeys_SelectActions": "開啟操作選單",
   "Hotkeys_SelectComplete": "從選取項目補全搜尋",
   "Hotkeys_SelectQuickLook": "快速預覽",
+  "Hotkeys_CycleCategory": "切換類別篩選",
   "Hotkeys_KeywordHistoryPrevious": "上一條關鍵字紀錄",
   "Hotkeys_KeywordHistoryNext": "下一條關鍵字紀錄",
   "Hotkeys_KeywordHistoryDelete": "刪除目前關鍵字紀錄",

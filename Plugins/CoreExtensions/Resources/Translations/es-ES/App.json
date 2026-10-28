@@ -784,6 +784,7 @@
   "Hotkeys_SelectActions": "Abrir Menú de Acciones",
   "Hotkeys_SelectComplete": "Completar Búsqueda a partir de la Selección",
   "Hotkeys_SelectQuickLook": "Vista Previa Quick Look",
+  "Hotkeys_CycleCategory": "Alternar Filtro de Categoría",
   "Hotkeys_KeywordHistoryPrevious": "Entrada Anterior del Historial de Palabras Clave",
   "Hotkeys_KeywordHistoryNext": "Siguiente Entrada del Historial de Palabras Clave",
   "Hotkeys_KeywordHistoryDelete": "Eliminar Entrada Actual del Historial de Palabras Clave",

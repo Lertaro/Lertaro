@@ -29,9 +29,27 @@ public class QuickSearchWindowInputHandler
         _window.MenuPresenter.ExitActionsMode();
     }
 
+    /// <summary>
+    /// Which way one keypress moves the category filter bar, or 0 when the key is not the configured one.
+    /// </summary>
+    /// <remarks>
+    /// The recorded value is the forward direction and the same key with its Shift bit flipped is the reverse,
+    /// which is what bare Tab and Shift+Tab have always meant here -- and it keeps that pair intact for a user
+    /// who records Ctrl+Tab instead of leaving them with a forward key and no way back. Exact modifier matching
+    /// is what stops a configured Tab from also eating the Ctrl+Tab that completion is holding.
+    /// </remarks>
+    internal static int CategoryCycleDelta(string? hotkey, ModifierKeys current, Key key)
+    {
+        if (!WpfUiHelper.TryParseHotkey(hotkey, out var boundKey, out var modifiers)) return 0;
+        if (key != boundKey) return 0;
+        if (modifiers == current) return 1;
+        return (modifiers ^ ModifierKeys.Shift) == current ? -1 : 0;
+    }
+
     public void HandleWindowPreviewKeyDown(KeyEventArgs e)
     {
-        // Tab cycles the category filters once there is something to filter. Before any input it is left to
+        // The category filter bar is cycled by a key of the user's own (Tab by default) once there is
+        // something to filter. Before any input it is left to
         // the code below, and this has to run BEFORE HandleCommonSearchKeys because that method claims bare
         // Tab unconditionally: it calls EnterSubMenu and then marks the key handled and returns. Left behind
         // that call, the category switch below would never run.
@@ -40,14 +58,17 @@ public class QuickSearchWindowInputHandler
         // EnterSubMenu descends into a submenu (ActionsMenuNavigator) and swallowing the key would take that
         // away whenever the search box still holds the query -- which is always, in this window.
         //
-        // Gated on the box having text rather than on the bar being visible: with text and no matches for the
-        // current filter the bar is hidden, and switching filter is precisely the way back out.
-        if (e.Key == Key.Tab
-            && Keyboard.Modifiers is ModifierKeys.None or ModifierKeys.Shift
-            && !_window.IsInActionsMode
-            && _window.HasSearchText)
+        // Gated on the box having text: before any input the card belongs to the launch panel, and the wheel
+        // over the bar is not what a user there is reaching for.
+        //
+        // An empty setting stands this whole branch down: the key then reaches HandleCommonSearchKeys, which
+        // is what it did before the filter bar existed.
+        var cycleDelta = !_window.IsInActionsMode && _window.HasSearchText
+            ? CategoryCycleDelta(UserSettings.Load().Hotkeys.CycleCategoryHotkey, Keyboard.Modifiers, WpfUiHelper.GetActualKey(e))
+            : 0;
+        if (cycleDelta != 0)
         {
-            _window.CycleCategory(Keyboard.Modifiers == ModifierKeys.Shift ? -1 : 1);
+            _window.CycleCategory(cycleDelta);
             e.Handled = true;
             return;
         }

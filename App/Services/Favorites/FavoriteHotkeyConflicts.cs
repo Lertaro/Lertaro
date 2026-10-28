@@ -38,7 +38,7 @@ internal static class FavoriteHotkeyConflicts
         string[] hotkeys = [settings.ToggleWindowHotkey, settings.QuickSwitchHotkey,
             settings.QuickPanelHotkey, settings.QuickNavigationHotkey, settings.NextItemHotkey,
             settings.PreviousItemHotkey, settings.ActionsMenuHotkey, settings.CompleteFromSelectionHotkey,
-            settings.QuickLookHotkey, settings.KeywordHistoryPreviousHotkey, settings.KeywordHistoryNextHotkey,
+            settings.QuickLookHotkey, settings.CycleCategoryHotkey, settings.KeywordHistoryPreviousHotkey, settings.KeywordHistoryNextHotkey,
             settings.KeywordHistoryDeleteHotkey, settings.OpenFullWindowHotkey, settings.LocalSendSendWindowHotkey,
             settings.StayOpenHotkey];
         foreach (var hotkey in hotkeys) yield return hotkey;

@@ -784,6 +784,7 @@
   "Hotkeys_SelectActions": "동작 메뉴 열기",
   "Hotkeys_SelectComplete": "선택 항목으로 검색어 완성",
   "Hotkeys_SelectQuickLook": "빠른 미리 보기",
+  "Hotkeys_CycleCategory": "분류 필터 전환",
   "Hotkeys_KeywordHistoryPrevious": "이전 키워드 기록 항목",
   "Hotkeys_KeywordHistoryNext": "다음 키워드 기록 항목",
   "Hotkeys_KeywordHistoryDelete": "현재 키워드 기록 항목 삭제",

@@ -784,6 +784,7 @@
   "Hotkeys_SelectActions": "Open Actions Menu",
   "Hotkeys_SelectComplete": "Complete Search from Selection",
   "Hotkeys_SelectQuickLook": "Quick Look Preview",
+  "Hotkeys_CycleCategory": "Cycle Category Filter",
   "Hotkeys_KeywordHistoryPrevious": "Previous Keyword History Entry",
   "Hotkeys_KeywordHistoryNext": "Next Keyword History Entry",
   "Hotkeys_KeywordHistoryDelete": "Delete Current Keyword History Entry",

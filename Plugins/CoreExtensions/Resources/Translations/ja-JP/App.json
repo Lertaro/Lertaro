@@ -784,6 +784,7 @@
   "Hotkeys_SelectActions": "アクションメニューを開く",
   "Hotkeys_SelectComplete": "選択項目で検索語を補完",
   "Hotkeys_SelectQuickLook": "クイックルックプレビュー",
+  "Hotkeys_CycleCategory": "カテゴリフィルターを切り替え",
   "Hotkeys_KeywordHistoryPrevious": "前のキーワード履歴項目",
   "Hotkeys_KeywordHistoryNext": "次のキーワード履歴項目",
   "Hotkeys_KeywordHistoryDelete": "現在のキーワード履歴項目を削除",

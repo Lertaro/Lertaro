@@ -149,6 +149,16 @@
                 Value="{Binding QuickLookHotkey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                 DefaultValue="Alt+P"/>
         </Grid>
+        <Grid x:Name="RowCycleCategory" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" SharedSizeGroup="HotkeyLabel"/>
+                <ColumnDefinition Width="200"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Hotkeys_CycleCategory]}" Margin="0,0,16,0" VerticalAlignment="Center"/>
+            <ctrl:HotkeyRecorderControl Grid.Column="1" Width="200" Height="26"
+                Value="{Binding CycleCategoryHotkey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                DefaultValue="Tab"/>
+        </Grid>
         <Grid x:Name="RowKeywordHistoryPrevious" Margin="0,8,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" SharedSizeGroup="HotkeyLabel"/>

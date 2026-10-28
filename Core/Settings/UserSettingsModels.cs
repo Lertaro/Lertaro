@@ -106,6 +106,10 @@ public class HotkeyPageSettings
     public string PreviousItemHotkey { get; set; } = "Ctrl+P";
     public string ActionsMenuHotkey { get; set; } = "Ctrl+O";
     public string CompleteFromSelectionHotkey { get; set; } = "Ctrl+Tab";
+    // Cycles the quick window's category filter bar. The recorded value goes forward and the same key with
+    // Shift flipped goes back, so the default pair is the Tab / Shift+Tab it has always answered to. Empty
+    // leaves Tab to the result list, which is what it did before the bar existed.
+    public string CycleCategoryHotkey { get; set; } = "Tab";
     public string QuickLookHotkey { get; set; } = "Alt+P";
     public bool QuickNavTriggerOnDoubleClick { get; set; }
     public bool QuickNavTriggerOnMiddleClick { get; set; } = true;
