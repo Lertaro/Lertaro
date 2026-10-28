@@ -1,3 +1,4 @@
+using System.Windows.Media;
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Helpers;
 using Lertaro.PluginSdk.Services;
@@ -194,6 +195,27 @@ public sealed class TypeFilterProviderTests
             "Type_Folder", "Type_App", "Type_Settings", "Type_File",
             "Type_Doc", "Type_Image", "Type_Video", "Type_Audio", "Type_Zip",
         }, ids);
+    }
+
+    [TestMethod]
+    public void EveryBuiltInRow_CarriesAGlyphThatParses()
+    {
+        // The sidebar binds Path.Data straight to this string, so a typo doesn't fail the build and doesn't
+        // even fall back to the default mark -- it draws nothing. Geometry.Parse is the only check that
+        // catches it before a user notices a missing icon.
+        foreach (var item in new TypeFilterProvider().GetFilterGroups().Single().Items)
+        {
+            // A custom row's glyph is whatever the user typed into its Icon field, so an empty one is the
+            // configured answer, not a defect: the sidebar's default mark exists for exactly those rows.
+            if (item.Id.StartsWith("Type_Custom_", StringComparison.Ordinal))
+                continue;
+
+            Assert.IsFalse(string.IsNullOrEmpty(item.IconData), $"{item.Id} has no glyph");
+
+            var geometry = Geometry.Parse(item.IconData!);
+            Assert.IsFalse(geometry.IsEmpty(), $"{item.Id} parses to an empty geometry");
+            Assert.IsFalse(geometry.Bounds.IsEmpty, $"{item.Id} has no bounds to stretch");
+        }
     }
 
     [TestMethod]

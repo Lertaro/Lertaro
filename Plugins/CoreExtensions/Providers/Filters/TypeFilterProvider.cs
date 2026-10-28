@@ -44,10 +44,11 @@ public class TypeFilterProvider : ISidebarFilterProvider
             MatchPredicate = res => !res.IsApplication && res.IsDir
         });
 
-        // No glyph of their own yet: an empty IconData falls back to the sidebar's default mark, which is
-        // better than shipping a path nobody has looked at.
-        AddTypeRow(group, "Type_App", "Filter_TypeApp", ApplicationFilterEnabledKey, SearchCategoryFilter.Application, null);
-        AddTypeRow(group, "Type_Settings", "Filter_TypeSettings", SettingsFilterEnabledKey, SearchCategoryFilter.Settings, null);
+        AddTypeRow(group, "Type_App", "Filter_TypeApp", ApplicationFilterEnabledKey, SearchCategoryFilter.Application,
+            "M3.5 3.5h4v4h-4z M10 3.5h4v4h-4z M16.5 3.5h4v4h-4z M3.5 10h4v4h-4z M10 10h4v4h-4z M16.5 10h4v4h-4z M3.5 16.5h4v4h-4z M10 16.5h4v4h-4z M16.5 16.5h4v4h-4z");
+        // The gear the 设置 instant answers already paint, so one concept wears one shape.
+        AddTypeRow(group, "Type_Settings", "Filter_TypeSettings", SettingsFilterEnabledKey, SearchCategoryFilter.Settings,
+            "M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z");
 
         group.Items.Add(new SidebarFilterItem
         {
@@ -63,8 +64,12 @@ public class TypeFilterProvider : ISidebarFilterProvider
             "M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5.04 10.71l-3 3.83-2.07-2.49L6 18h12l-4.04-4.29z");
         AddTypeRow(group, "Type_Video", "Filter_TypeVideo", VideoFilterEnabledKey, SearchCategoryFilter.Video,
             "M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z");
-        AddTypeRow(group, "Type_Audio", "Filter_TypeAudio", AudioFilterEnabledKey, SearchCategoryFilter.Audio, null);
-        AddTypeRow(group, "Type_Zip", "Filter_TypeZip", ZipFilterEnabledKey, SearchCategoryFilter.Archive, null);
+        // The note the audio preview placeholder already paints.
+        AddTypeRow(group, "Type_Audio", "Filter_TypeAudio", AudioFilterEnabledKey, SearchCategoryFilter.Audio,
+            "M9,3 L9,15.55 A3.5,3.5 0 1 0 11,18.7 L11,7 L18,5 L18,13.55 A3.5,3.5 0 1 0 20,16.7 L20,1 Z");
+        // F0 = even-odd: without it the slot inside the box winds the same way and renders filled.
+        AddTypeRow(group, "Type_Zip", "Filter_TypeZip", ZipFilterEnabledKey, SearchCategoryFilter.Archive,
+            "F0 M4 4h16v4H4z M6 9h12v11H6z M9.5 12.5h5v2h-5z");
 
         AddCustomFilters(group);
         return new[] { group };
