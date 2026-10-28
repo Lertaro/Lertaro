@@ -171,13 +171,10 @@ internal sealed class PinyinNameEvaluator
 
     private static string? TryBuildJoinedTerm(FzfPattern pattern)
     {
-        if (pattern.TargetDrive != null
-            || pattern.OrGroups != null
-            || pattern.HasExclusions
-            || pattern.TermSets.Length < 2)
-        {
+        // Same necessary condition HighlightMask.Mark checks before it will even ask for a live
+        // evaluator -- keep the one definition on FzfPattern so the two bail-outs cannot drift apart.
+        if (!pattern.CouldHaveJoinedTerm)
             return null;
-        }
 
         var plainKind = SearchContext.FuzzyMatchEnabled ? FzfTermKind.Fuzzy : FzfTermKind.Exact;
         var builder = new System.Text.StringBuilder(16);
