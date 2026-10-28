@@ -15,6 +15,7 @@ public class SearchBarLayoutSettingsViewModel : ViewModelBase
     private bool _reopenAsFullWindowOnRepeatHotkey;
     private bool _lockPosition;
     private bool _rememberCategoryFilter;
+    private bool _showCategoryFilter;
     // Reset() clears the quick window's remembered screen position -- there's no bound field for it
     // (the window itself owns Left/Top), so this just stages the intent for Save() to commit.
     private bool _resetPosition;
@@ -28,6 +29,7 @@ public class SearchBarLayoutSettingsViewModel : ViewModelBase
         _reopenAsFullWindowOnRepeatHotkey = userSettings.SearchWindow.ReopenAsFullWindowOnRepeatHotkey;
         _lockPosition = userSettings.SearchWindow.LockPosition;
         _rememberCategoryFilter = userSettings.SearchWindow.RememberCategoryFilter;
+        _showCategoryFilter = userSettings.SearchWindow.ShowCategoryFilter;
     }
 
     public double SearchBarWidth
@@ -80,6 +82,12 @@ public class SearchBarLayoutSettingsViewModel : ViewModelBase
         set => SetProperty(ref _rememberCategoryFilter, value);
     }
 
+    public bool ShowCategoryFilter
+    {
+        get => _showCategoryFilter;
+        set => SetProperty(ref _showCategoryFilter, value);
+    }
+
     public ICommand ResetCommand => new RelayCommand(Reset);
 
     private void Reset()
@@ -92,6 +100,7 @@ public class SearchBarLayoutSettingsViewModel : ViewModelBase
         // the lock on would hand back a window that cannot be moved off wherever it lands.
         LockPosition = false;
         RememberCategoryFilter = false;
+        ShowCategoryFilter = true;
         _resetPosition = true;
     }
 
@@ -103,6 +112,7 @@ public class SearchBarLayoutSettingsViewModel : ViewModelBase
         _userSettings.SearchWindow.ReopenAsFullWindowOnRepeatHotkey = _reopenAsFullWindowOnRepeatHotkey;
         _userSettings.SearchWindow.LockPosition = _lockPosition;
         _userSettings.SearchWindow.RememberCategoryFilter = _rememberCategoryFilter;
+        _userSettings.SearchWindow.ShowCategoryFilter = _showCategoryFilter;
         if (_resetPosition)
         {
             _userSettings.SearchWindow.RelativeLeft = null;

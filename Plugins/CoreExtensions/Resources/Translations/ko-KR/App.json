@@ -477,6 +477,8 @@
   "General_LayoutLockPositionHint": "이 창을 끌 수 없게 하여, 실수로 눌러 놓아둔 자리에서 밀려나는 일을 막습니다. 상태 아이콘 우클릭으로 위치를 초기화하는 것은 그대로 사용할 수 있습니다.",
   "General_LayoutAutoFillClipboard": "빠른 검색 상자에 클립보드 텍스트 자동 입력",
   "General_LayoutAutoFillClipboardHint": "빠른 검색 창을 미리 입력된 텍스트 없이 열 때 새롭고 비어 있지 않은 클립보드 텍스트를 검색어로 사용합니다. 수동 붙여넣기와 다른 창에는 영향을 주지 않습니다.",
+  "General_LayoutShowCategoryFilter": "유형 필터 바 표시",
+  "General_LayoutShowCategoryFilterHint": "빠른 검색창 아래의 유형 탭 줄입니다. 끄면 그 공간이 결과 목록에 쓰입니다. 숨기면 필터가 '전체'로 돌아가므로 보이지 않는 컨트롤 때문에 결과가 좁혀진 채로 남지 않습니다.",
   "General_LayoutRememberFilter": "유형 필터 바를 마지막 탭에 유지",
   "General_LayoutRememberFilterHint": "빠른 검색 창을 닫을 때도 유형 필터 바를 '전체'로 되돌리지 않으므로, 다음에 열었을 때 마지막 탭이 그대로 유지됩니다. 유지되는 것은 이번 실행 중이며, 앱을 다시 시작하면 '전체'로 돌아갑니다.",
   "General_KeepSearchText": "창을 닫아도 검색 상자 내용 유지",

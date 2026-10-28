@@ -477,6 +477,8 @@
   "General_LayoutLockPositionHint": "このウィンドウをドラッグできないようにし、誤ってつかんで置いた場所からずれてしまうのを防ぎます。ステータスアイコンの右クリックによる位置のリセットは引き続き使えます。",
   "General_LayoutAutoFillClipboard": "クイック検索ボックスにクリップボードのテキストを自動入力",
   "General_LayoutAutoFillClipboardHint": "クイック検索ウィンドウを検索文字列なしで開いたとき、新しい空でないクリップボードテキストを検索文字列として使用します。手動貼り付けや他のウィンドウには影響しません。",
+  "General_LayoutShowCategoryFilter": "種類フィルターバーを表示",
+  "General_LayoutShowCategoryFilterHint": "クイック検索ボックスの下にある種類タブの行です。オフにするとその分の高さが結果リストに回ります。非表示にするとフィルターは「すべて」に戻るため、見えない操作で結果が絞られたままになることはありません。",
   "General_LayoutRememberFilter": "種類フィルターバーを前回のタブに保つ",
   "General_LayoutRememberFilterHint": "クイック検索ウィンドウを閉じても種類フィルターバーを「すべて」に戻さないので、次回開いたときも前のタブのままです。保たれるのは今回の起動中だけで、アプリを再起動すると「すべて」に戻ります。",
   "General_KeepSearchText": "ウィンドウを閉じても検索ボックスの内容を保持",

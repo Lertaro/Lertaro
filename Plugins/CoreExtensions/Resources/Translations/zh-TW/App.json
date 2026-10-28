@@ -477,6 +477,8 @@
   "General_LayoutLockPositionHint": "禁止拖曳此視窗，避免誤按把它挪離你放好的位置。按右鍵點擊狀態圖示仍然可以重設位置。",
   "General_LayoutAutoFillClipboard": "自動將剪貼簿文字填入快速搜尋框",
   "General_LayoutAutoFillClipboardHint": "快速視窗在沒有預填內容時，如果剪貼簿中有新的非空文字，就將其用作搜尋內容。手動貼上和其他視窗不受影響。",
+  "General_LayoutShowCategoryFilter": "顯示類型篩選欄",
+  "General_LayoutShowCategoryFilterHint": "快速搜尋方塊下方的那一排類型標籤。關閉後這部分高度讓給結果清單；隱藏時篩選會回到「全部」，不會留下一個看不見卻仍在生效的篩選。",
   "General_LayoutRememberFilter": "記住類型篩選欄最後停留的標籤",
   "General_LayoutRememberFilterHint": "關閉快速搜尋視窗時不把類型篩選欄放回「全部」，下次喚起仍停在你上次選取的標籤。僅在本次執行期間有效，重啟程式後回到「全部」。",
   "General_KeepSearchText": "關閉視窗後保留搜尋框內容",

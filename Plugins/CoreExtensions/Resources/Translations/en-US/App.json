@@ -477,6 +477,8 @@
   "General_LayoutLockPositionHint": "Stops this window being dragged, so a stray press cannot nudge it off the spot you put it on. Right-clicking the status icon still resets its position.",
   "General_LayoutAutoFillClipboard": "Automatically fill the quick search box with clipboard text",
   "General_LayoutAutoFillClipboardHint": "When the quick search window opens without pre-filled text, use new non-empty clipboard text as the search query. Manual paste and other windows are unaffected.",
+  "General_LayoutShowCategoryFilter": "Show the type filter bar",
+  "General_LayoutShowCategoryFilterHint": "The row of type tabs under the quick search box. Turning it off gives the results list that space; hiding it also puts the filter back on All, so results are never narrowed by a control you cannot see.",
   "General_LayoutRememberFilter": "Remember the type filter bar's last tab",
   "General_LayoutRememberFilterHint": "Closing the quick search window leaves the type filter bar on the tab you left it on instead of returning it to All, so the next summon opens there again. This lasts for the current session only: restarting the app puts the bar back on All.",
   "General_KeepSearchText": "Keep search box content after closing",

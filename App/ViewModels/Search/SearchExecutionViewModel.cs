@@ -175,9 +175,17 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
     public void RebuildCategories()
     {
         var rebuilt = BuildCategoryTabs();
+
+        // Same pass, same reason: the bar's switch is a setting a user can change while this window is open.
+        ShowCategoryBar = Core.UserSettings.Load().SearchWindow.ShowCategoryFilter;
+
         // Identity is the row's id, not the object: a provider hands back new instances every call, and a
         // user mid-filter must not be bounced to 全部 because the list was refreshed under them.
-        var keep = rebuilt.FirstOrDefault(row => row.Id == _selectedCategory.Id) ?? rebuilt[0];
+        // A HIDDEN bar is the exception: keeping a filter it applied would leave the user no control to clear
+        // it, so hiding the bar puts it back on 全部.
+        var keep = ShowCategoryBar
+            ? rebuilt.FirstOrDefault(row => row.Id == _selectedCategory.Id) ?? rebuilt[0]
+            : rebuilt[0];
         _categories = rebuilt;
         OnPropertyChanged(nameof(Categories));
         if (keep != _selectedCategory)
@@ -232,8 +240,33 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
     public Visibility ResultsPanelVisibility
     {
         get => _resultsPanelVisibility;
-        set => SetProperty(ref _resultsPanelVisibility, value);
+        set
+        {
+            if (SetProperty(ref _resultsPanelVisibility, value))
+                OnPropertyChanged(nameof(CategoryBarVisibility));
+        }
     }
+
+    // Whether the type filter bar is shown at all -- Settings → Quick Search Window. Re-read with the rows
+    // (see RebuildCategories), because that is the pass an edit made while this window is open reaches.
+    private bool _showCategoryBar = true;
+
+    public bool ShowCategoryBar
+    {
+        get => _showCategoryBar;
+        private set
+        {
+            if (SetProperty(ref _showCategoryBar, value))
+                OnPropertyChanged(nameof(CategoryBarVisibility));
+        }
+    }
+
+    /// <summary>
+    /// The bar's own visibility: with the results panel, and only while the user wants the bar. The panel's
+    /// visibility is left alone -- the results, the separator and the launch panel all read it.
+    /// </summary>
+    public Visibility CategoryBarVisibility
+        => _showCategoryBar ? _resultsPanelVisibility : Visibility.Collapsed;
 
     public Visibility ResultsSeparatorVisibility
     {

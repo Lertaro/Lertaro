@@ -32,6 +32,7 @@ Permite ajustar con precisión las dimensiones geométricas y las prioridades de
 - **Abrir ventana principal al pulsar de nuevo el atajo**: Si la Ventana rápida ya está abierta, pulsar de nuevo su atajo transfiere la búsqueda activa a la Ventana principal.
 - **Bloquear posición**: Evita que la barra se mueva accidentalmente al arrastrarla con el ratón.
 - **Rellenar automáticamente el texto del portapapeles**: Desactivado por defecto. Cuando la Ventana de búsqueda rápida se abre sin texto preintroducido, usa como consulta el texto nuevo y no vacío del portapapeles. El pegado manual y las demás ventanas no se ven afectados.
+- **Mostrar la barra de filtros por tipo**: Activado por defecto. Es la fila de pestañas de tipo bajo el cuadro de búsqueda rápida (Todo, Aplicaciones, Documentos…). Desactívalo para ceder ese espacio a la lista de resultados; al ocultar la barra el filtro vuelve a **Todo**, así que los resultados nunca quedan reducidos por un control que no ves.
 - **Recordar la última pestaña de la barra de filtros por tipo**: Desactivado por defecto, así que al cerrar la ventana rápida la barra vuelve a **Todo**; al activarlo, la siguiente apertura se hace en la pestaña donde la dejaste. Solo dura la sesión actual: al reiniciar la aplicación la barra vuelve a «Todo».
 - **Restablecer diseño**: Restaura todas las propiedades de diseño a sus valores predeterminados.
 

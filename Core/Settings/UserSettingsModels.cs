@@ -199,6 +199,11 @@ public class SearchWindowSettings
     // window hides. Session-only, like KeepSearchText: the tab is never written to the settings file, so a
     // restart starts at 全部 whichever way this is set.
     public bool RememberCategoryFilter { get; set; } = false;
+    // Shows the type filter bar under the quick window's search box. On by default -- it is the only way to
+    // narrow a query to one kind of entry, and a user who never uses it can give the space back to the
+    // results. Hiding it also puts the filter back on 全部 (see SearchExecutionViewModel.RebuildCategories),
+    // so a remembered tab cannot keep filtering with no visible control to clear it.
+    public bool ShowCategoryFilter { get; set; } = true;
 }
 
 public class PreviewWindowSettings

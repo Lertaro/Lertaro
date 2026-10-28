@@ -150,7 +150,7 @@
                      ItemsSource="{Binding Categories}"
                      SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"
                      PreviewMouseWheel="CategoryBar_PreviewMouseWheel"
-                     Visibility="{Binding ResultsPanelVisibility}">
+                     Visibility="{Binding CategoryBarVisibility}">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <TextBlock Text="{Binding DisplayName}" Opacity="0.85"/>
