@@ -313,11 +313,17 @@ report <s>20m \audio
 
 插件标记由插件提供，每个标记的含义由各插件自行决定。内置的 `CoreExtensions` 插件提供了文件分类过滤器：
 
-- `\doc`：文档（`*.doc; *.docx; *.pdf; *.txt; *.ppt; *.pptx; *.xls; *.xlsx; *.csv; *.rtf; *.md; *.wps; *.et; *.dps; *.odf; *.odt; *.ods; *.odg; *.odb; *.eqp; *.mmx; *.tex`）
-- `\img`：图片（`*.jpg; *.jpeg; *.png; *.gif; *.bmp; *.webp; *.ico; *.svg; *.tif; *.tiff; *.psd; *.ai; *.jxl; *.avif`）
-- `\video`：视频（`*.mp4; *.mkv; *.avi; *.mov; *.wmv; *.flv; *.m4v; *.webm; *.3gp; *.rmvb; *.ts`）
-- `\audio`：音频（`*.mp3; *.wav; *.flac; *.aac; *.ogg; *.m4a; *.wma; *.ape`）
-- `\zip`：压缩包（`*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso; *.wim; *.esd`）
+- `\doc`：文档类（`*.txt; *.md; *.log; *.doc; *.docx; *.rtf; *.odt; *.pdf; *.xls; *.xlsx; *.csv; *.ods; *.ppt; *.pptx; *.odp; *.epub; *.mobi; *.one; *.vsdx; *.vsd; *.wps; *.et; *.dps; *.odf; *.odg; *.odb; *.eqp; *.mmx; *.tex; *.ini; *.conf`）
+- `\img`：图片类（`*.jpg; *.jpeg; *.png; *.jfif; *.gif; *.bmp; *.webp; *.svg; *.ico; *.tif; *.tiff; *.heic; *.heif; *.avif; *.raw; *.psd; *.ai; *.jxl`）
+- `\video`：视频类（`*.mp4; *.mkv; *.avi; *.mov; *.wmv; *.flv; *.webm; *.m4v; *.mpg; *.mpeg; *.ts; *.m2ts; *.mts; *.3gp; *.rmvb; *.rm; *.vob; *.ogv`）
+- `\audio`：音频类（`*.mp3; *.wav; *.flac; *.aac; *.ogg; *.oga; *.m4a; *.wma; *.ape; *.opus; *.aiff; *.aif; *.mid; *.midi; *.dsf; *.dff`）
+- `\zip`：压缩包类（`*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso; *.wim; *.esd`）
+- `\app`：程序类（`*.exe; *.url; *.appref-ms; *.msi; *.msix; *.appx; *.bat; *.cmd; *.com`）
+
+> [!NOTE]
+> 这六条默认规则与下面两处使用同一张分类表：完整搜索窗口左侧的类型过滤器，以及快速窗口搜索框下方的**类型筛选栏**。同一个文件在三处不会被认成三种类型。规则本身可以在**设置 → 插件 → CoreExtensions → 配置 → 自定义过滤器**里改，改完三处同时生效。
+>
+> 指向某个文件的快捷方式按其**目标**归类，而不是按“它是快捷方式”归类：指向文档的快捷方式算文档，只有目标无法读取时才退回按程序处理。
 
 **示例**：
 
@@ -328,7 +334,7 @@ report <s>20m \audio
 
 前缀字符可在 **设置 → 通用 → 系统 → 插件标记前导字符** 下配置，默认为 `\`。新配置不能占用搜索语法字符、`#`、`$`、`%` 或已配置的触发符；空白和双引号也不可用。结果类型和即时答案会按当前或待保存的插件前缀校验。已有冲突值只提示，等待手动修改；使用合法文件名字符作为前缀时，会提示可能与普通搜索词冲突。
 
-完整搜索窗口左侧的类型过滤侧边栏在同一插件的 **搜索过滤器** 分组中单独配置。侧边栏过滤器名称仅用于显示；前缀引用只在侧边栏过滤器规则内部解析，并指向 **自定义过滤器** 列表中的关键字，包括已停用的自定义过滤器。
+完整搜索窗口的侧边栏筛选与快速窗口的类型筛选栏用的是同一批筛选行，在同一插件的**搜索过滤器**设置组中配置，并不是两套独立设置。侧边栏筛选的名称仅用于显示；前缀引用只在侧边栏筛选的规则字段中解析，并引用**自定义过滤器**列表中的关键字，包括未启用的过滤器。
 
 ### 链式标记
 
