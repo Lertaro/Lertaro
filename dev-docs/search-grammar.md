@@ -4,7 +4,7 @@
 
 ## 适用范围与核对基线
 
-本文写的是 `feat-search-reimpl` 分支的语法，该分支仍未合入 main。核对基线：main = `06145fda`，分支 HEAD = `9ed7facd`（领先 28 个提交、落后 0，合并基就是 `06145fda`）。引用任何 `:term`、`/regex/` 结论前先确认在哪条线上。文末附录的 `file:line` 已对着这棵工作树逐条重核（含正则子句接线的修正）；分支再次 rebase 后行号与哈希仍会过期，核对不上时以文件与函数名为准。
+本文写的是 `feat-search-reimpl` 分支的语法，该分支仍未合入 main。核对基线：main = `38a4de50`，分支 HEAD = `d6502c38`（领先 31 个提交、落后 0，合并基就是 `38a4de50`）。引用任何 `:term`、`/regex/` 结论前先确认在哪条线上。文末附录的 `file:line` 已对着这棵工作树逐条重核（含正则子句接线的修正）；分支再次 rebase 后行号与哈希仍会过期，核对不上时以文件与函数名为准。
 
 只在 `feat-search-reimpl` 上成立的语法：
 
@@ -188,7 +188,7 @@ main 有两条测试原先靠旧语法守着这些 kind：`OperatorTerms_AreLite
 
 ## 附录：证据
 
-以下 `file:line` 逐条对着 `feat-search-reimpl`（`9ed7facd`）与 main（`06145fda`）的当前工作树核过。分支每次 rebase 都会让行号过期，核对不上时以文件与函数名为准——行号随分支变动；提交一律按标题引用，rebase 会重写哈希。
+以下 `file:line` 逐条对着 `feat-search-reimpl`（`d6502c38`）与 main（`38a4de50`）的当前工作树核过。分支每次 rebase 都会让行号过期，核对不上时以文件与函数名为准——行号随分支变动；提交一律按标题引用，rebase 会重写哈希。
 
 | 事实 | 出处 |
 |---|---|
@@ -210,8 +210,8 @@ main 有两条测试原先靠旧语法守着这些 kind：`OperatorTerms_AreLite
 | 名称级对照测试两侧各一条 | `Tests/Core/IndexV2/Search/PinyinNameEvaluatorTests.cs:322`（`RegexClause_IsAnsweredFromTheNameNeverFromTheReadings`） |
 | 纯排除的 pattern 不占 mask 位；正则只借必需字面量预筛 | `Core/SearchIndex/Fzf/FzfPattern.cs:112`（`HasPositiveTerm`）、`:78-99`（`RequiredRegexLiteral`）、`Core/IndexV2/Search/SearchMatcher.cs:119-121`（并进 `RequiredMask`）、`Core/IndexV2/Search/PathTermFallback.cs:196`；main 侧为 `FzfPattern.cs:53` 的 `HasPositiveTerms` |
 | `! ' ^ $` 退役为字面字符 | `TermTriggers.cs:10`，`Tests/Core/SearchIndex/FuzzyMatcherTests.cs:71-83`（`IsMatch_RetiredOperatorCharacters_AreLiteralText`） |
-| main 靠旧语法守 kind 的两条测试 | main `Tests/Core/IndexV2/Search/PinyinNameEvaluatorTests.cs:156`（`OperatorTerms_AreLiteralOnly`）、main `Tests/Core/SearchIndex/Fzf/FzfPatternAliasReadingTests.cs:52`（`AliasReading_LeavesAnOperatorsOwnKindAlone`） |
-| 锚定 kind 的删除 | `refactor(search): drop the anchored term kinds nothing produces`；`Core/SearchIndex/Fzf/FzfAlgorithm.cs:3-6`（`FzfTermKind` 只剩两个成员）、`:36`（`Match` 只剩 `Fuzzy`/`Exact` 两条 arm）、`FzfBytePattern.cs:78` 同形，main 同文件 `:3-10` 仍带 `ExactBoundary`/`Prefix`/`Suffix`/`Equal` |
+| main 靠旧语法守 kind 的两条测试 | main `Tests/Core/IndexV2/Search/PinyinNameEvaluatorTests.cs:169`（`OperatorTerms_AreLiteralOnly`）、main `Tests/Core/SearchIndex/Fzf/FzfPatternAliasReadingTests.cs:52`（`AliasReading_LeavesAnOperatorsOwnKindAlone`） |
+| 锚定 kind 的删除 | `refactor(search): drop the anchored term kinds nothing produces`；`Core/SearchIndex/Fzf/FzfAlgorithm.cs:3-6`（`FzfTermKind` 只剩两个成员）、`:36`（`Match` 只剩 `Fuzzy`/`Exact` 两条 arm）、`FzfBytePattern.cs:78` 同形；main 的 `FzfAlgorithm.cs:3-11` 仍带 `ExactBoundary`/`Prefix`/`Suffix`/`Equal` |
 | grid 层的删除 | `b8e1061c`（main）；分支侧曾存在的同名提交在 rebase 后已丢弃，只剩 `FzfPatternAliasReadingTests.cs` 的迁移 |
 | 排序键只有 `s c m a f`，阈值需要第二个触发符 | `Plugins/CoreExtensions/Providers/QueryTokens/SortFilterQueryTokenProvider.cs:27-28, 31-38, 64`（`AscendingTrigger`/`DescendingTrigger`、`KeysByLetter`、`IsTrigger`）、`:102-113`（`SplitThreshold`）、`:117-150`（`BuildThresholdPredicate`） |
 | 无人认领的 Token 得到空结果 | `App/ViewModels/Search/QueryTokenDispatcher.cs:50-51` |

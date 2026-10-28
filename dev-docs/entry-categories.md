@@ -13,14 +13,14 @@ It lives in PluginSdk because that is the only assembly every consumer can reach
 | Surface | What it takes from the table |
 | :--- | :--- |
 | Engine row filter (`NameSearch.CategoryAdmits`) | `Matches`, per row, while the index is walked |
-| Core Extensions `:@keyword` rules | `RuleOf` -- the default rule text is generated, never hand-copied |
+| Core Extensions category-filter tokens | `RuleOf` -- the default rule text is generated, never hand-copied |
 | Full window's sidebar type filters (`TypeFilterProvider`) | `Categorize` per row, and `Category` on each row |
 | Quick window's type filter bar | the same sidebar rows: it reads `ISidebarFilterProvider`, so it is the settings, not a list |
 
 ## One filter list, two triggers (2026-10-27)
 
 `CustomFilters` is the single user-editable category list: `Enabled` / `Keyword` / `Label` / `Rule` / `ShowAsRow`
-/ `Icon`. Typing `:@keyword` reaches every enabled entry; `ShowAsRow` also makes it a clickable row, which puts it
+/ `Icon`. Typing the token prefix plus a keyword reaches every enabled entry; `ShowAsRow` also makes it a clickable row, which puts it
 in the full window's sidebar and, through the provider above, in the quick window's type filter bar. There is no second
 list: `SidebarCustomFilters` was the same model with the same rule language, and the split let one category be
 defined twice with two different rules (the row winning for clicks, the keyword for typing) while its trigger word
@@ -37,7 +37,7 @@ name as `Label`. The legacy key is then removed, so the merge is idempotent.
 custom `@` rule row leaves it null and filters per row only. Don't re-derive a category from a row's `Id` string.
 
 Before the merge there were five lists to keep in step by hand -- Core's wire copy, the app's copy, the
-`:@` defaults, their verbatim schema twin, and the sidebar's three shorter sets -- and two of them had already
+the built-in keyword defaults, their verbatim schema twin, and the sidebar's three shorter sets -- and two of them had already
 drifted inside a single change (one video set carried `.mts`/`.ogv`, its twin did not). If a category is added or an extension moves, change the table here.
 
 ## Decisions that look like bugs
@@ -56,7 +56,7 @@ drifted inside a single change (one video set carried `.mts`/`.ogv`, its twin di
 - **Network drives and the live-scan fallback are not narrowed at the source** (`ponytail:` note on
   `SearchService.SearchStreamingAsync`). The row filter in App still keeps the displayed list pure, so this costs
   budget only.
-- **`.ts` means video, not TypeScript.** Inherited from the user's own `:@video` rule, which already said `*.ts`.
+- **`.ts` means video, not TypeScript.** Inherited from the user's own `\video` rule, which already said `*.ts`.
 - **Application rows are filed by their path first, their own claim second.** The app indexer marks a shortcut's
   row as an application, so a shortcut to a document would otherwise sit under 应用 because the shell can launch it.
 
@@ -79,7 +79,7 @@ added without the `+1`.
 Naming, so the copy and these docs stop inventing synonyms: **type filter bar** (类型筛选栏) is the surface, a **tab**
 (标签) is one item on it, a **row** (筛选行 / 篩選列) is one entry of the table before it is rendered, and the full
 window's panel is the **sidebar filter** (侧边栏筛选). 分类/category stays for the identity a row carries
-(`SidebarFilterItem.Category`, the `:@keyword` list), and the code keeps its `Category*` names (`CategoryBar`,
+(`SidebarFilterItem.Category`, the custom-filter list), and the code keeps its `Category*` names (`CategoryBar`,
 `SelectedCategory`, `RememberCategoryFilter`): the copy names what the user sees, the code names what the row is.
 One page or one settings string uses the full name at its first mention and may shorten afterwards. 档位 is not
 available for a tab -- it already means an index rule's priority (排除/低/正常/高, see `index-rules.md`).
@@ -89,7 +89,7 @@ on every activation and after a settings save, and matched by `Id` so a refresh 
 tab. The tab is not kept across summons: `QuickSearchWindowController.FinishHide` calls `ResetCategoryFilter`,
 which puts the bar back on 全部 unless `SearchWindowSettings.RememberCategoryFilter` is on, and that memory is
 session-only -- the id is never written to the settings file, so a restart opens on 全部 either way.
-`SidebarFilterItem.Category` is what lets the engine narrow the walk; a custom `:@` row leaves it null and is
+`SidebarFilterItem.Category` is what lets the engine narrow the walk; a custom row leaves it null and is
 filtered per row instead. `SearchExecutionViewModel.ActiveCategoryFilter` is deliberately `null` for 全部 -- a
 predicate that keeps every row is not "no filter", and passing one would silently disable the display cap.
 

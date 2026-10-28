@@ -313,11 +313,17 @@ report <s>20m \audio
 
 外掛模組標記由外掛模組提供，每個標記的意義由外掛模組自行決定。內建的 `CoreExtensions` 外掛模組提供檔案分類篩選器：
 
-- `\doc`：文件（`*.doc; *.docx; *.pdf; *.txt; *.ppt; *.pptx; *.xls; *.xlsx; *.csv; *.rtf; *.md; *.wps; *.et; *.dps; *.odf; *.odt; *.ods; *.odg; *.odb; *.eqp; *.mmx; *.tex`）
-- `\img`：圖片（`*.jpg; *.jpeg; *.png; *.gif; *.bmp; *.webp; *.ico; *.svg; *.tif; *.tiff; *.psd; *.ai; *.jxl; *.avif`）
-- `\video`：影片（`*.mp4; *.mkv; *.avi; *.mov; *.wmv; *.flv; *.m4v; *.webm; *.3gp; *.rmvb; *.ts`）
-- `\audio`：音訊（`*.mp3; *.wav; *.flac; *.aac; *.ogg; *.m4a; *.wma; *.ape`）
-- `\zip`：壓縮檔（`*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso; *.wim; *.esd`）
+- `\doc`：文件類（`*.txt; *.md; *.log; *.doc; *.docx; *.rtf; *.odt; *.pdf; *.xls; *.xlsx; *.csv; *.ods; *.ppt; *.pptx; *.odp; *.epub; *.mobi; *.one; *.vsdx; *.vsd; *.wps; *.et; *.dps; *.odf; *.odg; *.odb; *.eqp; *.mmx; *.tex; *.ini; *.conf`）
+- `\img`：圖片類（`*.jpg; *.jpeg; *.png; *.jfif; *.gif; *.bmp; *.webp; *.svg; *.ico; *.tif; *.tiff; *.heic; *.heif; *.avif; *.raw; *.psd; *.ai; *.jxl`）
+- `\video`：影片類（`*.mp4; *.mkv; *.avi; *.mov; *.wmv; *.flv; *.webm; *.m4v; *.mpg; *.mpeg; *.ts; *.m2ts; *.mts; *.3gp; *.rmvb; *.rm; *.vob; *.ogv`）
+- `\audio`：音訊類（`*.mp3; *.wav; *.flac; *.aac; *.ogg; *.oga; *.m4a; *.wma; *.ape; *.opus; *.aiff; *.aif; *.mid; *.midi; *.dsf; *.dff`）
+- `\zip`：壓縮檔類（`*.zip; *.rar; *.7z; *.tar; *.gz; *.bz2; *.xz; *.iso; *.wim; *.esd`）
+- `\app`：應用程式類（`*.exe; *.url; *.appref-ms; *.msi; *.msix; *.appx; *.bat; *.cmd; *.com`）
+
+> [!NOTE]
+> 這六條預設規則與下列兩處使用同一張分類表：完整搜尋視窗左側的類型篩選器，以及快速視窗搜尋框下方的**類型篩選欄**。同一個檔案在三處不會被認成三種類型。規則本身可以在**設定 → 外掛模組 → CoreExtensions → 設定 → 自訂篩選器**裡修改，改完三處同時生效。
+>
+> 指向某個檔案的捷徑按其**目標**歸類，而不是按「它是捷徑」歸類：指向文件的捷徑算文件，只有在目標無法讀取時才退回按應用程式處理。
 
 **範例**：
 
@@ -328,7 +334,7 @@ report <s>20m \audio
 
 前綴字元可在 **設定 → 一般 → 系統 → 外掛模組查詢標記前綴** 下設定，預設為 `\`。新設定不能占用搜尋語法字元、`#`、`$`、`%` 或已設定的觸發符；空白和雙引號也不可用。結果類型和即時答案會按目前或待儲存的外掛前綴驗證。既有衝突值只顯示提示，等待手動修改；使用合法檔名字元作為前綴時，會提示可能與一般搜尋詞衝突。
 
-完整搜尋視窗左側的類型篩選側邊欄是在同一個外掛模組的**搜尋篩選器**群組中單獨設定的。側邊欄篩選器名稱僅供顯示；前綴引用只會在側邊欄篩選規則內部解析，並指向**自訂篩選器**清單中的關鍵字，包含已停用的自訂篩選器。
+完整搜尋視窗的側邊欄篩選與快速視窗的類型篩選欄使用同一批篩選列，在同一外掛模組的**搜尋篩選器**設定群組中設定，並非兩套獨立設定。側邊欄篩選的名稱只用於顯示；前綴引用只在側邊欄篩選的規則欄位中解析，並引用**自訂篩選器**清單中的關鍵字，包括未啟用的篩選器。
 
 ### 鏈式標記
 
