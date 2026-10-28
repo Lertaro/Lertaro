@@ -156,7 +156,11 @@ internal static class HighlightMask
     {
         witness = AcceptedMatchWitness.LegacyUnknown;
         var joined = pinyinWitness ?? default;
-        if (pinyinWitness is null)
+        // CouldHaveJoinedTerm is a cheap, pattern-only precondition for HasJoinedBranch: when it is false
+        // the evaluator would always answer "no joined branch" anyway, so this skips looking one up at
+        // all for the overwhelmingly common bare single-word query -- every call this function gets for a
+        // plain query like "e" used to pay a PinyinNameEvaluator.ForPattern lookup for nothing.
+        if (pinyinWitness is null && pattern.CouldHaveJoinedTerm)
         {
             // No accepted witness from the caller: ask the evaluator which branch won. A caller that already
             // holds the matcher's answer must not ask twice -- the second TryScore scored the same text a
