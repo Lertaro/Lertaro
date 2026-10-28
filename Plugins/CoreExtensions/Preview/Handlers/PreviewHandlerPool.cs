@@ -6,7 +6,8 @@ namespace Lertaro.Plugins.CoreExtensions.Preview.Handlers;
 // prevhost surrogates) alive across previews means navigating between files of a type — or back and forth
 // between types — reuses the same handler instead of re-spawning prevhost every time. Idle pooled handlers
 // are Unloaded (holding no file lock); everything is released together on EndPreviewSession (owner closed).
-// A small LRU cap bounds how many prevhost processes stay resident. UI-thread / STA only.
+// A small LRU cap bounds how many prevhost processes stay resident. Owned by PreviewStaWorker's apartment: every
+// method runs there, since that is where the handlers were created.
 internal sealed class PreviewHandlerPool
 {
     private const int MaxHandlers = 4;

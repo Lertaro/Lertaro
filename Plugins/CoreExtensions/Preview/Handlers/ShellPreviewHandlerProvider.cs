@@ -46,6 +46,7 @@ public class ShellPreviewHandlerProvider : IFilePreviewProvider, IPreviewSession
             : new DefaultMetadataPreviewProvider().CreatePreview(path, isDir);
     }
 
-    // Session over (owner window closed): release the pooled handlers and their prevhost surrogates.
-    public void EndPreviewSession() => _pool.ReleaseAll();
+    // Session over (owner window closed): release the pooled handlers and their prevhost surrogates. Posted, because
+    // the handlers live in the preview apartment and releasing them there queues behind any render still running.
+    public void EndPreviewSession() => PreviewStaWorker.Post(_pool.ReleaseAll);
 }
