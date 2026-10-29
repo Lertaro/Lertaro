@@ -44,17 +44,13 @@ internal static class ServicePipe
         // Probed because connecting turned out to be the largest single cost before the first row of a
         // session, and the three steps here have nothing in common: opening the pipe, asking the OS who
         // serves it, and asking the SCM which PID the service has (cached, see QueryServiceProcessId).
-        SearchPipelineProbe.Write("pipe.enter");
         var pipe = new NamedPipeClientStream(".", Name, PipeDirection.InOut, PipeOptions.Asynchronous,
             System.Security.Principal.TokenImpersonationLevel.Impersonation);
         try
         {
             await pipe.ConnectAsync(timeoutMs, token).ConfigureAwait(false);
-            SearchPipelineProbe.Write("pipe.connected");
             var serverPid = HookPipePeer.TryGetServerProcessId(pipe);
-            SearchPipelineProbe.Write("pipe.peer");
             var servicePid = QueryServiceProcessId();
-            SearchPipelineProbe.Write("pipe.scm");
             if (!IsTrustedServer(serverPid, servicePid, AllowUnregisteredServer))
             {
                 throw new UnauthorizedAccessException(

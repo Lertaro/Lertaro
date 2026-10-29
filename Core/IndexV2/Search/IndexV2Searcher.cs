@@ -18,7 +18,6 @@ public static class IndexV2Searcher
             return;
 
         var parsed = SearchQueryParser.Parse(query);
-        Lertaro.Core.Services.Search.SearchPipelineProbe.Write("idx.parse-done", "pathMode=" + parsed.IsPathMode);
 
         // Only the plain name-search shape is cached. A path-mode query walks one directory and returns
         // almost instantly, and its row count is unbounded (the full window asks for int.MaxValue), so a
@@ -52,7 +51,6 @@ public static class IndexV2Searcher
         index.Read<object?>((snapshot, delta) =>
         {
             var directoryFilterLower = DirectoryFilterResolver.NormalizeFilter(directoryFilter);
-            Lertaro.Core.Services.Search.SearchPipelineProbe.Write("idx.read-acquired", snapshot.SourceRoot);
             if (directoryFilterLower != null && directoryFilterLower.Equals(snapshot.SourceRoot.ToLowerInvariant(), StringComparison.Ordinal))
                 directoryFilterLower = null;
 

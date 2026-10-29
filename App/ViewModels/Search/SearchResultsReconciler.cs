@@ -14,12 +14,9 @@ internal static class SearchResultsReconciler
         AppSearchResult? currentSelection,
         Action<AppSearchResult?> setSelection)
     {
-        Lertaro.App.Helpers.Diagnostics.QuickSearchProbe.Mark("ui.enter");
         var list = newResults as List<AppSearchResult> ?? new List<AppSearchResult>(newResults);
         results.ReconcileTo(list, ItemsEqual);
-        Lertaro.App.Helpers.Diagnostics.QuickSearchProbe.Mark("ui.reconciled");
         SyncMutableDisplayState(results, list);
-        Lertaro.App.Helpers.Diagnostics.QuickSearchProbe.Mark("ui.synced");
 
         // Only re-select when the current one is gone or no longer selectable, so streaming updates
         // don't yank the highlight back to the top.
@@ -38,7 +35,6 @@ internal static class SearchResultsReconciler
         }
 
         setSelection(firstSelectable);
-        Lertaro.App.Helpers.Diagnostics.QuickSearchProbe.Mark("ui.selected");
     }
 
     // Internal (not private) so SearchViewModel.RenderFinal can reconcile FilteredResults with this

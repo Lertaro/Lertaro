@@ -116,7 +116,6 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
             if (SetProperty(ref _searchQuery, query))
             {
                 _lastQuery = query;
-                Lertaro.App.Helpers.Diagnostics.QuickSearchProbe.Begin(_lastQuery);
                 // The type bar appears with the first keystroke and leaves with the last one; both it and the
                 // Tab cycle read the typed-text condition, so they have to be re-announced here. Announced
                 // before the actions-mode return: leaving actions mode must not keep a stale hidden bar.

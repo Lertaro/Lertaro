@@ -128,7 +128,6 @@ internal sealed class SearchStreamRenderer
                         return;
                     if (runShortcutSupplement && ScopedSearchRunner.IsSupplementShortcutPath(result.Path))
                         Volatile.Write(ref shortcutSurfaced, 1);
-                    if (streamedCount == 0) Lertaro.App.Helpers.Diagnostics.QuickSearchProbe.Mark("first", true);
                     streamedResponse.Add(result);
                     streamedCount++;
                     Volatile.Write(ref lastArrivalMs, (long)SearchPerf.Ms(perfStart));
@@ -185,15 +184,12 @@ internal sealed class SearchStreamRenderer
                 mappedSource = snapshot;
                 mappedRows = new List<AppSearchResult>(uiResults);
             }
-            Lertaro.App.Helpers.Diagnostics.QuickSearchProbe.Mark(final ? "final.mapped" : "mapped", true);
             var localMatches = getLocalSnapshot?.Invoke();
-            Lertaro.App.Helpers.Diagnostics.QuickSearchProbe.Mark("local");
             // Not just when the folder contributed rows: the global results still have to be re-ordered so
             // the folder's subfolders come before the rest of the drive. getLocalSnapshot is non-null
             // exactly for the inline window, which is the only one that groups by proximity.
             if (localMatches != null)
                 uiResults = InlineListSearchHelper.MergeLocalMatches(uiResults, localMatches, query, contextDirectory);
-            Lertaro.App.Helpers.Diagnostics.QuickSearchProbe.Mark("merge");
 
             if (final && uiResults.Count == 0)
                 uiResults.Add(SearchResultMapper.CreateNoResultsResult(query));
@@ -215,8 +211,6 @@ internal sealed class SearchStreamRenderer
                 if (searchVersion != _getSearchVersion() || token.IsCancellationRequested)
                     return;
                 onResultsUpdated(uiResults, statusText, final);
-                Lertaro.App.Helpers.Diagnostics.QuickSearchProbe.Mark(final ? "final.pushed" : "pushed");
-                if (final) Lertaro.App.Helpers.Diagnostics.QuickSearchProbe.End(uiResults.Count);
                 if (!final)
                     onReceivedCountUpdated?.Invoke(received);
             }, DispatcherPriority.Normal, token).Task.ConfigureAwait(false);
@@ -318,7 +312,6 @@ internal sealed class SearchStreamRenderer
             }
             else
             {
-                Lertaro.App.Helpers.Diagnostics.QuickSearchProbe.Mark("sent");
                 await _searchService.SearchStreamingAsync(query, fileLimit, appLimit, searchScope, Accumulate, token, () => _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                 {
                     if (!token.IsCancellationRequested && searchVersion == _getSearchVersion())
