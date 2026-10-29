@@ -102,6 +102,86 @@ public class SearchEngine : IDisposable
     /// </summary>
     public UsnIndexer.IndexerStatus GetStatus() => _drives.BuildStatusSnapshot();
 
+    /// <summary>
+    /// Restores the single-character query pages saved by a previous run, and fills whatever is missing.
+    /// </summary>
+    /// <remarks>
+    /// The in-memory page cache only lives as long as this process, so every service restart made the first
+    /// searches of a session pay for a full index scan again. A saved page is bound to one snapshot (drive,
+    /// USN journal id, next USN); a page whose snapshot no longer matches is discarded rather than trusted,
+    /// so a stale answer cannot be served. Only single characters are covered: they are what a session
+    /// starts with, they are the broadest and slowest scans, and the whole set is a few megabytes.
+    ///
+    /// Runs off the startup path on a below-normal thread; nothing waits for it.
+    /// </remarks>
+    public void WarmSingleCharacterPages(CancellationToken token = default)
+    {
+        var parent = System.IO.Path.GetDirectoryName(IndexCacheDir);
+        if (string.IsNullOrEmpty(parent))
+            return;
+        var cacheDir = System.IO.Path.Combine(parent, "search-cache");
+
+        // Restore first: a drive whose saved page still matches its snapshot answers immediately, and only
+        // the rest are scanned below.
+        var missing = new List<Lertaro.Core.IndexV2.LiveIndex>();
+        foreach (var index in _indexer._recordIndexes.Values)
+        {
+            if (token.IsCancellationRequested)
+                return;
+            try
+            {
+                var identity = index.SnapshotIdentity;
+                var path = Lertaro.Core.IndexV2.Search.QueryPageCacheDiskStore.PathFor(cacheDir, identity.SourceKey);
+                var saved = Lertaro.Core.IndexV2.Search.QueryPageCacheDiskStore.Load(
+                    path, identity.SourceKey, identity.JournalId, identity.NextUsn);
+                if (saved != null)
+                    index.SearchPages.Import(saved, index.Revision);
+                else
+                    missing.Add(index);
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[SearchEngine] Could not restore search pages: {ex.Message}", LogLevel.Debug);
+                missing.Add(index);
+            }
+        }
+
+        if (missing.Count == 0)
+            return;
+
+        // Generate: one pass of the whole alphabet over every drive, which stores a page per drive per query.
+        foreach (var query in "0123456789abcdefghijklmnopqrstuvwxyz")
+        {
+            if (token.IsCancellationRequested)
+                return;
+            try
+            {
+                SearchStreaming(query.ToString(), 200, 20, null, _ => { }, token);
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[SearchEngine] Search page warm-up failed for a query: {ex.Message}", LogLevel.Debug);
+            }
+        }
+
+        foreach (var index in missing)
+        {
+            if (token.IsCancellationRequested)
+                return;
+            try
+            {
+                var identity = index.SnapshotIdentity;
+                var path = Lertaro.Core.IndexV2.Search.QueryPageCacheDiskStore.PathFor(cacheDir, identity.SourceKey);
+                Lertaro.Core.IndexV2.Search.QueryPageCacheDiskStore.Save(
+                    path, identity.SourceKey, identity.JournalId, identity.NextUsn, index.SearchPages.Snapshot());
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[SearchEngine] Could not save search pages: {ex.Message}", LogLevel.Debug);
+            }
+        }
+    }
+
     private void RefreshDrivesInStatus()
         => _drives.RefreshDrivesInStatus();
 

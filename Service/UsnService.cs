@@ -62,6 +62,42 @@ public class UsnService : ServiceBase
             _pipeServer.Start(_engine, Stop);
             RelaunchAppAfterUpdate();
             Logger.Log("[UsnService] Service Started successfully.");
+
+            // Restore (or build) the saved single-character search pages once the first drive is usable.
+            // Off the startup path and below normal priority: nothing waits for it, and a failure only costs
+            // the first search of a session the scan it would have done anyway.
+            _ = Task.Factory.StartNew(async () =>
+            {
+                try
+                {
+                    System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.BelowNormal;
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    var deadline = Environment.TickCount64 + 120_000;
+                    while (Environment.TickCount64 < deadline)
+                    {
+                        var status = _engine?.GetStatus();
+                        var ready = status?.Drives?.Count(drive =>
+                            string.Equals(drive.State, "ready", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(drive.State, "cached", StringComparison.OrdinalIgnoreCase)) ?? 0;
+                        if (ready > 0)
+                            break;
+                        await Task.Delay(500).ConfigureAwait(false);
+                    }
+
+                    _engine?.WarmSingleCharacterPages();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log($"[UsnService] Search page warm-up failed: {ex.Message}", LogLevel.Debug);
+                }
+            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap();
+
         }
         catch (Exception ex)
         {

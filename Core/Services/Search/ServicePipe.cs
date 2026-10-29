@@ -41,13 +41,20 @@ internal static class ServicePipe
     /// </summary>
     public static async Task<NamedPipeClientStream> ConnectAsync(int timeoutMs, CancellationToken token)
     {
+        // Probed because connecting turned out to be the largest single cost before the first row of a
+        // session, and the three steps here have nothing in common: opening the pipe, asking the OS who
+        // serves it, and asking the SCM which PID the service has (cached, see QueryServiceProcessId).
+        SearchPipelineProbe.Write("pipe.enter");
         var pipe = new NamedPipeClientStream(".", Name, PipeDirection.InOut, PipeOptions.Asynchronous,
             System.Security.Principal.TokenImpersonationLevel.Impersonation);
         try
         {
             await pipe.ConnectAsync(timeoutMs, token).ConfigureAwait(false);
+            SearchPipelineProbe.Write("pipe.connected");
             var serverPid = HookPipePeer.TryGetServerProcessId(pipe);
+            SearchPipelineProbe.Write("pipe.peer");
             var servicePid = QueryServiceProcessId();
+            SearchPipelineProbe.Write("pipe.scm");
             if (!IsTrustedServer(serverPid, servicePid, AllowUnregisteredServer))
             {
                 throw new UnauthorizedAccessException(
@@ -72,8 +79,27 @@ internal static class ServicePipe
     internal static bool IsTrustedServer(int? serverPid, uint servicePid, bool allowUnregisteredServer) =>
         servicePid == 0 ? allowUnregisteredServer : serverPid == servicePid;
 
+    // The identity check below runs on every search, and asking the SCM costs five cross-process calls
+    // (OpenSCManager, OpenService, QueryServiceStatusEx, two closes). A latency trace put that at the head of
+    // the per-search cost, ahead of anything the search itself does. The PID cannot change while the service
+    // keeps running, so it is remembered for a short window; the window, not the value, is what bounds the
+    // one case that matters -- a service restart, after which the check must not keep trusting the old PID.
+    private const long ServicePidCacheMs = 5_000;
+    private static uint _cachedServicePid;
+    private static long _cachedServicePidAt = long.MinValue;
+
     /// <summary>The PID the SCM has for the running service, or 0 when it is stopped or unknown.</summary>
-    private static uint QueryServiceProcessId() => QueryServiceState() is { CurrentState: 4 } status ? status.ProcessId : 0;
+    private static uint QueryServiceProcessId()
+    {
+        var now = Environment.TickCount64;
+        if (_cachedServicePidAt != long.MinValue && now - _cachedServicePidAt < ServicePidCacheMs)
+            return _cachedServicePid;
+
+        var pid = QueryServiceState() is { CurrentState: 4 } status ? status.ProcessId : 0;
+        _cachedServicePid = pid;
+        _cachedServicePidAt = now;
+        return pid;
+    }
 
     internal static bool IsStopped => QueryServiceState().CurrentState == 1;
 

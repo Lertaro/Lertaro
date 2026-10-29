@@ -15,6 +15,10 @@
     <RootNamespace>Lertaro.App</RootNamespace>
     <Version>5.12.4</Version>
     <GenerateDependencyFile>false</GenerateDependencyFile>
+    <!-- Precompile at publish time instead of on first use: the first search of a session walks a long path
+         (parse -> per-drive scan -> mapping -> ranking -> row templates) that a freshly started process still
+         has to JIT. The JIT recompiles hot methods later, so steady state is unchanged. -->
+    <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
 

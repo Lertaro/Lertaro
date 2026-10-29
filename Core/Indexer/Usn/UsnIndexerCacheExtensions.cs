@@ -43,8 +43,12 @@ public static class UsnIndexerCacheExtensions
 
             loaded.Add((drive, opened.Value.Live, opened.Value.Metadata, opened.Value.Metadata.JournalId, opened.Value.Metadata.NextUsn));
 
-            GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true);
-            Win32Api.TrimWorkingSet();
+            // This loop used to force a full blocking compacting GC and then TrimWorkingSet after EVERY drive.
+            // Both were removed. Trimming actively undid the load: it hands the pages just read back to the
+            // OS, so the first search of the session faulted them in again -- the opposite of what the file is
+            // for. The GC was sized for an index several times larger; these four together are on the order of
+            // a hundred megabytes, and the forced collect cost more than the memory it reclaimed. The one
+            // compaction that does matter still happens below, once, after every drive is loaded.
         }
 
         lock (indexer.LockObj)
@@ -68,7 +72,10 @@ public static class UsnIndexerCacheExtensions
                 indexer.Status.Progress = 100;
             }
 
-            indexer.CompactMemory();
+            // No CompactMemory here. It compacts the large-object heap and then trims the working set, which
+            // is exactly wrong at this point: the pages that were just loaded are what the first search needs,
+            // and trimming them is what made that search re-fault them from disk. Callers that rebuild an
+            // index still compact through their own paths; this one only loads.
             return metadata;
         }
     }

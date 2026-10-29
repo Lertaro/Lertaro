@@ -31,6 +31,30 @@ public sealed class LiveIndex : IDisposable
 
     public string SourceKey => _snapshot?.SourceKey ?? throw new ObjectDisposedException(nameof(LiveIndex));
 
+    /// <summary>
+    /// Rows this drive already answered for a given query and filter set, replayed instead of re-scanned.
+    /// </summary>
+    /// <remarks>
+    /// Owned by the index rather than being process-wide on purpose: a page is only a valid answer for the
+    /// snapshot/delta pair it was scanned from, so a shared cache let a page stored for one drive answer
+    /// another drive's query -- or an earlier index opened under the same drive letter -- with rows that
+    /// never existed there. Disposing the index drops it.
+    /// </remarks>
+    internal Lertaro.Core.IndexV2.Search.QueryPageCache SearchPages { get; } = new();
+
+    /// <summary>
+    /// The identity of the snapshot currently open: the drive, its USN journal id and the journal position
+    /// this snapshot corresponds to. A persisted search page is only valid for one of these.
+    /// </summary>
+    internal (string SourceKey, ulong JournalId, long NextUsn) SnapshotIdentity
+    {
+        get
+        {
+            var snapshot = _snapshot ?? throw new ObjectDisposedException(nameof(LiveIndex));
+            return (snapshot.SourceKey, snapshot.JournalId, snapshot.NextUsn);
+        }
+    }
+
     private void EnsureUsable()
     {
         if (_snapshot == null)

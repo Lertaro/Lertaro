@@ -18,6 +18,27 @@ public static class IndexV2Searcher
             return;
 
         var parsed = SearchQueryParser.Parse(query);
+        Lertaro.Core.Services.Search.SearchPipelineProbe.Write("idx.parse-done", "pathMode=" + parsed.IsPathMode);
+
+        // Only the plain name-search shape is cached. A path-mode query walks one directory and returns
+        // almost instantly, and its row count is unbounded (the full window asks for int.MaxValue), so a
+        // stored page would either be huge or answer a later listing with a truncated one.
+        var cacheKey = parsed.IsPathMode
+            ? null
+            : QueryPageCache.KeyFor(query, directoryFilter, fileNameFilter, category);
+        if (cacheKey != null && index.SearchPages.TryReplay(cacheKey, limit, onResult, token, index.Revision))
+            return;
+
+        // Streaming is unchanged: every row still reaches onResult the moment it is ranked, and the same
+        // call is also kept so the page can be stored afterwards. The buffer is bounded by `limit`'s own
+        // ceiling, and QueryPageCache.Store truncates anything past its own MaxRows.
+        var captured = new List<SearchResult>(capacity: 64);
+        void Capture(SearchResult row)
+        {
+            captured.Add(row);
+            onResult(row);
+        }
+
         // ponytail: the whole search, every onResult callback included, runs inside this read lock. The
         // production callback is a blocking write to SearchStreamPump's bounded channel, so one slow pipe
         // client parks the search thread holding the lock -- and ReaderWriterLockSlim blocks new readers
@@ -31,20 +52,24 @@ public static class IndexV2Searcher
         index.Read<object?>((snapshot, delta) =>
         {
             var directoryFilterLower = DirectoryFilterResolver.NormalizeFilter(directoryFilter);
+            Lertaro.Core.Services.Search.SearchPipelineProbe.Write("idx.read-acquired", snapshot.SourceRoot);
             if (directoryFilterLower != null && directoryFilterLower.Equals(snapshot.SourceRoot.ToLowerInvariant(), StringComparison.Ordinal))
                 directoryFilterLower = null;
 
             if (parsed.IsPathMode)
             {
-                PathSearch.SearchStreaming(snapshot, delta, parsed, limit, onResult, token, directoryFilterLower);
+                PathSearch.SearchStreaming(snapshot, delta, parsed, limit, Capture, token, directoryFilterLower);
                 return null;
             }
 
             var pattern = FzfPattern.Parse(query);
-            NameSearch.SearchStreaming(snapshot, delta, pattern, limit, onResult, token, directoryFilterLower,
+            NameSearch.SearchStreaming(snapshot, delta, pattern, limit, Capture, token, directoryFilterLower,
                 FilterPatternHelper.SplitOrNullIfMatchAll(fileNameFilter), category);
             return null;
         });
+        if (cacheKey != null)
+            index.SearchPages.Store(cacheKey, captured, index.Revision);
+
         SearchPerf.Log($"[search] q='{query}' limit={limit} dir='{directoryFilter}' pathMode={parsed.IsPathMode} build={SearchPerf.BuildFlavor} total={SearchPerf.Ms(perfStart):F0}ms");
     }
 

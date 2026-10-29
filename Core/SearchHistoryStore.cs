@@ -22,6 +22,19 @@ public static class SearchHistoryStore
     private static Dictionary<string, int>? _priorityCache;
     private static Dictionary<string, int>? _countCache;
 
+    // ScoreSnapshot used to rebuild its dictionary on every call, under Gate, and a latency trace put that at
+    // the head of the gap between a keystroke and the engine being called. History scores decay with a
+    // year-sized half-life, so a result a few seconds old is indistinguishable -- but a store edit (an entry
+    // recorded, settings changed) has to be visible at once, which is what the version below covers.
+    private static IReadOnlyDictionary<string, int>? _scoreCache;
+    private static long _scoreCacheAt;
+    private static long _scoreCacheVersion;
+    private static int _version;
+    private const long ScoreCacheMs = 30_000;
+
+    /// <summary>Marks cached derivations stale. Called wherever the buckets change.</summary>
+    private static void BumpVersion() => System.Threading.Interlocked.Increment(ref _version);
+
     /// <summary>What <see cref="Snapshot"/> returns before the store has any entries at all.</summary>
     private static readonly IReadOnlyDictionary<string, int> EmptyPriorities =
         new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -403,6 +416,9 @@ public static class SearchHistoryStore
                 }));
 
             _buckets = BuildBuckets(scored);
+            // The buckets just changed, so any snapshot derived from them is stale -- including the one
+            // ScoreSnapshot is caching. The cache keys on this version, not on time alone.
+            BumpVersion();
             var survivingPaths = new HashSet<string>(
                 scored.Select(item => item.Entry.Path),
                 StringComparer.OrdinalIgnoreCase);
@@ -506,8 +522,21 @@ public static class SearchHistoryStore
     {
         lock (Gate)
         {
+            // Reuse a recent dictionary only while nothing has changed in the store. Time alone is not enough:
+            // recording an entry has to affect the very next search, so the version is what actually decides.
+            var version = System.Threading.Volatile.Read(ref _version);
+            if (_scoreCache != null
+                && _scoreCacheVersion == version
+                && Environment.TickCount64 - _scoreCacheAt < ScoreCacheMs)
+            {
+                return _scoreCache;
+            }
+
             EnsureCacheNoLock();
-            return SearchHistoryBucketSupport.BuildScoreCache(_buckets!, now.ToUnixTimeSeconds());
+            _scoreCache = SearchHistoryBucketSupport.BuildScoreCache(_buckets!, now.ToUnixTimeSeconds());
+            _scoreCacheAt = Environment.TickCount64;
+            _scoreCacheVersion = version;
+            return _scoreCache;
         }
     }
 
