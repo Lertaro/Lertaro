@@ -132,4 +132,32 @@ public sealed class NameSearchTests
         Assert.HasCount(1, results);
         Assert.AreEqual("Archive.md", results[0].Name);
     }
+
+    // PublishRanks skips a second SearchResultRelevance.Apply computation for any row RefineRanks
+    // already packed the exact same relevance key into (see PublishRanks' `refined` guard) -- correct
+    // only because RefineRanks and Apply are proven to compute an identical key from the same
+    // (name, pattern)/(path, pattern) inputs. int.MaxValue mirrors the Full window's fileLimit (the
+    // worst case from the investigated regression: scanKeep collapses to "everything matched", so
+    // RefineRanks -- and, were the skip wrong, a second Apply -- runs over nearly every result).
+    // Three different match qualities for the same query, so a divergence between the packed key and a
+    // fresh Apply would surface as a wrong relative order, not merely as extra CPU time nothing here
+    // can observe directly.
+    [TestMethod]
+    public void SearchStreaming_UnboundedWindowRanksCorrectlyWithoutASecondRelevanceApply()
+    {
+        using var fixture = LiveIndexFixture.Build("Z", new[]
+        {
+            LiveIndexFixture.Root(),
+            new FileRecord(2, 1, "report", FileRecordFlags.None),
+            new FileRecord(3, 1, "monthly-report", FileRecordFlags.None),
+            new FileRecord(4, 1, "r_e_p_o_r_t", FileRecordFlags.None),
+        });
+        var results = new List<SearchResult>();
+
+        IndexV2Searcher.SearchStreaming(fixture.Index, "report", int.MaxValue, results.Add, CancellationToken.None);
+
+        var names = results.Order(SearchResultRankComparer.Instance).Select(result => result.Name).ToList();
+        CollectionAssert.AreEqual(new[] { "report", "monthly-report", "r_e_p_o_r_t" }, names);
+    }
 }
+

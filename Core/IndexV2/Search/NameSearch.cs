@@ -67,7 +67,14 @@ internal static class NameSearch
         FzfTopN topN, int scanKeep, int limit, string? directoryFilterLower, CancellationToken token, Action<SearchResult> onResult)
     {
         var ranks = topN.Finish(scanKeep);
-        if (!matchAll && !pattern.IsEmpty)
+        // Whether RefineRanks below is about to pack the SAME relevance key into each row's high 32
+        // bits that SearchResultRelevance.Apply would compute for the emitted result (see the loop
+        // below) -- tracked so that redundant second computation can be skipped per row instead of
+        // paying for FuzzyMatcher.ComputeMatchRank/HighlightMask.ComputeWeight twice over nearly the
+        // whole matched set on an unbounded window (scanKeep == everything once fileLimit is
+        // int.MaxValue, e.g. the Full window).
+        var refined = !matchAll && !pattern.IsEmpty;
+        if (refined)
             RefineRanks(snapshot, delta, pattern, ranks);
 
         var seen = new HashSet<int>();
@@ -78,7 +85,15 @@ internal static class NameSearch
             if (!seen.Add(rank.EntryIndex))
                 continue;
             var result = ResultBuilder.ToResult(snapshot, delta, rank);
-            SearchResultRelevance.Apply(result, pattern);
+            // RefineRanks already wrote the exact key Apply computes into rank.SortKey (and ToResult
+            // just copied it into result.RankSortKey above) for every row whose name it could resolve.
+            // The only rows it leaves untouched are ones whose name resolves to "" (RefineRanks's own
+            // `continue` guard, mirrored here on result.Name rather than re-resolving the name a second
+            // time) -- those, and every row from the matchAll/empty-pattern branch that never ran
+            // RefineRanks at all, still need Apply's computation (which itself still no-ops for an
+            // empty pattern, exactly as before this change).
+            if (!refined || result.Name.Length == 0)
+                SearchResultRelevance.Apply(result, pattern);
             onResult(result);
             if (++emitted >= limit)
                 break;
