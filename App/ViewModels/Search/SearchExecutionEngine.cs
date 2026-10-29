@@ -90,7 +90,6 @@ internal sealed class SearchExecutionEngine : IDisposable
         try
         {
             await delay.ConfigureAwait(false);
-            Lertaro.App.Helpers.Diagnostics.QuickSearchProbe.Mark("debounce");
             // Cancellation must cover the dispatcher queue as well as the delay: input can change
             // after the delay completes but before this callback gets a turn on the UI thread.
             await dispatcher.InvokeAsync(() =>
