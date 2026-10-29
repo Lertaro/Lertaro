@@ -56,13 +56,22 @@ public class JustifiedRowPanel : Panel
 
         // No room left over (the row is as wide as its content, or wider and now scrolling) means no gaps: the
         // only way a negative gap could be read is as overlap.
-        var gap = count > 1 ? Math.Max(0, (finalSize.Width - total) / (count - 1)) : 0;
+        //
+        // The leftover is split per CHILD, not per gap. Every child's box then grows by one gap, its content
+        // (centred) leaves exactly half a gap of empty space on either side, and the boxes tile the row end to
+        // end -- so all the gaps come out equal and the row still spans exactly finalSize.
+        //
+        // Splitting per gap instead (the previous rule) put the whole gap outside each child's box, and that is
+        // the shape the filter bar's pipe exposed: the pipe is drawn at the child's own left edge, so with no
+        // empty space inside the box it sat hard against the previous label with all the space on its right.
+        var gap = count > 0 ? Math.Max(0, (finalSize.Width - total) / count) : 0;
 
         var x = 0.0;
         for (var i = 0; i < count; i++)
         {
-            InternalChildren[i].Arrange(new Rect(x, 0, widths[i], finalSize.Height));
-            x += widths[i] + gap;
+            var width = widths[i] + gap;
+            InternalChildren[i].Arrange(new Rect(x, 0, width, finalSize.Height));
+            x += width;
         }
 
         return finalSize;

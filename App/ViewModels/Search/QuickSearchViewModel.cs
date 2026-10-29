@@ -26,6 +26,13 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
         Search = new SearchExecutionViewModel(this, _searchService);
         Monitor = new ServiceMonitorViewModel(this, _searchService);
 
+        // Open and close one pipe connection now, while nothing is waiting on it. Every search builds a new
+        // connection (SearchPipeClient disposes it with the request), and the first one a session makes pays
+        // for the service-side work that creates a pipe instance and admits a caller from a different
+        // account -- measured as the first search's "request sent to first row" being several times the scan
+        // it triggers, with every later search back to normal. A ping does the same handshake and nothing else.
+        _ = WarmUpPipeAsync();
+
         // Clock text that replaces the search box placeholder when empty (opt-in, see #101). No
         // repeating timer -- the quick window is a transient popup, not a resident taskbar clock, so
         // it's enough to recompute this each time the window is actually shown (RefreshLayoutSettings,
@@ -197,6 +204,7 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
         set => Search.ResultsSeparatorVisibility = value;
     }
 
+
     public Visibility StatusBarVisibility => Monitor.StatusBarVisibility;
 
     public Visibility LoadingPanelVisibility => Monitor.LoadingPanelVisibility;
@@ -353,7 +361,22 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
     {
         Services.UiMetrics.ScaleChanged -= RefreshScaleBindings;
         Monitor.StopStatusTimer();
+
         _searchService.Dispose();
         Search.Dispose();
+    }
+
+    // Swallows everything on purpose: a missed warm-up costs one slower first search, which is exactly the
+    // behaviour without it, and a failure here must never surface at startup.
+    private async Task WarmUpPipeAsync()
+    {
+        try
+        {
+            await Task.Delay(500).ConfigureAwait(true);
+            await _searchService.PingAsync().ConfigureAwait(true);
+        }
+        catch
+        {
+        }
     }
 }
