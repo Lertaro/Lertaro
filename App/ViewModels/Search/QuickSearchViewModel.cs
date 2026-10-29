@@ -187,6 +187,10 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
         set => Search.ResultsPanelVisibility = value;
     }
 
+    // The window binds this name off its DataContext, so the facade has to carry it: bound to a property only
+    // the inner search VM has, it resolves to nothing and the bar stays at its default Visibility.
+    public Visibility CategoryBarVisibility => Search.CategoryBarVisibility;
+
     public Visibility ResultsSeparatorVisibility
     {
         get => Search.ResultsSeparatorVisibility;

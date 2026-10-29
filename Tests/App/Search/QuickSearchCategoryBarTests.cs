@@ -1,3 +1,4 @@
+using System.Windows;
 using Lertaro.App.ViewModels.Search;
 using Lertaro.App.ViewModels.Search.Mapping;
 using Lertaro.Core;
@@ -50,6 +51,27 @@ public sealed class QuickSearchCategoryBarTests
 
         Assert.AreNotSame(before, vm.SelectedCategory, "the row object is a new one after a rebuild");
         Assert.AreEqual(before.Id, vm.SelectedCategory.Id, "and it is the same tab");
+    }
+
+    [TestMethod]
+    public void CategoryBarVisibility_IsCarriedByTheWindowDataContextAndFollowsTheResultsPanel()
+    {
+        // The bar binds this name off the window's DataContext, which is QuickSearchViewModel rather than the
+        // inner search VM: a name only the inner one carries binds to nothing, and the bar then sits at its
+        // default Visibility no matter what the setting says. Reading it through the facade is the guard, the
+        // panel half is the contract -- the settings half lives in the process-wide cache no test may write.
+        using var vm = new QuickSearchViewModel();
+        var raised = new List<string?>();
+        vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        vm.ResultsPanelVisibility = Visibility.Visible;
+        Assert.AreEqual(Visibility.Visible, vm.CategoryBarVisibility, "with results the bar is the user's call");
+
+        vm.ResultsPanelVisibility = Visibility.Collapsed;
+        Assert.AreEqual(Visibility.Collapsed, vm.CategoryBarVisibility, "no results, no bar");
+
+        CollectionAssert.Contains(raised, nameof(QuickSearchViewModel.CategoryBarVisibility),
+            "the panel change has to re-notify under this name or the binding never updates");
     }
 
     [TestMethod]
