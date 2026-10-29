@@ -149,7 +149,7 @@ internal static class HistorySearchCandidateMapper
 
             // Whether this path is a directory decides the row's icon, what a double click does, and how it
             // sorts -- so it is answered by asking, not by looking at the name. A name-based guess is wrong for
-            // every directory that contains a dot ("v1.2", "World.of.Warcraft"), and those are ordinary names,
+            // every directory that contains a dot (a version number, a dotted product name), and those are ordinary names,
             // not corner cases. The answer is memoised per path: this runs on every keystroke, and the same
             // handful of paths comes back each time.
             var kind = DirectoryKind(path, out var pathExists);
