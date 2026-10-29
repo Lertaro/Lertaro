@@ -14,10 +14,7 @@ internal sealed class QueryPageCache
     {
         public List<SearchResult> Rows = new();
         public long LastUsed;
-        public long StoredAt;
         public long Revision;
-        /// <summary>Restored from disk rather than scanned in this run -- see DiskGraceMs.</summary>
-        public bool FromDisk;
     }
 
     // Sized to hold the whole warm-up set: 0-9 and a-z across every drive (36 x drives). A smaller
@@ -40,7 +37,6 @@ internal sealed class QueryPageCache
     // Ten minutes is a compromise: long enough that a session starts warm, short enough that a file created
     // while the service was down cannot be hidden for long -- and the in-memory revision rule still retires
     // any page the index invalidates during this run.
-    private const long DiskGraceMs = 10 * 60_000;
 
     // A stored page is a prefix of its scan, never the whole drive: the full window asks for
     // int.MaxValue, and keeping that answer would pin an unbounded amount of memory per entry. A
@@ -61,17 +57,17 @@ internal sealed class QueryPageCache
             if (!_pages.TryGetValue(key, out var entry))
                 return false;
 
-            // Two retirement rules, because the two kinds of page have nothing in common. A page scanned
-            // in this run belongs to the index revision it came from and is refused the moment that moves,
-            // which is what stops it from answering with rows that no longer exist; the short grace covers
-            // only the revision changing during a typing burst. A page restored from disk cannot use
-            // revision at all, so it is retired by age -- see DiskGraceMs.
-            if (entry.FromDisk)
-            {
-                if (Environment.TickCount64 - entry.StoredAt > DiskGraceMs)
-                    return false;
-            }
-            else if (entry.Revision != revision && Environment.TickCount64 - entry.StoredAt > RecentGraceMs)
+            // One retirement rule for both kinds of page: the index revision it was scanned against.
+            //
+            // A restored page used to be retired by AGE instead, on the assumption that it has no revision
+            // to compare. It does -- Import stamps it with the revision of the index it was loaded into --
+            // and the age rule expired every persisted page ten minutes after startup, after which the
+            // cache silently stopped answering and every query paid for a full scan again.
+            //
+            // The grace is measured from the page's last HIT, not from when it was stored: an entry in
+            // active use would otherwise go stale a fixed time after it was written no matter how often it
+            // was read, which made the same query fast and then slow again with nothing having changed.
+            if (entry.Revision != revision && Environment.TickCount64 - entry.LastUsed > RecentGraceMs)
                 return false;
 
             // A page shorter than the request is a truncated answer: replaying it would end the stream
@@ -81,7 +77,6 @@ internal sealed class QueryPageCache
             if (entry.Rows.Count < limit)
                 return false;
 
-            Lertaro.Core.Services.Search.SearchPipelineProbe.Write("idx.cache-hit", entry.Rows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
             entry.LastUsed = Environment.TickCount64;
             // Copy while the entry is pinned, emit after unlocking: onResult can block on the pipe's
             // bounded channel, and holding the gate across it would serialize every other replay and
@@ -117,7 +112,7 @@ internal sealed class QueryPageCache
             if (_pages.Count >= Capacity)
                 EvictOldestLocked();
 
-            _pages[key] = new Entry { Rows = rows, LastUsed = Environment.TickCount64, StoredAt = Environment.TickCount64, Revision = revision };
+            _pages[key] = new Entry { Rows = rows, LastUsed = Environment.TickCount64, Revision = revision };
         }
     }
 
@@ -159,9 +154,8 @@ internal sealed class QueryPageCache
                 {
                     Rows = pair.Value,
                     LastUsed = Environment.TickCount64,
-                    StoredAt = Environment.TickCount64,
+                    
                     Revision = revision,
-                    FromDisk = true
                 };
             }
         }
