@@ -39,6 +39,34 @@ public static class FavoritePathResolver
     {
         var expanded = Expand(rawPath);
         if (string.IsNullOrWhiteSpace(expanded)) return false;
+
+        // Cached on the production path only: the parameters exist so tests can inject probes, and a cached
+        // answer would make those tests depend on each other. This is asked once per matching favourite per
+        // keystroke, and each answer is a file-system pair or a shell COM call -- a favourite on a virtual
+        // path or a slow share made one query take a second while every other query took three milliseconds.
+        // A short window is enough: availability changes when a drive or share does, not between keystrokes.
+        var cacheable = fileExists == null && directoryExists == null && virtualPathExists == null;
+        if (cacheable && AvailabilityCache.TryGetValue(expanded, out var cachedAt))
+        {
+            if (Environment.TickCount64 - cachedAt.At < AvailabilityCacheMs)
+                return cachedAt.Available;
+        }
+
+        var available = CheckAvailability(expanded, fileExists, directoryExists, virtualPathExists);
+        if (cacheable)
+            AvailabilityCache[expanded] = (available, Environment.TickCount64);
+        return available;
+    }
+
+    private const long AvailabilityCacheMs = 30_000;
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (bool Available, long At)> AvailabilityCache = new(StringComparer.OrdinalIgnoreCase);
+
+    private static bool CheckAvailability(
+        string expanded,
+        Func<string, bool>? fileExists,
+        Func<string, bool>? directoryExists,
+        Func<string, bool>? virtualPathExists)
+    {
         if (FavoriteUrlHelper.IsWebUrl(expanded)) return true;
 
         if (IsVirtualPath(expanded))
