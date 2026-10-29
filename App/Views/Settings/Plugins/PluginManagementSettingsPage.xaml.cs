@@ -6,6 +6,9 @@ public partial class PluginManagementSettingsPage : System.Windows.Controls.User
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        // Start the plugin scan off the UI thread as soon as the page is on screen. The rows arrive a moment
+        // later; the alternative is a frozen window while the reflection runs.
+        Loaded += (_, _) => _ = (DataContext as ViewModels.Settings.Plugins.PluginManagementViewModel)?.LoadAsync();
     }
 
     private void OnDataContextChanged(object sender, System.Windows.DependencyPropertyChangedEventArgs e)
@@ -13,7 +16,13 @@ public partial class PluginManagementSettingsPage : System.Windows.Controls.User
         if (e.OldValue is ViewModels.Settings.Plugins.PluginManagementViewModel oldVm)
             oldVm.PluginsReordered -= OnPluginsReordered;
         if (e.NewValue is ViewModels.Settings.Plugins.PluginManagementViewModel newVm)
+        {
             newVm.PluginsReordered += OnPluginsReordered;
+            // Also asked here: Loaded may already have fired before the context was assigned, and LoadAsync
+            // is a no-op on the second call, so this closes that ordering without adding a load.
+            if (IsLoaded)
+                _ = newVm.LoadAsync();
+        }
     }
 
     // A reorder (sort toggle, or Apply/OK reconciling the sort after a toggle) keeps the selection on
