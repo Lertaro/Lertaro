@@ -204,12 +204,6 @@ public class QuickSearchViewModel : ViewModelBase, IDisposable
         set => Search.ResultsSeparatorVisibility = value;
     }
 
-    // The type filter bar's own visibility. It needs a forwarder here, unlike everything the PropertyChanged
-    // relay below carries: that relay only re-raises change notifications, and a binding resolves against
-    // THIS object -- the window's DataContext. With no property of this name here the binding failed
-    // outright, so the bar kept its default Visible and neither the typed-text rule nor the
-    // "hide the filter bar" setting could ever collapse it.
-    public Visibility CategoryBarVisibility => Search.CategoryBarVisibility;
 
     public Visibility StatusBarVisibility => Monitor.StatusBarVisibility;
 
