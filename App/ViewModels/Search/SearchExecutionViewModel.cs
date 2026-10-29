@@ -109,21 +109,25 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
         get => _searchQuery;
         set
         {
-            if (SetProperty(ref _searchQuery, value))
+            // Normalised once, here: the property is non-nullable but a binding can hand a null over,
+            // and the calls below take a non-nullable string. Storing the normalised value keeps a null
+            // from reaching the field at all (every reader already treats empty as "no query").
+            var query = value ?? string.Empty;
+            if (SetProperty(ref _searchQuery, query))
             {
-                _lastQuery = value ?? string.Empty;
+                _lastQuery = query;
                 if (IsActionsMode)
                 {
                     return;
                 }
-                if (string.IsNullOrWhiteSpace(value))
+                if (string.IsNullOrWhiteSpace(query))
                 {
                     _engine.CancelPendingSearch();
-                    _dispatcher.PerformSearch(value);
+                    _dispatcher.PerformSearch(query);
                 }
                 else
                 {
-                    _dispatcher.DispatchSearch(value);
+                    _dispatcher.DispatchSearch(query);
                 }
             }
         }
