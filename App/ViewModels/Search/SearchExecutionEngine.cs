@@ -64,7 +64,14 @@ internal sealed class SearchExecutionEngine : IDisposable
         // debounces. Otherwise its rows keep repainting ahead of the next keystroke.
         CancelPendingSearch();
 
-        var delay = string.IsNullOrEmpty(query) || query.Length <= 1 ? 0 : (fileLimit > 100 ? 150 : 30);
+        // Coalescing window for a multi-character query. The full-window path keeps the longer one: it fires
+        // a deliberately expensive search, so merging keystrokes there pays for itself. The quick window's
+        // search is cheap by comparison, and the window is measured in tens of milliseconds -- at 30 ms the
+        // debounce was often the single largest fixed cost between a keystroke and its rows, waiting for a
+        // next keystroke that human typing rarely produces inside 15 ms. Measured interval between keys in
+        // ordinary use is well above that, so halving it buys latency without multiplying requests.
+        var quickWindowDelay = 15;
+        var delay = string.IsNullOrEmpty(query) || query.Length <= 1 ? 0 : (fileLimit > 100 ? 150 : quickWindowDelay);
         if (delay == 0)
         {
             PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective, instantQuery, emitInstantResults, beforeSearch, collectInstantResults);
@@ -83,6 +90,7 @@ internal sealed class SearchExecutionEngine : IDisposable
         try
         {
             await delay.ConfigureAwait(false);
+            Lertaro.App.Helpers.Diagnostics.QuickSearchProbe.Mark("debounce");
             // Cancellation must cover the dispatcher queue as well as the delay: input can change
             // after the delay completes but before this callback gets a turn on the UI thread.
             await dispatcher.InvokeAsync(() =>

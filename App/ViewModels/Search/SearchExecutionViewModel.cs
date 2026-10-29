@@ -116,6 +116,11 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
             if (SetProperty(ref _searchQuery, query))
             {
                 _lastQuery = query;
+                Lertaro.App.Helpers.Diagnostics.QuickSearchProbe.Begin(_lastQuery);
+                // The type bar appears with the first keystroke and leaves with the last one; both it and the
+                // Tab cycle read the typed-text condition, so they have to be re-announced here. Announced
+                // before the actions-mode return: leaving actions mode must not keep a stale hidden bar.
+                OnPropertyChanged(nameof(CategoryBarVisibility));
                 if (IsActionsMode)
                 {
                     return;
@@ -155,8 +160,11 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
                 return;
             _selectedCategory = value;
             OnPropertyChanged(nameof(SelectedCategory));
+            // PerformSearch, not DispatchSearch: switching a tab is one deliberate action, not a keystroke in
+            // a stream of them, so it has nothing to debounce against -- waiting 30 ms to coalesce it with a
+            // later keystroke only delays the only thing the user is waiting for. Typing keeps the debounce.
             if (!IsActionsMode && !string.IsNullOrWhiteSpace(_lastQuery))
-                _dispatcher.DispatchSearch(_lastQuery);
+                _dispatcher.PerformSearch(_lastQuery);
         }
     }
 
@@ -266,11 +274,22 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
-    /// The bar's own visibility: with the results panel, and only while the user wants the bar. The panel's
-    /// visibility is left alone -- the results, the separator and the launch panel all read it.
+    /// The bar's own visibility: while the user wants the bar and has typed something. The results panel's
+    /// visibility is deliberately NOT part of this -- a query that matched nothing must still show the tabs,
+    /// because switching tab is how the user goes looking for what the current one did not find.
     /// </summary>
+    /// <remarks>
+    /// The typed-text condition is what keeps the bar out of the empty state. Summoning the window shows
+    /// recent and favourite rows, so the results panel is already visible before the user has typed
+    /// anything; keying the bar off the panel alone put a row of type tabs above a list no query had
+    /// produced.
+    /// </remarks>
     public Visibility CategoryBarVisibility
-        => _showCategoryBar ? _resultsPanelVisibility : Visibility.Collapsed;
+        => _showCategoryBar && HasSearchText ? Visibility.Visible : Visibility.Collapsed;
+
+    // Whether the user has typed a query. Trailing spaces do not count: the dispatcher would treat the box
+    // as empty too, so the bar must not appear for them either.
+    public bool HasSearchText => !string.IsNullOrWhiteSpace(_searchQuery);
 
     public Visibility ResultsSeparatorVisibility
     {
