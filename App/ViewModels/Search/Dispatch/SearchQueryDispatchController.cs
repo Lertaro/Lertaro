@@ -162,6 +162,7 @@ internal sealed class SearchQueryDispatchController
         // once. Built here rather than on the first mapper call because the content append has to reach it
         // even when the file search never answers. See StreamingResultAccumulator.
         var rankRules = ExclusionRuleSet.From(UserSettings.Load());
+        SearchPerf.Log($"[rules] build={SearchPerf.BuildFlavor} priority={rankRules.PriorityPathRuleCount}/{rankRules.PriorityGlobRuleCount}/{rankRules.PriorityRegexRuleCount} excluded={rankRules.ExcludedRootCount}/{rankRules.IgnoredGlobCount}/{rankRules.IgnoredRegexCount}");
         var accumulator = new StreamingResultAccumulator(cleanQuery);
         var rankContextApplied = false;
         _accumulator = accumulator;
@@ -243,14 +244,18 @@ internal sealed class SearchQueryDispatchController
                 // synthetic "Empty" placeholder in exactly one case (a final render that found nothing),
                 // so on every other paint this filter used to duplicate the entire row list -- megabytes
                 // onto the large object heap, on the UI thread, once per paint -- to remove nothing.
+                var existsStart = SearchPerf.Start();
                 var filteredResults = results.Exists(r => r.IsEmptyResult)
                     ? results.FindAll(r => !r.IsEmptyResult)
                     : results;
+                var existsMs = SearchPerf.Ms(existsStart);
                 var extendsContent = rendersSoFar++ > 0;
+                var countsStart = SearchPerf.Start();
                 if (final)
                     _replaceSidebarCounts(filteredResults);
                 else
                     _updateSidebarCounts(accumulator.LastBatchRows, false);
+                var countsMs = SearchPerf.Ms(countsStart);
                 // Token providers (e.g. the built-in ":[SCMA]"/".ext"/"::expr" sort+filter+match
                 // plugin) render via a follow-up ApplyFiltersAndRender inside
                 // RefreshAfterTokenDispatchAsync instead of the call below -- a provider with no
@@ -279,8 +284,10 @@ internal sealed class SearchQueryDispatchController
                     // survive every later paint instead of being reordered away by the next one -- which is
                     // what lets them show up the moment their provider answers rather than only once the
                     // whole file search has settled.
+                    var applyStart = SearchPerf.Start();
                     _setAllResults(filteredResults, accumulator.ContentPrefixCount > 0);
                     _applyFiltersAndRender(extendsContent, accumulator.FirstChangedIndex);
+                    SearchPerf.Log($"[dispatch] final={final} rows={filteredResults.Count} exists={existsMs:F0}ms counts={countsMs:F0}ms apply={SearchPerf.Ms(applyStart):F0}ms");
                 }
                 if (final)
                 {

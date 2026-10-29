@@ -18,6 +18,24 @@ public sealed class RankedSearchResultComparer : IComparer<SearchResult>
         if (y == null)
             return 1;
 
+        // Fast path: everything before the history tie is packed into RankOrderKey by Decorate, and the
+        // history tie is non-zero only for a row with a real history band (rare in a broad result set).
+        // Zero on either side means "not decorated", whose order this class defines through the slow path.
+        var keyX = x.RankOrderKey;
+        var keyY = y.RankOrderKey;
+        if (keyX != 0 && keyY != 0 && x.HistoryTie == 0 && y.HistoryTie == 0)
+        {
+            var byKey = keyX.CompareTo(keyY);
+            return byKey != 0 ? byKey : RankPolicy.CompareCommonTail(TailOf(x), TailOf(y));
+        }
+
+        return CompareSlow(x, y);
+    }
+
+    // The original field-by-field ordering. Kept as the definition of what RankOrderKey packs, and the
+    // path every pair takes when a row carries a history tie.
+    internal int CompareSlow(SearchResult x, SearchResult y)
+    {
         var sectionX = SectionOf(x);
         var sectionY = SectionOf(y);
         var c = ((byte)sectionX).CompareTo((byte)sectionY);

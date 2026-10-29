@@ -101,6 +101,15 @@ public static class SearchCategoryClassifier
     private static readonly HashSet<string> VideoSet = new(VideoExtensions, StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> ArchiveSet = new(ArchiveExtensions, StringComparer.OrdinalIgnoreCase);
 
+    // Span lookups over the tables above (net9+): Classify answers per row, so it takes the extension as a
+    // span instead of allocating it.
+    private static readonly HashSet<string>.AlternateLookup<ReadOnlySpan<char>> ApplicationLookup = ApplicationSet.GetAlternateLookup<ReadOnlySpan<char>>();
+    private static readonly HashSet<string>.AlternateLookup<ReadOnlySpan<char>> DocumentLookup = DocumentSet.GetAlternateLookup<ReadOnlySpan<char>>();
+    private static readonly HashSet<string>.AlternateLookup<ReadOnlySpan<char>> ImageLookup = ImageSet.GetAlternateLookup<ReadOnlySpan<char>>();
+    private static readonly HashSet<string>.AlternateLookup<ReadOnlySpan<char>> AudioLookup = AudioSet.GetAlternateLookup<ReadOnlySpan<char>>();
+    private static readonly HashSet<string>.AlternateLookup<ReadOnlySpan<char>> VideoLookup = VideoSet.GetAlternateLookup<ReadOnlySpan<char>>();
+    private static readonly HashSet<string>.AlternateLookup<ReadOnlySpan<char>> ArchiveLookup = ArchiveSet.GetAlternateLookup<ReadOnlySpan<char>>();
+
     /// <summary>
     /// The category a name or path belongs to, or <c>null</c> when it belongs to none -- including a
     /// <see cref="ShortcutExtension"/>, whose category only its resolved target can answer.
@@ -110,12 +119,18 @@ public static class SearchCategoryClassifier
     /// the name is at hand and rebuilding the path would mean walking the parent chain for every candidate.
     /// Every test below is therefore name-safe.
     /// </remarks>
-    public static SearchCategoryFilter? Classify(string? nameOrPath, bool isDirectory)
+    public static SearchCategoryFilter? Classify(string? nameOrPath, bool isDirectory) =>
+        Classify(isDirectory || nameOrPath is null ? default : nameOrPath.AsSpan(), isDirectory);
+
+    // Span overload: the counting and filtering passes ask this about every row, and materializing the
+    // extension as a string for each of them was one allocation per row per pass. Path.GetExtension and the
+    // tables all take spans, so nothing here allocates for the common file row.
+    public static SearchCategoryFilter? Classify(ReadOnlySpan<char> nameOrPath, bool isDirectory)
     {
         if (isDirectory)
             return SearchCategoryFilter.Folder;
 
-        if (string.IsNullOrEmpty(nameOrPath))
+        if (nameOrPath.IsEmpty)
             return null;
 
         var extension = Path.GetExtension(nameOrPath);
@@ -142,17 +157,17 @@ public static class SearchCategoryClassifier
         if (extension.Length == 0)
             return null;
 
-        if (ApplicationSet.Contains(extension))
+        if (ApplicationLookup.Contains(extension))
             return SearchCategoryFilter.Application;
-        if (DocumentSet.Contains(extension))
+        if (DocumentLookup.Contains(extension))
             return SearchCategoryFilter.Document;
-        if (ImageSet.Contains(extension))
+        if (ImageLookup.Contains(extension))
             return SearchCategoryFilter.Image;
-        if (AudioSet.Contains(extension))
+        if (AudioLookup.Contains(extension))
             return SearchCategoryFilter.Audio;
-        if (VideoSet.Contains(extension))
+        if (VideoLookup.Contains(extension))
             return SearchCategoryFilter.Video;
-        if (ArchiveSet.Contains(extension))
+        if (ArchiveLookup.Contains(extension))
             return SearchCategoryFilter.Archive;
 
         // A shell namespace path is the one row kind no extension table can speak for, and every shape of it
@@ -201,6 +216,28 @@ public static class SearchCategoryClassifier
         if (row is null || string.IsNullOrEmpty(row.FullPath))
             return Classify(null, row?.IsDir == true);
 
+        // One sidebar count pass asks for the same row's category once per type item (nine of them), and
+        // every call re-derived it from the path -- the largest single cost of the full window's counting
+        // pass. A row's path, kind and launchability do not change, so the last answer is reused; two
+        // different rows interleaving merely misses the cache. Per thread, because a count pass runs on
+        // whichever thread asked for it and never shares its rows with another one.
+        var memoRow = _memoRow;
+        if (memoRow is not null && ReferenceEquals(memoRow, row))
+            return _memoCategory;
+
+        var category = CategorizeCore(row);
+        _memoRow = row;
+        _memoCategory = category;
+        return category;
+    }
+
+    [ThreadStatic]
+    private static ISearchResult? _memoRow;
+    [ThreadStatic]
+    private static SearchCategoryFilter? _memoCategory;
+
+    private static SearchCategoryFilter? CategorizeCore(ISearchResult row)
+    {
         if (row.FullPath.EndsWith(ShortcutExtension, StringComparison.OrdinalIgnoreCase))
         {
             var target = StartMenuShortcutResolver.ResolveTargetInfo(row.FullPath);
@@ -232,7 +269,7 @@ public static class SearchCategoryClassifier
 
     private static string Rule(string[] extensions) => string.Join("; ", extensions.Select(ext => "*" + ext));
 
-    private static bool IsSettingsEntry(string nameOrPath) =>
+    private static bool IsSettingsEntry(ReadOnlySpan<char> nameOrPath) =>
         nameOrPath.StartsWith("ms-settings:", StringComparison.OrdinalIgnoreCase)
         || nameOrPath.Contains("immersivecontrolpanel", StringComparison.OrdinalIgnoreCase)
         || nameOrPath.Contains("SystemSettings.exe", StringComparison.OrdinalIgnoreCase)
@@ -242,7 +279,11 @@ public static class SearchCategoryClassifier
         // control, the lot -- and they also report themselves as applications, so the provider named in that
         // placeholder is what tells them apart from real programs.
         || (nameOrPath.StartsWith(SearchableItemPathPrefix, StringComparison.OrdinalIgnoreCase)
-            && nameOrPath[SearchableItemPathPrefix.Length..]
-                .Split(':')[0]
-                .Contains("SystemSettings", StringComparison.OrdinalIgnoreCase));
+            && ProviderNameContainsSystemSettings(nameOrPath[SearchableItemPathPrefix.Length..]));
+
+    private static bool ProviderNameContainsSystemSettings(ReadOnlySpan<char> rest)
+    {
+        var colon = rest.IndexOf(':');
+        return (colon >= 0 ? rest[..colon] : rest).Contains("SystemSettings", StringComparison.OrdinalIgnoreCase);
+    }
 }

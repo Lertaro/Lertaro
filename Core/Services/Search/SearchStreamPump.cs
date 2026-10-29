@@ -155,14 +155,22 @@ public static class SearchStreamPump
         CallerVisibility visibility, CancellationToken token)
     {
         var written = 0;
+        var perfStart = SearchPerf.Start();
+        var flushTicks = 0L;
         await foreach (var item in reader.ReadAllAsync(token).ConfigureAwait(false))
         {
             token.ThrowIfCancellationRequested();
             if (!visibility.IsIndexedPathVisible(item.Path)) continue;
             await SearchResponseBinarySerializer.WriteFileResultAsync(stream, item, token).ConfigureAwait(false);
             if (++written <= 10 || written % 50 == 0)
+            {
+                var flushStart = SearchPerf.Start();
                 await stream.FlushAsync(token).ConfigureAwait(false);
+                flushTicks += SearchPerf.ElapsedTicks(flushStart);
+            }
         }
+
+        SearchPerf.Log($"[pipe.write] results={written} {SearchPerf.Ms(perfStart):F0}ms flush={SearchPerf.MsFromTicks(flushTicks):F0}ms");
     }
 
     // Polls PeekNamedPipe on the raw pipe handle every 25ms and cancels `queryCts` the moment the OS

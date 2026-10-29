@@ -67,6 +67,11 @@ public static class SearchResultRanking
             | (favoritePin ? FlagFavoritePin : 0)
             | (isFavorite ? FlagFavorite : 0)
             | ((RankPolicy.PriorityOrder(verdict.Effect) & 3) << PriorityShift);
+
+        // Precomputed for RankedSearchResultComparer's fast path; see RankPolicy.OrderKey for the layout.
+        result.HistoryTie = RankPolicy.HistoryTie(isHistoryOnly: false, tier, scoreX100, grade);
+        result.RankOrderKey = RankPolicy.OrderKey(
+            section, explicitAlwaysTop, favoritePin, grade, isFavorite, verdict.Effect, tier, result.RankSortKey);
     }
 
     internal static int DiagnosticScoreOf(SearchResult result) =>

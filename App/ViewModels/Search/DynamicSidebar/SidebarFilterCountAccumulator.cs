@@ -18,6 +18,9 @@ internal sealed class SidebarFilterCountAccumulator
 
     public IReadOnlyList<int> Counts => _counts;
 
+    // One predicate call per row per entry: the per-row cost of a counting pass is this number.
+    public int PredicateCount => _counts.Length;
+
     public void Reset()
     {
         _results.Clear();
@@ -48,9 +51,13 @@ internal sealed class SidebarFilterCountAccumulator
         {
             for (var groupIndex = 0; groupIndex < _predicatesByGroup.Count; groupIndex++)
             {
+                // Plain loop rather than Enumerable.Any: the lambda closes over `result`, so a LINQ pass
+                // allocated one closure per row per group -- on a 900k-row count that is 2.7M of them.
                 var selectedPredicates = selectedPredicatesByGroup[groupIndex];
-                groupMatches[groupIndex] = selectedPredicates.Count == 0
-                    || selectedPredicates.Any(predicate => predicate(result));
+                var matched = selectedPredicates.Count == 0;
+                for (var selectedIndex = 0; selectedIndex < selectedPredicates.Count && !matched; selectedIndex++)
+                    matched = selectedPredicates[selectedIndex](result);
+                groupMatches[groupIndex] = matched;
             }
 
             for (var targetGroupIndex = 0; targetGroupIndex < _predicatesByGroup.Count; targetGroupIndex++)

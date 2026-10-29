@@ -37,6 +37,39 @@ public sealed class StreamingResultAccumulatorTests
         CollectionAssert.AreEqual(new[] { @"D:\a", @"D:\aaa", @"D:\aaaaaa" }, Paths(rows));
     }
 
+    // The full window's last batch is the whole result set, sorted in parallel blocks and merged. The merged
+    // order has to be exactly the one a single-threaded sort gives: later paints and every scroll position
+    // assume one stable, fully ordered list.
+    [TestMethod]
+    public void AbsorbBatch_AboveTheParallelThreshold_MatchesASingleThreadedSort()
+    {
+        const int count = 45_000;
+        var arrivals = new List<SearchResult>(count);
+        for (var i = 0; i < count; i++)
+        {
+            var name = (i % 3) switch
+            {
+                0 => $"report_{i:D6}.txt",
+                1 => $"项目报告{i:D6}.docx",
+                _ => $"example_{i:D6}.log",
+            };
+            var row = Result($@"D:\dir{i % 500:D3}\{name}");
+            // Distinct quality keys, so no pair falls through to the name tail and the expected order is
+            // unambiguous.
+            row.RankSortKey = ((ulong)(i + 1) << 32) | 1UL;
+            arrivals.Add(row);
+        }
+
+        var accumulator = new StreamingResultAccumulator("report");
+        accumulator.UseRankContext(new RankContext(null));
+        var rows = accumulator.AbsorbBatch(arrivals);
+
+        var expected = new List<SearchResult>(arrivals);
+        expected.Sort(RankedSearchResultComparer.Instance);
+
+        CollectionAssert.AreEqual(expected.Select(r => r.Path).ToList(), rows.Select(r => r.FullPath).ToList());
+    }
+
     // The full window's index-rule ranking: a demoted path sinks to the low-priority section however it
     // would otherwise rank, and a pinned one leads it however weakly it matched.
     [TestMethod]

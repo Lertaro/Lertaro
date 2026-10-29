@@ -137,10 +137,17 @@ internal sealed class SearchPipeClient
         // directions cannot interleave in one buffer.
         await using var buffered = new BufferedStream(pipe, ResponseReadBufferSize);
 
+        var perfStart = SearchPerf.Start();
+        var received = 0;
+        var gcBefore = GC.GetTotalPauseDuration();
+        var gen2Before = GC.CollectionCount(2);
         await SearchResponseBinarySerializer.ReadAsync(buffered, result =>
         {
             token.ThrowIfCancellationRequested();
+            received++;
             onResult(result);
         }, token, onNotIndexed).ConfigureAwait(false);
+        var gcMs = (GC.GetTotalPauseDuration() - gcBefore).TotalMilliseconds;
+        SearchPerf.Log($"[pipe.read] id={msg.Id} results={received} {SearchPerf.Ms(perfStart):F0}ms gc={gcMs:F0}ms gen2=+{GC.CollectionCount(2) - gen2Before}");
     }
 }

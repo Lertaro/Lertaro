@@ -110,11 +110,25 @@ public class SearchService : IDisposable
         {
             try
             {
+                var filterTicks = 0L;
+                var kept = 0;
                 await SearchPipeClient.SendSearchPipeCommandAsync(msg, result =>
                 {
-                    if (effectiveBypassExclusions || !exclusionRules.IsExcluded(result, directoryFilter))
-                        uniqueOnResult(result);
+                    var filterStart = SearchPerf.Start();
+                    try
+                    {
+                        if (effectiveBypassExclusions || !exclusionRules.IsExcluded(result, directoryFilter))
+                        {
+                            kept++;
+                            uniqueOnResult(result);
+                        }
+                    }
+                    finally
+                    {
+                        filterTicks += SearchPerf.ElapsedTicks(filterStart);
+                    }
                 }, token).ConfigureAwait(false);
+                SearchPerf.Log($"[pipe.filter] kept={kept} filter={SearchPerf.MsFromTicks(filterTicks):F0}ms");
                 return true;
             }
             catch (OperationCanceledException)

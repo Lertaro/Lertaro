@@ -32,6 +32,15 @@ public class SearchResult : ISearchResult
 
     internal int HistoryScoreX100 { get; set; }
 
+    // Filled by SearchResultRanking.Decorate so RankedSearchResultComparer can decide a pair with one
+    // integer compare. Zero means "not decorated": the comparer then takes its original field-by-field
+    // path, which produces the same order for the same row.
+    internal ulong RankOrderKey { get; set; }
+
+    // The history tie the comparer would derive for this row. Not part of RankOrderKey because it is an
+    // unbounded score; a pair where either side is non-zero takes the original path.
+    internal int HistoryTie { get; set; }
+
     // Populated from the index for every result that comes from one (local or network/WSL) -- lets
     // SearchService merge GetRecentFiles' local and network/WSL result sets by actual recency instead of
     // just concatenating two already-sorted-but-incomparable lists, lets the sidebar Size/Date filters and

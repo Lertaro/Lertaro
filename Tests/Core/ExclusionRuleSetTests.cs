@@ -51,6 +51,78 @@ public sealed class ExclusionRuleSetTests
 
         Assert.IsTrue(rules.IsExcludedPath(@"c:\projects\app\node_modules\lodash\index.js", isDirectory: false));
     }
+    // A pattern with no separator is compiled to "segment boundary, the segment, end of text", so it can
+    // only ever describe the LAST segment. A name that merely contains the pattern somewhere is not a
+    // match, and the middle-segment case is the ancestor walk's job, not this test's.
+    [TestMethod]
+    public void IsExcludedPath_ASegmentOnlyGlobDoesNotMatchASubstringOfTheName()
+    {
+        var settings = EmptySettings();
+        settings.IgnoredPathGlobs.Add("node_modules");
+        var rules = ExclusionRuleSet.From(settings, @"c:\");
+
+        Assert.IsFalse(rules.IsExcludedPath(@"c:\projects\node_modules_old\index.js", isDirectory: false));
+        Assert.IsTrue(rules.IsExcludedPath(@"c:\projects\node_modules", isDirectory: true));
+    }
+
+    [TestMethod]
+    public void GetPriority_ASegmentOnlyGlobMatchesTheLeafNameOnly()
+    {
+        var settings = EmptySettings();
+        settings.IndexRules = new List<IndexRuleSetting>
+        {
+            new() { Pattern = "temp*", Effect = IndexRuleEffect.Low },
+        };
+        var rules = ExclusionRuleSet.From(settings, @"c:\");
+
+        Assert.AreEqual(IndexRuleEffect.Low, rules.GetPriority(@"c:\x\temp.log", isDirectory: false));
+        // The pattern is anchored to a segment start, so a name that merely contains it is not a match.
+        Assert.AreEqual(IndexRuleEffect.Normal, rules.GetPriority(@"c:\data\mytemp.log", isDirectory: false));
+    }
+
+    [TestMethod]
+    public void GetPriority_APatternWithASeparatorStillMatches()
+    {
+        var settings = EmptySettings();
+        settings.IndexRules = new List<IndexRuleSetting>
+        {
+            new() { Pattern = @"x\temp*", Effect = IndexRuleEffect.High },
+        };
+        var rules = ExclusionRuleSet.From(settings, @"c:\");
+
+        Assert.AreEqual(IndexRuleEffect.High, rules.GetPriority(@"c:\x\temp.log", isDirectory: false));
+        Assert.AreEqual(IndexRuleEffect.Normal, rules.GetPriority(@"c:\y\temp.log", isDirectory: false));
+    }
+
+    // Decided 2026-10-29: the separator-suffixed spelling is only tested for a regex that mentions a
+    // separator itself. A pattern with none cannot ask for a trailing separator, and the only patterns
+    // the extra test used to answer were accidental ones like "^abc.$" meeting "abc\".
+    [TestMethod]
+    public void GetPriority_ARegexWithoutASeparatorDoesNotTestTheSeparatorSuffixedForm()
+    {
+        var settings = EmptySettings();
+        settings.IndexRules = new List<IndexRuleSetting>
+        {
+            new() { Pattern = @"/^temp.$/", Effect = IndexRuleEffect.High },
+        };
+        var rules = ExclusionRuleSet.From(settings, @"c:\");
+
+        Assert.AreEqual(IndexRuleEffect.Normal, rules.GetPriority(@"c:\temp", isDirectory: true));
+    }
+
+    [TestMethod]
+    public void GetPriority_ARegexWithASeparatorStillTestsTheSeparatorSuffixedForm()
+    {
+        var settings = EmptySettings();
+        settings.IndexRules = new List<IndexRuleSetting>
+        {
+            new() { Pattern = @"/^temp\\$/", Effect = IndexRuleEffect.High },
+        };
+        var rules = ExclusionRuleSet.From(settings, @"c:\");
+
+        Assert.AreEqual(IndexRuleEffect.High, rules.GetPriority(@"c:\temp", isDirectory: true));
+    }
+
     [TestMethod]
     public void IsExcludedPath_NoMatchingGlobOrRoot_IsNotExcluded()
     {

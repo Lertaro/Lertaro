@@ -326,6 +326,55 @@ public static class RankPolicy
     }
 
     public static int DriveRank(string? drive) => string.IsNullOrEmpty(drive) ? 0 : char.ToUpperInvariant(drive[0]);
+
+    // The full-window ordering up to (and including) the packed quality key, as one integer: section,
+    // then the fields THAT SECTION compares, then the quality key -- exactly the sequence
+    // RankedSearchResultComparer's slow path runs before the history tie. Because two rows in different
+    // sections never compare past the section bits, the section-specific slots may differ per section;
+    // a slot a section does not compare is left zero for all of its rows and therefore has no effect.
+    //
+    // History tie is deliberately absent: it is an unbounded score, and the slow path still handles every
+    // pair where it is non-zero.
+    //
+    //   bits 45-44  section
+    //   bit  43     not alwaysTop        (Pinned)
+    //   bit  42     not favoritePin      (Pinned)
+    //   bits 41-39  grade
+    //   bit  38     not favorite         (Boosted/HistoryTail)
+    //   bits 37-36  priority order
+    //   bits 35-34  not history tier
+    //   bits 33-2   packed quality key
+    public static ulong OrderKey(
+        RankSection section,
+        bool alwaysTop,
+        bool favoritePin,
+        MatchEvidenceGrade grade,
+        bool isFavorite,
+        IndexRuleEffect priority,
+        HistoryTier tier,
+        ulong rankSortKey)
+    {
+        var quality = rankSortKey == 0 ? uint.MaxValue : (uint)(rankSortKey >> 32);
+        var key = (ulong)(byte)section << 44;
+        switch (section)
+        {
+            case RankSection.Pinned:
+                key |= (alwaysTop ? 0UL : 1UL) << 43;
+                key |= (favoritePin ? 0UL : 1UL) << 42;
+                key |= (ulong)PriorityOrder(priority) << 36;
+                break;
+            case RankSection.Low:
+                break;
+            default:
+                key |= (isFavorite ? 0UL : 1UL) << 38;
+                key |= (ulong)PriorityOrder(priority) << 36;
+                break;
+        }
+
+        key |= (ulong)(int)grade << 39;
+        key |= (ulong)(3 - ((int)tier & 3)) << 34;
+        return key | ((ulong)quality << 2);
+    }
 }
 
 public readonly record struct RankTail(bool IsDir, string Name, string NormalizedPath, int Drive, ulong EngineTie);

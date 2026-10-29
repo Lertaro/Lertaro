@@ -1,4 +1,5 @@
 using Lertaro.App.Helpers;
+using Lertaro.Core;
 
 namespace Lertaro.App.ViewModels.Search;
 
@@ -29,6 +30,7 @@ internal sealed class SearchViewResultRenderer
 
     public void Render(List<AppSearchResult> finalResults)
     {
+        var perfStart = SearchPerf.Start();
         // Reconcile row-by-row so streaming paints recycle existing containers instead of resetting
         // the entire list. The unchanged-prefix promise applies only when the result list is the
         // original accumulator list and no sort or filter created a different list object.
@@ -40,5 +42,15 @@ internal sealed class SearchViewResultRenderer
         SearchResultsReconciler.SyncMutableDisplayState(_filteredResults, finalResults);
         _setResultCount(finalResults.Count);
         _refreshHints();
+
+        // How long the window needs after this paint to go idle: layout, the grid's own handling of the
+        // collection change, and realization of whatever rows it decides to build. That work is not
+        // inside the stopwatch above and is the one part of the path no in-process timer can attribute.
+        if (SearchPerf.Enabled && System.Windows.Application.Current?.Dispatcher is { } dispatcher)
+        {
+            var rows = finalResults.Count;
+            dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle,
+                new Action(() => SearchPerf.Log($"[ui.settled] rows={rows} +{SearchPerf.Ms(perfStart):F0}ms")));
+        }
     }
 }

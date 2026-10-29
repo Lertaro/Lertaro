@@ -28,10 +28,12 @@ internal sealed class NetworkGlobPattern
         _rawPattern = pattern ?? string.Empty;
         if (!string.IsNullOrWhiteSpace(_rawPattern))
         {
+            var trimmed = _rawPattern.Trim();
+            IsSegmentOnly = !trimmed.Replace('\\', '/').Contains('/');
             try
             {
-                _regex = GlobToRegex.Compile(_rawPattern.Trim(), matchTimeout: matchTimeout);
-                _requiredLiteral = LongestRequiredLiteral(_rawPattern.Trim());
+                _regex = GlobToRegex.Compile(trimmed, matchTimeout: matchTimeout);
+                _requiredLiteral = LongestRequiredLiteral(trimmed);
             }
             catch (Exception ex)
             {
@@ -43,15 +45,29 @@ internal sealed class NetworkGlobPattern
     /// <summary>The pattern as configured, before compilation. See ExclusionRuleSet.</summary>
     internal string RawPattern => _rawPattern;
 
+    /// <summary>
+    /// Whether the pattern names a single path segment (it contains no separator). Such a pattern compiles
+    /// to "a segment boundary, the segment, end of text", so against a full path it can only ever describe
+    /// the LAST segment -- the name -- and the relative and separator-suffixed spellings the callers also
+    /// try can never turn that into a match. Callers use this to run one match instead of four.
+    /// </summary>
+    public bool IsSegmentOnly { get; }
+
     /// <summary>Whether this pattern has been abandoned for exceeding the match timeout.</summary>
     internal bool IsAbandoned => _abandoned;
 
     public bool IsEmpty => string.IsNullOrWhiteSpace(_rawPattern);
 
-    public bool IsMatch(string text)
+    public bool IsMatch(string text) => IsMatch(text.AsSpan());
+
+    /// <summary>
+    /// Span overload: the per-row callers hold a path or a name as a slice and would otherwise
+    /// materialize a string for every rule.
+    /// </summary>
+    public bool IsMatch(ReadOnlySpan<char> text)
     {
         if (IsEmpty)
-            return string.IsNullOrEmpty(text);
+            return text.IsEmpty;
 
         // Already known to run away: matching nothing is the answer the timeout produced anyway, so
         // there is nothing to gain by spending the budget again on every remaining entry.
@@ -85,13 +101,23 @@ internal sealed class NetworkGlobPattern
                 // which is the bug that led here.
                 _abandoned = true;
                 Logger.Log(
-                    $"[NetworkGlobPattern] Glob '{_rawPattern}' exceeded the match timeout and will be ignored for the rest of this session -- it is almost certainly backtracking catastrophically. First offending input: '{text}'",
+                    $"[NetworkGlobPattern] Glob '{_rawPattern}' exceeded the match timeout and will be ignored for the rest of this session -- it is almost certainly backtracking catastrophically. First offending input: '{text.ToString()}'",
                     LogLevel.Warn);
             }
         }
 
         return false;
     }
+
+    /// <summary>
+    /// Whether any spelling of the same path could still match: the required literal is a necessary
+    /// condition for every spelling (name, relative and separator-suffixed forms are all substrings of the
+    /// path, plus at most a separator the literal never contains), so one scan of the path decides it.
+    /// </summary>
+    public bool CouldMatch(string text) =>
+        !IsEmpty
+        && !_abandoned
+        && (_requiredLiteral == null || text.Contains(_requiredLiteral, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// Longest run of plain literal characters the pattern requires verbatim, or null if it has none

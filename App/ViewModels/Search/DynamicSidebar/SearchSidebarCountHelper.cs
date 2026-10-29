@@ -1,3 +1,4 @@
+using Lertaro.Core;
 using Lertaro.PluginSdk.Abstractions;
 
 namespace Lertaro.App.ViewModels.Search.DynamicSidebar;
@@ -21,6 +22,7 @@ internal sealed class SearchSidebarCountHelper
             groups.Select(group =>
                 (IReadOnlyList<Func<ISearchResult, bool>>)group.Items.Select(item => item.MatchPredicate).ToList())
             .ToList());
+        SearchPerf.Log($"[sidebar] groups={groups.Count} items={_items.Count} predicates={_accumulator.PredicateCount}");
     }
 
     public void Reset()
@@ -50,21 +52,32 @@ internal sealed class SearchSidebarCountHelper
 
     public void Replace(IReadOnlyList<AppSearchResult> results)
     {
+        var perfStart = SearchPerf.Start();
         _accumulator.ReplaceResults(results);
+        var copyMs = SearchPerf.Ms(perfStart);
         _hasResults = true;
-        PublishCounts();
+        PublishCounts($"rows={results.Count} copy={copyMs:F0}ms");
     }
 
-    private void PublishCounts()
+    private void PublishCounts(string? context = null)
     {
+        var selectStart = SearchPerf.Start();
         var selectedPredicates = _groups.Select(group =>
             (IReadOnlyList<Func<ISearchResult, bool>>)group.Items
                 .Where(item => item.IsSelected)
                 .Select(item => item.MatchPredicate)
                 .ToList()).ToList();
+        var selectMs = SearchPerf.Ms(selectStart);
+        var calcStart = SearchPerf.Start();
+        var gcBefore = GC.GetTotalPauseDuration();
+        var gen2Before = GC.CollectionCount(2);
         var counts = _accumulator.Calculate(selectedPredicates);
+        var calcMs = SearchPerf.Ms(calcStart);
+        var gcMs = (GC.GetTotalPauseDuration() - gcBefore).TotalMilliseconds;
+        var setStart = SearchPerf.Start();
         for (var index = 0; index < _items.Count; index++)
             _items[index].SetCount(counts[index]);
+        SearchPerf.Log($"[sidebar.publish] {context} predicates={_accumulator.PredicateCount} items={_items.Count} select={selectMs:F0}ms calc={calcMs:F0}ms gc={gcMs:F0}ms gen2=+{GC.CollectionCount(2) - gen2Before} set={SearchPerf.Ms(setStart):F0}ms");
         _lastPublish = DateTime.UtcNow;
     }
 }

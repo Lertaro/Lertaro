@@ -217,6 +217,7 @@ internal sealed class StreamingResultAccumulator
 
         if (count > 0)
         {
+            var buildStart = SearchPerf.Start();
             var queriedDirectory = _queriedDirectory.Value;
             var chunk = new List<Entry>(count);
             var end = start + count;
@@ -236,15 +237,26 @@ internal sealed class StreamingResultAccumulator
                 _lastBatchRows.Add(row);
                 chunk.Add(new Entry(raw, row));
             }
+            var buildMs = SearchPerf.Ms(buildStart);
 
             _consumed += count;
-            chunk.Sort(CompareEntries);
+            var sortStart = SearchPerf.Start();
+            SortChunk(chunk);
+            var sortMs = SearchPerf.Ms(sortStart);
+            var mergeStart = SearchPerf.Start();
             firstChanged = Merge(chunk);
+            var mergeMs = SearchPerf.Ms(mergeStart);
+
+            // A prepend moves every row that was already there, so nothing on screen can be trusted to still
+            // be in place and this paint compares from the top. Otherwise the merge's own position is where the
+            // view can start, offset by the prefix that sits in front of it.
+            var rewriteStart = SearchPerf.Start();
+            RewriteRows(prefixLanded ? 0 : firstChanged);
+            _firstChanged = prefixLanded ? 0 : _prefixCount + firstChanged;
+            SearchPerf.Log($"[absorb] in={count} kept={chunk.Count} total={_ranked.Count} build={buildMs:F0}ms sort={sortMs:F0}ms merge={mergeMs:F0}ms rewrite={SearchPerf.Ms(rewriteStart):F0}ms firstChanged={firstChanged}");
+            return _rows;
         }
 
-        // A prepend moves every row that was already there, so nothing on screen can be trusted to still
-        // be in place and this paint compares from the top. Otherwise the merge's own position is where the
-        // view can start, offset by the prefix that sits in front of it.
         RewriteRows(prefixLanded ? 0 : firstChanged);
         _firstChanged = prefixLanded ? 0 : _prefixCount + firstChanged;
         return _rows;
@@ -271,6 +283,67 @@ internal sealed class StreamingResultAccumulator
 
     private static int CompareEntries(Entry left, Entry right) =>
         RankedSearchResultComparer.Instance.Compare(left.Raw, right.Raw);
+
+    // The full window's last batch is the whole result set (the progressive cap keeps the streamed paints
+    // small), and sorting it dominated the search: 913k rows cost 6.5s on one thread. Ordering is a total
+    // order over independent rows, so sorting fixed-size blocks in parallel and merging them produces the
+    // same list with the same comparison count spread over the cores. Small batches stay on the plain path,
+    // where the split costs more than it saves.
+    private const int ParallelSortThreshold = 20_000;
+    private const int MaxSortParts = 8;
+
+    private static void SortChunk(List<Entry> chunk)
+    {
+        var parts = Math.Min(MaxSortParts, chunk.Count / ParallelSortThreshold);
+        if (parts < 2)
+        {
+            chunk.Sort(CompareEntries);
+            return;
+        }
+
+        var partSize = (chunk.Count + parts - 1) / parts;
+        var sorted = new List<Entry>[parts];
+        Parallel.For(0, parts, index =>
+        {
+            var start = index * partSize;
+            var end = Math.Min(start + partSize, chunk.Count);
+            var slice = chunk.GetRange(start, end - start);
+            slice.Sort(CompareEntries);
+            sorted[index] = slice;
+        });
+
+        var merged = MergeSorted(sorted);
+        chunk.Clear();
+        chunk.AddRange(merged);
+    }
+
+    private static List<Entry> MergeSorted(List<Entry>[] parts)
+    {
+        var level = new List<List<Entry>>(parts);
+        while (level.Count > 1)
+        {
+            var next = new List<List<Entry>>((level.Count + 1) / 2);
+            for (var i = 0; i < level.Count; i += 2)
+                next.Add(i + 1 < level.Count ? Merge(level[i], level[i + 1]) : level[i]);
+            level = next;
+        }
+
+        return level[0];
+    }
+
+    private static List<Entry> Merge(List<Entry> left, List<Entry> right)
+    {
+        var merged = new List<Entry>(left.Count + right.Count);
+        var i = 0;
+        var j = 0;
+        while (i < left.Count && j < right.Count)
+            merged.Add(CompareEntries(right[j], left[i]) < 0 ? right[j++] : left[i++]);
+        while (i < left.Count)
+            merged.Add(left[i++]);
+        while (j < right.Count)
+            merged.Add(right[j++]);
+        return merged;
+    }
 
     private static string NormalizePath(string path) =>
         path.Length > 3 && path[^1] == '\\' ? path.TrimEnd('\\') : path;

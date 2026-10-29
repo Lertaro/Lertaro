@@ -203,6 +203,21 @@ public sealed class SearchCategoryClassifierTests
         Assert.IsNull(SearchCategoryClassifier.Categorize(new Row(string.Empty)));
     }
 
+    // A counting pass asks the same row once per type item, and consecutive rows interleave freely: the
+    // remembered answer must stay tied to its own row.
+    [TestMethod]
+    public void Categorize_RepeatedAndInterleavedRows_AnswerTheSameEveryTime()
+    {
+        var document = new Row(@"D:\docs\report.docx");
+        var image = new Row(@"D:\pics\photo.png");
+
+        Assert.AreEqual(SearchCategoryFilter.Document, SearchCategoryClassifier.Categorize(document));
+        Assert.AreEqual(SearchCategoryFilter.Document, SearchCategoryClassifier.Categorize(document));
+        Assert.AreEqual(SearchCategoryFilter.Image, SearchCategoryClassifier.Categorize(image));
+        Assert.AreEqual(SearchCategoryFilter.Document, SearchCategoryClassifier.Categorize(document));
+        Assert.AreEqual(SearchCategoryFilter.Image, SearchCategoryClassifier.Categorize(image));
+    }
+
     private sealed class Row(string path, bool isDir = false, bool isApplication = false) : ISearchResult
     {
         public string Name { get; } = Path.GetFileNameWithoutExtension(path);

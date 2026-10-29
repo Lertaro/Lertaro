@@ -27,6 +27,7 @@ public static class IndexV2Searcher
         // ExitReadLock removes progressive streaming for large result sets -- rows arrive all at once --
         // and needs a memory bound the full window cannot state while its limit is int.MaxValue. The
         // inline window already searches against a bounded limit. Reopen on an observed stall.
+        var perfStart = SearchPerf.Start();
         index.Read<object?>((snapshot, delta) =>
         {
             var directoryFilterLower = DirectoryFilterResolver.NormalizeFilter(directoryFilter);
@@ -44,6 +45,7 @@ public static class IndexV2Searcher
                 FilterPatternHelper.SplitOrNullIfMatchAll(fileNameFilter), category);
             return null;
         });
+        SearchPerf.Log($"[search] q='{query}' limit={limit} dir='{directoryFilter}' pathMode={parsed.IsPathMode} build={SearchPerf.BuildFlavor} total={SearchPerf.Ms(perfStart):F0}ms");
     }
 
     // Directory listing rather than search (see DirectoryEnumerator): no query, no ranking, walks the
