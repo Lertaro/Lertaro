@@ -233,15 +233,25 @@ public sealed class FzfPatternTests
     [TestMethod]
     public void CouldHaveJoinedTerm_QueryWithExclusion_IsFalse()
     {
-        // Two term sets, but one is a `!term` -- HasExclusions must veto it exactly like
+        // Two term sets, but one is a `:term` -- HasExclusions must veto it exactly like
         // TryBuildJoinedTerm's own guard did before it delegated here.
-        Assert.IsFalse(FzfPattern.Parse("read !md").CouldHaveJoinedTerm);
+        Assert.IsFalse(FzfPattern.Parse("read :md").CouldHaveJoinedTerm);
+
+        // '!' retired with the old grammar, so this is two plain words again. Left on the old marker the
+        // assertion above would still pass while measuring nothing but HasExclusions being empty.
+        Assert.IsTrue(FzfPattern.Parse("read !md").CouldHaveJoinedTerm);
     }
 
     [TestMethod]
     public void CouldHaveJoinedTerm_TargetedAtADrive_IsFalse()
     {
-        Assert.IsFalse(FzfPattern.Parse("c:readme report").CouldHaveJoinedTerm);
+        // A drive spec is exactly "X:", so the scoped query is the bare token plus two words: the only
+        // reason this is false is the drive, not the term count.
+        Assert.IsFalse(FzfPattern.Parse("c: readme report").CouldHaveJoinedTerm);
+
+        // "c:readme" is literal text on this branch (IsBareDriveSpec wants a two-character token), which
+        // keeps this the two-word query it looks like.
+        Assert.IsTrue(FzfPattern.Parse("c:readme report").CouldHaveJoinedTerm);
     }
 
     [TestMethod]
