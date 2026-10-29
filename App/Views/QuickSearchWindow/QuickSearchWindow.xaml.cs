@@ -373,4 +373,144 @@ public partial class QuickSearchWindow : Window, ISearchWindow, IHasVisibleConte
         _viewModel.CycleCategory(e.Delta < 0 ? 1 : -1);
         e.Handled = true;
     }
+    // Re-aims without animation whenever the bar is re-measured: a resize or a first layout after the fonts
+    // settle moves every label, and an animated catch-up would read as the line wandering off on its own.
+    private void CategoryBar_SizeChanged(object sender, System.Windows.SizeChangedEventArgs e)
+        => Dispatcher.BeginInvoke(
+            new Action(() => MoveIndicatorToSelection(animate: false)),
+            System.Windows.Threading.DispatcherPriority.Loaded);
+
+    private const int IndicatorSlideMs = 160;
+    private const int IndicatorMaxAttempts = 8;
+    private const double IndicatorOpacity = 0.55;
+
+    // False until the indicator has been positioned once, so the first paint snaps into place instead of
+    // sliding in from the origin.
+    private bool _indicatorPlaced;
+
+    private void CategoryBar_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (_indicatorPlaced)
+        {
+            // Containers are laid out by Background priority; asking earlier finds no container for the newly
+            // selected item and silently leaves the line where it was.
+            Dispatcher.BeginInvoke(new Action(() => MoveIndicatorToSelection()),
+                System.Windows.Threading.DispatcherPriority.Background);
+            return;
+        }
+
+        // First aim: no animation, then show it once the position is real.
+        _indicatorPlaced = true;
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            MoveIndicatorToSelection(animate: false);
+            // Shown unconditionally: gating this on IsVisible left the line permanently transparent whenever
+            // the first selection landed while the window was still hidden.
+            CategoryIndicator.BeginAnimation(OpacityProperty, null);
+            CategoryIndicator.Opacity = IndicatorOpacity;
+        }), System.Windows.Threading.DispatcherPriority.Background);
+    }
+
+    // First TextBlock under a container. The item template wraps the label, so it is not at a fixed index.
+    private static System.Windows.Controls.TextBlock? FindIndicatorLabel(DependencyObject root)
+    {
+        var count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);
+        for (var i = 0; i < count; i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(root, i);
+            if (child is System.Windows.Controls.TextBlock text)
+                return text;
+            if (FindIndicatorLabel(child) is { } nested)
+                return nested;
+        }
+
+        return null;
+    }
+
+    // Places the underline under the selected filter, sliding there when it moves.
+    //
+    // The base-value dance is load-bearing: while an animation owns a property, nothing assigns its base
+    // value, so detaching alone snaps the property back to whatever it was before the first animation ever
+    // ran. Reading the on-screen value first and writing it back right after detaching keeps the base value
+    // equal to what the user last saw, so the next slide starts from the real position instead of the origin.
+    private void MoveIndicatorToSelection(bool animate = true, int attempt = 0)
+    {
+        if (CategoryBar.SelectedItem is not { } category)
+            return;
+
+        if (CategoryBar.ItemContainerGenerator.ContainerFromItem(category) is not System.Windows.Controls.ListBoxItem container)
+        {
+            // The container is not generated yet. This happens on the first selection, before the list has
+            // been laid out -- returning here leaves the line at x=0, which is the offset that keeps coming
+            // back. Try again once layout has run, a bounded number of times.
+            if (attempt < IndicatorMaxAttempts)
+            {
+                Dispatcher.BeginInvoke(
+                    new Action(() => MoveIndicatorToSelection(animate, attempt + 1)),
+                    System.Windows.Threading.DispatcherPriority.Loaded);
+            }
+            return;
+        }
+
+        // Measured off the label itself rather than derived from the item's width minus guessed padding, which
+        // left the line a pixel or two off depending on how the values rounded.
+        var label = FindIndicatorLabel(container);
+        System.Windows.Rect bounds;
+        if (label != null)
+        {
+            var origin = label.TransformToAncestor(CategoryBar).Transform(new System.Windows.Point(0, 0));
+            bounds = new System.Windows.Rect(origin.X, origin.Y, label.ActualWidth, label.ActualHeight);
+        }
+        else
+        {
+            // Fallback for the window between the container being created and its content being realized.
+            var offset = container.TransformToAncestor(CategoryBar).Transform(new System.Windows.Point(0, 0));
+            const double Separator = 1;
+            bounds = new System.Windows.Rect(
+                offset.X + Separator + container.Padding.Left,
+                offset.Y,
+                Math.Max(0, container.ActualWidth - Separator - container.Padding.Left - container.Padding.Right),
+                container.ActualHeight);
+        }
+
+        var targetX = bounds.X;
+        var targetWidth = bounds.Width;
+
+        var fromX = CategoryIndicatorTransform.X;
+        var fromWidth = CategoryIndicator.Width;
+
+        CategoryIndicatorTransform.BeginAnimation(System.Windows.Media.TranslateTransform.XProperty, null);
+        CategoryIndicator.BeginAnimation(FrameworkElement.WidthProperty, null);
+
+        if (!animate || (Math.Abs(fromX - targetX) < 0.5 && Math.Abs(fromWidth - targetWidth) < 0.5))
+        {
+            CategoryIndicatorTransform.X = targetX;
+            CategoryIndicator.Width = targetWidth;
+            return;
+        }
+
+        CategoryIndicatorTransform.X = fromX;
+        CategoryIndicator.Width = fromWidth;
+
+        // EaseOut: covers most of the distance early and settles, so a held arrow key keeps stacking onto a
+        // line that is already near its target instead of restarting from a standstill each time.
+        var ease = new System.Windows.Media.Animation.CubicEase
+        {
+            EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut,
+        };
+        var duration = TimeSpan.FromMilliseconds(IndicatorSlideMs);
+
+        CategoryIndicatorTransform.BeginAnimation(
+            System.Windows.Media.TranslateTransform.XProperty,
+            new System.Windows.Media.Animation.DoubleAnimation(fromX, targetX, duration)
+            {
+                EasingFunction = ease,
+            });
+        CategoryIndicator.BeginAnimation(
+            FrameworkElement.WidthProperty,
+            new System.Windows.Media.Animation.DoubleAnimation(fromWidth, targetWidth, duration)
+            {
+                EasingFunction = ease,
+            });
+    }
 }
