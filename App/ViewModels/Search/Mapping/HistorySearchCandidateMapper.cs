@@ -11,7 +11,11 @@ namespace Lertaro.App.ViewModels.Search.Mapping;
 internal static class HistorySearchCandidateMapper
 {
     private const int MaxCandidates = 50;
-    public const int MaxLearnedCandidatesPerQuery = 1;
+    // How many learned pairs one query may contribute. One was far too few: the engine's candidate cap
+    // truncates by raw text score, so a habitually opened file that sorts past the cut never reaches the
+    // ranking stage at all -- this path is the only way it gets in, and a single slot left the rest of the
+    // user's history unreachable on exactly the short queries where they expect it.
+    public const int MaxLearnedCandidatesPerQuery = 10;
 
     public static List<SearchResultMapper.RankedCandidate> Collect(FuzzyQuery fuzzy, string? scope, int typeRank = int.MaxValue) =>
         CollectLearned(fuzzy, scope, rankContext: null, typeRank);
@@ -75,8 +79,123 @@ internal static class HistorySearchCandidateMapper
 
     // The association key already passed the exact canonical comparison. Give it a full-strength
     // keyword rank so the history-only marker, not a fuzzy coincidence, decides its tier.
-    private static MatchEvidenceResult ExactHistoryMatch(HistoryEntry entry)
+    /// <summary>
+    /// Adds the paths the user opens often when their NAME matches the query.
+    /// </summary>
+    /// <remarks>
+    /// The association channel above only recalls a pair for a keyword the user confirmed, and it marks those
+    /// rows history-only so they sort behind anything the index matched. For a one- or two-letter query that is
+    /// the wrong shape: the goal there is reaching a handful of paths used every day, while the index answers
+    /// "everything containing these letters" -- and its own truncation then drops the habits before the ranking
+    /// stage ever sees them. Reading the decayed path scores directly puts those rows into the candidate set as
+    /// ordinary matches, so the ranking ladder can lift them on their real placement and usage instead.
+    /// </remarks>
+    private static readonly Func<string, bool> AlwaysTrue = _ => true;
+
+    private const long KindCacheMs = 30_000;
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (bool IsDir, long At)> KindCache = new(StringComparer.OrdinalIgnoreCase);
+
+    // Directory-or-file for a history path, memoised. Directory.Exists is one file-system call; on a path that
+    // has since gone it answers false, which lands the row on the file path and still lets it render.
+    private static HistoryEntryKind DirectoryKind(string path, out bool exists)
     {
+        if (KindCache.TryGetValue(path, out var cached) && Environment.TickCount64 - cached.At < KindCacheMs)
+        {
+            exists = cached.IsDir || File.Exists(path);
+            return cached.IsDir ? HistoryEntryKind.Folder : HistoryEntryKind.File;
+        }
+
+        var isDir = Directory.Exists(path);
+        exists = isDir || File.Exists(path);
+        KindCache[path] = (isDir, Environment.TickCount64);
+        return isDir ? HistoryEntryKind.Folder : HistoryEntryKind.File;
+    }
+
+    internal static List<SearchResultMapper.RankedCandidate> CollectFromFrecency(
+        FuzzyQuery fuzzy,
+        string? scope,
+        RankContext? rankContext,
+        int typeRank,
+        int maxCandidates)
+    {
+        if (fuzzy.IsEmpty || maxCandidates <= 0)
+            return [];
+
+        var query = fuzzy.Text;
+        if (query.Length == 0)
+            return [];
+
+        var scores = SearchHistoryStore.ScoreSnapshot(DateTimeOffset.UtcNow);
+        if (scores.Count == 0)
+            return [];
+
+        var normalizedScope = string.IsNullOrEmpty(scope) ? null : SearchResultHelper.NormalizePath(scope);
+        var candidates = new List<SearchResultMapper.RankedCandidate>(Math.Min(maxCandidates, MaxCandidates));
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var pair in scores.OrderByDescending(p => p.Value))
+        {
+            if (candidates.Count >= maxCandidates)
+                break;
+
+            var path = pair.Key;
+            var name = Path.GetFileName(path);
+            if (string.IsNullOrEmpty(name))
+                continue;
+
+            var start = name.IndexOf(query, StringComparison.OrdinalIgnoreCase);
+            if (start < 0)
+                continue;
+
+            // Whether this path is a directory decides the row's icon, what a double click does, and how it
+            // sorts -- so it is answered by asking, not by looking at the name. A name-based guess is wrong for
+            // every directory that contains a dot ("v1.2", "World.of.Warcraft"), and those are ordinary names,
+            // not corner cases. The answer is memoised per path: this runs on every keystroke, and the same
+            // handful of paths comes back each time.
+            var kind = DirectoryKind(path, out var pathExists);
+            if (!pathExists)
+                continue;   // Deleted since it was recorded; a row that cannot be opened is worse than none.
+            var entry = new HistoryEntry(string.Empty, path, kind, 0, pair.Value / 100);
+            // Existence is assumed rather than probed: the same rule as the kind above, and the expensive
+            // half of the hitch. A path that has since been deleted still renders once and simply fails to
+            // open; re-recording history prunes it.
+            if (!TryCreateResult(entry, query, normalizedScope, AlwaysTrue, AlwaysTrue, out var result, out var normalizedPath) ||
+                !seen.Add(normalizedPath))
+                continue;
+            if (rankContext?.PriorityResolver?.Invoke(normalizedPath, result.IsDir).Effect == IndexRuleEffect.Low)
+                continue;
+            var shape = start != 0
+                ? MatchRank.ShapeInsideWord
+                : name.Length == query.Length ? MatchRank.ShapeWholeWord : MatchRank.ShapeWordStart;
+            var rank = new MatchRank(
+                MatchRank.TierName,
+                Math.Min(start, MatchRank.StartCap),
+                (double)query.Length / name.Length,
+                1d,
+                shape);
+
+            candidates.Add(new SearchResultMapper.RankedCandidate(
+                result,
+                IsFavorite: false,
+                HistoryCount: pair.Value / 100,
+                TypeRank: typeRank,
+                Match: rank,
+                NormalizedPath: normalizedPath,
+                IsHistoryOnly: false,
+                Source: RankingCandidateSource.History,
+                Evidence: MatchEvidence.Accepted(
+                    query,
+                    query,
+                    MatchEvidenceField.FileName,
+                    rank,
+                    MatchEvidenceMode.Literal,
+                    MatchQueryVariant.Original)));
+        }
+
+        return candidates;
+    }
+
+    private static MatchEvidenceResult ExactHistoryMatch(HistoryEntry entry)    {
         var rank = new MatchRank(MatchRank.TierName, 0, 1d, 1d, MatchRank.ShapeWholeWord);
         var evidence = MatchEvidence.Accepted(
             entry.Keyword,
@@ -102,16 +221,16 @@ internal static class HistorySearchCandidateMapper
             return [];
 
         var query = fuzzy.Text;
-        // Learned association is an exact canonical lookup, not another fuzzy surface: the only query
-        // allowed to recall a learned pair is the one the user confirmed, after P4's pinyin-equivalence
-        // folding (see SearchHistoryStore.NormalizeAssociationQuery).
+        // A confirmed pair is recalled when what the user is typing is a PREFIX of the keyword they confirmed,
+        // not only when it is identical. Identity-only made the recall start one keystroke too late: a path
+        // stored under a three-letter keyword stayed invisible while the user was still on the first two, which
+        // are exactly the keystrokes where they need it back. Prefix keeps the canonical form, so
+        // pinyin-equivalent spellings still fold together, and the candidate cap keeps the extra hits bounded.
         var canonicalQuery = SearchHistoryStore.NormalizeAssociationQuery(query);
         var matches = entries
             .Where(entry => canonicalQuery.Length > 0
-                && string.Equals(
-                    SearchHistoryStore.NormalizeAssociationQuery(entry.Keyword),
-                    canonicalQuery,
-                    StringComparison.OrdinalIgnoreCase))
+                && SearchHistoryStore.NormalizeAssociationQuery(entry.Keyword)
+                    .StartsWith(canonicalQuery, StringComparison.OrdinalIgnoreCase))
             .Select(entry => (Entry: entry, Matched: ExactHistoryMatch(entry)))
             .OrderBy(candidate => candidate.Matched.Rank.Start)
             // Most recent pick first: choosing the 10th result for "atlas" makes it the top one next time,

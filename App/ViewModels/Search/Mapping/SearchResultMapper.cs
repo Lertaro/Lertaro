@@ -240,6 +240,16 @@ public static class SearchResultMapper
         if (triggeredTypeId == null)
         {
             var historyCandidates = HistorySearchCandidateMapper.CollectLearned(fuzzy, scope, rankContext, filesTypeRank);
+            // The user's own frequent paths whose NAME matches what has been typed. Separate from the learned
+            // channel above: that one needs the exact keyword the user confirmed, while the index's own rows are
+            // truncated by text score before this stage, so neither reliably surfaces a habit on a short query.
+            // These arrive as ordinary matches, so they compete on placement and usage like any other row.
+            historyCandidates.AddRange(HistorySearchCandidateMapper.CollectFromFrecency(
+                fuzzy,
+                scope,
+                rankContext,
+                filesTypeRank,
+                maxCandidates: 20));
             if (normalizedScopeFolders != null)
             {
                 if (preRankingDrops != null)
