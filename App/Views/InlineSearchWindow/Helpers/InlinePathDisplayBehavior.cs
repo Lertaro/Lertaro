@@ -36,6 +36,12 @@ public static class InlinePathDisplayBehavior
         else
         {
             Detach(textBlock);
+            // Hand the cell's text back to the template. Refresh writes it with SetValue, i.e. as a local
+            // value, and a local value outranks the Style setter's own {Binding Name} -- so a container
+            // recycled from an opened-folder row to a real result kept painting that folder's path as the
+            // result's name, while its icon and its path column refreshed normally. The card is one window
+            // for the whole session, so the wrong name then survived every later query and every later host.
+            textBlock.ClearValue(TextHighlighter.TextProperty);
         }
     }
 
