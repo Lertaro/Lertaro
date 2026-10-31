@@ -1,3 +1,4 @@
+using System.Text;
 using Lertaro.Plugins.CoreExtensions.Preview.Providers;
 
 namespace Lertaro.Plugins.CoreExtensions.Tests.Preview.Providers;
@@ -98,6 +99,98 @@ public sealed class TextPreviewProviderTests
         {
             try { File.Delete(path); } catch { }
         }
+    }
+
+    [TestMethod]
+    public void CanPreview_UnknownExtension_BomlessUtf16File_ReturnsTrue()
+    {
+        // UTF-16 interleaves NUL bytes; the binary sniff must not reject it as binary.
+        using var file = new TempFile(Encoding.Unicode.GetBytes("utf16 text without a bom"));
+
+        Assert.IsTrue(Provider.CanPreview(file.Path, isDir: false));
+    }
+
+    [TestMethod]
+    public void CanPreview_UnknownExtension_BinaryBytesInBothLanes_StillReturnsFalse()
+    {
+        var binary = new byte[256];
+        for (var i = 0; i < binary.Length; i += 2) binary[i] = 0x00;
+        for (var i = 1; i < binary.Length; i += 4) binary[i] = 0x00;
+        using var file = new TempFile(binary);
+
+        Assert.IsFalse(Provider.CanPreview(file.Path, isDir: false));
+    }
+
+    [TestMethod]
+    public void DecodeText_GbkWithoutBom_DecodesChinese()
+    {
+        // "这是文本文档" in GBK: D5E2 CAC7 CEC4 B1BE CEC4 B5B5; these bytes are invalid UTF-8.
+        var gbkBytes = new byte[]
+        {
+            0xD5, 0xE2, 0xCA, 0xC7, 0xCE, 0xC4, 0xB1, 0xBE, 0xCE, 0xC4, 0xB5, 0xB5
+        };
+
+        Assert.AreEqual("这是文本文档", TextPreviewProvider.DecodeText(gbkBytes, gbkBytes.Length, hasMoreBytes: false));
+    }
+
+    [TestMethod]
+    public void DecodeText_Utf8Bom_DecodesWithoutBomArtifact()
+    {
+        var bytes = new byte[] { 0xEF, 0xBB, 0xBF }.Concat(Encoding.UTF8.GetBytes("价格bom")).ToArray();
+
+        Assert.AreEqual("价格bom", TextPreviewProvider.DecodeText(bytes, bytes.Length, hasMoreBytes: false));
+    }
+
+    [TestMethod]
+    public void DecodeText_Utf8WithoutBom_StaysUtf8()
+    {
+        var bytes = Encoding.UTF8.GetBytes("plain ascii with 中文");
+
+        Assert.AreEqual("plain ascii with 中文", TextPreviewProvider.DecodeText(bytes, bytes.Length, hasMoreBytes: false));
+    }
+
+    [TestMethod]
+    [DataRow(true)]
+    [DataRow(false)]
+    public void DecodeText_Utf16Bom_DecodesChinese(bool littleEndian)
+    {
+        var encoding = littleEndian ? Encoding.Unicode : Encoding.BigEndianUnicode;
+        var bytes = encoding.GetPreamble().Concat(encoding.GetBytes("中文ok")).ToArray();
+
+        Assert.AreEqual("中文ok", TextPreviewProvider.DecodeText(bytes, bytes.Length, hasMoreBytes: false));
+    }
+
+    [TestMethod]
+    [DataRow(true)]
+    [DataRow(false)]
+    public void DecodeText_BomlessUtf16_DecodesChinese(bool littleEndian)
+    {
+        var encoding = littleEndian ? Encoding.Unicode : Encoding.BigEndianUnicode;
+        var bytes = encoding.GetBytes("bomless utf16 text");
+
+        Assert.AreEqual("bomless utf16 text", TextPreviewProvider.DecodeText(bytes, bytes.Length, hasMoreBytes: false));
+    }
+
+    [TestMethod]
+    public void DecodeText_Utf8ChunkCutMidCharacter_StillDecodesAsUtf8()
+    {
+        // A 16KB read that lands inside a 3-byte UTF-8 char must not be mistaken for GBK.
+        var bytes = Encoding.UTF8.GetBytes(new string('a', 4095) + "中").Take(4097).ToArray();
+
+        var text = TextPreviewProvider.DecodeText(bytes, bytes.Length, hasMoreBytes: true);
+
+        Assert.AreEqual(new string('a', 4095), text);
+    }
+
+    [TestMethod]
+    public void DecodePreview_OverCharLimit_TrimsAndFlagsTruncation()
+    {
+        var bytes = Encoding.UTF8.GetBytes(new string('x', 2000));
+
+        var (text, truncated) = TextPreviewProvider.DecodePreview(bytes, bytes.Length, hasMoreBytes: false);
+
+        Assert.AreEqual(1500, text.Length);
+        Assert.IsTrue(truncated);
     }
 }
 
