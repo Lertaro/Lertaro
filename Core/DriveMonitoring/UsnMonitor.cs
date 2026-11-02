@@ -218,10 +218,12 @@ public class UsnMonitor : IDisposable
 
         await Task.Delay(500, _token);
     }
+    // FILE_SHARE_DELETE, because this handle stays open for hours: a volume handle that withholds it makes
+    // FSCTL_LOCK_VOLUME fail, which is the "device is currently in use" answer to a safe-removal request.
     private static SafeFileHandle OpenVolume(string volumePath) => Win32Api.CreateFileW(
         volumePath,
         Win32Api.GENERIC_READ,
-        Win32Api.FILE_SHARE_READ | Win32Api.FILE_SHARE_WRITE,
+        Win32Api.FILE_SHARE_READ | Win32Api.FILE_SHARE_WRITE | Win32Api.FILE_SHARE_DELETE,
         IntPtr.Zero,
         Win32Api.OPEN_EXISTING,
         0,
@@ -248,6 +250,14 @@ public class UsnMonitor : IDisposable
                 if (attempt == 1 || attempt % 5 == 0)
                     Logger.Log($"[Monitor] Drive {_drive} not ready; reopen attempt {attempt}/30.", LogLevel.Warn);
                 continue;
+            }
+
+            // Disposed while this thread slept: UsnMonitorHandleState.Dispose has already run, so a handle set
+            // now has no owner left to close it and survives until the process exits.
+            if (Volatile.Read(ref _disposed) != 0)
+            {
+                handle.Dispose();
+                return new SafeFileHandle(IntPtr.Zero, ownsHandle: true);
             }
 
             _handleState.Set(handle);

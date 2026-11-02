@@ -57,10 +57,12 @@ internal sealed class DriveDeviceRemovalMonitor : IDisposable
 
     private bool RegisterCore(string drive)
     {
+        // Shares delete so the handle this registration reports on is not itself what vetoes the removal it
+        // is being asked about -- the same shape as UsnFilePathResolver's volume open.
         var handle = Win32Api.CreateFileW(
             $"\\\\.\\{drive}:",
             Win32Api.GENERIC_READ,
-            Win32Api.FILE_SHARE_READ | Win32Api.FILE_SHARE_WRITE,
+            Win32Api.FILE_SHARE_READ | Win32Api.FILE_SHARE_WRITE | Win32Api.FILE_SHARE_DELETE,
             IntPtr.Zero,
             Win32Api.OPEN_EXISTING,
             0,
