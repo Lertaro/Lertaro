@@ -4,12 +4,59 @@ on:
   push:
     tags:
       - 'v*'
+  # A manual run bypasses the release throttle below: start it on the tag to publish.
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
+  # Releases go out at most once every 36 hours. A tag pushed sooner than that is ignored rather than
+  # failed, so a burst of version bumps does not produce a burst of releases.
+  release-guard:
+    runs-on: ubuntu-latest
+    outputs:
+      allowed: ${{ steps.check.outputs.allowed }}
+    steps:
+      - name: Check release interval
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          REPO: ${{ github.repository }}
+          MIN_HOURS: '36'
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" != "push" ]; then
+            if [ "${REF#refs/tags/}" = "$REF" ]; then
+              echo "::error::A manual release run needs a tag ref, got $REF."
+              exit 1
+            fi
+            echo "Manual run of $REF: release throttle skipped."
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          published=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/$REPO/releases/latest" | jq -r '.published_at // empty' || true)
+          if [ -z "$published" ]; then
+            echo "No previous release: allowed."
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          elapsed=$(( ($(date -u +%s) - $(date -d "$published" +%s)) / 3600 ))
+          if [ "$elapsed" -lt "$MIN_HOURS" ]; then
+            echo "::notice::Release throttled: the previous release was ${elapsed}h ago, the minimum is ${MIN_HOURS}h. Push the tag again later, or run this workflow manually to override."
+            echo "allowed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build-and-release:
+    needs: release-guard
+    if: needs.release-guard.outputs.allowed == 'true'
     runs-on: windows-latest
 
     steps:
@@ -30,12 +77,33 @@ jobs:
         run: |
           winget install JRSoftware.InnoSetup.7 --force --silent --no-upgrade --accept-source-agreements
 
-      # 4. Execute the build and package batch script
+      # 4. Hand the release key to make.bat, which signs the portable zips as part of packaging
+      - name: Configure Signing Key
+        shell: pwsh
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+        run: |
+          if (-not $env:SIGNING_KEY) {
+              Write-Host "::warning::SIGNING_KEY is not configured; the portable zips will not be signed."
+              exit 0
+          }
+          $keyPath = Join-Path $env:RUNNER_TEMP 'lertaro-release.key'
+          [System.IO.File]::WriteAllText($keyPath, $env:SIGNING_KEY)
+          "LERTARO_SIGNING_KEY=$keyPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      # 5. Execute the build and package batch script
       - name: Run Build and Package Script
         run: |
           .\make.bat
 
-      # 5. Extract commit history since the previous tag as Release Notes
+      - name: Remove Signing Key
+        if: always()
+        shell: pwsh
+        run: |
+          $keyPath = Join-Path $env:RUNNER_TEMP 'lertaro-release.key'
+          if (Test-Path $keyPath) { Remove-Item -Force $keyPath }
+
+      # 6. Extract commit history since the previous tag as Release Notes
       - name: Generate Changelog
         id: changelog
         shell: bash
@@ -50,83 +118,60 @@ jobs:
           fi
           echo "" >> changelog.md
 
-      # 5.5 Sign portable ZIP and generate hash checksums
-      - name: Sign Artifacts and Add Verification Info
+      # 7. Hash checksums and the verification instructions. The public key is read out of the source so
+      # the notes cannot drift from what the app actually trusts.
+      - name: Add Verification Info
         shell: pwsh
-        env:
-          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
         run: |
-          # Calculate SHA-256 hashes of build artifacts
-          $exeHash = (Get-FileHash -Path "dist/Lertaro-Setup.exe" -Algorithm SHA256).Hash.ToLower()
-          $zipHash = (Get-FileHash -Path "dist/Lertaro-Portable.zip" -Algorithm SHA256).Hash.ToLower()
-          $exeHashArm = (Get-FileHash -Path "dist/Lertaro-Setup-arm64.exe" -Algorithm SHA256).Hash.ToLower()
-          $zipHashArm = (Get-FileHash -Path "dist/Lertaro-Portable-arm64.zip" -Algorithm SHA256).Hash.ToLower()
-          
-          # Sign portable zip if signing key is present
-          if ($env:SIGNING_KEY) {
-              # Write signing key to temp file
-              [System.IO.File]::WriteAllText("tempKey.pem", $env:SIGNING_KEY)
-              
-              # Sign using OpenSSL. Both portable zips, with the same key: they are the same release,
-              # and an unsigned arm64 download would look less trustworthy than the x64 one for no
-              # reason other than which machine the user happens to have.
-              openssl dgst -sha256 -sign tempKey.pem -out dist/Lertaro-Portable.zip.sig dist/Lertaro-Portable.zip
-              openssl dgst -sha256 -sign tempKey.pem -out dist/Lertaro-Portable-arm64.zip.sig dist/Lertaro-Portable-arm64.zip
-              
-              # Clean up private key file immediately
-              if (Test-Path "tempKey.pem") { Remove-Item -Force "tempKey.pem" }
-              
-              $signedText = "Successfully signed portable release with OpenSSL."
-          } else {
-              # Write a placeholder file so the release upload step doesn't fail when looking for .sig
-              New-Item -Path "dist/Lertaro-Portable.zip.sig" -ItemType File -Value "unsigned" > $null
-              New-Item -Path "dist/Lertaro-Portable-arm64.zip.sig" -ItemType File -Value "unsigned" > $null
-              $signedText = "Warning: Release is NOT signed (SIGNING_KEY secret is missing)."
-          }
-          Write-Host $signedText
-
-          # Append verification info to changelog.md
-          echo '' >> changelog.md
-          echo '## Security Verification' >> changelog.md
-          echo '' >> changelog.md
-          echo '### SHA-256 Checksums' >> changelog.md
-          echo "* **Lertaro-Setup.exe** (x64): ``$exeHash``" >> changelog.md
-          echo "* **Lertaro-Portable.zip** (x64): ``$zipHash``" >> changelog.md
-          echo "* **Lertaro-Setup-arm64.exe** (arm64): ``$exeHashArm``" >> changelog.md
-          echo "* **Lertaro-Portable-arm64.zip** (arm64): ``$zipHashArm``" >> changelog.md
-          
-          if ($env:SIGNING_KEY) {
-              echo '' >> changelog.md
-              echo '### Signature Verification (ECDsa NistP256)' >> changelog.md
-              echo 'The portable ZIP release is signed using our official release key.' >> changelog.md
-              echo '' >> changelog.md
-              echo 'To verify the signature manually using OpenSSL:' >> changelog.md
-              echo '```bash' >> changelog.md
-              echo '# 1. Save the public key shown above to ''public_key.pem''' >> changelog.md
-              echo '# 2. Run the following command:' >> changelog.md
-              echo 'openssl dgst -sha256 -verify public_key.pem -signature Lertaro-Portable.zip.sig Lertaro-Portable.zip' >> changelog.md
-              echo '# Expected output: Verified OK' >> changelog.md
-              echo '```' >> changelog.md
-              echo '' >> changelog.md
-              echo 'To verify the signature manually in PowerShell (.NET 5.0+):' >> changelog.md
-              echo '```powershell' >> changelog.md
-              echo '$zipBytes = [System.IO.File]::ReadAllBytes(''Lertaro-Portable.zip'')' >> changelog.md
-              echo '$sigBytes = [System.IO.File]::ReadAllBytes(''Lertaro-Portable.zip.sig'')' >> changelog.md
-              echo '$ecdsa = [System.Security.Cryptography.ECDsa]::Create()' >> changelog.md
-              echo '$pubKeyPem = ''-----BEGIN PUBLIC KEY-----' >> changelog.md
-              echo 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE117370jTbSPgIwHLntC+Bi3SD6gJ' >> changelog.md
-              echo 'QfxAySjSpUWa6zy4n0YHVv/ZWXM9zQlF2LTqpQC0iHNdJNH+MKU9UvDMTQ==' >> changelog.md
-              echo '-----END PUBLIC KEY-----''' >> changelog.md
-              echo '$ecdsa.ImportFromPem($pubKeyPem)' >> changelog.md
-              echo '$ecdsa.VerifyData($zipBytes, $sigBytes, [System.Security.Cryptography.HashAlgorithmName]::SHA256, [System.Security.Cryptography.DSASignatureFormat]::Rfc3279DerSequence)' >> changelog.md
-              echo '# Expected output: True' >> changelog.md
-              echo '```' >> changelog.md
-          } else {
-              echo '' >> changelog.md
-              echo '*Note: This release is unsigned (SIGNING_KEY missing).*' >> changelog.md
+          $files = @('Lertaro-Setup.exe', 'Lertaro-Portable.zip', 'Lertaro-Setup-arm64.exe', 'Lertaro-Portable-arm64.zip')
+          $lines = [System.Collections.Generic.List[string]]::new()
+          $lines.Add('')
+          $lines.Add('## Security Verification')
+          $lines.Add('')
+          $lines.Add('### SHA-256 Checksums')
+          foreach ($name in $files) {
+              $hash = (Get-FileHash -Path "dist/$name" -Algorithm SHA256).Hash.ToLower()
+              $lines.Add("* **$name**: ``$hash``")
           }
 
-      # 6. Publish release and upload artifacts (installer, portable ZIP, and signature)
+          # make.bat signs during packaging; without SIGNING_KEY it leaves the zips unsigned and this fills
+          # in the placeholders the upload step expects.
+          $signed = $true
+          foreach ($zip in @('Lertaro-Portable.zip', 'Lertaro-Portable-arm64.zip')) {
+              $sig = "dist/$zip.sig"
+              if (-not (Test-Path $sig) -or (Get-Item $sig).Length -lt 8) {
+                  Set-Content -Path $sig -Value 'unsigned' -NoNewline
+                  $signed = $false
+              }
+          }
+
+          $source = Get-Content 'Core/Services/Update/UpdatePackage.cs' -Raw
+          $parts = [regex]::Matches($source, '"([A-Za-z0-9+/=]{40,})\\n"') | ForEach-Object { $_.Groups[1].Value }
+
+          if ($signed -and $parts) {
+              $lines.Add('')
+              $lines.Add('### Signature Verification (ECDsa NistP256)')
+              $lines.Add('The portable zips are signed with the release key. Save the public key below as')
+              $lines.Add('`public_key.pem`, then run:')
+              $lines.Add('')
+              $lines.Add('```bash')
+              $lines.Add('openssl dgst -sha256 -verify public_key.pem -signature Lertaro-Portable.zip.sig Lertaro-Portable.zip')
+              $lines.Add('# Expected output: Verified OK')
+              $lines.Add('```')
+              $lines.Add('')
+              $lines.Add('```')
+              $lines.Add('-----BEGIN PUBLIC KEY-----')
+              foreach ($part in $parts) { $lines.Add($part) }
+              $lines.Add('-----END PUBLIC KEY-----')
+              $lines.Add('```')
+          } elseif (-not $signed) {
+              $lines.Add('')
+              $lines.Add('*Note: this release is unsigned (SIGNING_KEY missing).*')
+          }
+
+          $lines | Add-Content -Path changelog.md -Encoding utf8
+
+      # 8. Publish release and upload artifacts (installers, portable ZIPs, and signatures)
       # The new repository is not visible to legacy installs, so ARM64 assets use the conventional
       # hyphenated suffix. Keep these names in sync with make.bat and UpdateAssetSelector.
       - name: Create GitHub Release
