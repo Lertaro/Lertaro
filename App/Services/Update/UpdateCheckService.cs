@@ -62,7 +62,7 @@ public static class UpdateCheckService
             // behaviour worth having.
             if (settings.AutoSilentUpdate && ElevationHelper.IsUserAdmin() &&
                 ServiceInstallManager.IsInstalledAtCurrentPath() &&
-                UpdateAssetSelector.SelectPortableZip(release.Assets, a => a.Name) is { } zipAsset)
+                UpdateAssetSelector.SelectPortableZip(release.Assets.Links, a => a.Name) is { } zipAsset)
             {
                 // No dispatcher hop: the download is a long-running stream whose continuations have no
                 // business on the UI thread, and CustomMessageBox already marshals the one dialog it may
@@ -79,7 +79,7 @@ public static class UpdateCheckService
                 // Record before handing off: a copy failure rolls back and restarts this version,
                 // whose next startup must not immediately repeat the same failed installation.
                 if (!RememberFailedAttempt(settings, release.TagName)) return;
-                var (installed, _) = await UpdateInstaller.Instance.StartSilentUpdateAsync(zipAsset.BrowserDownloadUrl, progress);
+                var (installed, _) = await UpdateInstaller.Instance.StartSilentUpdateAsync(zipAsset.DownloadUrl, progress);
                 if (installed)
                 {
                     SilentUpdateState.Report(TranslationManager.Instance["About_Success"]);

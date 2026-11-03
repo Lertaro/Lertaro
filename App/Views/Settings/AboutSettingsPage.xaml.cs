@@ -16,7 +16,7 @@ namespace Lertaro.App.Views.Settings;
 
 public partial class AboutSettingsPage : System.Windows.Controls.UserControl, INotifyPropertyChanged
 {
-    private GitHubReleaseInfo? _latestRelease;
+    private ReleaseInfo? _latestRelease;
 
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
@@ -136,7 +136,7 @@ public partial class AboutSettingsPage : System.Windows.Controls.UserControl, IN
         SpUpdateActions.Visibility = Visibility.Collapsed;
         TxtNoAdminWarning.Visibility = Visibility.Collapsed;
 
-        GitHubReleaseInfo? release = null;
+        ReleaseInfo? release = null;
         try
         {
             release = await UpdateChecker.Instance.CheckForUpdatesAsync();
@@ -204,7 +204,7 @@ public partial class AboutSettingsPage : System.Windows.Controls.UserControl, IN
         if (_latestRelease == null) return;
 
         // Find portable zip asset
-        var zipAsset = UpdateAssetSelector.SelectPortableZip(_latestRelease.Assets, a => a.Name);
+        var zipAsset = UpdateAssetSelector.SelectPortableZip(_latestRelease.Assets.Links, a => a.Name);
         if (zipAsset == null)
         {
             TxtUpdateStatus.Text = TranslationManager.Instance["About_Failed"];
@@ -219,7 +219,7 @@ public partial class AboutSettingsPage : System.Windows.Controls.UserControl, IN
 
         var downloadingFormat = TranslationManager.Instance["About_Downloading"];
 
-        var (success, error) = await UpdateInstaller.Instance.StartSilentUpdateAsync(zipAsset.BrowserDownloadUrl, (progress) => Dispatcher.Invoke(() =>
+        var (success, error) = await UpdateInstaller.Instance.StartSilentUpdateAsync(zipAsset.DownloadUrl, (progress) => Dispatcher.Invoke(() =>
             {
                 PbUpdate.Value = progress * 100;
                 TxtUpdateStatus.Text = string.Format(downloadingFormat, (int)(progress * 100));
