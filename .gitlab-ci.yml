@@ -1,0 +1,205 @@
+# Builds, signs and publishes a release when a version tag is pushed.
+#
+# Mirrors the GitHub Actions workflow this project used to publish with. The structural difference is
+# forced by GitLab: release assets can only be created by CI, so the artifacts go into the generic
+# package registry and the release itself carries links to them.
+#
+# The updater downloads a portable zip and then "<zip url>.sig" (see UpdateInstaller), so every signature
+# is published as an asset named "<zip>.sig" beside the zip: appending ".sig" to the zip's direct asset
+# URL resolves to it. Keep those names in step with UpdateAssetSelector.
+#
+# Requires a Windows runner tagged `windows` with the .NET 10 SDK. Inno Setup 7 is installed by the build
+# job when it is missing. On GitLab.com hosted runners, change the tag to `saas-windows-medium-amd64`.
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+/
+
+stages:
+  - build
+  - release
+
+variables:
+  # The release job builds its changelog with git log / git describe, which need the full history and
+  # the previous tags rather than the default shallow clone.
+  GIT_DEPTH: "0"
+  # Minimum time between two releases; a tag pushed sooner is ignored. See release_guard.
+  MIN_RELEASE_INTERVAL_HOURS: "36"
+  # Namespace for the artifacts in the generic package registry.
+  PACKAGE_NAME: lertaro
+  # Uploaded and linked in this order; the x64 zip comes first so the release page leads with it.
+  ARTIFACTS: Lertaro-Setup.exe Lertaro-Portable.zip Lertaro-Portable.zip.sig Lertaro-Setup-arm64.exe Lertaro-Portable-arm64.zip Lertaro-Portable-arm64.zip.sig
+
+# Releases go out at most once every MIN_RELEASE_INTERVAL_HOURS. A tag pushed sooner than that is ignored:
+# this job fails with an explanation, which stops the later stages from publishing anything. Running the
+# pipeline manually (CI/CD > Pipelines > Run pipeline, choosing the tag) overrides the check.
+release_guard:
+  stage: .pre
+  tags:
+    - windows
+  script:
+    - |
+      $ErrorActionPreference = 'Stop'
+      if ($env:CI_PIPELINE_SOURCE -ne 'push') {
+        Write-Host "Pipeline source '$($env:CI_PIPELINE_SOURCE)': manual trigger, release throttle skipped."
+        exit 0
+      }
+
+      $uri = "$env:CI_API_V4_URL/projects/$env:CI_PROJECT_ID/releases?per_page=1&order_by=released_at&sort=desc"
+      $releases = @()
+      try { $releases = @(Invoke-RestMethod -Uri $uri -Headers @{ 'JOB-TOKEN' = $env:CI_JOB_TOKEN }) }
+      catch { Write-Host "Could not list releases ($_); allowing this release." }
+      if ($releases.Count -eq 0) {
+        Write-Host 'No previous release: allowed.'
+        exit 0
+      }
+
+      $previous = [datetimeoffset]::Parse($releases[0].released_at).ToUniversalTime()
+      $elapsed = [datetimeoffset]::UtcNow - $previous
+      $minimum = [timespan]::FromHours([double]$env:MIN_RELEASE_INTERVAL_HOURS)
+      Write-Host ('Previous release {0:u}, {1:N1}h ago (minimum {2}h).' -f $previous, $elapsed.TotalHours, $minimum.TotalHours)
+      if ($elapsed -lt $minimum) {
+        throw "Release throttled: the previous release was $([math]::Round($elapsed.TotalHours, 1))h ago and the minimum is $($minimum.TotalHours)h. Push the tag again later, or run the pipeline manually to override."
+      }
+      Write-Host 'Release allowed.'
+
+build:
+  stage: build
+  tags:
+    - windows
+  script:
+    - |
+      $ErrorActionPreference = 'Stop'
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+      # An unsigned release is one the updater refuses to install, so fail before spending a build on it.
+      if (-not $env:SIGNING_KEY) {
+        throw 'The SIGNING_KEY CI/CD variable is not set; refusing to publish an unsigned release.'
+      }
+      # The key may arrive as a path (File-type variable), as the multi-line PEM itself, or as a
+      # single-line base64 PEM. Masked variables reject whitespace, so base64 is the only form of a
+      # PEM that GitLab lets you mask.
+      if ([System.IO.File]::Exists($env:SIGNING_KEY)) {
+        $env:LERTARO_SIGNING_KEY = $env:SIGNING_KEY      # file-type variable: the value is a path
+      } else {
+        $pem = $env:SIGNING_KEY
+        if ($pem -notmatch '-----BEGIN') {
+          $pem = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($pem))
+        }
+        $keyFile = Join-Path $env:TEMP 'lertaro-release.key'
+        [System.IO.File]::WriteAllText($keyFile, $pem, (New-Object System.Text.UTF8Encoding($false)))
+        $env:LERTARO_SIGNING_KEY = $keyFile
+      }
+
+      if (-not (Test-Path 'C:\Program Files\Inno Setup 7\ISCC.exe') -and
+          -not (Test-Path "$env:LOCALAPPDATA\Programs\Inno Setup 7\ISCC.exe")) {
+        winget install JRSoftware.InnoSetup.7 --force --silent --no-upgrade --accept-source-agreements
+      }
+
+      .\make.bat
+      if ($LASTEXITCODE -ne 0) { throw "make.bat failed with exit code $LASTEXITCODE" }
+      if ($keyFile) { Remove-Item -Force $keyFile -ErrorAction SilentlyContinue }
+
+      foreach ($name in $env:ARTIFACTS.Split(' ')) {
+        if (-not (Test-Path "dist/$name")) { throw "Missing release artifact: dist/$name" }
+      }
+      foreach ($zip in @('Lertaro-Portable.zip', 'Lertaro-Portable-arm64.zip')) {
+        if ((Get-Item "dist/$zip.sig").Length -lt 8) { throw "Empty signature: dist/$zip.sig" }
+      }
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 week
+
+release:
+  stage: release
+  tags:
+    - windows
+  needs:
+    - job: build
+      artifacts: true
+  script:
+    - |
+      $ErrorActionPreference = 'Stop'
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+      $tag = $env:CI_COMMIT_TAG
+      $files = $env:ARTIFACTS.Split(' ')
+
+      # Changelog: commits since the previous tag, as the GitHub workflow wrote it.
+      $previous = git describe --tags --abbrev=0 "$tag^" 2>$null
+      $range = if ($LASTEXITCODE -eq 0 -and $previous) { "$previous..$tag" } else { $tag }
+      $commits = (git log --pretty=format:"* %s (%h)" --no-merges $range) -join "`n"
+
+      $lines = [System.Collections.Generic.List[string]]::new()
+      $lines.Add('## Changelog (Commits)')
+      $lines.Add('')
+      $lines.Add($commits)
+      $lines.Add('')
+      $lines.Add('## Security Verification')
+      $lines.Add('')
+      $lines.Add('### SHA-256 Checksums')
+      foreach ($name in $files) {
+        $hash = (Get-FileHash -Path "dist/$name" -Algorithm SHA256).Hash.ToLower()
+        $lines.Add("* **$name**: ``$hash``")
+      }
+
+      # The public key is read out of the source so the notes cannot drift from what the app trusts.
+      $source = Get-Content 'Core/Services/Update/UpdatePackage.cs' -Raw
+      $parts = [regex]::Matches($source, '"([A-Za-z0-9+/=]{40,})\\n"') | ForEach-Object { $_.Groups[1].Value }
+      if ($parts) {
+        $lines.Add('')
+        $lines.Add('### Signature Verification (ECDsa NistP256)')
+        $lines.Add('The portable zips are signed with the release key. Save the public key below as')
+        $lines.Add('`public_key.pem`, then run:')
+        $lines.Add('')
+        $lines.Add('```bash')
+        $lines.Add('openssl dgst -sha256 -verify public_key.pem -signature Lertaro-Portable.zip.sig Lertaro-Portable.zip')
+        $lines.Add('# Expected output: Verified OK')
+        $lines.Add('```')
+        $lines.Add('')
+        $lines.Add('```')
+        $lines.Add('-----BEGIN PUBLIC KEY-----')
+        foreach ($part in $parts) { $lines.Add($part) }
+        $lines.Add('-----END PUBLIC KEY-----')
+        $lines.Add('```')
+      }
+
+      # 1. Publish the artifacts, then 2. link them from the release.
+      $base = "$env:CI_API_V4_URL/projects/$env:CI_PROJECT_ID/packages/generic/$env:PACKAGE_NAME/$tag"
+      $headers = @{ 'JOB-TOKEN' = $env:CI_JOB_TOKEN }
+      foreach ($name in $files) {
+        Write-Host "Uploading $name"
+        Invoke-RestMethod -Method Put -Uri "$base/$name" -Headers $headers -InFile "dist/$name"
+      }
+
+      $links = @()
+      foreach ($name in $files) {
+        $links += @{
+          name              = $name
+          url               = "$base/$name"
+          direct_asset_path = "/$name"
+          link_type         = 'other'
+        }
+      }
+      $releases = "$env:CI_API_V4_URL/projects/$env:CI_PROJECT_ID/releases"
+      $existing = $null
+      try { $existing = Invoke-RestMethod -Uri "$releases/$tag" -Headers $headers } catch { }
+
+      $payload = @{
+        name        = $tag
+        description = ($lines -join "`n")
+        assets      = @{ links = $links }
+      }
+      # tag_name is only accepted when creating a release; the update endpoint takes it from the URL.
+      if (-not $existing) { $payload['tag_name'] = $tag }
+      $body = [System.Text.Encoding]::UTF8.GetBytes(($payload | ConvertTo-Json -Depth 10))
+
+      if ($existing) {
+        Invoke-RestMethod -Method Put -Uri "$releases/$tag" -Headers $headers `
+          -ContentType 'application/json; charset=utf-8' -Body $body
+      } else {
+        Invoke-RestMethod -Method Post -Uri $releases -Headers $headers `
+          -ContentType 'application/json; charset=utf-8' -Body $body
+      }
+      Write-Host "Release $tag published."
