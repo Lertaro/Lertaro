@@ -134,6 +134,7 @@ public static class SettingsSearchIndex
             IsVisible: vm => vm.Appearance.FollowSystem),
         new("General_ThemeDarkSelect", "Appearance", TargetElementName: "RowThemeDarkCards",
             IsVisible: vm => vm.Appearance.FollowSystem),
+        new("Appearance_FontGroupTitle", "Appearance", TargetElementName: "RowUiFontSettings"),
 
         // Hotkeys
         new("Settings_Hotkeys", "Hotkeys"),

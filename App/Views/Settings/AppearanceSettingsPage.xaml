@@ -228,7 +228,7 @@
             <!-- UI font fallback chain: custom families are tried in order, then the app's default. -->
             <TextBlock Style="{StaticResource SettingsGroupTitle}"
                         Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Appearance_FontGroupTitle]}"/>
-            <Border Style="{StaticResource SettingsCard}">
+            <Border x:Name="RowUiFontSettings" Style="{StaticResource SettingsCard}">
                 <StackPanel>
                     <TextBlock Style="{StaticResource SettingsHintText}"
                                 Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Appearance_FontHint]}"/>
