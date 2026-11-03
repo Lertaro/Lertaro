@@ -26,8 +26,8 @@ public static class UpdatePackage
 
     private const string PUBLIC_KEY_PEM =
         "-----BEGIN PUBLIC KEY-----\n" +
-        "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE117370jTbSPgIwHLntC+Bi3SD6gJ\n" +
-        "QfxAySjSpUWa6zy4n0YHVv/ZWXM9zQlF2LTqpQC0iHNdJNH+MKU9UvDMTQ==\n" +
+        "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAECyQKsTSB7acORVhArrbyntjoOlWz\n" +
+        "728N2Wa5f3VW6saX56uU1msbjYh5R1bk84GpSuosNCm5xKbbrqrSikdOdw==\n" +
         "-----END PUBLIC KEY-----";
 
     /// <summary>
