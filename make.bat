@@ -188,4 +188,53 @@ if errorlevel 1 (
     exit /b 1
 )
 
+:: Sign the portable ZIP. The updater verifies an ECDSA P-256 signature over the whole archive and refuses
+:: a package that has none, so signing belongs to packaging rather than to a separate release step.
+::
+:: LERTARO_SIGNING_KEY names the key; the default is <Documents>\lertaro-release.key so it need not be
+:: exported. A missing key only warns here -- the CI pipeline refuses to publish without one -- so a
+:: contributor with no release key can still package the app locally.
+set "SIGN_KEY=%LERTARO_SIGNING_KEY%"
+if not defined SIGN_KEY (
+    for /f "usebackq tokens=*" %%p in (`powershell -NoProfile -Command "[Environment]::GetFolderPath('MyDocuments')"`) do set "SIGN_KEY=%%p\lertaro-release.key"
+)
+set "SIGN_ZIP=%DIST%\Lertaro-Portable%ARCHSUFFIX%.zip"
+
+if not exist "%SIGN_KEY%" (
+    echo [Warning] No signing key at "%SIGN_KEY%": %SIGN_ZIP% stays unsigned and will be refused by the updater.
+    goto :eof
+)
+
+echo Signing %SIGN_ZIP%...
+:: OpenSSL is preferred because its output can be checked with the openssl command published in the
+:: release notes. It is not always on PATH, so the two usual Windows install locations are probed too.
+set "OPENSSL="
+where openssl >nul 2>&1
+if not errorlevel 1 set "OPENSSL=openssl"
+if not defined OPENSSL if exist "%ProgramFiles%\OpenSSL-Win64\bin\openssl.exe" set "OPENSSL=%ProgramFiles%\OpenSSL-Win64\bin\openssl.exe"
+if not defined OPENSSL if exist "%ProgramFiles%\Git\usr\bin\openssl.exe" set "OPENSSL=%ProgramFiles%\Git\usr\bin\openssl.exe"
+if defined OPENSSL (
+    "%OPENSSL%" dgst -sha256 -sign "%SIGN_KEY%" -out "%SIGN_ZIP%.sig" "%SIGN_ZIP%"
+    if errorlevel 1 (
+        echo [Error] Signing %SIGN_ZIP% failed.
+        exit /b 1
+    )
+    goto :eof
+)
+
+:: No OpenSSL anywhere: fall back to the same ECDsa code the app verifies with. That needs PowerShell 7,
+:: since Windows PowerShell's .NET Framework has no ImportFromPem.
+set "LERTARO_SIGN_KEY=%SIGN_KEY%"
+set "LERTARO_SIGN_ZIP=%SIGN_ZIP%"
+where pwsh >nul 2>&1
+if errorlevel 1 (
+    echo [Error] Neither OpenSSL nor PowerShell 7 is available to sign %SIGN_ZIP%.
+    exit /b 1
+)
+pwsh -NoProfile -Command "$k=[System.Security.Cryptography.ECDsa]::Create(); $k.ImportFromPem([System.IO.File]::ReadAllText($env:LERTARO_SIGN_KEY)); $s=$k.SignData([System.IO.File]::ReadAllBytes($env:LERTARO_SIGN_ZIP),[System.Security.Cryptography.HashAlgorithmName]::SHA256,[System.Security.Cryptography.DSASignatureFormat]::Rfc3279DerSequence); [System.IO.File]::WriteAllBytes($env:LERTARO_SIGN_ZIP+'.sig',$s)"
+if errorlevel 1 (
+    echo [Error] Signing %SIGN_ZIP% failed.
+    exit /b 1
+)
+
 goto :eof
