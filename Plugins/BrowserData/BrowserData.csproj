@@ -88,7 +88,8 @@
     <Copy SourceFiles="@(BrowserDataNested)" DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\$(AssemblyName)\" SkipUnchangedFiles="true" />
   </Target>
 
-  <!-- make.bat uses `dotnet publish Lertaro.Plugins.slnx -o <dir>/Plugins`, which is a THIRD distinct
+  <!-- make.bat publishes every plugin project on its own, `dotnet publish BrowserData.csproj -o
+       <dir>/Plugins`, which is a THIRD distinct
        build shape: `-o` sets $(PublishDir), not $(OutputPath)/$(TargetDir); the PostBuild target above
        never even runs against this folder, since Publish gathers its own dependency closure into
        $(PublishDir) as a separate step, independent of whatever PostBuildEvent already did to

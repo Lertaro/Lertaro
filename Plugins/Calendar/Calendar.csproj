@@ -94,8 +94,9 @@
     <Copy SourceFiles="@(CalendarOutput)" DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\" SkipUnchangedFiles="true" Condition="'$(NestPluginOutput)' != 'true'" />
   </Target>
 
-  <!-- `dotnet publish Lertaro.Plugins.slnx -o <dir>/Plugins` is a third build shape: -o sets $(PublishDir),
-       not $(OutputPath), so PostBuild above never sees the shared folder. Same nest-and-delete, retargeted. -->
+  <!-- `dotnet publish Calendar.csproj -o <dir>/Plugins` (what make.bat now runs, once per plugin) is a
+       third build shape: -o sets $(PublishDir), not $(OutputPath), so PostBuild above never sees the
+       shared folder. Same nest-and-delete, retargeted. -->
   <Target Name="PostPublish" AfterTargets="Publish">
     <ItemGroup>
       <CalendarPublishOutput Include="$(PublishDir)$(TargetName).dll" Condition="Exists('$(PublishDir)$(TargetName).dll')" />

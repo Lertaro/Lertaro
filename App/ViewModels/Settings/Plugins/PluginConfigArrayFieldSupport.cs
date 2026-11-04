@@ -130,7 +130,7 @@ internal sealed class PluginConfigArrayFieldSupport
             var imported = value[child.SchemaField.Key] as string;
             var existing = child.Value as string;
             if (string.IsNullOrWhiteSpace(imported) || string.IsNullOrWhiteSpace(existing)) return false;
-            if (child.SchemaField.IsTriggerWord)
+            if (child.SchemaField.Validation == ConfigFieldValidation.TriggerKeyword)
                 return TriggerWord.Normalize(imported).Equals(TriggerWord.Normalize(existing), StringComparison.OrdinalIgnoreCase);
             return child.FieldType == ConfigFieldType.Hotkey
                 && WpfUiHelper.TryParseHotkey(imported, out var key, out var modifiers)
