@@ -159,7 +159,9 @@
    现行机制是 `WindowParking`（`OffScreen = -32000` → Show → 两个 dispatcher 周期后落地）：place→Show 旧顺序
    53-258 ms，门后 24-32 ms；停在 -32000 时 `ContentRendered` 永不触发（32/32 超时）；在停车位多等 0-260 ms
    不缩小残差；`WM_ERASEBKGND` 改不了那一帧（WPF 合成渲染线程表面，`UnpaintedBrush.cs` 量死后已删）；软件合成不更慢。
-   未门控：`QuickLookWindow`、`PreviewOverlay` 的匿名窗口、`MenuHelperWindow`。仍未收口：单个字符在文件夹里 459 ms
+   未门控：只剩 `QuickLookWindow`（在 Show 之后按 owner 定位）。`PreviewOverlay` 与两个菜单锚点
+   （`MenuHelperWindow`、`TrayMenuController._anchor`）已收口——前者先停靠再 Show，后两者零像素且改为进程内复用同一实例。
+   仍未收口：单个字符在文件夹里 459 ms
    才落定。过程见 `opaque-window-flash.md`。
 6. **两条线程不变量**：shell COM 是"一个关注点一个常驻 STA 线程"，两个 STA 公寓同时共享一个 agile shell 对象就是
    "此电脑首悬空"的病根（`ShellThread` 是轮询池，**不会**串行化，救不了）；UI 线程绝不向目标进程发同步调用

@@ -148,9 +148,8 @@ public static class QuickNavigationMenu
             dpiScaleY = src.CompositionTarget.TransformFromDevice.M22;
         }
 
-        var helperWin = new MenuHelperWindow(mouseX * dpiScaleX, mouseY * dpiScaleY);
-        helperWin.Deactivated += (s, e) => { if (!IsShowingShellMenu) contextMenu.IsOpen = false; };
-        helperWin.Show();
+        var helperWin = MenuHelperWindow.Acquire(mouseX, mouseY);
+        helperWin.LostActivation = () => { if (!IsShowingShellMenu) contextMenu.IsOpen = false; };
         helperWin.Activate();
 
         var hwnd = new WindowInteropHelper(helperWin).Handle;
@@ -188,7 +187,11 @@ public static class QuickNavigationMenu
                 App.HookClient.OnMouseDoubleClick -= clickOutsideHandler;
                 App.HookClient.OnMouseMiddleClick -= clickOutsideHandler;
             }
-            helperWin.Close();
+            // Parked, not closed: the anchor is one window for the process (see MenuHelperWindow), and
+            // parking it is only right when no newer Show() has taken it over since this menu did -- the
+            // same guard the cleanup below needs, for the same reason.
+            if (generation == _sessionGeneration)
+                MenuHelperWindow.Release(helperWin);
 
             // Every registered IQuickNavigationProvider/IDynamicActionProvider is a process-wide singleton
             // (PluginManager holds one shared instance, reused by every Show() call) -- ClearSession wipes

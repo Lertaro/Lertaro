@@ -49,35 +49,46 @@ internal sealed class TrayMenuController : IDisposable
         _showWindowOverride = null;
         _showWindow!.Visibility = Visibility.Visible;
         CloseMenu();
-        // The anchor is a 1x1 window nothing is ever drawn in: it exists only so the popup has a placement
-        // target and an owner to lose activation through. It cannot stay layered, and it has no card to be
-        // opaque with -- a transparent background would paint black, so it takes the menu's own brush and its
-        // one pixel sits under the menu it anchors.
-        //
-        // Two things that pixel needs to stay unseen. WindowStyle.None still leaves the resize frame while
-        // ResizeMode stays at its CanResize default, and Win11 draws that frame as a rounded stroke with a
-        // shadow, so around a 1x1 client area it rendered as a hollow ring on top of everything (issue #468).
-        // And the position has to be given rather than left to the system: an unset Left/Top is CW_USEDEFAULT,
+        EnsureAnchor();
+        var cursor = System.Windows.Forms.Control.MousePosition;
+        WindowParking.PlaceAtPoint(_anchor!, cursor.X, cursor.Y);
+        _anchor!.Activate();
+        OpenMenu(_anchor);
+    }
+
+    // The anchor is a window nothing is ever drawn in: it exists only so the popup has a placement target
+    // and an owner to lose activation through. It sits in the drop-shadow gap around the menu, so any pixel
+    // it paints reads as a stray mark beside it. WindowStyle.None still leaves the resize frame while
+    // ResizeMode stays at its CanResize default, and Win11 draws that frame as a rounded stroke with a
+    // shadow, so around a 1x1 client area the anchor read as a 13x13 hollow ring on top of everything
+    // (issue #468). NoResize drops the frame, but a WPF window never reports smaller than 2x2; layering it,
+    // with a transparent background at zero opacity, is what leaves it with no pixels at all while it stays
+    // showable and activatable, which is all this one is for.
+    //
+    // One anchor for the controller's whole life rather than one per showing: a fresh window each time
+    // meant a new handle, render target and foreground handoff, and a new HwndWrapper class GUID in every
+    // window enumerator. A closed WPF window cannot be shown again, so it is parked instead of closed.
+    private void EnsureAnchor()
+    {
+        if (_anchor != null) return;
+        // The position has to be given rather than left to the system: an unset Left/Top is CW_USEDEFAULT,
         // which cascades the window near the top-left of the screen instead of under the menu -- see
-        // WindowParking.Park's own note on that.
+        // WindowParking.Park's own note on that. Parked, then shown, then landed: the handle a physical
+        // placement needs does not exist until after Show, and nothing is painted in between.
         _anchor = new Window
         {
             Width = 1,
             Height = 1,
             WindowStyle = WindowStyle.None,
             ResizeMode = ResizeMode.NoResize,
+            AllowsTransparency = true,
+            Background = System.Windows.Media.Brushes.Transparent,
+            Opacity = 0,
             ShowInTaskbar = false,
             Topmost = true
         };
-        _anchor.SetResourceReference(System.Windows.Controls.Control.BackgroundProperty, "MenuBackground");
-        // Parked, then shown, then landed: the handle a physical placement needs does not exist until after
-        // Show, and nothing is painted in between.
         WindowParking.Park(_anchor);
         _anchor.Show();
-        var cursor = System.Windows.Forms.Control.MousePosition;
-        WindowParking.PlaceAtPoint(_anchor, cursor.X, cursor.Y);
-        _anchor.Activate();
-        OpenMenu(_anchor);
     }
 
     public void ShowAt(UIElement target, Action? onShowWindow, bool hideShowWindow)
@@ -159,7 +170,7 @@ internal sealed class TrayMenuController : IDisposable
             StaysOpen = false,
             Child = chrome
         };
-        _popup.Closed += (_, _) => CloseAnchor();
+        _popup.Closed += (_, _) => ParkAnchor();
         UpdateTexts();
     }
 
@@ -265,18 +276,20 @@ internal sealed class TrayMenuController : IDisposable
     {
         if (_popup is { IsOpen: true } popup)
             popup.IsOpen = false;
-        CloseAnchor();
+        ParkAnchor();
     }
 
-    private void CloseAnchor()
+    private void ParkAnchor()
     {
-        try { _anchor?.Close(); } catch { }
-        _anchor = null;
+        // Parked, not closed: EnsureAnchor keeps this one window for every showing.
+        if (_anchor != null) WindowParking.Park(_anchor);
     }
 
     public void Dispose()
     {
         TranslationManager.Instance.PropertyChanged -= OnLanguageChanged;
         CloseMenu();
+        try { _anchor?.Close(); } catch { }
+        _anchor = null;
     }
 }

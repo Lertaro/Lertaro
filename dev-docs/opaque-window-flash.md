@@ -100,7 +100,9 @@
 
 ## 全仓窗口屏障覆盖
 
-14 个 Window 子类全部不透明（无任何 XAML 设 `AllowsTransparency=true`），核对到 `9a6b9769` 仍是这个覆盖面。
+14 个 Window 子类里，只有两个锚点（`MenuHelperWindow`、`TrayMenuController._anchor`）在代码里设
+`AllowsTransparency=true`——它们不放任何内容，分层的代价为零；其余全部不透明（无任何 XAML 设
+`AllowsTransparency=true`），核对到 `9a6b9769` 仍是这个覆盖面。
 
 | 窗口 | 每次新建？ | 屏障 |
 |---|---|---|
@@ -110,8 +112,10 @@
 | SearchWindow | 缓存，但关闭后重开＝新建 + Show | ✅ `ParkUntilPainted` + 落位回调（`AppWindowManager.cs:286`） |
 | QuickPanelWindow | 每次打开新建（注释明确说复用曾带来 5 个缺陷） | ✅ `ShowThenPlace`（`QuickPanelManager.cs:234`） |
 | LocalSendSendWindow / LocalSendReceiveWindow | 每次新建；接收窗是网络事件自己弹出 | ✅ `ParkUntilPainted` + 落位回调（`LocalSendAppEventHandler.cs:110,139`，接收窗是 ShowDialog 模态） |
-| QuickLookWindow、PreviewOverlay 匿名 overlay | 缓存 / 每次新建 | ❌ 两者都在 Show **之后**按 owner / 内嵌原生预览再定位，要屏障得搬定位逻辑，不是包一层 |
-| MenuHelperWindow | 每次新建 | ❌ 1×1 锚点，机制同但不可见 |
+| QuickLookWindow | 缓存 | ✅ `Park` 后再 `Show`（`QuickLookManager.cs:292`，`0a4668e3`） |
+| PreviewOverlay 匿名 overlay | 每次新建 | ✅ 先 `Park` 再 `Show`：它是卡片大小且不透明，Show 那一刻 OS 会按 WPF 的级联位置画出来（实测 200×150 全块 30000px 在 Show 返回后的同步帧里就已经在屏上），停靠后三档采样全 0px |
+| MenuHelperWindow | 复用同一实例 | ✅ 分层 + 全透明 + `Opacity=0`：`NoResize` 只去掉 `WS_THICKFRAME`，WPF 窗口最小仍是 2×2，只有分层全透明才真正零像素 |
+| 托盘菜单锚点（`TrayMenuController._anchor`） | 复用同一实例 | ✅ 同上 |
 | 原生 SaveFileDialog / OpenFileDialog / FolderBrowser | — | 不适用（系统窗口，不画我们的类背景） |
 | 托盘菜单与 Shell 动作 Popup | — | 不适用：`font-clarity.md` 关键经验 4 已记（不透明 Popup 会把未覆盖客户区涂黑 → 弹出层已放弃圆角） |
 
@@ -131,6 +135,22 @@ rect=(3093,768) 尺寸 2135x1200，而该屏 work area 真正的中心是 (2453,
 仪器：`scratch/centerprobe`（带宿主同一份 PerMonitorV2 manifest，`EnsureHandle` 就能读，不用真开窗口）。
 
 `CardRenderMode`（软件合成）仍只给三张"召唤即用"的卡片：对话框靠屏障已经把黑帧挪到屏幕外，不需要改它们的合成模式。
+
+### 一次动作出现两个顶层窗口
+
+阴影"极其明显、又没被前面的窗口盖住"的反馈，都出在这一类：一个动作里第二个顶层窗口先在 WPF 的级联位置出现一帧，
+再被挪到该去的地方。逐点核过全仓 16 处 `Show()`，除 `PreviewOverlay` 外每一处都已经先停靠（`Park` / `ParkUntilPainted` /
+`ShowThenPlace`），所以这条只剩一个未修点，已补。
+
+- `PreviewOverlay`（`PreviewOverlay.cs:53`）：卡片大小、不透明，`Show()` 之后才按内嵌原生预览定位。probe8 实测未停靠时
+  `Show()` 返回的同步帧里 200×150 全块（30000px）就已经在屏上，停靠后三档采样全 0px。probe9 顺带确认了停靠不耽误落位：
+  `SetWindowPos` 后矩形立刻正确，只是像素晚约 500ms 才更新（绘制慢一拍，不是位置慢一拍）。
+- 两个菜单锚点（`MenuHelperWindow`、`TrayMenuController._anchor`）本身也是"一次动作的第二个窗口"，但它们零像素（见上表），
+  且现在都改成**进程内复用同一实例**：每次右键新建一个 WPF `Window` 的代价是 handle、render target、前台交接各付一次，
+  还在每个窗口枚举器里留下一个新的 `HwndWrapper[Lertaro.App;;<GUID>]` 类名。WPF 窗口一旦 `Close()` 就不能再 `Show()`，
+  所以释放是停靠（`-32000`）而不是关闭；`MenuHelperWindow.LostActivation` 用可换的委托代替"每个实例各订阅一次
+  `Deactivated`"，否则上一个菜单留下的处理器会把下一个菜单关掉。`App.xaml` 是 `ShutdownMode="OnExplicitShutdown"`，
+  常驻锚点不会拖住退出。
 
 ## 量测基线
 

@@ -1,6 +1,8 @@
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+
+using Lertaro.App.Helpers.Visuals;
 using Point = System.Windows.Point;
 
 namespace Lertaro.App.Views.QuickLook;
@@ -43,6 +45,12 @@ internal sealed class PreviewOverlay
         _owner.SizeChanged += OnSizeChanged;
         _anchor.SizeChanged += OnSizeChanged;
 
+        // Parked before Show, like every other window in this app: Show hands the window to the OS, which
+        // paints it at WPF's cascade position, and this one is card-sized and opaque, so that frame lands as
+        // a second window beside the QuickLook card (measured: the whole 200x150 overlay already on screen in
+        // the synchronous frame after Show). Nothing is lost by showing it off screen -- Reposition sets the
+        // physical rect on the same turn.
+        WindowParking.Park(_overlay);
         _overlay.Show();
         Reposition();
         // The content area may still be laying out; reposition once more after this dispatch settles.
