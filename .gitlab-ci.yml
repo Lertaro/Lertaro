@@ -80,22 +80,14 @@ build:
       [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
       # An unsigned release is one the updater refuses to install, so fail before spending a build on it.
-      if (-not $env:SIGNING_KEY) {
-        throw 'The SIGNING_KEY CI/CD variable is not set; refusing to publish an unsigned release.'
+      # The key is a File-type CI/CD variable: GitLab writes the PEM into a job-local file and sets
+      # LERTARO_SIGNING_KEY to its path, which is already the name make.bat reads. A Protected variable is
+      # withheld from a pipeline whose ref is not protected, which looks exactly like "not set" here.
+      if (-not $env:LERTARO_SIGNING_KEY) {
+        throw 'The LERTARO_SIGNING_KEY CI/CD variable is not set (a Protected variable is hidden from pipelines on unprotected tags); refusing to publish an unsigned release.'
       }
-      # The key may arrive as a path (File-type variable), as the multi-line PEM itself, or as a
-      # single-line base64 PEM. Masked variables reject whitespace, so base64 is the only form of a
-      # PEM that GitLab lets you mask.
-      if ([System.IO.File]::Exists($env:SIGNING_KEY)) {
-        $env:LERTARO_SIGNING_KEY = $env:SIGNING_KEY      # file-type variable: the value is a path
-      } else {
-        $pem = $env:SIGNING_KEY
-        if ($pem -notmatch '-----BEGIN') {
-          $pem = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($pem))
-        }
-        $keyFile = Join-Path $env:TEMP 'lertaro-release.key'
-        [System.IO.File]::WriteAllText($keyFile, $pem, (New-Object System.Text.UTF8Encoding($false)))
-        $env:LERTARO_SIGNING_KEY = $keyFile
+      if (-not [System.IO.File]::Exists($env:LERTARO_SIGNING_KEY)) {
+        throw 'LERTARO_SIGNING_KEY must be a File-type variable; its value is not a path to an existing key file.'
       }
 
       if (-not (Test-Path 'C:\Program Files\Inno Setup 7\ISCC.exe') -and
@@ -105,7 +97,6 @@ build:
 
       .\make.bat
       if ($LASTEXITCODE -ne 0) { throw "make.bat failed with exit code $LASTEXITCODE" }
-      if ($keyFile) { Remove-Item -Force $keyFile -ErrorAction SilentlyContinue }
 
       foreach ($name in $env:ARTIFACTS.Split(' ')) {
         if (-not (Test-Path "dist/$name")) { throw "Missing release artifact: dist/$name" }

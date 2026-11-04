@@ -29,7 +29,7 @@
 
 ## 发布链路需要的 CI/CD 变量
 
-- `SIGNING_KEY`：不设则 build 直接 throw，因为无签名的 portable 包会被更新器拒装。三种取值形态都被接受——File 型变量的路径、原样多行 PEM、单行 base64 PEM；masked 变量不收空白，所以想 mask 就只能存 base64。
+- `LERTARO_SIGNING_KEY`，必须是 **File 型**：不设则 build 直接 throw，因为无签名的 portable 包会被更新器拒装。File 型由 GitLab 把 PEM 写成 job 本地文件、变量值是那个路径，恰好就是 `make.bat:197` 读的名字，所以脚本不再做任何解码或转写。原先的 `SIGNING_KEY`（同时接受路径 / 多行 PEM / base64 三形态）已删掉——第一次实跑就是被这个命名差一层挡住的（GitLab 上建的是 `LERTARO_SIGNING_KEY`，脚本查的是 `SIGNING_KEY`）。两个坑：勾了 **Protected** 而发布 tag 不在保护规则里时 GitLab 根本不下发变量，症状与"没设"完全一样；建成普通变量存 PEM 文本则会被第二道"路径必须存在"的检查提前炸掉。GitHub 侧不变，仍是 `secrets.SIGNING_KEY` 由 workflow 自己写文件再导出 `LERTARO_SIGNING_KEY`。
 - `PACKAGE_TOKEN`（可选）：旧包清理默认用 `CI_JOB_TOKEN` 调 `DELETE /projects/:id/packages/:package_id`。文档没把 delete 写进 job token 的权限表，所以第一次很可能 403；那时建一个 Project Access Token（scope `api`，Maintainer）存成这个变量，release job 会自动改用它。不设它不影响发布，只是旧包一直堆着。
 
 ## 存储与保留数字
