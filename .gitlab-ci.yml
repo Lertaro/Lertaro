@@ -8,8 +8,12 @@
 # is published as an asset named "<zip>.sig" beside the zip: appending ".sig" to the zip's direct asset
 # URL resolves to it. Keep those names in step with UpdateAssetSelector.
 #
-# Requires a Windows runner tagged `windows` with the .NET 10 SDK. Inno Setup 7 is installed by the build
-# job when it is missing. On GitLab.com hosted runners, change the tag to `saas-windows-medium-amd64`.
+# Builds on a self-hosted Windows runner tagged `windows` -- this developer's own machine, C:\gitlab-runner,
+# started with `gitlab-runner run -c config.toml` rather than installed as a service. Jobs therefore stay
+# pending until that machine is logged in and the runner is up: start it before pushing the tag. Running as
+# the signed-in user is deliberate, because Inno Setup 7 is installed per-user (%LOCALAPPDATA%) and winget,
+# which the build job falls back on, is not usable from LocalSystem. GitLab.com's hosted Windows runner
+# (tag `saas-windows-medium-amd64`, free tier, beta) is the alternative if a machine-less build is wanted.
 
 workflow:
   rules:
@@ -27,11 +31,14 @@ variables:
   MIN_RELEASE_INTERVAL_HOURS: "36"
   # Namespace for the artifacts in the generic package registry.
   PACKAGE_NAME: lertaro
+  # How many recent versions' packages survive the post-release prune. See the end of the release job.
+  KEEP_PACKAGE_VERSIONS: "3"
   # Uploaded and linked in this order; the x64 zip comes first so the release page leads with it.
   ARTIFACTS: Lertaro-Setup.exe Lertaro-Portable.zip Lertaro-Portable.zip.sig Lertaro-Setup-arm64.exe Lertaro-Portable-arm64.zip Lertaro-Portable-arm64.zip.sig
 
-# Releases go out at most once every MIN_RELEASE_INTERVAL_HOURS. A tag pushed sooner than that is ignored:
-# this job fails with an explanation, which stops the later stages from publishing anything. Running the
+# Releases go out at most once every MIN_RELEASE_INTERVAL_HOURS. A tag pushed sooner than that fails this
+# job, which stops the later stages from publishing anything. Unlike the GitHub workflow, which skips a
+# throttled release quietly, the pipeline here turns red and the tag simply stays unreleased. Running the
 # pipeline manually (CI/CD > Pipelines > Run pipeline, choosing the tag) overrides the check.
 release_guard:
   stage: .pre
@@ -203,3 +210,28 @@ release:
           -ContentType 'application/json; charset=utf-8' -Body $body
       }
       Write-Host "Release $tag published."
+
+      # Generic packages never expire, so every release would otherwise leave ~29 MB of installers and zips
+      # behind in the project's storage forever. Delete every version older than the newest
+      # KEEP_PACKAGE_VERSIONS. Pruning last also means a failed upload cannot delete a good package: the
+      # current version is already in the list by then, so it is what pushes the old ones out of the window.
+      $pruneAuth = if ($env:PACKAGE_TOKEN) { @{ 'PRIVATE-TOKEN' = $env:PACKAGE_TOKEN } } else { @{ 'JOB-TOKEN' = $env:CI_JOB_TOKEN } }
+      $packageList = @(Invoke-RestMethod -Uri "$env:CI_API_V4_URL/projects/$env:CI_PROJECT_ID/packages?per_page=100&order_by=created_at&sort=desc" -Headers $pruneAuth)
+      # ponytail: only the 100 newest packages are considered (6 per release, so ~16 releases of history).
+      # Every release prunes, so the backlog never grows past one page. Raise per_page if that stops holding.
+      $staleVersions = @($packageList | ForEach-Object { $_.version } | Select-Object -Unique |
+        Select-Object -Skip ([int]$env:KEEP_PACKAGE_VERSIONS)) | Where-Object { $_ -ne $tag }
+      $pruned = 0
+      foreach ($version in $staleVersions) {
+        foreach ($id in @($packageList | Where-Object { $_.version -eq $version } | ForEach-Object { $_.id })) {
+          try {
+            Invoke-RestMethod -Method Delete -Uri "$env:CI_API_V4_URL/projects/$env:CI_PROJECT_ID/packages/$id" -Headers $pruneAuth | Out-Null
+            $pruned++
+          } catch {
+            # Losing storage is not worth failing a published release over, but a 403 here is actionable:
+            # the job token has no delete permission, so set PACKAGE_TOKEN to a project access token (api).
+            Write-Host "Prune of package $id ($version) refused: $($_.Exception.Message)"
+          }
+        }
+      }
+      Write-Host ("Pruned {0} old package file(s), kept the newest {1} version(s)." -f $pruned, $env:KEEP_PACKAGE_VERSIONS)
