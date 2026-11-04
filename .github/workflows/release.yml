@@ -84,24 +84,18 @@ jobs:
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
         run: |
           if (-not $env:SIGNING_KEY) {
-              Write-Host "::warning::SIGNING_KEY is not configured; the portable zips will not be signed."
-              exit 0
+              Write-Host "::error::SIGNING_KEY is not configured; make.bat refuses to build an unsigned release."
+              exit 1
           }
-          $keyPath = Join-Path $env:RUNNER_TEMP 'lertaro-release.key'
-          [System.IO.File]::WriteAllText($keyPath, $env:SIGNING_KEY)
-          "LERTARO_SIGNING_KEY=$keyPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          # make.bat takes the key as one base64 line, the same contract the GitLab job uses. The secret holds
+          # the PEM text, so encoding its bytes is what makes the two release paths agree.
+          $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($env:SIGNING_KEY))
+          "LERTARO_SIGNING_KEY=$b64" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       # 5. Execute the build and package batch script
       - name: Run Build and Package Script
         run: |
           .\make.bat
-
-      - name: Remove Signing Key
-        if: always()
-        shell: pwsh
-        run: |
-          $keyPath = Join-Path $env:RUNNER_TEMP 'lertaro-release.key'
-          if (Test-Path $keyPath) { Remove-Item -Force $keyPath }
 
       # 6. Extract commit history since the previous tag as Release Notes
       - name: Generate Changelog
@@ -134,21 +128,10 @@ jobs:
               $lines.Add("* **$name**: ``$hash``")
           }
 
-          # make.bat signs during packaging; without SIGNING_KEY it leaves the zips unsigned and this fills
-          # in the placeholders the upload step expects.
-          $signed = $true
-          foreach ($zip in @('Lertaro-Portable.zip', 'Lertaro-Portable-arm64.zip')) {
-              $sig = "dist/$zip.sig"
-              if (-not (Test-Path $sig) -or (Get-Item $sig).Length -lt 8) {
-                  Set-Content -Path $sig -Value 'unsigned' -NoNewline
-                  $signed = $false
-              }
-          }
-
           $source = Get-Content 'Core/Services/Update/UpdatePackage.cs' -Raw
           $parts = [regex]::Matches($source, '"([A-Za-z0-9+/=]{40,})\\n"') | ForEach-Object { $_.Groups[1].Value }
 
-          if ($signed -and $parts) {
+          if ($parts) {
               $lines.Add('')
               $lines.Add('### Signature Verification (ECDsa NistP256)')
               $lines.Add('The portable zips are signed with the release key. Save the public key below as')
@@ -164,9 +147,6 @@ jobs:
               foreach ($part in $parts) { $lines.Add($part) }
               $lines.Add('-----END PUBLIC KEY-----')
               $lines.Add('```')
-          } elseif (-not $signed) {
-              $lines.Add('')
-              $lines.Add('*Note: this release is unsigned (SIGNING_KEY missing).*')
           }
 
           $lines | Add-Content -Path changelog.md -Encoding utf8

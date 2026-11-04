@@ -80,14 +80,17 @@ build:
       [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
       # An unsigned release is one the updater refuses to install, so fail before spending a build on it.
-      # The key is a File-type CI/CD variable: GitLab writes the PEM into a job-local file and sets
-      # LERTARO_SIGNING_KEY to its path, which is already the name make.bat reads. A Protected variable is
-      # withheld from a pipeline whose ref is not protected, which looks exactly like "not set" here.
+      # LERTARO_SIGNING_KEY is the key file as ONE base64 line, which is exactly what make.bat decodes, so
+      # the CI variable is a plain Variable rather than a File one (a File variable hands over a path).
+      # A Protected variable is withheld from a pipeline whose ref is not protected, which looks like "not set".
       if (-not $env:LERTARO_SIGNING_KEY) {
         throw 'The LERTARO_SIGNING_KEY CI/CD variable is not set (a Protected variable is hidden from pipelines on unprotected tags); refusing to publish an unsigned release.'
       }
-      if (-not [System.IO.File]::Exists($env:LERTARO_SIGNING_KEY)) {
-        throw 'LERTARO_SIGNING_KEY must be a File-type variable; its value is not a path to an existing key file.'
+      # Decoding is make.bat's job; doing it here would leave two places that know the format. Validating the
+      # shape is not, because finding out after a full two-architecture build wastes the whole run.
+      $decoded = try { [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String(($env:LERTARO_SIGNING_KEY -replace '\s', ''))) } catch { $null }
+      if (-not $decoded -or $decoded -notmatch '-----BEGIN') {
+        throw 'LERTARO_SIGNING_KEY is not the key file as one base64 line; a File-type variable gives a path instead of the content.'
       }
 
       if (-not (Test-Path 'C:\Program Files\Inno Setup 7\ISCC.exe') -and

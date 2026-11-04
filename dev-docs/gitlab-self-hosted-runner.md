@@ -16,7 +16,7 @@
 
 1. 网页建 runner：项目 Settings → CI/CD → Runners → New project runner，**Tags 填 `windows`**，拿到一次性 `glrt-` token。
 2. 注册：`gitlab-runner register --url https://gitlab.com --token glrt-… --executor shell --shell pwsh`。token 以明文写进 `config.toml`，`verify -c config.toml` 是检查它是否还有效的最快的办法。
-3. 起：`gitlab-runner.exe run --working-directory C:\gitlab-runner --config C:\gitlab-runner\config.toml`。这是用户态前台进程，**终端关掉就没人领 job**，之后的 pipeline 会一直 pending 到人手动取消——最初那次 v5.12.5 的失败（`release_guard` canceled、`build`/`release` skipped）就是这个机制：pipeline 建于注册之前，`tags: [windows]` 没有任何 runner 匹配。
+3. 起：`gitlab-runner.exe run --working-directory C:\gitlab-runner --config C:\gitlab-runner\config.toml`。这是用户态前台进程，**终端关掉就没人领 job**，之后的 pipeline 会一直 pending 到人手动取消——最初那次 v5.12.5 的失败（`release_guard` canceled、`build`/`release` skipped）就是这个机制：pipeline 建于注册之前，`tags: [windows]` 没有任何 runner 匹配。v5.12.6 由同一个 runner 领走并一路跑到 `make.bat`，tag 匹配与 CI 变量下发（含 Protected 状态下）都已证实。
 4. tag 只存在服务端，`config.toml` 不存 tag，要改得回网页；job 侧和 runner 侧的 `windows` 必须一致。
 5. 不要勾 "Run untagged jobs"：shell executor 跑不了带 `image:` 的 job，接了只会失败。这个 runner 是项目级，别的仓库（例如用 alpine 镜像的 genshin_words）本来也不归它管。
 
@@ -29,7 +29,14 @@
 
 ## 发布链路需要的 CI/CD 变量
 
-- `LERTARO_SIGNING_KEY`，必须是 **File 型**：不设则 build 直接 throw，因为无签名的 portable 包会被更新器拒装。File 型由 GitLab 把 PEM 写成 job 本地文件、变量值是那个路径，恰好就是 `make.bat:197` 读的名字，所以脚本不再做任何解码或转写。原先的 `SIGNING_KEY`（同时接受路径 / 多行 PEM / base64 三形态）已删掉——第一次实跑就是被这个命名差一层挡住的（GitLab 上建的是 `LERTARO_SIGNING_KEY`，脚本查的是 `SIGNING_KEY`）。两个坑：勾了 **Protected** 而发布 tag 不在保护规则里时 GitLab 根本不下发变量，症状与"没设"完全一样；建成普通变量存 PEM 文本则会被第二道"路径必须存在"的检查提前炸掉。GitHub 侧不变，仍是 `secrets.SIGNING_KEY` 由 workflow 自己写文件再导出 `LERTARO_SIGNING_KEY`。
+- `LERTARO_SIGNING_KEY`：**普通 Variable，不是 File 型**，值是**整个 key 文件压成的一行 base64**（`openssl base64 -A -in lertaro-release.key`）。这是三处共用的唯一契约——本机、GitLab job、GitHub workflow 都只认这一个形态，PEM 文件路径不再是任何一方的输入。
+  - 谁解码：只有 `make.bat`。它在两个架构构建之前把 base64 解到 `%TEMP%\lertaro-release-<random>.key`，签完两个 zip 后在清理步骤删除；进入时先扫掉 `%TEMP%\lertaro-release-*.key`，所以上一次崩溃留下的副本不会被复用，而中途 `exit /b 1` 漏下的也在这一步收走。GitLab 的 build job 只做形状校验（能解码、解出来有 `-----BEGIN`）就放行构建——解码不做第二遍，但形状错了要在二十分钟构建之前发现而不是之后。
+  - File 型为什么不行：File 变量交给进程的是路径而不是内容，把路径当 base64 解必然失败，所以报错文案点名了这一点。
+  - 没有 key 是错误不是警告：无签名的 portable 包会被更新器拒装，`make.bat` 在变量缺失时直接 `exit /b 1`；GitHub 那侧同样改成 `::error` + 退出，原来"缺 key 就写一个 unsigned 占位 sig"的分支已删。
+  - 本机一次性设置：`for /f %i in ('openssl base64 -A -in F:\Documents\lertaro-release.key') do setx LERTARO_SIGNING_KEY %i`（`setx` 不影响已经开着的终端）。旧的 `<Documents>\lertaro-release.key` 默认路径已删除，所以不设变量的本机打包从此失败，这是有意的。
+  - 兜底签名的静默失败（2026-11-04 实测）：没有 openssl 时 `make.bat` 用 pwsh 的 ECDsa 签。原写法里 .NET 调用失败是**非终止错误**——pwsh 打印异常、继续跑 `WriteAllBytes`、退出码 0，于是落出一个 139 字节、DER 结构合法但对任何公钥都验不过的 blob；`if errorlevel 1`、`if not exist` 和 CI 里的 `-lt 8` 三道检查全部放行。现在那条命令以 `$ErrorActionPreference='Stop'` 开头，并在写文件前用同一把 key 做一次 `VerifyData` 自检。实测：坏 key → `[Error] Signing ... failed`、exit 1、不产生 `.sig`；好 key → 70 字节签名、`Verified OK`。
+  - GitHub 侧：`secrets.SIGNING_KEY` 继续存 PEM 原文，workflow 取 `UTF8.GetBytes` 后 base64 编码再导出，与本机那份逐字节相同（实测）。
+  - 其余实测数字：Git 自带的 openssl 3.5.7 与 `C:\Program Files\OpenSSL-Win64` 的 4.1.0 都能签 LF 和 CRLF 两种 PEM；runner 里 `Get-Command openssl` 先命中 `C:\Program Files\Git\mingw64\bin\openssl.exe`；ECDSA 的 DER 签名长度在 70–72 字节之间浮动属正常，别按固定长度判存在（release job 用的是 `-lt 8`）。
 - `PACKAGE_TOKEN`（可选）：旧包清理默认用 `CI_JOB_TOKEN` 调 `DELETE /projects/:id/packages/:package_id`。文档没把 delete 写进 job token 的权限表，所以第一次很可能 403；那时建一个 Project Access Token（scope `api`，Maintainer）存成这个变量，release job 会自动改用它。不设它不影响发布，只是旧包一直堆着。
 
 ## 存储与保留数字
@@ -47,4 +54,5 @@
 - hosted `saas-windows-medium-amd64` 镜像里的 .NET SDK 版本与 winget 可用性；真要用它，`build` 里 Inno Setup 的兜底安装得换成直接下载静默安装包。
 - `CI_JOB_TOKEN` 在现行 gitlab.com 上能否删包（以及 generic package 的 PUT 是否需要额外开关）——都要等第一次实跑的日志。
 - 一次完整 release 在这台机器上的实际耗时；`concurrent = 1`，构建期间这台机器会被占住。
+- 发布前没有任何一处拿 `UpdatePackage.cs` 里的公钥验签：build job 只判 `.sig` 是否 `-lt 8`，`make.bat` 只用自己的私钥自检。也就是说"用错了一把格式正确的 key"仍然能发出去，用户侧才第一次失败。要收口就在 build job 里用源码抽出的公钥对两个 zip 各验一次。
 - project uploads 通道的现行大小上限（10 MB 来自 GitLab 2017 年的 issue，未按现行 gitlab.com 核实）。

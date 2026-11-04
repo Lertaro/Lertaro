@@ -66,6 +66,26 @@ for /f "usebackq tokens=*" %%v in (`powershell -NoProfile -Command "([xml](Get-C
 for /f "usebackq tokens=*" %%v in (`powershell -NoProfile -Command "$a = '%APP_VER%.0.0.0' -split '\.'; $a[0..3] -join '.'"`) do set "APP_VER_4=%%v"
 echo App Version: %APP_VER% (PE Version: %APP_VER_4%)
 
+:: 5. Materialize the signing key
+::
+:: LERTARO_SIGNING_KEY is the key file as ONE base64 line -- the same contract the GitLab job and the GitHub
+:: workflow use, so no build machine has to keep a key at a fixed path. It is decoded into %TEMP% here and
+:: deleted after both passes; a run that dies halfway leaves one behind, which the sweep below removes.
+echo.
+echo Decoding the signing key...
+if not defined LERTARO_SIGNING_KEY (
+    echo [Error] LERTARO_SIGNING_KEY is not set. It must hold the key file as one base64 line, for example
+    echo         the output of:  openssl base64 -A -in lertaro-release.key
+    exit /b 1
+)
+del /q "%TEMP%\lertaro-release-*.key" >nul 2>&1
+set "SIGN_KEY=%TEMP%\lertaro-release-%RANDOM%.key"
+powershell -NoProfile -Command "[IO.File]::WriteAllBytes($env:SIGN_KEY,[Convert]::FromBase64String(($env:LERTARO_SIGNING_KEY -replace '\s','')))"
+if not exist "%SIGN_KEY%" (
+    echo [Error] LERTARO_SIGNING_KEY is not base64 of a key file; nothing could be decoded.
+    exit /b 1
+)
+
 
 :: Two architectures, same steps. x64 publishes with no RID exactly as it always has, so its output is
 :: unchanged; arm64 is a cross-publish from whatever machine is building. They are separate artifacts
@@ -89,10 +109,11 @@ set "RIDARGS=-r win-arm64 --self-contained false"
 call :build_arch
 if errorlevel 1 exit /b 1
 
-:: 5. Clean up temporary publish folder
+:: 6. Clean up temporary publish folder and the decoded key
 echo.
 echo Cleaning up temporary publish folder...
 rmdir /s /q "%ROOT%publish" >nul 2>&1
+del /q "%SIGN_KEY%" >nul 2>&1
 
 echo.
 echo ==========================================
@@ -189,21 +210,9 @@ if errorlevel 1 (
 )
 
 :: Sign the portable ZIP. The updater verifies an ECDSA P-256 signature over the whole archive and refuses
-:: a package that has none, so signing belongs to packaging rather than to a separate release step.
-::
-:: LERTARO_SIGNING_KEY names the key; the default is <Documents>\lertaro-release.key so it need not be
-:: exported. A missing key only warns here -- the CI pipeline refuses to publish without one -- so a
-:: contributor with no release key can still package the app locally.
-set "SIGN_KEY=%LERTARO_SIGNING_KEY%"
-if not defined SIGN_KEY (
-    for /f "usebackq tokens=*" %%p in (`powershell -NoProfile -Command "[Environment]::GetFolderPath('MyDocuments')"`) do set "SIGN_KEY=%%p\lertaro-release.key"
-)
+:: a package that has none, so signing belongs to packaging rather than to a separate release step. The key
+:: was decoded into %SIGN_KEY% before either pass started, and its absence is fatal there: no unsigned path.
 set "SIGN_ZIP=%DIST%\Lertaro-Portable%ARCHSUFFIX%.zip"
-
-if not exist "%SIGN_KEY%" (
-    echo [Warning] No signing key at "%SIGN_KEY%": %SIGN_ZIP% stays unsigned and will be refused by the updater.
-    goto :eof
-)
 
 echo Signing %SIGN_ZIP%...
 :: OpenSSL is preferred because its output can be checked with the openssl command published in the
@@ -231,9 +240,16 @@ if errorlevel 1 (
     echo [Error] Neither OpenSSL nor PowerShell 7 is available to sign %SIGN_ZIP%.
     exit /b 1
 )
-pwsh -NoProfile -Command "$k=[System.Security.Cryptography.ECDsa]::Create(); $k.ImportFromPem([System.IO.File]::ReadAllText($env:LERTARO_SIGN_KEY)); $s=$k.SignData([System.IO.File]::ReadAllBytes($env:LERTARO_SIGN_ZIP),[System.Security.Cryptography.HashAlgorithmName]::SHA256,[System.Security.Cryptography.DSASignatureFormat]::Rfc3279DerSequence); [System.IO.File]::WriteAllBytes($env:LERTARO_SIGN_ZIP+'.sig',$s)"
+pwsh -NoProfile -Command "$ErrorActionPreference='Stop'; $k=[System.Security.Cryptography.ECDsa]::Create(); $k.ImportFromPem([System.IO.File]::ReadAllText($env:LERTARO_SIGN_KEY)); $s=$k.SignData([System.IO.File]::ReadAllBytes($env:LERTARO_SIGN_ZIP),[System.Security.Cryptography.HashAlgorithmName]::SHA256,[System.Security.Cryptography.DSASignatureFormat]::Rfc3279DerSequence); if (-not $k.VerifyData([System.IO.File]::ReadAllBytes($env:LERTARO_SIGN_ZIP),$s,[System.Security.Cryptography.HashAlgorithmName]::SHA256,[System.Security.Cryptography.DSASignatureFormat]::Rfc3279DerSequence)) { throw 'self-verification of the new signature failed' }; [System.IO.File]::WriteAllBytes($env:LERTARO_SIGN_ZIP+'.sig',$s)"
 if errorlevel 1 (
     echo [Error] Signing %SIGN_ZIP% failed.
+    exit /b 1
+)
+:: Without ErrorActionPreference the .NET calls above fail as non-terminating errors: pwsh printed the
+:: exception, still ran WriteAllBytes, exited 0, and left a 139-byte DER blob that verifies against nothing.
+:: The signature file is checked anyway because dist/ is wiped every run and a missing file is the cheap case.
+if not exist "%SIGN_ZIP%.sig" (
+    echo [Error] Signing %SIGN_ZIP% produced no signature file.
     exit /b 1
 )
 
