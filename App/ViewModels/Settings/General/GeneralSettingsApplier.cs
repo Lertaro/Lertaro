@@ -16,6 +16,7 @@ internal static class GeneralSettingsApplier
         GeneralSettingsViewModel vm,
         UserSettings userSettings,
         bool startWithWindows,
+        bool requestElevatedHook,
         bool autoCheckUpdates,
         bool autoSilentUpdate,
         bool enableHardwareAcceleration,
@@ -35,9 +36,11 @@ internal static class GeneralSettingsApplier
         string logLevel)
     {
         var logLevelChanged = userSettings.LogLevel != logLevel;
+        var elevatedHookChanged = userSettings.RequestElevatedHook != requestElevatedHook;
         var everythingIpcChanged = userSettings.EnableEverythingIpc != enableEverythingIpc;
 
         userSettings.StartWithWindows = startWithWindows;
+        userSettings.RequestElevatedHook = requestElevatedHook;
         userSettings.AutoCheckUpdates = autoCheckUpdates;
         if (vm.IsUserAdmin)
             userSettings.AutoSilentUpdate = autoSilentUpdate;
@@ -67,6 +70,11 @@ internal static class GeneralSettingsApplier
         // below rather than a copy of them threaded through this signature.
 
         StartupManager.SetEnabled(startWithWindows);
+        // The privilege a hook is launched with is decided at launch and nowhere else, so a change reaches the
+        // running hook only by ending its round: the hook exits, HookIpcClient's retry loop asks again, and
+        // the request it makes reads the value written above -- the same cached instance this method just
+        // mutated, so no dependency on when the file is saved.
+        if (elevatedHookChanged) App.HookClient?.RelaunchHook();
         (System.Windows.Application.Current.MainWindow as QuickSearchWindow)?.ApplyTrayIconVisibility(hideTrayIcon);
         Logger.MinimumLevel = SettingsOptionGenerator.ParseLogLevel(logLevel);
         if (logLevelChanged)

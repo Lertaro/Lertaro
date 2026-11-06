@@ -427,6 +427,8 @@
   "General_SysTitle": "システム",
   "General_SysHint": "起動時の動作、ログレベル、インターフェース言語を設定します。",
   "General_Startup": "Windows 起動時に Lertaro を自動起動",
+  "General_ElevatedHook": "フックを高インテグリティで起動する",
+  "General_ElevatedHookHint": "バックグラウンドサービスがこれを付与する際、UAC の確認画面は表示されません。オフにするとフックは通常のインテグリティで実行されるため、管理者として実行しているプログラムへのキー入力を読み取れず、それらの開く/名前を付けて保存ダイアログにパスも渡せません。",
   "Startup_SkippedTitle": "Windows のログオン時に自動起動がスキップされました",
   "Startup_SkippedBody": "Lertaro が管理者として実行するよう設定されています。Windows はログオン時、昇格を必要とする起動エントリを起動も通知もエラー記録もなしに静かにスキップします。Lertaro.App.exe の「プロパティ」→「互換性」にある「このプログラムを管理者として実行する」のチェックを外してください。",
   "General_AutoCheckUpdates": "起動時に自動でアップデートを確認",

@@ -62,6 +62,12 @@
                            IsChecked="{Binding General.StartWithWindows, Mode=TwoWay}"
                            Margin="0,4"/>
 
+                <CheckBox x:Name="RowElevatedHook" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_ElevatedHook]}"
+                           IsChecked="{Binding General.RequestElevatedHook, Mode=TwoWay}"
+                           Margin="0,4"/>
+                <TextBlock Style="{StaticResource SettingsHintText}" Margin="24,0,0,4"
+                           Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_ElevatedHookHint]}"/>
+
                 <CheckBox x:Name="RowAutoCheckUpdates" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_AutoCheckUpdates]}"
                            IsChecked="{Binding General.AutoCheckUpdates, Mode=TwoWay}"
                            Margin="0,4"/>

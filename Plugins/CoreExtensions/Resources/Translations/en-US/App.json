@@ -427,6 +427,8 @@
   "General_SysTitle": "System",
   "General_SysHint": "Controls startup behavior, log level, and interface language.",
   "General_Startup": "Start Lertaro with Windows",
+  "General_ElevatedHook": "Start the hook at high integrity",
+  "General_ElevatedHookHint": "The background service raises the hook without ever showing a UAC prompt. Left off, the hook runs at normal integrity: it cannot see keystrokes typed in programs running as administrator, nor pass a path to their Open/Save dialogs.",
   "Startup_SkippedTitle": "Windows skipped Lertaro at sign-in",
   "Startup_SkippedBody": "Lertaro is marked to run as an administrator, and Windows silently skips a startup entry that needs elevation at sign-in: nothing starts, nothing prompts, nothing is logged. Clear 'Run this program as an administrator' in Lertaro.App.exe's Properties, on the Compatibility tab.",
   "General_AutoCheckUpdates": "Auto check for updates on startup",
