@@ -20,9 +20,12 @@ namespace Lertaro.App.ViewModels.Search;
 /// </remarks>
 internal sealed class ProgressiveRenderPlan
 {
-    // Below this the list is too short to be worth an intermediate paint at all -- the search is about
-    // to finish and render it in full.
-    internal const int MinimumFirstRender = 9;
+    // One row is enough for the first paint. Nothing here is "intermediate" for a small result set: a query
+    // that matches one or two files never reaches the old threshold of 9, so it got NO paint until the search
+    // had fully finished -- its whole latency was the search's whole latency. Measured on this machine that
+    // was 100-200 ms of a blank list for every narrow query. The throttling that keeps a big result set cheap
+    // is IdleMultiplier below, not this floor, so lowering it costs nothing when the list is long.
+    internal const int MinimumFirstRender = 1;
 
     // The first paint shows this many at most, however much has already piled up behind it. Getting
     // something on screen immediately matters more than getting all of it, and the rest follows on the

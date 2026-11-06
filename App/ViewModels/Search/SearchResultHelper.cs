@@ -134,12 +134,36 @@ internal static class SearchResultHelper
         if (IsVirtualPath(path))
             return path.Trim();
 
+        // An indexed path is already absolute and already canonical -- the engine stores it that way. Asking
+        // the OS to normalise it again is not free, and this runs once per candidate row, so a broad query
+        // pays for it hundreds of times. When the path is fully qualified, uses only the native separator,
+        // and carries no "." or ".." segment, GetFullPath would return the same string; trimming is enough.
+        if (IsAlreadyCanonical(path))
+            return path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
         // Indexed WSL paths are already absolute. Keep normalization lexical so displaying or comparing
         // a result cannot ask Windows to expand a short-name-looking segment and wake the distro.
         var normalized = WslPath.IsPath(path)
             ? path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar)
             : Path.GetFullPath(path);
         return normalized.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    }
+
+    // Deliberately conservative: anything it cannot prove is canonical falls through to Path.GetFullPath.
+    // A "." or ".." segment is the only thing GetFullPath still has to resolve on a fully qualified path
+    // (it also folds a mixed separator, which is why "/" disqualifies), so their absence is the whole test.
+    private static bool IsAlreadyCanonical(string path)
+    {
+        if (!Path.IsPathFullyQualified(path))
+            return false;
+
+        if (path.IndexOf('/') >= 0)
+            return false;
+
+        return !path.Contains(@"\.\", StringComparison.Ordinal)
+            && !path.Contains(@"\..\", StringComparison.Ordinal)
+            && !path.EndsWith(@"\.", StringComparison.Ordinal)
+            && !path.EndsWith(@"\..", StringComparison.Ordinal);
     }
 
     internal static bool IsVirtualPath(string path) =>

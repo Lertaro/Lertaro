@@ -45,7 +45,7 @@
                                     Padding="{TemplateBinding Padding}"
                                     HorizontalAlignment="Center"
                                     BorderBrush="Transparent"
-                                    BorderThickness="0,0,0,1.5">
+                                    BorderThickness="0">
                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                         </Grid>
@@ -55,6 +55,10 @@
                             <Trigger Property="ItemsControl.AlternationIndex" Value="0">
                                 <Setter TargetName="Pipe" Property="Visibility" Value="Collapsed"/>
                             </Trigger>
+                            <!-- Kept for its state logic. The line itself is drawn by CategoryIndicator: a per-item
+                                 border can only move within its own item, so a slide between filters is not
+                                 expressible here. BorderThickness above is 0, so this setter only keeps the
+                                 selected-state contract intact for anything reading it. -->
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="Underline" Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
                             </Trigger>
@@ -140,23 +144,60 @@
             <!-- Shown with the results and hidden when there are none, so the bar never widens the card on an
                  empty search. The row is whatever the plugin's type settings say it is, so its count is not
                  known here: AlternationCount, which only exists to hide the first separator, follows it. -->
-            <ListBox x:Name="CategoryBar"
-                     Grid.Row="1"
-                     Margin="12,1,12,2"
-                     AlternationCount="{Binding Categories.Count}"
-                     HorizontalAlignment="Stretch"
-                     HorizontalContentAlignment="Stretch"
-                     Style="{StaticResource CategoryBarStyle}"
-                     ItemsSource="{Binding Categories}"
-                     SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"
-                     PreviewMouseWheel="CategoryBar_PreviewMouseWheel"
-                     Visibility="{Binding CategoryBarVisibility}">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <TextBlock Text="{Binding DisplayName}" Opacity="0.85"/>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
+            <Grid x:Name="CategoryBarHost"
+                  Grid.Row="1"
+                  Margin="12,1,12,2"
+                  HorizontalAlignment="Stretch"
+                  Panel.ZIndex="10"
+                  Visibility="{Binding CategoryBarVisibility}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <!-- Breathing room between the labels and the underline. -->
+                    <RowDefinition Height="4"/>
+                    <!-- The underline's rail. A real band rather than a negative margin: a line pulled past
+                         the bottom of its container is clipped away by the rounded-corner clip. -->
+                    <RowDefinition Height="2"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <ListBox x:Name="CategoryBar"
+                         Grid.Row="0" Grid.Column="0"
+                         AlternationCount="{Binding Categories.Count}"
+                         HorizontalAlignment="Stretch"
+                         HorizontalContentAlignment="Stretch"
+                         Style="{StaticResource CategoryBarStyle}"
+                         ItemsSource="{Binding Categories}"
+                         SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"
+                         SelectionChanged="CategoryBar_SelectionChanged"
+                         SizeChanged="CategoryBar_SizeChanged"
+                         PreviewMouseWheel="CategoryBar_PreviewMouseWheel">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding DisplayName}" Opacity="0.85"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <!-- The selected filter's underline. Its X and width are animated by MoveIndicatorToSelection,
+                     so moving between filters reads as a slide instead of a jump. -->
+                <Rectangle x:Name="CategoryIndicator"
+                           Grid.Row="2" Grid.ColumnSpan="2"
+                           Height="1.5"
+                           Width="0"
+                           VerticalAlignment="Bottom"
+                           HorizontalAlignment="Left"
+                           RadiusX="1" RadiusY="1"
+                           Fill="{DynamicResource AccentBlue}"
+                           Opacity="0.55"
+                           RenderTransformOrigin="0,0">
+                    <Rectangle.RenderTransform>
+                        <TranslateTransform x:Name="CategoryIndicatorTransform"/>
+                    </Rectangle.RenderTransform>
+                </Rectangle>
+            </Grid>
 
             <!-- ═══════════ 3. Separator ═══════════ -->
             <Rectangle x:Name="ResultsSeparator"
