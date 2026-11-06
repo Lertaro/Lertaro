@@ -44,6 +44,15 @@ public class UserSettings
     public bool EnableRankingDetailsExport { get; set; } = true;
     public bool EnableKeywordHistory { get; set; } = true;
     public bool StartWithWindows { get; set; } = true;
+
+    /// <summary>
+    /// Whether the App asks the service for an elevated hook at all. Off by default, because the elevation is
+    /// handed over without ever showing a prompt -- the service swaps in the session's UAC-linked admin token
+    /// -- and an ordinary-integrity hook does everything except touch programs that themselves run as
+    /// administrator, whose keystrokes it cannot see and whose Open/Save dialogs it cannot write a path into.
+    /// Read once per hook launch, so changing it takes effect when the hook is relaunched, not on restart.
+    /// </summary>
+    public bool RequestElevatedHook { get; set; } = false;
     public bool AutoCheckUpdates { get; set; } = true;
     public bool AutoSilentUpdate { get; set; } = false;
     // Bookkeeping rather than a preference: the release tag whose last startup install attempt failed, and

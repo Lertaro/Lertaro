@@ -12,8 +12,9 @@ internal sealed class HookLaunchBroker : IDisposable
 {
     private readonly SearchService _searchService = new();
 
-    // The elevated hook is asked for first: it is the only one that sees keystrokes typed into elevated
-    // windows. The Service grants it only when this session's user is genuinely an administrator and refuses
+    // The elevated hook is asked for first, when the user wants one at all: it is the only one that sees
+    // keystrokes typed into elevated windows and that can write a path into an elevated program's dialogs.
+    // The Service grants it only when this session's user is genuinely an administrator and refuses
     // otherwise (SessionProcessLauncher), which is exactly what a standard user's session looks like from
     // here -- and an unelevated hook still registers the global hotkeys. So a decline retries one level down
     // instead of leaving the App with no hook at all. Every other decline (Service still starting, caller not
@@ -21,18 +22,36 @@ internal sealed class HookLaunchBroker : IDisposable
     // else; the caller's own backoff keeps looping either way.
     public async Task<Process?> LaunchAsync(CancellationToken token)
     {
-        var elevated = await RequestAsync(requestElevation: true, token).ConfigureAwait(false);
-        if (elevated.Hook != null)
-            return elevated.Hook;
+        var plan = RequestPlan(UserSettings.Load().RequestElevatedHook);
+        for (var step = 0; step < plan.Length; step++)
+        {
+            var (hook, error) = await RequestAsync(plan[step], token).ConfigureAwait(false);
+            if (hook != null)
+            {
+                // Worth saying only when this step is the fallback. A user who switched elevation off chose
+                // this level, and telling them their hotkeys are limited would be telling them nothing.
+                if (step > 0)
+                    Logger.Log($"[HookIpcClient] Hook launched unelevated (PID {hook.Id}) -- hotkeys over elevated windows stay out of reach.", LogLevel.Info);
+                return hook;
+            }
 
-        Logger.Log($"[HookIpcClient] Elevated hook launch declined ({elevated.Error}); asking for an unelevated hook.", LogLevel.Debug);
-        var plain = await RequestAsync(requestElevation: false, token).ConfigureAwait(false);
-        if (plain.Hook == null)
-            return null;
+            if (step == 0 && plan.Length > 1)
+                Logger.Log($"[HookIpcClient] Elevated hook launch declined ({error}); asking for an unelevated hook.", LogLevel.Debug);
+        }
 
-        Logger.Log($"[HookIpcClient] Hook launched unelevated (PID {plain.Hook.Id}) -- hotkeys over elevated windows stay out of reach.", LogLevel.Info);
-        return plain.Hook;
+        return null;
     }
+
+    /// <summary>
+    /// Which levels to ask the Service for, in order. Asking high first is what gets an administrator's
+    /// session an elevated hook without ever showing a prompt; a session that cannot provide one is declined
+    /// and the second step takes the normal level. Not asking is the user's own choice: it pays exactly one
+    /// round trip, and it must not disturb a hook that is already running, since
+    /// <see cref="Services.HookLaunch.HookProcessBroker"/> replaces a live hook only in answer to an
+    /// elevated request.
+    /// </summary>
+    internal static bool[] RequestPlan(bool requestElevatedHook) =>
+        requestElevatedHook ? [true, false] : [false];
 
     // Never throws: RunLoop's backoff only runs on the null result, so an exception escaping here would
     // retry the launch on a hot loop instead.
