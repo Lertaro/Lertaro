@@ -315,7 +315,7 @@
   "Service_LogTab_Service": "サービス",
   "Service_LogTab_App": "メインアプリ",
   "Service_LogTab_Hook": "フック",
-  "Service_HookUnelevated": "フックが管理者権限で実行されていないため、管理者として実行しているプログラムの「開く/名前を付けて保存」ダイアログにパスを渡せません。",
+  "Service_HookUnelevated": "フックは現在 {0} インテグリティで実行されています。管理者として実行しているプログラムへのキー入力を読み取れず、それらの開く/名前を付けて保存ダイアログにパスも渡せません。「一般 → システム」の「フックを高インテグリティで起動する」を有効にしてください。有効にしてもこの行が残る場合、サービスログに各起動で実際に渡されたインテグリティが記録されます。",
   "Service_LogFilter_All": "すべて",
   "Service_LogSearchPlaceholder": " ログを検索...",
   "Service_GettingStatus": "サービス状態を取得しています...",

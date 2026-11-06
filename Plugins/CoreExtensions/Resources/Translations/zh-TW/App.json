@@ -315,7 +315,7 @@
   "Service_LogTab_Service": "服務",
   "Service_LogTab_App": "主程式",
   "Service_LogTab_Hook": "鉤子",
-  "Service_HookUnelevated": "鉤子未以系統管理員權限執行：無法將路徑傳予以系統管理員身分執行的程式之開啟/另存為對話方塊。",
+  "Service_HookUnelevated": "鉤子目前以 {0} 完整性執行：看不見以系統管理員身分執行的程式的按鍵，也無法將路徑傳給它們的開啟/另存為對話方塊。可在「通用 → 系統」勾選「以高完整性啟動鉤子」；勾選後此行仍在，服務日誌會記下每次啟動實際交出的完整性層級。",
   "Service_LogFilter_All": "全部",
   "Service_LogSearchPlaceholder": " 搜尋日誌...",
   "Service_GettingStatus": "正在取得服務狀態...",

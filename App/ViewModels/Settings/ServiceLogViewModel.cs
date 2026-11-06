@@ -71,10 +71,12 @@ public class ServiceLogViewModel : ViewModelBase, IDisposable
     }
 
     private bool _isHookUnelevated;
+    private string _hookIntegrityWarning = string.Empty;
+
     // The hook is the process that writes a path into another program's Open/Save dialog, and Windows
     // discards those writes when it runs below the dialog's own integrity level -- a failure with nothing on
-    // screen to show it. Read on the same tick that re-reads the connection, so a hook replaced by an
-    // elevated one is reflected here without a second timer.
+    // screen to show it. Read on the same tick that re-reads the connection, so a hook replaced by an elevated
+    // one is reflected here without a second timer.
     public bool IsHookUnelevated
     {
         get => _isHookUnelevated;
@@ -85,15 +87,37 @@ public class ServiceLogViewModel : ViewModelBase, IDisposable
         }
     }
 
+    // The line names the level it measured rather than saying "not elevated", because the readings that hide
+    // behind that one phrase want different answers: Medium means the switch is off or this session cannot
+    // grant High, and only the service log says which.
+    public string HookIntegrityWarning
+    {
+        get => _hookIntegrityWarning;
+        set => SetProperty(ref _hookIntegrityWarning, value);
+    }
+
     public Visibility HookIntegrityWarningVisibility =>
         IsHookUnelevated ? Visibility.Visible : Visibility.Collapsed;
 
     private void RefreshHookState()
     {
         IsHookReady = App.HookClient?.IsConnected ?? false;
-        IsHookUnelevated = IsHookReady && App.HookClient is { } hook
-            && hook.ServiceProcessId != 0
-            && !ElevationManager.IsProcessHighIntegrity(hook.ServiceProcessId);
+
+        var pid = App.HookClient?.ServiceProcessId ?? 0;
+        // Silent when the label could not be read. A hook is always this user's own process, so the read works
+        // from any level and a failure here says nothing about the hook -- and a red line built on nothing
+        // would train the reader to dismiss the ones that are measured.
+        if (IsHookReady && pid != 0
+            && ElevationManager.TryGetIntegrityRid(pid) is { } rid && !ElevationManager.IsHighRid(rid))
+        {
+            IsHookUnelevated = true;
+            HookIntegrityWarning = string.Format(
+                TranslationManager.Instance["Service_HookUnelevated"], ElevationManager.IntegrityName(rid));
+        }
+        else
+        {
+            IsHookUnelevated = false;
+        }
     }
 
     private string _levelFilter = "All";
@@ -185,6 +209,10 @@ public class ServiceLogViewModel : ViewModelBase, IDisposable
         _levelFilterOptions[2].Label = TranslationManager.Instance["LogLevel_Warn"];
         _levelFilterOptions[3].Label = TranslationManager.Instance["LogLevel_Info"];
         _levelFilterOptions[4].Label = TranslationManager.Instance["LogLevel_Debug"];
+
+        // The warning is formatted here rather than bound to a key, so a language change has to rebuild it.
+        if (IsHookUnelevated)
+            RefreshHookState();
     }
 
     private string CurrentLogPath => SelectedTab switch

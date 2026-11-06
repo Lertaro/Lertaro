@@ -315,7 +315,7 @@
   "Service_LogTab_Service": "Servicio",
   "Service_LogTab_App": "Aplicación Principal",
   "Service_LogTab_Hook": "Hook",
-  "Service_HookUnelevated": "El hook se ejecuta sin elevación, así que no se puede enviar una ruta a los cuadros de diálogo de Abrir/Guardar como de un programa que se ejecuta como administrador.",
+  "Service_HookUnelevated": "El hook se ejecuta con integridad {0}, así que no ve las pulsaciones de los programas que se ejecutan como administrador ni puede enviar rutas a sus cuadros de Abrir/Guardar como. Active “Iniciar el hook con integridad alta” en General → Sistema; si el aviso persiste, el registro del servicio indica qué integridad entregó cada arranque.",
   "Service_LogFilter_All": "Todos",
   "Service_LogSearchPlaceholder": " Buscar en los registros...",
   "Service_GettingStatus": "Obteniendo el estado del servicio...",
