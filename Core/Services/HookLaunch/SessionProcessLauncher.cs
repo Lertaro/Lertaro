@@ -141,6 +141,31 @@ public static class SessionProcessLauncher
             : ownTokenIsAdmin ? ElevatedToken.OwnTokenIsElevated
             : ElevatedToken.Refused;
 
+    /// <summary>
+    /// Whether an elevated launch would be granted for this session, asked without starting anything: the
+    /// same <see cref="DecideElevatedToken"/> answer <see cref="TryLaunch"/> would reach. A caller that
+    /// already holds a live child uses this to avoid disturbing it for an elevation the session cannot give.
+    /// </summary>
+    internal static bool CanGrantElevation(int sessionId)
+    {
+        EnableTcbPrivilege();
+        if (!WTSQueryUserToken((uint)sessionId, out var userToken))
+            return false;
+
+        var linkedToken = IntPtr.Zero;
+        try
+        {
+            var hasLinkedToken = TryGetLinkedToken(userToken, out linkedToken);
+            return DecideElevatedToken(hasLinkedToken && IsTokenAdmin(linkedToken), IsTokenAdmin(userToken))
+                != ElevatedToken.Refused;
+        }
+        finally
+        {
+            if (linkedToken != IntPtr.Zero) CloseHandle(linkedToken);
+            CloseHandle(userToken);
+        }
+    }
+
     // Variables the .NET runtime reads at start-up to load extra code: startup hooks, profilers, a different
     // runtime or host. The user can set any of them in HKCU\Environment without elevation, so an elevated
     // child inheriting them would load the user's code at high integrity with no UAC prompt.
