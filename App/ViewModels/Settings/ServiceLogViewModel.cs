@@ -5,6 +5,7 @@ using System.Windows.Threading;
 using Lertaro.App.Helpers;
 using Lertaro.App.Services;
 using Lertaro.Core;
+using Lertaro.Core.Services;
 using Lertaro.Core.Wire;
 
 using Lertaro.Core.Services.Search;
@@ -67,6 +68,32 @@ public class ServiceLogViewModel : ViewModelBase, IDisposable
             if (SetProperty(ref _isHookReady, value))
                 CommandManager.InvalidateRequerySuggested();
         }
+    }
+
+    private bool _isHookUnelevated;
+    // The hook is the process that writes a path into another program's Open/Save dialog, and Windows
+    // discards those writes when it runs below the dialog's own integrity level -- a failure with nothing on
+    // screen to show it. Read on the same tick that re-reads the connection, so a hook replaced by an
+    // elevated one is reflected here without a second timer.
+    public bool IsHookUnelevated
+    {
+        get => _isHookUnelevated;
+        set
+        {
+            if (SetProperty(ref _isHookUnelevated, value))
+                OnPropertyChanged(nameof(HookIntegrityWarningVisibility));
+        }
+    }
+
+    public Visibility HookIntegrityWarningVisibility =>
+        IsHookUnelevated ? Visibility.Visible : Visibility.Collapsed;
+
+    private void RefreshHookState()
+    {
+        IsHookReady = App.HookClient?.IsConnected ?? false;
+        IsHookUnelevated = IsHookReady && App.HookClient is { } hook
+            && hook.ServiceProcessId != 0
+            && !ElevationManager.IsProcessHighIntegrity(hook.ServiceProcessId);
     }
 
     private string _levelFilter = "All";
@@ -137,11 +164,11 @@ public class ServiceLogViewModel : ViewModelBase, IDisposable
         ];
 
         Load(force: true);
-        IsHookReady = App.HookClient?.IsConnected ?? false;
+        RefreshHookState();
         _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _refreshTimer.Tick += (s, e) =>
         {
-            IsHookReady = App.HookClient?.IsConnected ?? false;
+            RefreshHookState();
             Load(force: false);
         };
         _refreshTimer.Start();

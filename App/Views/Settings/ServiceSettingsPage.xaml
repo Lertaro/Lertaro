@@ -31,6 +31,12 @@
                        Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Service_Title]}"/>
             <TextBlock Style="{StaticResource SettingsHintText}"
                        Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Service_Hint]}"/>
+            <!-- The hook's own integrity, not the service's: a normal-integrity hook silently cannot write
+                 into an elevated program's dialogs, and this page is where that gets seen. -->
+            <TextBlock Style="{StaticResource SettingsHintText}" Margin="0,6,0,0"
+                       Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap"
+                       Visibility="{Binding Log.HookIntegrityWarningVisibility}"
+                       Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Service_HookUnelevated]}"/>
         </StackPanel>
 
             <Border Grid.Row="1" Style="{StaticResource SettingsCard}" Margin="0,16,0,16" Padding="16">

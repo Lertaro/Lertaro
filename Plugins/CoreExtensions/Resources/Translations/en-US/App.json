@@ -315,6 +315,7 @@
   "Service_LogTab_Service": "Service",
   "Service_LogTab_App": "Main App",
   "Service_LogTab_Hook": "Hook",
+  "Service_HookUnelevated": "The hook runs without elevation, so a path cannot be passed into the Open/Save dialog of a program running as administrator.",
   "Service_LogFilter_All": "All",
   "Service_LogSearchPlaceholder": " Search logs...",
   "Service_GettingStatus": "Retrieving service status...",

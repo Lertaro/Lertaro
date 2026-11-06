@@ -315,6 +315,7 @@
   "Service_LogTab_Service": "서비스",
   "Service_LogTab_App": "메인 앱",
   "Service_LogTab_Hook": "후크",
+  "Service_HookUnelevated": "후크가 관리자 권한으로 실행되지 않아 관리자 권한으로 실행 중인 프로그램의 열기/다른 이름으로 저장 대화 상자에 경로를 전달할 수 없습니다.",
   "Service_LogFilter_All": "전체",
   "Service_LogSearchPlaceholder": " 로그 검색...",
   "Service_GettingStatus": "서비스 상태를 가져오는 중...",

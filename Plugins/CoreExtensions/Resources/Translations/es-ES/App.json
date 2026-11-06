@@ -315,6 +315,7 @@
   "Service_LogTab_Service": "Servicio",
   "Service_LogTab_App": "Aplicación Principal",
   "Service_LogTab_Hook": "Hook",
+  "Service_HookUnelevated": "El hook se ejecuta sin elevación, así que no se puede enviar una ruta a los cuadros de diálogo de Abrir/Guardar como de un programa que se ejecuta como administrador.",
   "Service_LogFilter_All": "Todos",
   "Service_LogSearchPlaceholder": " Buscar en los registros...",
   "Service_GettingStatus": "Obteniendo el estado del servicio...",

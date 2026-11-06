@@ -315,6 +315,7 @@
   "Service_LogTab_Service": "服務",
   "Service_LogTab_App": "主程式",
   "Service_LogTab_Hook": "鉤子",
+  "Service_HookUnelevated": "鉤子未以系統管理員權限執行：無法將路徑傳予以系統管理員身分執行的程式之開啟/另存為對話方塊。",
   "Service_LogFilter_All": "全部",
   "Service_LogSearchPlaceholder": " 搜尋日誌...",
   "Service_GettingStatus": "正在取得服務狀態...",

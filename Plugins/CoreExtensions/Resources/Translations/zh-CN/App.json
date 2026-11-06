@@ -315,6 +315,7 @@
   "Service_LogTab_Service": "服务",
   "Service_LogTab_App": "主程序",
   "Service_LogTab_Hook": "钩子",
+  "Service_HookUnelevated": "钩子未以管理员权限运行：无法把路径传给以管理员身份运行的程序的打开/另存为对话框。",
   "Service_LogFilter_All": "全部",
   "Service_LogSearchPlaceholder": " 搜索日志...",
   "Service_GettingStatus": "正在获取服务状态...",
