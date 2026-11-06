@@ -36,7 +36,13 @@ static class HookModeLauncher
         // Load plugins to register path collectors in the hook process
         ServicePluginLoader.LoadForHook();
 
-        Logger.Log($"[HookMode] Starting hook process (elevated={ElevationManager.IsRunningAsAdmin()}).");
+        // Both facts, because they are not the same one: administrator is a role in the token, High is the
+        // label that decides whether this process's messages reach an elevated window. Saying only the first
+        // made a Medium-integrity hook read as elevated in the log while the settings page called it
+        // unelevated, and the two were both telling the truth.
+        Logger.Log($"[HookMode] Starting hook process "
+            + $"(integrity={ElevationManager.DescribeProcessIntegrity(Environment.ProcessId)}, "
+            + $"admin={ElevationManager.IsRunningAsAdmin()}).");
 
         using var ipcServer = new HookIpcServer();
         using var hookProcess = new HookProcess(ipcServer);

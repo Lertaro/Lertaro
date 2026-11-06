@@ -73,4 +73,15 @@ public sealed class SessionProcessLauncherTests
         Assert.IsFalse(filtered.EndsWith("\0\0\0", StringComparison.Ordinal));
         CollectionAssert.AreEqual(new[] { "=C:=C:\\", "A=1", "b=2" }, Entries(filtered));
     }
+
+    // The launch reports success whichever token answered, so the level it is logged at is the only signal that
+    // an elevated request quietly handed over a child that still cannot reach an elevated window. Not asking at
+    // all is the configured choice, and a Medium child is exactly what was wanted then.
+    [TestMethod]
+    public void LaunchVerdict_WarnsWhenAnElevatedRequestLandsBelowHigh()
+    {
+        Assert.AreEqual(LogLevel.Warn, SessionProcessLauncher.LaunchVerdict(requestElevation: true, childIsHighIntegrity: false));
+        Assert.AreEqual(LogLevel.Info, SessionProcessLauncher.LaunchVerdict(requestElevation: true, childIsHighIntegrity: true));
+        Assert.AreEqual(LogLevel.Info, SessionProcessLauncher.LaunchVerdict(requestElevation: false, childIsHighIntegrity: false));
+    }
 }

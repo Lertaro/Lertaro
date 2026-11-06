@@ -52,6 +52,7 @@ public static class SessionProcessLauncher
             }
 
             var launchToken = userToken;
+            var tokenSource = "session";
             if (requestElevation)
             {
                 // The caller needs an elevated child and cannot act without one -- the updater refuses to run
@@ -62,9 +63,11 @@ public static class SessionProcessLauncher
                 {
                     case ElevatedToken.LinkedAdminToken:
                         launchToken = linkedToken;
+                        tokenSource = "linked-admin";
                         break;
                     case ElevatedToken.OwnTokenIsElevated:
-                        break; // UAC disabled but genuinely an admin account
+                        tokenSource = "own-token-reads-admin"; // UAC disabled but genuinely an admin account
+                        break;
                     default:
                         error = $"The session's user is not an administrator, so an elevated launch was refused (session {sessionId}).";
                         return false;
@@ -107,6 +110,20 @@ public static class SessionProcessLauncher
             if (processInfo.hProcess != IntPtr.Zero) CloseHandle(processInfo.hProcess);
             if (processInfo.hThread != IntPtr.Zero) CloseHandle(processInfo.hThread);
 
+            // What was asked for, which token answered, and what the child actually came out as. The role and
+            // the label are different facts and only the label decides UIPI: a launch can be granted the linked
+            // administrator token, report itself as elevated, and still land at Medium -- which is exactly the
+            // shape of "the card appears but the path never arrives", and until now the caller only heard
+            // success. Read both before the handles close.
+            var childRid = ElevationManager.TryGetIntegrityRid(pid);
+            var tokenRead = ElevationManager.TryGetTokenIntegrityRid(launchToken, out var tokenRid);
+            Logger.Log(
+                $"[UsnService] Launched PID {pid} ({Path.GetFileName(exePath)} {arguments}) in session {sessionId}: "
+                + $"asked={(requestElevation ? "elevated" : "session level")}, source={tokenSource}, "
+                + $"token={(tokenRead ? ElevationManager.IntegrityName(tokenRid) : "unreadable")}, "
+                + $"child={(childRid is { } level ? $"{ElevationManager.IntegrityName(level)} (0x{level:x})" : "unreadable")}.",
+                LaunchVerdict(requestElevation, childRid is { } child && ElevationManager.IsHighRid(child)));
+
             return true;
         }
         catch (Exception ex)
@@ -140,6 +157,14 @@ public static class SessionProcessLauncher
         => linkedTokenIsAdmin ? ElevatedToken.LinkedAdminToken
             : ownTokenIsAdmin ? ElevatedToken.OwnTokenIsElevated
             : ElevatedToken.Refused;
+
+    /// <summary>
+    /// How loudly to report a launch that succeeded. An elevated request whose child did not come out at High
+    /// integrity is the one worth raising: whatever the token says about administrators, that child cannot send
+    /// a message to an elevated window, and the caller is still being told success because the process exists.
+    /// </summary>
+    internal static LogLevel LaunchVerdict(bool requestElevation, bool childIsHighIntegrity)
+        => requestElevation && !childIsHighIntegrity ? LogLevel.Warn : LogLevel.Info;
 
     /// <summary>
     /// Whether an elevated launch would be granted for this session, asked without starting anything: the
