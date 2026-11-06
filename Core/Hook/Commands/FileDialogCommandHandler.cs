@@ -35,7 +35,9 @@ internal static class FileDialogCommandHandler
                             LogLevel.Debug);
                         return;
                     }
-                    Navigate(adapter, dialogHwnd, navPath, msg.BoolVal);
+                    // Through the logging wrapper: the card is already gone when this fails, so hook.log is
+                    // the only place a navigation that quietly went nowhere can still be seen.
+                    NavigateLoggingFailures(adapter, dialogHwnd, navPath, msg.BoolVal);
                 }
             }
             catch (Exception ex)

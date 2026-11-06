@@ -120,9 +120,7 @@ public class StandardFileDialogAdapter : IFileDialogAdapter
             if (Directory.Exists(targetPath) && !targetPath.EndsWith("\\"))
                 targetPath += "\\";
 
-            var currentPath = GetCurrentPath(hwnd);
-            if (currentPath != null && string.Equals(currentPath.TrimEnd('\\'), targetPath.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
-                return true;
+            if (DialogEditVerifier.Matches(GetCurrentPath(hwnd), targetPath)) return true;
 
             SendMessage(targetEdit, WM_SETTEXT, IntPtr.Zero, targetPath);
             var parent = GetParent(targetEdit);
@@ -132,6 +130,10 @@ public class StandardFileDialogAdapter : IFileDialogAdapter
                 var wParamChange = (IntPtr)((EN_CHANGE << 16) | (uint)ctrlId);
                 SendMessage(parent, WM_COMMAND, wParamChange, targetEdit);
             }
+
+            // Same rule as ClassicFileDialogAdapter: a name field that never received the path must not be
+            // handed an Enter, which would submit whatever it still holds.
+            if (!DialogEditVerifier.Matches(DialogEditVerifier.ReadText(targetEdit), targetPath)) return false;
 
             Task.Run(async () =>
             {

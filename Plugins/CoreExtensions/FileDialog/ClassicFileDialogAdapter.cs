@@ -98,6 +98,10 @@ public class ClassicFileDialogAdapter : IFileDialogAdapter
                 SendMessage(parent, WM_COMMAND, wParamChange, targetEdit);
             }
 
+            // Declining here is the whole point: the dialog is still the foreground window and the Enter
+            // below would fire into a name field that was never filled.
+            if (!DialogEditVerifier.Matches(DialogEditVerifier.ReadText(targetEdit), targetPath)) return false;
+
             Task.Run(async () =>
             {
                 await Task.Delay(300);
