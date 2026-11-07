@@ -56,6 +56,7 @@ public class GeneralSettingsViewModel : ViewModelBase
         PreviewWindow = new PreviewWindowSettingsViewModel(userSettings);
         MainWindow = new MainWindowSettingsViewModel(userSettings);
         FileManager = new DefaultFileManagerSettingsViewModel(userSettings);
+        UpdateMirrors = new UpdateMirrorSettingsViewModel(userSettings);
         QuickNavigationOrder = new QuickNavigationOrderViewModel(userSettings);
         ResultTypeOrder = new ResultTypeOrderViewModel(userSettings);
         SidebarGroupOrder = new SidebarGroupOrderViewModel(userSettings);
@@ -367,6 +368,7 @@ public class GeneralSettingsViewModel : ViewModelBase
     public PreviewWindowSettingsViewModel PreviewWindow { get; }
     public MainWindowSettingsViewModel MainWindow { get; }
     public DefaultFileManagerSettingsViewModel FileManager { get; }
+    public UpdateMirrorSettingsViewModel UpdateMirrors { get; }
     public QuickNavigationOrderViewModel QuickNavigationOrder { get; }
     public ResultTypeOrderViewModel ResultTypeOrder { get; }
     public SidebarGroupOrderViewModel SidebarGroupOrder { get; }

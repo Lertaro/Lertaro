@@ -8,10 +8,11 @@ using Lertaro.App.Services.Tray;
 namespace Lertaro.App.Services.Update;
 
 /// <summary>
-/// Startup update-check flow: checks GitHub for a new release and, depending on settings, either downloads
-/// and installs it without asking anything (auto-silent-update enabled, running as an administrator, service
-/// reachable) or prompts the user to open the About page. A release that failed to install is left alone for
-/// <see cref="UpdateRetryCooldown"/> rather than retried on every launch.
+/// Startup update-check flow: asks both release lines (GitHub, then GitLab) for the newest release and,
+/// depending on settings, either downloads and installs it without asking anything (auto-silent-update
+/// enabled, running as an administrator, service reachable) or prompts the user to open the About page. A
+/// release that failed to install is left alone for <see cref="UpdateRetryCooldown"/> rather than retried on
+/// every launch.
 /// </summary>
 /// <remarks>
 /// Extracted out of App.OnStartup so that startup sequencing there doesn't carry this feature's own
@@ -79,7 +80,7 @@ public static class UpdateCheckService
                 // Record before handing off: a copy failure rolls back and restarts this version,
                 // whose next startup must not immediately repeat the same failed installation.
                 if (!RememberFailedAttempt(settings, release.TagName)) return;
-                var (installed, _) = await UpdateInstaller.Instance.StartSilentUpdateAsync(zipAsset.DownloadUrl, progress);
+                var (installed, _) = await UpdateInstaller.Instance.StartSilentUpdateAsync(release.DownloadUrls(zipAsset), progress);
                 if (installed)
                 {
                     SilentUpdateState.Report(TranslationManager.Instance["About_Success"]);

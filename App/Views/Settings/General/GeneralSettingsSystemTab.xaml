@@ -77,6 +77,43 @@
                            IsEnabled="{Binding General.IsAutoSilentUpdateEnabled}"
                            Margin="0,4"/>
 
+                <!-- GitHub download mirrors, tried in order ahead of the release's own address. Only the
+                     GitHub line uses them: GitLab is the line a user reaches precisely when GitHub is the
+                     one they cannot talk to, so routing it through a GitHub proxy would defeat the point.
+                     These bind on LostFocus (the TextBox default) rather than PropertyChanged so a
+                     half-typed URL is not flagged on every keystroke; an invalid one still reaches the
+                     window's validation error count and gates Apply/OK, like the inline card width boxes. -->
+                <TextBlock x:Name="RowGitHubMirrors" Margin="0,12,0,4"
+                           Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_GitHubMirrors]}"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="1" Margin="0,0,8,4" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextSecondary2}"/>
+                    <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,4"
+                             Style="{StaticResource SettingsTextBox}"
+                             Text="{Binding General.UpdateMirrors.Mirror1, Mode=TwoWay, NotifyOnValidationError=True, ValidatesOnExceptions=True}"/>
+                    <TextBlock Grid.Row="1" Text="2" Margin="0,0,8,4" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextSecondary2}"/>
+                    <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,4"
+                             Style="{StaticResource SettingsTextBox}"
+                             Text="{Binding General.UpdateMirrors.Mirror2, Mode=TwoWay, NotifyOnValidationError=True, ValidatesOnExceptions=True}"/>
+                    <TextBlock Grid.Row="2" Text="3" Margin="0,0,8,0" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextSecondary2}"/>
+                    <TextBox Grid.Row="2" Grid.Column="1"
+                             Style="{StaticResource SettingsTextBox}"
+                             Text="{Binding General.UpdateMirrors.Mirror3, Mode=TwoWay, NotifyOnValidationError=True, ValidatesOnExceptions=True}"/>
+                </Grid>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_GitHubMirrorsHint]}"
+                           Style="{StaticResource SettingsHintText}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+
                 <CheckBox x:Name="RowHardwareAcceleration" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_HardwareAcceleration]}"
                            IsChecked="{Binding General.EnableHardwareAcceleration, Mode=TwoWay}"
                            Margin="0,4"/>

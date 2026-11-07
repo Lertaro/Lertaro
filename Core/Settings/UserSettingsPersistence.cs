@@ -84,6 +84,7 @@ internal static class UserSettingsPersistence
             LegacyPluginSettingsMigration.ReadLegacy(json, settings);
             NormalizeHotkeys(settings);
             settings.UiFontFamilies = UiFontSettings.Normalize(settings.UiFontFamilies);
+            settings.GitHubUpdateMirrors = UpdateMirrorSettings.Normalize(settings.GitHubUpdateMirrors);
             IndexRuleMigration.Ensure(settings);
             return settings;
         }
@@ -109,6 +110,7 @@ internal static class UserSettingsPersistence
     {
         NormalizeHotkeys(settings);
         settings.UiFontFamilies = UiFontSettings.Normalize(settings.UiFontFamilies);
+        settings.GitHubUpdateMirrors = UpdateMirrorSettings.Normalize(settings.GitHubUpdateMirrors);
         lock (CacheLock)
         {
             if (!SavePluginSettings(settings)) return false;

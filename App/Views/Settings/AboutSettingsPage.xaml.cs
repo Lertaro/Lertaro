@@ -219,7 +219,7 @@ public partial class AboutSettingsPage : System.Windows.Controls.UserControl, IN
 
         var downloadingFormat = TranslationManager.Instance["About_Downloading"];
 
-        var (success, error) = await UpdateInstaller.Instance.StartSilentUpdateAsync(zipAsset.DownloadUrl, (progress) => Dispatcher.Invoke(() =>
+        var (success, error) = await UpdateInstaller.Instance.StartSilentUpdateAsync(_latestRelease.DownloadUrls(zipAsset), (progress) => Dispatcher.Invoke(() =>
             {
                 PbUpdate.Value = progress * 100;
                 TxtUpdateStatus.Text = string.Format(downloadingFormat, (int)(progress * 100));

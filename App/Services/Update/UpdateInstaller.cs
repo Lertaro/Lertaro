@@ -38,13 +38,17 @@ public class UpdateInstaller
     /// <summary>
     /// Downloads the portable zip, verifies it, and asks the service to install it.
     /// </summary>
+    /// <param name="zipUrls">
+    /// The addresses to try in order, as <see cref="ReleaseInfo.DownloadUrls"/> builds them: the user's
+    /// GitHub mirrors first, the release's own address last. A GitLab release arrives as a single entry.
+    /// </param>
     /// <returns>
     /// Ok is true only once the updater is actually running, which is also the caller's cue to exit so the
     /// files being replaced stop being locked. False means nothing was installed and this process should stay
     /// up; <c>Error</c> then carries the reason to show, when there is one worth showing (the signature
     /// failure has already shown its own dialog).
     /// </returns>
-    public async Task<(bool Ok, string? Error)> StartSilentUpdateAsync(string zipUrl, Action<double>? progressCallback = null)
+    public async Task<(bool Ok, string? Error)> StartSilentUpdateAsync(IReadOnlyList<string> zipUrls, Action<double>? progressCallback = null)
     {
         // A fresh per-run directory rather than the fixed %TEMP%\LertaroUpdate it used to be: a fixed name
         // is up for grabs to whichever process creates it first, and whatever was read out of it then went
@@ -55,35 +59,26 @@ public class UpdateInstaller
 
         try
         {
-            // Download zip file with progress report
-            using (var response = await _httpClient.GetAsync(zipUrl, HttpCompletionOption.ResponseHeadersRead))
+            // Only a download that never arrived moves to the next address. Bytes that did arrive and then
+            // fail verification below are a security verdict, not a network problem, so they are reported
+            // rather than retried against another host. The last attempt's exception is deliberately left
+            // to escape to the catch below, which is what reports it.
+            //
+            // ponytail: an attempt inherits HttpClient's own timeout, so a mirror that accepts the
+            // connection and then stalls costs that whole timeout before the next one is tried. The upgrade
+            // path is a per-attempt CancellationTokenSource, which needs a bound that does not also cap a
+            // legitimately slow zip read.
+            for (var attempt = 0; attempt < zipUrls.Count; attempt++)
             {
-                response.EnsureSuccessStatusCode();
-                var totalBytes = response.Content.Headers.ContentLength ?? -1L;
-
-                using var contentStream = await response.Content.ReadAsStreamAsync();
-                using var fileStream = new FileStream(tempZipFile, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
-                var buffer = new byte[8192];
-                var totalRead = 0L;
-                int read;
-                while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                try
                 {
-                    await fileStream.WriteAsync(buffer, 0, read);
-                    totalRead += read;
-                    if (totalBytes != -1 && progressCallback != null)
-                    {
-                        progressCallback((double)totalRead / totalBytes);
-                    }
+                    await DownloadPackageAsync(zipUrls[attempt], tempZipFile, tempSigFile, progressCallback);
+                    break;
                 }
-            }
-
-            // Download signature file
-            var sigUrl = zipUrl + ".sig";
-            using (var sigResponse = await _httpClient.GetAsync(sigUrl))
-            {
-                sigResponse.EnsureSuccessStatusCode();
-                using var sigFileStream = new FileStream(tempSigFile, FileMode.Create, FileAccess.Write, FileShare.None);
-                await sigResponse.Content.CopyToAsync(sigFileStream);
+                catch (Exception ex) when (attempt < zipUrls.Count - 1)
+                {
+                    Core.Logger.Log($"[UpdateService] Download from {zipUrls[attempt]} failed, trying the next address: {ex.Message}", Core.LogLevel.Warn);
+                }
             }
 
             // Checked here so a bad package is reported while there is still a window on screen to report
@@ -124,6 +119,40 @@ public class UpdateInstaller
             DeleteStagingDirectory(stagingDir);
             return (false, ex.Message);
         }
+    }
+
+    // Throws on any transport or HTTP failure, which is what lets the caller decide whether another
+    // address is left. FileMode.Create truncates whatever a previous attempt wrote, so a half-downloaded
+    // zip is never verified or handed to the service.
+    private async Task DownloadPackageAsync(string zipUrl, string zipFile, string signatureFile, Action<double>? progressCallback)
+    {
+        using (var response = await _httpClient.GetAsync(zipUrl, HttpCompletionOption.ResponseHeadersRead))
+        {
+            response.EnsureSuccessStatusCode();
+            var totalBytes = response.Content.Headers.ContentLength ?? -1L;
+
+            using var contentStream = await response.Content.ReadAsStreamAsync();
+            using var fileStream = new FileStream(zipFile, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
+            var buffer = new byte[8192];
+            var totalRead = 0L;
+            int read;
+            while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+            {
+                await fileStream.WriteAsync(buffer, 0, read);
+                totalRead += read;
+                if (totalBytes != -1 && progressCallback != null)
+                {
+                    progressCallback((double)totalRead / totalBytes);
+                }
+            }
+        }
+
+        // Both release lines publish the signature beside the zip under exactly this name, so appending
+        // ".sig" follows the zip through whichever mirror answered for it.
+        using var sigResponse = await _httpClient.GetAsync(zipUrl + ".sig");
+        sigResponse.EnsureSuccessStatusCode();
+        using var sigFileStream = new FileStream(signatureFile, FileMode.Create, FileAccess.Write, FileShare.None);
+        await sigResponse.Content.CopyToAsync(sigFileStream);
     }
 
     // Best effort. What's left behind is a few megabytes in this user's own temp directory, which is the

@@ -94,6 +94,7 @@ internal static class GeneralSettingsApplier
         vm.PreviewWindow.Save();
         vm.MainWindow.Save();
         vm.FileManager.Save();
+        vm.UpdateMirrors.Save();
         vm.QuickNavigationOrder.Save();
         vm.ResultTypeOrder.Save();
         vm.SidebarGroupOrder.Save();
