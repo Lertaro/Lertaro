@@ -22,15 +22,13 @@ public class PluginManagementViewModel : ViewModelBase
     public PluginManagementViewModel(UserSettings userSettings)
     {
         _userSettings = userSettings;
-        Plugins = new ObservableCollection<PluginInfoViewModel>(PluginLoaderHelper.BuildPluginList(_userSettings));
+        // Filled by LoadAsync, not here. Building the list is a reflection scan -- AppDomain.GetAssemblies plus
+        // two GetTypes() passes per plugin DLL, then a component and a config-field view model for each -- and
+        // doing it in the constructor put that whole cost on the UI thread the moment the page opened, which is
+        // the pause before the plugin list appears.
+        Plugins = new ObservableCollection<PluginInfoViewModel>();
         ShowPluginManagementCommand = new RelayCommand(() => IsRuntimeStatusTab = false);
         ShowRuntimeStatusCommand = new RelayCommand(() => IsRuntimeStatusTab = true);
-        // The default sort splits enabled from disabled, so reconcile the freshly built list to it once
-        // here -- BuildPluginList only returns plain name order. Selecting happens AFTER the sort, so the
-        // initial selection lands on the first enabled plugin, not whatever happened to sort first by
-        // name.
-        ApplyPluginSort();
-        _selectedPlugin = Plugins.FirstOrDefault();
 
         // Dynamically refresh the plugin list when language changes to dynamically apply localized plugin names
         _translationHandler = (s, e) =>
@@ -55,6 +53,36 @@ public class PluginManagementViewModel : ViewModelBase
     }
 
     public ObservableCollection<PluginInfoViewModel> Plugins { get; }
+
+    private bool _loaded;
+
+    /// <summary>
+    /// Builds the plugin list off the UI thread, once.
+    /// </summary>
+    /// <remarks>
+    /// The scan is reflection-heavy and the page is opened while the user waits, so it runs on the thread pool
+    /// and the rows are added when it returns. Safe to call repeatedly: the second call is a no-op, which is
+    /// what lets both the page's Loaded handler and any later trigger ask for it without coordinating.
+    /// </remarks>
+    public async Task LoadAsync()
+    {
+        if (_loaded)
+            return;
+        _loaded = true;
+
+        var list = await Task.Run(() => PluginLoaderHelper.BuildPluginList(_userSettings)).ConfigureAwait(true);
+
+        foreach (var plugin in list)
+            Plugins.Add(plugin);
+
+        // The default sort splits enabled from disabled, so reconcile the freshly built list to it once here --
+        // BuildPluginList only returns plain name order. Selecting happens after the sort, so the initial
+        // selection lands on the first enabled plugin rather than whatever sorted first by name.
+        ApplyPluginSort();
+        _selectedPlugin = Plugins.FirstOrDefault();
+        OnPropertyChanged(nameof(SelectedPlugin));
+        OnPropertyChanged(nameof(IsEmpty));
+    }
     private readonly List<PluginRuntimeStatusItemViewModel> _allRuntimeStatuses = new();
     public ObservableCollection<PluginRuntimeStatusItemViewModel> RuntimeStatuses { get; } = new();
 
