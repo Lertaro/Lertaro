@@ -354,13 +354,25 @@ internal static class NameSearch
     // category at all -- exactly like fileNameFilter, which path mode ignores for the same reason. The
     // caller's own classification is what the list shows either way.
     private static bool CategoryAdmits(SearchCategoryFilter category, Snapshot snapshot, DeltaOverlay delta, int row)
-        => category == SearchCategoryFilter.All
-            || SearchCategoryClassifier.Matches(category, delta.NameOf(row), IsDirectory(snapshot, delta, row));
+    {
+        if (category == SearchCategoryFilter.All)
+            return true;
+
+        // Classify answers Folder for any directory without reading the name, so evaluating NameOf for a
+        // row that is about to be filed by its kind alone allocates a string for nothing. That is one
+        // allocation per matched row, which a single-character query multiplies across the whole index.
+        if (category == SearchCategoryFilter.Folder)
+            return IsDirectory(snapshot, delta, row);
+
+        return SearchCategoryClassifier.Matches(category, delta.NameOf(row), IsDirectory(snapshot, delta, row));
+    }
 
     private static bool MatchesFileScope(Snapshot snapshot, DeltaOverlay delta, int row, string[]? patterns)
         => patterns == null || IsDirectory(snapshot, delta, row) || FilterPatternHelper.Matches(delta.NameOf(row), patterns);
     private static bool IsDirectory(Snapshot snapshot, DeltaOverlay delta, int row)
-        => delta.BaseOverrides.TryGetValue(row, out var record)
+        // Overrides only exist for the handful of rows a live batch touched; asking the dictionary first
+        // costs a hash lookup on every row of a broad query before the common answer is known.
+        => !delta.HasNoBaseChanges && delta.BaseOverrides.TryGetValue(row, out var record)
             ? (record.Flags & (ushort)FileRecordFlags.Directory) != 0
             : snapshot.IsDirectory(row);
 
