@@ -5,7 +5,13 @@ namespace Lertaro.Core.SearchIndex.Fzf;
 // bonus lookups go through FzfCharTables' ASCII tables.
 internal static class FzfFuzzyMatcher
 {
-    public static FzfMatchResult FuzzyMatchV2(ReadOnlySpan<char> text, string pattern, bool caseSensitive, FzfScoringScheme scheme, FzfSlab? slab = null)
+    public static FzfMatchResult FuzzyMatchV2(
+        ReadOnlySpan<char> text,
+        string pattern,
+        bool caseSensitive,
+        FzfScoringScheme scheme,
+        FzfSlab? slab = null,
+        bool enableFastPaths = true)
     {
         var m = pattern.Length;
         if (m == 0)
@@ -13,6 +19,8 @@ internal static class FzfFuzzyMatcher
         var n = text.Length;
         if (m > n)
             return FzfMatchResult.NoMatch;
+        if (enableFastPaths && m == 1 && n <= FzfAlgorithm.MaxV2Cells)
+            return FuzzyMatchSingle(text, pattern[0], caseSensitive, scheme);
         if (!FzfScoring.FindFuzzyScope(text, pattern, caseSensitive, out var minIdx, out var maxIdx))
             return FzfMatchResult.NoMatch;
 
@@ -48,29 +56,6 @@ internal static class FzfFuzzyMatcher
 
         if (patternIndex != m)
             return FzfMatchResult.NoMatch;
-
-        if (m == 1)
-        {
-            var bestScore = 0;
-            var bestPos = -1;
-            for (var i = 0; i < scopedLength; i++)
-            {
-                if (chars[i] != firstPatternChar)
-                    continue;
-                var score = FzfAlgorithm.ScoreMatch + bonus[i] * FzfAlgorithm.BonusFirstCharMultiplier;
-                if (score > bestScore)
-                {
-                    bestScore = score;
-                    bestPos = i;
-                    if (bonus[i] >= FzfAlgorithm.BonusBoundary)
-                        break;
-                }
-            }
-
-            return bestPos >= 0
-                ? new FzfMatchResult(minIdx + bestPos, minIdx + bestPos + 1, bestScore)
-                : FzfMatchResult.NoMatch;
-        }
 
         var f0 = first[0];
         var width = lastIdx - f0 + 1;
@@ -168,6 +153,42 @@ internal static class FzfFuzzyMatcher
 
         var startIndex = FzfBacktrack.BacktrackStart(scores, consecutive, first, f0, width, m, maxScorePos);
         return new FzfMatchResult(minIdx + startIndex, minIdx + maxScorePos + 1, maxScore);
+    }
+
+    // Character counterpart of FzfByteMatcher.FuzzyMatchSingle; non-ASCII names reach this after one
+    // decode. Same one-pass boundary scoring and the same early stop as the byte path.
+    internal static FzfMatchResult FuzzyMatchSingle(
+        ReadOnlySpan<char> text,
+        char pattern,
+        bool caseSensitive,
+        FzfScoringScheme scheme)
+    {
+        var bestScore = 0;
+        var bestPos = -1;
+        var previousClass = (byte)FzfAlgorithm.InitialClass(scheme);
+        for (var i = 0; i < text.Length; i++)
+        {
+            var raw = text[i];
+            var currentClass = FzfCharTables.GetClass(raw);
+            var normalized = caseSensitive ? raw : FzfCharTables.ToLower(raw);
+            var bonus = FzfCharTables.Bonus(scheme, previousClass, currentClass);
+            previousClass = currentClass;
+            if (normalized != pattern)
+                continue;
+
+            var score = FzfAlgorithm.ScoreMatch + bonus * FzfAlgorithm.BonusFirstCharMultiplier;
+            if (score <= bestScore)
+                continue;
+
+            bestScore = score;
+            bestPos = i;
+            if (bonus >= FzfAlgorithm.BonusBoundary)
+                break;
+        }
+
+        return bestPos >= 0
+            ? new FzfMatchResult(bestPos, bestPos + 1, bestScore)
+            : FzfMatchResult.NoMatch;
     }
 
     public static FzfMatchResult FuzzyMatchV1(ReadOnlySpan<char> text, string pattern, bool caseSensitive, FzfScoringScheme scheme)
