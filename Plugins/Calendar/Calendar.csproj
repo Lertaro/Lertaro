@@ -28,14 +28,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="lunar-csharp" Version="1.6.9" />
+    <PackageReference Include="lunar-csharp" />
     <!-- OpenCC's dictionaries behind a managed binding: the almanac needs phrase-level Simplified to
          Traditional (谷雨 is 穀雨 while 干支 must stay 干支), which the OS's character mapping cannot do.
          This binding ships the dictionaries compressed inside the assembly (hence ZstdSharp and Cbor),
          takes no further dependencies and converts synchronously, so a first call costs ~30ms on the
          calling thread and nothing is ever awaited on it. -->
-    <PackageReference Include="OpenccNetLib" Version="1.7.0" />
-    <PackageReference Include="System.Formats.Cbor" Version="11.0.0" />
+    <PackageReference Include="OpenccNetLib" />
+    <PackageReference Include="System.Formats.Cbor" />
   </ItemGroup>
 
   <ItemGroup>
@@ -95,8 +95,9 @@
     <Copy SourceFiles="@(CalendarOutput)" DestinationFolder="..\..\App\bin\$(Configuration)\net10.0-windows\Plugins\" SkipUnchangedFiles="true" Condition="'$(NestPluginOutput)' != 'true'" />
   </Target>
 
-  <!-- `dotnet publish Lertaro.Plugins.slnx -o <dir>/Plugins` is a third build shape: -o sets $(PublishDir),
-       not $(OutputPath), so PostBuild above never sees the shared folder. Same nest-and-delete, retargeted. -->
+  <!-- `dotnet publish Calendar.csproj -o <dir>/Plugins` (what make.bat now runs, once per plugin) is a
+       third build shape: -o sets $(PublishDir), not $(OutputPath), so PostBuild above never sees the
+       shared folder. Same nest-and-delete, retargeted. -->
   <Target Name="PostPublish" AfterTargets="Publish">
     <ItemGroup>
       <CalendarPublishOutput Include="$(PublishDir)$(TargetName).dll" Condition="Exists('$(PublishDir)$(TargetName).dll')" />

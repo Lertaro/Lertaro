@@ -19,9 +19,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MSTest" Version="4.4.1" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
-    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
+    <PackageReference Include="MSTest" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
   </ItemGroup>
 
   <ItemGroup>
