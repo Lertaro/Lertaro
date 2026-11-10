@@ -121,19 +121,24 @@ internal static class SearchMatcherPath
         }
 
         var name = SearchMatcher.DecodeName(worker, utf8);
+        var originalName = name;
+        var normalizedBuffer = worker.NormalizedScratch;
+        var normalizedLength = SearchIndex.SearchTextNormalizer.NormalizeInto(name, ref normalizedBuffer, out _);
+        if (normalizedBuffer != null) worker.NormalizedScratch = normalizedBuffer;
+        if (normalizedLength > 0 && normalizedBuffer != null) name = normalizedBuffer.AsSpan(0, normalizedLength);
 
         // The live reading tier first, exactly as in SearchMatcher.MatchOne; without a live provider
         // the name-tier match runs as always. Looked up once per search on ctx, not per candidate.
         var live = ctx.Live;
         if (live.HasProviders)
         {
-            if (live.TryScore(name, worker.Slab, out var liveMatch))
+            if (live.TryScore(name, worker.Slab, out var liveMatch, originalName))
             {
                 hits.Add(new PathUniqueMatch(uid, liveMatch.Score, FzfResultRank.RankLow32(name, liveMatch), name.Length, admitsFile));
                 return;
             }
         }
-        else if (ctx.Pattern.TryMatch(name, out var match, FzfScoringScheme.Default, worker.Slab))
+        else if (ctx.Pattern.TryMatch(name, out var match, FzfScoringScheme.Default, worker.Slab, originalName))
         {
             hits.Add(new PathUniqueMatch(uid, match.Score, FzfResultRank.RankLow32(name, match), name.Length, admitsFile));
             return;
@@ -145,7 +150,7 @@ internal static class SearchMatcherPath
         if (ctx.Pattern.HasExclusions && !ctx.Pattern.ExclusionsPass(name))
             return;
 
-        if (snapshot.HasAliases(uid) && SearchMatcher.TryMatchAliases(snapshot, ctx, uid, worker, name, out var best))
+        if (snapshot.HasAliases(uid) && SearchMatcher.TryMatchAliases(snapshot, ctx, uid, worker, name, out var best, originalName))
         {
             hits.Add(new PathUniqueMatch(uid, best.Score, FzfResultRank.RankLow32(name, best), name.Length, admitsFile));
         }

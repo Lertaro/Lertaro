@@ -276,6 +276,7 @@ internal static class SearchMatcher
         }
 
         var name = DecodeName(worker, utf8);
+        var originalName = name;
         var normalizedBuffer = worker.NormalizedScratch;
         var normalizedLength = SearchTextNormalizer.NormalizeInto(name, ref normalizedBuffer, out _);
         if (normalizedBuffer != null)
@@ -291,13 +292,13 @@ internal static class SearchMatcher
         var live = ctx.Live;
         if (live.HasProviders)
         {
-            if (live.TryScore(name, worker.Slab, out var liveMatch))
+            if (live.TryScore(name, worker.Slab, out var liveMatch, originalName))
             {
                 worker.Hits.Add(new UniqueMatch(uid, liveMatch, FzfResultRank.ForDefaultScheme(uid, name, liveMatch).SortKey));
                 return;
             }
         }
-        else if (ctx.Pattern.TryMatch(name, out var match, FzfScoringScheme.Default, worker.Slab))
+        else if (ctx.Pattern.TryMatch(name, out var match, FzfScoringScheme.Default, worker.Slab, originalName))
         {
             worker.Hits.Add(new UniqueMatch(uid, match, FzfResultRank.ForDefaultScheme(uid, name, match).SortKey));
             return;
@@ -317,10 +318,10 @@ internal static class SearchMatcher
             return;
         if (ctx.Pattern.HasExclusions && !ctx.Pattern.ExclusionsPass(name))
             return;
-        if (ctx.Pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, name))
+        if (ctx.Pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, originalName))
             return;
 
-        if (snapshot.HasAliases(uid) && TryMatchAliases(snapshot, ctx, uid, worker, name, out var best))
+        if (snapshot.HasAliases(uid) && TryMatchAliases(snapshot, ctx, uid, worker, name, out var best, originalName))
         {
             worker.Hits.Add(new UniqueMatch(uid, best, FzfResultRank.ForDefaultScheme(uid, name, best).SortKey));
         }
@@ -353,7 +354,7 @@ internal static class SearchMatcher
         return false;
     }
 
-    // Match aliases while checking name-level exclusions against the candidate's original name.
-    internal static bool TryMatchAliases(Snapshot snapshot, QueryContext ctx, int uid, Worker worker, ReadOnlySpan<char> name, out FzfPatternResult best)
-        => SearchMatcherAliasExtensions.TryMatchAliases(snapshot, ctx, uid, worker, name, out best);
+    // Match aliases while applying name clauses to the original, unnormalized candidate name.
+    internal static bool TryMatchAliases(Snapshot snapshot, QueryContext ctx, int uid, Worker worker, ReadOnlySpan<char> name, out FzfPatternResult best, ReadOnlySpan<char> originalName = default)
+        => SearchMatcherAliasExtensions.TryMatchAliases(snapshot, ctx, uid, worker, name, out best, originalName);
 }

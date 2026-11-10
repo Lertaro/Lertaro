@@ -13,6 +13,19 @@ namespace Lertaro.Core.Tests.Indexer.Usn;
 public sealed class SearchCoordinatorTests
 {
     [TestMethod]
+    [DataRow(10)]
+    [DataRow(int.MaxValue)]
+    public void RegexTimeout_FailsEntireMultiDriveQuery(int limit)
+    {
+        using var dir = new TempDirectory();
+        using var c = Load(dir, "C", new string('a', 30) + "!");
+        using var d = Load(dir, "D", "a");
+        var drives = new Dictionary<string, LiveIndex> { ["C"] = c, ["D"] = d };
+        var error = Assert.Throws<Exception>(() => SearchCoordinator.SearchStreaming(drives, new object(),
+            @"/^(?=(a+)+$)/", limit, _ => { }, CancellationToken.None, null));
+        Assert.IsTrue(Core.SearchIndex.SearchRegexTimeoutException.IsTimeout(error));
+    }
+    [TestMethod]
     public void EveryLoadedDrive_IsSearched()
     {
         using var dir = new TempDirectory();

@@ -12,6 +12,40 @@ public sealed class LiveScanCacheTests
     private static List<SearchResult> Empty() => [];
 
     [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task Dispose_WaitsForRetiredScan(bool invalidate)
+    {
+        using var cache = new LiveScanCache(maxEntries: 1);
+        using var started = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var scan = cache.GetOrAdd(@"C:\first", (_, token) =>
+        {
+            started.Set();
+            token.WaitHandle.WaitOne();
+            cancelled.SetResult();
+            release.Wait(TimeSpan.FromSeconds(5));
+            return Empty();
+        });
+        Assert.IsTrue(started.Wait(TimeSpan.FromSeconds(5)));
+        if (invalidate) cache.Invalidate(@"C:\first");
+        else await cache.GetOrAdd(@"C:\second", (_, _) => Empty());
+        var closing = Task.Run(cache.Dispose);
+        try
+        {
+            await cancelled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.AreNotSame(closing, await Task.WhenAny(closing, Task.Delay(100)), "Dispose must await evicted/invalidated scans.");
+        }
+        finally
+        {
+            release.Set();
+            await closing;
+        }
+        Assert.IsTrue(scan.IsCompletedSuccessfully);
+    }
+
+    [TestMethod]
     public async Task GetOrAdd_SameDirectoryTwice_StartsTheScanOnce()
     {
         using var cache = new LiveScanCache();

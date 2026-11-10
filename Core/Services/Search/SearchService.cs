@@ -48,6 +48,8 @@ public class SearchService : IDisposable
     // fallback before matching. Its 10,000 enumerated-entry ceiling still applies to the raw cache.
     public async Task<bool> SearchStreamingAsync(string query, int maxResults, int maxAppResults, string? directoryFilter, Action<SearchResult> onResult, CancellationToken token = default, Action? onLocalSearchFailed = null, bool bypassExclusions = false, string? fileNameFilter = null, SearchCategoryFilter category = SearchCategoryFilter.All)
     {
+        using var queryAbort = CancellationTokenSource.CreateLinkedTokenSource(token);
+        token = queryAbort.Token;
         var settings = UserSettings.Load();
         var exclusionRules = ExclusionRuleSet.From(settings);
         // No longer clamped to 2000. The service returns everything that matches and the caller decides
@@ -135,6 +137,7 @@ public class SearchService : IDisposable
             }
             catch (Exception ex)
             {
+                if (SearchRegexTimeoutException.IsTimeout(ex)) { queryAbort.Cancel(); throw; }
                 Logger.Log($"[SearchService] Streaming local search failed: {ex.Message}", LogLevel.Error);
                 onLocalSearchFailed?.Invoke();
                 return false;
@@ -153,6 +156,7 @@ public class SearchService : IDisposable
             }
             catch (Exception ex)
             {
+                if (SearchRegexTimeoutException.IsTimeout(ex)) { queryAbort.Cancel(); throw; }
                 Logger.Log($"[SearchService] Network drive search failed: {ex.Message}", LogLevel.Error);
                 return false;
             }
@@ -199,11 +203,12 @@ public class SearchService : IDisposable
                 {
                     var onlyDirectChildren = parsed.IsPathMode && string.IsNullOrEmpty(liveScanFilter);
                     return await SearchLiveDirectoryAsync(liveScanDir, liveScanFilter, uniqueOnResult, token,
-                        onlyDirectChildren, fileNameFilter, category, liveScanRegexes).ConfigureAwait(false);
+                        onlyDirectChildren, fileNameFilter, category, liveScanRegexes, parsed.IsPathMode).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) { throw; }
                 catch (Exception ex)
                 {
+                    if (SearchRegexTimeoutException.IsTimeout(ex)) { queryAbort.Cancel(); throw; }
                     Logger.Log($"[SearchService] Live directory search failed: {ex.Message}", LogLevel.Error);
                     return false;
                 }
@@ -221,11 +226,13 @@ public class SearchService : IDisposable
     // owns the scan lifetime so subsequent keystrokes can reuse all raw entries.
     internal async Task<bool> SearchLiveDirectoryAsync(string directory, string query, Action<SearchResult> onResult,
         CancellationToken token, bool onlyDirectChildren = false, string? fileNameFilter = null,
-        SearchCategoryFilter category = SearchCategoryFilter.All, string[]? regexes = null)
+        SearchCategoryFilter category = SearchCategoryFilter.All, string[]? regexes = null, bool queryIsPathFragment = false)
     {
         token.ThrowIfCancellationRequested();
         var liveMatches = 0;
         var ownsScan = false;
+        var failure = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var failed = failure.Task.KeepObserved();
         var scanTask = _liveScans.GetOrAdd(directory, (dir, scanToken) =>
         {
             ownsScan = true;
@@ -236,15 +243,19 @@ public class SearchService : IDisposable
                     Interlocked.Increment(ref liveMatches);
                     onResult(result);
                 }, onlyDirectChildren: onlyDirectChildren, parentPath: directory,
-                liveMatchToken: token, regexes: regexes, fileNameFilter: fileNameFilter, category: category);
+                liveMatchToken: token, regexes: regexes, fileNameFilter: fileNameFilter, category: category,
+                queryIsPathFragment: queryIsPathFragment, onLiveFailure: error => failure.TrySetException(error));
         }, onlyDirectChildren);
+        var completed = await Task.WhenAny(scanTask, failed).WaitAsync(token).ConfigureAwait(false);
+        if (completed == failed || failed.IsFaulted)
+            await failed.ConfigureAwait(false);
         var entries = await scanTask.WaitAsync(token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
         // The cold caller already matched and delivered every eligible entry. Other callers match once
         // against the same raw list, with their own query/scope/category.
         return ownsScan ? Volatile.Read(ref liveMatches) > 0
             : LiveDirectorySearcher.MatchAndStream(entries, query, onResult, token,
-                onlyDirectChildren, directory, regexes, fileNameFilter, category);
+                onlyDirectChildren, directory, regexes, fileNameFilter, category, queryIsPathFragment);
     }
 
     // In-memory index lookup only (no disk I/O) -- the most recently modified entries across all of the
