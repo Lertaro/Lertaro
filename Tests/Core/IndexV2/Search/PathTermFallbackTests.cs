@@ -47,6 +47,18 @@ public sealed class PathTermFallbackTests
         Assert.AreEqual(@"T:\summary\2024.txt", results[0].Path);
     }
 
+    [TestMethod]
+    public void SearchStreaming_AndFirstBranchRegexClauseStillVetoesTheAncestorRow()
+    {
+        using var fixture = BuildAndFirstDrive();
+
+        // The same branch as above, now with a `/.../` clause that answers the file's own name. The
+        // pattern rebuilt for the ancestor pass has to carry the clause: this row is only reachable
+        // through that pass, so dropping the regexes there would hand back a row the clause excludes.
+        Assert.HasCount(1, Search(fixture, "report | summary 2024 /^2024/"));
+        Assert.IsEmpty(Search(fixture, "report | summary 2024 /^zzz/"));
+    }
+
     // The ancestor verdict is now recorded for every folder on the chain, not just the one asked about,
     // so a later row can be answered from a partial walk somebody else did. The cases below are the ones
     // where sharing an answer could hand back the wrong one.

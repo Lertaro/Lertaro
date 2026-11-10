@@ -11,9 +11,8 @@ namespace Lertaro.Core.SearchIndex;
 // operates on the text/highlight span its caller passes in.
 internal static class AliasHighlightMarker
 {
-    // Map alias hits back to source text with the same provider/segment traversal as FuzzyMatcher.IsMatch.
-    // Use a greedy earliest-position subsequence scan: aliases can expand to 32 combinations, and their
-    // synthetic spellings gain little from FuzzyMatchV2's word-boundary bonuses.
+    // Map alias hits back to source text through the same provider/segment traversal as matching.
+    // AliasHighlightPositions selects the tightest aligned occurrence without a full fzf backtrace.
     //
     // Try the typed term and that provider's query forms only against its own aliases. Forms may include
     // syllable separators; MapAliasToSourceIndices maps those matches back to the original name.
@@ -86,10 +85,9 @@ internal static class AliasHighlightMarker
                             continue;
 
                         var aliasLower = caseSensitive ? alias : alias.ToLowerInvariant();
-                        // Highlight according to each term's matching mode; the apostrophe operator can
-                        // invert the global fuzzy setting. Try contiguous aliases before subsequences and
-                        // select a tight occurrence using AliasMatchRules, so the mask reflects the
-                        // occurrence accepted by matching.
+                        // Use each term's matching mode: ? can invert the global fuzzy setting.
+                        // Try contiguous aliases before subsequences and select a tight occurrence
+                        // through AliasMatchRules, so highlights reflect the accepted match.
                         int[]? positions = null;
                         foreach (var probe in probes)
                         {

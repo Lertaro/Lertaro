@@ -31,13 +31,16 @@ internal static class SearchMatcherRow
         else if (pattern.TryMatch(name, out match, FzfScoringScheme.Default, slab))
             return true;
 
-        // A `!term` has nothing to compare against in a transliteration, so the alias tiers below have to
-        // be vetoed on the name -- see FzfPatternExclusionExtensions.ExclusionsPass.
-        if (pattern.HasExclusions && !pattern.ExclusionsPass(name))
-            return false;
-
+        // A `:term` and a `/.../` clause have nothing to compare against in a transliteration, so the
+        // alias and mixed lanes below have to be vetoed on the name -- see
+        // FzfPatternExclusionExtensions.ExclusionsPass and RegexClauses. Asked only when there is an
+        // alias to try: the name tier above has already answered both clauses for this candidate.
         var uid = (int)snapshot.NameIds[row];
         if (!snapshot.HasAliases(uid) || snapshot.GetAliases(uid, aliasScratch) == 0)
+            return false;
+        if (pattern.HasExclusions && !pattern.ExclusionsPass(name))
+            return false;
+        if (pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, name))
             return false;
 
         var disabledIds = SearchContext.DisabledAliasIds;
@@ -52,7 +55,10 @@ internal static class SearchMatcherRow
                 continue;
             var separator = AliasProviderRegistry.GetSyllableSeparator(providerId);
             var aliasPattern = pattern.ReadingFor(separator, alias);
-            if (!aliasPattern.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default, slab))
+            // The alias stands in for the name only for the positive terms: an exclusion and any `/.../`
+            // clause still read `name`, or they would be answered by the alias's own silence
+            // (see FzfPattern.TryMatchAlias).
+            if (!aliasPattern.TryMatchAlias(alias, name, out var aliasMatch, FzfScoringScheme.Default, slab))
                 continue;
 
             // A precise query must not match a full transliteration mid-syllable -- see AliasMatchRules.
@@ -116,14 +122,18 @@ internal static class SearchMatcherRow
         }
         else if (pattern.TryMatch(name, out result, FzfScoringScheme.Default, slab))
             return true;
+        // No alias lane to protect: the name tier above has already answered both clauses for this
+        // candidate, so asking again here would only repeat a regex evaluation on the candidates it
+        // just rejected.
+        if (aliases == null)
+            return false;
         if (pattern.HasExclusions && !pattern.ExclusionsPass(name))
             return false;
-        if (aliases == null)
+        if (pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, name))
             return false;
 
         var disabledIds = SearchContext.DisabledAliasIds;
         var matched = false;
-        aliases ??= Array.Empty<string>();
         // Same alias-side reading as MatchRow above, per entry: the name tier checked `pattern`, and every
         // alias is checked with the reading its own provider's structure allows.
         for (var j = 0; j < aliases.Length; j++)
@@ -132,7 +142,9 @@ internal static class SearchMatcherRow
                 continue;
             var separator = AliasProviderRegistry.GetSyllableSeparator(providerIds?[j] ?? 0);
             var aliasPattern = pattern.ReadingFor(separator, aliases[j]);
-            if (!aliasPattern.TryMatch(aliases[j], out var aliasMatch, FzfScoringScheme.Default, slab))
+            // Same alias-vs-name split as MatchRow above: positives read the alias, the query's
+            // name-level clauses read `name`.
+            if (!aliasPattern.TryMatchAlias(aliases[j], name, out var aliasMatch, FzfScoringScheme.Default, slab))
                 continue;
 
             // A precise query must not match a full transliteration mid-syllable -- see AliasMatchRules.

@@ -54,7 +54,10 @@ internal static class AliasMatchRules
     /// <remarks>
     /// For the hot path that matches a baked alias straight from its UTF-8 without decoding. Every
     /// separator a provider declares is ASCII (pinyin's is U+0002), so it is a single byte equal to the
-    /// char; a non-ASCII alias takes the decoded char path instead.
+    /// char; a non-ASCII alias takes the decoded char path instead. Any byte at or above 0x80 is part of a
+    /// multi-byte character, never an ASCII letter, so it counts as punctuation here -- and the char
+    /// overload agrees, because a non-ASCII character is not a letter of the alias's own writing system
+    /// either.
     /// </remarks>
     public static bool IsBoundaryAligned(char separator, ReadOnlySpan<byte> aliasUtf8, int matchStart)
     {

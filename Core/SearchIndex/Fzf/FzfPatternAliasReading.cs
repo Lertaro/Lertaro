@@ -7,8 +7,8 @@ namespace Lertaro.Core.SearchIndex.Fzf;
 // Contiguous matching must run first: a scattered match may fail the quality gate even when a valid
 // tight run exists. Both readings must begin at a syllable boundary.
 //
-// Exclusions only check the original name. Explicit operators (^, $, =, 'x'), provider query forms,
-// and text-rewrite aliases keep their own matching rules and do not get a second reading here.
+// Exclusions and regex clauses check the original name. Provider query forms and text-rewrite
+// aliases keep their own matching rules and do not get a second reading here.
 internal static class FzfPatternAliasReading
 {
     /// <summary>
@@ -40,11 +40,15 @@ internal static class FzfPatternAliasReading
     internal static FzfPattern ReadingFor(this FzfPattern pattern, char separator, ReadOnlySpan<char> alias)
         => AliasMatchRules.IsTransliteration(alias) ? pattern.ReadingFor(separator) : pattern;
 
+    // The clauses that read the candidate's own text have to survive the copy: the alias tiers answer a
+    // query through this view while handing them the NAME (FzfPattern.TryMatchAlias), and a view without
+    // them would silently answer a `/.../` query as if no clause had been typed.
     internal static FzfPattern Build(FzfPattern source)
         => new(
             source.TargetDrive,
             Twin(source.TermSets),
-            source.OrGroups == null ? null : TwinGroups(source.OrGroups));
+            source.OrGroups == null ? null : TwinGroups(source.OrGroups),
+            source.Regexes);
 
     private static FzfTermSet[] Twin(FzfTermSet[] sets)
     {
