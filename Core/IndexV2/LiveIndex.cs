@@ -1,6 +1,7 @@
 using Lertaro.Core.IndexV2.Delta;
 
 using Lertaro.Core.IndexV2.Persistence;
+using Lertaro.Core.IndexV2.Search;
 namespace Lertaro.Core.IndexV2;
 
 // Owns one drive's Snapshot + DeltaOverlay pair and the concurrency model the prototype never needed
@@ -22,6 +23,7 @@ public sealed class LiveIndex : IDisposable
     private Snapshot? _snapshot;
     private DeltaOverlay? _delta;
     private long _revision;
+    internal QueryPageCache SearchPages { get; } = new();
 
     public LiveIndex(Snapshot snapshot)
     {
