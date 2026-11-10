@@ -5,7 +5,6 @@ using Lertaro.App.Helpers;
 using Lertaro.App.Services;
 using Lertaro.App.ViewModels.Search.Dispatch;
 using Lertaro.App.ViewModels.Service;
-
 using Lertaro.Core.Services.Search;
 
 using Lertaro.App.Services.Plugin;
@@ -40,6 +39,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
     // costs a full scan of it -- see _filterSource.
     private bool _allResultsHoldContentRows;
     private string _resultCountText = "";
+    private bool _regexLimitExceeded;
     private bool _isSearching;
     private bool _isResultsListEnabled = true;
     private SearchSidebarCountHelper? _sidebarCountHelper;
@@ -52,10 +52,10 @@ public class SearchViewModel : ViewModelBase, IDisposable
         {
             if (SetProperty(ref _isSearching, value))
             {
-                // The hint below reads this, and nothing else re-raises it: without this an empty list
-                // during a search still paints "no results", which is what makes a window that is
+                // The result-area hints read this, and nothing else re-raises them: without this an empty
+                // list during a search still paints "no results", which is what makes a window that is
                 // working look like a window that found nothing.
-                OnPropertyChanged(nameof(ShowNoResultsHint));
+                Hints.Refresh();
             }
         }
     }
@@ -66,6 +66,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
     }
     public SearchViewModel(string initialQuery = "", IReadOnlyList<AppSearchResult>? quickSearchRows = null)
     {
+        Hints = new SearchViewHints(this);
         _searchService = new SearchService();
         _searchEngine = new SearchExecutionEngine(_searchService);
         FilteredResults = new ObservableRangeCollection<AppSearchResult>();
@@ -76,12 +77,8 @@ public class SearchViewModel : ViewModelBase, IDisposable
             FilteredResults,
             () => _renderExtendsContent,
             finalResults => ReferenceEquals(finalResults, _allResults) ? _renderUnchangedPrefix : 0,
-            count => ResultCountText = string.Format(TranslationManager.Instance["Search_Total"], count),
-            () =>
-            {
-                OnPropertyChanged(nameof(ShowNoResultsHint));
-                OnPropertyChanged(nameof(ShowWelcomeHint));
-            });
+            SetResultCount,
+            () => Hints.Refresh());
 
         _dispatcher = new SearchQueryDispatchController(
             _searchEngine,
@@ -98,12 +95,13 @@ public class SearchViewModel : ViewModelBase, IDisposable
             setReceivedCount: count =>
             {
                 if (DynamicSidebarGroups.All(group => group.CombinedPredicate == null))
-                    ResultCountText = string.Format(TranslationManager.Instance["Search_Total"], count);
+                    SetResultCount(count);
             },
             updateSidebarCounts: (batch, final) => _sidebarCountHelper?.Update(batch, final),
             replaceSidebarCounts: results => _sidebarCountHelper?.Replace(results),
             applyFiltersAndRender: ApplyFiltersAndRender,
-            isTypeFilterSelected: () => IsTypeFilterSelected);
+            isTypeFilterSelected: () => IsTypeFilterSelected,
+            setRegexLimitExceeded: value => _regexLimitExceeded = value);
 
         // Initialize dynamic plugin sidebar groups -- PluginManager.SidebarFilterProviders already
         // applies the user's saved order (falling back to each provider's own SortOrder).
@@ -153,8 +151,9 @@ public class SearchViewModel : ViewModelBase, IDisposable
             return;
 
         _allResults = new List<AppSearchResult>(rows);
+        // The render it triggers refreshes the hints through the result renderer's own callback, so this
+        // has nothing to raise for itself.
         ApplyFiltersAndRender(extendsContent: false, unchangedPrefix: 0);
-        OnPropertyChanged(nameof(ShowNoResultsHint));
     }
     private void OnTranslationsChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
@@ -162,7 +161,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
         {
             OnPropertyChanged(nameof(WindowTitle));
             // Refresh the formatted count too; it was created with the previous language's template.
-            ResultCountText = string.Format(TranslationManager.Instance["Search_Total"], FilteredResults.Count);
+            SetResultCount(FilteredResults.Count);
             DynamicSidebarTranslationHelper.Refresh(DynamicSidebarGroups);
         }
     }
@@ -182,6 +181,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
         {
             if (SetProperty(ref _advancedQuery, value))
             {
+                _regexLimitExceeded = false;
                 _sidebarCountHelper?.Reset();
                 if (string.IsNullOrWhiteSpace(value))
                 {
@@ -193,8 +193,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
                     _searchEngine.CancelPendingSearch();
                     _dispatcher.OnAdvancedQueryChanged(value);
                 }
-                OnPropertyChanged(nameof(ShowWelcomeHint));
-                OnPropertyChanged(nameof(ShowNoResultsHint));
+                Hints.Refresh();
                 OnPropertyChanged(nameof(WindowTitle));
             }
         }
@@ -213,6 +212,10 @@ public class SearchViewModel : ViewModelBase, IDisposable
         get => _resultCountText;
         private set => SetProperty(ref _resultCountText, value);
     }
+
+    private void SetResultCount(int count) => ResultCountText =
+        string.Format(TranslationManager.Instance["Search_Total"], count)
+        + (_regexLimitExceeded ? " · " + TranslationManager.Instance["Search_RegexLimitExceeded"] : string.Empty);
 
     public bool IsSearchBoxEnabled
     {
@@ -320,17 +323,14 @@ public class SearchViewModel : ViewModelBase, IDisposable
         set
         {
             if (SetProperty(ref _isActionsMode, value))
-            {
-                OnPropertyChanged(nameof(ShowNoResultsHint));
-                OnPropertyChanged(nameof(ShowWelcomeHint));
-            }
+                Hints.Refresh();
         }
     }
 
-    // False while a search is still running: an empty list then means "nothing has arrived yet", not
-    // "there is nothing to find", and the window reads as blank either way.
-    public bool ShowNoResultsHint => !IsActionsMode && !IsSearching && FilteredResults.Count == 0 && !string.IsNullOrWhiteSpace(AdvancedQuery);
-    public bool ShowWelcomeHint => !IsActionsMode && string.IsNullOrWhiteSpace(AdvancedQuery);
+    // The result-area hints, in their own file to keep this one under the repository's per-file line limit.
+    // Bindings reach them as "Hints.ShowNoResultsHint" etc. Public, not internal: a binding path resolves
+    // public members only, so an internal one is silently skipped -- see SearchViewHints' class comment.
+    public SearchViewHints Hints { get; }
 
     internal void PerformSearch(string query) => _dispatcher.PerformSearch(query);
 

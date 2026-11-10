@@ -1,3 +1,4 @@
+using Lertaro.App.Helpers;
 using System.Windows;
 using Lertaro.Core;
 using Lertaro.App.Services;
@@ -67,10 +68,9 @@ internal sealed class SearchDispatchController
     public void DispatchSearch(string value)
     {
         _tokenBatchCts?.Cancel();
-        var globalPrefixChar = GetGlobalTokenPrefixChar();
-        var strippedTrailing = SearchQuerySortParser.Strip(value, out var tokens, globalPrefixChar);
-        _queryTokens = tokens;
-        var cleanQuery = SearchQuerySortParser.StripExclusionBypass(strippedTrailing, out var bypassExclusions);
+        var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(value, out var bypassExclusions), GlobalTokenPrefix.Current);
+        _queryTokens = scan.Tokens;
+        var cleanQuery = scan.Text;
         _bypassExclusions = bypassExclusions;
         var (strippedClean, triggeredTypeId) = _resultTypeTrigger.StripTrigger(value, cleanQuery);
         cleanQuery = strippedClean;
@@ -290,10 +290,10 @@ internal sealed class SearchDispatchController
             }
             return;
         }
-        var globalPrefixChar = GetGlobalTokenPrefixChar();
-        var strippedTrailing = SearchQuerySortParser.Strip(query, out var tokens, globalPrefixChar);
-        _queryTokens = tokens;
-        var cleanQuery = SearchQuerySortParser.StripExclusionBypass(strippedTrailing, out var bypassExclusions);
+        // Same order as DispatchSearch: the bypass marker is stripped before the token scan.
+        var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(query, out var bypassExclusions), GlobalTokenPrefix.Current);
+        _queryTokens = scan.Tokens;
+        var cleanQuery = scan.Text;
         _bypassExclusions = bypassExclusions;
         var (strippedClean, triggeredTypeId) = _resultTypeTrigger.StripTrigger(query, cleanQuery);
         cleanQuery = strippedClean;
@@ -452,21 +452,21 @@ internal sealed class SearchDispatchController
     private static bool IsGenuineInstantResult(AppSearchResult r) =>
         r.ResultKind == "InstantResult" && r.SourceProvider is PluginSdk.Abstractions.Plugins.IInstantResultProvider;
 
-    private static char GetGlobalTokenPrefixChar()
-    {
-        var prefix = UserSettings.Load().GlobalTokenPrefix;
-        return !string.IsNullOrEmpty(prefix) ? prefix[0] : ':';
-    }
-
-    // A query that names a file rather than sweeping a substring. Kept deliberately narrow: a leading
-    // operator/dot is not a name, and a dot anywhere else is the one signal a filename query always has
-    // (the extension). This only chooses the candidate budget; ranking and display are unchanged.
-    internal static bool LooksLikeFileNameQuery(string? query)
+    // A query that names a file rather than sweeping a substring. Kept deliberately narrow: a word that
+    // opens with a syntax character is a query, not a name, and a dot anywhere else is the one signal a
+    // filename query always has (the extension). The leading '.' and '-' stay refused because neither has
+    // ever been an operator -- they read as an extension fragment or a switch, not a name. This only
+    // chooses the candidate budget; ranking and display are unchanged.
+    //
+    // The syntax set is the live one (SearchSyntaxReserved): this used to spell out '!' '^' '\'' itself,
+    // which are ordinary name characters now, so "!plan.md" was judged not-file-like and stayed on the
+    // narrow budget while the new triggers '?' '/' '\' '<' '>' were not excluded at all.
+    internal static bool LooksLikeFileNameQuery(string? query, char? prefix = null)
     {
         var text = query?.Trim();
         if (string.IsNullOrEmpty(text) || text.Length < 3)
             return false;
-        if (text[0] is '!' or '^' or '\'' or '-' or ':' or '.')
+        if (text[0] is '.' or '-' || SearchSyntaxReserved.OpensSyntax(text[0], prefix))
             return false;
         return text.Contains('.');
     }

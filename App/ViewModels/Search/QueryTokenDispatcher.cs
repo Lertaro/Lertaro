@@ -1,12 +1,16 @@
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 using Lertaro.Core.Services;
+using Lertaro.Core;
 
 using Lertaro.App.Services.Plugin;
 namespace Lertaro.App.ViewModels.Search;
 
-// Dispatches the raw tokens split out of a query's trailing ":a,b,c" suffix to whichever registered
-// IQueryTokenProvider plugin claims each one, chaining the result through providers in token order.
+// Dispatches the raw tokens QueryTokenScanner lifted out of a query -- any word starting with a token
+// trigger, wherever it sits -- to whichever registered IQueryTokenProvider plugin claims each one,
+// chaining the result through providers in token order. Each token is passed exactly as it appeared,
+// trigger character included, which is why a provider's own configured prefix has to match the app-wide
+// one to ever be asked (see QueryTokenPrefixRules).
 // Operates purely on the file/directory subset the caller hands it -- has no idea about (and doesn't
 // try to reconstruct) section headers, instant results, applications, or anything else that ends up in
 // the final UI list; composing the final result set around whatever this returns, and deciding what a
@@ -20,29 +24,70 @@ internal static class QueryTokenDispatcher
         if (tokens.Count == 0)
             return fileResults as List<AppSearchResult> ?? fileResults.ToList();
 
+        // Injectable so the failure paths below are testable without the plugin registry singleton; the
+        // production callers always take the registered providers.
+        var candidates = providers ?? PluginManager.Instance.QueryTokenProviders;
+
         IReadOnlyList<ISearchResult> current = fileResults;
         List<string>? extraHighlightTerms = null;
-        providers ??= PluginManager.Instance.QueryTokenProviders;
         foreach (var token in tokens)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var provider = providers.FirstOrDefault(p => PluginPerformanceMonitor.Measure(p, () => p.CanHandle(token)));
+            IQueryTokenProvider? provider = null;
+            foreach (var candidate in candidates)
+            {
+                try
+                {
+                    if (PluginPerformanceMonitor.Measure(candidate, () => candidate.CanHandle(token)))
+                    {
+                        provider = candidate;
+                        break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log($"[QueryTokenDispatcher] Provider '{candidate.GetType().Name}' failed CanHandle: {ex.Message}", LogLevel.Error);
+                }
+            }
+
             if (provider == null)
-                // An unclaimed token reads as a typo'd/unsupported filter -- silently showing the
-                // un-narrowed file/directory results would look like it worked when it didn't, so the
-                // whole set is dropped. The caller decides what zero file/directory results means for
-                // the rest of the UI (a "no results" placeholder, an unaffected instant-result row, ...).
                 return new List<AppSearchResult>();
 
-            // ponytail: the SDK has no cancellation overload. Stop waiting/chaining stale work; a
-            // provider already executing must finish itself until the SDK adds cooperative cancellation.
-            var pending = PluginPerformanceMonitor.MeasureAsync(provider, () => provider.ApplyAsync(token, current));
-            // A provider may fault after this wait was cancelled. Keep that fault observed, while
-            // synchronous built-ins need no continuation because the await observes them immediately.
-            current = await (pending.IsCompleted ? pending : pending.KeepObserved()).WaitAsync(cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
+            IReadOnlyList<ISearchResult>? transformed;
+            try
+            {
+                var pending = PluginPerformanceMonitor.MeasureAsync(provider,
+                    () => provider.ApplyAsync(token, current, cancellationToken));
+                transformed = await (pending.IsCompleted ? pending : pending.KeepObserved()).WaitAsync(cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[QueryTokenDispatcher] Provider '{provider.GetType().Name}' failed ApplyAsync: {ex.Message}", LogLevel.Error);
+                return new List<AppSearchResult>();
+            }
 
-            var highlightText = PluginPerformanceMonitor.Measure(provider, () => provider.GetHighlightText(token));
+            if (transformed == null || transformed.Any(result => result is not AppSearchResult))
+            {
+                Logger.Log($"[QueryTokenDispatcher] Provider '{provider.GetType().Name}' returned an invalid result list.", LogLevel.Error);
+                return new List<AppSearchResult>();
+            }
+            current = transformed;
+
+            string? highlightText;
+            try
+            {
+                highlightText = PluginPerformanceMonitor.Measure(provider, () => provider.GetHighlightText(token));
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[QueryTokenDispatcher] Provider '{provider.GetType().Name}' failed GetHighlightText: {ex.Message}", LogLevel.Error);
+                highlightText = null;
+            }
             if (!string.IsNullOrWhiteSpace(highlightText))
                 (extraHighlightTerms ??= new List<string>()).Add(highlightText);
         }
