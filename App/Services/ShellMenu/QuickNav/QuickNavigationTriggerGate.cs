@@ -16,16 +16,26 @@ internal static class QuickNavigationTriggerGate
     {
         if (string.Equals(processName, "explorer", StringComparison.OrdinalIgnoreCase) || isDesktop)
         {
-            return CanShowInExplorer(activeHwnd, x, y);
+            return CanShowInExplorer(activeHwnd, isDesktop, x, y);
         }
 
         return CanShowInOtherFileManager(activeHwnd, processName, className, x, y, triggerType);
     }
 
-    private static bool CanShowInExplorer(IntPtr activeHwnd, int x, int y)
+    private static bool CanShowInExplorer(IntPtr activeHwnd, bool trackedDesktop, int x, int y)
     {
         var hwndUnderCursor = PointNative.WindowFromPoint(new PointNative.POINT { x = x, y = y });
         if (hwndUnderCursor == IntPtr.Zero) return false;
+
+        var activeRoot = Native.GetAncestor(activeHwnd, GA_ROOT);
+        var clickedRoot = Native.GetAncestor(hwndUnderCursor, GA_ROOT);
+        if (activeRoot == IntPtr.Zero || clickedRoot == IntPtr.Zero) return false;
+        var isDesktopHost = Native.IsDesktopWindow(activeRoot, out var activeRootClass)
+            || trackedDesktop && activeRootClass.Equals("WorkerW", StringComparison.OrdinalIgnoreCase);
+        var clickedDesktop = Native.IsDesktopWindow(clickedRoot, out var rootClass);
+        // Wallpaper WorkerW may have no DefView of its own when desktop icons are hidden.
+        if (isDesktopHost && rootClass.Equals("WorkerW", StringComparison.OrdinalIgnoreCase)) clickedDesktop = true;
+        if (isDesktopHost ? !clickedDesktop : clickedRoot != activeRoot) return false;
 
         var sbClass = new StringBuilder(256);
         Native.GetClassName(hwndUnderCursor, sbClass, sbClass.Capacity);
@@ -40,7 +50,7 @@ internal static class QuickNavigationTriggerGate
         // Nothing needs hit-testing in that state. There are no icons on screen to have clicked, so any
         // click on the desktop is a click on empty space, which is the very thing the checks below exist
         // to establish.
-        if (IsDesktopBackgroundClass(clsName)) return true;
+        if (IsDesktopBackgroundClass(clsName, isDesktopHost)) return true;
 
         if (!IsDescendantOfShellDllDefView(hwndUnderCursor)) return false;
 
@@ -52,12 +62,9 @@ internal static class QuickNavigationTriggerGate
 
         if (clsName.Equals("SysListView32", StringComparison.OrdinalIgnoreCase))
         {
-            // Cross-process LVM_HITTEST distinguishes a desktop icon from empty space; if that fails
-            // (process open/memory allocation failure), fall through to the Shell selection-count check.
-            if (DesktopIconHitTester.IsPointOnDesktopIcon(hwndUnderCursor, x, y))
-            {
-                return false;
-            }
+            // Desktop is not reliably enumerated by Shell.Application.Windows(). Only a successful
+            // hit test that found no item permits this click; failed reads must not count as empty.
+            return DesktopIconHitTester.IsPointOnDesktopIcon(hwndUnderCursor, x, y) == false;
         }
 
         return ExplorerSelectionQuery.IsActiveWindowFolderEmptySpace(activeHwnd);
@@ -67,8 +74,7 @@ internal static class QuickNavigationTriggerGate
     // IInlineSearchAdapter instead of host-specific hit-testing here -- CanShowQuickNav reuses whatever
     // "is this the host's file list" check the adapter already has for inline search's keyboard trigger.
     //
-    // Restricted to middle-click: unlike Explorer (where empty space is detected precisely via the shell's
-    // selection count), these hosts give no reliable way to tell "clicked an item" from "clicked empty
+    // Restricted to middle-click: these hosts give no reliable way to tell "clicked an item" from "clicked empty
     // space", and double-clicking an item there already navigates into it -- popping this menu on top of
     // that would be confusing. Middle-click carries no such default action in these hosts.
     private static bool CanShowInOtherFileManager(IntPtr activeHwnd, string processName, string className, int x, int y, MouseTriggerType triggerType)
@@ -118,10 +124,10 @@ internal static class QuickNavigationTriggerGate
     /// without hit-testing: an icon is always a SysListView32 item, and that window answers for itself
     /// while it is visible.
     /// </remarks>
-    internal static bool IsDesktopBackgroundClass(string className) =>
+    internal static bool IsDesktopBackgroundClass(string className, bool isDesktopHost) => isDesktopHost && (
         className.Equals("Progman", StringComparison.OrdinalIgnoreCase)
         || className.Equals("WorkerW", StringComparison.OrdinalIgnoreCase)
-        || className.Equals("SHELLDLL_DefView", StringComparison.OrdinalIgnoreCase);
+        || className.Equals("SHELLDLL_DefView", StringComparison.OrdinalIgnoreCase));
 
     private static bool IsDescendantOfShellDllDefView(IntPtr hwnd)
     {

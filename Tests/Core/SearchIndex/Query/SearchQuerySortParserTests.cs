@@ -6,6 +6,16 @@ namespace Lertaro.Core.Tests.SearchIndex.Query;
 public sealed class SearchQuerySortParserTests
 {
     [TestMethod]
+    [DataRow(@"C:\Project  Files\report.txt", @"C:\Project  Files\report.txt", 0)]
+    [DataRow(@"C:\Project  Files\report.txt :S", @"C:\Project  Files\report.txt", 1)]
+    public void Strip_PreservesInternalPathWhitespace(string input, string expected, int count)
+    {
+        var query = Core.SearchIndex.Query.SearchQuerySortParser.Strip(input, out var tokens);
+        Assert.AreEqual(expected, query);
+        Assert.HasCount(count, tokens);
+    }
+
+    [TestMethod]
     public void Strip_NoSuffix_ReturnsQueryUnchangedWithEmptyTokens()
     {
         var result = SearchQuerySortParser.Strip("readme", out var tokens);

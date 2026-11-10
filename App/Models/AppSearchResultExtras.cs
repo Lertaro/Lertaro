@@ -42,6 +42,7 @@ internal sealed class AppSearchResultExtras
 
     // Filled in once the grid realizes the row and it starts loading its own visuals.
     public System.Windows.Media.ImageSource? Icon;
+    public bool IconNeedsRefresh;
     public bool IconLoadingStarted;
     public string ShortcutHint = string.Empty;
     public Visibility ShortcutVisibility = Visibility.Collapsed;

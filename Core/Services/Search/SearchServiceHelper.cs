@@ -11,7 +11,7 @@ internal static class SearchServiceHelper
         bool bypassExclusions,
         Action<SearchResult> onResult,
         CancellationToken token,
-        string? fileNameFilter = null)
+        string? fileNameFilter = null, Lertaro.PluginSdk.Helpers.SearchCategoryFilter category = Lertaro.PluginSdk.Helpers.SearchCategoryFilter.All)
     {
         try
         {
@@ -24,7 +24,7 @@ internal static class SearchServiceHelper
                     Interlocked.Increment(ref found);
                     onResult(result);
                 }
-            }, token, directoryFilter, fileNameFilter);
+            }, token, directoryFilter, fileNameFilter, category);
 
             return found > 0;
         }

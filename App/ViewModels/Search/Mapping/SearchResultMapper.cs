@@ -13,6 +13,51 @@ public static class SearchResultMapper
     private static readonly IReadOnlySet<string> EmptyTracePaths =
         new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+    // Owned by one query's render callback. Cache only match evidence, never mutable UI rows or the
+    // global ordering: history, favorites, plugin rows and type priority still participate per paint.
+    internal sealed class QuickFileMatchCache
+    {
+        private readonly Dictionary<(string Name, string Path, bool IsDir), MatchEvidenceResult> _matches = new();
+        private string? _query;
+        private bool _fuzzy;
+        private bool _andFirst;
+        private long _aliasRevision;
+        private HashSet<byte>? _disabledAliases;
+        private FuzzyQuery _parsed;
+
+        internal FuzzyQuery Prepare(string query)
+        {
+            var disabled = SearchContext.DisabledAliasIds;
+            if (_query != query || _fuzzy != SearchContext.FuzzyMatchEnabled || _andFirst != SearchContext.AndFirstPrecedence
+                || _aliasRevision != AliasProviderRegistry.QueryRevision
+                || !(_disabledAliases == null ? disabled == null : disabled != null && _disabledAliases.SetEquals(disabled)))
+            {
+                _query = query;
+                _fuzzy = SearchContext.FuzzyMatchEnabled;
+                _andFirst = SearchContext.AndFirstPrecedence;
+                _aliasRevision = AliasProviderRegistry.QueryRevision;
+                _disabledAliases = disabled == null ? null : new(disabled);
+                _parsed = FuzzyQuery.Parse(query);
+                _matches.Clear();
+            }
+            return _parsed;
+        }
+
+        internal MatchEvidenceResult Match(SearchResult result, FuzzyQuery query)
+        {
+            var key = (result.Name, result.Path, result.IsDir);
+            if (!_matches.TryGetValue(key, out var match))
+                _matches.Add(key, match = MatchFile(result, query));
+            return match;
+        }
+    }
+
+    private static MatchEvidenceResult MatchFile(SearchResult result, FuzzyQuery query)
+    {
+        var matched = query.RankWithEvidence(result.Name, MatchEvidenceField.FileName, isDirectory: result.IsDir);
+        return matched.Rank.IsMatch ? matched : new(query.FallbackRank(result.Path), MatchEvidence.LegacyUnknown);
+    }
+
     /// <summary>
     /// One pass over the instant-result providers and the search-action plugins, kept for the rest of a
     /// search so it runs once per keystroke instead of once per paint.
@@ -87,8 +132,9 @@ public static class SearchResultMapper
     private static readonly IReadOnlyDictionary<string, int> EmptyUsage =
         new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-    internal static List<AppSearchResult> BuildQuickResults(List<SearchResult>? fileResults, string query, string? scope, string? contextDirectory, bool isInlineWindow, string? rawQuery = null, bool skipDisplayCap = false, FileFilterScopeDirective? fileFilterScope = null, bool folderScope = false, InstantPassCache? instantPass = null, RankContext? rankContext = null, QuickSearchRankingTrace? rankingTrace = null, Func<PluginSdk.Abstractions.ISearchResult, bool>? categoryFilter = null)
+    internal static List<AppSearchResult> BuildQuickResults(List<SearchResult>? fileResults, string query, string? scope, string? contextDirectory, bool isInlineWindow, string? rawQuery = null, bool skipDisplayCap = false, FileFilterScopeDirective? fileFilterScope = null, bool folderScope = false, InstantPassCache? instantPass = null, RankContext? rankContext = null, QuickSearchRankingTrace? rankingTrace = null, Func<PluginSdk.Abstractions.ISearchResult, bool>? categoryFilter = null, CancellationToken cancellationToken = default, QuickFileMatchCache? fileMatchCache = null)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var uiResults = new List<AppSearchResult>();
         var engineCandidateCount = fileResults?.Count ?? 0;
         var preRankingDrops = rankingTrace != null
@@ -102,6 +148,7 @@ public static class SearchResultMapper
         // paint cannot reach the screen until the pass below finishes. See InstantPassCache.
         instantPass ??= new InstantPassCache();
         CollectInstantPass(instantPass, rawQuery ?? query, query, isInlineWindow, contextDirectory);
+        cancellationToken.ThrowIfCancellationRequested();
         uiResults.AddRange(instantPass.Rows);
         var prefixCount = uiResults.Count(result =>
             !result.IsEmptyResult && !result.IsSearchSectionHeader &&
@@ -231,7 +278,7 @@ public static class SearchResultMapper
         // on a broad query), and the string-based ComputeMatchRank re-parsed the query on every one of
         // them -- Parse re-consults every alias provider's GetQueryForms, so with pinyin loaded that was
         // the dominant per-keystroke cost in this mapper.
-        var fuzzy = FuzzyQuery.Parse(query);
+        var fuzzy = fileMatchCache?.Prepare(query) ?? FuzzyQuery.Parse(query);
 
         // The history entry already remembers which query opened its path. Re-introduce existing paths
         // whose learned keyword matches this query even when the index's bounded first page omitted them.
@@ -417,6 +464,7 @@ public static class SearchResultMapper
         {
             foreach (var result in fileResults)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var lookupPath = result.Path.Length > 3 && result.Path[^1] == '\\' ? result.Path.TrimEnd('\\') : result.Path;
                 var usage = historyUsage.TryGetValue(lookupPath, out var uc) ? uc : 0;
                 // A row the index returned whose own NAME does not match the query at all -- it was reached
@@ -425,14 +473,7 @@ public static class SearchResultMapper
                 // (SearchResultRelevance.Apply). Leaving it at NoMatch instead made this window order those
                 // rows by path length and name where the full window ordered the same rows by coverage: one
                 // query, two file orders, and exactly the many-CJK-files case pinyin search produces.
-                var matched = fuzzy.RankWithEvidence(result.Name, MatchEvidenceField.FileName, isDirectory: result.IsDir);
-                if (!matched.Rank.IsMatch)
-                {
-                    var fallback = fuzzy.FallbackRank(result.Path);
-                    // The engine may have accepted an alias or an ancestor path. FallbackRank has no branch
-                    // provenance, so keep evidence unknown rather than labelling it ParentPath by inference.
-                    matched = new MatchEvidenceResult(fallback, MatchEvidence.LegacyUnknown);
-                }
+                var matched = fileMatchCache?.Match(result, fuzzy) ?? MatchFile(result, fuzzy);
                 candidates.Add(new RankedCandidate(
                     SearchResultHelper.CreateUiResult(result, query, 0, isApplication: false, scope),
                     IsFavorite: false,
@@ -472,9 +513,11 @@ public static class SearchResultMapper
 
         // Inline ordering is not traced because it uses a different history budget.
         var rankingPass = RankingPassTrace.Empty;
+        cancellationToken.ThrowIfCancellationRequested();
         var ordered = rankingTrace != null
             ? RankedCandidateOrdering.OrderWithTrace(candidates, rankContext, out rankingPass)
             : RankedCandidateOrdering.Order(candidates, rankContext);
+        cancellationToken.ThrowIfCancellationRequested();
 
         // The filter runs HERE, before any cap. Filtering afterwards meant the cap had already thrown those
         // rows away under the whole-result ordering: a short query ranks applications and folders first, so

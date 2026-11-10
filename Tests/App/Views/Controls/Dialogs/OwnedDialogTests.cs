@@ -1,5 +1,8 @@
 using System.Windows;
 using System.Windows.Threading;
+using System.Reflection;
+using Lertaro.App.Services.Tray;
+using Lertaro.App.Helpers.Visuals;
 
 using Lertaro.App.Views.Controls.Dialogs;
 
@@ -63,8 +66,9 @@ public sealed class OwnedDialogTests
         WindowStyle = WindowStyle.None,
         // Far off any real desktop: these are only ever here to be owned and closed.
         WindowStartupLocation = WindowStartupLocation.Manual,
-        Left = -32000,
-        Top = -32000,
+        // Keep test windows away from the desktop without using the product's parking sentinel.
+        Left = -20000,
+        Top = -20000,
     };
 
     // Queued before ShowDialog is called, so it runs on the nested frame ShowDialog itself pumps --
@@ -232,6 +236,52 @@ public sealed class OwnedDialogTests
     private sealed class TransientHost : Window, ITransientHostWindow
     {
     }
+
+    [TestMethod]
+    public void Pick_RejectsTheRealTrayAnchorEvenWhenItIsVisible() => InItsOwnDialogPump(() =>
+    {
+        using var tray = new TrayMenuController(() => { });
+        typeof(TrayMenuController).GetMethod("EnsureAnchor", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(tray, null);
+        var anchor = (Window)typeof(TrayMenuController).GetField("_anchor", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(tray)!;
+
+        Assert.IsTrue(anchor.IsVisible);
+        Assert.IsInstanceOfType<ITransientHostWindow>(anchor);
+        Assert.IsNull(OwnedDialog.Pick([anchor], anchor, Offscreen(), skip: null));
+    });
+
+    [TestMethod]
+    public void Pick_RejectsTransparentAndParkedOrdinaryWindows() => InItsOwnDialogPump(() =>
+    {
+        var candidate = Offscreen();
+        candidate.Show();
+        try
+        {
+            Assert.AreSame(candidate, OwnedDialog.Pick([candidate], null, Offscreen(), null));
+            candidate.Opacity = 0;
+            Assert.IsNull(OwnedDialog.Pick([candidate], candidate, Offscreen(), null));
+            candidate.Opacity = 1;
+            WindowParking.Park(candidate);
+            Assert.IsNull(OwnedDialog.Pick([candidate], candidate, Offscreen(), null));
+        }
+        finally { candidate.Close(); }
+    });
+
+    [TestMethod]
+    public void CanOwnADialog_RechecksAnOwnerThatWasHiddenOrParkedAfterSelection() => InItsOwnDialogPump(() =>
+    {
+        var owner = Offscreen();
+        owner.Show();
+        try
+        {
+            Assert.IsTrue(OwnedDialog.CanOwnADialog(owner));
+            owner.Hide();
+            Assert.IsFalse(OwnedDialog.CanOwnADialog(owner));
+            owner.Show();
+            WindowParking.Park(owner);
+            Assert.IsFalse(OwnedDialog.CanOwnADialog(owner));
+        }
+        finally { owner.Close(); }
+    });
 
     // A window that only hosts something for a moment vanishes with it, taking anything it owns along
     // -- a prompt opened from a shell menu item would flash up and disappear again with the menu.

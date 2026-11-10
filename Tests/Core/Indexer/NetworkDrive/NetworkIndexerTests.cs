@@ -10,6 +10,21 @@ namespace Lertaro.Core.Tests.Indexer.NetworkDrive;
 [TestClass]
 public sealed class NetworkIndexerTests
 {
+    [TestMethod]
+    [DataRow(1)]
+    [DataRow(2)]
+    [DataRow(int.MaxValue)]
+    public void SearchSnapshots_CategoryReachesEachShareBeforeItsLimit(int limit)
+    {
+        using var first = NetworkIndex.FromStore(BuildShareStore("Y", "report.exe", "report-a.png"));
+        using var second = NetworkIndex.FromStore(BuildShareStore("Z", "report.exe", "report-b.png"));
+        var rows = new List<SearchResult>();
+        NetworkIndexerSearchExtensions.SearchSnapshots([first, second], SearchQueryParser.Parse("report"), "report", null,
+            limit, rows.Add, CancellationToken.None, category: PluginSdk.Helpers.SearchCategoryFilter.Image);
+        Assert.HasCount(Math.Min(2, limit), rows);
+        Assert.IsTrue(rows.All(r => r.Name.EndsWith(".png", StringComparison.OrdinalIgnoreCase)));
+    }
+
     // Regression coverage: "complete" on its own must not count as cached when the pass finished with
     // directories it never captured. Gating on IsComplete alone is what left those directories missing
     // forever under the default Manual refresh mode, because nothing ever ran a second pass.

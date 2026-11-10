@@ -14,6 +14,44 @@ namespace Lertaro.App.Tests.ViewModels.Search.Mapping;
 public sealed class InstantPassCacheTests
 {
     [TestMethod]
+    public void FileMatchCache_PreservesOrderAndRebuildsRowsWithFreshMetadata()
+    {
+        var cache = new SearchResultMapper.QuickFileMatchCache();
+        var instant = new SearchResultMapper.InstantPassCache { Collected = true };
+        var files = TwoFiles();
+        var first = SearchResultMapper.BuildQuickResults(files.ToList(), "alpha", null, null, true,
+            instantPass: instant, fileMatchCache: cache);
+        files[0].Metadata = new(999, DateTime.MinValue, new DateTime(2026, 11, 10), DateTime.MinValue);
+        var cached = SearchResultMapper.BuildQuickResults(files.ToList(), "alpha", null, null, true,
+            instantPass: instant, fileMatchCache: cache);
+        var plain = SearchResultMapper.BuildQuickResults(files.ToList(), "alpha", null, null, true, instantPass: instant);
+        CollectionAssert.AreEqual(plain.Select(row => row.FullPath).ToArray(), cached.Select(row => row.FullPath).ToArray());
+        Assert.AreNotSame(first[0], cached[0]);
+        Assert.AreEqual(999L, cached.Single(row => row.Name == "alpha.txt").Metadata.Size);
+    }
+
+    [TestMethod]
+    public void FileMatchCache_QueryAndPrecisionChangesInvalidateEvidence()
+    {
+        var cache = new SearchResultMapper.QuickFileMatchCache();
+        var row = new SearchResult { Name = "a_b_c", Path = @"Z:\a_b_c" };
+        var previous = SearchContext.FuzzyMatchEnabled;
+        try
+        {
+            SearchContext.FuzzyMatchEnabled = true;
+            var fuzzy = cache.Match(row, cache.Prepare("abc"));
+            SearchContext.FuzzyMatchEnabled = false;
+            var exact = cache.Match(row, cache.Prepare("abc"));
+            Assert.AreNotEqual(fuzzy, exact);
+            var changed = cache.Match(row, cache.Prepare("a_b_c"));
+            Assert.AreNotEqual(exact, changed);
+            row.Name = "different";
+            Assert.AreNotEqual(changed, cache.Match(row, cache.Prepare("a_b_c")));
+        }
+        finally { SearchContext.FuzzyMatchEnabled = previous; }
+    }
+
+    [TestMethod]
     public async Task EarlyEmissionAndFilePaint_ShareOneProviderCall()
     {
         var provider = new CountingProvider();

@@ -127,6 +127,12 @@ public class ObservableRangeCollection<T> : ObservableCollection<T>
             ? unchangedPrefix
             : 0;
 
+        // A copied/sorted/filtered snapshot can still be identical. Discover its unchanged prefix before
+        // choosing Reset, so a repeated large snapshot raises no notification and a small append stays cheap.
+        var shared = Math.Min(Items.Count, target.Count);
+        while (from < shared && equals(Items[from], target[from]))
+            from++;
+
         // Measured against the rows that can actually differ, not the size of the list. A Reset makes
         // WPF discard and rebuild the view, which costs the whole list however few rows moved.
         if (Math.Max(target.Count, Items.Count) - from >= ResetInsteadOfReconcileThreshold)
@@ -135,7 +141,6 @@ public class ObservableRangeCollection<T> : ObservableCollection<T>
             return;
         }
 
-        var shared = Math.Min(Items.Count, target.Count);
         for (var i = from; i < shared; i++)
         {
             if (!equals(Items[i], target[i]))

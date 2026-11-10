@@ -52,6 +52,17 @@ public sealed class SearchStreamRendererTests
             foldersOnly: false,
             searchScope: null,
             scopeDirective: new FileFilterScopeDirective(["X:\\OnlyHere"], "*")));
+        Assert.IsFalse(ScopedSearchRunner.ShouldRunShortcutSupplement(50, false, null, null, @"D:\Scoped\report"));
+    }
+
+    [TestMethod]
+    public void ShouldRunPriorityRoots_PreservesGlobalSupplementsButHonorsExplicitScopes()
+    {
+        Assert.IsTrue(ScopedSearchRunner.ShouldRunPriorityRoots("report", null, null, false));
+        Assert.IsFalse(ScopedSearchRunner.ShouldRunPriorityRoots(@"D:\Scoped\report", null, null, false));
+        Assert.IsFalse(ScopedSearchRunner.ShouldRunPriorityRoots("report", @"D:\Scoped", null, false));
+        Assert.IsFalse(ScopedSearchRunner.ShouldRunPriorityRoots("report", null, new([@"D:\Scoped"], "*"), false));
+        Assert.IsFalse(ScopedSearchRunner.ShouldRunPriorityRoots("report", null, null, true));
     }
 
     [DataRow(@"X:\Start\重复文件.lnk", true)]
@@ -59,7 +70,7 @@ public sealed class SearchStreamRendererTests
     [DataRow(@"X:\Apps\Tool.appref-ms", false)]
     [DataRow(@"X:\Build\PixPin.exe", false)]
     [DataRow(@"X:\Docs\note.txt", false)]
-    [DataTestMethod]
+    [TestMethod]
     public void IsSupplementShortcutPath_AdmitsExactlyWhatTheFilterSearches(string path, bool expected) =>
         Assert.AreEqual(expected, ScopedSearchRunner.IsSupplementShortcutPath(path));
 }

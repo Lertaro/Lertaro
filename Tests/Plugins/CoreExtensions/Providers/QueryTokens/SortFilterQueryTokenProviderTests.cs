@@ -6,6 +6,62 @@ namespace Lertaro.Plugins.CoreExtensions.Tests.Providers.QueryTokens;
 [TestClass]
 public sealed class SortFilterQueryTokenProviderTests
 {
+    public TestContext TestContext { get; set; } = null!;
+
+    [TestMethod]
+    [TestCategory("SearchChecklistPerformance")]
+    [DoNotParallelize]
+    [DataRow(4000)]
+    [DataRow(100_000)]
+    public async Task SortMetadata_RecordsSynchronousWorkAndAllocation(int count)
+    {
+        var results = Enumerable.Range(0, count).Select(i => (ISearchResult)new FakeResult
+        {
+            Name = $"report{i:D6}", FullPath = $@"Z:\report{i:D6}.txt",
+            Metadata = new((i * 7919L) % count, default, default, default)
+        }).ToArray();
+        for (var i = 0; i < 3; i++) await Provider.ApplyAsync("S-", results);
+        var elapsed = new List<double>();
+        var bytes = GC.GetTotalAllocatedBytes(true);
+        var completedInline = 0;
+        for (var i = 0; i < 20; i++)
+        {
+            var timer = System.Diagnostics.Stopwatch.StartNew();
+            var work = Provider.ApplyAsync("S-", results);
+            if (work.IsCompletedSuccessfully) completedInline++;
+            var sorted = await work;
+            elapsed.Add(timer.Elapsed.TotalMilliseconds);
+            Assert.AreEqual(count - 1L, sorted[0].Metadata.Size);
+        }
+        TestContext.WriteLine("CHECKLIST_PERF " + System.Text.Json.JsonSerializer.Serialize(new
+        {
+            scenario = "token-sort", rows = count, iterations = 20, elapsedMs = elapsed,
+            allocatedBytes = GC.GetTotalAllocatedBytes(true) - bytes, completedInline
+        }));
+    }
+
+    [TestMethod]
+    [DataRow("S")]
+    [DataRow("S-")]
+    [DataRow("C")]
+    [DataRow("C-")]
+    [DataRow("M")]
+    [DataRow("M-")]
+    [DataRow("A")]
+    [DataRow("A-")]
+    public async Task MetadataSort_PreservesStableTiesAndExtremeValues(string token)
+    {
+        var results = new ISearchResult[]
+        {
+            new FakeResult { Name = "first", Metadata = new(0, default, default, default) },
+            new FakeResult { Name = "large", Metadata = new(long.MaxValue, DateTime.MaxValue, DateTime.MaxValue, DateTime.MaxValue) },
+            new FakeResult { Name = "second", Metadata = new(0, default, default, default) },
+        };
+        var result = await Provider.ApplyAsync(token, results);
+        var expected = token.EndsWith('-') ? new[] { "large", "first", "second" } : new[] { "first", "second", "large" };
+        CollectionAssert.AreEqual(expected, result.Select(r => r.Name).ToArray());
+    }
+
     private sealed class FakeResult : ISearchResult
     {
         public string Name { get; init; } = "";

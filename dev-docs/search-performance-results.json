@@ -1,0 +1,2978 @@
+{
+  "Baseline": "e70449d3101ec066f0ff9bd91f6cb23ebb311ee8",
+  "Environment": {
+    "Date": "2026-11-10T15:36:42.2688395+08:00",
+    "OS": "Microsoft Windows 10.0.26300",
+    "Architecture": "X64",
+    "LogicalProcessors": 12,
+    "Processor": "Intel64 Family 6 Model 165 Stepping 3, GenuineIntel",
+    "Dotnet": "10.0.403",
+    "Head": "e70449d3101ec066f0ff9bd91f6cb23ebb311ee8",
+    "Culture": "zh-CN"
+  },
+  "TieredCompilation": 0,
+  "QueryRunDirectory": "scratch/search-performance-audit/comparison-index-isolated",
+  "OtherRunDirectory": "scratch/search-performance-audit/comparison-verified",
+  "UiRunDirectory": "scratch/search-performance-audit/comparison-app-final",
+  "Definitions": {
+    "Query": "3 process pairs, alternating before/after; 3 warmups + 10 samples per scenario; Stopwatch excludes corpus creation",
+    "UI": "3 process pairs; each sample is 20 repeated filter-sort-reconcile paints after 3 warmups; ListCollectionView, no on-screen window",
+    "Cancelled": "3 process pairs; 60000 prepared ranks; 3 uncancelled warmups + 20 already-cancelled calls; reflection calls the real method in each DLL",
+    "Allocation": "GC.GetTotalAllocatedBytes(true) delta per process workload, divided by iterations in summary; not live heap or peak memory",
+    "P95": "Nearest rank ceil(n * 0.95); UI has only 3 aggregate samples, so its P95 is its maximum aggregate",
+    "Signature": "SHA256 of final sample ordered Path|IsDir|RankSortKey for index; ordered FullPath for UI"
+  },
+  "ProductAssemblies": [
+    {
+      "Path": "scratch/search-performance-audit/baseline-core-v2-bin/Lertaro.Core.dll",
+      "SHA256": "9FE19652842AE2BD1A6D2E9D3F0D9EBBFAC8E2F1568B1DE5BD78B349005F5260"
+    },
+    {
+      "Path": "Core/bin/Release/net10.0-windows/Lertaro.Core.dll",
+      "SHA256": "F0132BA066ACDA9C873CF8B592480864A66F2004C61E4D2020677E2B71DECFA2"
+    },
+    {
+      "Path": "scratch/search-performance-audit/baseline-app-bin/Lertaro.App.dll",
+      "SHA256": "8139EEBDDDE6CF47FAC1963A4E72630D6C2FB2634F8C8FA619B810964DC3AE2F"
+    },
+    {
+      "Path": "App/bin/Release/net10.0-windows/Lertaro.App.dll",
+      "SHA256": "066104C5B36C0AF975DAFA24C87E6224FC9C1560254A989B9C8586CC7B8A8B85"
+    }
+  ],
+  "SourceFiles": [
+    {
+      "Path": "App/Converters/TextHighlighter.cs",
+      "SHA256": "52F8702E3D39D76F73867DECA9F0C79293A238B8EDAE78D1005F58921BAA154C"
+    },
+    {
+      "Path": "App/Helpers/ObservableRangeCollection.cs",
+      "SHA256": "53BA7E81371602B3AB594DAEC321CE4146397526685AC8BD54F336701EAD5BE5"
+    },
+    {
+      "Path": "App/Services/Pipe/AppSearchPipeService.cs",
+      "SHA256": "C931CF4CEDC4A40A54F4B3B68C62152938D396414F2C30F85CFC84C27480DBF2"
+    },
+    {
+      "Path": "App/ViewModels/Search/Dispatch/SearchDispatchController.cs",
+      "SHA256": "80CDD8236F291F8C9EDEF7E8FC44468759DCF4D9D8D14ADD7B54CEF3F03FF07E"
+    },
+    {
+      "Path": "App/ViewModels/Search/Dispatch/SearchQueryDispatchController.cs",
+      "SHA256": "51267EFD5223D5B01835A5A8E68582B06C01AA847589F112BBFF107C84619126"
+    },
+    {
+      "Path": "App/ViewModels/Search/DynamicSidebar/DynamicFilterCoordinator.cs",
+      "SHA256": "4C06D53C5BEB2E8A5665575B9FAAA2B03A85AFC4DD42A4438FD44E64AA2BBF33"
+    },
+    {
+      "Path": "App/ViewModels/Search/Mapping/SearchResultMapper.cs",
+      "SHA256": "C25CFF7CA88278B0C98763BFB3F56EDE364247001E8E80FAEEF32ADA98956F8B"
+    },
+    {
+      "Path": "App/ViewModels/Search/Mapping/StreamingResultAccumulator.cs",
+      "SHA256": "93B2F8B829DE7CBDDCE55F1C36D7BC7C0DF56BBB8FDA0215D33C97E5D00257A8"
+    },
+    {
+      "Path": "App/ViewModels/Search/QueryTokenDispatcher.cs",
+      "SHA256": "FF5B1241C4CBE313A392EE608628F9CA76F71FB94ED100F158544653F66D33B3"
+    },
+    {
+      "Path": "App/ViewModels/Search/ScopedSearchRunner.cs",
+      "SHA256": "4FF4CD836D90102FA146AE1D65BC55124A2588F394CBE3F59922EF0E8CC0021B"
+    },
+    {
+      "Path": "App/ViewModels/Search/SearchExecutionEngine.cs",
+      "SHA256": "DA96462FDC9E06601DF578BE6EDFD90E56533DEE6945782208769A42217BF53F"
+    },
+    {
+      "Path": "App/ViewModels/Search/SearchResultsReconciler.cs",
+      "SHA256": "09DA060E8603552A24E78D6C0181C07AD5DC27F592067F12AA7EC6E651ACAD8E"
+    },
+    {
+      "Path": "App/ViewModels/Search/SearchStreamRenderer.cs",
+      "SHA256": "5B1C0E67BCF72FACE5862917E506BA50E4D99229AD1A1E78B3EAFE77EB6F5C59"
+    },
+    {
+      "Path": "App/ViewModels/Search/SearchViewResultRenderer.cs",
+      "SHA256": "9EB9E92ECFAB434458996EDF4CB1D8A600F71FDA4648987A1FCCB480B3552DBB"
+    },
+    {
+      "Path": "Core/Indexer/NetworkDrive/NetworkIndex.cs",
+      "SHA256": "4C2AD7D542FE3D21EC19E2856167AAE73CC4190970899F45E23DD9169A59BCB9"
+    },
+    {
+      "Path": "Core/Indexer/NetworkDrive/NetworkIndexerSearchExtensions.cs",
+      "SHA256": "D588C614F83978741FAEB56F5160C3A068044B662670ABAC7D67D05EE96CFFDA"
+    },
+    {
+      "Path": "Core/IndexV2/Search/IndexV2Searcher.cs",
+      "SHA256": "95A4AF3C0C3E0F6BC8E24B9803A5A79048037BAEB22EE376446B6CDCA9E523F5"
+    },
+    {
+      "Path": "Core/IndexV2/Search/NameSearch.cs",
+      "SHA256": "25F8474DBACD8622B746A620963387B319D1423A0C506BC419BC40C6786620A3"
+    },
+    {
+      "Path": "Core/IndexV2/Search/PathMode/PathSearch.cs",
+      "SHA256": "CA3C6C0F1690BB39ECA26CCB13422DBEE7FC7457CB9B5C8C3FBBA43094486A7E"
+    },
+    {
+      "Path": "Core/IndexV2/Search/PathMode/PathSearchFuzzy.cs",
+      "SHA256": "AB0D670895AD8F96AD7959491D2E6DDB16B43FF74A7C98B5D15960B578069816"
+    },
+    {
+      "Path": "Core/IndexV2/Search/PathMode/SearchMatcherPath.cs",
+      "SHA256": "F179D1ECE1D879A6A9E000E8D0EC5B3BEB900B84E58DEF12435CF0E629A5C2E8"
+    },
+    {
+      "Path": "Core/IndexV2/Search/PathTermFallback.cs",
+      "SHA256": "1F30098EFBEB90EC8ED7DE039E132D9F26D6A407EBB0B9B58A16FB2D8AFA2187"
+    },
+    {
+      "Path": "Core/Services/Network/UserNetworkDriveSearch.cs",
+      "SHA256": "1C10C9DE940DE85043337A30DC5533CE0BD8AB16695F0F38B9DEF913A3F84CFE"
+    },
+    {
+      "Path": "Core/Services/Plugin/DirectoryIndex/FilterPatternHelper.cs",
+      "SHA256": "1D3B6123985753492276612827D5F43A9921736BA018492B89FD584D40593F66"
+    },
+    {
+      "Path": "Core/Services/Search/LiveDirectorySearcher.cs",
+      "SHA256": "B32B53CD9D21BD5BF20CF49AC14B0AD3BFC9D6121FB2E744979755C5AB0A3F96"
+    },
+    {
+      "Path": "Core/Services/Search/SearchService.cs",
+      "SHA256": "69F501363DFCC37DE77ACE61EA2F994F8BD6DCF3E4A975EBB07F7AB26EFD9A90"
+    },
+    {
+      "Path": "Core/Services/Search/SearchServiceHelper.cs",
+      "SHA256": "54B6297C8F681C04D854DBD2A319227EFB9BC5601FB8F64B8BAEB4B367953DA0"
+    },
+    {
+      "Path": "Tests/App/Converters/TextHighlighterTests.cs",
+      "SHA256": "FD58DC5CDF8E3D9003461EC8D1BD373A10F5F752D479620BDE37913C02BD1947"
+    },
+    {
+      "Path": "Tests/App/Helpers/ObservableRangeCollectionTests.cs",
+      "SHA256": "5AB052152E11D6193620CF2CD8E932F911CEAA29DE893F7C72899460B07A76CF"
+    },
+    {
+      "Path": "Tests/App/ViewModels/Search/DynamicSidebar/DynamicFilterCoordinatorTests.cs",
+      "SHA256": "3E03E411D5AA76356ABB62255AD6AE86D44667786A80F2D8E389A01674543714"
+    },
+    {
+      "Path": "Tests/App/ViewModels/Search/Mapping/StreamingResultAccumulatorTests.cs",
+      "SHA256": "787FC22134A800EBF3CA4789353C13CF47DCDE0884B24979CFF77B15FA4ED69F"
+    },
+    {
+      "Path": "Tests/App/ViewModels/Search/QueryTokenDispatcherTests.cs",
+      "SHA256": "A6F672F51CE53CD4F72AC2C8A519C53740990C5FC487305F93969B13A061FE03"
+    },
+    {
+      "Path": "Tests/App/ViewModels/Search/SearchPerformanceWorkloadTests.cs",
+      "SHA256": "8B8E1E93133E42AF941EDC5FC5EE9AE5AB4F603E692635C81663DA51F508E6E2"
+    },
+    {
+      "Path": "Tests/App/ViewModels/Search/SearchResultsReconcilerTests.cs",
+      "SHA256": "148C8F78383341C0732462BA7164B66716C122B85C2AA13B7FBD5FAFB088C412"
+    },
+    {
+      "Path": "Tests/App/ViewModels/Search/SearchStreamRendererTests.cs",
+      "SHA256": "965620EE176807949AB0A672D012B3A963CCCCEBE2F0FA15B19861E18ECBBA53"
+    },
+    {
+      "Path": "Tests/Core/Indexer/NetworkDrive/NetworkIndexerTests.cs",
+      "SHA256": "0FFF0CF8F807F9CBCF9D01AC8A595E1987931F95DA6074EB04FF3B01291ABF5E"
+    },
+    {
+      "Path": "Tests/Core/IndexV2/Search/IndexV2SearcherTests.cs",
+      "SHA256": "CD4C323DCC3D121544DF991B67E4858491CDE4025ACC9E3D5620C26FC0C106DB"
+    },
+    {
+      "Path": "Tests/Core/IndexV2/Search/NameSearchTests.cs",
+      "SHA256": "08B10E2617907179F3706EB7F17F14AED5ED8822E1AA3ECEDE0D43E5DD1DEE02"
+    },
+    {
+      "Path": "Tests/Core/IndexV2/Search/SearchPerformanceWorkloadTests.cs",
+      "SHA256": "A013B0913213F22021B712BB790465C885F08F0DDB8091B2051A87DF1473E108"
+    },
+    {
+      "Path": "Tests/Core/SearchIndex/Query/SearchQuerySortParserTests.cs",
+      "SHA256": "B1805A6CB978A3894A4261680AA1C501CF38A793FCAB9474BE822252F6C307E9"
+    },
+    {
+      "Path": "Tests/Core/Services/Search/LiveDirectorySearcherTests.cs",
+      "SHA256": "E6931A5E7B3F04BF9FABD61921426969BFD558A3E36089BEFFBE94D80EEAC151"
+    }
+  ],
+  "Summary": [
+    {
+      "Scenario": "index||archive report|2147483647|60000|after",
+      "Samples": 30,
+      "MedianMs": 107.0172,
+      "P95Ms": 137.8289,
+      "FirstMedianMs": 13.5334,
+      "BytesPerQuery": 62289354,
+      "ResultCount": 60000,
+      "AcceptedFiles": 60000,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "F287B14B7E6259425A7DE621C6D6A5F612136A177BFD4AE7CA883175145309A6"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "index||archive report|2147483647|60000|before",
+      "Samples": 30,
+      "MedianMs": 105.428,
+      "P95Ms": 141.1781,
+      "FirstMedianMs": 13.2762,
+      "BytesPerQuery": 62086326,
+      "ResultCount": 60000,
+      "AcceptedFiles": 60000,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "F287B14B7E6259425A7DE621C6D6A5F612136A177BFD4AE7CA883175145309A6"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "index||archive\\report|204|60000|after",
+      "Samples": 30,
+      "MedianMs": 14.857,
+      "P95Ms": 22.0315,
+      "FirstMedianMs": 14.666,
+      "BytesPerQuery": 9492706,
+      "ResultCount": 204,
+      "AcceptedFiles": 204,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "5CE586DE14ADB5EBD1B1C3566281B77E550C053A72F93AC43641B0932DBC075A",
+        "B7A98B42A0E5A723352499F555DCEE6436A8AB6222A614AF672E648CAFBDA20B",
+        "C6E224C0DD807975021EE6DF81DDD88BD515E2E08FCE6F424FE00A13FF1A73C0"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "index||archive\\report|204|60000|before",
+      "Samples": 30,
+      "MedianMs": 13.8126,
+      "P95Ms": 16.253,
+      "FirstMedianMs": 13.7334,
+      "BytesPerQuery": 11068130,
+      "ResultCount": 204,
+      "AcceptedFiles": 0,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "2DF0563C28E698802D7DDA0B02CB115D059B3C0F16BF641CA7B1436C9D130032"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "index||archive\\report|2147483647|60000|after",
+      "Samples": 30,
+      "MedianMs": 127.532,
+      "P95Ms": 165.0662,
+      "FirstMedianMs": 66.4928,
+      "BytesPerQuery": 59546817,
+      "ResultCount": 60000,
+      "AcceptedFiles": 60000,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "932189595236FE610E24E0C0A66313CC47A860436EFE0797AFF8B440E42A89AF"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "index||archive\\report|2147483647|60000|before",
+      "Samples": 30,
+      "MedianMs": 121.3437,
+      "P95Ms": 149.9444,
+      "FirstMedianMs": 64.1356,
+      "BytesPerQuery": 62309953,
+      "ResultCount": 60000,
+      "AcceptedFiles": 60000,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "932189595236FE610E24E0C0A66313CC47A860436EFE0797AFF8B440E42A89AF"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "index||report|204|60000|after",
+      "Samples": 30,
+      "MedianMs": 10.569,
+      "P95Ms": 12.552,
+      "FirstMedianMs": 10.4832,
+      "BytesPerQuery": 11042751,
+      "ResultCount": 204,
+      "AcceptedFiles": 204,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "D73134DC54F4674A101F1602F91170FF7C3CA084713D6C47B3388D31E926652D"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "index||report|204|60000|before",
+      "Samples": 30,
+      "MedianMs": 10.3807,
+      "P95Ms": 12.169,
+      "FirstMedianMs": 10.3006,
+      "BytesPerQuery": 11049038,
+      "ResultCount": 204,
+      "AcceptedFiles": 204,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "D73134DC54F4674A101F1602F91170FF7C3CA084713D6C47B3388D31E926652D"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "index||report|2147483647|60000|after",
+      "Samples": 30,
+      "MedianMs": 101.8486,
+      "P95Ms": 129.8892,
+      "FirstMedianMs": 36.886,
+      "BytesPerQuery": 68760311,
+      "ResultCount": 60000,
+      "AcceptedFiles": 60000,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "900764EDF956BB1E85A9FE1E8A0FD7EA7AC459EEA7FB359D021B331DB0203ABD"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "index||report|2147483647|60000|before",
+      "Samples": 30,
+      "MedianMs": 94.6468,
+      "P95Ms": 119.9058,
+      "FirstMedianMs": 34.4254,
+      "BytesPerQuery": 68970297,
+      "ResultCount": 60000,
+      "AcceptedFiles": 60000,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "900764EDF956BB1E85A9FE1E8A0FD7EA7AC459EEA7FB359D021B331DB0203ABD"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "index||z:\\archive000\\|204|60000|after",
+      "Samples": 30,
+      "MedianMs": 0.1752,
+      "P95Ms": 0.1814,
+      "FirstMedianMs": 0.1092,
+      "BytesPerQuery": 301013,
+      "ResultCount": 204,
+      "AcceptedFiles": 203,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "55FC865CE9C20DD7FEA87D2FE939E37192B3662B9563E468EA33AE28AB4A52B2"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "index||z:\\archive000\\|204|60000|before",
+      "Samples": 30,
+      "MedianMs": 0.1187,
+      "P95Ms": 0.1307,
+      "FirstMedianMs": 0.0528,
+      "BytesPerQuery": 252421,
+      "ResultCount": 204,
+      "AcceptedFiles": 143,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "CEE30180C8E5195512D9C8AD96BB91F309F4B62920CA2172A8A95F061656C3EF"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "cancelled-refinement|NameSearch|||60000|after",
+      "Samples": 60,
+      "MedianMs": 0.0212,
+      "P95Ms": 0.0613,
+      "FirstMedianMs": null,
+      "BytesPerQuery": null,
+      "ResultCount": null,
+      "AcceptedFiles": null,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [],
+      "Cancelled": 20,
+      "Rewritten": 0
+    },
+    {
+      "Scenario": "cancelled-refinement|NameSearch|||60000|before",
+      "Samples": 60,
+      "MedianMs": 24.3481,
+      "P95Ms": 29.6997,
+      "FirstMedianMs": null,
+      "BytesPerQuery": null,
+      "ResultCount": null,
+      "AcceptedFiles": null,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [],
+      "Cancelled": 0,
+      "Rewritten": 1200000
+    },
+    {
+      "Scenario": "cancelled-refinement|PathSearchFuzzy|||60000|after",
+      "Samples": 60,
+      "MedianMs": 0.0206,
+      "P95Ms": 0.0525,
+      "FirstMedianMs": null,
+      "BytesPerQuery": null,
+      "ResultCount": null,
+      "AcceptedFiles": null,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [],
+      "Cancelled": 20,
+      "Rewritten": 0
+    },
+    {
+      "Scenario": "cancelled-refinement|PathSearchFuzzy|||60000|before",
+      "Samples": 60,
+      "MedianMs": 17.2096,
+      "P95Ms": 20.172,
+      "FirstMedianMs": null,
+      "BytesPerQuery": null,
+      "ResultCount": null,
+      "AcceptedFiles": null,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [],
+      "Cancelled": 0,
+      "Rewritten": 1200000
+    },
+    {
+      "Scenario": "sidebar-sort-reconcile||||100000|after",
+      "Samples": 3,
+      "MedianMs": 353.1523,
+      "P95Ms": 357.0621,
+      "FirstMedianMs": null,
+      "BytesPerQuery": 360858,
+      "ResultCount": 10000,
+      "AcceptedFiles": null,
+      "Sorts": 20,
+      "Renders": 20,
+      "Resets": 0,
+      "Signatures": [
+        "5538602C7FFA20915C437C185B29DC49A1583E3359275BB4FB1D76CE2E0CB5B6"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "sidebar-sort-reconcile||||100000|before",
+      "Samples": 3,
+      "MedianMs": 3310.8534,
+      "P95Ms": 3331.7599,
+      "FirstMedianMs": null,
+      "BytesPerQuery": 3162772,
+      "ResultCount": 10000,
+      "AcceptedFiles": null,
+      "Sorts": 40,
+      "Renders": 40,
+      "Resets": 40,
+      "Signatures": [
+        "5538602C7FFA20915C437C185B29DC49A1583E3359275BB4FB1D76CE2E0CB5B6"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "sidebar-sort-reconcile||||20000|after",
+      "Samples": 3,
+      "MedianMs": 48.2064,
+      "P95Ms": 54.5542,
+      "FirstMedianMs": null,
+      "BytesPerQuery": 72858,
+      "ResultCount": 2000,
+      "AcceptedFiles": null,
+      "Sorts": 20,
+      "Renders": 20,
+      "Resets": 0,
+      "Signatures": [
+        "43BD08F93B721F195E3B6982445B1FC8314AFFDE27363A2FB7D9F94E0B1FC4C1"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "sidebar-sort-reconcile||||20000|before",
+      "Samples": 3,
+      "MedianMs": 522.453,
+      "P95Ms": 524.1025,
+      "FirstMedianMs": null,
+      "BytesPerQuery": 634368,
+      "ResultCount": 2000,
+      "AcceptedFiles": null,
+      "Sorts": 40,
+      "Renders": 40,
+      "Resets": 40,
+      "Signatures": [
+        "43BD08F93B721F195E3B6982445B1FC8314AFFDE27363A2FB7D9F94E0B1FC4C1"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    }
+  ],
+  "Measurements": [
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "report",
+      "limit": 204,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        13.4482,
+        10.5557,
+        9.9932,
+        11.1262,
+        10.2706,
+        9.9404,
+        11.5225,
+        10.2689,
+        10.8005,
+        11.391
+      ],
+      "firstResultMs": [
+        12.9288,
+        10.4663,
+        9.8998,
+        11.0387,
+        10.1708,
+        9.8428,
+        11.4293,
+        10.1818,
+        10.7125,
+        11.2948
+      ],
+      "allocatedBytes": 109684720,
+      "gcCollections": [
+        14,
+        14,
+        10
+      ],
+      "resultCount": 204,
+      "signature": "D73134DC54F4674A101F1602F91170FF7C3CA084713D6C47B3388D31E926652D",
+      "acceptedFiles": 204,
+      "Run": "core-after-1"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "report",
+      "limit": 2147483647,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        107.0722,
+        129.8892,
+        132.7361,
+        80.0312,
+        105.033,
+        98.2871,
+        104.9449,
+        127.4713,
+        122.8413,
+        102.5056
+      ],
+      "firstResultMs": [
+        34.7479,
+        48.2027,
+        47.3849,
+        35.2351,
+        31.8863,
+        37.1683,
+        37.7539,
+        43.469,
+        45.8449,
+        36.6038
+      ],
+      "allocatedBytes": 686302888,
+      "gcCollections": [
+        98,
+        55,
+        23
+      ],
+      "resultCount": 60000,
+      "signature": "900764EDF956BB1E85A9FE1E8A0FD7EA7AC459EEA7FB359D021B331DB0203ABD",
+      "acceptedFiles": 60000,
+      "Run": "core-after-1"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "archive report",
+      "limit": 2147483647,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        115.8731,
+        151.7364,
+        107.2396,
+        136.8406,
+        116.4458,
+        103.7161,
+        114.771,
+        97.7717,
+        109.1764,
+        133.9514
+      ],
+      "firstResultMs": [
+        15.5737,
+        25.7971,
+        13.2778,
+        14.2874,
+        11.6675,
+        12.9553,
+        14.0374,
+        13.8033,
+        12.6695,
+        13.8496
+      ],
+      "allocatedBytes": 622893544,
+      "gcCollections": [
+        82,
+        38,
+        11
+      ],
+      "resultCount": 60000,
+      "signature": "F287B14B7E6259425A7DE621C6D6A5F612136A177BFD4AE7CA883175145309A6",
+      "acceptedFiles": 60000,
+      "Run": "core-after-1"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "archive\\report",
+      "limit": 2147483647,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        154.8114,
+        169.2459,
+        135.9423,
+        151.2387,
+        165.0662,
+        123.9697,
+        127.6148,
+        136.5695,
+        113.1175,
+        148.5456
+      ],
+      "firstResultMs": [
+        73.1153,
+        86.7566,
+        59.1857,
+        85.874,
+        84.6386,
+        68.0426,
+        67.3221,
+        69.144,
+        59.5599,
+        65.002
+      ],
+      "allocatedBytes": 594190576,
+      "gcCollections": [
+        89,
+        38,
+        11
+      ],
+      "resultCount": 60000,
+      "signature": "932189595236FE610E24E0C0A66313CC47A860436EFE0797AFF8B440E42A89AF",
+      "acceptedFiles": 60000,
+      "Run": "core-after-1"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "archive\\report",
+      "limit": 204,
+      "filter": "*.txt",
+      "iterations": 10,
+      "elapsedMs": [
+        19.5112,
+        19.6897,
+        23.2639,
+        15.8982,
+        20.9306,
+        16.7351,
+        15.391,
+        17.073,
+        15.1701,
+        14.6248
+      ],
+      "firstResultMs": [
+        19.4309,
+        19.5827,
+        23.1339,
+        15.8185,
+        20.8073,
+        16.6534,
+        15.3083,
+        16.9918,
+        15.0889,
+        14.5439
+      ],
+      "allocatedBytes": 96094824,
+      "gcCollections": [
+        11,
+        4,
+        2
+      ],
+      "resultCount": 204,
+      "signature": "5CE586DE14ADB5EBD1B1C3566281B77E550C053A72F93AC43641B0932DBC075A",
+      "acceptedFiles": 204,
+      "Run": "core-after-1"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "z:\\archive000\\",
+      "limit": 204,
+      "filter": "*.txt",
+      "iterations": 10,
+      "elapsedMs": [
+        0.1753,
+        0.1754,
+        0.174,
+        0.1755,
+        0.1742,
+        0.1745,
+        0.1746,
+        0.1762,
+        0.1742,
+        0.1731
+      ],
+      "firstResultMs": [
+        0.1092,
+        0.11,
+        0.1083,
+        0.1094,
+        0.1097,
+        0.1093,
+        0.11,
+        0.1107,
+        0.1079,
+        0.1087
+      ],
+      "allocatedBytes": 3010128,
+      "gcCollections": [
+        0,
+        0,
+        0
+      ],
+      "resultCount": 204,
+      "signature": "55FC865CE9C20DD7FEA87D2FE939E37192B3662B9563E468EA33AE28AB4A52B2",
+      "acceptedFiles": 203,
+      "Run": "core-after-1"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "report",
+      "limit": 204,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        12.4324,
+        9.7019,
+        11.4851,
+        12.552,
+        10.1652,
+        10.1549,
+        10.8127,
+        10.951,
+        10.2875,
+        10.2337
+      ],
+      "firstResultMs": [
+        11.9491,
+        9.6135,
+        11.3935,
+        12.4535,
+        10.0741,
+        10.0673,
+        10.7283,
+        10.8677,
+        10.2017,
+        10.1471
+      ],
+      "allocatedBytes": 110598664,
+      "gcCollections": [
+        12,
+        12,
+        8
+      ],
+      "resultCount": 204,
+      "signature": "D73134DC54F4674A101F1602F91170FF7C3CA084713D6C47B3388D31E926652D",
+      "acceptedFiles": 204,
+      "Run": "core-after-2"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "report",
+      "limit": 2147483647,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        116.8627,
+        93.2717,
+        121.9674,
+        78.2533,
+        113.4982,
+        108.7879,
+        84.0108,
+        90.0872,
+        99.0931,
+        92.2264
+      ],
+      "firstResultMs": [
+        48.6609,
+        45.3858,
+        33.2078,
+        33.2092,
+        32.856,
+        40.475,
+        37.8805,
+        36.0131,
+        31.9049,
+        41.3954
+      ],
+      "allocatedBytes": 687603112,
+      "gcCollections": [
+        100,
+        55,
+        25
+      ],
+      "resultCount": 60000,
+      "signature": "900764EDF956BB1E85A9FE1E8A0FD7EA7AC459EEA7FB359D021B331DB0203ABD",
+      "acceptedFiles": 60000,
+      "Run": "core-after-2"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "archive report",
+      "limit": 2147483647,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        106.7947,
+        104.4552,
+        99.0946,
+        110.3725,
+        93.4837,
+        110.8951,
+        97.3751,
+        105.7498,
+        135.8945,
+        102.9538
+      ],
+      "firstResultMs": [
+        20.256,
+        15.5826,
+        12.1137,
+        12.1532,
+        11.359,
+        15.9951,
+        13.8726,
+        12.0355,
+        18.0729,
+        16.4713
+      ],
+      "allocatedBytes": 621145800,
+      "gcCollections": [
+        79,
+        34,
+        9
+      ],
+      "resultCount": 60000,
+      "signature": "F287B14B7E6259425A7DE621C6D6A5F612136A177BFD4AE7CA883175145309A6",
+      "acceptedFiles": 60000,
+      "Run": "core-after-2"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "archive\\report",
+      "limit": 2147483647,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        141.7318,
+        110.5727,
+        136.6524,
+        140.7029,
+        107.1766,
+        123.0641,
+        144.6153,
+        116.5757,
+        133.2799,
+        123.4822
+      ],
+      "firstResultMs": [
+        65.2643,
+        57.1629,
+        71.5949,
+        71.3104,
+        58.9503,
+        63.8131,
+        65.7006,
+        66.0063,
+        70.9419,
+        67.9568
+      ],
+      "allocatedBytes": 595468168,
+      "gcCollections": [
+        90,
+        37,
+        11
+      ],
+      "resultCount": 60000,
+      "signature": "932189595236FE610E24E0C0A66313CC47A860436EFE0797AFF8B440E42A89AF",
+      "acceptedFiles": 60000,
+      "Run": "core-after-2"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "archive\\report",
+      "limit": 204,
+      "filter": "*.txt",
+      "iterations": 10,
+      "elapsedMs": [
+        14.3964,
+        13.9281,
+        15.6735,
+        14.4869,
+        14.6671,
+        22.0315,
+        14.1874,
+        14.3727,
+        14.0604,
+        14.2005
+      ],
+      "firstResultMs": [
+        14.3178,
+        13.8514,
+        15.5972,
+        14.4097,
+        14.5883,
+        21.9189,
+        14.1151,
+        14.2917,
+        13.9809,
+        14.1168
+      ],
+      "allocatedBytes": 93504880,
+      "gcCollections": [
+        10,
+        3,
+        2
+      ],
+      "resultCount": 204,
+      "signature": "B7A98B42A0E5A723352499F555DCEE6436A8AB6222A614AF672E648CAFBDA20B",
+      "acceptedFiles": 204,
+      "Run": "core-after-2"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "z:\\archive000\\",
+      "limit": 204,
+      "filter": "*.txt",
+      "iterations": 10,
+      "elapsedMs": [
+        0.173,
+        0.1738,
+        0.1731,
+        0.1751,
+        0.1757,
+        0.1732,
+        0.1729,
+        0.1724,
+        0.1743,
+        0.1814
+      ],
+      "firstResultMs": [
+        0.1075,
+        0.108,
+        0.1083,
+        0.1093,
+        0.1116,
+        0.1087,
+        0.1078,
+        0.1081,
+        0.1076,
+        0.1084
+      ],
+      "allocatedBytes": 3010128,
+      "gcCollections": [
+        0,
+        0,
+        0
+      ],
+      "resultCount": 204,
+      "signature": "55FC865CE9C20DD7FEA87D2FE939E37192B3662B9563E468EA33AE28AB4A52B2",
+      "acceptedFiles": 203,
+      "Run": "core-after-2"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "report",
+      "limit": 204,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        11.0833,
+        10.6431,
+        10.3623,
+        10.1669,
+        10.7465,
+        10.5823,
+        10.851,
+        10.1598,
+        9.4204,
+        9.9908
+      ],
+      "firstResultMs": [
+        10.6031,
+        10.5609,
+        10.2763,
+        10.0881,
+        10.6639,
+        10.5,
+        10.7695,
+        10.0742,
+        9.3317,
+        9.9106
+      ],
+      "allocatedBytes": 110427512,
+      "gcCollections": [
+        14,
+        12,
+        11
+      ],
+      "resultCount": 204,
+      "signature": "D73134DC54F4674A101F1602F91170FF7C3CA084713D6C47B3388D31E926652D",
+      "acceptedFiles": 204,
+      "Run": "core-after-3"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "report",
+      "limit": 2147483647,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        78.8822,
+        109.7144,
+        95.1068,
+        103.9667,
+        117.9782,
+        94.769,
+        86.8866,
+        101.1916,
+        79.6077,
+        72.4496
+      ],
+      "firstResultMs": [
+        34.9981,
+        36.4979,
+        34.4282,
+        40.0524,
+        40.188,
+        30.4151,
+        38.3184,
+        45.5771,
+        32.619,
+        30.2898
+      ],
+      "allocatedBytes": 688615728,
+      "gcCollections": [
+        99,
+        51,
+        24
+      ],
+      "resultCount": 60000,
+      "signature": "900764EDF956BB1E85A9FE1E8A0FD7EA7AC459EEA7FB359D021B331DB0203ABD",
+      "acceptedFiles": 60000,
+      "Run": "core-after-3"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "archive report",
+      "limit": 2147483647,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        137.8289,
+        91.0945,
+        95.7528,
+        94.2926,
+        124.6906,
+        99.9858,
+        113.4721,
+        101.0418,
+        114.1368,
+        93.3505
+      ],
+      "firstResultMs": [
+        12.2446,
+        11.6349,
+        13.046,
+        13.616,
+        13.3212,
+        14.3204,
+        14.7397,
+        12.0775,
+        12.4149,
+        13.4507
+      ],
+      "allocatedBytes": 623232568,
+      "gcCollections": [
+        81,
+        38,
+        11
+      ],
+      "resultCount": 60000,
+      "signature": "F287B14B7E6259425A7DE621C6D6A5F612136A177BFD4AE7CA883175145309A6",
+      "acceptedFiles": 60000,
+      "Run": "core-after-3"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "archive\\report",
+      "limit": 2147483647,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        104.2073,
+        127.336,
+        125.7529,
+        101.2963,
+        130.0195,
+        143.0289,
+        105.9058,
+        126.0121,
+        127.4493,
+        105.3388
+      ],
+      "firstResultMs": [
+        58.2527,
+        73.6584,
+        71.0715,
+        58.7193,
+        65.1434,
+        68.6985,
+        57.98,
+        63.9151,
+        66.9792,
+        58.485
+      ],
+      "allocatedBytes": 596198728,
+      "gcCollections": [
+        87,
+        35,
+        9
+      ],
+      "resultCount": 60000,
+      "signature": "932189595236FE610E24E0C0A66313CC47A860436EFE0797AFF8B440E42A89AF",
+      "acceptedFiles": 60000,
+      "Run": "core-after-3"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "archive\\report",
+      "limit": 204,
+      "filter": "*.txt",
+      "iterations": 10,
+      "elapsedMs": [
+        14.5058,
+        14.6638,
+        19.9371,
+        14.8244,
+        14.5901,
+        16.1755,
+        15.1755,
+        14.8895,
+        13.6985,
+        13.6079
+      ],
+      "firstResultMs": [
+        14.383,
+        14.588,
+        19.8558,
+        14.7436,
+        14.513,
+        16.0981,
+        15.0987,
+        14.4937,
+        13.6188,
+        13.5258
+      ],
+      "allocatedBytes": 94927064,
+      "gcCollections": [
+        11,
+        8,
+        2
+      ],
+      "resultCount": 204,
+      "signature": "C6E224C0DD807975021EE6DF81DDD88BD515E2E08FCE6F424FE00A13FF1A73C0",
+      "acceptedFiles": 204,
+      "Run": "core-after-3"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "z:\\archive000\\",
+      "limit": 204,
+      "filter": "*.txt",
+      "iterations": 10,
+      "elapsedMs": [
+        0.1773,
+        0.1756,
+        0.1755,
+        0.1756,
+        0.1756,
+        0.1741,
+        0.1757,
+        0.18,
+        0.1782,
+        0.1835
+      ],
+      "firstResultMs": [
+        0.111,
+        0.1091,
+        0.1093,
+        0.1092,
+        0.1099,
+        0.1085,
+        0.1091,
+        0.1139,
+        0.112,
+        0.1162
+      ],
+      "allocatedBytes": 3010128,
+      "gcCollections": [
+        0,
+        0,
+        0
+      ],
+      "resultCount": 204,
+      "signature": "55FC865CE9C20DD7FEA87D2FE939E37192B3662B9563E468EA33AE28AB4A52B2",
+      "acceptedFiles": 203,
+      "Run": "core-after-3"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "report",
+      "limit": 204,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        12.7369,
+        11.4148,
+        9.4717,
+        9.5012,
+        10.0399,
+        9.6184,
+        9.3836,
+        12.169,
+        9.0109,
+        10.0449
+      ],
+      "firstResultMs": [
+        12.2398,
+        11.3284,
+        9.3895,
+        9.4089,
+        9.9589,
+        9.5376,
+        9.3042,
+        12.0855,
+        8.9267,
+        9.9661
+      ],
+      "allocatedBytes": 110489160,
+      "gcCollections": [
+        14,
+        12,
+        11
+      ],
+      "resultCount": 204,
+      "signature": "D73134DC54F4674A101F1602F91170FF7C3CA084713D6C47B3388D31E926652D",
+      "acceptedFiles": 204,
+      "Run": "core-before-1"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "report",
+      "limit": 2147483647,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        91.7465,
+        81.6398,
+        104.6726,
+        96.4492,
+        84.7119,
+        94.0815,
+        102.3907,
+        90.0651,
+        92.3188,
+        76.7139
+      ],
+      "firstResultMs": [
+        33.0865,
+        33.4324,
+        34.3527,
+        28.2336,
+        31.8449,
+        28.6238,
+        43.7876,
+        36.5377,
+        37.9598,
+        34.5162
+      ],
+      "allocatedBytes": 689464072,
+      "gcCollections": [
+        96,
+        50,
+        22
+      ],
+      "resultCount": 60000,
+      "signature": "900764EDF956BB1E85A9FE1E8A0FD7EA7AC459EEA7FB359D021B331DB0203ABD",
+      "acceptedFiles": 60000,
+      "Run": "core-before-1"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "archive report",
+      "limit": 2147483647,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        95.0274,
+        117.0232,
+        96.0931,
+        141.1781,
+        101.1288,
+        118.315,
+        97.1107,
+        114.8425,
+        95.9344,
+        139.6922
+      ],
+      "firstResultMs": [
+        11.5824,
+        21.7828,
+        11.4477,
+        12.747,
+        18.1859,
+        18.3675,
+        13.471,
+        23.4234,
+        11.2765,
+        11.9393
+      ],
+      "allocatedBytes": 620357936,
+      "gcCollections": [
+        80,
+        38,
+        10
+      ],
+      "resultCount": 60000,
+      "signature": "F287B14B7E6259425A7DE621C6D6A5F612136A177BFD4AE7CA883175145309A6",
+      "acceptedFiles": 60000,
+      "Run": "core-before-1"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "archive\\report",
+      "limit": 2147483647,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        139.0176,
+        103.325,
+        140.7774,
+        101.8696,
+        135.9917,
+        118.925,
+        101.1112,
+        142.6759,
+        111.3161,
+        129.4532
+      ],
+      "firstResultMs": [
+        65.5989,
+        56.7548,
+        76.0438,
+        60.6218,
+        67.1221,
+        57.8004,
+        56.3135,
+        62.6722,
+        71.273,
+        71.423
+      ],
+      "allocatedBytes": 623099528,
+      "gcCollections": [
+        89,
+        39,
+        11
+      ],
+      "resultCount": 60000,
+      "signature": "932189595236FE610E24E0C0A66313CC47A860436EFE0797AFF8B440E42A89AF",
+      "acceptedFiles": 60000,
+      "Run": "core-before-1"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "archive\\report",
+      "limit": 204,
+      "filter": "*.txt",
+      "iterations": 10,
+      "elapsedMs": [
+        13.8225,
+        13.7859,
+        13.9034,
+        13.8899,
+        13.924,
+        13.9928,
+        14.1342,
+        13.6385,
+        13.2814,
+        13.8028
+      ],
+      "firstResultMs": [
+        13.7442,
+        13.7038,
+        13.8179,
+        13.7712,
+        13.8442,
+        13.9109,
+        14.052,
+        13.5546,
+        13.2011,
+        13.7227
+      ],
+      "allocatedBytes": 110681296,
+      "gcCollections": [
+        11,
+        9,
+        4
+      ],
+      "resultCount": 204,
+      "signature": "2DF0563C28E698802D7DDA0B02CB115D059B3C0F16BF641CA7B1436C9D130032",
+      "acceptedFiles": 0,
+      "Run": "core-before-1"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "z:\\archive000\\",
+      "limit": 204,
+      "filter": "*.txt",
+      "iterations": 10,
+      "elapsedMs": [
+        0.1288,
+        0.1172,
+        0.1185,
+        0.1183,
+        0.1189,
+        0.1173,
+        0.1161,
+        0.1179,
+        0.1174,
+        0.116
+      ],
+      "firstResultMs": [
+        0.0633,
+        0.0523,
+        0.0534,
+        0.0525,
+        0.0526,
+        0.0532,
+        0.0519,
+        0.0526,
+        0.0525,
+        0.0517
+      ],
+      "allocatedBytes": 2524208,
+      "gcCollections": [
+        0,
+        0,
+        0
+      ],
+      "resultCount": 204,
+      "signature": "CEE30180C8E5195512D9C8AD96BB91F309F4B62920CA2172A8A95F061656C3EF",
+      "acceptedFiles": 143,
+      "Run": "core-before-1"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "report",
+      "limit": 204,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        11.2891,
+        10.4971,
+        10.8855,
+        10.2485,
+        11.4193,
+        11.3957,
+        11.1305,
+        11.4716,
+        10.4161,
+        9.2512
+      ],
+      "firstResultMs": [
+        10.7827,
+        10.4126,
+        10.8029,
+        10.167,
+        11.3371,
+        11.3102,
+        11.0432,
+        11.3889,
+        10.3319,
+        9.1686
+      ],
+      "allocatedBytes": 110582712,
+      "gcCollections": [
+        19,
+        17,
+        16
+      ],
+      "resultCount": 204,
+      "signature": "D73134DC54F4674A101F1602F91170FF7C3CA084713D6C47B3388D31E926652D",
+      "acceptedFiles": 204,
+      "Run": "core-before-2"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "report",
+      "limit": 2147483647,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        125.1559,
+        82.3725,
+        104.2281,
+        94.2814,
+        101.339,
+        98.9677,
+        95.4318,
+        78.787,
+        106.7078,
+        119.9058
+      ],
+      "firstResultMs": [
+        53.8733,
+        36.3479,
+        37.8139,
+        42.5174,
+        28.4398,
+        34.3212,
+        31.0669,
+        33.944,
+        34.4982,
+        35.9936
+      ],
+      "allocatedBytes": 692349544,
+      "gcCollections": [
+        98,
+        52,
+        24
+      ],
+      "resultCount": 60000,
+      "signature": "900764EDF956BB1E85A9FE1E8A0FD7EA7AC459EEA7FB359D021B331DB0203ABD",
+      "acceptedFiles": 60000,
+      "Run": "core-before-2"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "archive report",
+      "limit": 2147483647,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        103.5855,
+        129.3787,
+        110.3304,
+        97.0766,
+        113.729,
+        95.305,
+        99.4065,
+        99.3263,
+        116.8013,
+        105.1566
+      ],
+      "firstResultMs": [
+        11.4073,
+        16.8585,
+        18.6199,
+        15.2526,
+        15.166,
+        11.3141,
+        13.8079,
+        11.4061,
+        12.5175,
+        19.2552
+      ],
+      "allocatedBytes": 620863264,
+      "gcCollections": [
+        81,
+        36,
+        11
+      ],
+      "resultCount": 60000,
+      "signature": "F287B14B7E6259425A7DE621C6D6A5F612136A177BFD4AE7CA883175145309A6",
+      "acceptedFiles": 60000,
+      "Run": "core-before-2"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "archive\\report",
+      "limit": 2147483647,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        96.4504,
+        139.4085,
+        103.6011,
+        134.8263,
+        112.5451,
+        129.415,
+        99.5102,
+        166.1909,
+        110.3405,
+        138.6855
+      ],
+      "firstResultMs": [
+        57.1042,
+        67.7801,
+        56.6021,
+        67.3347,
+        67.0009,
+        66.5294,
+        57.1008,
+        74.5398,
+        59.6656,
+        58.7323
+      ],
+      "allocatedBytes": 622770296,
+      "gcCollections": [
+        88,
+        35,
+        10
+      ],
+      "resultCount": 60000,
+      "signature": "932189595236FE610E24E0C0A66313CC47A860436EFE0797AFF8B440E42A89AF",
+      "acceptedFiles": 60000,
+      "Run": "core-before-2"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "archive\\report",
+      "limit": 204,
+      "filter": "*.txt",
+      "iterations": 10,
+      "elapsedMs": [
+        13.0833,
+        13.4981,
+        15.1212,
+        13.1014,
+        14.5143,
+        13.0283,
+        13.6148,
+        14.1489,
+        13.7656,
+        13.6021
+      ],
+      "firstResultMs": [
+        12.995,
+        13.4117,
+        14.196,
+        13.0169,
+        14.4117,
+        12.9433,
+        13.5286,
+        14.0649,
+        13.6813,
+        13.5176
+      ],
+      "allocatedBytes": 109918464,
+      "gcCollections": [
+        9,
+        5,
+        3
+      ],
+      "resultCount": 204,
+      "signature": "2DF0563C28E698802D7DDA0B02CB115D059B3C0F16BF641CA7B1436C9D130032",
+      "acceptedFiles": 0,
+      "Run": "core-before-2"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "z:\\archive000\\",
+      "limit": 204,
+      "filter": "*.txt",
+      "iterations": 10,
+      "elapsedMs": [
+        0.1219,
+        0.1206,
+        0.1205,
+        0.1184,
+        0.12,
+        0.1193,
+        0.1212,
+        0.1307,
+        0.1212,
+        0.1215
+      ],
+      "firstResultMs": [
+        0.0538,
+        0.0535,
+        0.0544,
+        0.0528,
+        0.0528,
+        0.0527,
+        0.0537,
+        0.0632,
+        0.0534,
+        0.0533
+      ],
+      "allocatedBytes": 2524208,
+      "gcCollections": [
+        0,
+        0,
+        0
+      ],
+      "resultCount": 204,
+      "signature": "CEE30180C8E5195512D9C8AD96BB91F309F4B62920CA2172A8A95F061656C3EF",
+      "acceptedFiles": 143,
+      "Run": "core-before-2"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "report",
+      "limit": 204,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        11.5189,
+        9.4263,
+        10.3966,
+        10.743,
+        10.2153,
+        9.8522,
+        10.3648,
+        10.4209,
+        8.7911,
+        10.2514
+      ],
+      "firstResultMs": [
+        11.0067,
+        9.3356,
+        10.3145,
+        10.6535,
+        10.1331,
+        9.7668,
+        10.2866,
+        10.3422,
+        8.7044,
+        10.1677
+      ],
+      "allocatedBytes": 110490384,
+      "gcCollections": [
+        16,
+        15,
+        12
+      ],
+      "resultCount": 204,
+      "signature": "D73134DC54F4674A101F1602F91170FF7C3CA084713D6C47B3388D31E926652D",
+      "acceptedFiles": 204,
+      "Run": "core-before-3"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "report",
+      "limit": 2147483647,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        103.7876,
+        78.7553,
+        96.7199,
+        102.9097,
+        101.2844,
+        92.6486,
+        80.8059,
+        95.0122,
+        89.7714,
+        73.9211
+      ],
+      "firstResultMs": [
+        40.9613,
+        37.4807,
+        33.3219,
+        39.3786,
+        36.998,
+        30.125,
+        32.3127,
+        38.4354,
+        31.9891,
+        31.6535
+      ],
+      "allocatedBytes": 689702968,
+      "gcCollections": [
+        97,
+        50,
+        23
+      ],
+      "resultCount": 60000,
+      "signature": "900764EDF956BB1E85A9FE1E8A0FD7EA7AC459EEA7FB359D021B331DB0203ABD",
+      "acceptedFiles": 60000,
+      "Run": "core-before-3"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "archive report",
+      "limit": 2147483647,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        144.9604,
+        105.6993,
+        105.9014,
+        97.0438,
+        115.5354,
+        99.1333,
+        116.9621,
+        98.4225,
+        113.1641,
+        100.6018
+      ],
+      "firstResultMs": [
+        33.0668,
+        11.5318,
+        14.78,
+        11.6828,
+        13.0815,
+        14.3314,
+        26.3859,
+        11.1983,
+        12.7046,
+        11.4163
+      ],
+      "allocatedBytes": 621342776,
+      "gcCollections": [
+        81,
+        37,
+        11
+      ],
+      "resultCount": 60000,
+      "signature": "F287B14B7E6259425A7DE621C6D6A5F612136A177BFD4AE7CA883175145309A6",
+      "acceptedFiles": 60000,
+      "Run": "core-before-3"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "archive\\report",
+      "limit": 2147483647,
+      "filter": null,
+      "iterations": 10,
+      "elapsedMs": [
+        148.7825,
+        99.4602,
+        149.9444,
+        101.2517,
+        143.0534,
+        129.7798,
+        101.0958,
+        121.095,
+        121.5924,
+        113.1122
+      ],
+      "firstResultMs": [
+        71.2599,
+        58.7565,
+        66.6838,
+        57.4163,
+        68.6034,
+        60.5872,
+        58.2983,
+        62.638,
+        65.9885,
+        65.7824
+      ],
+      "allocatedBytes": 624302752,
+      "gcCollections": [
+        88,
+        36,
+        10
+      ],
+      "resultCount": 60000,
+      "signature": "932189595236FE610E24E0C0A66313CC47A860436EFE0797AFF8B440E42A89AF",
+      "acceptedFiles": 60000,
+      "Run": "core-before-3"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "archive\\report",
+      "limit": 204,
+      "filter": "*.txt",
+      "iterations": 10,
+      "elapsedMs": [
+        16.253,
+        16.1691,
+        16.8552,
+        14.9405,
+        14.5349,
+        14.9713,
+        13.004,
+        13.6162,
+        13.6146,
+        13.6225
+      ],
+      "firstResultMs": [
+        16.1696,
+        16.0869,
+        16.7768,
+        14.8595,
+        14.4587,
+        14.8885,
+        12.9139,
+        13.5311,
+        13.5337,
+        13.5418
+      ],
+      "allocatedBytes": 112026824,
+      "gcCollections": [
+        9,
+        5,
+        3
+      ],
+      "resultCount": 204,
+      "signature": "2DF0563C28E698802D7DDA0B02CB115D059B3C0F16BF641CA7B1436C9D130032",
+      "acceptedFiles": 0,
+      "Run": "core-before-3"
+    },
+    {
+      "scenario": "index",
+      "rows": 60000,
+      "query": "z:\\archive000\\",
+      "limit": 204,
+      "filter": "*.txt",
+      "iterations": 10,
+      "elapsedMs": [
+        0.1181,
+        0.1159,
+        0.1271,
+        0.121,
+        0.1205,
+        0.1181,
+        0.1182,
+        0.115,
+        0.5004,
+        0.1185
+      ],
+      "firstResultMs": [
+        0.0527,
+        0.0506,
+        0.0519,
+        0.0536,
+        0.0533,
+        0.0535,
+        0.0528,
+        0.0508,
+        0.4316,
+        0.0528
+      ],
+      "allocatedBytes": 2524208,
+      "gcCollections": [
+        1,
+        0,
+        0
+      ],
+      "resultCount": 204,
+      "signature": "CEE30180C8E5195512D9C8AD96BB91F309F4B62920CA2172A8A95F061656C3EF",
+      "acceptedFiles": 143,
+      "Run": "core-before-3"
+    },
+    {
+      "scenario": "cancelled-refinement",
+      "stage": "NameSearch",
+      "rows": 60000,
+      "iterations": 20,
+      "observesCancellation": true,
+      "elapsedMs": [
+        0.4183,
+        0.0283,
+        0.0203,
+        0.0139,
+        0.0158,
+        0.0183,
+        0.0289,
+        0.018,
+        0.0313,
+        0.0169,
+        0.0126,
+        0.0131,
+        0.0119,
+        0.0223,
+        0.0142,
+        0.0274,
+        0.0134,
+        0.0124,
+        0.0132,
+        0.0121
+      ],
+      "cancelled": 20,
+      "rewritten": 0,
+      "Run": "core-after-1"
+    },
+    {
+      "scenario": "cancelled-refinement",
+      "stage": "PathSearchFuzzy",
+      "rows": 60000,
+      "iterations": 20,
+      "observesCancellation": true,
+      "elapsedMs": [
+        0.0765,
+        0.0398,
+        0.037,
+        0.0136,
+        0.013,
+        0.0118,
+        0.0235,
+        0.0131,
+        0.0129,
+        0.0116,
+        0.0229,
+        0.013,
+        0.0118,
+        0.017,
+        0.0245,
+        0.034,
+        0.0144,
+        0.0381,
+        0.0319,
+        0.0161
+      ],
+      "cancelled": 20,
+      "rewritten": 0,
+      "Run": "core-after-1"
+    },
+    {
+      "scenario": "cancelled-refinement",
+      "stage": "NameSearch",
+      "rows": 60000,
+      "iterations": 20,
+      "observesCancellation": true,
+      "elapsedMs": [
+        0.4339,
+        0.0511,
+        0.02,
+        0.0202,
+        0.0297,
+        0.0437,
+        0.0498,
+        0.0613,
+        0.0414,
+        0.0256,
+        0.022,
+        0.019,
+        0.0164,
+        0.0162,
+        0.0384,
+        0.0285,
+        0.0401,
+        0.0357,
+        0.0348,
+        0.0242
+      ],
+      "cancelled": 20,
+      "rewritten": 0,
+      "Run": "core-after-2"
+    },
+    {
+      "scenario": "cancelled-refinement",
+      "stage": "PathSearchFuzzy",
+      "rows": 60000,
+      "iterations": 20,
+      "observesCancellation": true,
+      "elapsedMs": [
+        0.058,
+        0.0342,
+        0.0365,
+        0.0275,
+        0.0757,
+        0.0248,
+        0.0214,
+        0.0188,
+        0.0124,
+        0.0191,
+        0.0138,
+        0.0265,
+        0.0135,
+        0.0143,
+        0.0246,
+        0.0136,
+        0.0239,
+        0.0151,
+        0.0259,
+        0.0175
+      ],
+      "cancelled": 20,
+      "rewritten": 0,
+      "Run": "core-after-2"
+    },
+    {
+      "scenario": "cancelled-refinement",
+      "stage": "NameSearch",
+      "rows": 60000,
+      "iterations": 20,
+      "observesCancellation": true,
+      "elapsedMs": [
+        0.3952,
+        0.0271,
+        0.014,
+        0.0312,
+        0.0151,
+        0.0288,
+        0.0159,
+        0.0232,
+        0.0132,
+        0.0135,
+        0.0137,
+        0.0278,
+        0.0141,
+        0.0282,
+        0.0204,
+        0.0126,
+        0.0141,
+        0.0123,
+        0.0227,
+        0.0276
+      ],
+      "cancelled": 20,
+      "rewritten": 0,
+      "Run": "core-after-3"
+    },
+    {
+      "scenario": "cancelled-refinement",
+      "stage": "PathSearchFuzzy",
+      "rows": 60000,
+      "iterations": 20,
+      "observesCancellation": true,
+      "elapsedMs": [
+        0.0466,
+        0.0157,
+        0.0124,
+        0.0305,
+        0.0364,
+        0.0223,
+        0.0143,
+        0.0197,
+        0.0125,
+        0.0127,
+        0.0297,
+        0.0162,
+        0.0271,
+        0.0135,
+        0.0126,
+        0.0525,
+        0.0308,
+        0.0294,
+        0.0182,
+        0.0352
+      ],
+      "cancelled": 20,
+      "rewritten": 0,
+      "Run": "core-after-3"
+    },
+    {
+      "scenario": "cancelled-refinement",
+      "stage": "NameSearch",
+      "rows": 60000,
+      "iterations": 20,
+      "observesCancellation": false,
+      "elapsedMs": [
+        27.6921,
+        21.5515,
+        26.2867,
+        20.4614,
+        27.008,
+        24.5687,
+        23.3469,
+        25.3471,
+        22.322,
+        22.9972,
+        23.4121,
+        23.659,
+        24.4697,
+        20.0213,
+        30.2014,
+        21.9577,
+        24.666,
+        19.4425,
+        27.0715,
+        23.2913
+      ],
+      "cancelled": 0,
+      "rewritten": 1200000,
+      "Run": "core-before-1"
+    },
+    {
+      "scenario": "cancelled-refinement",
+      "stage": "PathSearchFuzzy",
+      "rows": 60000,
+      "iterations": 20,
+      "observesCancellation": false,
+      "elapsedMs": [
+        16.6334,
+        15.3273,
+        16.2462,
+        16.3949,
+        17.2403,
+        15.1786,
+        16.2776,
+        15.6984,
+        16.9631,
+        17.8477,
+        18.625,
+        16.2473,
+        15.9096,
+        18.2995,
+        16.9367,
+        17.1198,
+        16.7417,
+        16.6667,
+        16.1103,
+        18.5795
+      ],
+      "cancelled": 0,
+      "rewritten": 1200000,
+      "Run": "core-before-1"
+    },
+    {
+      "scenario": "cancelled-refinement",
+      "stage": "NameSearch",
+      "rows": 60000,
+      "iterations": 20,
+      "observesCancellation": false,
+      "elapsedMs": [
+        27.8763,
+        19.8739,
+        23.8077,
+        24.3484,
+        29.6997,
+        25.2217,
+        24.6857,
+        27.5096,
+        25.7391,
+        30.0403,
+        27.5649,
+        21.0762,
+        22.7471,
+        29.9092,
+        25.1039,
+        26.3833,
+        27.2527,
+        19.1303,
+        25.7476,
+        24.3478
+      ],
+      "cancelled": 0,
+      "rewritten": 1200000,
+      "Run": "core-before-2"
+    },
+    {
+      "scenario": "cancelled-refinement",
+      "stage": "PathSearchFuzzy",
+      "rows": 60000,
+      "iterations": 20,
+      "observesCancellation": false,
+      "elapsedMs": [
+        25.9043,
+        18.3366,
+        17.6475,
+        16.1704,
+        17.7352,
+        16.4012,
+        21.0418,
+        17.705,
+        17.6879,
+        18.2946,
+        20.8458,
+        18.9501,
+        16.6359,
+        16.8614,
+        16.6631,
+        16.999,
+        20.172,
+        19.0698,
+        18.2533,
+        19.1389
+      ],
+      "cancelled": 0,
+      "rewritten": 1200000,
+      "Run": "core-before-2"
+    },
+    {
+      "scenario": "cancelled-refinement",
+      "stage": "NameSearch",
+      "rows": 60000,
+      "iterations": 20,
+      "observesCancellation": false,
+      "elapsedMs": [
+        25.1045,
+        19.94,
+        23.2418,
+        19.7221,
+        27.7776,
+        24.3164,
+        22.6699,
+        26.9006,
+        24.4097,
+        22.9522,
+        23.3674,
+        24.0916,
+        23.67,
+        22.2155,
+        25.5841,
+        21.7861,
+        24.2003,
+        20.5118,
+        26.5975,
+        25.9812
+      ],
+      "cancelled": 0,
+      "rewritten": 1200000,
+      "Run": "core-before-3"
+    },
+    {
+      "scenario": "cancelled-refinement",
+      "stage": "PathSearchFuzzy",
+      "rows": 60000,
+      "iterations": 20,
+      "observesCancellation": false,
+      "elapsedMs": [
+        17.6125,
+        16.4992,
+        17.1789,
+        17.3169,
+        17.5202,
+        17.4157,
+        19.9683,
+        15.4747,
+        18.3237,
+        15.8511,
+        16.8316,
+        16.5597,
+        15.5457,
+        18.6246,
+        17.4199,
+        17.6564,
+        16.5019,
+        16.6078,
+        19.9455,
+        17.4161
+      ],
+      "cancelled": 0,
+      "rewritten": 1200000,
+      "Run": "core-before-3"
+    },
+    {
+      "scenario": "sidebar-sort-reconcile",
+      "rows": 100000,
+      "iterations": 20,
+      "elapsedMs": 353.1523,
+      "allocatedBytes": 7217160,
+      "renders": 20,
+      "sorts": 20,
+      "resets": 0,
+      "resultCount": 10000,
+      "signature": "5538602C7FFA20915C437C185B29DC49A1583E3359275BB4FB1D76CE2E0CB5B6",
+      "Run": "app-after-1"
+    },
+    {
+      "scenario": "sidebar-sort-reconcile",
+      "rows": 20000,
+      "iterations": 20,
+      "elapsedMs": 48.2064,
+      "allocatedBytes": 1457160,
+      "renders": 20,
+      "sorts": 20,
+      "resets": 0,
+      "resultCount": 2000,
+      "signature": "43BD08F93B721F195E3B6982445B1FC8314AFFDE27363A2FB7D9F94E0B1FC4C1",
+      "Run": "app-after-1"
+    },
+    {
+      "scenario": "sidebar-sort-reconcile",
+      "rows": 20000,
+      "iterations": 20,
+      "elapsedMs": 54.5542,
+      "allocatedBytes": 1459128,
+      "renders": 20,
+      "sorts": 20,
+      "resets": 0,
+      "resultCount": 2000,
+      "signature": "43BD08F93B721F195E3B6982445B1FC8314AFFDE27363A2FB7D9F94E0B1FC4C1",
+      "Run": "app-after-2"
+    },
+    {
+      "scenario": "sidebar-sort-reconcile",
+      "rows": 100000,
+      "iterations": 20,
+      "elapsedMs": 357.0621,
+      "allocatedBytes": 7217160,
+      "renders": 20,
+      "sorts": 20,
+      "resets": 0,
+      "resultCount": 10000,
+      "signature": "5538602C7FFA20915C437C185B29DC49A1583E3359275BB4FB1D76CE2E0CB5B6",
+      "Run": "app-after-2"
+    },
+    {
+      "scenario": "sidebar-sort-reconcile",
+      "rows": 100000,
+      "iterations": 20,
+      "elapsedMs": 340.1469,
+      "allocatedBytes": 7217160,
+      "renders": 20,
+      "sorts": 20,
+      "resets": 0,
+      "resultCount": 10000,
+      "signature": "5538602C7FFA20915C437C185B29DC49A1583E3359275BB4FB1D76CE2E0CB5B6",
+      "Run": "app-after-3"
+    },
+    {
+      "scenario": "sidebar-sort-reconcile",
+      "rows": 20000,
+      "iterations": 20,
+      "elapsedMs": 43.7786,
+      "allocatedBytes": 1457160,
+      "renders": 20,
+      "sorts": 20,
+      "resets": 0,
+      "resultCount": 2000,
+      "signature": "43BD08F93B721F195E3B6982445B1FC8314AFFDE27363A2FB7D9F94E0B1FC4C1",
+      "Run": "app-after-3"
+    },
+    {
+      "scenario": "sidebar-sort-reconcile",
+      "rows": 20000,
+      "iterations": 20,
+      "elapsedMs": 522.453,
+      "allocatedBytes": 12687312,
+      "renders": 40,
+      "sorts": 40,
+      "resets": 40,
+      "resultCount": 2000,
+      "signature": "43BD08F93B721F195E3B6982445B1FC8314AFFDE27363A2FB7D9F94E0B1FC4C1",
+      "Run": "app-before-1"
+    },
+    {
+      "scenario": "sidebar-sort-reconcile",
+      "rows": 100000,
+      "iterations": 20,
+      "elapsedMs": 3310.8534,
+      "allocatedBytes": 63255432,
+      "renders": 40,
+      "sorts": 40,
+      "resets": 40,
+      "resultCount": 10000,
+      "signature": "5538602C7FFA20915C437C185B29DC49A1583E3359275BB4FB1D76CE2E0CB5B6",
+      "Run": "app-before-1"
+    },
+    {
+      "scenario": "sidebar-sort-reconcile",
+      "rows": 100000,
+      "iterations": 20,
+      "elapsedMs": 3331.7599,
+      "allocatedBytes": 63255432,
+      "renders": 40,
+      "sorts": 40,
+      "resets": 40,
+      "resultCount": 10000,
+      "signature": "5538602C7FFA20915C437C185B29DC49A1583E3359275BB4FB1D76CE2E0CB5B6",
+      "Run": "app-before-2"
+    },
+    {
+      "scenario": "sidebar-sort-reconcile",
+      "rows": 20000,
+      "iterations": 20,
+      "elapsedMs": 524.1025,
+      "allocatedBytes": 12687368,
+      "renders": 40,
+      "sorts": 40,
+      "resets": 40,
+      "resultCount": 2000,
+      "signature": "43BD08F93B721F195E3B6982445B1FC8314AFFDE27363A2FB7D9F94E0B1FC4C1",
+      "Run": "app-before-2"
+    },
+    {
+      "scenario": "sidebar-sort-reconcile",
+      "rows": 20000,
+      "iterations": 20,
+      "elapsedMs": 517.2553,
+      "allocatedBytes": 12687368,
+      "renders": 40,
+      "sorts": 40,
+      "resets": 40,
+      "resultCount": 2000,
+      "signature": "43BD08F93B721F195E3B6982445B1FC8314AFFDE27363A2FB7D9F94E0B1FC4C1",
+      "Run": "app-before-3"
+    },
+    {
+      "scenario": "sidebar-sort-reconcile",
+      "rows": 100000,
+      "iterations": 20,
+      "elapsedMs": 3295.6344,
+      "allocatedBytes": 63255512,
+      "renders": 40,
+      "sorts": 40,
+      "resets": 40,
+      "resultCount": 10000,
+      "signature": "5538602C7FFA20915C437C185B29DC49A1583E3359275BB4FB1D76CE2E0CB5B6",
+      "Run": "app-before-3"
+    }
+  ],
+  "EarlierComparisonSummary": [
+    {
+      "Scenario": "cancelled-refinement|NameSearch|||60000|after",
+      "Samples": 60,
+      "MedianMs": 0.0209,
+      "P95Ms": 0.0574,
+      "FirstMedianMs": null,
+      "BytesPerQuery": null,
+      "ResultCount": null,
+      "AcceptedFiles": null,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [],
+      "Cancelled": 20,
+      "Rewritten": 0
+    },
+    {
+      "Scenario": "cancelled-refinement|NameSearch|||60000|before",
+      "Samples": 60,
+      "MedianMs": 24.0722,
+      "P95Ms": 29.4149,
+      "FirstMedianMs": null,
+      "BytesPerQuery": null,
+      "ResultCount": null,
+      "AcceptedFiles": null,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [],
+      "Cancelled": 0,
+      "Rewritten": 1200000
+    },
+    {
+      "Scenario": "cancelled-refinement|PathSearchFuzzy|||60000|after",
+      "Samples": 60,
+      "MedianMs": 0.0179,
+      "P95Ms": 0.0526,
+      "FirstMedianMs": null,
+      "BytesPerQuery": null,
+      "ResultCount": null,
+      "AcceptedFiles": null,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [],
+      "Cancelled": 20,
+      "Rewritten": 0
+    },
+    {
+      "Scenario": "cancelled-refinement|PathSearchFuzzy|||60000|before",
+      "Samples": 60,
+      "MedianMs": 16.664,
+      "P95Ms": 20.0925,
+      "FirstMedianMs": null,
+      "BytesPerQuery": null,
+      "ResultCount": null,
+      "AcceptedFiles": null,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [],
+      "Cancelled": 0,
+      "Rewritten": 1200000
+    },
+    {
+      "Scenario": "index||archive report|2147483647|60000|after",
+      "Samples": 30,
+      "MedianMs": 100.288,
+      "P95Ms": 128.5005,
+      "FirstMedianMs": 13.5497,
+      "BytesPerQuery": 62308276,
+      "ResultCount": 60000,
+      "AcceptedFiles": 60000,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "F287B14B7E6259425A7DE621C6D6A5F612136A177BFD4AE7CA883175145309A6"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "index||archive report|2147483647|60000|before",
+      "Samples": 30,
+      "MedianMs": 102.2546,
+      "P95Ms": 137.1849,
+      "FirstMedianMs": 13.4864,
+      "BytesPerQuery": 62312207,
+      "ResultCount": 60000,
+      "AcceptedFiles": 60000,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "F287B14B7E6259425A7DE621C6D6A5F612136A177BFD4AE7CA883175145309A6"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "index||archive\\report|204|60000|after",
+      "Samples": 30,
+      "MedianMs": 18.0988,
+      "P95Ms": 29.7699,
+      "FirstMedianMs": 18.0248,
+      "BytesPerQuery": 20194902,
+      "ResultCount": 204,
+      "AcceptedFiles": 204,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "0ADACA9B017B50832832BB2E7387D02B34D5EE57A7BEF6F2408461A19D5A52C2",
+        "1858F7DF95060373506F799F7104F851C2CBDB4880C02D86F965E4632E3D09E6"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "index||archive\\report|204|60000|before",
+      "Samples": 30,
+      "MedianMs": 13.6372,
+      "P95Ms": 15.5821,
+      "FirstMedianMs": 13.5537,
+      "BytesPerQuery": 11022456,
+      "ResultCount": 204,
+      "AcceptedFiles": 0,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "2DF0563C28E698802D7DDA0B02CB115D059B3C0F16BF641CA7B1436C9D130032"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "index||report|204|60000|after",
+      "Samples": 30,
+      "MedianMs": 11.2092,
+      "P95Ms": 15.4219,
+      "FirstMedianMs": 11.1294,
+      "BytesPerQuery": 10706114,
+      "ResultCount": 204,
+      "AcceptedFiles": 204,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "D73134DC54F4674A101F1602F91170FF7C3CA084713D6C47B3388D31E926652D"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "index||report|204|60000|before",
+      "Samples": 30,
+      "MedianMs": 10.079,
+      "P95Ms": 11.1668,
+      "FirstMedianMs": 9.9996,
+      "BytesPerQuery": 11049121,
+      "ResultCount": 204,
+      "AcceptedFiles": 204,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "D73134DC54F4674A101F1602F91170FF7C3CA084713D6C47B3388D31E926652D"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "index||report|2147483647|60000|after",
+      "Samples": 30,
+      "MedianMs": 90.5578,
+      "P95Ms": 115.1816,
+      "FirstMedianMs": 33.8654,
+      "BytesPerQuery": 68853600,
+      "ResultCount": 60000,
+      "AcceptedFiles": 60000,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "900764EDF956BB1E85A9FE1E8A0FD7EA7AC459EEA7FB359D021B331DB0203ABD"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "index||report|2147483647|60000|before",
+      "Samples": 30,
+      "MedianMs": 94.4689,
+      "P95Ms": 112.6525,
+      "FirstMedianMs": 33.9972,
+      "BytesPerQuery": 68760725,
+      "ResultCount": 60000,
+      "AcceptedFiles": 60000,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "900764EDF956BB1E85A9FE1E8A0FD7EA7AC459EEA7FB359D021B331DB0203ABD"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "index||z:\\archive000\\|204|60000|after",
+      "Samples": 30,
+      "MedianMs": 0.1718,
+      "P95Ms": 0.2122,
+      "FirstMedianMs": 0.1066,
+      "BytesPerQuery": 301013,
+      "ResultCount": 204,
+      "AcceptedFiles": 203,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "55FC865CE9C20DD7FEA87D2FE939E37192B3662B9563E468EA33AE28AB4A52B2"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "index||z:\\archive000\\|204|60000|before",
+      "Samples": 30,
+      "MedianMs": 0.119,
+      "P95Ms": 0.2028,
+      "FirstMedianMs": 0.0532,
+      "BytesPerQuery": 252421,
+      "ResultCount": 204,
+      "AcceptedFiles": 143,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "CEE30180C8E5195512D9C8AD96BB91F309F4B62920CA2172A8A95F061656C3EF"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "sidebar-sort-reconcile||||100000|after",
+      "Samples": 3,
+      "MedianMs": 380.2083,
+      "P95Ms": 405.3234,
+      "FirstMedianMs": null,
+      "BytesPerQuery": 360858,
+      "ResultCount": 10000,
+      "AcceptedFiles": null,
+      "Sorts": 20,
+      "Renders": 20,
+      "Resets": 0,
+      "Signatures": [
+        "5538602C7FFA20915C437C185B29DC49A1583E3359275BB4FB1D76CE2E0CB5B6"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "sidebar-sort-reconcile||||100000|before",
+      "Samples": 3,
+      "MedianMs": 3304.5441,
+      "P95Ms": 3461.9149,
+      "FirstMedianMs": null,
+      "BytesPerQuery": 3162772,
+      "ResultCount": 10000,
+      "AcceptedFiles": null,
+      "Sorts": 40,
+      "Renders": 40,
+      "Resets": 40,
+      "Signatures": [
+        "5538602C7FFA20915C437C185B29DC49A1583E3359275BB4FB1D76CE2E0CB5B6"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "sidebar-sort-reconcile||||20000|after",
+      "Samples": 3,
+      "MedianMs": 48.103,
+      "P95Ms": 66.3724,
+      "FirstMedianMs": null,
+      "BytesPerQuery": 72858,
+      "ResultCount": 2000,
+      "AcceptedFiles": null,
+      "Sorts": 20,
+      "Renders": 20,
+      "Resets": 0,
+      "Signatures": [
+        "43BD08F93B721F195E3B6982445B1FC8314AFFDE27363A2FB7D9F94E0B1FC4C1"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "sidebar-sort-reconcile||||20000|before",
+      "Samples": 3,
+      "MedianMs": 539.5448,
+      "P95Ms": 578.0732,
+      "FirstMedianMs": null,
+      "BytesPerQuery": 634368,
+      "ResultCount": 2000,
+      "AcceptedFiles": null,
+      "Sorts": 40,
+      "Renders": 40,
+      "Resets": 40,
+      "Signatures": [
+        "43BD08F93B721F195E3B6982445B1FC8314AFFDE27363A2FB7D9F94E0B1FC4C1"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    }
+  ],
+  "IntermediatePathSummary": [
+    {
+      "Scenario": "index||archive\\report|204|60000|after",
+      "Samples": 30,
+      "MedianMs": 16.3944,
+      "P95Ms": 24.6094,
+      "FirstMedianMs": 16.317,
+      "BytesPerQuery": 16652354,
+      "ResultCount": 204,
+      "AcceptedFiles": 204,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "0ADACA9B017B50832832BB2E7387D02B34D5EE57A7BEF6F2408461A19D5A52C2",
+        "AA69D9817FA7B5CD2F2DE17FBB5525102C8C512980D9C1F6B78499857EBA31FB",
+        "B7A98B42A0E5A723352499F555DCEE6436A8AB6222A614AF672E648CAFBDA20B"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    },
+    {
+      "Scenario": "index||archive\\report|204|60000|before",
+      "Samples": 30,
+      "MedianMs": 14.039,
+      "P95Ms": 17.6648,
+      "FirstMedianMs": 13.9551,
+      "BytesPerQuery": 11065074,
+      "ResultCount": 204,
+      "AcceptedFiles": 0,
+      "Sorts": null,
+      "Renders": null,
+      "Resets": null,
+      "Signatures": [
+        "2DF0563C28E698802D7DDA0B02CB115D059B3C0F16BF641CA7B1436C9D130032"
+      ],
+      "Cancelled": null,
+      "Rewritten": null
+    }
+  ]
+}

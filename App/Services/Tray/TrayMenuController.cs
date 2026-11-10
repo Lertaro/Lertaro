@@ -7,6 +7,7 @@ using Lertaro.Core;
 using Lertaro.App.Helpers.Visuals;
 using Lertaro.App.Services.ShellMenu.ActionFlyout;
 using Lertaro.App.Services.ShellMenu.QuickNav;
+using Lertaro.App.Views.Controls.Dialogs;
 using MenuItem = System.Windows.Controls.MenuItem;
 using Menu = System.Windows.Controls.Menu;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
@@ -22,6 +23,8 @@ namespace Lertaro.App.Services.Tray;
 // window cannot render subpixel antialiasing, which is why every row of the old tray menu read gray.
 internal sealed class TrayMenuController : IDisposable
 {
+    private sealed class TrayAnchorWindow : Window, ITransientHostWindow { }
+
     private readonly Action _visibilityChanged;
     private Menu? _menu;
     private Popup? _popup;
@@ -75,7 +78,7 @@ internal sealed class TrayMenuController : IDisposable
         // which cascades the window near the top-left of the screen instead of under the menu -- see
         // WindowParking.Park's own note on that. Parked, then shown, then landed: the handle a physical
         // placement needs does not exist until after Show, and nothing is painted in between.
-        _anchor = new Window
+        _anchor = new TrayAnchorWindow
         {
             Width = 1,
             Height = 1,

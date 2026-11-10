@@ -42,8 +42,8 @@ internal static class FzfCharTables
         => BonusTable[(int)scheme][(previousClass << 3) | currentClass];
 
     public static bool CharsEqual(char text, char pattern, bool caseSensitive)
-        => caseSensitive ? text == pattern : ToLower(text) == pattern;
+        => caseSensitive ? text == pattern : ToLower(text) == ToLower(pattern);
 
     public static bool CharsEqual(byte text, byte pattern, bool caseSensitive)
-        => caseSensitive ? text == pattern : ToLower(text) == pattern;
+        => caseSensitive ? text == pattern : ToLower(text) == ToLower(pattern);
 }
