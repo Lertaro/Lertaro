@@ -118,6 +118,11 @@ public static class SearchStreamPump
             {
                 queryCts.Cancel();
             }
+            catch (Exception ex) when (SearchRegexTimeoutException.IsTimeout(ex))
+            {
+                queryCts.Cancel();
+                await SearchResponseBinarySerializer.WriteRegexTimeoutAsync(bufferedStream, token).ConfigureAwait(false);
+            }
             catch (Exception ex)
             {
                 queryCts.Cancel();

@@ -7,8 +7,8 @@ public static class SearchResponseBinarySerializer
 {
     private const int Magic = 0x53524C53; // SLRS
     // v4: gained Size/Created/Modified/Accessed (SearchResult.Metadata); v5: gained Attributes;
-    // v6: gained the NotIndexed frame.
-    private const int Version = 6;
+    // v6: NotIndexed; v7: query regex timeout (never a successful partial result stream).
+    private const int Version = 7;
     private const byte EndFrame = 0;
     private const byte FileResultFrame = 1;
     private const byte AppResultFrame = 2;
@@ -16,6 +16,7 @@ public static class SearchResponseBinarySerializer
     // of zero results is indistinguishable from. Only ever written for EnumerateDir, whose caller has a
     // real filesystem walk to fall back to; a search has nowhere to fall back to and never sends it.
     private const byte NotIndexedFrame = 3;
+    private const byte RegexTimeoutFrame = 4;
     private const byte HeaderFrame = 255;
 
     public static async Task WriteHeaderAsync(Stream stream, CancellationToken token = default)
@@ -47,6 +48,9 @@ public static class SearchResponseBinarySerializer
 
     public static Task WriteNotIndexedAsync(Stream stream, CancellationToken token = default)
         => WriteEmptyFrameAsync(stream, NotIndexedFrame, token);
+
+    public static Task WriteRegexTimeoutAsync(Stream stream, CancellationToken token = default)
+        => WriteEmptyFrameAsync(stream, RegexTimeoutFrame, token);
 
     private static async Task WriteEmptyFrameAsync(Stream stream, byte frame, CancellationToken token)
     {
@@ -114,6 +118,9 @@ public static class SearchResponseBinarySerializer
                     onNotIndexed?.Invoke();
                     continue;
                 }
+
+                if (frameType == RegexTimeoutFrame)
+                    throw new SearchIndex.SearchRegexTimeoutException();
 
                 throw new InvalidDataException($"Unknown search response frame: {frameType}.");
             }

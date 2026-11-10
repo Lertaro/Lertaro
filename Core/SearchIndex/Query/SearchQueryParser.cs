@@ -4,7 +4,6 @@ public static class SearchQueryParser
 {
     public static ParsedSearchQuery Parse(string query)
     {
-        query = Lertaro.Core.SearchIndex.SearchTextNormalizer.Normalize(query);
 
         // Regex clauses are lifted out BEFORE the path judgement, because they are full of the very
         // characters that decide path mode below: "/\.exe$/" contains a backslash and "/^a\/b/" a slash, and
@@ -12,6 +11,7 @@ public static class SearchQueryParser
         // cannot exist, dropping every result. The rest of the query is what actually gets searched, so that
         // is what the path/name decision has to be made from.
         var withoutRegexes = RegexQueryParser.Split(query, out var regexes);
+        withoutRegexes = SearchTextNormalizer.Normalize(withoutRegexes);
 
         var normalizedQuery = NormalizePathSeparators(withoutRegexes.Trim()).ToLowerInvariant();
         if (ContainsPathSeparator(normalizedQuery))

@@ -46,6 +46,15 @@ internal sealed class FzfPattern
     private FzfPattern? _aliasReading;
     internal FzfPattern AliasReading => _aliasReading ??= FzfPatternAliasReading.Build(this);
 
+    private FzfPattern? _positiveTerms;
+    // Catalog aliases answer only positive words, after the title passed the name-level veto.
+    internal FzfPattern PositiveTerms => !HasExclusions && Regexes is not { Length: > 0 } ? this : _positiveTerms ??= new(TargetDrive,
+        Positives(TermSets), OrGroups?.Select(group => new FzfTermGroup(Positives(group.Sets))).ToArray());
+
+    private static FzfTermSet[] Positives(FzfTermSet[] sets) => sets
+        .Select(set => new FzfTermSet(set.Terms.Where(term => !term.Inverse).ToArray()))
+        .Where(set => set.Terms.Length > 0).ToArray();
+
     // This pattern read by the byte-side matchers (see FzfBytePattern), built on demand for the same reason
     // as AliasReading: the tiers that reach it already hold a pattern, not a second pre-encoded object, and
     // one pattern serves every candidate of a query.
@@ -98,7 +107,7 @@ internal sealed class FzfPattern
             // contributes nothing and cannot weaken the others, since it never becomes the longest. The
             // caller folds the ONE string this returns into the same character mask the terms use, so no
             // per-clause mask ever exists.
-            if (literal.Length > best.Length)
+            if (literal.Length > best.Length && SearchTextNormalizer.Normalize(literal) == literal)
                 best = literal;
         }
 
@@ -244,8 +253,8 @@ internal sealed class FzfPattern
     // The matching itself lives in FzfPatternMatcher (a static helper taking this pattern as a per-call
     // parameter), split out to keep this file under the repository's per-file line limit. This stays the
     // entry point every consumer already calls.
-    public bool TryMatch(ReadOnlySpan<char> text, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab = null)
-        => FzfPatternMatcher.TryMatch(this, text, out result, scheme, slab);
+    public bool TryMatch(ReadOnlySpan<char> text, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab = null, ReadOnlySpan<char> originalName = default)
+        => FzfPatternMatcher.TryMatch(this, text, out result, scheme, slab, originalName);
 
     /// <summary>
     /// Matches a candidate's <paramref name="alias"/> (a pinyin/simplified spelling a provider baked
@@ -259,6 +268,6 @@ internal sealed class FzfPattern
     /// absent by construction, and so hand back a file the user explicitly excluded. Pass the name
     /// itself as <paramref name="name"/> when the candidate has no separate alias text.
     /// </remarks>
-    public bool TryMatchAlias(ReadOnlySpan<char> alias, ReadOnlySpan<char> name, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab = null)
-        => FzfPatternMatcher.TryMatchAlias(this, alias, name, out result, scheme, slab);
+    public bool TryMatchAlias(ReadOnlySpan<char> alias, ReadOnlySpan<char> name, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab = null, ReadOnlySpan<char> originalName = default)
+        => FzfPatternMatcher.TryMatchAlias(this, alias, name, out result, scheme, slab, originalName);
 }

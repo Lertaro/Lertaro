@@ -9,9 +9,7 @@ internal static class FzfPatternParser
 {
     public static FzfPattern Parse(string query)
     {
-        // Fold full-width IME output and NFD before operators, spaces and drive prefixes are parsed, so a
-        // full-width colon or space cannot change the query's meaning.
-        query = SearchTextNormalizer.Normalize(query);
+        // Extract regex before folding ordinary IME text; regex literals and escapes use original characters.
         var text = RegexQueryParser.Split(query, out var regexes);
         return ParseCore(text, regexes);
     }
@@ -24,6 +22,7 @@ internal static class FzfPatternParser
 
     private static FzfPattern ParseCore(string text, string[]? regexes)
     {
+        text = SearchTextNormalizer.Normalize(text);
         string? targetDrive = null;
         var terms = new List<string>();
         foreach (var rawTerm in text.Trim().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))

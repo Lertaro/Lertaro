@@ -90,7 +90,7 @@ internal static class SearchMatcherAliasExtensions
     // SearchContext.DisabledAliasIds and the IsAcceptableAliasMatch quality gate. An ASCII alias decodes
     // too when the query carries a regex clause, which the byte matcher cannot apply at all -- or an
     // exclusion, which the byte matcher would evaluate against the ALIAS instead of `name`.
-    internal static bool TryMatchAliases(Snapshot snapshot, SearchMatcher.QueryContext ctx, int uid, SearchMatcher.Worker worker, ReadOnlySpan<char> name, out FzfPatternResult best)
+    internal static bool TryMatchAliases(Snapshot snapshot, SearchMatcher.QueryContext ctx, int uid, SearchMatcher.Worker worker, ReadOnlySpan<char> name, out FzfPatternResult best, ReadOnlySpan<char> originalName = default)
     {
         best = default;
         var matched = false;
@@ -141,7 +141,7 @@ internal static class SearchMatcherAliasExtensions
                 if (worker.AliasScratch.Length < aliasUtf8.Length)
                     worker.AliasScratch = new char[Math.Max(aliasUtf8.Length, worker.AliasScratch.Length * 2)];
                 decodedLength = Encoding.UTF8.GetChars(aliasUtf8, worker.AliasScratch);
-                hit = aliasPattern.TryMatchAlias(worker.AliasScratch.AsSpan(0, decodedLength), name, out aliasMatch, FzfScoringScheme.Default, worker.Slab);
+                hit = aliasPattern.TryMatchAlias(worker.AliasScratch.AsSpan(0, decodedLength), name, out aliasMatch, FzfScoringScheme.Default, worker.Slab, originalName);
             }
 
             if (hit)

@@ -47,14 +47,15 @@ public static class FuzzyMatcher
         pinyinWitness = default;
         if (fzf.IsEmpty || string.IsNullOrEmpty(text))
             return false;
+        var originalName = text;
         text = SearchTextNormalizer.Normalize(text);
         var live = PinyinNameEvaluator.ForPattern(fzf);
         if (live.HasProviders)
         {
-            if (live.TryScore(text, null, out _, out pinyinWitness))
+            if (live.TryScore(text, null, out _, out pinyinWitness, originalName))
                 return true;
         }
-        else if (fzf.TryMatch(text, out _, FzfScoringScheme.Default))
+        else if (fzf.TryMatch(text, out _, FzfScoringScheme.Default, originalName: originalName))
         {
             return true;
         }
@@ -66,7 +67,7 @@ public static class FuzzyMatcher
             return false;
         if (fzf.HasExclusions && !fzf.ExclusionsPass(text))
             return false;
-        if (fzf.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, text))
+        if (fzf.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, originalName))
             return false;
 
         var disabledIds = SearchContext.DisabledAliasIds;
@@ -93,7 +94,7 @@ public static class FuzzyMatcher
                 // that describe the candidate itself -- `:term` and any `/.../` -- still read `text`, which
                 // here IS the name. Answering them off the alias would let ':term' pass on the alias's own
                 // silence and hand back a name the user excluded (see FzfPattern.TryMatchAlias).
-                if (!aliasPattern.TryMatchAlias(alias, text, out var aliasMatch, FzfScoringScheme.Default))
+                if (!aliasPattern.TryMatchAlias(alias, text, out var aliasMatch, FzfScoringScheme.Default, originalName: originalName))
                     continue;
 
                 // A precise query must not match a full transliteration mid-syllable -- see

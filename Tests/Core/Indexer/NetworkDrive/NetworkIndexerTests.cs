@@ -28,6 +28,18 @@ public sealed class NetworkIndexerTests
     }
 
     [TestMethod]
+    [DataRow(10)]
+    [DataRow(int.MaxValue)]
+    public void SearchSnapshots_RegexTimeoutFailsTheWholeQuery(int limit)
+    {
+        using var first = NetworkIndex.FromStore(BuildShareStore("Y", new string('a', 30) + "!"));
+        using var second = NetworkIndex.FromStore(BuildShareStore("Z", "a"));
+        const string query = @"/^(?=(a+)+$)/";
+        var error = Assert.Throws<Exception>(() => NetworkIndexerSearchExtensions.SearchSnapshots(
+            [first, second], SearchQueryParser.Parse(query), query, null, limit, _ => { }, CancellationToken.None));
+        Assert.IsTrue(Core.SearchIndex.SearchRegexTimeoutException.IsTimeout(error));
+    }
+    [TestMethod]
     [DataRow(1)]
     [DataRow(2)]
     [DataRow(int.MaxValue)]

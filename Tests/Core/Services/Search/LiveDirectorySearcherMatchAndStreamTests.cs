@@ -10,6 +10,32 @@ namespace Lertaro.Core.Tests.Services.Search;
 public sealed class LiveDirectorySearcherMatchAndStreamTests
 {
     [TestMethod]
+    [DataRow("z: report", 1)]
+    [DataRow("z:", 1)]
+    [DataRow("y: report", 0)]
+    [DataRow(":", 0)]
+    public void MatchAndStream_FullQuery_HonorsDriveAndEmptyTerms(string query, int count)
+    {
+        var rows = new List<SearchResult>
+        {
+            new() { Name = "report.txt", Path = @"Z:\Archive\report.txt" },
+            new() { Name = "report.txt", Path = @"C:\Archive\report.txt" }
+        };
+        var actual = new List<SearchResult>();
+        LiveDirectorySearcher.MatchAndStream(rows, query, actual.Add, CancellationToken.None);
+        Assert.HasCount(count, actual);
+        if (count > 0) Assert.AreSame(rows[0], actual[0]);
+    }
+
+    [TestMethod]
+    public void MatchAndStream_PathFragment_DoesNotConsumeDriveLikeText()
+    {
+        var actual = new List<SearchResult>();
+        LiveDirectorySearcher.MatchAndStream([new() { Name = "report.txt", Path = @"Z:\report.txt" }],
+            "z: report", actual.Add, CancellationToken.None, queryIsPathFragment: true);
+        Assert.IsEmpty(actual);
+    }
+    [TestMethod]
     public void MatchAndStream_EmptyEntries_ReturnsFalse()
     {
         var streamed = new List<SearchResult>();

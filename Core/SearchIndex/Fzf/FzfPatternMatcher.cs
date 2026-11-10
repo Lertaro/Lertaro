@@ -10,19 +10,25 @@ internal static class FzfPatternMatcher
 {
     // The name-tier entry point: the candidate's own name IS the text being matched, so an exclusion
     // reads that same span. See FzfPattern.TryMatch.
-    public static bool TryMatch(FzfPattern pattern, ReadOnlySpan<char> text, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab = null)
-        => TryMatchCore(pattern, text, text, out result, scheme, slab);
+    public static bool TryMatch(FzfPattern pattern, ReadOnlySpan<char> text, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab = null, ReadOnlySpan<char> originalName = default)
+        => TryMatchCore(pattern, text, text, out result, scheme, slab, originalName);
 
     // The alias-tier entry point: every positive term reads `alias`, while an exclusion ALWAYS reads
     // `name`. ":term" says "the candidate's name does not contain this" -- and an alias (pinyin, a
     // simplified spelling) is precisely the string that cannot be expected to contain it, so matching
     // an exclusion against an alias silently admits every excluded file whose positive terms happen to
     // be reachable through an alias. See FzfPattern.TryMatchAlias.
-    public static bool TryMatchAlias(FzfPattern pattern, ReadOnlySpan<char> alias, ReadOnlySpan<char> name, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab = null)
-        => TryMatchCore(pattern, alias, name, out result, scheme, slab);
+    public static bool TryMatchAlias(FzfPattern pattern, ReadOnlySpan<char> alias, ReadOnlySpan<char> name, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab = null, ReadOnlySpan<char> originalName = default)
+        => TryMatchCore(pattern, alias, name, out result, scheme, slab, originalName);
 
-    private static bool TryMatchCore(FzfPattern pattern, ReadOnlySpan<char> text, ReadOnlySpan<char> exclusionText, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab = null)
+    private static bool TryMatchCore(FzfPattern pattern, ReadOnlySpan<char> text, ReadOnlySpan<char> exclusionText, out FzfPatternResult result, FzfScoringScheme scheme, FzfSlab? slab, ReadOnlySpan<char> originalName)
     {
+        // Regex sees the original name; ordinary terms and exclusions retain IME/NFC folding.
+        if (pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, originalName.IsEmpty ? exclusionText : originalName))
+        {
+            result = default;
+            return false;
+        }
         if (text.Contains('|'))
         {
             // ponytail: handle polyphonic aliases by matching each segment independently to prevent
@@ -74,21 +80,6 @@ internal static class FzfPatternMatcher
         // clauses because it is a property of the query shape, not of this candidate, so no text can
         // change the answer.
         if (!pattern.HasPositiveTerm && pattern.Regexes is not { Length: > 0 })
-        {
-            result = default;
-            return false;
-        }
-
-        // Regex clauses are ANDed with everything else and checked first: a miss here is a miss for the
-        // whole pattern, and the regex engine is the most expensive step in the chain.
-        //
-        // They read exclusionText, which is the candidate's own NAME on both tiers -- the same reason
-        // exclusions do (see TryMatchAlias). A regex describes characters that are really in the name, and
-        // never reaches a match through a pinyin alias, so evaluating it against the alias text got both
-        // directions wrong: an alias that happened to satisfy the clause admitted a name that did not, and
-        // a name that did satisfy it was rejected because its alias did not. The index prefilter is built
-        // from the name's characters too (SearchMatcher.BuildContext), which is the same contract.
-        if (pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, exclusionText))
         {
             result = default;
             return false;
