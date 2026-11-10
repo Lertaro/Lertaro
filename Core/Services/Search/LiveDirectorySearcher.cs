@@ -9,9 +9,18 @@ public static class LiveDirectorySearcher
 {
     // liveQuery/onLiveMatch let the caller that actually triggers a cold (uncached) scan see matches as
     // soon as each directory is walked, instead of waiting for the whole (potentially huge) subtree to
-    // finish before anything renders -- see SearchService's _sessionDirectoryCache for why only the
-    // caller that wins the GetOrAdd race gets this; every later caller just reuses the finished list via
-    // MatchAndStream once the shared task completes.
+    // finish before anything renders -- see LiveScanCache for why only the caller that wins the GetOrAdd
+    // race gets this; every later caller just reuses the finished list via MatchAndStream once the shared
+    // task completes. `liveQuery` is the filter's TEXT and `regexes` are the "/.../" clauses that go with
+    // it, both required for the filter to mean what the user typed.
+    //
+    // Two tokens, because the scan and its audience have two different lifetimes. `token` governs the
+    // SCAN: the scan is shared between keystrokes and outlives any one of them, so cancelling it means
+    // "stop walking", which only the owning window does. `liveMatchToken` governs DELIVERY to whoever is
+    // listening right now: when that request is superseded, the walk is still worth finishing for the next
+    // keystroke, but its results have nowhere to go -- without this the callback captured at scan start
+    // keeps firing into a caller that has already moved on. Defaults to never-cancelled, i.e. deliver for
+    // as long as the scan runs, which is what a caller with no separate request token wants.
     public static List<SearchResult> ScanDirectory(
         string directory,
         int maxProcessed,
@@ -20,6 +29,8 @@ public static class LiveDirectorySearcher
         Action<SearchResult>? onLiveMatch = null,
         bool onlyDirectChildren = false,
         string? parentPath = null,
+        CancellationToken liveMatchToken = default,
+        string[]? regexes = null,
         string? fileNameFilter = null,
         SearchCategoryFilter category = SearchCategoryFilter.All)
     {
@@ -32,10 +43,14 @@ public static class LiveDirectorySearcher
 
         FzfPattern? livePattern = null;
         FzfSlab? liveSlab = null;
-        if (onLiveMatch != null && !string.IsNullOrWhiteSpace(liveQuery))
+        // A regex clause is a filter on its own: the path-mode branch hands over a clause with no query
+        // text at all, so the clause is the only reason to build a pattern here. Both entry points take the
+        // clauses as an argument (the text handed over is already clause-free), which is why this is
+        // ParseText rather than Parse -- see SearchService's live-scan setup.
+        if (onLiveMatch != null && (!string.IsNullOrWhiteSpace(liveQuery) || regexes is { Length: > 0 }))
         {
-            var parsed = FzfPattern.Parse(liveQuery);
-            if (!parsed.IsEmpty || parsed.TargetDrive != null)
+            var parsed = FzfPattern.ParseText(liveQuery ?? string.Empty, regexes);
+            if (!parsed.IsEmpty)
             {
                 livePattern = parsed;
                 liveSlab = new FzfSlab();
@@ -98,7 +113,7 @@ public static class LiveDirectorySearcher
                     queue.Enqueue(entry.FullName);
                 }
 
-                if (onLiveMatch != null && FilterPatternHelper.MatchesSearchResult(result.Name, result.IsDir, fileNamePatterns, category)
+                if (onLiveMatch != null && !liveMatchToken.IsCancellationRequested && FilterPatternHelper.MatchesSearchResult(result.Name, result.IsDir, fileNamePatterns, category)
                     && TryMatchEntry(result, livePattern, liveSlab, onlyDirectChildren, normalizedParent))
                 {
                     try
@@ -107,15 +122,16 @@ public static class LiveDirectorySearcher
                     }
                     catch (OperationCanceledException)
                     {
-                        // A superseded query can cancel its own live-result callback. Keep the shared
-                        // directory walk alive so later queries can still reuse the completed scan.
+                        // A superseded query can cancel its own live-result callback, and the token check
+                        // above cannot cover the gap between itself and that throw. Keep the shared directory
+                        // walk alive so later queries can still reuse the completed scan.
                     }
                 }
 
                 // Checked after the result is delivered, not before it is built: `maxProcessed` is a cap on
                 // what the caller gets, so stopping here yields exactly that many rows. Stopping at the top
-                // of the body returned one fewer, and the truncated list is what SearchService's
-                // _sessionDirectoryCache then handed to every later keystroke on that directory.
+                // of the body returned one fewer, and the truncated list is what LiveScanCache then handed
+                // to every later keystroke on that directory.
                 if (processedCount >= maxProcessed)
                     break;
             }
@@ -131,6 +147,7 @@ public static class LiveDirectorySearcher
         CancellationToken token,
         bool onlyDirectChildren = false,
         string? parentPath = null,
+        string[]? regexes = null,
         string? fileNameFilter = null,
         SearchCategoryFilter category = SearchCategoryFilter.All)
     {
@@ -139,10 +156,12 @@ public static class LiveDirectorySearcher
 
         FzfPattern? pattern = null;
         FzfSlab? slab = null;
-        if (!string.IsNullOrWhiteSpace(query))
+        // A regex clause is a filter on its own: the path-mode branch hands over a clause with no query
+        // text at all, and skipping the pattern there would stream every entry the clause rejects.
+        if (!string.IsNullOrWhiteSpace(query) || regexes is { Length: > 0 })
         {
-            pattern = FzfPattern.Parse(query);
-            if (pattern.IsEmpty && pattern.TargetDrive == null)
+            pattern = FzfPattern.ParseText(query, regexes);
+            if (pattern.IsEmpty)
                 return false;
             slab = new FzfSlab();
         }
@@ -213,7 +232,9 @@ public static class LiveDirectorySearcher
         foreach (var (alias, separator) in aliases)
         {
             var aliasPattern = pattern.ReadingFor(separator, alias);
-            if (!aliasPattern.TryMatch(alias, out var aliasMatch, FzfScoringScheme.Default, slab))
+            // Positives read the alias, the query's name-level clauses read the entry's own name
+            // -- see FzfPattern.TryMatchAlias.
+            if (!aliasPattern.TryMatchAlias(alias, entry.Name, out var aliasMatch, FzfScoringScheme.Default, slab))
                 continue;
             // Same syllable-alignment rule the index scan applies (see AliasMatchRules).
             if (!AliasMatchRules.AllowsMatch(pattern, separator, alias, aliasMatch.MinBegin))
