@@ -14,7 +14,6 @@ internal sealed class StreamingResultAccumulator
 {
     internal const int RegexPathResultLimit = 8000;
     internal bool IsRegexPath { get; }
-    internal bool RegexLimitExceeded { get; private set; }
     private readonly record struct Entry(SearchResult Raw, AppSearchResult Row);
 
     private readonly string _query;
@@ -222,11 +221,6 @@ internal sealed class StreamingResultAccumulator
                     continue;
                 if (_seedPaths.Contains(NormalizePath(raw.Path)))
                     continue;
-                if (IsRegexPath && _ranked.Count + chunk.Count >= RegexPathResultLimit)
-                {
-                    RegexLimitExceeded = true;
-                    continue;
-                }
                 // Decorated once, on arrival, so the section and score of a row are final before it is
                 // merged in: the merge and every later paint only read those fields.
                 SearchResultRanking.Decorate(raw, _rankContext);

@@ -138,6 +138,13 @@ public sealed class SystemSettingsKeywordTests
         Assert.IsTrue(Match("env :absent", entry).IsMatch);
     }
 
+    [TestMethod]
+    public void KeywordFallback_RequiresOriginalTitleRegex()
+    {
+        Assert.IsFalse(Match(@"env /\.pdf$/", Entry("Settings.txt", ["environment"])).IsMatch);
+        Assert.IsTrue(Match(@"env /\.pdf$/", Entry("Settings.pdf", ["environment"])).IsMatch);
+    }
+
     private static SearchableItemCache.CacheEntry Entry(string title, string[] keywords) =>
         new(new SearchableItem { Title = title, Keywords = keywords }, [], null);
 

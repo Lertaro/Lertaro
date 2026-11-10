@@ -17,6 +17,22 @@ namespace Lertaro.App.ViewModels.Search;
 // zero-length result means for the UI, is entirely the caller's job.
 internal static class QueryTokenDispatcher
 {
+    internal static string? InvalidTokenHint(IReadOnlyList<string> tokens, IEnumerable<IQueryTokenProvider>? providers = null)
+    {
+        var candidates = providers ?? PluginManager.Instance.QueryTokenProviders;
+        foreach (var token in tokens)
+        {
+            var claimed = false;
+            foreach (var candidate in candidates)
+            {
+                try { if (candidate.CanHandle(token)) { claimed = true; break; } }
+                catch { }
+            }
+            if (!claimed)
+                return string.Format(Services.TranslationManager.Instance["Search_InvalidToken"], token);
+        }
+        return null;
+    }
     public static async Task<List<AppSearchResult>> ApplyAsync(IReadOnlyList<AppSearchResult> fileResults, IReadOnlyList<string> tokens,
         string baseQuery, CancellationToken cancellationToken = default, IEnumerable<IQueryTokenProvider>? providers = null)
     {

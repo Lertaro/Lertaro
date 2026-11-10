@@ -128,7 +128,7 @@ internal static class ScopedSearchRunner
         {
             // Same cancellation contract as priority roots above.
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Core.SearchIndex.SearchRegexTimeoutException.IsTimeout(ex))
         {
             Logger.Log($"[ScopedSearchRunner] Shortcut supplement search failed: {ex.Message}", LogLevel.Warn);
         }
@@ -157,7 +157,7 @@ internal static class ScopedSearchRunner
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Core.SearchIndex.SearchRegexTimeoutException.IsTimeout(ex))
         {
             Logger.Log($"[ScopedSearchRunner] Search of '{folder}' failed: {ex.Message}", LogLevel.Warn);
         }
