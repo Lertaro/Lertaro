@@ -60,7 +60,11 @@ internal class WatcherManager : IDisposable
                 drive,
                 Directory.Exists,
                 ConfigureWatcher,
-                message => Logger.Log(message, LogLevel.Info),
+                message => Logger.Log(
+                    message,
+                    message.Contains("Started monitoring", StringComparison.Ordinal)
+                        ? LogLevel.Info
+                        : LogLevel.Warn),
                 onStarted: () =>
                 {
                     // A live watcher is only safe to keep on a removable volume if a removal request can

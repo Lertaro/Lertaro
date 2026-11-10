@@ -28,7 +28,11 @@ internal sealed class FolderDriveMonitor : IDisposable
             drive,
             Directory.Exists,
             ConfigureWatcher,
-            message => Logger.Log(message, LogLevel.Warn),
+            message => Logger.Log(
+                message,
+                message.Contains("Started monitoring", StringComparison.Ordinal)
+                    ? LogLevel.Info
+                    : LogLevel.Warn),
             onStarted: () =>
             {
                 if (!_disposed && !_token.IsCancellationRequested && _lossGate.Recovered(_drive))
