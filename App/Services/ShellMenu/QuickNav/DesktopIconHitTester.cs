@@ -54,7 +54,8 @@ internal static class DesktopIconHitTester
     private const uint PROCESS_VM_WRITE = 0x0020;
     private const uint PROCESS_QUERY_INFORMATION = 0x0400;
 
-    public static bool IsPointOnDesktopIcon(IntPtr hwndListView, int x, int y)
+    // null means the native read failed; false means a successful hit test found empty space.
+    public static bool? IsPointOnDesktopIcon(IntPtr hwndListView, int x, int y)
     {
         var hProcess = IntPtr.Zero;
         var pRemoteMem = IntPtr.Zero;
@@ -64,10 +65,10 @@ internal static class DesktopIconHitTester
             hProcess = OpenProcess(
                 PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION,
                 false, pid);
-            if (hProcess == IntPtr.Zero) return false;
+            if (hProcess == IntPtr.Zero) return null;
 
             var pt = new PointNative.POINT { x = x, y = y };
-            ScreenToClient(hwndListView, ref pt);
+            if (!ScreenToClient(hwndListView, ref pt)) return null;
 
             var hitTestInfo = new LVHITTESTINFO
             {
@@ -78,13 +79,17 @@ internal static class DesktopIconHitTester
             };
 
             pRemoteMem = VirtualAllocEx(hProcess, IntPtr.Zero, (uint)Marshal.SizeOf<LVHITTESTINFO>(), 0x1000 /* MEM_COMMIT */, 0x04 /* PAGE_READWRITE */);
-            if (pRemoteMem == IntPtr.Zero) return false;
+            if (pRemoteMem == IntPtr.Zero) return null;
 
-            WriteProcessMemory(hProcess, pRemoteMem, ref hitTestInfo, (uint)Marshal.SizeOf<LVHITTESTINFO>(), out _);
+            var size = (uint)Marshal.SizeOf<LVHITTESTINFO>();
+            if (!WriteProcessMemory(hProcess, pRemoteMem, ref hitTestInfo, size, out var written)
+                || written.ToInt64() != size) return null;
 
-            PointNative.SendMessage(hwndListView, 0x1012 /* LVM_HITTEST */, IntPtr.Zero, pRemoteMem);
+            var hitItem = PointNative.SendMessage(hwndListView, 0x1012 /* LVM_HITTEST */, IntPtr.Zero, pRemoteMem);
 
-            ReadProcessMemory(hProcess, pRemoteMem, out hitTestInfo, (uint)Marshal.SizeOf<LVHITTESTINFO>(), out _);
+            if (!ReadProcessMemory(hProcess, pRemoteMem, out hitTestInfo, size, out var read)
+                || read.ToInt64() != size) return null;
+            if (!Native.IsWindow(hwndListView) || hitItem.ToInt64() != hitTestInfo.iItem) return null;
 
             return hitTestInfo.iItem != -1;
         }
@@ -94,6 +99,6 @@ internal static class DesktopIconHitTester
             if (pRemoteMem != IntPtr.Zero) VirtualFreeEx(hProcess, pRemoteMem, 0, 0x8000 /* MEM_RELEASE */);
             if (hProcess != IntPtr.Zero) CloseHandle(hProcess);
         }
-        return false;
+        return null;
     }
 }

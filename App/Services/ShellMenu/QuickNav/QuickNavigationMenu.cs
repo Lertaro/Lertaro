@@ -29,8 +29,11 @@ public static class QuickNavigationMenu
     // their asynchronous submenu loads can race each other.
     private static ContextMenu? _activeContextMenu;
 
-    public static void Show(int mouseX, int mouseY)
+    public static void Show(int mouseX, int mouseY) => Show(mouseX, mouseY, null);
+
+    internal static void Show(int mouseX, int mouseY, Func<bool>? isCurrentTrigger)
     {
+        if (isCurrentTrigger?.Invoke() == false) return;
         var tracker = InlineSearchManager.Instance.ExplorerTracker;
 
         // Captured now, before anything below (the helper window grabbing foreground, the popup sitting
@@ -47,7 +50,7 @@ public static class QuickNavigationMenu
         if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
             path = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
-        ShowCore(mouseX, mouseY, trigger, path, contextDirectory);
+        ShowCore(mouseX, mouseY, trigger, path, contextDirectory, isCurrentTrigger);
     }
 
     public static void ShowFromKeyboard()
@@ -68,11 +71,12 @@ public static class QuickNavigationMenu
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
     }
 
-    private static void ShowCore(int mouseX, int mouseY, QuickNavTriggerContext trigger, string path, string? contextDirectory)
+    private static void ShowCore(int mouseX, int mouseY, QuickNavTriggerContext trigger, string path, string? contextDirectory,
+        Func<bool>? isCurrentTrigger = null)
     {
         var generation = ++_sessionGeneration;
         CloseActiveContextMenu();
-        _ = ShowAsync(mouseX, mouseY, generation, trigger, path, contextDirectory);
+        _ = ShowAsync(mouseX, mouseY, generation, trigger, path, contextDirectory, isCurrentTrigger);
     }
 
     private static void CloseActiveContextMenu()
@@ -83,7 +87,8 @@ public static class QuickNavigationMenu
             previous.IsOpen = false;
     }
 
-    private static async Task ShowAsync(int mouseX, int mouseY, int generation, QuickNavTriggerContext trigger, string path, string? contextDirectory)
+    private static async Task ShowAsync(int mouseX, int mouseY, int generation, QuickNavTriggerContext trigger, string path, string? contextDirectory,
+        Func<bool>? isCurrentTrigger)
     {
         var hookClient = App.HookClient;
         if (hookClient?.IsConnected == true)
@@ -105,7 +110,7 @@ public static class QuickNavigationMenu
             }
         }
 
-        if (generation != _sessionGeneration)
+        if (generation != _sessionGeneration || isCurrentTrigger?.Invoke() == false)
             return;
 
         var dummyResult = new AppSearchResult { FullPath = path, Name = Path.GetFileName(path), IsDir = true, ContextDirectory = contextDirectory ?? string.Empty };
@@ -148,6 +153,9 @@ public static class QuickNavigationMenu
             dpiScaleY = src.CompositionTarget.TransformFromDevice.M22;
         }
 
+        // Providers and the opened-folder snapshot can complete after Explorer navigated elsewhere.
+        // Validate before the helper takes foreground itself; keyboard/menu summons have no mouse gate.
+        if (isCurrentTrigger?.Invoke() == false) return;
         var helperWin = MenuHelperWindow.Acquire(mouseX, mouseY);
         helperWin.LostActivation = () => { if (!IsShowingShellMenu) contextMenu.IsOpen = false; };
         helperWin.Activate();

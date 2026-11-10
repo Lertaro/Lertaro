@@ -36,7 +36,7 @@ internal static class OwnedDialog
     {
         var candidates = windows.ToList();
 
-        bool Candidate(Window w) => w != dialog && IsAlive(w) && CanOwnADialog(w) && (skip == null || !skip(w));
+        bool Candidate(Window w) => w != dialog && CanOwnADialog(w) && (skip == null || !skip(w));
 
         foreach (var w in candidates)
         {
@@ -53,7 +53,11 @@ internal static class OwnedDialog
         return main != null && main.IsVisible && Candidate(main) ? main : null;
     }
 
-    private static bool CanOwnADialog(Window window) => window is not ITransientHostWindow;
+    // A parked or transparent window may still have WS_VISIBLE. It cannot supply a useful centre
+    // for a dialog, even when it was not declared as a menu anchor (issue #516).
+    internal static bool CanOwnADialog(Window window) => window is not ITransientHostWindow
+        && IsAlive(window) && window.IsVisible && window.Opacity > 0
+        && window.WindowState != WindowState.Minimized && window.Top != WindowParking.OffScreen;
 
     /// <summary>
     /// Shows <paramref name="dialog"/> modally, holding its owner open until the dialog is answered.

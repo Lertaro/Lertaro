@@ -2,10 +2,8 @@ using Native = Lertaro.Core.Hook.ExplorerNativeHooks;
 
 namespace Lertaro.App.Services.ShellMenu.QuickNav;
 
-// Reads the active Explorer window's current selection count via dynamic Shell.Application COM
-// automation -- the only way to distinguish "double-clicked empty space" from "double-clicked a
-// selected item" for Explorer's own file list. Kept separate from QuickNavigationTriggerGate's gating
-// policy: a Shell COM API quirk is a different concern from when the popup should show.
+// Reads Explorer's current selection. Missing/failed reads are unknown, never evidence of empty
+// space. This is only the selection gate; the caller must also validate the clicked host and view.
 internal static class ExplorerSelectionQuery
 {
     private const uint GA_ROOT = 2;
@@ -17,17 +15,18 @@ internal static class ExplorerSelectionQuery
         try
         {
             var rootHwnd = Native.GetAncestor(hwnd, GA_ROOT);
+            if (rootHwnd == IntPtr.Zero || !Native.IsWindow(rootHwnd)) return false;
             var isActiveDesktop = Native.IsDesktopWindow(rootHwnd, out _);
 
             var shellType = Type.GetTypeFromProgID("Shell.Application");
-            if (shellType == null) return true;
+            if (shellType == null) return false;
 
             shell = Activator.CreateInstance(shellType);
-            if (shell == null) return true;
+            if (shell == null) return false;
 
             dynamic dShell = shell;
             windows = dShell.Windows();
-            if (windows == null) return true;
+            if (windows == null) return false;
 
             dynamic dWindows = windows;
             int count = dWindows.Count;
@@ -35,7 +34,6 @@ internal static class ExplorerSelectionQuery
             {
                 object? window = null;
                 object? doc = null;
-                object? selectedItems = null;
                 try
                 {
                     window = dWindows.Item(i);
@@ -48,23 +46,11 @@ internal static class ExplorerSelectionQuery
                     if (!isMatch) continue;
 
                     doc = w.Document;
-                    if (doc != null)
-                    {
-                        dynamic dDoc = doc;
-                        selectedItems = dDoc.SelectedItems;
-                        if (selectedItems != null)
-                        {
-                            dynamic dSelected = selectedItems;
-                            int itemsCount = dSelected.Count;
-                            if (itemsCount > 0) return false;
-                        }
-                    }
-                    break;
+                    return HasNoSelectedItems(doc);
                 }
                 catch { }
                 finally
                 {
-                    ReleaseComObject(selectedItems);
                     ReleaseComObject(doc);
                     ReleaseComObject(window);
                 }
@@ -76,7 +62,24 @@ internal static class ExplorerSelectionQuery
             ReleaseComObject(windows);
             ReleaseComObject(shell);
         }
-        return true;
+        return false;
+    }
+
+    internal static bool HasNoSelectedItems(object? document)
+    {
+        if (document == null) return false;
+        object? selectedItems = null;
+        try
+        {
+            dynamic doc = document;
+            selectedItems = doc.SelectedItems;
+            if (selectedItems == null) return false;
+            dynamic selected = selectedItems;
+            int count = selected.Count;
+            return count == 0;
+        }
+        catch { return false; }
+        finally { ReleaseComObject(selectedItems); }
     }
 
     private static void ReleaseComObject(object? comObject)

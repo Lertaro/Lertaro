@@ -79,7 +79,7 @@ public partial class PluginFieldPromptWindow : Window
             Height = ActualHeight;
             ContentRow.Height = new GridLength(1, GridUnitType.Star);
 
-            if (Owner != null)
+            if (Owner != null && OwnedDialog.CanOwnADialog(Owner))
             {
                 Left = Owner.Left + (Owner.ActualWidth - Width) / 2;
                 Top = Owner.Top + (Owner.ActualHeight - Height) / 2;
@@ -121,7 +121,7 @@ public partial class PluginFieldPromptWindow : Window
 
             ContentRow.Height = new GridLength(1, GridUnitType.Star);
 
-            if (Owner != null)
+            if (Owner != null && OwnedDialog.CanOwnADialog(Owner))
             {
                 // Width/Height, not ActualWidth/ActualHeight: those still report the pre-lock size until the
                 // layout pass these assignments triggered has run.

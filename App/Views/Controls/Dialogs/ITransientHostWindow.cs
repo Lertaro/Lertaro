@@ -5,11 +5,9 @@ namespace Lertaro.App.Views.Controls.Dialogs;
 /// a dialog's owner.
 /// </summary>
 /// <remarks>
-/// A shell menu anchors itself on a 1x1 transparent window that lives exactly as long as the menu does.
-/// Owning a dialog to that is owning it to something about to vanish, and WPF takes owned windows down
-/// with their owner -- a prompt opened from a menu item would flash up and disappear again with the menu
-/// that launched it, which is a bug this codebase has already met and worked around once, at a single
-/// call site, by hiding the menu before opening the prompt (see QuickNavigationMenuContentExtensions).
+/// Shell and tray menus use tiny transparent windows. A reused anchor stays visible while parked
+/// off screen; an owned dialog would be centred there. A disposable anchor can instead take its
+/// owned windows down when it closes. Neither kind is a suitable dialog owner.
 ///
 /// Declared by the window rather than tested for by type in the resolver: the resolver has no business
 /// knowing what a shell menu is, and the next short-lived host window should be able to say so itself
