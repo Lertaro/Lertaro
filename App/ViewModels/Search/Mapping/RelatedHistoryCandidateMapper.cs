@@ -34,12 +34,13 @@ internal static class RelatedHistoryCandidateMapper
         FuzzyQuery fuzzy,
         string? scope,
         RankContext? rankContext,
-        int typeRank) =>
+        int typeRank,
+        Func<string, bool>? pathFilter = null) =>
         CollectCatalog(
             fuzzy, scope, CurrentMatches(fuzzy.Text),
             HistorySearchCandidateMapper.SafeFileExists,
             HistorySearchCandidateMapper.SafeDirectoryExists,
-            rankContext, typeRank);
+            rankContext, typeRank, pathFilter);
 
     internal static List<SearchResultMapper.RankedCandidate> Collect(
         FuzzyQuery fuzzy,
@@ -48,11 +49,12 @@ internal static class RelatedHistoryCandidateMapper
         Func<string, bool> fileExists,
         Func<string, bool> directoryExists,
         RankContext? rankContext = null,
-        int typeRank = int.MaxValue)
+        int typeRank = int.MaxValue,
+        Func<string, bool>? pathFilter = null)
     {
         var matches = MatchRelated(fuzzy.Text, entries, MaxCachedMatches);
         return CollectCatalog(
-            fuzzy, scope, matches, fileExists, directoryExists, rankContext, typeRank);
+            fuzzy, scope, matches, fileExists, directoryExists, rankContext, typeRank, pathFilter);
     }
 
     private static List<SearchResultMapper.RankedCandidate> CollectCatalog(
@@ -62,7 +64,8 @@ internal static class RelatedHistoryCandidateMapper
         Func<string, bool> fileExists,
         Func<string, bool> directoryExists,
         RankContext? rankContext,
-        int typeRank)
+        int typeRank,
+        Func<string, bool>? pathFilter)
     {
         if (matches.Count == 0)
             return [];
@@ -75,6 +78,8 @@ internal static class RelatedHistoryCandidateMapper
             if (!HistorySearchCandidateMapper.TryCreateResult(
                     match.Entry, fuzzy.Text, normalizedScope, fileExists, directoryExists,
                     out var result, out var normalizedPath))
+                continue;
+            if (pathFilter != null && !pathFilter(normalizedPath))
                 continue;
             if (!paths.Add(normalizedPath))
                 continue;
@@ -100,7 +105,10 @@ internal static class RelatedHistoryCandidateMapper
                         1d,
                         MatchRank.ShapeWholeWord),
                 NormalizedPath: normalizedPath,
-                IsHistoryOnly: !byName.IsMatch,
+                // A related-keyword recall is a weak association, never a direct query hit. It moves
+                // into HistoryTail even when the target name happens to match; a real index hit for the
+                // same path merges with it and restores direct-match ranking in RankedCandidateOrdering.
+                IsHistoryOnly: true,
                 Source: RankingCandidateSource.History));
             if (candidates.Count >= MaxCandidates)
                 break;
@@ -165,12 +173,12 @@ internal static class RelatedHistoryCandidateMapper
         var matches = new List<CatalogEntry>(Math.Min(maxMatches, catalog.Count));
         foreach (var candidate in catalog)
         {
-            if ((candidate.Mask & requiredMask) != requiredMask)
-                continue;
             var relation = RelationOf(candidate.Keyword, query);
             if (relation.Kind == RelationKind.Exact)
                 continue;
             if (relation.Kind == RelationKind.None)
+                continue;
+            if ((candidate.Mask & requiredMask) != requiredMask)
                 continue;
             matches.Add(candidate);
         }
