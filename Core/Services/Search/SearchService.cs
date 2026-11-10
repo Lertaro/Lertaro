@@ -10,24 +10,10 @@ namespace Lertaro.Core.Services.Search;
 
 public class SearchService : IDisposable
 {
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, (Lazy<Task<List<SearchResult>>> Scan, long StartedAt)> _sessionDirectoryCache = new(StringComparer.OrdinalIgnoreCase);
-    internal const long LiveDirectoryCacheLifetimeMs = 2000;
-
-    private static string LiveDirectoryKey(string directory, bool direct) =>
-        Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory)) + (direct ? "|direct" : "|recursive");
-
-    // Called by the existing inline directory watcher. Other windows have the bounded lifetime below.
-    internal void InvalidateLiveDirectory(string? directory)
-    {
-        if (string.IsNullOrEmpty(directory)) return;
-        foreach (var direct in new[] { false, true })
-        {
-            var key = LiveDirectoryKey(directory, direct);
-            _sessionDirectoryCache.TryRemove(key, out _);
-        }
-    }
+    private readonly LiveScanCache _liveScans = new();
+    internal const long LiveDirectoryCacheLifetimeMs = LiveScanCache.LifetimeMs;
+    internal void InvalidateLiveDirectory(string? directory) => _liveScans.Invalidate(directory);
     private readonly ScopeLiveSearchCache _scopeLiveSearchCache = new();
-    private readonly CancellationTokenSource _cacheFillCts = new();
     private readonly SearchPipeClient _pipeClient = new();
     private int _disposed;
 
@@ -50,7 +36,7 @@ public class SearchService : IDisposable
 
     // bypassExclusions: opts this one search out of ExcludedPaths/IgnoredPathGlobs/IgnoredPathRegexes
     // filtering. The caller is responsible for stripping whatever query-string marker triggers this
-    // (see SearchQuerySortParser.StripExclusionBypass) BEFORE calling here -- `query` itself is always
+    // (see QueryTokenScanner.StripExclusionBypass) BEFORE calling here -- `query` itself is always
     // matched/highlighted verbatim, so a caller must never pass the marker through as part of it. Also
     // forced on automatically for a path-mode query (see effectiveBypassExclusions below) -- typing an
     // exact path is the same "I want to see what's actually here" intent regardless of the marker. Only
@@ -175,6 +161,9 @@ public class SearchService : IDisposable
         var needsLiveSearch = false;
         var liveScanDir = string.Empty;
         var liveScanFilter = string.Empty;
+        // The regex clauses the live scan has to apply too -- they are part of the query, not of the text
+        // the live pattern is built from (see the two branches below).
+        string[]? liveScanRegexes = null;
 
         if (parsed.IsPathMode && !string.IsNullOrEmpty(parsed.ExactPathLower))
         {
@@ -184,6 +173,10 @@ public class SearchService : IDisposable
                 needsLiveSearch = true;
                 liveScanDir = resolved.DirectoryToScan;
                 liveScanFilter = resolved.FilterQuery;
+                // The path fragment is only the tail of the path, so it never carries the clauses itself;
+                // without this the live scan matched on the fragment alone and streamed every child of a
+                // directory the index does not cover, regex and all.
+                liveScanRegexes = parsed.Regexes;
             }
         }
         else if (!string.IsNullOrEmpty(directoryFilter) && _scopeLiveSearchCache.GetOrAdd(directoryFilter,
@@ -191,7 +184,10 @@ public class SearchService : IDisposable
         {
             needsLiveSearch = true;
             liveScanDir = directoryFilter;
-            liveScanFilter = query;
+            // Split off this query's own clauses: the live pattern is built through ParseText, which takes
+            // the clauses as an argument instead of lifting them out of the text.
+            liveScanFilter = RegexQueryParser.Split(query, out _);
+            liveScanRegexes = parsed.Regexes;
         }
 
         Task<bool>? liveTask = null;
@@ -203,7 +199,7 @@ public class SearchService : IDisposable
                 {
                     var onlyDirectChildren = parsed.IsPathMode && string.IsNullOrEmpty(liveScanFilter);
                     return await SearchLiveDirectoryAsync(liveScanDir, liveScanFilter, uniqueOnResult, token,
-                        onlyDirectChildren, fileNameFilter, category).ConfigureAwait(false);
+                        onlyDirectChildren, fileNameFilter, category, liveScanRegexes).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) { throw; }
                 catch (Exception ex)
@@ -225,45 +221,30 @@ public class SearchService : IDisposable
     // owns the scan lifetime so subsequent keystrokes can reuse all raw entries.
     internal async Task<bool> SearchLiveDirectoryAsync(string directory, string query, Action<SearchResult> onResult,
         CancellationToken token, bool onlyDirectChildren = false, string? fileNameFilter = null,
-        SearchCategoryFilter category = SearchCategoryFilter.All)
+        SearchCategoryFilter category = SearchCategoryFilter.All, string[]? regexes = null)
     {
         token.ThrowIfCancellationRequested();
-        if (_sessionDirectoryCache.Count > 32)
-        {
-            _sessionDirectoryCache.Clear();
-        }
-        var key = LiveDirectoryKey(directory, onlyDirectChildren);
-        // ponytail: completed scans without a watcher expire two seconds after starting. In-flight
-        // scans remain shared. Upgrade to watcher-backed generations if repeat scans are expensive.
-        if (_sessionDirectoryCache.TryGetValue(key, out var cached) && cached.Scan.IsValueCreated
-            && cached.Scan.Value.IsCompleted && Environment.TickCount64 - cached.StartedAt >= LiveDirectoryCacheLifetimeMs)
-            _sessionDirectoryCache.TryRemove(new(key, cached));
-        var cacheFillToken = _cacheFillCts.Token;
         var liveMatches = 0;
-        var candidate = new Lazy<Task<List<SearchResult>>>(() => Task.Run(() =>
-            LiveDirectorySearcher.ScanDirectory(directory, 10000, cacheFillToken,
+        var ownsScan = false;
+        var scanTask = _liveScans.GetOrAdd(directory, (dir, scanToken) =>
+        {
+            ownsScan = true;
+            return LiveDirectorySearcher.ScanDirectory(dir, 10000, scanToken,
                 liveQuery: query, onLiveMatch: result =>
                 {
                     token.ThrowIfCancellationRequested();
                     Interlocked.Increment(ref liveMatches);
                     onResult(result);
                 }, onlyDirectChildren: onlyDirectChildren, parentPath: directory,
-                fileNameFilter: fileNameFilter, category: category)).KeepObserved());
-        var scan = _sessionDirectoryCache.GetOrAdd(key, (candidate, Environment.TickCount64));
-        var scanTask = scan.Scan.Value;
-        List<SearchResult> entries;
-        try { entries = await scanTask.WaitAsync(token).ConfigureAwait(false); }
-        catch (Exception) when (scanTask.IsFaulted)
-        {
-            _sessionDirectoryCache.TryRemove(new(key, scan));
-            throw;
-        }
+                liveMatchToken: token, regexes: regexes, fileNameFilter: fileNameFilter, category: category);
+        }, onlyDirectChildren);
+        var entries = await scanTask.WaitAsync(token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
         // The cold caller already matched and delivered every eligible entry. Other callers match once
         // against the same raw list, with their own query/scope/category.
-        return ReferenceEquals(scan.Scan, candidate) ? Volatile.Read(ref liveMatches) > 0
+        return ownsScan ? Volatile.Read(ref liveMatches) > 0
             : LiveDirectorySearcher.MatchAndStream(entries, query, onResult, token,
-                onlyDirectChildren, directory, fileNameFilter, category);
+                onlyDirectChildren, directory, regexes, fileNameFilter, category);
     }
 
     // In-memory index lookup only (no disk I/O) -- the most recently modified entries across all of the
@@ -303,8 +284,7 @@ public class SearchService : IDisposable
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0)
             return;
-        _cacheFillCts.Cancel();
-        _cacheFillCts.Dispose();
+        _liveScans.Dispose();
         GC.SuppressFinalize(this);
     }
 }
