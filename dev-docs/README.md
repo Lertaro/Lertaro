@@ -1,31 +1,32 @@
 # dev-docs
 
-面向维护者的机制说明、约束和仍在执行的计划。用户操作说明放在 `Site/`。代码与文档冲突时，以代码为准并同步修正文档。
+面向维护者的现行约束、可复用经验和仍有证据的边界。用户操作说明放在 `Site/`，历史方案和执行过程查 Git 历史。
+
+2026-11-10 按 `5f735e70` 核对本文档集的相关实现。本次整理没有重新运行性能实验或真机验证；历史测量保留原日期与适用范围。
 
 ## 索引
 
 | 文件 | 内容 |
 | --- | --- |
-| `pitfalls.md` | 构建、测试、Windows/.NET 与通用维护约束 |
-| `gitlab-self-hosted-runner.md` | 自建 Windows runner 的部署与启动、release 为什么走 package registry、旧包保留窗口 |
-| `search-ranking.md` | 当前排序管线、分值、截断、诊断和验证 |
-| `search-performance.md` | 搜索审计复核、两轮修复与测量、结果一致性和剩余清单；原始样本见配套 results JSON |
-| `search-ranking-intuition-plan.md` | 排序 P0–P10 实施计划；P0–P1 已完成 |
-| `search-grammar.md` | 搜索语法规格；文首标明尚未合入的部分 |
-| `pinyin-vs-winshun.md` | 当前拼音匹配规则、限制和测试矩阵 |
-| `index-rules.md` | 索引规则、继承、迁移和冲突处理 |
-| `entry-categories.md` | 条目分类表（唯一权威）、侧边栏筛选行与快速窗口类型筛选栏 |
-| `settings-permissions.md` | 设置目录权限与修复流程 |
-| `font-clarity.md` | 字体渲染与窗口轮廓约束 |
-| `opaque-window-flash.md` | 不透明窗口闪烁的现行约束和未决测量 |
-| `autocad-save-dialog.md` | AutoCAD 保存对话框适配计划 |
-| `wake-unresponsive.md` | 唤醒恢复路径和未决取证 |
-| `quick-switch-reparse-audit.md` | Quick Switch 重解析审计 |
+| [pitfalls.md](pitfalls.md) | 取证、验证、构建与维护经验 |
+| [search-grammar.md](search-grammar.md) | 当前语法边界与解析层职责 |
+| [search-ranking.md](search-ranking.md) | V3 排序、候选合并与历史反馈 |
+| [search-performance.md](search-performance.md) | 11 月 10 日测量结论、复现入口与剩余限制 |
+| [pinyin-matching.md](pinyin-matching.md) | 拼音规则、别名精度与匹配证据复用 |
+| [entry-categories.md](entry-categories.md) | 统一分类、筛选下推与协议边界 |
+| [index-rules.md](index-rules.md) | 路径继承、置顶、迁移与排除范围 |
+| [window-rendering.md](window-rendering.md) | 字体、首帧、DPI 与窗口复用 |
+| [windows-integration.md](windows-integration.md) | Hook 恢复、跨进程对话框与宿主适配 |
+| [settings-permissions.md](settings-permissions.md) | 权限诊断、数据目录与启动失败处理 |
+| [gitlab-self-hosted-runner.md](gitlab-self-hosted-runner.md) | runner、签名与发布保留策略 |
+
+性能原始样本保留在 [第一轮证据](search-performance-results.json) 与 [第二轮证据](search-performance-checklist-results.json)。第二轮基线是第一轮修复后的产物，两组前后对照不能混用。
 
 ## 维护规则
 
-- 一个主题只留一篇现行说明；过时方案和已替换流程直接删除。
-- 开头写核对基线或版本。无法确认时标明未核对，不按印象更新。
-- 保留仍影响实现的原因、边界、数字和复现；删除会话过程、重复结论和时间线叙述。
-- 路径使用仓库相对路径或 `%LOCALAPPDATA%` 等通用写法。
-- 用户可见操作写入 `Site/`，文案同步到所有受支持语言。
+- 一个主题只保留一份现行说明；跨主题用链接，不复制规则。
+- 保留原因、可复现的反例、适用边界和源码入口；删除会话过程、完成清单、主观评分和失效命令。
+- 新结论替换旧结论。只有仍能解释取舍的失败实验才保留，且标明历史条件。
+- 测量要区分组件实验与真实用户路径；源码核对不能写成真机验证。
+- 未解决项必须有当前证据和验证条件；没有依据的猜测、已取消计划不继续滚存。
+- 环境权限、机器性能和外部平台配额不写成通用事实。

@@ -1,99 +1,27 @@
-# Entry Categories (类型 / 目录分类)
+# 分类与筛选
 
-One table answers "what kind of entry is this". `PluginSdk/Helpers/SearchCategoryClassifier.cs` holds the enum
-(`SearchCategoryFilter`), the extension sets, `Classify` (name or path), `Categorize` (an `ISearchResult`, which
-can also answer which provider contributed a row and where a shortcut points), `Matches` (the engine's per-row
-test) and `RuleOf` (the same category as `*.doc; *.pdf; ...` glob text).
+分类的唯一表在 [SearchCategoryClassifier](../PluginSdk/Helpers/SearchCategoryClassifier.cs)：枚举、扩展名集合、名称分类、结果分类和默认 glob 都从这里派生。它位于所有消费者均能引用的 PluginSdk，避免 Core、App 和插件各维护一份表。
 
-It lives in PluginSdk because that is the only assembly every consumer can reach. `Core` and
-`Plugins/CoreExtensions` both reference `PluginSdk` and neither references the other; `App` references both.
+## 一份配置，两种入口
 
-## Who reads it
+`CustomFilters` 是用户可编辑的统一列表，包含 `Enabled / Keyword / Label / Rule / ShowAsRow / Icon`。输入 `:@keyword` 使用启用项；`ShowAsRow` 决定是否同时出现在完整窗口侧边栏和快速窗口类型筛选栏。
 
-| Surface | What it takes from the table |
-| :--- | :--- |
-| Engine row filter (`NameSearch.CategoryAdmits`) | `Matches`, per row, while the index is walked |
-| Core Extensions `:@keyword` rules | `RuleOf` -- the default rule text is generated, never hand-copied |
-| Full window's sidebar type filters (`TypeFilterProvider`) | `Categorize` per row, and `Category` on each row |
-| Quick window's type filter bar | the same sidebar rows: it reads `ISidebarFilterProvider`, so it is the settings, not a list |
+`CustomFilterQueryTokenProvider.MergeSidebarRowsIntoFiltersOnce()` 在读取与设置页构建时合并旧 `SidebarCustomFilters`。同关键词启用现有项，其余保留规则、图标与显示名，随后删除旧键。迁移须幂等，不能依赖哪个调用方先读。
 
-## One filter list, two triggers (2026-10-27)
+## 截断前过滤
 
-`CustomFilters` is the single user-editable category list: `Enabled` / `Keyword` / `Label` / `Rule` / `ShowAsRow`
-/ `Icon`. Typing `:@keyword` reaches every enabled entry; `ShowAsRow` also makes it a clickable row, which puts it
-in the full window's sidebar and, through the provider above, in the quick window's type filter bar. There is no second
-list: `SidebarCustomFilters` was the same model with the same rule language, and the split let one category be
-defined twice with two different rules (the row winning for clicks, the keyword for typing) while its trigger word
-doubled as an untranslated display name.
+- `SidebarFilterItem.Category` 是可下推的类别身份。内建分类在名称、路径、路径补全、网络索引和实时匹配中传递；11 月 10 日已修复漏传分支。测试必须覆盖小 limit、大量不合格候选及 base/delta/OR 分支，单看最终列表纯净无法证明没有漏召回。
+- 自定义规则行没有类别身份，仍逐行处理已返回候选。不能从显示名或 `Id` 猜类别，也不能把所有插件规则都说成已下推。
+- 快捷方式在引擎侧放行，由 App 根据目标分类；引擎没有解析目标的能力。提前剔除会丢失开始菜单应用。
+- 名称扫描使用裸名称，避免每个候选都沿父链重建路径。需要路径信息的判断应留在有该信息的层。
+- `.ts` 当前归视频，这是分类表的既有约定。新增扩展名只改统一表，不手抄到设置默认值。
 
-`CustomFilterQueryTokenProvider.MergeSidebarRowsIntoFiltersOnce()` folds the old list on read -- from
-`GetConfiguredFilters()` and from `SearchFiltersConfigSchema.Create()`, so neither the search path nor the settings
-page can show the pre-merge shape. Deliberately unlatched: the steady-state cost is one dictionary miss, and a
-latch would make the merge depend on which caller read first. An old row whose keyword already exists switches that
-entry on instead of appending a duplicate; anything else is appended keeping its own rule, its icon, and its old
-name as `Label`. The legacy key is then removed, so the merge is idempotent.
+“全部”的 `ActiveCategoryFilter` 必须为 null；传一个永远返回 true 的谓词仍会被当成活动筛选，改变显示上限。快速窗口标签按 `Id` 保持选择；`RememberCategoryFilter` 只记当前会话，重启后回到全部。
 
-`SidebarFilterItem.Category` is what lets the **engine** narrow the index walk: the built-in rows carry one, a
-custom `@` rule row leaves it null and filters per row only. Don't re-derive a category from a row's `Id` string.
+## 协议经验
 
-Before the merge there were five lists to keep in step by hand -- Core's wire copy, the app's copy, the
-`:@` defaults, their verbatim schema twin, and the sidebar's three shorter sets -- and two of them had already
-drifted inside a single change (one video set carried `.mts`/`.ogv`, its twin did not). If a category is added or an extension moves, change the table here.
+[SearchRequestBinarySerializer](../Core/Wire/SearchRequestBinarySerializer.cs) 当前为 v12，`Category` 占一个 flag byte，版本不同直接拒绝解析。新增字段时同时修改长度预估、写入、读取和版本，不能只做往返测试。
 
-## Decisions that look like bugs
+长度预估错误可能被字符串预留空间和池化缓冲区掩盖：实际帧长按写入偏移重算，并不代表预租大小正确。协议测试应覆盖边界长度与字段值。
 
-- **A shortcut passes every engine filter and classifies as `null`.** The side that can resolve a target (App,
-  per row, on paint) is not the side that narrows the index walk (Service, which cannot resolve). Filing a
-  shortcut by its target is therefore the caller's job; admitting it costs budget, never a result. Excluding it
-  would drop every Start Menu row from the 应用 filter.
-- **The engine only ever sees `delta.NameOf(row)`** -- a bare name, because rebuilding a row's path means walking
-  its parent chain once per candidate over a 200k+ row scan. No path-shaped test may be added to that branch.
-  Settings is recognised by name (`SystemSettings.exe`, `immersivecontrolpanel`, `ms-settings:`, and the host's
-  `__SEARCHABLE_ITEM__:{Provider}:…` placeholder), and the substring walk is gated to the shapes that can
-  contradict their own extension.
-- **Path-mode queries carry neither the category nor the file-name filter** -- `IndexV2Searcher.SearchStreaming`
-  hands those to `PathSearch` before `NameSearch` is reached. Pre-existing convention, not an oversight.
-- **Network drives and the live-scan fallback are not narrowed at the source** (`ponytail:` note on
-  `SearchService.SearchStreamingAsync`). The row filter in App still keeps the displayed list pure, so this costs
-  budget only.
-- **`.ts` means video, not TypeScript.** Inherited from the user's own `:@video` rule, which already said `*.ts`.
-- **Application rows are filed by their path first, their own claim second.** The app indexer marks a shortcut's
-  row as an application, so a shortcut to a document would otherwise sit under 应用 because the shell can launch it.
-
-## Wire protocol
-
-`SearchRequestMessage.Category` is a byte; `SearchRequestBinarySerializer` is at **v12** and both sides compare
-`version != Version` and throw, so an App/Service pair from different builds fails *every* search (it degrades
-through `onLocalSearchFailed`, it does not crash). The repo's stated rule -- a payload change requires a version
-bump -- is why there is no tolerant read; the field defaults to `All`, so a tolerant read accepting v11 remains an
-open option.
-
-The payload size for `Search`/`SearchDir` ends in `+3` for three flag bytes. Note the trap: the frame length is
-recomputed from the write offset, so a short formula does not corrupt the wire, it under-rents the buffer --
-and each string is sized `GetByteCount + 5` while its 7-bit prefix costs 1–5 bytes, which over-provisions by at
-least 5 and hides the error from every round-trip test. It became reachable only when the third flag byte was
-added without the `+1`.
-
-## The quick window's type filter bar
-
-Naming, so the copy and these docs stop inventing synonyms: **type filter bar** (类型筛选栏) is the surface, a **tab**
-(标签) is one item on it, a **row** (筛选行 / 篩選列) is one entry of the table before it is rendered, and the full
-window's panel is the **sidebar filter** (侧边栏筛选). 分类/category stays for the identity a row carries
-(`SidebarFilterItem.Category`, the `:@keyword` list), and the code keeps its `Category*` names (`CategoryBar`,
-`SelectedCategory`, `RememberCategoryFilter`): the copy names what the user sees, the code names what the row is.
-One page or one settings string uses the full name at its first mention and may shorten afterwards. 档位 is not
-available for a tab -- it already means an index rule's priority (排除/低/正常/高, see `index-rules.md`).
-
-Tabs are `[全部] + the plugin's Type rows`, read through `PluginManager.Instance.SidebarFilterProviders`, rebuilt
-on every activation and after a settings save, and matched by `Id` so a refresh cannot bounce the user off their
-tab. The tab is not kept across summons: `QuickSearchWindowController.FinishHide` calls `ResetCategoryFilter`,
-which puts the bar back on 全部 unless `SearchWindowSettings.RememberCategoryFilter` is on, and that memory is
-session-only -- the id is never written to the settings file, so a restart opens on 全部 either way.
-`SidebarFilterItem.Category` is what lets the engine narrow the walk; a custom `:@` row leaves it null and is
-filtered per row instead. `SearchExecutionViewModel.ActiveCategoryFilter` is deliberately `null` for 全部 -- a
-predicate that keeps every row is not "no filter", and passing one would silently disable the display cap.
-
-Layout is `App/Helpers/Visuals/JustifiedRowPanel.cs`: every tab at its own text width, leftover space distributed
-into the gaps, and no gaps once the content is wider than the viewport -- which is when the ScrollViewer's thin
-horizontal bar appears. `Wheel` and `Tab`/`Shift+Tab` move along the row; `ScrollIntoView` follows the selection
-because it arrives through a binding, not a click.
+界面术语固定为“类型筛选栏”“标签”“侧边栏筛选”；“分类”指数据身份，“档位”留给索引规则优先级。
