@@ -9,6 +9,7 @@
 | `pitfalls.md` | 构建、测试、Windows/.NET 与通用维护约束 |
 | `gitlab-self-hosted-runner.md` | 自建 Windows runner 的部署与启动、release 为什么走 package registry、旧包保留窗口 |
 | `search-ranking.md` | 当前排序管线、分值、截断、诊断和验证 |
+| `search-performance.md` | 搜索审计复核、两轮修复与测量、结果一致性和剩余清单；原始样本见配套 results JSON |
 | `search-ranking-intuition-plan.md` | 排序 P0–P10 实施计划；P0–P1 已完成 |
 | `search-grammar.md` | 搜索语法规格；文首标明尚未合入的部分 |
 | `pinyin-vs-winshun.md` | 当前拼音匹配规则、限制和测试矩阵 |
