@@ -81,4 +81,26 @@ public sealed class NonInteractiveSearchTests
         Assert.IsTrue(item.GetProperty("modified").GetString()!.Contains("2026-09-14T02:03:04", StringComparison.Ordinal));
         Assert.IsTrue(item.GetProperty("accessed").GetString()!.Contains("2026-09-14T03:04:05", StringComparison.Ordinal));
     }
+
+    [TestMethod]
+    public void PrepareTreatsABypassQueryTheSameAsTheSameQueryWithoutIt()
+    {
+        // The '*' bypass marker is not a token trigger, so scanning the raw text sees a first word of "*>s",
+        // reports no tokens, and re-sorts here a list the server had already put in token order. The only
+        // difference between these two queries is whether exclusion rules apply, so the ordering the client
+        // hands back -- and therefore what --limit cuts -- must not differ either.
+        var source = new[]
+        {
+            new SearchResult { Name = "z.txt", Path = @"C:\Data\z.txt" },
+            new SearchResult { Name = "m.txt", Path = @"C:\Data\m.txt" },
+            new SearchResult { Name = "a.txt", Path = @"C:\Data\a.txt" },
+        };
+        var plain = new NonInteractiveSearchOptions(">s report", 2, false, false, false, null);
+        var bypassed = new NonInteractiveSearchOptions("*>s report", 2, false, false, false, null);
+
+        var plainPaths = NonInteractiveSearchResults.Prepare(source, plain.Query, plain).Select(r => r.Path).ToArray();
+        var bypassPaths = NonInteractiveSearchResults.Prepare(source, bypassed.Query, bypassed).Select(r => r.Path).ToArray();
+
+        CollectionAssert.AreEqual(plainPaths, bypassPaths);
+    }
 }
