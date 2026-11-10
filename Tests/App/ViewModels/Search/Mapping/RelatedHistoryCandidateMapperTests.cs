@@ -8,8 +8,8 @@ namespace Lertaro.App.Tests.ViewModels.Search.Mapping;
 [TestClass]
 public sealed class RelatedHistoryCandidateMapperTests
 {
-    private static HistoryEntry Entry(string keyword, string path, int count = 3) =>
-        new(keyword, path, HistoryEntryKind.File, 0, count);
+    private static HistoryEntry Entry(string keyword, string path, int count = 3, long time = 0) =>
+        new(keyword, path, HistoryEntryKind.File, time, count);
 
     [TestMethod]
     public void FindsContainedAndExtendedKeywordsButSkipsExactAssociations()
@@ -42,6 +42,17 @@ public sealed class RelatedHistoryCandidateMapperTests
 
         Assert.AreEqual("cc-full", matches[0].Keyword);
         Assert.AreEqual("xcc", matches[1].Keyword);
+    }
+
+    [TestMethod]
+    public void QueryExtensionRecallsTheShorterStoredKeyword()
+    {
+        var entries = new[] { Entry("app", @"C:\Docs\apple.txt") };
+
+        var matches = RelatedHistoryCandidateMapper.MatchRelated(
+            "apple", entries, maxMatches: 16);
+
+        Assert.AreEqual("app", Assert.ContainsSingle(matches).Keyword);
     }
 
     [TestMethod]
@@ -106,6 +117,22 @@ public sealed class RelatedHistoryCandidateMapperTests
 
         Assert.HasCount(1, candidates);
         Assert.AreEqual(@"C:\Allowed\cc.txt", candidates[0].Result.FullPath);
+    }
+
+    [TestMethod]
+    public void ScopeFilteringHappensBeforeTheTwoCandidateLimit()
+    {
+        var entries = Enumerable.Range(0, 16)
+            .Select(i => Entry("cc-out", $@"C:\Outside\{i}.txt", time: 100 - i))
+            .Append(Entry("cc-in", @"C:\Allowed\cc.txt", time: 1))
+            .ToArray();
+
+        var candidates = RelatedHistoryCandidateMapper.Collect(
+            FuzzyQuery.Parse("cc"), scope: null, entries,
+            _ => true, _ => false,
+            pathFilter: path => path.StartsWith(@"C:\Allowed\", StringComparison.OrdinalIgnoreCase));
+
+        Assert.AreEqual(@"C:\Allowed\cc.txt", Assert.ContainsSingle(candidates).Result.FullPath);
     }
 
     [TestMethod]

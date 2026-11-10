@@ -1,6 +1,5 @@
 using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
-using Lertaro.Core.SearchIndex.Fzf;
 using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.App.ViewModels.Search.Mapping;
@@ -8,11 +7,10 @@ namespace Lertaro.App.ViewModels.Search.Mapping;
 // Weak recall for confirmed query associations whose stored spelling is related to what the user is
 // typing now. These rows are deliberately kept in HistoryTail and capped at two: they recover a target the
 // bounded global page may have dropped, without giving a partial-keyword guess the power to reorder direct
-// matches. The catalog carries precomputed character masks and is rebuilt only when associations change.
+// matches. The catalog is rebuilt only when associations change.
 internal static class RelatedHistoryCandidateMapper
 {
     internal const int MaxCandidates = 2;
-    private const int MaxCachedMatches = 16;
     private const int CacheCapacity = 128;
     private const long CacheLifetimeMs = 30_000;
 
@@ -22,7 +20,7 @@ internal static class RelatedHistoryCandidateMapper
         public required long LastUsed { get; init; }
     }
 
-    internal readonly record struct CatalogEntry(HistoryEntry Entry, string Keyword, UInt128 Mask);
+    internal readonly record struct CatalogEntry(HistoryEntry Entry, string Keyword);
 
     private sealed record CatalogSnapshot(long Version, IReadOnlyList<CatalogEntry> Entries);
 
@@ -52,7 +50,7 @@ internal static class RelatedHistoryCandidateMapper
         int typeRank = int.MaxValue,
         Func<string, bool>? pathFilter = null)
     {
-        var matches = MatchRelated(fuzzy.Text, entries, MaxCachedMatches);
+        var matches = MatchRelated(fuzzy.Text, entries, int.MaxValue);
         return CollectCatalog(
             fuzzy, scope, matches, fileExists, directoryExists, rankContext, typeRank, pathFilter);
     }
@@ -134,7 +132,7 @@ internal static class RelatedHistoryCandidateMapper
                 return cached.Matches;
             }
 
-            var matches = MatchCatalog(query, _catalog.Entries, MaxCachedMatches);
+            var matches = MatchCatalog(query, _catalog.Entries, int.MaxValue);
             if (QueryCache.Count >= CacheCapacity)
                 EvictOldestLocked();
             QueryCache[query] = new CacheEntry { Matches = matches, LastUsed = now };
@@ -150,7 +148,7 @@ internal static class RelatedHistoryCandidateMapper
             var keyword = SearchHistoryStore.NormalizeAssociationQuery(entry.Keyword);
             if (keyword.Length == 0)
                 continue;
-            catalog.Add(new CatalogEntry(entry, keyword, FzfAlgorithm.GetCharMask(keyword)));
+            catalog.Add(new CatalogEntry(entry, keyword));
         }
         return new CatalogSnapshot(version, catalog);
     }
@@ -169,7 +167,6 @@ internal static class RelatedHistoryCandidateMapper
         if (!IsPlainQuery(query) || maxMatches <= 0)
             return [];
 
-        var requiredMask = FzfAlgorithm.GetCharMask(query);
         var matches = new List<CatalogEntry>(Math.Min(maxMatches, catalog.Count));
         foreach (var candidate in catalog)
         {
@@ -177,8 +174,6 @@ internal static class RelatedHistoryCandidateMapper
             if (relation.Kind == RelationKind.Exact)
                 continue;
             if (relation.Kind == RelationKind.None)
-                continue;
-            if ((candidate.Mask & requiredMask) != requiredMask)
                 continue;
             matches.Add(candidate);
         }
