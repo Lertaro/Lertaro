@@ -3,11 +3,7 @@ namespace Lertaro.Core.SearchIndex.Fzf;
 internal enum FzfTermKind
 {
     Fuzzy,
-    Exact,
-    ExactBoundary,
-    Prefix,
-    Suffix,
-    Equal
+    Exact
 }
 
 internal enum FzfScoringScheme
@@ -46,11 +42,7 @@ internal static class FzfAlgorithm
         FzfSlab? slab = null) => kind switch
         {
             FzfTermKind.Fuzzy => FzfFuzzyMatcher.FuzzyMatchV2(text, pattern, caseSensitive, scheme, slab),
-            FzfTermKind.Exact => FzfExactMatcher.ExactMatch(text, pattern, caseSensitive, scheme, boundaryCheck: false),
-            FzfTermKind.ExactBoundary => FzfExactMatcher.ExactMatch(text, pattern, caseSensitive, scheme, boundaryCheck: true),
-            FzfTermKind.Prefix => FzfExactMatcher.PrefixMatch(text, pattern, caseSensitive, scheme),
-            FzfTermKind.Suffix => FzfExactMatcher.SuffixMatch(text, pattern, caseSensitive, scheme),
-            FzfTermKind.Equal => FzfExactMatcher.EqualMatch(text, pattern, caseSensitive, scheme),
+            FzfTermKind.Exact => FzfExactMatcher.ExactMatch(text, pattern, caseSensitive, scheme),
             _ => FzfMatchResult.NoMatch
         };
 
@@ -144,22 +136,6 @@ internal static class FzfAlgorithm
         >= '0' and <= '9' => 26 + (lower - '0'),
         _ => 36 + (lower % 28)
     };
-
-    public static int LeadingWhitespaces(ReadOnlySpan<char> text)
-    {
-        var i = 0;
-        while (i < text.Length && char.IsWhiteSpace(text[i]))
-            i++;
-        return i;
-    }
-
-    public static int TrailingWhitespaces(ReadOnlySpan<char> text)
-    {
-        var count = 0;
-        for (var i = text.Length - 1; i >= 0 && char.IsWhiteSpace(text[i]); i--)
-            count++;
-        return count;
-    }
 
     public enum CharClass
     {

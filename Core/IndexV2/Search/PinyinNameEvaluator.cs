@@ -95,13 +95,10 @@ internal sealed class PinyinNameEvaluator
                 if (term.Inverse || term.AliasForm || term.Text.Length == 0)
                     continue;
                 positives++;
-                if (term.Kind is FzfTermKind.Exact or FzfTermKind.Fuzzy)
-                {
-                    if (index.TryAdd(term.Text, words.Count))
-                        words.Add(term);
-                    plainCount++;
-                    firstPlain ??= term;
-                }
+                if (index.TryAdd(term.Text, words.Count))
+                    words.Add(term);
+                plainCount++;
+                firstPlain ??= term;
             }
         }
 
@@ -226,6 +223,13 @@ internal sealed class PinyinNameEvaluator
         match = default;
         witness = default;
         if (name.IsEmpty || !HasProviders)
+            return false;
+
+        // The readings decide WORDS. A `/.../` clause describes the name's own characters, which no
+        // reading of it can supply, so the clause is answered here, off the whole name, before its '|'
+        // segments are scored -- the same line FzfPattern.TryMatchAlias draws for the alias tiers, and the
+        // one the exclusion side of this class already honors.
+        if (_pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, name))
             return false;
 
         if (name.IndexOf('|') < 0)
@@ -473,8 +477,9 @@ internal sealed class PinyinNameEvaluator
                 // to ask for a run even with fuzzy matching on. Letting a readable word scatter across the
                 // name's own letters is what made one pinyin query answer differently in the two modes.
                 var wordIndex = -1;
+                // No kind test here: a term is either Exact or Fuzzy, the anchored kinds that needed one
+                // were dropped with the grammar that spelled them out of a query.
                 var readable = !term.Inverse &&
-                    term.Kind is FzfTermKind.Exact or FzfTermKind.Fuzzy &&
                     _wordIndex.TryGetValue(term.Text, out wordIndex) && _eligible[wordIndex];
                 var literal = FzfAlgorithm.Match(
                     readable && term.Kind == FzfTermKind.Fuzzy ? FzfTermKind.Exact : term.Kind,

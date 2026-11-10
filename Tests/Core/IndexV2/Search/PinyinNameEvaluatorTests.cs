@@ -152,25 +152,28 @@ public sealed class PinyinNameEvaluatorTests
     [TestMethod]
     public void Exclusion_VetoesWhenPresent()
     {
-        var evaluator = Evaluator("!报告 报", new FakeLiveProvider());
+        var evaluator = Evaluator(":报告 报", new FakeLiveProvider());
         Assert.IsFalse(evaluator.TryScore("报告", null, out _));
     }
 
     [TestMethod]
     public void Exclusion_SatisfiedByAbsence_ThenPinyinCarriesTheQuery()
     {
-        var evaluator = Evaluator("!xyz bg", new FakeLiveProvider().Span("bg", 0, 2));
+        var evaluator = Evaluator(":xyz bg", new FakeLiveProvider().Span("bg", 0, 2));
         Assert.IsTrue(evaluator.TryScore("报告", null, out var result));
         Assert.AreEqual(0, result.MinBegin);
         Assert.AreEqual(2, result.MaxEnd);
     }
 
     [TestMethod]
-    public void OperatorTerms_AreLiteralOnly()
+    public void PrecisionFlip_StillReachesTheReadings()
     {
-        // "^bg" keeps its anchored literal reading: the pinyin fallback never runs for operators.
-        var evaluator = Evaluator("^bg", new FakeLiveProvider().Span("bg", 0, 2));
-        Assert.IsFalse(evaluator.TryScore("报告", null, out _));
+        // The one operator the trigger-character grammar leaves is '?' (TermTriggers.PrecisionInversion),
+        // and it flips between the two readings this tier still understands -- so the flipped word goes to
+        // the providers exactly as a plain one does. The anchored kinds this test used to cover ('^' and '$'
+        // as operators) are ordinary characters now, and no parser produces them any more.
+        var evaluator = Evaluator("?bg", new FakeLiveProvider().Span("bg", 0, 2));
+        Assert.IsTrue(evaluator.TryScore("报告", null, out _));
     }
 
     [TestMethod]
@@ -310,5 +313,24 @@ public sealed class PinyinNameEvaluatorTests
         var marks = new bool[4];
         Assert.IsTrue(evaluator.TryPaintTerm("x报告y", "baog", FzfTermKind.Fuzzy, marks, out var tier));
         Assert.AreEqual(MatchRank.TierFullRare, tier);
+    }
+
+    // A `/.../` clause describes the candidate's own characters, and this tier decides WORDS from the
+    // readings -- it has nothing to answer a clause with. Same line FzfPattern.TryMatchAlias draws for the
+    // alias tiers, and the same one the exclusion side of this class already honors.
+    [TestMethod]
+    public void RegexClause_IsAnsweredFromTheNameNeverFromTheReadings()
+    {
+        var provider = new FakeLiveProvider().Span("bg", 0, 2);
+
+        // The control: readings alone decide this query.
+        Assert.IsTrue(Evaluator("bg", provider).TryScore("报告", null, out _));
+
+        // ".pdf" is in no reading of this name and not in the name, so the query has nothing to match.
+        Assert.IsFalse(Evaluator(@"bg /\.pdf$/", provider).TryScore("报告", null, out _),
+            "a clause the name fails must not be waved through by a reading hit");
+
+        // The name does carry the clause's text: the reading hit stands.
+        Assert.IsTrue(Evaluator(@"bg /告/", provider).TryScore("报告", null, out _));
     }
 }
