@@ -5,7 +5,13 @@ namespace Lertaro.Core.SearchIndex.Fzf;
 // bonus lookups go through FzfCharTables' ASCII tables.
 internal static class FzfFuzzyMatcher
 {
-    public static FzfMatchResult FuzzyMatchV2(ReadOnlySpan<char> text, string pattern, bool caseSensitive, FzfScoringScheme scheme, FzfSlab? slab = null)
+    public static FzfMatchResult FuzzyMatchV2(
+        ReadOnlySpan<char> text,
+        string pattern,
+        bool caseSensitive,
+        FzfScoringScheme scheme,
+        FzfSlab? slab = null,
+        bool enableFastPaths = true)
     {
         var m = pattern.Length;
         if (m == 0)
@@ -13,6 +19,12 @@ internal static class FzfFuzzyMatcher
         var n = text.Length;
         if (m > n)
             return FzfMatchResult.NoMatch;
+        if (enableFastPaths && m > 1)
+        {
+            var prefix = FzfExactMatcher.PrefixMatch(text, pattern, caseSensitive, scheme);
+            if (prefix.IsMatch && prefix.Start == 0)
+                return prefix;
+        }
         if (!FzfScoring.FindFuzzyScope(text, pattern, caseSensitive, out var minIdx, out var maxIdx))
             return FzfMatchResult.NoMatch;
 

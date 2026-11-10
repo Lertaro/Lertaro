@@ -20,7 +20,14 @@ internal sealed class FzfByteBuffers
 
 internal static class FzfByteMatcher
 {
-    public static FzfMatchResult FuzzyMatchV2(ReadOnlySpan<byte> text, byte[] pattern, bool caseSensitive, FzfScoringScheme scheme, FzfSlab slab, FzfByteBuffers buffers)
+    public static FzfMatchResult FuzzyMatchV2(
+        ReadOnlySpan<byte> text,
+        byte[] pattern,
+        bool caseSensitive,
+        FzfScoringScheme scheme,
+        FzfSlab slab,
+        FzfByteBuffers buffers,
+        bool enableFastPaths = true)
     {
         var m = pattern.Length;
         if (m == 0)
@@ -28,6 +35,12 @@ internal static class FzfByteMatcher
         var n = text.Length;
         if (m > n)
             return FzfMatchResult.NoMatch;
+        if (enableFastPaths && m > 1)
+        {
+            var prefix = FzfByteExactMatcher.PrefixMatch(text, pattern, caseSensitive, scheme);
+            if (prefix.IsMatch && prefix.Start == 0)
+                return prefix;
+        }
         if (!FindFuzzyScope(text, pattern, caseSensitive, out var minIdx, out var maxIdx))
             return FzfMatchResult.NoMatch;
 
