@@ -178,7 +178,8 @@ public sealed class InlineResultTargetResolverTests
     }
 
     [TestMethod]
-    public void Mirror_EmptyList_FallsBackToTheWindowDirectory() => Assert.AreEqual(@"C:\Root", InlineResultTargetResolver.ResolveMirrorTarget([], -1, @"C:\Root")!.Value.Path);
+    public void Mirror_EmptyList_FallsBackToTheWindowDirectory()
+        => Assert.AreEqual(@"C:\Root", InlineResultTargetResolver.ResolveMirrorTarget([], -1, @"C:\Root")!.Value.Path);
 
     // Only a real, fully-qualified path may be handed to an adapter.
     [TestMethod]

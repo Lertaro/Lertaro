@@ -3,7 +3,7 @@ using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
 namespace Lertaro.Plugins.WPS.Tests;
 
 // The adapter's behaviour that does not need a live WPS dialog: the guards that decide whether to touch
-// UI Automation at all, and the two members whose answers are fixed.
+// UI Automation at all, and the one member whose answer is fixed.
 [TestClass]
 public sealed class WPSFileDialogAdapterTests
 {
