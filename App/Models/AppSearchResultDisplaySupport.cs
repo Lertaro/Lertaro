@@ -26,10 +26,13 @@ internal static class AppSearchResultDisplaySupport
             return iconOverride;
 
         var extras = owner.DisplayExtras;
-        if (extras.Icon != null)
+        if (extras.Icon != null && !extras.IconNeedsRefresh)
             return extras.Icon;
 
+        var previousIcon = extras.Icon;
         extras.Icon = ShellIconHelper.GetIconFromCacheOnly(owner.FullPath, owner.IsDir, out var needsLoad);
+        if (needsLoad && previousIcon != null) extras.Icon = previousIcon;
+        extras.IconNeedsRefresh = false;
         if (needsLoad && !extras.IconLoadingStarted)
         {
             extras.IconLoadingStarted = true;

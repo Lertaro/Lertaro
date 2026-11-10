@@ -26,6 +26,7 @@ internal static class NameSearch
         Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower, string[]? fileNamePatterns = null,
         SearchCategoryFilter category = SearchCategoryFilter.All)
     {
+        token.ThrowIfCancellationRequested();
         if (!DriveAdmits(snapshot, pattern, out var matchAll))
             return;
 
@@ -54,7 +55,7 @@ internal static class NameSearch
 
         try
         {
-            PublishRanks(snapshot, delta, pattern, hits, matchAll, topN, scanKeep, limit, directoryFilterLower, token, onResult, category);
+            PublishRanks(snapshot, delta, pattern, hits, matchAll, topN, scanKeep, limit, directoryFilterLower, token, onResult, fileNamePatterns, category);
         }
         finally
         {
@@ -65,9 +66,11 @@ internal static class NameSearch
 
     private static void PublishRanks(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, List<UniqueMatch>? hits, bool matchAll,
         FzfTopN topN, int scanKeep, int limit, string? directoryFilterLower, CancellationToken token, Action<SearchResult> onResult,
-        SearchCategoryFilter category)
+        string[]? fileNamePatterns, SearchCategoryFilter category)
     {
+        token.ThrowIfCancellationRequested();
         var ranks = topN.Finish(scanKeep);
+        token.ThrowIfCancellationRequested();
         // Whether RefineRanks below is about to pack the SAME relevance key into each row's high 32
         // bits that SearchResultRelevance.Apply would compute for the emitted result (see the loop
         // below) -- tracked so that redundant second computation can be skipped per row instead of
@@ -76,7 +79,7 @@ internal static class NameSearch
         // int.MaxValue, e.g. the Full window).
         var refined = !matchAll && !pattern.IsEmpty;
         if (refined)
-            RefineRanks(snapshot, delta, pattern, ranks);
+            RefineRanks(snapshot, delta, pattern, ranks, token);
 
         var seen = new HashSet<int>();
         var emitted = 0;
@@ -124,7 +127,7 @@ internal static class NameSearch
             {
                 SearchResultRelevance.Apply(result, pattern);
                 onResult(result);
-            }, token, directoryFilterLower, reportedUids, category);
+            }, token, directoryFilterLower, reportedUids, category, fileNamePatterns);
         }
     }
 
@@ -164,7 +167,7 @@ internal static class NameSearch
     // Ceiling: more than scanKeep rows with a higher raw score can still crowd out a strong left-hand hit
     // before it gets here. Upgrade path: classify the quality keys inside the hot scan and let FzfTopN
     // keep by them.
-    private static void RefineRanks(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, List<FzfRank> ranks)
+    internal static void RefineRanks(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, List<FzfRank> ranks, CancellationToken token)
     {
         // The rank depends on the name and the pattern, and on nothing else about the row -- so every
         // row sharing a name shares it, and a set of a few thousand holds only about two thirds that
@@ -174,32 +177,37 @@ internal static class NameSearch
         // no benefit from the memo and should not pay to allocate one either.
         var ranksByName = _ranksByName ??= new Dictionary<string, MatchRank>(StringComparer.Ordinal);
         ranksByName.Clear();
-        for (var i = 0; i < ranks.Count; i++)
+        try
         {
-            var rank = ranks[i];
-            var name = GetNameForEntry(snapshot, delta, rank.EntryIndex);
-            if (name.Length == 0)
-                continue;
-            ref var match = ref CollectionsMarshal.GetValueRefOrAddDefault(ranksByName, name, out var known);
-            if (!known)
-                match = FuzzyMatcher.ComputeMatchRank(name, pattern);
-            var rankMatch = match;
-            if (!rankMatch.IsMatch)
+            for (var i = 0; i < ranks.Count; i++)
             {
-                // Same fallback rank Apply gives an ancestor-completed row, so the bounded cut and the
-                // emitted result cannot disagree about where that row belongs.
-                var path = GetPathForEntry(snapshot, delta, rank.EntryIndex);
-                rankMatch = MatchRank.NoNameFallback(HighlightMask.ComputeWeight(path, pattern));
+                token.ThrowIfCancellationRequested();
+                var rank = ranks[i];
+                var name = GetNameForEntry(snapshot, delta, rank.EntryIndex);
+                if (name.Length == 0)
+                    continue;
+                ref var match = ref CollectionsMarshal.GetValueRefOrAddDefault(ranksByName, name, out var known);
+                if (!known)
+                    match = FuzzyMatcher.ComputeMatchRank(name, pattern);
+                var rankMatch = match;
+                if (!rankMatch.IsMatch)
+                {
+                    // Same fallback rank Apply gives an ancestor-completed row, so the bounded cut and the
+                    // emitted result cannot disagree about where that row belongs.
+                    var path = GetPathForEntry(snapshot, delta, rank.EntryIndex);
+                    rankMatch = MatchRank.NoNameFallback(HighlightMask.ComputeWeight(path, pattern));
+                }
+                var high = SearchResultRelevance.HighKey(rankMatch);
+                ranks[i] = rank with { SortKey = ((ulong)high << 32) | (rank.SortKey & 0xFFFF_FFFFUL) };
             }
-            var high = SearchResultRelevance.HighKey(rankMatch);
-            ranks[i] = rank with { SortKey = ((ulong)high << 32) | (rank.SortKey & 0xFFFF_FFFFUL) };
-        }
-        FzfRankRadixSorter.Sort(ranks);
+            FzfRankRadixSorter.Sort(ranks);
+            token.ThrowIfCancellationRequested();
 
-        // Emptied here rather than only on the way in. Clearing on entry leaves the buckets from the last
-        // search sitting in a thread static for as long as the process is idle, and a whole-drive query
-        // sizes them to its own name count -- see SearchScratchPolicy.
-        SearchScratchPolicy.ClearAndTrim(ranksByName);
+            // Emptied here rather than only on the way in. Clearing on entry leaves the buckets from the last
+            // search sitting in a thread static for as long as the process is idle, and a whole-drive query
+            // sizes them to its own name count -- see SearchScratchPolicy.
+        }
+        finally { SearchScratchPolicy.ClearAndTrim(ranksByName); }
     }
 
     // Mirrors ResultBuilder.ToResult's entryIndex->name resolution (base row, possibly overridden, vs
@@ -288,78 +296,92 @@ internal static class NameSearch
         if (categoryAdmitsDir) fileNamePatterns = null;
         var needsName = categoryNeedsName || fileNamePatterns != null;
 
-        if (matchAll)
+        try
         {
-            // Unique-first like the pattern path below: the empty-pattern sort key depends only on the
-            // name, so it's computed once per unique instead of materializing a string per row.
-            // Superseded rows are skipped in the fanout, so no override name can be needed here.
-            var worker = SearchMatcher.RentWorker();
-            for (var uid = 0; uid < snapshot.UniqueCount; uid++)
+            if (matchAll)
             {
-                if ((uid & 0xFFF) == 0)
+                // Unique-first like the pattern path below: the empty-pattern sort key depends only on the
+                // name, so it's computed once per unique instead of materializing a string per row.
+                // Superseded rows are skipped in the fanout, so no override name can be needed here.
+                var worker = SearchMatcher.RentWorker();
+                try
+                {
+                    for (var uid = 0; uid < snapshot.UniqueCount; uid++)
+                    {
+                        if ((uid & 0xFFF) == 0)
+                            token.ThrowIfCancellationRequested();
+                        var utf8 = snapshot.UniqueNameUtf8(uid);
+                        if (utf8.Length == 0)
+                            continue;
+                        var name = needsName ? snapshot.GetUniqueName(uid) : null;
+                        var fileScopeAdmits = fileNamePatterns == null || FilterPatternHelper.Matches(name!, fileNamePatterns);
+                        if (!fileScopeAdmits && !SearchMatcher.HasDirectoryRow(snapshot, uid))
+                            continue;
+                        // Category and filename-pattern tests depend on the unique NAME, not the row. A broad name
+                        // can fan out through many hard-link rows, so classify once and reuse the answer.
+                        var categoryAdmitsFile = categoryNeedsName &&
+                            SearchCategoryClassifier.Matches(category, name, isDirectory: false);
+                        var sortKey = MatchAllSortKey(snapshot, uid, worker, utf8);
+                        foreach (var row in snapshot.RowsForUid(uid))
+                        {
+                            token.ThrowIfCancellationRequested();
+                            if ((flags[row] & deletedFlag) != 0 || (mayBeSuperseded && delta.IsSuperseded(row)))
+                                continue;
+                            if (membership != null && !RowMatchesFilter(snapshot, delta, row, ctx, membership))
+                                continue;
+                            var isDirectory = (flags[row] & (ushort)FileRecordFlags.Directory) != 0;
+                            if (!isDirectory && !fileScopeAdmits)
+                                continue;
+                            if (category != SearchCategoryFilter.All &&
+                                !(isDirectory ? categoryAdmitsDir : categoryAdmitsFile))
+                                continue;
+                            topN.Add(new FzfRank(row, 0, sortKey));
+                        }
+                    }
+                }
+                finally { SearchMatcher.ReturnWorker(worker); }
+            }
+            else
+            {
+                var hits = SearchMatcher.RentHitList();
+                rentHits = hits;
+                SearchMatcher.MatchUniques(snapshot, pattern, hits, token, fileNamePatterns);
+                foreach (var m in hits)
+                {
                     token.ThrowIfCancellationRequested();
-                var utf8 = snapshot.UniqueNameUtf8(uid);
-                if (utf8.Length == 0)
-                    continue;
-                var name = needsName ? snapshot.GetUniqueName(uid) : null;
-                var fileScopeAdmits = fileNamePatterns == null || FilterPatternHelper.Matches(name!, fileNamePatterns);
-                if (!fileScopeAdmits && !SearchMatcher.HasDirectoryRow(snapshot, uid))
-                    continue;
-                // Category and filename-pattern tests depend on the unique NAME, not the row. A broad name
-                // can fan out through many hard-link rows, so classify once and reuse the answer.
-                var categoryAdmitsFile = categoryNeedsName &&
-                    SearchCategoryClassifier.Matches(category, name, isDirectory: false);
-                var sortKey = MatchAllSortKey(snapshot, uid, worker, utf8);
-                foreach (var row in snapshot.RowsForUid(uid))
-                {
-                    if ((flags[row] & deletedFlag) != 0 || (mayBeSuperseded && delta.IsSuperseded(row)))
-                        continue;
-                    if (membership != null && !RowMatchesFilter(snapshot, delta, row, ctx, membership))
-                        continue;
-                    var isDirectory = (flags[row] & (ushort)FileRecordFlags.Directory) != 0;
-                    if (!isDirectory && !fileScopeAdmits)
-                        continue;
-                    if (category != SearchCategoryFilter.All &&
-                        !(isDirectory ? categoryAdmitsDir : categoryAdmitsFile))
-                        continue;
-                    topN.Add(new FzfRank(row, 0, sortKey));
+                    var name = needsName ? snapshot.GetUniqueName(m.Uid) : null;
+                    var categoryAdmitsFile = categoryNeedsName &&
+                        SearchCategoryClassifier.Matches(category, name, isDirectory: false);
+                    var fileScopeAdmits = fileNamePatterns == null ||
+                        FilterPatternHelper.Matches(name!, fileNamePatterns);
+                    foreach (var row in snapshot.RowsForUid(m.Uid))
+                    {
+                        token.ThrowIfCancellationRequested();
+                        if ((flags[row] & deletedFlag) != 0 || (mayBeSuperseded && delta.IsSuperseded(row)))
+                            continue;
+                        if (membership != null && !RowMatchesFilter(snapshot, delta, row, ctx, membership))
+                            continue;
+                        var isDirectory = (flags[row] & (ushort)FileRecordFlags.Directory) != 0;
+                        if (!isDirectory && !fileScopeAdmits)
+                            continue;
+                        if (category != SearchCategoryFilter.All &&
+                            !(isDirectory ? categoryAdmitsDir : categoryAdmitsFile))
+                            continue;
+                        // The per-unique sort key applies verbatim to every row of that unique --
+                        // EntryIndex isn't packed into the key, so nothing is recomputed per row.
+                        topN.Add(new FzfRank(row, m.Match.Score, m.SortKey));
+                    }
                 }
             }
-            SearchMatcher.ReturnWorker(worker);
-        }
-        else
-        {
-            var hits = SearchMatcher.RentHitList();
-            rentHits = hits;
-            SearchMatcher.MatchUniques(snapshot, pattern, hits, token, fileNamePatterns);
-            foreach (var m in hits)
-            {
-                var name = needsName ? snapshot.GetUniqueName(m.Uid) : null;
-                var categoryAdmitsFile = categoryNeedsName &&
-                    SearchCategoryClassifier.Matches(category, name, isDirectory: false);
-                var fileScopeAdmits = fileNamePatterns == null ||
-                    FilterPatternHelper.Matches(name!, fileNamePatterns);
-                foreach (var row in snapshot.RowsForUid(m.Uid))
-                {
-                    if ((flags[row] & deletedFlag) != 0 || (mayBeSuperseded && delta.IsSuperseded(row)))
-                        continue;
-                    if (membership != null && !RowMatchesFilter(snapshot, delta, row, ctx, membership))
-                        continue;
-                    var isDirectory = (flags[row] & (ushort)FileRecordFlags.Directory) != 0;
-                    if (!isDirectory && !fileScopeAdmits)
-                        continue;
-                    if (category != SearchCategoryFilter.All &&
-                        !(isDirectory ? categoryAdmitsDir : categoryAdmitsFile))
-                        continue;
-                    // The per-unique sort key applies verbatim to every row of that unique --
-                    // EntryIndex isn't packed into the key, so nothing is recomputed per row.
-                    topN.Add(new FzfRank(row, m.Match.Score, m.SortKey));
-                }
-            }
-        }
 
-        MatchDeltaRows(snapshot, delta, pattern, matchAll, ctx, topN, fileNamePatterns, category);
-        return rentHits;
+            MatchDeltaRows(snapshot, delta, pattern, matchAll, ctx, topN, fileNamePatterns, category, token);
+            return rentHits;
+        }
+        catch
+        {
+            if (rentHits != null) SearchMatcher.ReturnHitList(rentHits);
+            throw;
+        }
     }
 
     private static bool MatchesFileScope(string name, ushort flags, string[]? patterns)
@@ -379,13 +401,14 @@ internal static class NameSearch
     // the row's own full path against the filter prefix -- correct for renamed/moved/added rows alike,
     // unlike the row-index ancestor cache above (a snapshot-only optimization for the hot base-row path).
     private static void MatchDeltaRows(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, bool matchAll, DirectoryContext ctx,
-        FzfTopN topN, string[]? fileNamePatterns, SearchCategoryFilter category)
+        FzfTopN topN, string[]? fileNamePatterns, SearchCategoryFilter category, CancellationToken token)
     {
         var slab = new FzfSlab();
         var queryLen = pattern.GetTotalTermLength();
 
         foreach (var (row, record) in delta.BaseOverrides)
         {
+            token.ThrowIfCancellationRequested();
             if (record.Name.Length == 0)
                 continue;
             var isDirectory = (record.Flags & (ushort)FileRecordFlags.Directory) != 0;
@@ -402,6 +425,7 @@ internal static class NameSearch
         }
         for (var i = 0; i < delta.Added.Count; i++)
         {
+            token.ThrowIfCancellationRequested();
             var record = delta.Added[i];
             if (record.Removed || record.Name.Length == 0)
                 continue;

@@ -1,10 +1,82 @@
 using Lertaro.Core.IndexV2.Search;
+using Lertaro.PluginSdk.Helpers;
 
 namespace Lertaro.Core.Tests.IndexV2.Search;
 
 [TestClass]
 public sealed class IndexV2SearcherTests
 {
+    [TestMethod]
+    [DataRow("report")]
+    [DataRow("archive report")]
+    [DataRow("archive report | missing absent")]
+    [DataRow(@"archive\report")]
+    [DataRow(@"z:\archive\report")]
+    [DataRow(@"z:\archive\")]
+    public void SearchStreaming_AllBranchesFilterBeforeTheLimit(string query)
+    {
+        var records = new List<FileRecord> { LiveIndexFixture.Root(), new(2, 1, "Archive", FileRecordFlags.Directory) };
+        for (var i = 0; i < 400; i++) records.Add(new((ulong)i + 3, 2, $"report{i:D3}.md", FileRecordFlags.None));
+        records.Add(new(1000, 2, "report-target.txt", FileRecordFlags.None));
+        using var fixture = LiveIndexFixture.Build("Z", records);
+        var results = new List<SearchResult>();
+
+        IndexV2Searcher.SearchStreaming(fixture.Index, query, 1, results.Add, CancellationToken.None,
+            fileNameFilter: "*.txt", category: SearchCategoryFilter.Document);
+
+        Assert.AreEqual(@"Z:\Archive\report-target.txt", Assert.ContainsSingle(results).Path);
+    }
+
+    [TestMethod]
+    [DataRow(@"archive\report")]
+    [DataRow(@"z:\archive\report")]
+    [DataRow(@"z:\archive\")]
+    public void SearchStreaming_PathBranchesApplyCategoryAndPatternsToDeltaRows(string query)
+    {
+        using var fixture = LiveIndexFixture.Build("Z", [LiveIndexFixture.Root(), new(2, 1, "Archive", FileRecordFlags.Directory),
+            new(3, 2, "report.txt", FileRecordFlags.None)]);
+        fixture.Index.Mutate((_, delta) =>
+        {
+            delta.Upsert(3, 2, "report.exe", FileRecordFlags.None, 0, 0, 0, 0);
+            delta.Upsert(4, 2, "report-new.txt", FileRecordFlags.None, 0, 0, 0, 0);
+            delta.Upsert(5, 2, "report-new.png", FileRecordFlags.None, 0, 0, 0, 0);
+        });
+        var results = new List<SearchResult>();
+
+        IndexV2Searcher.SearchStreaming(fixture.Index, query, 1, results.Add, CancellationToken.None,
+            fileNameFilter: "*.txt;*.exe", category: SearchCategoryFilter.Document);
+
+        Assert.AreEqual("report-new.txt", Assert.ContainsSingle(results).Name);
+    }
+
+    [TestMethod]
+    [DataRow(@"archive\report")]
+    [DataRow(@"z:\archive\report")]
+    public void SearchStreaming_PathFolderCategoryDoesNotAdmitFilesOrShortcuts(string query)
+    {
+        using var fixture = LiveIndexFixture.Build("Z", [LiveIndexFixture.Root(), new(2, 1, "Archive", FileRecordFlags.Directory),
+            new(3, 2, "report.txt", FileRecordFlags.Directory), new(4, 2, "report.lnk", FileRecordFlags.None),
+            new(5, 2, "report.txt", FileRecordFlags.None)]);
+        var results = new List<SearchResult>();
+
+        IndexV2Searcher.SearchStreaming(fixture.Index, query, 1, results.Add, CancellationToken.None,
+            fileNameFilter: "*.md", category: SearchCategoryFilter.Folder);
+
+        var folder = Assert.ContainsSingle(results);
+        Assert.AreEqual("report.txt", folder.Name);
+        Assert.IsTrue(folder.IsDir);
+    }
+
+    [TestMethod]
+    public void SearchStreaming_ExactPathDoesNotEscapeDirectoryScope()
+    {
+        using var fixture = BuildSampleDrive();
+        var results = new List<SearchResult>();
+        IndexV2Searcher.SearchStreaming(fixture.Index, @"c:\projects\", 10, results.Add,
+            CancellationToken.None, directoryFilter: @"C:\Downloads");
+        Assert.IsEmpty(results);
+    }
+
     private static LiveIndexFixture BuildSampleDrive() => LiveIndexFixture.Build("C", new[]
     {
         LiveIndexFixture.Root(),

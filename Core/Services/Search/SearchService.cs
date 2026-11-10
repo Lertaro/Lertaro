@@ -10,7 +10,22 @@ namespace Lertaro.Core.Services.Search;
 
 public class SearchService : IDisposable
 {
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, Task<List<SearchResult>>> _sessionDirectoryCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, (Lazy<Task<List<SearchResult>>> Scan, long StartedAt)> _sessionDirectoryCache = new(StringComparer.OrdinalIgnoreCase);
+    internal const long LiveDirectoryCacheLifetimeMs = 2000;
+
+    private static string LiveDirectoryKey(string directory, bool direct) =>
+        Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory)) + (direct ? "|direct" : "|recursive");
+
+    // Called by the existing inline directory watcher. Other windows have the bounded lifetime below.
+    internal void InvalidateLiveDirectory(string? directory)
+    {
+        if (string.IsNullOrEmpty(directory)) return;
+        foreach (var direct in new[] { false, true })
+        {
+            var key = LiveDirectoryKey(directory, direct);
+            _sessionDirectoryCache.TryRemove(key, out _);
+        }
+    }
     private readonly ScopeLiveSearchCache _scopeLiveSearchCache = new();
     private readonly CancellationTokenSource _cacheFillCts = new();
     private readonly SearchPipeClient _pipeClient = new();
@@ -43,11 +58,8 @@ public class SearchService : IDisposable
     // excluded/unconfigured network or WSL root, or a local drive not enabled for indexing) has nothing
     // to unfilter here; recovering that is CheckNeedsLiveSearch's live-scan fallback's job instead.
     //
-    // ponytail: `category` narrows only the local-index walk. Network drives and the live-scan fallback
-    // return every kind, so on those sources the category only shrinks the caller's displayed list, not the
-    // rows competing for the budget. Ceiling: a category whose rows live almost entirely on a network share
-    // can still arrive short. Upgrade path: carry the category into SearchServiceHelper.SearchNetworkDrives
-    // and LiveDirectorySearcher, both of which already take fileNameFilter and already test each row's name.
+    // Category and filename scopes reach index sources before their result budget, and the live
+    // fallback before matching. Its 10,000 enumerated-entry ceiling still applies to the raw cache.
     public async Task<bool> SearchStreamingAsync(string query, int maxResults, int maxAppResults, string? directoryFilter, Action<SearchResult> onResult, CancellationToken token = default, Action? onLocalSearchFailed = null, bool bypassExclusions = false, string? fileNameFilter = null, SearchCategoryFilter category = SearchCategoryFilter.All)
     {
         var settings = UserSettings.Load();
@@ -147,7 +159,7 @@ public class SearchService : IDisposable
         {
             try
             {
-                return SearchServiceHelper.SearchNetworkDrives(query, fileCandidateLimit, directoryFilter, exclusionRules, effectiveBypassExclusions, uniqueOnResult, token, fileNameFilter);
+                return SearchServiceHelper.SearchNetworkDrives(query, fileCandidateLimit, directoryFilter, exclusionRules, effectiveBypassExclusions, uniqueOnResult, token, fileNameFilter, category);
             }
             catch (OperationCanceledException)
             {
@@ -185,50 +197,13 @@ public class SearchService : IDisposable
         Task<bool>? liveTask = null;
         if (needsLiveSearch && !string.IsNullOrEmpty(liveScanDir))
         {
-            var cacheFillToken = _cacheFillCts.Token;
             liveTask = Task.Run(async () =>
             {
                 try
                 {
-                    // GetOrAdd shares ONE in-flight scan per directory across every caller currently
-                    // waiting on it, instead of the old lock(this) around the whole SearchService
-                    // instance -- that lock serialized every live scan regardless of which directory it
-                    // targeted, so typing into a directory that needs one (excluded from the index, an
-                    // unconfigured network drive, ...) queued every subsequent keystroke's own scan
-                    // attempt behind whichever one happened to go first, none of which could even check
-                    // their own cancellation token until they finally got the lock. The shared scan keeps
-                    // running when this one query is superseded so the next query in this window can reuse
-                    // it, but the SearchService owns its lifetime and cancels it when the window closes.
-                    if (_sessionDirectoryCache.Count > 32)
-                        _sessionDirectoryCache.Clear();
                     var onlyDirectChildren = parsed.IsPathMode && string.IsNullOrEmpty(liveScanFilter);
-                    // liveQuery/onLiveMatch only actually fire for whichever caller wins the GetOrAdd race
-                    // (i.e. triggers the scan for real) -- a directory this large/uncached is exactly the
-                    // "current folder" case that used to sit with zero results until the entire subtree
-                    // walk finished; streaming matches out as each directory is walked keeps the first,
-                    // cold keystroke from looking frozen even though the underlying walk cost is unchanged.
-                    // KeepObserved because this task outlives whoever started it: a superseded query abandons
-                    // the WaitAsync below, and GetOrAdd may discard a factory result outright, so a walk that
-                    // faults afterwards -- the dead query's accumulator throwing its cancellation into
-                    // onLiveMatch, or the service's own token cancelling at Dispose -- can be left with no
-                    // waiter at all. Its finalizer then reports a routine superseded search as a crash.
-                    var scanTask = _sessionDirectoryCache.GetOrAdd(liveScanDir,
-                        dir => Task.Run(() => LiveDirectorySearcher.ScanDirectory(dir, 10000, cacheFillToken,
-                            liveQuery: liveScanFilter, onLiveMatch: uniqueOnResult,
-                            onlyDirectChildren: onlyDirectChildren, parentPath: liveScanDir)).KeepObserved());
-                    List<SearchResult> entries;
-                    try
-                    {
-                        entries = await scanTask.WaitAsync(token).ConfigureAwait(false);
-                    }
-                    catch (Exception) when (scanTask.IsFaulted)
-                    {
-                        // Do not let a faulted live-scan task poison the cache for every later keystroke.
-                        _sessionDirectoryCache.TryRemove(new KeyValuePair<string, Task<List<SearchResult>>>(liveScanDir, scanTask));
-                        throw;
-                    }
-
-                    return LiveDirectorySearcher.MatchAndStream(entries, liveScanFilter, uniqueOnResult, token, onlyDirectChildren, liveScanDir);
+                    return await SearchLiveDirectoryAsync(liveScanDir, liveScanFilter, uniqueOnResult, token,
+                        onlyDirectChildren, fileNameFilter, category).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) { throw; }
                 catch (Exception ex)
@@ -244,6 +219,51 @@ public class SearchService : IDisposable
 
         var results = await Task.WhenAll(tasks).ConfigureAwait(false);
         return results.Any(r => r);
+    }
+
+    // One lazy walk per directory. Query cancellation abandons its callbacks/wait, while the service
+    // owns the scan lifetime so subsequent keystrokes can reuse all raw entries.
+    internal async Task<bool> SearchLiveDirectoryAsync(string directory, string query, Action<SearchResult> onResult,
+        CancellationToken token, bool onlyDirectChildren = false, string? fileNameFilter = null,
+        SearchCategoryFilter category = SearchCategoryFilter.All)
+    {
+        token.ThrowIfCancellationRequested();
+        if (_sessionDirectoryCache.Count > 32)
+        {
+            _sessionDirectoryCache.Clear();
+        }
+        var key = LiveDirectoryKey(directory, onlyDirectChildren);
+        // ponytail: completed scans without a watcher expire two seconds after starting. In-flight
+        // scans remain shared. Upgrade to watcher-backed generations if repeat scans are expensive.
+        if (_sessionDirectoryCache.TryGetValue(key, out var cached) && cached.Scan.IsValueCreated
+            && cached.Scan.Value.IsCompleted && Environment.TickCount64 - cached.StartedAt >= LiveDirectoryCacheLifetimeMs)
+            _sessionDirectoryCache.TryRemove(new(key, cached));
+        var cacheFillToken = _cacheFillCts.Token;
+        var liveMatches = 0;
+        var candidate = new Lazy<Task<List<SearchResult>>>(() => Task.Run(() =>
+            LiveDirectorySearcher.ScanDirectory(directory, 10000, cacheFillToken,
+                liveQuery: query, onLiveMatch: result =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    Interlocked.Increment(ref liveMatches);
+                    onResult(result);
+                }, onlyDirectChildren: onlyDirectChildren, parentPath: directory,
+                fileNameFilter: fileNameFilter, category: category)).KeepObserved());
+        var scan = _sessionDirectoryCache.GetOrAdd(key, (candidate, Environment.TickCount64));
+        var scanTask = scan.Scan.Value;
+        List<SearchResult> entries;
+        try { entries = await scanTask.WaitAsync(token).ConfigureAwait(false); }
+        catch (Exception) when (scanTask.IsFaulted)
+        {
+            _sessionDirectoryCache.TryRemove(new(key, scan));
+            throw;
+        }
+        token.ThrowIfCancellationRequested();
+        // The cold caller already matched and delivered every eligible entry. Other callers match once
+        // against the same raw list, with their own query/scope/category.
+        return ReferenceEquals(scan.Scan, candidate) ? Volatile.Read(ref liveMatches) > 0
+            : LiveDirectorySearcher.MatchAndStream(entries, query, onResult, token,
+                onlyDirectChildren, directory, fileNameFilter, category);
     }
 
     // In-memory index lookup only (no disk I/O) -- the most recently modified entries across all of the

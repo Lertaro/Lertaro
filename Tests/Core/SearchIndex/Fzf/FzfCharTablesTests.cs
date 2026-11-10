@@ -66,17 +66,21 @@ public sealed class FzfCharTablesTests
     }
 
     [TestMethod]
-    public void CharsEqual_CaseInsensitive_LowersOnlyTheTextSide()
+    public void CharsEqual_CaseInsensitive_NormalizesBothSides()
     {
-        // Only `text` gets lowered before comparing -- callers must pass an already-lowercased pattern.
         Assert.IsTrue(FzfCharTables.CharsEqual('A', 'a', caseSensitive: false));
-        Assert.IsFalse(FzfCharTables.CharsEqual('a', 'A', caseSensitive: false));
+        Assert.IsTrue(FzfCharTables.CharsEqual('a', 'A', caseSensitive: false));
+        Assert.IsTrue(FzfCharTables.CharsEqual('É', 'é', caseSensitive: false));
+        Assert.IsTrue(FzfCharTables.CharsEqual('é', 'É', caseSensitive: false));
+        Assert.IsFalse(FzfCharTables.CharsEqual('a', 'B', caseSensitive: false));
     }
 
     [TestMethod]
     public void CharsEqual_Byte_BehavesLikeCharOverload()
     {
         Assert.IsTrue(FzfCharTables.CharsEqual((byte)'A', (byte)'a', caseSensitive: false));
+        Assert.IsTrue(FzfCharTables.CharsEqual((byte)'a', (byte)'A', caseSensitive: false));
+        Assert.IsFalse(FzfCharTables.CharsEqual((byte)'a', (byte)'B', caseSensitive: false));
         Assert.IsFalse(FzfCharTables.CharsEqual((byte)'A', (byte)'a', caseSensitive: true));
     }
 }

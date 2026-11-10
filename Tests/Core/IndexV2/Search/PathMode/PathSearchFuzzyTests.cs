@@ -10,6 +10,23 @@ namespace Lertaro.Core.Tests.IndexV2.Search.PathMode;
 [TestClass]
 public sealed class PathSearchFuzzyTests
 {
+    [TestMethod]
+    public void BoundedParallelPathSearch_EqualKeysAlwaysKeepTheSameRows()
+    {
+        using var fixture = BuildFixture();
+        string[]? expected = null;
+        for (var i = 0; i < 25; i++)
+        {
+            var rows = new List<SearchResult>();
+            Core.IndexV2.Search.IndexV2Searcher.SearchStreaming(fixture.Index, @"docs\report", 10,
+                rows.Add, CancellationToken.None, fileNameFilter: "*.txt");
+            var paths = rows.Select(r => r.Path).ToArray();
+            expected ??= paths;
+            Assert.HasCount(10, rows);
+            CollectionAssert.AreEqual(expected, paths);
+        }
+    }
+
     private const int UniqueNames = 1500; // past the fan-out's 1024-match threshold
 
     [TestMethod]

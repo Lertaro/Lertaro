@@ -1,5 +1,6 @@
 using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Query;
+using Lertaro.PluginSdk.Helpers;
 namespace Lertaro.Core.Indexer.NetworkDrive;
 
 public static class NetworkIndexerSearchExtensions
@@ -12,7 +13,7 @@ public static class NetworkIndexerSearchExtensions
         Action<SearchResult> onResult,
         CancellationToken token = default,
         string? directoryFilter = null,
-        string? fileNameFilter = null)
+        string? fileNameFilter = null, SearchCategoryFilter category = SearchCategoryFilter.All)
     {
         indexer.EnsureConfigured();
         if (limit <= 0 || string.IsNullOrWhiteSpace(query))
@@ -27,7 +28,7 @@ public static class NetworkIndexerSearchExtensions
 
         var parsed = SearchQueryParser.Parse(query);
         var directoryFilterLower = IndexerHelper.NormalizeFilter(directoryFilter);
-        SearchSnapshots(snapshots, parsed, query, directoryFilterLower, limit, onResult, token, fileNameFilter);
+        SearchSnapshots(snapshots, parsed, query, directoryFilterLower, limit, onResult, token, fileNameFilter, category);
     }
 
     internal static void SearchSnapshots(
@@ -38,7 +39,7 @@ public static class NetworkIndexerSearchExtensions
         int limit,
         Action<SearchResult> onResult,
         CancellationToken token,
-        string? fileNameFilter = null)
+        string? fileNameFilter = null, SearchCategoryFilter category = SearchCategoryFilter.All)
     {
         var allowed = snapshots.Where(index => IsDriveAllowed(index.Drive, parsed, directoryFilterLower)).ToArray();
         if (allowed.Length == 0 || limit <= 0)
@@ -46,7 +47,7 @@ public static class NetworkIndexerSearchExtensions
 
         if (allowed.Length == 1)
         {
-            allowed[0].SearchStreaming(parsed, query, directoryFilterLower, limit, onResult, token, fileNameFilter);
+            allowed[0].SearchStreaming(parsed, query, directoryFilterLower, limit, onResult, token, fileNameFilter, category);
             return;
         }
 
@@ -64,7 +65,7 @@ public static class NetworkIndexerSearchExtensions
                 var rows = buffered[i] = new List<SearchResult>();
                 try
                 {
-                    allowed[i].SearchStreaming(parsed, query, directoryFilterLower, limit, rows.Add, token, fileNameFilter);
+                    allowed[i].SearchStreaming(parsed, query, directoryFilterLower, limit, rows.Add, token, fileNameFilter, category);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
@@ -95,7 +96,7 @@ public static class NetworkIndexerSearchExtensions
                 {
                     lock (callbackLock)
                         onResult(result);
-                }, token, fileNameFilter);
+                }, token, fileNameFilter, category);
             });
     }
 

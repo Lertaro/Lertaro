@@ -6,6 +6,13 @@ namespace Lertaro.Core.Services.Plugin.DirectoryIndex;
 // of the same directory agree on which names the pattern selects.
 public static class FilterPatternHelper
 {
+    // Filename scopes admit directories for navigation; category is an independent constraint.
+    internal static bool MatchesSearchResult(string name, bool isDirectory, string[]? patterns,
+        Lertaro.PluginSdk.Helpers.SearchCategoryFilter category) =>
+        (category == Lertaro.PluginSdk.Helpers.SearchCategoryFilter.Folder ? isDirectory
+            : Lertaro.PluginSdk.Helpers.SearchCategoryClassifier.Matches(category, name, isDirectory))
+        && (isDirectory || patterns == null || Matches(name, patterns));
+
     public static string[] Split(string filterPattern)
     {
         if (string.IsNullOrWhiteSpace(filterPattern)) return new[] { "*" };
@@ -31,7 +38,9 @@ public static class FilterPatternHelper
         return patterns.Any(IsMatchAll) ? "*" : string.Join(';', patterns);
     }
 
-    public static bool Matches(string name, string[] patterns)
+    public static bool Matches(string name, string[] patterns) => Matches(name.AsSpan(), patterns);
+
+    internal static bool Matches(ReadOnlySpan<char> name, string[] patterns)
     {
         foreach (var pattern in patterns)
         {

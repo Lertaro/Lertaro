@@ -196,18 +196,19 @@ internal sealed class StreamingResultAccumulator
     /// UI to finish applying a paint before computing the next, so no consumer overlaps one. A caller
     /// that does keep it across an await (the query-token path) must copy it first.
     /// </remarks>
-    public List<AppSearchResult> Absorb(IReadOnlyList<SearchResult> arrivals)
+    public List<AppSearchResult> Absorb(IReadOnlyList<SearchResult> arrivals, CancellationToken token = default)
     {
         var start = Math.Min(_consumed, arrivals.Count);
-        return AbsorbRange(arrivals, start, arrivals.Count - start);
+        return AbsorbRange(arrivals, start, arrivals.Count - start, token);
     }
 
     /// <summary>Absorbs a batch containing only arrivals not supplied by an earlier call.</summary>
-    public List<AppSearchResult> AbsorbBatch(IReadOnlyList<SearchResult> arrivals) =>
-        AbsorbRange(arrivals, 0, arrivals.Count);
+    public List<AppSearchResult> AbsorbBatch(IReadOnlyList<SearchResult> arrivals, CancellationToken token = default) =>
+        AbsorbRange(arrivals, 0, arrivals.Count, token);
 
-    private List<AppSearchResult> AbsorbRange(IReadOnlyList<SearchResult> arrivals, int start, int count)
+    private List<AppSearchResult> AbsorbRange(IReadOnlyList<SearchResult> arrivals, int start, int count, CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
         _lastBatchRows.Clear();
         // Taken up at the start of a paint rather than by the thread that queued it, so one thread ever
         // touches _rows, and so the rewrite below restamps every row's position for the wider prefix.
@@ -223,6 +224,7 @@ internal sealed class StreamingResultAccumulator
             var end = start + count;
             for (var i = start; i < end; i++)
             {
+                token.ThrowIfCancellationRequested();
                 var raw = arrivals[i];
                 // Typing an exact directory path is a request to look INSIDE it, so the directory's own
                 // index record is not one of its own results (see SearchResultMapper).
@@ -241,30 +243,30 @@ internal sealed class StreamingResultAccumulator
 
             _consumed += count;
             var sortStart = SearchPerf.Start();
-            SortChunk(chunk);
+            SortChunk(chunk, token);
             var sortMs = SearchPerf.Ms(sortStart);
             var mergeStart = SearchPerf.Start();
-            firstChanged = Merge(chunk);
+            firstChanged = Merge(chunk, token);
             var mergeMs = SearchPerf.Ms(mergeStart);
 
             // A prepend moves every row that was already there, so nothing on screen can be trusted to still
             // be in place and this paint compares from the top. Otherwise the merge's own position is where the
             // view can start, offset by the prefix that sits in front of it.
             var rewriteStart = SearchPerf.Start();
-            RewriteRows(prefixLanded ? 0 : firstChanged);
+            RewriteRows(prefixLanded ? 0 : firstChanged, token);
             _firstChanged = prefixLanded ? 0 : _prefixCount + firstChanged;
             SearchPerf.Log($"[absorb] in={count} kept={chunk.Count} total={_ranked.Count} build={buildMs:F0}ms sort={sortMs:F0}ms merge={mergeMs:F0}ms rewrite={SearchPerf.Ms(rewriteStart):F0}ms firstChanged={firstChanged}");
             return _rows;
         }
 
-        RewriteRows(prefixLanded ? 0 : firstChanged);
+        RewriteRows(prefixLanded ? 0 : firstChanged, token);
         _firstChanged = prefixLanded ? 0 : _prefixCount + firstChanged;
         return _rows;
     }
 
     // Only the disturbed suffix is rewritten. Index is restamped over the same range because a row
     // inserted in the middle shifts every position after it.
-    private void RewriteRows(int fromRelative)
+    private void RewriteRows(int fromRelative, CancellationToken token = default)
     {
         var total = _prefixCount + _ranked.Count;
         while (_rows.Count < total)
@@ -274,6 +276,7 @@ internal sealed class StreamingResultAccumulator
 
         for (var i = fromRelative; i < _ranked.Count; i++)
         {
+            token.ThrowIfCancellationRequested();
             var row = _ranked[i].Row;
             // The display position, prefix included -- what it was before a prefix existed at all.
             row.Index = _prefixCount + i;
@@ -292,52 +295,59 @@ internal sealed class StreamingResultAccumulator
     private const int ParallelSortThreshold = 20_000;
     private const int MaxSortParts = 8;
 
-    private static void SortChunk(List<Entry> chunk)
+    private static void SortChunk(List<Entry> chunk, CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
         var parts = Math.Min(MaxSortParts, chunk.Count / ParallelSortThreshold);
         if (parts < 2)
         {
             chunk.Sort(CompareEntries);
+            token.ThrowIfCancellationRequested();
             return;
         }
 
         var partSize = (chunk.Count + parts - 1) / parts;
         var sorted = new List<Entry>[parts];
-        Parallel.For(0, parts, index =>
+        Parallel.For(0, parts, new ParallelOptions { CancellationToken = token }, index =>
         {
             var start = index * partSize;
             var end = Math.Min(start + partSize, chunk.Count);
             var slice = chunk.GetRange(start, end - start);
             slice.Sort(CompareEntries);
+            token.ThrowIfCancellationRequested();
             sorted[index] = slice;
         });
 
-        var merged = MergeSorted(sorted);
+        var merged = MergeSorted(sorted, token);
         chunk.Clear();
         chunk.AddRange(merged);
     }
 
-    private static List<Entry> MergeSorted(List<Entry>[] parts)
+    private static List<Entry> MergeSorted(List<Entry>[] parts, CancellationToken token)
     {
         var level = new List<List<Entry>>(parts);
         while (level.Count > 1)
         {
             var next = new List<List<Entry>>((level.Count + 1) / 2);
             for (var i = 0; i < level.Count; i += 2)
-                next.Add(i + 1 < level.Count ? Merge(level[i], level[i + 1]) : level[i]);
+                next.Add(i + 1 < level.Count ? Merge(level[i], level[i + 1], token) : level[i]);
             level = next;
         }
 
         return level[0];
     }
 
-    private static List<Entry> Merge(List<Entry> left, List<Entry> right)
+    private static List<Entry> Merge(List<Entry> left, List<Entry> right, CancellationToken token)
     {
         var merged = new List<Entry>(left.Count + right.Count);
         var i = 0;
         var j = 0;
         while (i < left.Count && j < right.Count)
+        {
+            token.ThrowIfCancellationRequested();
             merged.Add(CompareEntries(right[j], left[i]) < 0 ? right[j++] : left[i++]);
+        }
+        token.ThrowIfCancellationRequested();
         while (i < left.Count)
             merged.Add(left[i++]);
         while (j < right.Count)
@@ -349,8 +359,9 @@ internal sealed class StreamingResultAccumulator
         path.Length > 3 && path[^1] == '\\' ? path.TrimEnd('\\') : path;
 
     /// <summary>Merges a sorted batch into the ranked list and returns the position it first disturbed.</summary>
-    private int Merge(List<Entry> chunk)
+    private int Merge(List<Entry> chunk, CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
         if (chunk.Count == 0)
             return _ranked.Count;
 
@@ -372,6 +383,7 @@ internal sealed class StreamingResultAccumulator
         var writeIndex = _ranked.Count - 1;
         while (oldIndex >= firstChanged && chunkIndex >= 0)
         {
+            token.ThrowIfCancellationRequested();
             if (CompareEntries(chunk[chunkIndex], _ranked[oldIndex]) >= 0)
                 _ranked[writeIndex--] = chunk[chunkIndex--];
             else

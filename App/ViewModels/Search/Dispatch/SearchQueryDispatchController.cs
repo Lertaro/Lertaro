@@ -59,6 +59,7 @@ internal sealed class SearchQueryDispatchController
     private readonly Action<bool, int> _applyFiltersAndRender;
 
     private IReadOnlyList<string> _queryTokens = Array.Empty<string>();
+    private CancellationTokenSource? _tokenBatchCts;
 
     // Bumped per query so an append that lands after the user typed again cannot paint stale rows.
     private int _contentAppendGeneration;
@@ -107,6 +108,7 @@ internal sealed class SearchQueryDispatchController
 
     public void OnAdvancedQueryChanged(string query)
     {
+        _tokenBatchCts?.Cancel();
         var globalPrefixChar = GetGlobalTokenPrefixChar();
         var strippedTrailing = SearchQuerySortParser.Strip(query, out var tokens, globalPrefixChar);
         _queryTokens = tokens;
@@ -207,7 +209,7 @@ internal sealed class SearchQueryDispatchController
             // SearchResultMapper.BuildQuickResults (the quick/inline windows) re-sorts by rank before
             // building rows; the accumulator does the same thing incrementally, merging each new arrival
             // into the ranking rather than redoing it.
-            resultMapper: (fileResults, _) =>
+            resultMapper: (fileResults, _, token) =>
             {
                 if (fileResults == null)
                     return new List<AppSearchResult>();
@@ -228,7 +230,7 @@ internal sealed class SearchQueryDispatchController
                         query: cleanQuery));
                     rankContextApplied = true;
                 }
-                return accumulator.AbsorbBatch(fileResults);
+                return accumulator.AbsorbBatch(fileResults, token);
             },
             searching => _setIsSearching(searching),
             (results, status, final) =>
@@ -276,7 +278,7 @@ internal sealed class SearchQueryDispatchController
                     // tokens in this window quietly stopped doing anything at all.
                     var snapshot = new List<AppSearchResult>(filteredResults);
                     _setAllResults(snapshot, false);
-                    _ = RefreshAfterTokenDispatchAsync(snapshot, _queryTokens, extendsContent);
+                    _ = RefreshAfterTokenDispatchAsync(snapshot, _queryTokens, extendsContent, cleanQuery);
                 }
                 else
                 {
@@ -450,13 +452,17 @@ internal sealed class SearchQueryDispatchController
         }, System.Windows.Threading.DispatcherPriority.Background);
     }
 
-    private async Task RefreshAfterTokenDispatchAsync(List<AppSearchResult> resultsSnapshot, IReadOnlyList<string> tokensSnapshot, bool extendsContent)
+    private async Task RefreshAfterTokenDispatchAsync(List<AppSearchResult> resultsSnapshot, IReadOnlyList<string> tokensSnapshot, bool extendsContent, string baseQuery)
     {
+        _tokenBatchCts?.Cancel();
+        using var batch = CancellationTokenSource.CreateLinkedTokenSource(_searchEngine.CurrentCancellationToken);
+        _tokenBatchCts = batch;
         List<AppSearchResult> dispatched;
         try
         {
-            dispatched = await QueryTokenDispatcher.ApplyAsync(resultsSnapshot, tokensSnapshot);
+            dispatched = await QueryTokenDispatcher.ApplyAsync(resultsSnapshot, tokensSnapshot, baseQuery, batch.Token);
         }
+        catch (OperationCanceledException) when (batch.IsCancellationRequested) { return; }
         catch (Exception ex)
         {
             // This is awaited by nobody, so a throwing token provider used to vanish: no log carrying the
@@ -465,12 +471,16 @@ internal sealed class SearchQueryDispatchController
             // "a plugin failed". The snapshot is already what _allResults holds, so rendering it is the
             // honest untokenized fallback.
             Logger.Log($"[SearchQueryDispatch] Query-token dispatch failed: {ex.Message}. Showing the untokenized results.", LogLevel.Warn);
-            if (ReferenceEquals(_getAllResults(), resultsSnapshot) && ReferenceEquals(_queryTokens, tokensSnapshot))
+            if (!batch.IsCancellationRequested && ReferenceEquals(_getAllResults(), resultsSnapshot) && ReferenceEquals(_queryTokens, tokensSnapshot))
                 _applyFiltersAndRender(extendsContent, 0);
             return;
         }
+        finally
+        {
+            if (ReferenceEquals(_tokenBatchCts, batch)) _tokenBatchCts = null;
+        }
 
-        if (!ReferenceEquals(_getAllResults(), resultsSnapshot) || !ReferenceEquals(_queryTokens, tokensSnapshot))
+        if (batch.IsCancellationRequested || !ReferenceEquals(_getAllResults(), resultsSnapshot) || !ReferenceEquals(_queryTokens, tokensSnapshot))
             return;
         _setAllResults(dispatched, false);
         // A token provider may filter or reorder anything, so no prefix survives.

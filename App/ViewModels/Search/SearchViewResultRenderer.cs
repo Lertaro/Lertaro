@@ -39,7 +39,7 @@ internal sealed class SearchViewResultRenderer
         // Same reason as the streaming path's own call: ItemsEqual keeps a row whose content matches, so
         // the kept instance still holds the previous query and has to be told this one for its highlight
         // to follow along (see SearchResultsReconciler.SyncMutableDisplayState).
-        SearchResultsReconciler.SyncMutableDisplayState(_filteredResults, finalResults);
+        SearchResultsReconciler.SyncMutableDisplayState(_filteredResults, finalResults, unchangedPrefix);
         _setResultCount(finalResults.Count);
         _refreshHints();
 

@@ -39,6 +39,35 @@ internal sealed class QuickSearchLaunchSourceSupport
 
         var settings = UserSettings.Load().QuickLaunch;
         var ordered = QuickLaunchSourceCatalog.OrderSources(loaded, settings.SourceOrder);
+        ApplySources(ordered, selectedId);
+    }
+
+    internal void ApplySources(List<LaunchPanelSourceViewModel> ordered, string? selectedId)
+    {
+        foreach (var source in ordered)
+        {
+            var previous = Sources.FirstOrDefault(item => item.Id.Equals(source.Id, StringComparison.OrdinalIgnoreCase));
+            if (previous == null) continue;
+
+            var displayed = new Dictionary<string, AppSearchResult>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in previous.Items)
+                if (item.FullPath.Length > 0 && item.ExistingExtras?.Icon != null)
+                    displayed.TryAdd(item.FullPath, item);
+
+            foreach (var item in source.Items)
+            {
+                if (item.IconOverride != null || item.ExistingExtras?.Icon != null
+                    || !displayed.TryGetValue(item.FullPath, out var old) || old.IsDir != item.IsDir)
+                    continue;
+
+                // ponytail: keep only the old visible image while this new row refreshes it. Reusing
+                // its actions/metadata would go stale; another global cache would retain hidden items.
+                // Shell extraction still runs after a cache clear; versioned reuse can follow if measured.
+                item.DisplayExtras.Icon = old.ExistingExtras!.Icon;
+                item.DisplayExtras.IconNeedsRefresh = true;
+            }
+        }
+
         Sources.ReplaceRange(ordered);
         Selected = ordered.FirstOrDefault(source => source.Id.Equals(selectedId, StringComparison.OrdinalIgnoreCase))
             ?? ordered.FirstOrDefault();

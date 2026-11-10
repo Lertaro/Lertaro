@@ -21,10 +21,8 @@ public class QuickSearchWindowController
     internal QuickSearchWindowForegroundWatcher ForegroundWatcher => _foregroundWatcher;
     internal IntPtr LastActiveHwnd { get => _lastActiveHwnd; set => _lastActiveHwnd = value; }
     internal int VisibilityOperationToken { get => _visibilityOpToken; set => _visibilityOpToken = value; }
-    // Bumped by every ShowWindow()/HideWindow() call. HideWindow()'s actual Hide() is deferred behind
-    // a fade-out (see its own comment), so a rapid Show() right after a Hide() needs a way to tell that
-    // deferred continuation "a newer call already superseded you" -- otherwise the pending continuation
-    // would still fire and hide the window moments after the user just re-summoned it.
+    // Bumped by every ShowWindow()/HideWindow() call, including before Show's asynchronous work.
+    // Deferred hide work must not clear a newer summon's caches.
     private int _visibilityOpToken;
     // Set by a caller that's about to intentionally move focus to an external window itself as part of
     // executing a result (e.g. WindowSwitcher's "activatewindow:" action -- see PluginActionExecutor).
@@ -276,13 +274,17 @@ public class QuickSearchWindowController
             _suppressNextRestore = false;
             _lastActiveHwnd = IntPtr.Zero;
 
-            Task.Run(async () =>
+            _ = ClearCachesAfterHideAsync();
+
+            async Task ClearCachesAfterHideAsync()
             {
                 await Task.Delay(100);
-                // These two genuinely free memory, so they still run on every hide.
+                // Resume on the UI dispatcher: checking the generation and clearing must not race
+                // with Show. A background delay used to clear icons after a new summon had begun.
+                if (opToken != _visibilityOpToken || _window.IsVisible) return;
                 try { ShellIconHelper.ClearCache(); } catch { }
                 try { PathCacheMaintenance.ClearAllPathCaches(); } catch { }
-            });
+            }
 
             // Trimming the working set frees nothing -- it only evicts pages the next summon has to
             // fault straight back in, which measured at ~17MB and 70% of a summon's time every single

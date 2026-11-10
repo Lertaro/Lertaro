@@ -51,7 +51,7 @@ internal sealed class SearchStreamRenderer
         string? contextDirectory,
         int fileLimit,
         int appLimit,
-        Func<List<SearchResult>?, string?, List<AppSearchResult>> resultMapper,
+        Func<List<SearchResult>?, string?, CancellationToken, List<AppSearchResult>> resultMapper,
         int searchVersion,
         Action<List<AppSearchResult>, string, bool> onResultsUpdated,
         CancellationToken token,
@@ -78,7 +78,7 @@ internal sealed class SearchStreamRenderer
         var streamDone = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         var runShortcutSupplement = ScopedSearchRunner.ShouldRunShortcutSupplement(
-            fileLimit, foldersOnly, searchScope, scopeDirective);
+            fileLimit, foldersOnly, searchScope, scopeDirective, query);
         // Set by Accumulate the moment a row the supplement would have contributed arrives; read once, after
         // the main query has streamed. Volatile because the engine hands rows in from its own threads.
         var shortcutSurfaced = 0;
@@ -148,7 +148,7 @@ internal sealed class SearchStreamRenderer
                 snapshot = CopySnapshot(streamedResponse, take, resultMapperConsumesBatches, ref copiedCount);
             }
 
-            var uiResults = resultMapper(snapshot, contextDirectory);
+            var uiResults = resultMapper(snapshot, contextDirectory, token);
             var localMatches = getLocalSnapshot?.Invoke();
             // Not just when the folder contributed rows: the global results still have to be re-ordered so
             // the folder's subfolders come before the rest of the drive. getLocalSnapshot is non-null
@@ -252,7 +252,8 @@ internal sealed class SearchStreamRenderer
         // the client only needs the union before its final sort. Skipped when the caller narrowed the
         // search itself (path mode, explicit folder scope): those scopes are what the user asked for.
         // Owned outside the try so a failing main query still drains it instead of leaving the pipe open.
-        var priorityTask = priorityRoots is { Count: > 0 } && !bypassExclusions && scopeDirective is not { Folders.Count: > 0 }
+        var priorityTask = priorityRoots is { Count: > 0 }
+            && ScopedSearchRunner.ShouldRunPriorityRoots(query, searchScope, scopeDirective, bypassExclusions)
             ? ScopedSearchRunner.RunPriorityRootsAsync(
                 _searchService, priorityRoots, query, PriorityRootResultLimit, appLimit, Accumulate, token)
             : null;

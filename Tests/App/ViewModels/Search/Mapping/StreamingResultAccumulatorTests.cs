@@ -8,6 +8,35 @@ namespace Lertaro.App.Tests.ViewModels.Search.Mapping;
 [TestClass]
 public sealed class StreamingResultAccumulatorTests
 {
+    [TestMethod]
+    public void AbsorbBatch_CancelledWhileReading_StopsBeforeBuildingTheRest()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var source = new CancellingRows(cancellation);
+        var accumulator = new StreamingResultAccumulator("report", resolveQueriedDirectory: _ => null);
+
+        Assert.ThrowsExactly<OperationCanceledException>(() => accumulator.AbsorbBatch(source, cancellation.Token));
+
+        Assert.AreEqual(3, source.Reads);
+        Assert.IsEmpty(accumulator.Rows, "A cancelled batch must never be published.");
+    }
+
+    private sealed class CancellingRows(CancellationTokenSource cancellation) : IReadOnlyList<SearchResult>
+    {
+        public int Count => 50_000;
+        public int Reads { get; private set; }
+        public SearchResult this[int index]
+        {
+            get
+            {
+                if (++Reads == 3) cancellation.Cancel();
+                return Result($@"Z:\report{index}.txt");
+            }
+        }
+        public IEnumerator<SearchResult> GetEnumerator() => throw new NotSupportedException();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
     // A resolver that demotes one path and leaves everything else normal.
     private static Func<string, bool, PriorityVerdict> Low(string demoted) => (path, _) =>
         path.Equals(demoted, StringComparison.OrdinalIgnoreCase)

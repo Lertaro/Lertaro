@@ -143,7 +143,7 @@ public static class TextHighlighter
     // What a highlight string resolves to once: the term(s) to light up and the drive filter (if any).
     private readonly record struct MaskPlan(FuzzyQuery[] Parts, string? Drive);
 
-    // One parsed plan per distinct highlight string, per thread.
+    // One parsed plan per highlight string and matching precision/precedence, per thread.
     //
     // This runs once per RENDERED ROW (the list has a TextBlock for each name and each path), while the
     // highlight string is identical for every row of a search. Parsing it consulted every alias provider
@@ -155,15 +155,25 @@ public static class TextHighlighter
     // below is what guarantees that.
     [ThreadStatic] private static string? _planKey;
     [ThreadStatic] private static MaskPlan? _plan;
+    [ThreadStatic] private static bool _planFuzzy;
+    [ThreadStatic] private static bool _planAndFirst;
+    [ThreadStatic] private static long _planAliasRevision;
 
     private static MaskPlan PlanFor(string normalizedHighlight)
     {
-        if (_planKey == normalizedHighlight && _plan is { } cached)
+        var fuzzy = SearchContext.FuzzyMatchEnabled;
+        var andFirst = SearchContext.AndFirstPrecedence;
+        var aliasRevision = AliasProviderRegistry.QueryRevision;
+        if (_planKey == normalizedHighlight && _planFuzzy == fuzzy && _planAndFirst == andFirst
+            && _planAliasRevision == aliasRevision && _plan is { } cached)
             return cached;
 
         var plan = BuildPlan(normalizedHighlight);
         _planKey = normalizedHighlight;
         _plan = plan;
+        _planFuzzy = fuzzy;
+        _planAndFirst = andFirst;
+        _planAliasRevision = aliasRevision;
         return plan;
     }
 
