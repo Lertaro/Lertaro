@@ -8,12 +8,12 @@ using Lertaro.PluginSdk.Abstractions.Plugins;
 
 namespace Lertaro.App.Tests.Search;
 
-// `!term` means "drop any candidate whose NAME contains term" (see Site/user-guide/search-syntax.md),
+// `:term` means "drop any candidate whose NAME contains term" (see Site/user-guide/search-syntax.md),
 // and an excluded term is deliberately never pinyin-expanded, so the check only ever has something to
 // compare against in the name itself. But every matcher tries the name first and then re-runs the WHOLE
 // pattern against each baked alias -- and a transliteration can't contain 王菲, so the exclusion term
 // found nothing there and its term set passed vacuously. The candidate the name match had just rejected
-// was revived one tier later: `fhcq !王菲` still listed 王菲凤凰传奇.txt.
+// was revived one tier later: `fhcq :王菲` still listed 王菲凤凰传奇.txt.
 //
 // A fake provider keeps the expected spellings fixed instead of tied to the syllable table, and drives
 // the real bake (SnapshotWriter -> AliasGenerationUtf8) and the real query (IndexV2Searcher ->
@@ -143,7 +143,7 @@ public sealed class PinyinExclusionSearchTests
     {
         using var fixture = FourNames();
 
-        CollectionAssert.AreEqual(new[] { "凤凰传奇.txt" }, Search(fixture.Index, "fhcq !王菲"));
+        CollectionAssert.AreEqual(new[] { "凤凰传奇.txt" }, Search(fixture.Index, "fhcq :王菲"));
     }
 
     // Same query without pinyin: the positive term matches the names directly, so the exclusion was
@@ -153,26 +153,29 @@ public sealed class PinyinExclusionSearchTests
     {
         using var fixture = FourNames();
 
-        CollectionAssert.AreEqual(new[] { "凤凰传奇.txt" }, Search(fixture.Index, "凤凰传奇 !王菲"));
+        CollectionAssert.AreEqual(new[] { "凤凰传奇.txt" }, Search(fixture.Index, "凤凰传奇 :王菲"));
     }
 
     // The other door an exclusion has to be closed in: the ancestor pass lets a FOLDER satisfy a term the
-    // file name cannot, and an exclusion is satisfied by any segment that lacks its text -- so a file whose
-    // OWN name is exactly what was excluded used to be topped back in from under a matching folder. The
-    // folder's help has to survive: 笔记.txt is still found through 凤凰传奇 above it.
+    // file name cannot, so a file whose OWN name is exactly what was excluded used to be topped back in
+    // from under a matching folder. The folder's own row has to survive that veto.
+    //
+    // An exclusion takes no mask bit, so it can only ever remove rows: `凤凰传奇` on its own does not fan
+    // out into the folder's children (one term has nowhere to split), and adding `:王菲` must not start
+    // listing them. Stating it the other way round -- an exclusion satisfied by any segment that lacks the
+    // text -- is what made a filter look like it had added a result.
     [TestMethod]
-    public void AncestorFanOut_WithCjkExclusion_DropsTheExcludedNameAndKeepsTheFolderMatch()
+    public void AncestorFanOut_WithCjkExclusion_DropsTheExcludedNameAndAddsNoRows()
     {
         using var fixture = TempIndex.BuildNested("凤凰传奇", "王菲凤凰传奇.txt", "笔记.txt");
 
-        // The control: the folder itself is a row, and 笔记.txt only comes back because the folder above
-        // it satisfies the term its own name cannot.
+        // The control: the folder itself is a row, and neither file below it comes back on this query.
         CollectionAssert.AreEquivalent(new[] { "凤凰传奇", "王菲凤凰传奇.txt" }, Search(fixture.Index, "凤凰传奇"));
-        CollectionAssert.AreEquivalent(new[] { "凤凰传奇", "笔记.txt" }, Search(fixture.Index, "凤凰传奇 !王菲"));
+        CollectionAssert.AreEquivalent(new[] { "凤凰传奇" }, Search(fixture.Index, "凤凰传奇 :王菲"));
 
         // The reported shape on top of it: here even the positive term only reaches these rows through the
-        // folder's pinyin alias, so both tiers are alias-driven and neither may undo `!王菲`.
-        CollectionAssert.AreEquivalent(new[] { "凤凰传奇", "笔记.txt" }, Search(fixture.Index, "fhcq !王菲"));
+        // folder's pinyin alias, so both tiers are alias-driven and neither may undo `:王菲`.
+        CollectionAssert.AreEquivalent(new[] { "凤凰传奇" }, Search(fixture.Index, "fhcq :王菲"));
     }
 
     // Excluded terms are not pinyin-expanded (documented, to avoid over-exclusion): the initials of what
@@ -184,7 +187,7 @@ public sealed class PinyinExclusionSearchTests
 
         CollectionAssert.AreEquivalent(
             new[] { "王菲凤凰传奇.txt", "凤凰传奇王菲.txt", "凤凰传奇.txt" },
-            Search(fixture.Index, "fhcq !wf"));
+            Search(fixture.Index, "fhcq :wf"));
     }
 
     // The same rule on the public seam used for candidates that carry no index row at all -- application
@@ -192,7 +195,7 @@ public sealed class PinyinExclusionSearchTests
     [TestMethod]
     public void FuzzyQuery_ExcludesByNameNotByAlias()
     {
-        var query = FuzzyQuery.Parse("fhcq !王菲");
+        var query = FuzzyQuery.Parse("fhcq :王菲");
 
         Assert.IsTrue(query.IsMatch("凤凰传奇.txt"));
         Assert.IsFalse(query.IsMatch("王菲凤凰传奇.txt"));
@@ -207,7 +210,7 @@ public sealed class PinyinExclusionSearchTests
         using var fixture = FourNames();
         fixture.Index.Mutate((_, delta) => delta.Upsert(100, 1, "凤凰传奇.mp3", FileRecordFlags.None, 1, 0, 0, 0));
 
-        var withExclusion = Search(fixture.Index, "fhcq !王菲");
+        var withExclusion = Search(fixture.Index, "fhcq :王菲");
 
         Assert.Contains("凤凰传奇.mp3", withExclusion);
         CollectionAssert.DoesNotContain(withExclusion, "王菲凤凰传奇.txt");
