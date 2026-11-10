@@ -3,8 +3,8 @@ using Lertaro.PluginSdk.Abstractions;
 namespace Lertaro.App.ViewModels.Search.DynamicSidebar;
 
 // Applies the active sidebar filter predicates (the host adapts each item's synchronous matcher to
-// this batch shape) on top of an already-sorted result list. Renders immediately with the sorted-but-unfiltered list, then
-// swaps in the filtered list once the predicates resolve -- discarding a stale resolution if a
+// this batch shape) before sorting and rendering once. Keeps the previous display while an async
+// filter resolves, discarding a stale resolution if a
 // newer results set or filter selection has since taken over.
 internal sealed class DynamicFilterCoordinator
 {
@@ -18,17 +18,14 @@ internal sealed class DynamicFilterCoordinator
         Action<List<AppSearchResult>> render,
         Action<bool> setBusy)
     {
-        var sorted = sort(allResults);
-
         if (activeFilters.Count == 0)
         {
             _pendingFilters = null;
             setBusy(false);
-            render(sorted);
+            render(sort(allResults));
             return;
         }
 
-        render(sorted);
         _pendingFilters = activeFilters;
         setBusy(true);
         _ = ApplyAsync(allResults, activeFilters, sort, currentResults, render, setBusy);

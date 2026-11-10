@@ -44,12 +44,14 @@ internal static class SearchResultsReconciler
     // made every row compare unequal on every keystroke -- which meant every row was replaced, and every
     // realized row re-bound its icon, rebuilt its highlight Runs and restarted its marquee. Typing a
     // second character re-did all of that for a list that had mostly not changed. Identity is the row's
-    // content (path + name + kind); the query is presentation state, carried across by
-    // SyncMutableDisplayState below.
+    // content (path + name + kind + metadata); the query is presentation state, carried across by
+    // SyncMutableDisplayState below. Changed metadata replaces the row so cached dates/columns refresh.
     internal static bool ItemsEqual(AppSearchResult a, AppSearchResult b) =>
         string.Equals(a.FullPath, b.FullPath, StringComparison.OrdinalIgnoreCase) &&
         string.Equals(a.Name, b.Name, StringComparison.Ordinal) &&
-        string.Equals(a.ResultKind, b.ResultKind, StringComparison.Ordinal);
+        string.Equals(a.ResultKind, b.ResultKind, StringComparison.Ordinal) &&
+        a.IsDir == b.IsDir &&
+        a.Metadata.Equals(b.Metadata);
 
     /// <summary>
     /// Copies the per-paint values a surviving row cannot derive on its own from <paramref name="target"/>
@@ -63,10 +65,12 @@ internal static class SearchResultsReconciler
     /// </remarks>
     internal static void SyncMutableDisplayState(
         IReadOnlyList<AppSearchResult> live,
-        IReadOnlyList<AppSearchResult> target)
+        IReadOnlyList<AppSearchResult> target,
+        int unchangedPrefix = 0)
     {
         var shared = Math.Min(live.Count, target.Count);
-        for (var i = 0; i < shared; i++)
+        var from = unchangedPrefix >= 0 && unchangedPrefix <= shared ? unchangedPrefix : 0;
+        for (var i = from; i < shared; i++)
         {
             if (ReferenceEquals(live[i], target[i]))
                 continue;

@@ -145,6 +145,41 @@ public sealed class ObservableRangeCollectionTests
     }
 
     [TestMethod]
+    [DataRow(511)]
+    [DataRow(512)]
+    [DataRow(100_000)]
+    public void ReconcileTo_IdenticalLargeCopy_PreservesInstancesAndRaisesNoNotifications(int count)
+    {
+        var original = Enumerable.Range(0, count).Select(i => new KeyValuePair<int, object>(i, new object())).ToList();
+        var collection = new ObservableRangeCollection<KeyValuePair<int, object>>();
+        collection.ReplaceRange(original);
+        var notifications = 0;
+        collection.CollectionChanged += (_, _) => notifications++;
+
+        collection.ReconcileTo(original.Select(r => new KeyValuePair<int, object>(r.Key, new object())).ToArray(),
+            (left, right) => left.Key == right.Key);
+
+        Assert.AreEqual(0, notifications);
+        CollectionAssert.AreEqual(original, collection);
+    }
+
+    [TestMethod]
+    public void ReconcileTo_LargeListWithOneChangedTailRow_UsesReplace()
+    {
+        var original = Enumerable.Range(0, 10_000).ToList();
+        var collection = new ObservableRangeCollection<int>();
+        collection.ReplaceRange(original);
+        var changes = new List<System.Collections.Specialized.NotifyCollectionChangedAction>();
+        collection.CollectionChanged += (_, e) => changes.Add(e.Action);
+        original[^1] = -1;
+
+        collection.ReconcileTo(original, (left, right) => left == right);
+
+        Assert.AreEqual(System.Collections.Specialized.NotifyCollectionChangedAction.Replace, Assert.ContainsSingle(changes));
+        CollectionAssert.AreEqual(original, collection);
+    }
+
+    [TestMethod]
     public void LastUpdateExtendedContent_DefaultsToFalse() =>
         Assert.IsFalse(new ObservableRangeCollection<int>().LastUpdateExtendedContent);
 
