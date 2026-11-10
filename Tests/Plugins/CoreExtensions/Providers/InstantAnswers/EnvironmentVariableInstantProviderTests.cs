@@ -74,6 +74,18 @@ public sealed class EnvironmentVariableInstantProviderTests
         Assert.IsEmpty(new EnvironmentVariableInstantProvider().GetInstantResults("just text"));
 
     [TestMethod]
+    public void GetInstantResults_VariableUsedAsAPath_YieldsToTheFolderJumpRow()
+    {
+        // "%WINDIR%\System32" is an existing folder, and the jump row says that better than this row does.
+        Assert.IsEmpty(new EnvironmentVariableInstantProvider().GetInstantResults(@"%WINDIR%\System32"));
+
+        // Once the path does not exist there is nothing to jump to, so the variable's value is the whole
+        // answer again and this row keeps it -- as a copy, not an open.
+        var fallback = new EnvironmentVariableInstantProvider().GetInstantResults(@"%WINDIR%\NoSuchLertaroFolderXyz").Single();
+        Assert.AreEqual("Copy", fallback.ActionType);
+    }
+
+    [TestMethod]
     public void GetHighlightMask_EmptyQuery_ReturnsNull() =>
         Assert.IsNull(new EnvironmentVariableInstantProvider().GetHighlightMask("%TEMP%", ""));
 

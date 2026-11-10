@@ -58,10 +58,13 @@ public class WebSearchPlugin : IPlugin, IConfigurable
                             LabelKey = "WebSearch_Config_KeywordLabel",
                             FieldType = ConfigFieldType.Text,
                             DefaultValue = "",
-                            // One word per engine, published to the host and stripped off the file search
+                            // A source's keyword is a query-leading trigger like any instant-answer keyword, so
+                            // it competes with the search syntax for the same first character -- and being a
+                            // row inside an array rather than a top-level field does not change that. It is
+                            // also published to the host and stripped off the file search
                             // (WebSearchInstantProvider.QueryTriggerKeywords), so a word another feature
-                            // already answers to is warned about at the field that sets it.
-                            IsTriggerWord = true
+                            // already answers to is named at the field that sets it.
+                            Validation = ConfigFieldValidation.TriggerKeyword
                         },
                         new PluginConfigField
                         {
