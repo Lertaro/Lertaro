@@ -5,6 +5,23 @@ namespace Lertaro.Core.Tests.SearchIndex.Fzf;
 [TestClass]
 public sealed class FzfTopNTests
 {
+    [TestMethod]
+    public void ShuffledEqualKeysAndWorkerMerges_AlwaysKeepTheSameBestPairs()
+    {
+        var original = Enumerable.Range(-200, 2000).Select(i => new FzfRank(i, i, (ulong)((i + 200) % 3))).ToArray();
+        var expected = original.OrderBy(r => r.SortKey).ThenBy(r => r.EntryIndex).Take(51).ToArray();
+        for (var seed = 0; seed < 100; seed++)
+        {
+            var input = original.ToArray();
+            new Random(seed).Shuffle(input);
+            var workers = Enumerable.Range(0, 4).Select(_ => new FzfTopN(51)).ToArray();
+            for (var i = 0; i < input.Length; i++) workers[i % workers.Length].Add(input[i]);
+            var merged = new FzfTopN(51);
+            foreach (var worker in workers.Reverse()) worker.DrainInto(merged);
+            CollectionAssert.AreEqual(expected, merged.Finish(51), $"seed={seed}");
+        }
+    }
+
     // Smaller SortKey means a better-ranked candidate (see FzfResultRank.ScorePoint's inversion) --
     // FzfTopN retains the entries with the SMALLEST sort keys up to capacity.
     [TestMethod]

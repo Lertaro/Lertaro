@@ -14,9 +14,8 @@ namespace Lertaro.Core.SearchIndex.Fzf;
 // accepts a large fraction of what it scans, so this was the dominant cost of the whole search: a
 // single-character query over 400k rows spent more time here than in matching.
 //
-// Ties in sort key are common (every row of one unique name shares its key), and which of them survives
-// at the capacity boundary is arbitrary -- as it was before. It does not reach the user: callers keep a
-// capacity many times the number of results they display, and Finish sorts by EntryIndex within a key.
+// Retention uses the same (SortKey, EntryIndex) order as Finish. A parallel worker's arrival order
+// must not decide which equal-key rows survive the budget before refinement.
 internal sealed class FzfTopN
 {
     private const int InitialBufferedCapacity = 4_096;
@@ -28,9 +27,9 @@ internal sealed class FzfTopN
     private int[] _scores;
     private int _count;
 
-    // Only meaningful once the buffer has been trimmed at least once: the worst key then retained.
-    // Matches the old comparison exactly, including that an equal key is rejected rather than kept.
+    // Only meaningful once the buffer has been trimmed at least once: the worst pair then retained.
     private ulong _threshold;
+    private int _thresholdIndex;
     private bool _trimmed;
 
     public FzfTopN(int capacity)
@@ -59,7 +58,7 @@ internal sealed class FzfTopN
 
     public void Add(FzfRank rank)
     {
-        if (_trimmed && rank.SortKey >= _threshold)
+        if (_trimmed && Compare(rank.SortKey, rank.EntryIndex, _threshold, _thresholdIndex) >= 0)
             return;
 
         if (_count == _sortKeys.Length)
@@ -122,28 +121,30 @@ internal sealed class FzfTopN
         _count = _capacity;
 
         var worst = _sortKeys[0];
+        var worstIndex = _entryIndices[0];
         for (var i = 1; i < _capacity; i++)
         {
-            if (_sortKeys[i] > worst)
+            if (Compare(_sortKeys[i], _entryIndices[i], worst, worstIndex) > 0)
+            {
                 worst = _sortKeys[i];
+                worstIndex = _entryIndices[i];
+            }
         }
         _threshold = worst;
+        _thresholdIndex = worstIndex;
         _trimmed = true;
     }
 
     /// <summary>
-    /// Partitions so that the <paramref name="k"/> smallest sort keys occupy [0, k), in no particular
+    /// Partitions so that the <paramref name="k"/> smallest (key, index) pairs occupy [0, k), in no particular
     /// order among themselves. Quickselect rather than a sort: the order inside the retained half is
     /// irrelevant here because Finish sorts anyway, and sorting the whole buffer on every trim would
     /// put back a log factor this exists to remove.
     /// </summary>
     /// <remarks>
-    /// The partition is three-way, which here is not a refinement but the difference between linear and
-    /// quadratic. A sort key is computed per unique NAME, so every row sharing a name shares its key and
-    /// duplicates are the rule rather than the exception. A two-way partition sends every key equal to
-    /// the pivot to the same side, so an all-equal run advances the bound by one element per pass:
-    /// measured at 1.6 million comparisons for a single 3200-element trim, against the 3200 it should
-    /// cost. Collecting the equal keys in the middle lets the search skip all of them at once.
+    /// Keep the three-way partition for repeated pairs as well as tied keys. Before the index tie-break,
+    /// a two-way partition of equal keys needed 1.6 million comparisons for one 3200-element trim.
+    /// Distinct indices now separate those rows, while exact duplicate pairs still collapse together.
     /// </remarks>
     private void SelectSmallest(int k, int length)
     {
@@ -170,26 +171,30 @@ internal sealed class FzfTopN
         // Median of three. Sort keys arrive in scan order, which correlates with the underlying name
         // table's order and so is far from random; a fixed pivot degrades badly on that.
         var mid = low + ((high - low) >> 1);
-        if (_sortKeys[mid] < _sortKeys[low]) Swap(mid, low);
-        if (_sortKeys[high] < _sortKeys[low]) Swap(high, low);
-        if (_sortKeys[high] < _sortKeys[mid]) Swap(high, mid);
+        if (Compare(_sortKeys[mid], _entryIndices[mid], _sortKeys[low], _entryIndices[low]) < 0) Swap(mid, low);
+        if (Compare(_sortKeys[high], _entryIndices[high], _sortKeys[low], _entryIndices[low]) < 0) Swap(high, low);
+        if (Compare(_sortKeys[high], _entryIndices[high], _sortKeys[mid], _entryIndices[mid]) < 0) Swap(high, mid);
         var pivot = _sortKeys[mid];
+        var pivotIndex = _entryIndices[mid];
 
         var less = low;
         var i = low;
         var greater = high;
         while (i <= greater)
         {
-            var key = _sortKeys[i];
-            if (key < pivot)
+            var comparison = Compare(_sortKeys[i], _entryIndices[i], pivot, pivotIndex);
+            if (comparison < 0)
                 Swap(i++, less++);
-            else if (key > pivot)
+            else if (comparison > 0)
                 Swap(i, greater--);
             else
                 i++;
         }
         return (less, greater);
     }
+
+    private static int Compare(ulong leftKey, int leftIndex, ulong rightKey, int rightIndex) =>
+        leftKey != rightKey ? leftKey.CompareTo(rightKey) : leftIndex.CompareTo(rightIndex);
 
     private void Swap(int a, int b)
     {
