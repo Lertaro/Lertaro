@@ -1,6 +1,6 @@
 # Core Search & Actions
 
-This chapter covers the core interfaces and data structures in `Lertaro.PluginSdk` for contributing search data sources, instant calculation answers, non-ASCII alias engines, query suffix token handlers, and static/dynamic context action menus.
+This chapter covers the core interfaces and data structures in `Lertaro.PluginSdk` for contributing search data sources, instant calculation answers, non-ASCII alias engines, query token handlers, and static/dynamic context action menus.
 
 ## 1. Base Component Specifications: `IPluginComponent` & `IPlugin`
 
@@ -94,15 +94,21 @@ public interface IAliasProvider : IPluginComponent   // Name comes from IPluginC
 }
 ```
 
-### Query Suffix Token Handler `IQueryTokenProvider`
+### Query Token Handler `IQueryTokenProvider`
 
-Claims and processes trailing tokens at the end of search queries (e.g. `report :size`, `doc :@today`, or `image ::"hello world"`), applying transformations (sorting, filtering) to matched results:
+Claims complete tokens anywhere in a query, such as `report <s` or `report \doc`. The host selects the first registered provider that claims each token, retaining its trigger, and transforms file and directory results in token order. Read the current prefix through `SearchSyntaxService.TokenPrefix`. Return only filtered or reordered instances from the input. An unclaimed token, invalid result list, or failed transformation empties the file results for that token chain. Providers doing asynchronous work should override the cancellation-aware overload.
 
 ```csharp
 public interface IQueryTokenProvider : IPluginComponent
 {
     bool CanHandle(string token);
     Task<IReadOnlyList<ISearchResult>> ApplyAsync(string token, IReadOnlyList<ISearchResult> results);
+
+    Task<IReadOnlyList<ISearchResult>> ApplyAsync(string token, IReadOnlyList<ISearchResult> results, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ApplyAsync(token, results);
+    }
 
     // The text to keep highlighting in the result rows once this token has been consumed from the
     // query. Null (the default) leaves the host's own highlighting alone.

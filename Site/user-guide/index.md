@@ -3,7 +3,7 @@
 Welcome to the official Lertaro User Guide! Lertaro is a file search launcher and productivity tool built for Windows. By maintaining an in-memory index tree in the background (via NTFS/ReFS USN change journals and realtime filesystem event listeners), it delivers sub-millisecond query responses across millions of items.
 
 - **[Getting Started](./getting-started)** —— Installation, portable usage, architecture overview, three window modes (Quick / Full / Inline), and essential operations.
-- **[Search Syntax](./search-syntax)** —— Fuzzy matching, operators (`!` exclude, `'` exact, `^` prefix, `$` suffix, `|` OR), drive prefixes, path mode, and multilingual pinyin aliases.
+- **[Search Syntax](./search-syntax)** —— Fuzzy matching, operators (`:` exclusion, `?` precision flip, `/regex/` name clause, `|` OR), drive prefixes, path mode, and multilingual pinyin aliases.
 - **[Hotkeys & Gestures](./hotkeys)** —— Global hotkeys cheat sheet, search box logo drag/reset gestures, mouse Quick Navigation menus, and hardcoded keys.
 - **[Actions & Preview](./actions-and-preview)** —— Context action menu (`Ctrl+O`), Full Window results list, built-in QuickLook media/document previews, and interactive plugin cards.
 - **[Space Analyzer](./space-analyzer)** —— Zero-I/O Treemap visualization and sorted size breakdown for storage cleanup.
