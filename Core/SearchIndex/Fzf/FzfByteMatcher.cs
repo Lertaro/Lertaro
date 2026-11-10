@@ -51,7 +51,8 @@ internal static class FzfByteMatcher
 
         var patternIndex = 0;
         var lastIdx = 0;
-        var firstPatternChar = pattern[0];
+        var firstPatternChar = caseSensitive ? pattern[0] : FzfCharTables.ToLower(pattern[0]);
+        var nextPatternChar = firstPatternChar;
         var previousClass = (byte)FzfAlgorithm.InitialClass(scheme);
         for (var offset = 0; offset < scopedLength; offset++)
         {
@@ -62,11 +63,13 @@ internal static class FzfByteMatcher
             bonus[offset] = FzfCharTables.Bonus(scheme, previousClass, currentClass);
             previousClass = currentClass;
 
-            if (patternIndex < m && normalized == pattern[patternIndex])
+            if (patternIndex < m && normalized == nextPatternChar)
             {
                 first[patternIndex] = offset;
                 lastIdx = offset;
                 patternIndex++;
+                if (patternIndex < m)
+                    nextPatternChar = caseSensitive ? pattern[patternIndex] : FzfCharTables.ToLower(pattern[patternIndex]);
             }
         }
 
@@ -129,6 +132,8 @@ internal static class FzfByteMatcher
         var maxScorePos = f0;
         for (var pidx = 1; pidx < m; pidx++)
         {
+            // Text is already folded. Fold this pattern character once per row, not per DP cell.
+            var patternChar = caseSensitive ? pattern[pidx] : FzfCharTables.ToLower(pattern[pidx]);
             var row = pidx * width;
             var previousRow = row - width;
             inGap = false;
@@ -148,7 +153,7 @@ internal static class FzfByteMatcher
 
                 short s1 = 0;
                 short consecutiveScore = 0;
-                if (chars[col] == pattern[pidx] && rel > 0)
+                if (chars[col] == patternChar && rel > 0)
                 {
                     s1 = (short)(scores[previousRow + rel - 1] + FzfAlgorithm.ScoreMatch);
                     var b = bonus[col];
@@ -206,6 +211,7 @@ internal static class FzfByteMatcher
     {
         var bestScore = 0;
         var bestPos = -1;
+        if (!caseSensitive) pattern = FzfCharTables.ToLower(pattern);
         var previousClass = (byte)FzfAlgorithm.InitialClass(scheme);
         for (var i = 0; i < text.Length; i++)
         {
