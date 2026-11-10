@@ -1,30 +1,261 @@
-# 搜索语法的维护边界
+# 搜索语法
 
-当前入口是 [SearchQuerySortParser](../Core/SearchIndex/Query/SearchQuerySortParser.cs)、[SearchQueryParser](../Core/SearchIndex/Query/SearchQueryParser.cs) 和 [FzfPatternParser](../Core/SearchIndex/Fzf/FzfPatternParser.cs)。旧 `feat-search-reimpl` 分支的 `:term` 排除、`?term` 反转和查询 `/regex/` 方案不属于当前实现。
+启动器搜索框的查询语法规格：哪些字符在哪一层生效，为什么这些字符可以安全地当触发符用，以及 `:term`、`/.../` 这类名字级子句为什么必须由候选自己的名称回答。
 
-## 当前语法
+## 适用范围与核对基线
 
-| 形状 | 当前含义 |
-| --- | --- |
-| 普通词之间的空格 | AND；普通词忽略大小写 |
-| 两侧用空格分开的 `\|` | OR；AND/OR 优先级由设置决定 |
-| `!word` | 名称级排除，按字面精确匹配，不展开拼音别名 |
-| `'word` | 翻转普通词的模糊/精确匹配 |
-| `'word'`、`^word`、`word$`、`^word$` | 边界、前缀、后缀、整名匹配 |
-| `'hello world'` | 名称匹配层的单引号短语 |
-| `d:report` | 限定盘符，`report` 仍参与匹配 |
-| 含路径分隔符 | 进入路径模式；末尾分隔符表示直属内容 |
-| 尾部 `:a,b,c` | 插件 Token 段；前缀可配置，分类示例是 `:@doc` |
-| 查询第一个字符 `*` | 本次查询绕过用户排除规则 |
+2026-11-10 补充核对：本地 `feat/search-regex` 已 rebase 到包含搜索性能修复的 main（`5f735e70`）。本次增量审计见 [search-regex-incremental-audit.md](search-regex-incremental-audit.md)：名称级子句仍有目录别名入口缺口、8,000 条限额按到达顺序截断、实时盘符与正则归一化不一致。下面原有基线哈希和附录行号属于历史核对记录，不能视为当前已全部完成的实现证明；当前以函数及上述审计的复现结果为准。
 
-Token 段支持引号与转义，其规则与名称匹配层不同；不能因 Token 接受双引号，就推断名称层也有同样的短语语法。索引设置中的 `/regex/` 由 `IndexRuleSyntax` 处理，见 [index-rules.md](index-rules.md)，不能直接套进搜索框。
+本文写的是 `feat/search-regex` 分支的语法，该分支仍未合入 main。核对基线：main = `b3a60ddb`（`v5.12.10`），本分支在此之上 rebase；`file:line` 对着这棵工作树核过。引用任何 `:term`、`/regex/` 结论前先确认在哪条线上。文末附录的 `file:line` 已逐条重核（含正则子句接线的修正）；分支再次 rebase 后行号与哈希仍会过期，核对不上时以文件与函数名为准。
 
-## 容易破坏的边界
+只在 `feat/search-regex` 上成立的语法：
 
-1. **解析层分工。** 先剥整句开关与尾部 Token，再把干净查询用于搜索和高亮；Token 的业务含义交给 `IQueryTokenProvider`。没有合法尾部段时保留原查询，不能顺手压缩路径内部空格。
-2. **名称要求不能借别的拼写满足。** 排除由候选自己的名称回答；新增读音、别名或父路径匹配分支时，必须继续执行名称级否决。匹配与高亮必须使用同样的精度和查询形态。
-3. **路径先保真。** 查询文本在解析前归一全角和 Unicode 组合形式。不要把盘符冒号、UNC、路径分隔符当作任意插件标记；新增语法必须检查这些冲突。
-4. **后处理影响不了未召回候选。** Token 在结果返回后执行，快速窗口的有限候选池不能据此承诺“全索引最大文件”或“全部分类结果”。现有内建类别下推与通用 Token 是两条能力，见 [search-performance.md](search-performance.md)。
-5. **取消与迟到结果。** `QueryTokenDispatcher` 可停止宿主等待；SDK 的两参数 `ApplyAsync` 不能中止 provider 本体。控制器还要按批次取消并检查查询/快照身份，观察迟到异常，防止旧批次覆盖新查询。
+| 项目 | `feat/search-regex` | main |
+|---|---|---|
+| 排除 | `:term`，恒按连续子串 | `!term` |
+| 精确性 | `?term` 做模糊↔精确反转 | `'term` 翻转 |
+| 锚定 | 无锚定语法，交给 `/^word/`、`/word$/` | `^word`、`word$`、`'word'` |
+| `FzfTermKind` | 只有 `Fuzzy` 与 `Exact` | 另有 `ExactBoundary`/`Prefix`/`Suffix`/`Equal` |
+| 正则子句 | `/.../` 整词子句 | 无 `RegexQueryParser`/`RegexClauses`/`TermTriggers`/`SearchSyntaxReserved`/`FzfPatternMatcher`/`QueryTokenScanner` |
+| 插件 Token | 词首单一可配置前缀（默认 `\`），可在查询任意位置 | 尾部 `:a,b,c` 段式 Token，`WildcardQueryTokenProvider`/`PathExclusionQueryTokenProvider` 仍在 |
+| 裸盘符 | `d:` 是恰好 ASCII 字母加冒号的整词，`d:report` 保持字面 | `d:report` 取 `d` 盘并把 `report` 当词 |
+| 引号 | `"` `'` 按字面处理 | `'...'` 合词（`MergeQuotedPhrases`） |
+| 路径模式判定 | 先摘除正则子句再判 | 直接判 |
+| 路径正则结果 8000 条截断上限 | 有 | 无 |
 
-语法改动应同时核对解析、引擎、插件接缝、高亮、设置校验与各语言帮助；不要用未合入方案覆盖现行契约。现有验证入口包括 [SearchQuerySortParserTests](../Tests/Core/SearchIndex/Query/SearchQuerySortParserTests.cs) 与 [QueryTokenDispatcherTests](../Tests/App/ViewModels/Search/QueryTokenDispatcherTests.cs)。
+两条线上都成立的：普通词空格 AND、两侧带空格的 `|` OR 与优先级开关、模糊开关、普通词恒忽略大小写、含分隔符进入全路径模式、路径末尾分隔符列出直属内容。
+
+设置侧的规则语法是另一套判定，别和查询侧混：`IndexRuleSyntax`（`Core/Settings/IndexRuleSetting.cs:74`，Path/Glob/Regex 三个 kind，同样以 `/.../` 包裹正则、基选项带 `IgnoreCase`、每条 50ms 匹配预算，正则判定排在分隔符归一之前）与查询侧共用"`/.../` 包裹"这个形状，但两侧各自解析、互不调用；该文件在 main 与 `feat/search-regex` 上逐字节一致。
+
+已否决的方向不在本文范围内：`/regex/i` 尾随标志位、`>cs` / `>ci` 大小写标记、`+keyword`、`~keyword`、`#tag`。大小写能力的现状见「大小写」一节。文末附录给出每条事实的 `file:line`。
+
+## 核心判断
+
+这套语法已完成最关键的一步：多套解析规则收敛成统一的触发字符入口，插件只通过宿主的单一前缀认领 Token。语法因此从实现细节变成了用户契约，兼容性的重要程度接近插件 API。
+
+未来不需要再造特殊字符串规则。保持 **Token → Handler → 结果** 的形状，把业务行为放在 provider，把语法判断留在扫描器与解析器，Token 数量翻倍时复杂度仍近似线性增长。
+
+## 触发字符为什么安全
+
+软件只运行在 Windows，现有全部顶级触发字符 `\ < > : * / ? |` 都是文件名非法字符，所以 `:draft`、`?report`、`<s>20m` 天然不可能与真实文件名重名。唯一的例外是 UNC 路径：词首双倍前缀会被扫描器显式放行回搜索文本。极端场景由 `/regex/` 兜住。
+
+这条前提是**字符集合的性质，不是语法结构的性质**。`#` `$` `%` 合法于文件名，也已经被即时答案占用（`#` 以管理员身份运行、`$` 以普通身份运行、`%` 环境变量），保留字表把它们单列为 `ProviderClaimedCharacters`。以后要开新触发字符，先要求它落在文件名非法字符集合里。
+
+main 上那套旧运算符正好是这个判据的反例：`'` `^` `$` 都合法于文件名，所以它们当触发符时，同一个字符串在搜索框与插件目录 seam 里读成两种意思（`!temp` 在 seam 里排除、在文件列表里是字面量），分支把这四个统一改成字面字符正是为了收住这一类分裂。
+
+「顶级触发字符」这句话只覆盖语法自己拥有的那一套。结果类型触发符是用户可配的单字符，同样读整条查询的第一个字符，而校验只挡住语法字符与 `#` `$` `%`（`SearchSyntaxReserved.UnusableTokenPrefixCharacters`），`;` 这类合法文件名字符是可以配的。
+
+插件前缀的方向相反：它必须是**文件名非法**字符（否则以它开头的真实文件名会被整词摘成无人认领的 Token），而这九个字符里除 `\` 外都被语法占用，所以只接受 `\`（见 `SearchSyntaxReserved.IsUsableTokenPrefix`）。
+
+## 分层
+
+```
+原始输入
+  └─ QueryTokenScanner.StripExclusionBypass     整句级 '*' 绕过排除（只看第一个字符）
+  └─ QueryTokenScanner.Scan                     词首判定，产出 (剩余文本 + Token[])
+  └─ RegexQueryParser.Split                     摘出 /.../ 子句（必须在路径判定之前）
+  └─ SearchQueryParser.Parse                    路径模式判定 + 裸盘符作用域
+  └─ FzfPatternParser / TermTriggers            词级语法：空格 AND、' | ' OR、':排除、?反转
+        ↓ 匹配 / 打分 / 高亮（服务进程内）
+  └─ QueryTokenDispatcher → IQueryTokenProvider  对已取回的结果做排序、分类过滤
+```
+
+四处约束需要记住。
+
+**摘除顺序是契约。** `/\.exe$/` 同时含 `\` 与 `/`，晚摘一步整条查询就会被读成一条不可能存在的路径，`SearchQueryParser.Parse` 方法开头因此调用正则摘除（`Core/SearchIndex/Query/SearchQueryParser.cs:14`）。
+
+**词级语法不在 Token 链里。** `:` `?` `|` 在 `FzfPatternParser` 内部读取，`QueryTokenScanner` 只负责可配置前缀与 `<` `>`。两层是不同的东西。
+
+**Token 链跑在匹配之后。** `QueryTokenDispatcher` 的输入是搜索已经产出的文件行；快速窗口先取有限候选再执行排序与分类过滤，未取回的匹配不参与处理。任何需要影响匹配判定的开关都放不进这一层。
+
+**`:term` 与 `/re/` 只回答候选自己的名称。** 两者都不走拼音别名、不看路径段：`:temp` 否决的是名字里含 `temp` 的行，`/\.pdf$/` 描述的是名字里真实存在的字符。`:term` 不占 mask 位；`/re/` 只把提取出的必需字面量并进 `RequiredMask` 做预筛（`SearchMatcher.BuildContext`），预筛只淘汰、不判决，真正的接受与否仍由整条子句在名称上回答。凡是改成"从读音、别名或路径段判定一行"的层，都必须把名称一并交进去、在门口先否决这两项，否则一个读音命中就把名称不合格式的行收下。展开的经过与判据见下一节。
+
+词首触发字符被扫描器摘出后，如果没有 provider 认领，结果是空集，不会退回普通文本。
+
+## 入口覆盖与每次按键的成本（2026-10-28 核对）
+
+**两层，每种输入框只拿到自己需要的那层。**
+
+| 入口 | 走哪些层 | 结果 |
+| :--- | :--- | :--- |
+| 快速窗口、完整窗口、内嵌卡片 | 全部（`SearchDispatchController.DispatchSearch` / `SearchQueryDispatchController`） | 词法、Token、路径、子句、结果类型触发符都生效 |
+| CLI、Service 管道 | `SearchQueryParser` + `FzfPattern`（服务进程内） | 与窗口同一套解析 |
+| 插件 SDK seam（`FuzzyMatcher.IsMatch`） | 只到词法层 | `:term` `?word` `/re/` 生效 |
+| 快速面板过滤框、设置搜索、历史、日志、Shell 菜单过滤 | 只走 `FzfPattern` / `FuzzyMatcher` | 同上；这里没有 provider 可派发，所以 Token 与整句 `*` 没有含义（`\doc` 按字面处理） |
+
+**同一份子句只应求值一次。** 名称层（`FzfPattern.TryMatch`）已经对整条模式求值过 `:term` 与 `/re/`；别名/mixed 层再把名称交进去否决，是因为转写文本回答不了它们。所以否决只在那些层确实能跑时才有意义：`SearchMatcher.MatchOne` 先看 `HasAliases`/`MixedTerm`、`SearchMatcherRow` 先看 alias 是否为空、`FuzzyMatcher.IsMatch` 先看 `HasNonAscii`。2026-10-28 之前这三处先否决、后判断通道，等于对**刚被子句拒绝的候选**再把正则跑一遍（正则查询里最贵的一步）；现改为先判断通道、再否决。把顺序改回去只会变慢，不会改变结果。
+
+**候选预算仍按"像不像文件名"给。** `SearchDispatchController.LooksLikeFileNameQuery` 把带点、且不以语法字符开头的查询放宽到 1000 行候选。它原先自带一张 `! ^ ' - : .` 清单，其中 `!` `^` `'` 已退役成普通字符，于是 `!plan.md` 被当成非文件名查询而留在窄预算上；现改为读 `SearchSyntaxReserved.OpensSyntax`（前缀 + 语法字符 + provider 字符的同一份答案），`.` 与 `-` 仍按原意拒绝（它们从来不是运算符）。它只决定候选预算，不参与匹配判定。
+
+**成本与边界**：正则按模式文本编译一次（256 条上限 + 活动查询弱键表 + `NonBacktracking`，回退引擎 250 ms/候选）；没有可提取字面量时预筛退化为全扫（应用内帮助已写明可以加普通词收窄）；`:term` 查询在每个别名上多一次解码（`ponytail:` 已标注上限）；祖先回退在完整窗口默认开启（`NameSearch` 的 `ponytail:` 标注了它不关闭的门槛）。
+
+三处按 2026-10-28 的决定收口，都不再兼容旧值：
+
+- **结果类型触发符：启动时静默迁移。** 旧配置里 `?` `:` 或前缀字符当触发符的，会在任何窗口读到之前被清掉（`LegacySettingsAdvisor.TakeUnusableResultTypes`，由 `App.OnStartup` 用 `SearchSyntaxReserved.ValidateLeadingCharacter` 判定并保存）。"没有触发符"本来就是这一特性的可用默认，所以不提示、也不指向第二个字符。`LegacySettingsNoticeService` 不再逐条罗列这类触发符——它们那时已经不存在了。
+- **插件前缀：升级为拒绝。** `SearchSyntaxReserved.IsUsableTokenPrefix` 要求前缀必须是文件名非法字符，而九个非法字符里除 `\` 外都被语法占用，所以**只有 `\` 可用**；字段对其它任何值直接报错（`BlocksSaving` 让用户刚输入的值挡住保存），`GlobalTokenPrefix.For` 在读取侧同样忽略不可用的存值、退回默认——否则一个存下的 `.` 会把每个带点的词变成无人认领的 Token。原来的"合法文件名字符只提示"警告连同 `General_GlobalTokenPrefixTextWarning` 一起删除。
+- **插件目录关键字兜底层：改用解析后的词。** `SearchableItemMapper.PositiveTermWords` 走 `TermTriggers.Read`：每个词去掉触发符、排除项整体丢弃，因此 `?env` 能命中 `environment`；排除项的否决改由 `FuzzyQuery.ExclusionsPass(entry.Item.Title)` 单独提问，这一层能补行但不能把被排除的行补回来。
+
+## 语法清单
+
+下表是 `feat/search-regex` 的语法，main 侧的差异见开头那张表。
+
+| 类别 | 作用 | 实际语法 |
+|---|---|---|
+| 查询型 | 影响匹配结果 | 普通词（AND）、`a \| b`（OR）、`:term`（排除，恒按连续子串）、`?term`（模糊↔精确反转）、`/re/`（子句）；`:term` 与 `/re/` 是名称级要求，只看候选自己的名称 |
+| 过滤型 | 减少结果 | `\doc` `\img` `\video` `\audio` `\zip` 与自定义分类（分类表本身见 `entry-categories.md`，与侧边栏筛选行、快速窗口类型筛选栏共用）；`<f>f` / `<f>dir` 仅文件夹；`<s>20m` 阈值 |
+| 排序型 | 只改顺序 | `<s` `>s` 大小、`<c` `>c` 创建、`<m` `>m` 修改、`<a` `>a` 访问、`<f` `>f` 文件夹/文件；多个排序标记中最右者为主键 |
+| 范围型 | 改变搜索空间 | 裸盘符词 `d:`（恰好 ASCII 字母加冒号的整词，`d:report` 不算）、含分隔符的全路径模式、路径末尾分隔符列出直属内容 |
+| 整句开关 | 改规则不改词 | 词首单个 `*` 绕过用户排除规则；正则内的 `(?i)` / `(?-i)` |
+
+阈值必须写成 `<s>20m` 这一支形状：第二个触发符只表比较方向，`>` 是下界、`<` 是上界，与排序箭头无关。
+
+OR 已经存在（两侧带空格的 `|`，默认 AND 结合更紧，优先级在「通用 → 系统」可切），分组括号则不支持。这条边界应当守住：保持词加少量布尔算子加前缀 Token 的线性结构，不引入括号分组、不引入字段语法、不引入嵌套表达式，复杂表达一律交给正则。
+
+## 名字级子句的落点
+
+`:term` 与 `/.../` 必须由候选自己的名称回答，这条规则在本分支上被修过四次，每次都是新写法的消费者没被告知这件事。文档留在这里，是为了下次再加一层判定时能一句话想起来。规则本身在 `Core/SearchIndex/Fzf/FzfPatternMatcher.cs` 的 `TryMatchAlias(pattern, alias, name, ...)` 注释里，以及 `Site/*/user-guide/search-syntax.md`。
+
+四次落点：
+
+1. **ancestor pass（`PathTermFallback`）** —— `:term` 在分支语法下不占 mask 位（`HasPositiveTerm` 让纯排除项的逐词 pattern 零命中），占位就永远填不满，整条 fallback 对带排除项的查询返回空；而 `/.../` 在这个 pass 根本没人问，靠文件夹就能把名称不合格式的行捞回来。改法：排除项集合不进 `termPatterns`，名称级子句统一由 `NamePassesClauses` 在**行的名称**上否决。
+2. **grid 层（已随 main 的 `b8e1061c` 删除）** —— 曾经给 `TryMatchEntry`/`TryMatchPayload` 加过 `ReadOnlySpan<char> name`，让物化读音只回答词、子句回答名称。grid 没了，那两次提交在本次 rebase 里被跳过/清空，规则改由下面第 3 条承接。注意「把 live tier 的候选名交进去」那条现在只剩别名视图测试的迁移，commit message 还在讲 TryMatchProvider —— squash 时改掉。
+3. **live 读音判定（`PinyinNameEvaluator`）** —— main 用它取代了 `FzfPattern.TryMatch` 作为名称 tier。它逐词读 NFA、并且自己处理排除项（`term.Inverse` 命中字面就 fail，缺席就满足），但修前整个类里没有 `Regexes` 这个词：查询带 `/.../` 时，一个读音命中就把名称不合格式的行收下。修前量出来的一条：`bg /\.pdf$/` 对 `报告` 返回 true（`FakeLiveProvider` 供 `bg` 的跨度）。改法是在 `TryScore` 门口按**整个名称**判一次子句，位置在 `'|'` 分段之前 —— 子句说的是名称，不是它的某一段。覆盖：`PinyinNameEvaluatorTests.RegexClause_IsAnsweredFromTheNameNeverFromTheReadings`（两侧各留一条对照，免得"任何读音都供不出的子句"和"根本没被查过的子句"混成一件事）。
+4. **别名层、mixed lane 与 DNF 分支重建** —— 这三条路径的共同点是没有可问的整句 pattern：`SearchMatcher.MatchOne` 在 `pattern.TryMatch` 之后还要试别名，而 `MixedQueryMatcher.TryMatch` 连 pattern 都不接；`PathTermFallback` 给 AND-first 的分支重建 pattern 时只带 `group.Sets`。于是 `/.../` 在这三处要么无人执行，要么被重建时丢掉。改法：前两处按**名称**补一条调用方否决（`Core/IndexV2/Search/SearchMatcher.cs:318, 320`；行匹配走同一逻辑的两处在 `Core/IndexV2/Search/SearchMatcherRow.cs:41, 130`），第三处让重建的 pattern 一并带上 `pattern.Regexes`（`Core/IndexV2/Search/PathTermFallback.cs:251`）；公共 seam 侧在 `Core/SearchIndex/FuzzyMatcher.cs` 的 `IsMatch`（`:67, 69`）与 `ComputeMatchRank` 的整句门（`:217`）补同样的判定 —— App 侧的目录行只凭 `Rank.IsMatch` 准入（`SearchableItemMapper.MatchCatalogEntryWithProvenance` 的 `RankWithEvidence`），不会再做第二次 `TryMatch`。覆盖：`PathTermFallbackTests.SearchStreaming_AndFirstBranchRegexClauseStillVetoesTheAncestorRow`（`report | summary 2024 /^zzz/` 必须为空，回退 pass 是唯一能捞回该行的路径）。
+
+新增一层"从读音/别名/路径段判定"的地方时，问两句：
+
+- 它拿去做匹配的文本，是**候选的名称**还是**名称的另一种写法**？后者必须把名称一并交进去。
+- `FzfPattern` 的哪些要求不在这次判定的词汇里？现在有两个：`Regexes` 与 `:term`。
+
+高亮是这条规则的第五个消费者。显示走 `HighlightMask.Compute`（`TextHighlighter` → `FuzzyMatcher.ComputeHighlightMask`，与判定同一个 `FzfPattern`），所以 `/re/` 命中的那段也会被画上：只画在 `Compute` 里，`ComputeRank`/`ComputeWeight` 故意不画 —— 子句可能与正词相距很远，把它算成额外的 run 会拉低 contiguity，`report` 加 `/\.txt$/` 就会莫名其妙比单独 `report` 分数低。App 侧还要在路径判定之前先把子句摘出来（`RegexQueryParser.Split`）：`/report/` 的斜杠会被 `NormalizePathSeparators` 改写成 `\`，`/\.docx$/` 的转义点会被当成目录分隔符，整条子句因此被切成假路径段而丢掉。摘出后子句按整列文本画一次，不参与路径切分。
+
+## 大小写
+
+普通词恒忽略大小写，没有开关，两条线都一样。`FzfPatternParser` 读取每个词时执行大写归一并固定传 `CaseSensitive: false`，smart case 已退役。底层 `FzfAlgorithm`、`FzfExactMatcher`、`FzfByteExactMatcher`、`HighlightMask`、`AliasHighlightMarker` 都接收 `bool caseSensitive`，参数已经通到匹配与高亮，只是没有任何调用方传 true。
+
+分支上正则子句可以区分大小写，写法是内联选项 `(?-i)`。`RegexClauses.BaseOptions` 带 `IgnoreCase`，内联选项在运行时覆盖构造参数，`/(?-i)Report/` 只命中 `Report`；NonBacktracking 与回退引擎结果一致，已由 `FuzzyMatcherTests` 走公开 seam 两侧各验一次。这条已经写进 in-app help 的正则章节与「基础与布尔」章节，也写进站点 7 个 locale 的正则小节。
+
+将来若要普通词也敏感，工作量在大写归一那一步以及把标志位穿过 term 构造与高亮，属于跨层改动加文档加设置校验；`<` `>` 那一层只能携带标志位，承担不了匹配判定。
+
+## Regex 战略
+
+这一节整节只在 `feat/search-regex` 上成立。不再新增精细匹配语法，精细表达全部交给正则。
+
+| 想要的表达 | 写法 |
+|---|---|
+| 前缀 | `/^report/` |
+| 后缀 | `/\.pdf$/` |
+| 短语与含空格的名字 | `/final\sreport/` |
+| 任选其一 | `/(foo\|bar)/`，多个子句之间恒为 AND，外侧的 `\|` 不改变它们的关系 |
+| 大小写敏感 | `/(?-i)Report/` |
+
+正则侧的既有约束已经是对用户的承诺，改动时必须同步：子句是以 `/` 开头、以未转义 `/` 结尾的整词；体内未转义的 `/` 让整个词退回路径文本，所以 `C:/Users`、`/usr/local/`、`/mnt/c/Users` 仍是路径；字面斜杠写 `\/`；空子句 `//` 无效；子句内不能有裸空白；完整窗口的路径正则结果有 8000 条截断上限；匹配优先走 NonBacktracking，回退引擎下每个候选 250ms 预算。
+
+## 新增 Token 的成本
+
+| 想加的东西 | 改扫描器 | 改保留字符表 |
+|---|---|---|
+| `\git`、`\go` 这类新关键词 | 不用 | 不用 |
+| 新的 `<` / `>` 键 | 不用 | 不用（受 `CanHandle` 形状约束） |
+| 新的顶级触发字符 | 要（`IsToken` 里 `<` `>` 是硬编码常量） | 要（两张表加设置校验加迁移提示） |
+
+单一前缀把「插件能加什么」收敛成「只能加关键词」，这正是扫描器不必改的原因。新增顶级触发字符则是一次完整的 API 变更，扫描器、保留字表、前缀校验、7 份 in-app help、7 份站点文档和旧设置迁移都要同批走。
+
+`QueryTokenPrefixRules` 已经把冲突分级实现了一半：用户新输入的值拒绝保存，从旧版本带过来的值只警告，配套一次性的启动通知，避免把用户锁在设置窗外。
+
+## 插件 Token 治理
+
+冲突消解目前只有两条规则：同一 provider 内按关键词最长匹配（同时存在 `\a` 与 `\audio` 时取后者），跨 provider 按注册顺序第一个 `CanHandle` 胜出，先到先得且没有提示。
+
+设置页的「插件标记」章节是静态说明文本，不列当前已注册的规则。`SearchSyntaxService` 存在，但只向插件暴露宿主前缀这一个读回点。
+
+要补的三件事按顺序排：把已注册 Token 清单变成用户可见；provider 之间的静默覆盖要有说法；启动期冲突检测最后做。第三件事要谨慎，历史上「另一个插件已认领该字符」这项检查是被主动删掉的，理由是扫描器按全局前缀摘词并把字符一起交给 provider，provider 的自有值要么与之一致、要么什么都不是，那个检查命中的恰好是唯一能用的值。新增检测前先确认它报错的对象不是正确配置。
+
+## 向后兼容
+
+退役写法已经有记录，散在提交说明、代码注释、测试和帮助文本里，还没有机器可读的表。
+
+| 已退役写法 | 现在的含义 | 替代 |
+|---|---|---|
+| `!word` `'word` `^word` `word$` | 字面字符 | `:word`、`?word`、`/^word/`、`/word$/` |
+| 尾部 `:a,b,c` 段式 Token | 已废除 | 词首触发字符，可在查询任意位置 |
+| `"` `'` 引号合词 | 按字面处理 | 词内空白交给 `/final\sreport/`；插件 Token 关键词仍支持 `\ ` 转义 |
+| `:audio` 分类过滤 | 现为排除词 | `\audio` |
+| 通配符与路径排除型 Token Provider | 已删除 | `/\.pdf$/` 等正则子句 |
+
+保留字体系实际已经有两张表：`LeadingCharacters` 与由配置 schema 驱动的触发词校验。缺的是废弃表这一张。补法建议把上面这张 Markdown 表变成 `SearchSyntaxReserved` 里的只读列表，让设置页与站点文档都从它生成，避免出现表和帮助文本两份真相。
+
+一处尚未收口：快速面板的存储过滤器模式里 `!` 取反语义仍在（`!*.xxx` 在正向集合算完后剔除，读取时还继续归一旧版 `:@doc` 写法），它已经不属于查询语法。两条线都还是这样。这是文档与实现偏离那条风险上目前唯一还亮着的条目。
+
+## 已删除的锚定 kind 与裁定
+
+分支退役 `^ $ ' !` 之后没有任何地方再产出锚定 `FzfTermKind`，只剩 switch 在读。已按"删掉 kind 与对应 switch 逻辑"落地（`refactor(search): drop the anchored term kinds nothing produces`）：`FzfTermKind` 现在只有 `Fuzzy` 与 `Exact`；`FzfAlgorithm.Match` 与 `FzfBytePattern.Match` 各去掉 4 条 arm；两个 `ExactMatch` 去掉 `boundaryCheck` 形参和那条只在边界判定下成立的加分公式；`PrefixMatch`/`SuffixMatch`/`EqualMatch`/`IsBoundaryMatch`/`SpanEquals`/`FzfAlgorithm.LeadingWhitespaces`/`TrailingWhitespaces` 全删。顺带 `PinyinNameEvaluator` 里因此变成恒真的两处 `Kind is Exact or Fuzzy` 也去掉了。`OtherReading` 与两个 `Match` 的 `_ =>` arm 留着：C# 对 enum switch 要求穷尽，成员减少并不等于值域减少。
+
+main 有两条测试原先靠旧语法守着这些 kind：`OperatorTerms_AreLiteralOnly`（`^bg`）改写成分支真有的那个运算符 `?bg` 的行为，`AliasReading_LeavesAnOperatorsOwnKindAlone` 直接删除。
+
+## 未来方向
+
+**Token 治理收口。** 退役表成为唯一真相源，设置页列出当前已注册的 Token，顺带解决可发现性。
+
+**SearchPlan 显式化。** 代码里目前只有 `ParsedSearchQuery`，覆盖路径模式、盘符和已摘出的子句，排序与 Token 不在内。显式化它的动机是诊断和解释，向用户说明「report :temp >s /2026/」为什么是这个结果，以及一个没认领的 Token 为什么把查询筛空。
+
+**插件 Token 生命周期。** 先解决跨 provider 的静默覆盖，再谈冲突检测。
+
+长期风险排名：`QueryTokenScanner` 演变成 God Object、`QueryTokenDispatcher` 规则持续膨胀、插件 Token 名称冲突、文档与实现再次偏离。Provider 顺序依赖这一条已经不是风险而是现状，跨 provider 就是先到先得。
+
+## 评分
+
+```
+鲁棒性     9/10
+可维护性   8.5/10
+兼容性     8/10
+可扩展性   9/10
+可发现性   7/10
+```
+
+## 附录：证据
+
+以下 `file:line` 逐条对着 `feat/search-regex`（`a1378bf7`）与 main（`44b5173f`）的当前工作树核过。分支每次 rebase 都会让行号过期，核对不上时以文件与函数名为准——行号随分支变动；提交一律按标题引用，rebase 会重写哈希。
+
+| 事实 | 出处 |
+|---|---|
+| 顶级触发字符集合 `\ < > : * / ? \|`，`# $ %` 由 provider 认领 | `App/Helpers/SearchSyntaxReserved.cs:12-20` |
+| 扫描器只认 `<` `>` 与可配置前缀；双倍前缀留给 UNC | `Core/SearchIndex/Query/QueryTokenScanner.cs:51-63`（`IsToken`） |
+| 词内转义空白仅对 Token 生效；整句 `*` 必须在 Scan 之前读取 | `QueryTokenScanner.cs:66`（`SplitWords`，转义判定在 `:86`）、`:116`（`StripExclusionBypass`） |
+| 正则子句的形状规则与三条路径保护 | `Core/SearchIndex/Query/RegexQueryParser.cs:3-29`（类注释）、`:37`（`Split`）、`:83-116`（`TryReadClause`） |
+| 摘除早于路径判定 | `RegexQueryParser.cs:5-12`，`Core/SearchIndex/Query/SearchQueryParser.cs:9-14`（`Parse` 在 `:5`） |
+| 含分隔符进入全路径模式；裸盘符恰好两字符 | `SearchQueryParser.cs:16-38`、`:63-64`（`IsBareDriveSpec`） |
+| main 的裸盘符取盘后余文仍是词；路径判定无正则摘除 | main `Core/SearchIndex/Fzf/FzfPatternParser.cs:17-25`，main `Core/SearchIndex/Query/SearchQueryParser.cs:8` |
+| 正则基选项带 `IgnoreCase`，共享缓存 256 条，活动查询另有弱键表 | `Core/SearchIndex/Fzf/RegexClauses.cs:19-24`（`BaseOptions`）、`:39`（`AllMatch`）、`:93-108`（NonBacktracking 与 250ms 回退）、`:124-130`（`Unmatchable`/`IsUncompilable`） |
+| 普通词恒忽略大小写，smart case 已退役 | `Core/SearchIndex/Fzf/FzfPatternParser.cs:191-193`，main 同文件 `:194-196` |
+| `caseSensitive` 参数已通到匹配与高亮 | `Core/SearchIndex/Fzf/FzfAlgorithm.cs:40`、`FzfByteExactMatcher.cs:9`、`Core/SearchIndex/HighlightMask.cs:262-297`（`MarkTerm`）、`Core/SearchIndex/AliasHighlightMarker.cs:64-102` |
+| `(?-i)` 覆盖 `IgnoreCase`，两种引擎一致 | `Tests/Core/SearchIndex/FuzzyMatcherTests.cs:34-38`（`/(?-i)Report/` 对 `report` 为 false，`(?=…)` 写法走回退引擎） |
+| `:exclusion` 恒 Exact，`?` 是模糊↔精确反转，`:` 先于 `?` 读取 | `Core/SearchIndex/Fzf/TermTriggers.cs:20-25, 37-66` |
+| 名称级子句在每一层都由名称否决 | `Core/SearchIndex/Fzf/FzfPatternMatcher.cs:21, 86-91`（`TryMatchAlias` 注释写明子句读的是名称，判定在 `:91` 用 `exclusionText`）、`Core/IndexV2/Search/PathTermFallback.cs:195-196`（门口）与 `:265-276`（`NamePassesClauses`）、`Core/IndexV2/Search/PinyinNameEvaluator.cs:232`、`Core/IndexV2/Search/SearchMatcher.cs:318, 320`、`Core/IndexV2/Search/PathMode/SearchMatcherPath.cs:125`、`Core/IndexV2/Search/SearchMatcherRow.cs:41, 130` |
+| 别名层与 mixed lane 在没有 pattern 时也否决 | `Core/IndexV2/Search/SearchMatcher.cs:318, 320`、`Core/IndexV2/Search/SearchMatcherRow.cs:41, 130`；公共 seam 侧为 `Core/SearchIndex/FuzzyMatcher.cs:69`（`IsMatch`）与 `:217`（`ComputeMatchRank` 的整句门）。三层都先试名称、再否决别名，所以否决只在**别名/mixed 通道确实能跑**时才付代价：`SearchMatcher` 在 `SearchMatcher.cs:316` 先看 `HasAliases`/`MixedTerm`、`SearchMatcherRow` 先看 `aliases == null` 与 alias 数量、`FuzzyMatcher` 先看 `HasNonAscii`。顺序是性能契约，不是可读性——见「入口覆盖与每次按键的成本」一节的重复求值条目 |
+| 正则子句随 AND-first 的 DNF 分支重建一起进入 fallback | `Core/IndexV2/Search/PathTermFallback.cs:251`（`orGroups: null` + `pattern.Regexes`），回归测试 `Tests/Core/IndexV2/Search/PathTermFallbackTests.cs`（`SearchStreaming_AndFirstBranchRegexClauseStillVetoesTheAncestorRow`） |
+| 名称级对照测试两侧各一条 | `Tests/Core/IndexV2/Search/PinyinNameEvaluatorTests.cs:322`（`RegexClause_IsAnsweredFromTheNameNeverFromTheReadings`） |
+| 纯排除的 pattern 不占 mask 位；正则只借必需字面量预筛 | `Core/SearchIndex/Fzf/FzfPattern.cs:119`（`HasPositiveTerm`）、`:85-107`（`RequiredRegexLiteral`）、`Core/IndexV2/Search/SearchMatcher.cs:126-128`（并进 `RequiredMask`）、`Core/IndexV2/Search/PathTermFallback.cs:196`；main 侧为 `FzfPattern.cs:53` 的 `HasPositiveTerms` |
+| main 的连读前置条件在分支上认的是 `:term` | `Core/SearchIndex/Fzf/FzfPattern.cs:63`（`CouldHaveJoinedTerm` = `TargetDrive == null && OrGroups == null && !HasExclusions && TermSets.Length >= 2`），消费点 `Core/IndexV2/Search/PinyinNameEvaluator.cs:173`、`Core/SearchIndex/HighlightMask.cs:184`。它由 main 引入，判据里的 `HasExclusions` 在两条线上指的不是同一个字符，main 原样带来的两条测试因此改成按分支标记提问（提交 `test(search): port main's CouldHaveJoinedTerm cases onto the markers this grammar uses`）；下次 rebase 若 main 继续往这条前置条件上加判据，先确认它问的是哪个标记，否则断言会照常通过而什么也没测。 |
+| `! ' ^ $` 退役为字面字符 | `TermTriggers.cs:10`，`Tests/Core/SearchIndex/FuzzyMatcherTests.cs:71-83`（`IsMatch_RetiredOperatorCharacters_AreLiteralText`） |
+| main 靠旧语法守 kind 的两条测试 | main `Tests/Core/IndexV2/Search/PinyinNameEvaluatorTests.cs:169`（`OperatorTerms_AreLiteralOnly`）、main `Tests/Core/SearchIndex/Fzf/FzfPatternAliasReadingTests.cs:52`（`AliasReading_LeavesAnOperatorsOwnKindAlone`） |
+| 锚定 kind 的删除 | `refactor(search): drop the anchored term kinds nothing produces`；`Core/SearchIndex/Fzf/FzfAlgorithm.cs:3-6`（`FzfTermKind` 只剩两个成员）、`:36`（`Match` 只剩 `Fuzzy`/`Exact` 两条 arm）、`FzfBytePattern.cs:78` 同形；main 的 `FzfAlgorithm.cs:3-11` 仍带 `ExactBoundary`/`Prefix`/`Suffix`/`Equal` |
+| grid 层的删除 | `b8e1061c`（main）；分支侧曾存在的同名提交在 rebase 后已丢弃，只剩 `FzfPatternAliasReadingTests.cs` 的迁移 |
+| 排序键只有 `s c m a f`，阈值需要第二个触发符 | `Plugins/CoreExtensions/Providers/QueryTokens/SortFilterQueryTokenProvider.cs:27-28, 31-38, 64`（`AscendingTrigger`/`DescendingTrigger`、`KeysByLetter`、`IsTrigger`）、`:102-113`（`SplitThreshold`）、`:117-150`（`BuildThresholdPredicate`） |
+| 无人认领的 Token 得到空结果 | `App/ViewModels/Search/QueryTokenDispatcher.cs:50-51` |
+| Token 链在已取回的结果之上 | `QueryTokenDispatcher.cs:19`，调用点 `App/ViewModels/Search/Dispatch/SearchQueryDispatchController.cs:457`、`SearchDispatchController.cs:383`、`App/Services/Pipe/AppSearchPipeService.cs:306`；main 的 `QueryTokenDispatcher.cs:6` 注释仍写尾部 `:a,b,c` 段 |
+| OR 已存在且优先级可配 | `FzfPatternParser.cs:71-83, 127`，`Core/SearchContext.cs:45-54` |
+| 路径正则结果 8000 条上限 | `App/ViewModels/Search/Mapping/StreamingResultAccumulator.cs:28`（`RegexPathResultLimit`），main 无此常量 |
+| 前缀分级；不可用的值拒绝保存、读取时回退 | `App/Helpers/QueryTokenPrefixRules.cs:34`（`GlobalPrefixConflict`：语法占用与"文件名可用"两种拒绝各一条消息）、`:78`（`BlocksSaving`）；`App/Helpers/SearchSyntaxReserved.cs:46`（`IsUsableTokenPrefix`：必须是文件名非法字符，故只剩 `\`）；`App/Helpers/GlobalTokenPrefix.cs:30`（`For`：存值不可用则用默认，不让它进扫描器） |
+| 结果类型触发符的静默迁移 | `Core/Settings/LegacySettingsAdvisor.cs:106`（`TakeUnusableResultTypes`，谓词由 App 传入）、调用点在 `App/App.xaml.cs:129`（读任何窗口之前，改动即保存）；`LegacySettingsNoticeService` 不再罗列这类触发符 |
+| 插件目录关键字兜底层用解析后的词 | `App/ViewModels/Search/Mapping/SearchableItemMapper.cs:133`（`PositiveTermWords` → `TermTriggers.Read`）、`:208`（排除项另行否决）、`Core/SearchIndex/FuzzyQuery.cs` 的 `ExclusionsPass` |
+| 「另一插件已认领该字符」检查被删除及其理由 | `QueryTokenPrefixRules.cs:12-15` |
+| 「词首是不是语法」只有一份答案 | `App/Helpers/SearchSyntaxReserved.cs:22`（`OpensSyntax`：前缀 + `LeadingCharacters` + `ProviderClaimedCharacters`），被 `:49` 的 `ValidateLeadingCharacter` 与 `App/ViewModels/Search/Dispatch/SearchDispatchController.cs:451-459` 的 `LooksLikeFileNameQuery` 共用；`! ^ '` 退役后它曾把 `!plan.md` 判成非文件名查询（`Tests/App/ViewModels/Search/Dispatch/SearchDispatchBudgetTests.cs` 逐条钉住） |
+| 插件通过宿主单一前缀认领 Token | `PluginSdk/Services/SearchSyntaxService.cs:17-27`，`CustomFilterQueryTokenProvider.cs:48-52, 63-67, 345`；单一前缀改造是 `feat(plugins): claim query tokens through the host's single prefix` |
+| 关键词最长匹配 | `Plugins/CoreExtensions/Providers/QueryTokens/CustomFilterQueryTokenProvider.cs:153-168`（`ResolveLongestMatch`），调用点 `:81` |
+| 设置页章节为静态帮助文本 | `App/Views/Settings/SearchSyntaxSettingsPage.xaml(.cs)`，`Plugins/CoreExtensions/Resources/Translations/<locale>/App.json:52, 57`（`SearchSyntax_Tab_Tokens` 与 `SearchSyntax_Tokens_Body`） |
+| 大小写写法已进入 7 locale 文档 | `Site/*/user-guide/search-syntax.md` 正则小节（含 `Site/user-guide/` 共 7 份），`Plugins/CoreExtensions/Resources/Translations/*/App.json:54, 55`（`SearchSyntax_Basic_Body` 与 `SearchSyntax_Regex_Body`） |
+| 通配符与路径排除 provider 的删除 | `feat(plugins): claim query tokens through the host's single prefix` 删除 `WildcardQueryTokenProvider.cs` 与 `PathExclusionQueryTokenProvider.cs`，两者在 main 上仍在 |
+| 快速面板仍解析 `!` 取反 glob | `App/Services/QuickPanel/QuickPanelFilterParser.cs:9, 65, 116` |
+| `#` 以管理员、`$` 以普通身份、`%` 环境变量 | `Plugins/CoreExtensions/Providers/InstantAnswers/CommandInstantProvider.cs:22-23`、`CommandQuickNavigationProvider.cs:52-54`、`EnvironmentVariableInstantProvider.cs:22-28` |
+| 设置侧规则语法两侧同源 | `Core/Settings/IndexRuleSetting.cs:74`（`IndexRuleSyntax`），`TryParse` 在 `:112` / `:117`，先认 `/.../`（`:130-131`）再归一分隔符，`MatchTimeout` 在 `:80`；该文件在 main 与 `feat/search-regex` 上逐字节一致 |

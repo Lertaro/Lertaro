@@ -16,7 +16,7 @@ Lertaro is an ultra-lightweight, high-performance, extensible global search and 
 ## Highlights
 
 - ⚡ **USN & MFT Low-Level Indexing** — reads the NTFS/ReFS USN Change Journal and $MFT directly instead of walking directories; a lightweight background service keeps the index in sync in real time with FAT32/exFAT monitoring and network share caching.
-- 🎯 **fzf-Style Fuzzy Search & Aliases** — multi-keyword jump matching with directory path tokens and prefix/suffix/exact/exclude operators, plus non-ASCII pinyin alias transliteration.
+- 🎯 **fzf-Style Fuzzy Search & Aliases** — keywords AND by space and OR with a spaced `|`, `:term` exclusion, `?term` precision inversion and `/regex/` clauses, category and sort tokens (`\doc`, `<s>20m`), drive and path scoping, plus non-ASCII pinyin alias transliteration.
 - 📂 **Three Window Modes & Deep Docking** — a quick popup window, a full main window, and an inline bar that automatically docks into native Open/Save file dialogs and major file managers (File Explorer, Total Commander, Directory Opus, OneCommander).
 - 🎬 **Actions Menu & QuickLook Preview** — press `Ctrl+O` for the actions menu with native Shell right-click integration, or press `Alt+P` for seamless QuickLook file previews.
 - 📊 **Instant Disk Space Treemap** — explore indexed disk usage visually in a real-time Treemap without rescanning disks, drill down into oversized folders, and execute cleanup actions.

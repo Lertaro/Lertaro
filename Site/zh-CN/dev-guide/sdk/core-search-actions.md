@@ -1,6 +1,6 @@
 # 核心检索与动作
 
-本章节详细介绍 `Lertaro.PluginSdk` 中用于贡献搜索数据源、即时计算答案、非 ASCII 别名转写引擎、查询后缀 Token 处理器以及静态/动态上下文动作菜单的核心接口与数据结构。
+本章节详细介绍 `Lertaro.PluginSdk` 中用于贡献搜索数据源、即时计算答案、非 ASCII 别名转写引擎、查询标记处理器以及静态/动态上下文动作菜单的核心接口与数据结构。
 
 ## 1. 基础组件规范 `IPluginComponent` 与 `IPlugin`
 
@@ -94,15 +94,21 @@ public interface IAliasProvider : IPluginComponent   // Name 来自 IPluginCompo
 }
 ```
 
-### 查询后缀 Token 处理器 `IQueryTokenProvider`
+### 查询标记处理器 `IQueryTokenProvider`
 
-用于认领并处理搜索框尾部的特定 Token 标记（例如 `report :size`、`doc :@today` 或 `image ::"hello world"`），对初步匹配的结果列表进行流式二次变换（过滤、重排序等）：
+认领查询中任意位置的完整标记，例如 `report <s` 或 `report \doc`。宿主按注册顺序选取第一个认领者，并按标记出现顺序处理文件和目录结果；标记保留触发字符。插件通过 `SearchSyntaxService.TokenPrefix` 读取当前前缀。返回值只能筛选或重排原有结果实例。没有提供者认领、返回无效列表或处理失败时，该标记链的文件结果为空；支持异步工作的提供者应重写带取消参数的重载。
 
 ```csharp
 public interface IQueryTokenProvider : IPluginComponent
 {
     bool CanHandle(string token);
     Task<IReadOnlyList<ISearchResult>> ApplyAsync(string token, IReadOnlyList<ISearchResult> results);
+
+    Task<IReadOnlyList<ISearchResult>> ApplyAsync(string token, IReadOnlyList<ISearchResult> results, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ApplyAsync(token, results);
+    }
 
     // 该 token 从查询中被吃掉之后，仍要在结果行里保持高亮的文本。
     // null（默认值）表示不去改动宿主自己的高亮。

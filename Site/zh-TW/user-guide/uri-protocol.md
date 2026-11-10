@@ -33,7 +33,7 @@ Hotkeys      - 快速鍵設定
 Plugins      - 外掛模組管理
 Favorites    - 我的最愛
 History      - 搜尋歷程記錄
-QuickLaunch  - 快速啟動
+QuickLaunch  - 起始頁
 QuickPanel   - 快速面板
 LocalSend    - LocalSend 傳輸
 About        - 關於與更新

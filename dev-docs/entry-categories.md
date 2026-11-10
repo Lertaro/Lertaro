@@ -4,7 +4,7 @@
 
 ## 一份配置，两种入口
 
-`CustomFilters` 是用户可编辑的统一列表，包含 `Enabled / Keyword / Label / Rule / ShowAsRow / Icon`。输入 `:@keyword` 使用启用项；`ShowAsRow` 决定是否同时出现在完整窗口侧边栏和快速窗口类型筛选栏。
+`CustomFilters` 是用户可编辑的统一列表，包含 `Enabled / Keyword / Label / Rule / ShowAsRow / Icon`。输入 Token 前缀加关键词（默认前缀 `\`）使用启用项；`ShowAsRow` 决定是否同时出现在完整窗口侧边栏和快速窗口类型筛选栏。
 
 `CustomFilterQueryTokenProvider.MergeSidebarRowsIntoFiltersOnce()` 在读取与设置页构建时合并旧 `SidebarCustomFilters`。同关键词启用现有项，其余保留规则、图标与显示名，随后删除旧键。迁移须幂等，不能依赖哪个调用方先读。
 

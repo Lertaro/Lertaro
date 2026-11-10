@@ -1,6 +1,6 @@
 # 검색 코어 및 액션
 
-이 장에서는 `Lertaro.PluginSdk`에서 검색 데이터 소스, 실시간 연산 결과, 비 ASCII 별칭 엔진, 쿼리 접미사 토큰 핸들러 및 컨텍스트 액션 메뉴를 제공하기 위한 핵심 인터페이스와 데이터 구조를 다룹니다.
+이 장에서는 `Lertaro.PluginSdk`에서 검색 데이터 소스, 실시간 연산 결과, 비 ASCII 별칭 엔진, 쿼리 토큰 핸들러 및 컨텍스트 액션 메뉴를 제공하기 위한 핵심 인터페이스와 데이터 구조를 다룹니다.
 
 ## 1. 기본 컴포넌트 규격 `IPluginComponent` 및 `IPlugin`
 
@@ -94,15 +94,21 @@ public interface IAliasProvider : IPluginComponent   // 이름은 IPluginCompone
 }
 ```
 
-### 쿼리 접미사 토큰 핸들러 `IQueryTokenProvider`
+### 쿼리 토큰 핸들러 `IQueryTokenProvider`
 
-검색어 끝에 붙는 토큰(예: `report :size`, `doc :@today`, `image ::"hello world"`)을 감지하여 결과 목록에 필터링이나 정렬을 적용합니다.
+`report <s`나 `report \doc`처럼 쿼리 어느 위치에나 있는 완전한 토큰을 처리합니다. 호스트는 등록 순서상 처음 토큰을 인식한 제공자를 선택하고 트리거 문자를 유지한 채 토큰 순서대로 파일과 폴더 결과를 변환합니다. 현재 접두사는 `SearchSyntaxService.TokenPrefix`에서 읽습니다. 입력 인스턴스를 필터링하거나 재정렬한 결과만 반환해야 합니다. 인식되지 않은 토큰, 잘못된 목록 또는 처리 실패가 있으면 해당 토큰 체인의 파일 결과가 비게 됩니다. 비동기 제공자는 취소 매개변수가 있는 오버로드를 구현해야 합니다.
 
 ```csharp
 public interface IQueryTokenProvider : IPluginComponent
 {
     bool CanHandle(string token);
     Task<IReadOnlyList<ISearchResult>> ApplyAsync(string token, IReadOnlyList<ISearchResult> results);
+
+    Task<IReadOnlyList<ISearchResult>> ApplyAsync(string token, IReadOnlyList<ISearchResult> results, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ApplyAsync(token, results);
+    }
 
     // 이 토큰이 검색어에서 소비된 뒤 결과 행에서 계속 강조할 텍스트.
     // 기본값 null은 호스트 자신의 강조를 건드리지 않는다.
