@@ -1,3 +1,4 @@
+using Lertaro.App.Helpers;
 using System.Windows;
 using Lertaro.Core;
 using Lertaro.App.Services.Plugin;
@@ -47,6 +48,7 @@ internal sealed class SearchQueryDispatchController : IDisposable
     private readonly Action<Visibility> _setLoadingPanelVisibility;
     private readonly Action<bool> _setIsSearchBoxEnabled;
     private readonly Action<int> _setReceivedCount;
+    private readonly Action<bool> _setRegexLimitExceeded;
     private readonly Action<IReadOnlyList<AppSearchResult>, bool> _updateSidebarCounts;
     private readonly Action<IReadOnlyList<AppSearchResult>> _replaceSidebarCounts;
     private readonly Action? _onResultsSettled;
@@ -88,7 +90,8 @@ internal sealed class SearchQueryDispatchController : IDisposable
         Action<IReadOnlyList<AppSearchResult>, bool> updateSidebarCounts,
         Action<IReadOnlyList<AppSearchResult>> replaceSidebarCounts,
         Action<bool, int> applyFiltersAndRender,
-        Action? onResultsSettled = null)
+        Action? onResultsSettled = null,
+        Action<bool>? setRegexLimitExceeded = null)
     {
         _searchEngine = searchEngine;
         _serviceStatus = serviceStatus;
@@ -102,15 +105,17 @@ internal sealed class SearchQueryDispatchController : IDisposable
         _replaceSidebarCounts = replaceSidebarCounts;
         _applyFiltersAndRender = applyFiltersAndRender;
         _onResultsSettled = onResultsSettled;
+        _setRegexLimitExceeded = setRegexLimitExceeded ?? (_ => { });
     }
 
     public void OnAdvancedQueryChanged(string query)
     {
         _tokenBatchCts?.Cancel();
-        var globalPrefixChar = GetGlobalTokenPrefixChar();
-        var strippedTrailing = SearchQuerySortParser.Strip(query, out var tokens, globalPrefixChar);
-        _queryTokens = tokens;
-        var cleanQuery = SearchQuerySortParser.StripExclusionBypass(strippedTrailing, out var bypassExclusions);
+        // The bypass marker is stripped before the scan: the scanner reads a trigger from a word's first
+        // character only, so "*\audio" would otherwise stay ordinary text (see StripExclusionBypass).
+        var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(query, out var bypassExclusions), GlobalTokenPrefix.Current);
+        _queryTokens = scan.Tokens;
+        var cleanQuery = scan.Text;
         // The quick window's per-type trigger CHARACTER comes off here too, before the scope keyword is
         // resolved: this window re-runs text typed into it or carried over from that window, and searching
         // the character as literal text is why one visible query answered differently in the two windows
@@ -168,11 +173,10 @@ internal sealed class SearchQueryDispatchController : IDisposable
         _accumulator = accumulator;
         _searchSettled = false;
 
-        // Start content-provider work on the debounced search tick alongside file search, off the UI
-        // thread. Render results as they arrive. Skip providers for file-filter scopes and tokenized
-        // queries, whose render paths do not merge these rows. Apply active type filters when results
-        // reach the UI instead of blocking the worker to read UI state.
-        var wantsContentRows = scopeDirective == null && _queryTokens.Count == 0;
+        // Start content providers on the debounced search tick, off the UI thread.
+        // Scoped, tokenized, and path-regex queries do not merge content-provider rows.
+        // Apply active type filters when results reach the UI.
+        var wantsContentRows = scopeDirective == null && _queryTokens.Count == 0 && !accumulator.IsRegexPath;
         var queryGeneration = Interlocked.Increment(ref _contentAppendGeneration);
         void StartContentRowAppend()
         {
@@ -188,7 +192,8 @@ internal sealed class SearchQueryDispatchController : IDisposable
             cleanQuery,
             searchScope: null,
             isInlineSearchContext: false,
-            fileLimit: SearchViewModel.FullSearchFileLimit,
+            // One extra match proves overflow; the accumulator discards it before creating a UI row.
+            fileLimit: accumulator.IsRegexPath ? StreamingResultAccumulator.RegexPathResultLimit + 1 : SearchViewModel.FullSearchFileLimit,
             appLimit: SearchViewModel.FullSearchAppLimit,
             // Local (USN-indexed) and network-drive results stream in from separate, independently-timed
             // sources (see Core.Services.SearchService.SearchStreamingAsync's localTask/networkTask) and
@@ -225,6 +230,7 @@ internal sealed class SearchQueryDispatchController : IDisposable
                 _serviceStatus.ClearReconnectState();
                 _setLoadingPanelVisibility(Visibility.Collapsed);
                 _setIsSearchBoxEnabled(true);
+                _setRegexLimitExceeded(accumulator.RegexLimitExceeded);
                 // This window has its own "no results" hint (ShowNoResultsHint, keyed off an empty
                 // FilteredResults) -- the shared engine's synthetic "Empty" placeholder row is meant
                 // for the quick/inline windows, which have no such hint and render it inline instead.
@@ -308,7 +314,7 @@ internal sealed class SearchQueryDispatchController : IDisposable
             onReceivedCountUpdated: count =>
             {
                 if (_queryTokens.Count == 0)
-                    _setReceivedCount(count);
+                    _setReceivedCount(accumulator.IsRegexPath ? Math.Min(count, StreamingResultAccumulator.RegexPathResultLimit) : count);
             },
             beforeSearch: StartContentRowAppend
         );
@@ -498,13 +504,6 @@ internal sealed class SearchQueryDispatchController : IDisposable
         _onResultsSettled?.Invoke();
         _setLoadingPanelVisibility(Visibility.Collapsed);
     }
-
-    private static char GetGlobalTokenPrefixChar()
-    {
-        var prefix = UserSettings.Load().GlobalTokenPrefix;
-        return !string.IsNullOrEmpty(prefix) ? prefix[0] : ':';
-    }
-
     public void Dispose()
     {
         Interlocked.Increment(ref _contentAppendGeneration);
