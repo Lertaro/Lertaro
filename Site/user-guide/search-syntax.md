@@ -191,11 +191,11 @@ Four things are worth knowing:
 - **It matches the name, not the path**, and not file contents. Use a path query for folders.
 - **It does not go through pinyin aliases.** A regex describes the characters actually in the name, so a Chinese name is matched by its own characters, not by a pinyin spelling of them.
 - **Slashes delimit clauses and backslashes escape characters.** Write a literal dot as `\.` and a literal slash as `\/`. A clause must be a complete word ending in an unescaped `/`. An unescaped slash inside it makes the entire word path text. Thus `C:/Users/me`, `/mnt/c/Users`, and `/usr/local/` remain paths. An unclosed clause also remains ordinary text.
-- **Regex prefiltering extracts only literals proven necessary.** `/\.exe$/` provides `.exe`; `/^(ogg|mp3)$/` has no required literal. Complex escapes, extended whitespace mode, comments, class subtraction, and long expressions skip this optimization to avoid losing valid results. Add an ordinary term to narrow candidates. The engine prefers non-backtracking matching; expressions needing backtracking have a 250 ms budget per candidate, and timed-out candidates are skipped.
+- **Regex prefiltering extracts only literals proven necessary.** `/\.exe$/` provides `.exe`; `/^(ogg|mp3)$/` has no required literal. Complex escapes, extended whitespace mode, comments, class subtraction, and long expressions skip this optimization to avoid losing valid results. Add an ordinary term to narrow candidates. Regex clauses match the original name characters; ordinary terms still use text normalization. Backtracking matches have a 250 ms limit: one timeout stops the query and clears partial results. Concurrent matches already running may take up to their own limit to unwind.
 
 Clauses ignore case by default. To match case exactly, write `(?-i)` at the start of the expression. `/(?-i)Report/` matches `Report` and leaves `report` and `REPORT` out. An inline option applies from the position where it is written, and `(?i)` resumes case folding.
 
-In the full search window, path queries containing regex clauses retain at most 8,000 matches and discard later results. The count shows “Regex result limit exceeded” only after an 8,001st match is found. Sorting and subsequent filters apply to the retained results. Ordinary fuzzy searches and regex searches without a path do not use this limit. A regex match timeout still skips that candidate without terminating the whole query; users can cancel the search.
+In the full search window, path queries with regex clauses display at most 8,000 rows after ranking, token filters, sidebar filters and column sorting. Later arrivals can replace earlier rows. The limit hint appears only when more than 8,000 rows remain after filtering. This is a display limit, not a limit on search work or memory. Ordinary searches and regex queries without a path do not use this limit.
 
 ## 4. Path Mode & Drive Scoping
 
@@ -296,7 +296,9 @@ Add a second trigger plus a threshold to keep only one side of it:
 
 The second trigger is a **comparison**, not a repetition of the sort arrow: `>` always means a lower bound and `<` always means an upper bound.
 
-Sizes accept `k`, `m`, `g` and `t` suffixes (binary units, so `1m` is 1 MiB) or a plain byte count. For the folder/file key, `<f>f` (or a threshold starting with `folder` / `dir`) keeps only folders; any other threshold, e.g. `<f<1`, keeps only files.
+Sizes accept `k`, `m`, `g` and `t` suffixes (binary units, so `1m` is 1 MiB) or a plain byte count.
+
+A missing threshold, such as `<s>`, only sorts. Invalid nonempty size, date or folder thresholds return no results and show an invalid-token hint. Folder thresholds accept exactly f, folder or dir; `>` selects folders and `<` selects files.
 
 Dates must be written **year first**. These shapes are accepted (a two-digit year is read as `20xx`):
 
