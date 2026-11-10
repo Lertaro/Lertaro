@@ -75,6 +75,16 @@ public sealed class SortFilterQueryTokenProviderTests
     private static readonly SortFilterQueryTokenProvider Provider = new();
 
     [TestMethod]
+    [DataRow("<f>dir", true)]
+    [DataRow("<f<f", false)]
+    [DataRow(">f<folder", false)]
+    public async Task FolderThreshold_UsesExplicitMembershipAndComparison(string token, bool expectedDirectory)
+    {
+        var rows = await Provider.ApplyAsync(token, [new FakeResult { IsDir = true }, new FakeResult { IsDir = false }]);
+        Assert.AreEqual(expectedDirectory, Assert.ContainsSingle(rows).IsDir);
+    }
+
+    [TestMethod]
     [DataRow("99-8-3", 2099)]
     [DataRow("50.8.3", 2050)]
     [DataRow("1999/8/3", 1999)]
@@ -236,7 +246,14 @@ public sealed class SortFilterQueryTokenProviderTests
         CollectionAssert.AreEqual(new[] { "folder1" }, filtered.Select(r => r.Name).ToList());
     }
     [TestMethod]
-    public async Task ApplyAsync_UnparseableThreshold_NarrowsNothing()
+    [DataRow("<s>notasize")]
+    [DataRow("<s>-1")]
+    [DataRow("<s>NaN")]
+    [DataRow("<m>wrong")]
+    [DataRow("<f>wrong")]
+    [DataRow("<f>file")]
+    [DataRow("<f>directoryish")]
+    public async Task ApplyAsync_UnparseableThreshold_IsUnclaimedAndFailsClosed(string token)
     {
         var results = new ISearchResult[]
         {
@@ -244,9 +261,10 @@ public sealed class SortFilterQueryTokenProviderTests
             new FakeResult { Name = "b", Metadata = new FileMetadata(2, default, default, default) },
         };
 
-        var filtered = await Provider.ApplyAsync("<s>notasize", results);
+        Assert.IsFalse(Provider.CanHandle(token));
+        var filtered = await Provider.ApplyAsync(token, results);
 
-        Assert.HasCount(2, filtered);
+        Assert.IsEmpty(filtered);
     }
 
     [TestMethod]
