@@ -211,14 +211,15 @@ internal sealed class PinyinNameEvaluator
     /// Decides the whole query against <paramref name="name"/>. On true the match carries the score and
     /// the span, ready for <c>FzfResultRank.ForDefaultScheme</c>.
     /// </summary>
-    public bool TryScore(ReadOnlySpan<char> name, FzfSlab? slab, out FzfPatternResult match) =>
-        TryScore(name, slab, out match, out _);
+    public bool TryScore(ReadOnlySpan<char> name, FzfSlab? slab, out FzfPatternResult match, ReadOnlySpan<char> originalName = default) =>
+        TryScore(name, slab, out match, out _, originalName);
 
     internal bool TryScore(
         ReadOnlySpan<char> name,
         FzfSlab? slab,
         out FzfPatternResult match,
-        out PinyinMatchWitness witness)
+        out PinyinMatchWitness witness,
+        ReadOnlySpan<char> originalName = default)
     {
         match = default;
         witness = default;
@@ -229,7 +230,7 @@ internal sealed class PinyinNameEvaluator
         // reading of it can supply, so the clause is answered here, off the whole name, before its '|'
         // segments are scored -- the same line FzfPattern.TryMatchAlias draws for the alias tiers, and the
         // one the exclusion side of this class already honors.
-        if (_pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, name))
+        if (_pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, originalName.IsEmpty ? name : originalName))
             return false;
 
         if (name.IndexOf('|') < 0)

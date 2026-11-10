@@ -44,7 +44,12 @@ public readonly struct FuzzyQuery
     /// tier already rejected (the plugin catalog's keyword-prefix tier).
     /// </summary>
     public bool ExclusionsPass(string? text)
-        => _pattern is null || _pattern.ExclusionsPass(text ?? string.Empty);
+        => _pattern is null || _pattern.ExclusionsPass(SearchTextNormalizer.Normalize(text ?? string.Empty));
+
+    internal bool NameClausesPass(string text) => ExclusionsPass(text)
+        && (_pattern?.Regexes is not { Length: > 0 } regexes || RegexClauses.AllMatch(regexes, text));
+
+    internal FuzzyQuery PositiveTerms => _pattern is null ? default : new(_pattern.PositiveTerms, Text);
 
     // The shared ranking measure (start position + quality weight). NoMatch for an empty query or text.
     public MatchRank Rank(string? text)

@@ -37,8 +37,11 @@ internal static class HighlightMask
         var marks = text.Length <= 512 ? stackalloc bool[text.Length] : new bool[text.Length];
         marks.Clear();
         string? materialized = null;
-        Mark(text, pattern, marks, ref materialized, RentSlab(), pinyinWitness: null, out _, out _);
-        MarkRegexClauses(text, pattern, marks);
+        try
+        {
+            Mark(text, pattern, marks, ref materialized, RentSlab(), pinyinWitness: null, out _, out _, fullText);
+        }
+        catch (SearchRegexTimeoutException) { } // Display callbacks retain ordinary paint after a query failure.
 
         for (var i = 0; i < marks.Length; i++)
         {
@@ -67,6 +70,7 @@ internal static class HighlightMask
                 highlights[k] = true;
         }
 
+        MarkRegexClauses(fullText, pattern, highlights);
         return highlights;
     }
 
@@ -83,8 +87,7 @@ internal static class HighlightMask
         if (pattern.Regexes is not { Length: > 0 } regexes)
             return;
 
-        foreach (var clause in regexes)
-            RegexClauses.MarkMatches(clause, text, marks);
+        RegexClauses.MarkMatches(regexes, text, marks);
     }
 
     // Ranking-facing: same computation, but works directly off a char span -- the (common) literal and
@@ -127,7 +130,7 @@ internal static class HighlightMask
             RentSlab(),
             pinyinWitness,
             out var shape,
-            out witness);
+            out witness, fullText);
         var rank = RankFromMarks(marks, CountPositiveTerms(pattern));
         if (!rank.IsMatch)
             return rank;
@@ -173,7 +176,8 @@ internal static class HighlightMask
         FzfSlab slab,
         IndexV2.Search.PinyinNameEvaluator.PinyinMatchWitness? pinyinWitness,
         out int shape,
-        out AcceptedMatchWitness witness)
+        out AcceptedMatchWitness witness,
+        ReadOnlySpan<char> originalName = default)
     {
         witness = AcceptedMatchWitness.LegacyUnknown;
         var joined = pinyinWitness ?? default;
@@ -187,7 +191,7 @@ internal static class HighlightMask
             // holds the matcher's answer must not ask twice -- the second TryScore scored the same text a
             // second time for every multi-term row whose joined branch lost.
             var live = IndexV2.Search.PinyinNameEvaluator.ForPattern(pattern);
-            if (!live.HasJoinedBranch || !live.TryScore(fullText, null, out _, out joined) || !joined.IsJoined)
+            if (!live.HasJoinedBranch || !live.TryScore(fullText, null, out _, out joined, originalName) || !joined.IsJoined)
                 joined = default;
         }
         if (joined.IsJoined)

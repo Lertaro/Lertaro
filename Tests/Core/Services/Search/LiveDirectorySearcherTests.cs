@@ -9,6 +9,40 @@ namespace Lertaro.Core.Tests.Services.Search;
 public sealed class LiveDirectorySearcherTests
 {
     [TestMethod]
+    public void ScanDirectory_QueryTimeoutLeavesRawScanReusable()
+    {
+        using var directory = new TempDirectory();
+        File.WriteAllText(Path.Combine(directory.Path, new string('a', 30) + "!"), "");
+        File.WriteAllText(Path.Combine(directory.Path, "safe.txt"), "");
+        Core.SearchIndex.SearchRegexTimeoutException? failure = null;
+        var raw = LiveDirectorySearcher.ScanDirectory(directory.Path, 100, CancellationToken.None,
+            liveQuery: @"/^(?=(a+)+$)/", onLiveMatch: _ => { }, onLiveFailure: error => failure = error);
+        Assert.IsNotNull(failure);
+        Assert.HasCount(2, raw);
+        var rows = new List<SearchResult>();
+        LiveDirectorySearcher.MatchAndStream(raw, "safe", rows.Add, CancellationToken.None);
+        Assert.AreEqual("safe.txt", Assert.ContainsSingle(rows).Name);
+    }
+    [TestMethod]
+    public async Task SearchLiveDirectoryAsync_ColdAndWarm_HonorDriveAndRawRegex()
+    {
+        using var directory = new TempDirectory();
+        File.WriteAllText(Path.Combine(directory.Path, "Ａ.txt"), "text");
+        File.WriteAllText(Path.Combine(directory.Path, "A.txt"), "text");
+        using var service = new SearchService();
+        var drive = Path.GetPathRoot(directory.Path)![0];
+        for (var i = 0; i < 2; i++)
+        {
+            var rows = new List<SearchResult>();
+            await service.SearchLiveDirectoryAsync(directory.Path, $@"{drive}: A /^\uFF21/", rows.Add, CancellationToken.None);
+            Assert.AreEqual("Ａ.txt", Assert.ContainsSingle(rows).Name);
+        }
+        var wrongDrive = drive == 'Z' ? 'Y' : 'Z';
+        var rejected = new List<SearchResult>();
+        await service.SearchLiveDirectoryAsync(directory.Path, $"{wrongDrive}: A", rejected.Add, CancellationToken.None);
+        Assert.IsEmpty(rejected);
+    }
+    [TestMethod]
     public async Task DirectAndRecursiveSearches_DoNotShareAnIncompleteCache()
     {
         using var directory = new TempDirectory();

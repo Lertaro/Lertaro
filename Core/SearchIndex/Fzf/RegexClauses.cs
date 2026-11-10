@@ -29,8 +29,11 @@ internal static class RegexClauses
     // Keep a live query's pattern instances compiled even if the shared cache is cleared. Weak keys
     // release them with the query; a query with more than 256 clauses must not recompile per candidate.
     private static readonly ConditionalWeakTable<string, Regex> ActivePatterns = new();
+    // Failure belongs to this parsed query, never to the shared compiled-regex cache.
+    private sealed class QueryState { internal int Failed; }
+    private static readonly ConditionalWeakTable<string[], QueryState> QueryStates = new();
 
-    // A pattern that exceeds its match budget is a per-candidate miss, not a per-candidate log line.
+    // Logging is bounded independently of query failure state.
     private static readonly RegexTimeoutLogThrottle TimeoutLog = new(60_000);
 
     // Test seam: the bound is only observable from the outside through the count.
@@ -38,8 +41,11 @@ internal static class RegexClauses
 
     internal static bool AllMatch(string[] patterns, ReadOnlySpan<char> text)
     {
+        var state = QueryStates.GetOrCreateValue(patterns);
         foreach (var pattern in patterns)
         {
+            if (Volatile.Read(ref state.Failed) != 0)
+                throw new SearchRegexTimeoutException();
             var regex = GetOrCreate(pattern);
             try
             {
@@ -48,14 +54,11 @@ internal static class RegexClauses
             }
             catch (RegexMatchTimeoutException)
             {
-                // Only the backtracking fallback below carries a budget -- NonBacktracking cannot time
-                // out at all -- so this is a user's lookaround/backreference pattern losing a race
-                // against one name. Rejecting that candidate is the whole cost; letting the exception
-                // out would abandon the entire search for every remaining name.
                 if (TimeoutLog.ShouldLog(pattern, Environment.TickCount64))
-                    Logger.Log($"[Search] Regex clause '{pattern}' exceeded its match budget; that candidate was skipped.", LogLevel.Warn);
+                    Logger.Log($"[Search] Regex clause '{pattern}' exceeded its match budget; the query was stopped.", LogLevel.Warn);
 
-                return false;
+                Interlocked.Exchange(ref state.Failed, 1);
+                throw new SearchRegexTimeoutException();
             }
         }
 
@@ -65,17 +68,20 @@ internal static class RegexClauses
     // Display highlighting for a clause: paint every span the regex matched. The matcher has already
     // admitted the candidate, so a clause timing out here can only cost the paint, never the row -- and
     // unlike AllMatch, an empty match marks nothing rather than deciding anything.
-    internal static void MarkMatches(string pattern, ReadOnlySpan<char> text, Span<bool> highlights)
+    internal static void MarkMatches(string[] patterns, ReadOnlySpan<char> text, Span<bool> highlights)
     {
         if (highlights.Length == 0)
             return;
+        var state = QueryStates.GetOrCreateValue(patterns);
+        if (Volatile.Read(ref state.Failed) != 0)
+            return;
 
-        var regex = GetOrCreate(pattern);
         try
         {
             // EnumerateMatches over the span: highlighting runs once per rendered row, so materializing
             // the text (or a MatchCollection) here would allocate on the UI thread per row.
-            foreach (var match in regex.EnumerateMatches(text))
+            foreach (var pattern in patterns)
+            foreach (var match in GetOrCreate(pattern).EnumerateMatches(text))
             {
                 if (match.Length <= 0)
                     continue;
@@ -87,8 +93,9 @@ internal static class RegexClauses
         }
         catch (RegexMatchTimeoutException)
         {
-            if (TimeoutLog.ShouldLog(pattern, Environment.TickCount64))
-                Logger.Log($"[Search] Regex clause '{pattern}' exceeded its match budget while highlighting; that row was left unmarked.", LogLevel.Warn);
+            Interlocked.Exchange(ref state.Failed, 1);
+            // WPF binding callbacks must not throw; disable regex paint for this query plan.
+            Logger.Log("[Search] Regex highlighting stopped after a match timeout.", LogLevel.Warn);
         }
     }
 

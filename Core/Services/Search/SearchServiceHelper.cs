@@ -29,7 +29,7 @@ internal static class SearchServiceHelper
             return found > 0;
         }
         catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
+        catch (Exception ex) when (!SearchIndex.SearchRegexTimeoutException.IsTimeout(ex))
         {
             Logger.Log($"[SearchServiceHelper] Network drive search failed: {ex.Message}", LogLevel.Error);
             return false;

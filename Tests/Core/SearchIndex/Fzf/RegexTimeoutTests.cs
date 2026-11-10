@@ -2,9 +2,7 @@ using Lertaro.Core.SearchIndex.Fzf;
 
 namespace Lertaro.Core.Tests.SearchIndex.Fzf;
 
-// Only the backtracking fallback carries a match budget: NonBacktracking cannot time out at all, and it
-// is tried first. So a timeout means a user's lookaround/backreference pattern lost a race against one
-// name -- which must cost that one candidate and a throttled log line, never the whole search.
+// A backtracking timeout fails this parsed query, while a fresh query may reuse the compiled regex.
 [TestClass]
 public sealed class RegexTimeoutTests
 {
@@ -57,18 +55,20 @@ public sealed class RegexTimeoutTests
     }
 
     [TestMethod]
-    public void AllMatch_PathologicalPattern_TreatsTheCandidateAsAMissInsteadOfThrowing()
+    public void AllMatch_PathologicalPattern_AbortsQueryAndDoesNotPoisonLaterQueries()
     {
         // The lookahead is unsupported under NonBacktracking, so this pattern is compiled by the timed
         // fallback; "(a+)+$" against a long non-matching tail is the classic shape that exhausts its
-        // budget. The candidate must simply be rejected.
+        // budget. The query must stop without retrying the same work for later candidates.
         var patterns = new[] { @"(?=(a+)+$)" };
 
         var start = Environment.TickCount64;
-        var matched = RegexClauses.AllMatch(patterns, new string('a', 30) + "!");
+        Assert.ThrowsExactly<Lertaro.Core.SearchIndex.SearchRegexTimeoutException>(() =>
+            RegexClauses.AllMatch(patterns, new string('a', 30) + "!"));
         var elapsed = Environment.TickCount64 - start;
 
-        Assert.IsFalse(matched);
+        Assert.ThrowsExactly<Lertaro.Core.SearchIndex.SearchRegexTimeoutException>(() => RegexClauses.AllMatch(patterns, "a"));
+        Assert.IsTrue(RegexClauses.AllMatch([patterns[0]], "a"));
 
         // Finishing instantly would mean the pattern never reached the timed fallback at all, in which
         // case this test proved nothing. The budget is 250ms and no machine finishes 2^29 backtracking

@@ -17,9 +17,11 @@ namespace Lertaro.Core.Wire;
 public static class SearchResultWithHighlightBinarySerializer
 {
     private const int Magic = 0x53524C48; // "HLRS" as bytes, arbitrary but distinct from SearchResponseBinarySerializer's own magic
-    private const int Version = 2; // v2: gained Attributes (see SearchResponseBinarySerializer's own v5 for why)
+    private const int Version = 3; // v3: query regex timeout frame.
     private const byte EndFrame = 0;
     private const byte FileResultFrame = 1;
+    private const byte RegexTimeoutFrame = 2;
+    private const byte QueryErrorFrame = 3;
     private const byte HeaderFrame = 255;
 
     public static async Task WriteHeaderAsync(Stream stream, CancellationToken token = default)
@@ -40,14 +42,31 @@ public static class SearchResultWithHighlightBinarySerializer
         }
     }
 
-    public static async Task WriteEndAsync(Stream stream, CancellationToken token = default)
+    public static Task WriteEndAsync(Stream stream, CancellationToken token = default)
+        => WriteEmptyFrameAsync(stream, EndFrame, token);
+
+    public static Task WriteRegexTimeoutAsync(Stream stream, CancellationToken token = default)
+        => WriteEmptyFrameAsync(stream, RegexTimeoutFrame, token);
+
+    public static async Task WriteQueryErrorAsync(Stream stream, string message, CancellationToken token = default)
+    {
+        var payload = Encoding.UTF8.GetBytes(message);
+        var frame = new byte[9 + payload.Length];
+        BinaryPrimitives.WriteInt32LittleEndian(frame, Magic);
+        frame[4] = QueryErrorFrame;
+        BinaryPrimitives.WriteInt32LittleEndian(frame.AsSpan(5), payload.Length);
+        payload.CopyTo(frame.AsSpan(9));
+        await stream.WriteAsync(frame, token).ConfigureAwait(false);
+    }
+
+    private static async Task WriteEmptyFrameAsync(Stream stream, byte frame, CancellationToken token)
     {
         var buffer = ArrayPool<byte>.Shared.Rent(9);
         try
         {
             var span = buffer.AsSpan();
             BinaryPrimitives.WriteInt32LittleEndian(span[..4], Magic);
-            span[4] = EndFrame;
+            span[4] = frame;
             BinaryPrimitives.WriteInt32LittleEndian(span.Slice(5, 4), 0);
             await stream.WriteAsync(buffer.AsMemory(0, 9), token).ConfigureAwait(false);
         }
@@ -146,6 +165,11 @@ public static class SearchResultWithHighlightBinarySerializer
 
             if (frameType == EndFrame)
                 return;
+
+            if (frameType == RegexTimeoutFrame)
+                throw new SearchIndex.SearchRegexTimeoutException();
+            if (frameType == QueryErrorFrame)
+                throw new FormatException(Encoding.UTF8.GetString(payload));
 
             if (frameType == HeaderFrame)
             {

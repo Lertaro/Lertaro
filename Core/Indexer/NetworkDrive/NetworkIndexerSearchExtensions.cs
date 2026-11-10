@@ -67,7 +67,7 @@ public static class NetworkIndexerSearchExtensions
                 {
                     allowed[i].SearchStreaming(parsed, query, directoryFilterLower, limit, rows.Add, token, fileNameFilter, category);
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
+                catch (Exception ex) when (ex is not OperationCanceledException && !SearchRegexTimeoutException.IsTimeout(ex))
                 {
                     Logger.Log($"[NetworkIndexer] Search of '{allowed[i].Drive}' failed; its rows are left out: {ex.Message}", LogLevel.Warn);
                 }

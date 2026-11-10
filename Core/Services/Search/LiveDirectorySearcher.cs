@@ -32,7 +32,9 @@ public static class LiveDirectorySearcher
         CancellationToken liveMatchToken = default,
         string[]? regexes = null,
         string? fileNameFilter = null,
-        SearchCategoryFilter category = SearchCategoryFilter.All)
+        SearchCategoryFilter category = SearchCategoryFilter.All,
+        bool queryIsPathFragment = false,
+        Action<SearchRegexTimeoutException>? onLiveFailure = null)
     {
         var results = new List<SearchResult>();
         var fileNamePatterns = FilterPatternHelper.SplitOrNullIfMatchAll(fileNameFilter);
@@ -44,17 +46,11 @@ public static class LiveDirectorySearcher
         FzfPattern? livePattern = null;
         FzfSlab? liveSlab = null;
         // A regex clause is a filter on its own: the path-mode branch hands over a clause with no query
-        // text at all, so the clause is the only reason to build a pattern here. Both entry points take the
-        // clauses as an argument (the text handed over is already clause-free), which is why this is
-        // ParseText rather than Parse -- see SearchService's live-scan setup.
+        // text at all. Full queries still recognize bare drives; extracted path fragments do not.
         if (onLiveMatch != null && (!string.IsNullOrWhiteSpace(liveQuery) || regexes is { Length: > 0 }))
         {
-            var parsed = FzfPattern.ParseText(liveQuery ?? string.Empty, regexes);
-            if (!parsed.IsEmpty)
-            {
-                livePattern = parsed;
-                liveSlab = new FzfSlab();
-            }
+            livePattern = ParseQuery(liveQuery ?? string.Empty, regexes, queryIsPathFragment);
+            liveSlab = new FzfSlab();
         }
         var normalizedParent = onlyDirectChildren && !string.IsNullOrEmpty(parentPath)
             ? parentPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
@@ -113,12 +109,18 @@ public static class LiveDirectorySearcher
                     queue.Enqueue(entry.FullName);
                 }
 
-                if (onLiveMatch != null && !liveMatchToken.IsCancellationRequested && FilterPatternHelper.MatchesSearchResult(result.Name, result.IsDir, fileNamePatterns, category)
-                    && TryMatchEntry(result, livePattern, liveSlab, onlyDirectChildren, normalizedParent))
+                if (onLiveMatch != null && !liveMatchToken.IsCancellationRequested && FilterPatternHelper.MatchesSearchResult(result.Name, result.IsDir, fileNamePatterns, category))
                 {
                     try
                     {
-                        onLiveMatch(result);
+                        if (TryMatchEntry(result, livePattern, liveSlab, onlyDirectChildren, normalizedParent))
+                            onLiveMatch(result);
+                    }
+                    catch (SearchRegexTimeoutException ex) when (onLiveFailure != null)
+                    {
+                        // Query failure ends its delivery, not the raw scan another query may be awaiting.
+                        onLiveMatch = null;
+                        onLiveFailure(ex);
                     }
                     catch (OperationCanceledException)
                     {
@@ -149,7 +151,8 @@ public static class LiveDirectorySearcher
         string? parentPath = null,
         string[]? regexes = null,
         string? fileNameFilter = null,
-        SearchCategoryFilter category = SearchCategoryFilter.All)
+        SearchCategoryFilter category = SearchCategoryFilter.All,
+        bool queryIsPathFragment = false)
     {
         if (entries == null || entries.Count == 0)
             return false;
@@ -160,9 +163,7 @@ public static class LiveDirectorySearcher
         // text at all, and skipping the pattern there would stream every entry the clause rejects.
         if (!string.IsNullOrWhiteSpace(query) || regexes is { Length: > 0 })
         {
-            pattern = FzfPattern.ParseText(query, regexes);
-            if (pattern.IsEmpty)
-                return false;
+            pattern = ParseQuery(query, regexes, queryIsPathFragment);
             slab = new FzfSlab();
         }
 
@@ -205,6 +206,10 @@ public static class LiveDirectorySearcher
         if (pattern == null)
             return true;
 
+        if (pattern.TargetDrive is { } drive && !entry.Path.StartsWith(drive + ":", StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (pattern.IsEmpty)
+            return pattern.TargetDrive != null;
         var matchName = SearchTextNormalizer.Normalize(entry.Name);
 
         // 1. Try match the name itself, live first (a registered live provider decides from the name's
@@ -212,10 +217,10 @@ public static class LiveDirectorySearcher
         var live = IndexV2.Search.PinyinNameEvaluator.ForPattern(pattern);
         if (live.HasProviders)
         {
-            if (live.TryScore(matchName, slab, out _))
+            if (live.TryScore(matchName, slab, out _, entry.Name))
                 return true;
         }
-        else if (pattern.TryMatch(matchName, out _, FzfScoringScheme.Default, slab))
+        else if (pattern.TryMatch(matchName, out _, FzfScoringScheme.Default, slab, entry.Name))
         {
             return true;
         }
@@ -234,7 +239,7 @@ public static class LiveDirectorySearcher
             var aliasPattern = pattern.ReadingFor(separator, alias);
             // Positives read the alias, the query's name-level clauses read the entry's own name
             // -- see FzfPattern.TryMatchAlias.
-            if (!aliasPattern.TryMatchAlias(alias, entry.Name, out var aliasMatch, FzfScoringScheme.Default, slab))
+            if (!aliasPattern.TryMatchAlias(alias, matchName, out var aliasMatch, FzfScoringScheme.Default, slab, entry.Name))
                 continue;
             // Same syllable-alignment rule the index scan applies (see AliasMatchRules).
             if (!AliasMatchRules.AllowsMatch(pattern, separator, alias, aliasMatch.MinBegin))
@@ -247,6 +252,10 @@ public static class LiveDirectorySearcher
 
         return false;
     }
+
+    private static FzfPattern ParseQuery(string text, string[]? regexes, bool pathFragment) => pathFragment
+        ? regexes == null ? FzfPattern.ParseText(text) : FzfPattern.ParseText(text, regexes)
+        : regexes == null ? FzfPattern.Parse(text) : FzfPattern.Parse(text, regexes);
 
     // Each alias travels with its own provider's syllable separator: the alignment rule needs to know
     // where that provider's boundaries fall, and doing it here (the provider is in hand) saves looking the

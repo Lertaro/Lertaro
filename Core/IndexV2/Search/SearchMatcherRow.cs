@@ -21,14 +21,15 @@ internal static class SearchMatcherRow
         match = default;
         if (name.Length == 0)
             return false;
+        var originalName = name;
         name = SearchTextNormalizer.Normalize(name);
         var live = PinyinNameEvaluator.ForPattern(pattern);
         if (live.HasProviders)
         {
-            if (live.TryScore(name, slab, out match))
+            if (live.TryScore(name, slab, out match, originalName))
                 return true;
         }
-        else if (pattern.TryMatch(name, out match, FzfScoringScheme.Default, slab))
+        else if (pattern.TryMatch(name, out match, FzfScoringScheme.Default, slab, originalName))
             return true;
 
         // A `:term` and a `/.../` clause have nothing to compare against in a transliteration, so the
@@ -40,7 +41,7 @@ internal static class SearchMatcherRow
             return false;
         if (pattern.HasExclusions && !pattern.ExclusionsPass(name))
             return false;
-        if (pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, name))
+        if (pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, originalName))
             return false;
 
         var disabledIds = SearchContext.DisabledAliasIds;
@@ -58,7 +59,7 @@ internal static class SearchMatcherRow
             // The alias stands in for the name only for the positive terms: an exclusion and any `/.../`
             // clause still read `name`, or they would be answered by the alias's own silence
             // (see FzfPattern.TryMatchAlias).
-            if (!aliasPattern.TryMatchAlias(alias, name, out var aliasMatch, FzfScoringScheme.Default, slab))
+            if (!aliasPattern.TryMatchAlias(alias, name, out var aliasMatch, FzfScoringScheme.Default, slab, originalName))
                 continue;
 
             // A precise query must not match a full transliteration mid-syllable -- see AliasMatchRules.
@@ -113,14 +114,15 @@ internal static class SearchMatcherRow
     // For delta rows (renamed/added), which carry their own precomputed alias array.
     internal static bool TryMatchNameOrAliases(FzfPattern pattern, string name, string[]? aliases, byte[]? providerIds, int queryLen, FzfSlab slab, out FzfPatternResult result)
     {
+        var originalName = name;
         name = SearchTextNormalizer.Normalize(name);
         var live = PinyinNameEvaluator.ForPattern(pattern);
         if (live.HasProviders)
         {
-            if (live.TryScore(name, slab, out result))
+            if (live.TryScore(name, slab, out result, originalName))
                 return true;
         }
-        else if (pattern.TryMatch(name, out result, FzfScoringScheme.Default, slab))
+        else if (pattern.TryMatch(name, out result, FzfScoringScheme.Default, slab, originalName))
             return true;
         // No alias lane to protect: the name tier above has already answered both clauses for this
         // candidate, so asking again here would only repeat a regex evaluation on the candidates it
@@ -129,7 +131,7 @@ internal static class SearchMatcherRow
             return false;
         if (pattern.HasExclusions && !pattern.ExclusionsPass(name))
             return false;
-        if (pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, name))
+        if (pattern.Regexes is { Length: > 0 } regexes && !RegexClauses.AllMatch(regexes, originalName))
             return false;
 
         var disabledIds = SearchContext.DisabledAliasIds;
@@ -144,7 +146,7 @@ internal static class SearchMatcherRow
             var aliasPattern = pattern.ReadingFor(separator, aliases[j]);
             // Same alias-vs-name split as MatchRow above: positives read the alias, the query's
             // name-level clauses read `name`.
-            if (!aliasPattern.TryMatchAlias(aliases[j], name, out var aliasMatch, FzfScoringScheme.Default, slab))
+            if (!aliasPattern.TryMatchAlias(aliases[j], name, out var aliasMatch, FzfScoringScheme.Default, slab, originalName))
                 continue;
 
             // A precise query must not match a full transliteration mid-syllable -- see AliasMatchRules.

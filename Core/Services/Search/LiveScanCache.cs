@@ -4,8 +4,7 @@ namespace Lertaro.Core.Services.Search;
 //
 // A scan deliberately outlives the query that started it: a later keystroke in the same directory reuses
 // the finished list instead of re-walking the disk, so its lifetime cannot be tied to that query's own
-// token. Something still has to own it, and this is that something. Each entry carries its own
-// CancellationTokenSource linked to the owner's, which is what makes the guarantees below possible:
+// token. The cache owns every active scan, including entries evicted from the result cache:
 //
 //   - Eviction drops the OLDEST entry without cancelling it. Cancelling was the earlier behaviour and was
 //     wrong on two counts: a dropped scan can still be awaited by a request that has not finished (a
@@ -42,6 +41,7 @@ internal sealed class LiveScanCache : IDisposable
     private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(2);
 
     private readonly Dictionary<string, LiveScan> _scans = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<Task> _active = [];
     private readonly CancellationTokenSource _ownerCts = new();
     private readonly object _gate = new();
     private readonly int _maxEntries;
@@ -88,19 +88,15 @@ internal sealed class LiveScanCache : IDisposable
             if (_scans.Count >= _maxEntries)
                 EvictLocked();
 
-            // ponytail: the per-scan linked CTS is never disposed and never cancelled on its own. It is
-            // only ever created via CreateLinkedTokenSource -- no CancelAfter, so no timer and no unmanaged
-            // handle -- and the owning cache's Dispose cancels it through the owner it is linked to, which
-            // is also what keeps a scan from outliving its window. Add disposal here if a timer ever gets
-            // attached to it.
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(_ownerCts.Token);
+            var token = _ownerCts.Token;
             // KeepObserved because a scan outlives whoever started it: a superseded query abandons its
             // WaitAsync, so a walk that faults afterwards -- a dead request's callback throwing its
             // cancellation, this service's token cancelling at Dispose -- can be left with no waiter at all,
             // and its finalizer would report a routine superseded search as a crash.
-            var task = Task.Run(() => scan(directory, cts.Token), cts.Token).KeepObserved();
+            var task = Task.Run(() => scan(directory, token), token).KeepObserved();
             var entry = new LiveScan(task, ++_nextSequence);
             _scans[key] = entry;
+            _active.Add(task);
             _ = task.ContinueWith(t => RemoveIfFaulted(key, entry, t), CancellationToken.None,
                 TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
             return task;
@@ -111,12 +107,10 @@ internal sealed class LiveScanCache : IDisposable
     // what a later caller does after this.
     private void RemoveIfFaulted(string directory, LiveScan entry, Task<List<SearchResult>> task)
     {
-        if (!task.IsFaulted)
-            return;
-
         lock (_gate)
         {
-            if (_scans.TryGetValue(directory, out var current) && ReferenceEquals(current, entry))
+            _active.Remove(task);
+            if ((task.IsFaulted || task.IsCanceled) && _scans.TryGetValue(directory, out var current) && ReferenceEquals(current, entry))
                 _scans.Remove(directory);
         }
     }
@@ -152,25 +146,25 @@ internal sealed class LiveScanCache : IDisposable
 
     public void Dispose()
     {
-        LiveScan[] pending;
+        Task[] pending;
         lock (_gate)
         {
             if (_disposed)
                 return;
             _disposed = true;
-            _ownerCts.Cancel();
-            pending = [.. _scans.Values];
+            pending = [.. _active];
             _scans.Clear();
         }
 
+        // Callbacks may reenter the cache; never cancel or wait while holding its gate.
+        _ownerCts.Cancel();
         WaitForScans(pending);
         _ownerCts.Dispose();
         GC.SuppressFinalize(this);
     }
 
-    private static void WaitForScans(LiveScan[] pending)
+    private static void WaitForScans(Task[] running)
     {
-        var running = pending.Where(entry => !entry.Task.IsCompleted).Select(entry => entry.Task).ToArray();
         if (running.Length == 0)
             return;
 
