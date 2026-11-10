@@ -7,7 +7,7 @@
     <AssemblyName>Lertaro.Plugins.Tessoa.Tests</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="MSTest" Version="4.4.1" />
+    <PackageReference Include="MSTest" />
     <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
     <ProjectReference Include="../../../Plugins/Tessoa/Tessoa.csproj" />
   </ItemGroup>
