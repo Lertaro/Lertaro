@@ -7,6 +7,7 @@ using Lertaro.Core.IndexV2.Delta;
 using Lertaro.Core.IndexV2.Persistence;
 using Lertaro.Core.SearchIndex;
 using Lertaro.PluginSdk.Helpers;
+using Lertaro.Core.Services.Plugin.DirectoryIndex;
 
 namespace Lertaro.Core.IndexV2.Search;
 
@@ -73,11 +74,11 @@ internal static class PathTermFallback
 
     public static void SearchStreaming(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, int limit,
         Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower, HashSet<int>? reportedUids = null,
-        SearchCategoryFilter category = SearchCategoryFilter.All)
+        SearchCategoryFilter category = SearchCategoryFilter.All, string[]? fileNamePatterns = null)
     {
         if (pattern.OrGroups != null)
         {
-            SearchAndFirstBranches(snapshot, delta, pattern, limit, onResult, token, directoryFilterLower, category);
+            SearchAndFirstBranches(snapshot, delta, pattern, limit, onResult, token, directoryFilterLower, category, fileNamePatterns);
             return;
         }
 
@@ -115,24 +116,37 @@ internal static class PathTermFallback
         var scratch = RentScratch();
         var nameHits = scratch.NameHits;
         var fullMask = (1 << termCount) - 1;
-        for (var i = 0; i < termCount; i++)
+        try
         {
-            token.ThrowIfCancellationRequested();
-            var hits = SearchMatcher.RentHitList();
-            SearchMatcher.MatchUniques(snapshot, termPatterns[i], hits, token);
-            var bit = 1 << i;
-            foreach (var m in hits)
+            for (var i = 0; i < termCount; i++)
             {
-                ref var entry = ref CollectionsMarshal.GetValueRefOrAddDefault(nameHits, m.Uid, out var existed);
-                entry.Mask |= bit;
-                // Keep the strongest term hit as the row's ranking basis.
-                if (!existed || m.Match.Score > entry.Score)
+                token.ThrowIfCancellationRequested();
+                var hits = SearchMatcher.RentHitList();
+                try
                 {
-                    entry.Score = m.Match.Score;
-                    entry.SortKey = m.SortKey;
+                    SearchMatcher.MatchUniques(snapshot, termPatterns[i], hits, token);
+                    var bit = 1 << i;
+                    foreach (var m in hits)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        ref var entry = ref CollectionsMarshal.GetValueRefOrAddDefault(nameHits, m.Uid, out var existed);
+                        entry.Mask |= bit;
+                        // Keep the strongest term hit as the row's ranking basis.
+                        if (!existed || m.Match.Score > entry.Score)
+                        {
+                            entry.Score = m.Match.Score;
+                            entry.SortKey = m.SortKey;
+                        }
+                    }
                 }
+                finally { SearchMatcher.ReturnHitList(hits); }
             }
-            SearchMatcher.ReturnHitList(hits);
+        }
+        catch
+        {
+            scratch.Reset();
+            ScratchPool.Add(scratch);
+            throw;
         }
 
         if (nameHits.Count == 0)
@@ -186,10 +200,13 @@ internal static class PathTermFallback
 
                 var categoryAdmitsFile = category is not (SearchCategoryFilter.All or SearchCategoryFilter.Folder)
                     && SearchCategoryClassifier.Matches(category, snapshot.GetUniqueName(uid), isDirectory: false);
+                var fileScopeAdmits = fileNamePatterns == null || FilterPatternHelper.Matches(snapshot.GetUniqueName(uid), fileNamePatterns);
                 foreach (var row in snapshot.RowsForUid(uid))
                 {
+                    token.ThrowIfCancellationRequested();
                     if (snapshot.IsDeleted(row) || delta.IsSuperseded(row))
                         continue;
+                    if (!snapshot.IsDirectory(row) && !fileScopeAdmits) continue;
                     if (category != SearchCategoryFilter.All
                         && !(snapshot.IsDirectory(row) ? category == SearchCategoryFilter.Folder : categoryAdmitsFile))
                         continue;
@@ -228,7 +245,7 @@ internal static class PathTermFallback
     }
 
     private static void SearchAndFirstBranches(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, int limit,
-        Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower, SearchCategoryFilter category)
+        Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower, SearchCategoryFilter category, string[]? fileNamePatterns)
     {
         var emitted = 0;
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -247,7 +264,7 @@ internal static class PathTermFallback
                     return;
                 emitted++;
                 onResult(result);
-            }, token, directoryFilterLower, category: category);
+            }, token, directoryFilterLower, category: category, fileNamePatterns: fileNamePatterns);
         }
     }
 

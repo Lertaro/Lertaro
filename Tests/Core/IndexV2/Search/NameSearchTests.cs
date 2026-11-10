@@ -6,6 +6,24 @@ namespace Lertaro.Core.Tests.IndexV2.Search;
 public sealed class NameSearchTests
 {
     [TestMethod]
+    public void Refinement_CancelledQuery_DoesNotRewriteRanks()
+    {
+        using var fixture = LiveIndexFixture.Build("Z", [LiveIndexFixture.Root(), new(2, 1, "report.txt", FileRecordFlags.None)]);
+        fixture.Index.Read<object?>((snapshot, delta) =>
+        {
+            var ranks = new List<Core.SearchIndex.Fzf.FzfRank> { new(1, 123, 456) };
+            var expected = ranks.ToArray();
+            var token = new CancellationToken(canceled: true);
+            var pattern = Core.SearchIndex.Fzf.FzfPattern.Parse("report");
+            Assert.ThrowsExactly<OperationCanceledException>(() => NameSearch.RefineRanks(snapshot, delta, pattern, ranks, token));
+            CollectionAssert.AreEqual(expected, ranks);
+            Assert.ThrowsExactly<OperationCanceledException>(() => Core.IndexV2.Search.PathMode.PathSearchFuzzy.RefineWithWeight(snapshot, delta, null, pattern, ranks, token));
+            CollectionAssert.AreEqual(expected, ranks);
+            return null;
+        });
+    }
+
+    [TestMethod]
     public void SearchStreaming_WholeNameMatchOutranksAncestorCompletedMatch()
     {
         using var fixture = LiveIndexFixture.Build("Z", new[]

@@ -40,7 +40,8 @@ public static class UserNetworkDriveSearch
     public static void ClearAllCaches() => NetworkIndexer.ClearAllCaches();
 
 
-    public static void SearchStreaming(string query, int limit, Action<SearchResult> onResult, CancellationToken token = default, string? directoryFilter = null, string? fileNameFilter = null) => NetworkIndexer.SearchStreaming(query, limit, onResult, token, directoryFilter, fileNameFilter);
+    public static void SearchStreaming(string query, int limit, Action<SearchResult> onResult, CancellationToken token = default, string? directoryFilter = null, string? fileNameFilter = null,
+        Lertaro.PluginSdk.Helpers.SearchCategoryFilter category = Lertaro.PluginSdk.Helpers.SearchCategoryFilter.All) => NetworkIndexer.SearchStreaming(query, limit, onResult, token, directoryFilter, fileNameFilter, category);
 
     // In-process counterpart of SearchEngine.EnumerateDirectory (which only ever sees local drives):
     // lists a directory out of whichever network/WSL/folder index holds it. False = none of them does.

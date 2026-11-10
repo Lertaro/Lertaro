@@ -173,13 +173,14 @@ internal sealed class NetworkIndex : IDisposable
         _live.Compact(path, stamp, force: true);
     }
 
-    public void SearchStreaming(ParsedSearchQuery parsed, string rawQuery, string? directoryFilterLower, int limit, Action<SearchResult> onResult, CancellationToken token, string? fileNameFilter = null)
+    public void SearchStreaming(ParsedSearchQuery parsed, string rawQuery, string? directoryFilterLower, int limit, Action<SearchResult> onResult, CancellationToken token, string? fileNameFilter = null,
+        Lertaro.PluginSdk.Helpers.SearchCategoryFilter category = Lertaro.PluginSdk.Helpers.SearchCategoryFilter.All)
     {
         if (_live == null)
             return;
         try
         {
-            IndexV2Searcher.SearchStreaming(_live, rawQuery, limit, onResult, token, directoryFilterLower, fileNameFilter);
+            IndexV2Searcher.SearchStreaming(_live, rawQuery, limit, onResult, token, directoryFilterLower, fileNameFilter, category);
         }
         catch (ObjectDisposedException)
         {
