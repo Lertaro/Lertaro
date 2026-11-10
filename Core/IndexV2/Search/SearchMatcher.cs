@@ -160,12 +160,19 @@ internal static class SearchMatcher
         HitListPool.Add(list);
     }
 
-    internal static void MatchUniques(Snapshot snapshot, FzfPattern pattern, List<UniqueMatch> merged, CancellationToken token = default, string[]? fileNamePatterns = null)
+    internal static void MatchUniques(
+        Snapshot snapshot,
+        FzfPattern pattern,
+        List<UniqueMatch> merged,
+        CancellationToken token = default,
+        string[]? fileNamePatterns = null,
+        IReadOnlyList<int>? candidateUids = null)
     {
         var ctx = BuildContext(pattern);
         merged.Clear();
         var mergeLock = new object();
-        var chunkCount = (snapshot.UniqueCount + ChunkSize - 1) / ChunkSize;
+        var candidateCount = candidateUids?.Count ?? snapshot.UniqueCount;
+        var chunkCount = (candidateCount + ChunkSize - 1) / ChunkSize;
 
         // A broad/low-selectivity query (e.g. a single character) can touch a large fraction of the
         // whole unique-name table before this returns -- during normal rapid typing, every keystroke's
@@ -180,6 +187,22 @@ internal static class SearchMatcher
             (chunk, _, worker) =>
             {
                 var start = chunk * ChunkSize;
+                if (candidateUids != null)
+                {
+                    var candidateEnd = Math.Min(start + ChunkSize, candidateUids.Count);
+                    var candidateMasks = snapshot.UniqueMasks;
+                    for (var index = start; index < candidateEnd; index++)
+                    {
+                        var uid = candidateUids[index];
+                        if (ctx.CanFilter
+                            && (((candidateMasks[uid] & ctx.RequiredMask) != ctx.RequiredMask)
+                                || !PassesOrSets(candidateMasks[uid], ctx.OrSetMasks)))
+                            continue;
+                        MatchOne(snapshot, ctx, uid, worker, fileNamePatterns);
+                    }
+                    return worker;
+                }
+
                 var end = Math.Min(start + ChunkSize, snapshot.UniqueCount);
                 var masks = snapshot.UniqueMasks;
 

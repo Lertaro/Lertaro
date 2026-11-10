@@ -18,6 +18,9 @@ public static class IndexV2Searcher
             return;
 
         var parsed = SearchQueryParser.Parse(query);
+        var frontierSequence = fileNameFilter == null
+            ? index.SearchFrontiers.NextSearchSequence()
+            : 0;
         // ponytail: the whole search, every onResult callback included, runs inside this read lock. The
         // production callback is a blocking write to SearchStreamPump's bounded channel, so one slow pipe
         // client parks the search thread holding the lock -- and ReaderWriterLockSlim blocks new readers
@@ -28,8 +31,10 @@ public static class IndexV2Searcher
         // and needs a memory bound the full window cannot state while its limit is int.MaxValue. The
         // inline window already searches against a bounded limit. Reopen on an observed stall.
         var perfStart = SearchPerf.Start();
+        long searchRevision = 0;
         index.Read<object?>((snapshot, delta) =>
         {
+            searchRevision = index.Revision;
             var directoryFilterLower = DirectoryFilterResolver.NormalizeFilter(directoryFilter);
             if (directoryFilterLower != null && directoryFilterLower.Equals(snapshot.SourceRoot.ToLowerInvariant(), StringComparison.Ordinal))
                 directoryFilterLower = null;
@@ -41,8 +46,15 @@ public static class IndexV2Searcher
             }
 
             var pattern = FzfPattern.Parse(query);
+            var filePatterns = FilterPatternHelper.SplitOrNullIfMatchAll(fileNameFilter);
+            var frontier = filePatterns == null
+                ? index.SearchFrontiers.TryGetSuperset(query, searchRevision)
+                : null;
             NameSearch.SearchStreaming(snapshot, delta, pattern, limit, onResult, token, directoryFilterLower,
-                FilterPatternHelper.SplitOrNullIfMatchAll(fileNameFilter), category);
+                filePatterns, category, frontier,
+                filePatterns == null
+                    ? hits => index.SearchFrontiers.Store(query, searchRevision, frontierSequence, hits)
+                    : null);
             return null;
         });
         SearchPerf.Log($"[search] q='{query}' limit={limit} dir='{directoryFilter}' pathMode={parsed.IsPathMode} build={SearchPerf.BuildFlavor} total={SearchPerf.Ms(perfStart):F0}ms");

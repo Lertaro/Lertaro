@@ -24,7 +24,9 @@ internal static class NameSearch
 
     public static void SearchStreaming(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, int limit,
         Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower, string[]? fileNamePatterns = null,
-        SearchCategoryFilter category = SearchCategoryFilter.All)
+        SearchCategoryFilter category = SearchCategoryFilter.All,
+        IReadOnlyList<int>? candidateUids = null,
+        Action<IReadOnlyList<UniqueMatch>>? onNamesMatched = null)
     {
         if (!DriveAdmits(snapshot, pattern, out var matchAll))
             return;
@@ -50,11 +52,15 @@ internal static class NameSearch
         // CollectRanks hands its rented hit list back instead of recycling it, because the fallback below
         // needs to know which uids the WHOLE query already matched (see BuildReportedUids); the finally is
         // what keeps that from leaking the list whenever a superseded search cancels out of here.
-        var hits = CollectRanks(snapshot, delta, pattern, matchAll, directoryContext, topN, token, fileNamePatterns, category);
+        var hits = CollectRanks(
+            snapshot, delta, pattern, matchAll, directoryContext, topN, token,
+            fileNamePatterns, category, candidateUids);
 
         try
         {
             PublishRanks(snapshot, delta, pattern, hits, matchAll, topN, scanKeep, limit, directoryFilterLower, token, onResult);
+            if (hits != null)
+                onNamesMatched?.Invoke(hits);
         }
         finally
         {
@@ -270,7 +276,17 @@ internal static class NameSearch
     // when there is no pattern to match, i.e. a bare-drive listing). The caller owns that list and returns
     // it to the pool -- see the try/finally in SearchStreaming, which needs it to tell PathTermFallback
     // which uids the whole query already matched.
-    private static List<UniqueMatch>? CollectRanks(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, bool matchAll, DirectoryContext ctx, FzfTopN topN, CancellationToken token, string[]? fileNamePatterns, SearchCategoryFilter category)
+    private static List<UniqueMatch>? CollectRanks(
+        Snapshot snapshot,
+        DeltaOverlay delta,
+        FzfPattern pattern,
+        bool matchAll,
+        DirectoryContext ctx,
+        FzfTopN topN,
+        CancellationToken token,
+        string[]? fileNamePatterns,
+        SearchCategoryFilter category,
+        IReadOnlyList<int>? candidateUids)
     {
         List<UniqueMatch>? rentHits = null;
         var membership = ctx.FilterLower != null ? new Dictionary<int, bool>() : null;
@@ -319,7 +335,7 @@ internal static class NameSearch
         {
             var hits = SearchMatcher.RentHitList();
             rentHits = hits;
-            SearchMatcher.MatchUniques(snapshot, pattern, hits, token, fileNamePatterns);
+            SearchMatcher.MatchUniques(snapshot, pattern, hits, token, fileNamePatterns, candidateUids);
             foreach (var m in hits)
             {
                 foreach (var row in snapshot.RowsForUid(m.Uid))
