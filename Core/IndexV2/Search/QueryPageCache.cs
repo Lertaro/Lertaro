@@ -24,6 +24,24 @@ internal sealed class QueryPageCache
     private readonly Dictionary<string, Entry> _pages = new(StringComparer.Ordinal);
     private readonly object _gate = new();
 
+    internal int RetainedEntryCount
+    {
+        get
+        {
+            lock (_gate)
+                return _pages.Count;
+        }
+    }
+
+    internal int RetainedRowCount
+    {
+        get
+        {
+            lock (_gate)
+                return _pages.Values.Sum(entry => entry.Rows.Count);
+        }
+    }
+
     internal static string KeyFor(string query, string? directoryFilter, string? fileNameFilter,
         SearchCategoryFilter category)
     {
@@ -40,7 +58,8 @@ internal sealed class QueryPageCache
             ((byte)category).ToString(System.Globalization.CultureInfo.InvariantCulture), "\u0001",
             SearchContext.FuzzyMatchEnabled ? "fuzzy" : "exact", "\u0001",
             SearchContext.AndFirstPrecedence ? "and-first" : "or-first", "\u0001",
-            disabledKey);
+            disabledKey, "\u0001",
+            AliasProviderRegistry.QueryRevision.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 
     internal bool TryReplay(string key, int limit, Action<SearchResult> onResult,
@@ -49,23 +68,31 @@ internal sealed class QueryPageCache
         List<SearchResult> page;
         lock (_gate)
         {
-            if (!_pages.TryGetValue(key, out var entry)
-                || entry.Revision != revision
-                || Environment.TickCount64 - entry.LastUsed > IdleExpiryMs
+            if (!_pages.TryGetValue(key, out var entry))
+                return false;
+
+            var now = Environment.TickCount64;
+            if (now - entry.LastUsed > IdleExpiryMs)
+            {
+                _pages.Remove(key);
+                return false;
+            }
+
+            if (entry.Revision != revision
                 || (entry.Truncated && limit > MaxRows)
                 || (entry.Rows.Count < limit && !entry.Complete))
             {
                 return false;
             }
 
-            entry.LastUsed = Environment.TickCount64;
+            entry.LastUsed = now;
             page = entry.Rows.Count <= limit ? entry.Rows : entry.Rows.GetRange(0, limit);
         }
 
         foreach (var row in page)
         {
             token.ThrowIfCancellationRequested();
-            onResult(row);
+            onResult(Clone(row));
         }
         return true;
     }
@@ -76,8 +103,10 @@ internal sealed class QueryPageCache
         if (totalRows < 0)
             totalRows = rows.Count;
 
-        if (rows.Count > MaxRows)
-            rows = rows.GetRange(0, MaxRows);
+        var cloned = new List<SearchResult>(Math.Min(rows.Count, MaxRows));
+        foreach (var row in rows.Take(MaxRows))
+            cloned.Add(Clone(row));
+        rows = cloned;
 
         var entry = new Entry
         {
@@ -90,11 +119,28 @@ internal sealed class QueryPageCache
 
         lock (_gate)
         {
+            RemoveExpiredLocked(Environment.TickCount64);
             if (_pages.Count >= Capacity && !_pages.ContainsKey(key))
                 EvictOldestLocked();
             _pages[key] = entry;
         }
     }
+
+    internal static SearchResult Clone(SearchResult source) => new()
+    {
+        Name = source.Name,
+        Path = source.Path,
+        IsDir = source.IsDir,
+        Drive = source.Drive,
+        Attributes = source.Attributes,
+        RankSortKey = source.RankSortKey,
+        RankScore = source.RankScore,
+        RankFlags = source.RankFlags,
+        HistoryScoreX100 = source.HistoryScoreX100,
+        RankOrderKey = source.RankOrderKey,
+        HistoryTie = source.HistoryTie,
+        Metadata = source.Metadata,
+    };
 
     private void EvictOldestLocked()
     {
@@ -110,5 +156,21 @@ internal sealed class QueryPageCache
 
         if (oldestKey != null)
             _pages.Remove(oldestKey);
+    }
+
+    private void RemoveExpiredLocked(long now)
+    {
+        List<string>? expired = null;
+        foreach (var pair in _pages)
+        {
+            if (now - pair.Value.LastUsed <= IdleExpiryMs)
+                continue;
+            (expired ??= []).Add(pair.Key);
+        }
+
+        if (expired == null)
+            return;
+        foreach (var key in expired)
+            _pages.Remove(key);
     }
 }

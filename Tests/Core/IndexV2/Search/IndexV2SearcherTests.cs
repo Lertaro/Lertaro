@@ -102,6 +102,30 @@ public sealed class IndexV2SearcherTests
     }
 
     [TestMethod]
+    public void SearchStreaming_CachedResultsAreIsolatedFromCallbackMutation()
+    {
+        using var fixture = BuildSampleDrive();
+        var originalKey = 0UL;
+        var first = new List<SearchResult>();
+
+        IndexV2Searcher.SearchStreaming(fixture.Index, "readme", 10, row =>
+        {
+            originalKey = row.RankSortKey;
+            row.RankSortKey = ulong.MaxValue;
+            first.Add(row);
+        }, CancellationToken.None);
+
+        var replay = new List<SearchResult>();
+        IndexV2Searcher.SearchStreaming(fixture.Index, "readme", 10, replay.Add, CancellationToken.None);
+        Assert.AreEqual(originalKey, Assert.ContainsSingle(replay).RankSortKey);
+
+        replay[0].RankSortKey = ulong.MaxValue;
+        var secondReplay = new List<SearchResult>();
+        IndexV2Searcher.SearchStreaming(fixture.Index, "readme", 10, secondReplay.Add, CancellationToken.None);
+        Assert.AreEqual(originalKey, Assert.ContainsSingle(secondReplay).RankSortKey);
+    }
+
+    [TestMethod]
     public void SearchStreaming_DirectoryMatch_ReturnsWithIsDirTrue()
     {
         using var fixture = BuildSampleDrive();

@@ -70,6 +70,16 @@ public sealed class QueryPageCacheTests
     }
 
     [TestMethod]
+    public void AliasProviderQueryRevisionInvalidatesThePage()
+    {
+        var before = QueryPageCache.KeyFor("a", null, null, SearchCategoryFilter.All);
+        AliasProviderRegistry.InvalidateQueryPlans();
+        var after = QueryPageCache.KeyFor("a", null, null, SearchCategoryFilter.All);
+
+        Assert.AreNotEqual(before, after);
+    }
+
+    [TestMethod]
     public void CacheKeyIncludesQueryDirectoryAndFileFilters()
     {
         var baseline = QueryPageCache.KeyFor(
@@ -133,5 +143,25 @@ public sealed class QueryPageCacheTests
             key, QueryPageCache.MaxRows, _ => { }, CancellationToken.None, revision: 7));
         Assert.IsFalse(cache.TryReplay(
             key, QueryPageCache.MaxRows + 1, _ => { }, CancellationToken.None, revision: 7));
+    }
+
+    [TestMethod]
+    public void CachedRowsCannotBePollutedByTheCaller()
+    {
+        var cache = new QueryPageCache();
+        var key = QueryPageCache.KeyFor("a", null, null, SearchCategoryFilter.All);
+        var first = Row("a.txt");
+        first.RankSortKey = 42;
+        cache.Store(key, [first], requestLimit: 10, revision: 7);
+
+        first.RankSortKey = ulong.MaxValue;
+        var firstReplay = new List<SearchResult>();
+        Assert.IsTrue(cache.TryReplay(key, 10, firstReplay.Add, CancellationToken.None, revision: 7));
+        Assert.AreEqual(42UL, firstReplay[0].RankSortKey);
+
+        firstReplay[0].RankSortKey = ulong.MaxValue;
+        var secondReplay = new List<SearchResult>();
+        Assert.IsTrue(cache.TryReplay(key, 10, secondReplay.Add, CancellationToken.None, revision: 7));
+        Assert.AreEqual(42UL, secondReplay[0].RankSortKey);
     }
 }
