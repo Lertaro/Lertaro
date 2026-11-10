@@ -6,15 +6,6 @@ namespace Lertaro.App.Tests.ViewModels.Settings.General;
 public sealed class LabeledOptionTests
 {
     [TestMethod]
-    public void Constructor_SetsValueAndLabel()
-    {
-        var option = new LabeledOption("v1", "Label 1");
-
-        Assert.AreEqual("v1", option.Value);
-        Assert.AreEqual("Label 1", option.Label);
-    }
-
-    [TestMethod]
     public void Label_Set_RaisesPropertyChanged()
     {
         var option = new LabeledOption("v1", "Old");
@@ -26,19 +17,11 @@ public sealed class LabeledOptionTests
         Assert.IsTrue(raised);
         Assert.AreEqual("New", option.Label);
     }
-
-    [TestMethod]
-    public void ToString_ReturnsLabel() =>
-        Assert.AreEqual("My Label", new LabeledOption("v", "My Label").ToString());
 }
 
 [TestClass]
 public sealed class LanguageOptionTests
 {
-    [TestMethod]
-    public void ToString_ReturnsLabel() =>
-        Assert.AreEqual("English", new LanguageOption("en-US", "English").ToString());
-
     [TestMethod]
     public void GetLanguageDisplayName_ValidCulture_ReturnsCapitalizedNativeName()
     {

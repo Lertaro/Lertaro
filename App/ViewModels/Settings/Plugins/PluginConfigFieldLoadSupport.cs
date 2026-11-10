@@ -102,7 +102,8 @@ internal sealed class PluginConfigFieldLoadSupport
             {
                 // Group children carry no change callback: a group is a layout section, and each leaf
                 // writes itself to settings when Commit runs.
-                _children.Add(new PluginConfigFieldViewModel(_field.PluginId, sf, _field.Settings, null, _field.PluginVersion));
+                _children.Add(new PluginConfigFieldViewModel(_field.PluginId, sf, _field.Settings, null, _field.PluginVersion)
+                { GetTokenPrefix = () => _field.TokenPrefix });
             }
         }
         else if (_field.IsObject && _field.SchemaField.SubFields != null)

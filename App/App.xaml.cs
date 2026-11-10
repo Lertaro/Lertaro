@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Media;
+using Lertaro.App.Helpers;
 using Lertaro.App.Services;
 using Lertaro.App.Services.AppWindow;
 using Lertaro.App.Services.Pipe;
@@ -121,6 +122,21 @@ public partial class App : Application
         // per-request value, which only ever reaches the search pipeline's own async flow.
         SearchContext.DefaultFuzzyMatchEnabled = settings.EnableFuzzyMatch;
         SearchContext.DefaultAndFirstPrecedence = !settings.OrFirstPrecedence;
+        // Saved result-type triggers the current grammar reads are dropped here, before any window can use
+        // one: the quick window takes the trigger out of the query's FIRST character, so a stale ':' or '?'
+        // both eats that character and applies a type filter -- the opposite of what was typed. Silent by
+        // decision (2026-10-28); "no trigger" is the feature's working default, so there is nothing to ask.
+        var droppedTriggers = LegacySettingsAdvisor.TakeUnusableResultTypes(
+            settings,
+            trigger => SearchSyntaxReserved.ValidateLeadingCharacter(trigger, GlobalTokenPrefix.For(settings)) != null);
+        if (droppedTriggers.Count > 0)
+        {
+            Logger.Log(
+                $"[App] Dropped {droppedTriggers.Count} result-type trigger(s) the search syntax reads: {string.Join(", ", droppedTriggers.Select(entry => $"{entry.TypeId}={entry.Trigger}"))}",
+                LogLevel.Info);
+            settings.Save();
+        }
+
         StartupManager.SetEnabled(settings.StartWithWindows);
         // Asked against the registry rather than the setting, and after the write: SetEnabled swallows a
         // failed write into a Warn line, so the value actually being there is the only answer to whether
@@ -202,6 +218,9 @@ public partial class App : Application
         {
             Logger.Log($"[FavoriteHotkeys] Initialization failed: {ex}", LogLevel.Error);
         }
+
+        // Watch session state before any plugin can produce its first notification.
+        Services.Notifications.NotificationService.Initialize();
 
         // Force load all plugins (actions and alias providers) on startup
         _ = PluginManager.Instance;
@@ -333,6 +352,10 @@ public partial class App : Application
 
         // Background update check on startup
         UpdateCheckService.RunOnStartupAsync();
+
+        // Tell the user if their saved settings still carry a value the rewritten search syntax cannot
+        // honor -- the feature fails silently otherwise (see LegacySettingsAdvisor).
+        LegacySettingsNoticeService.RunOnStartup();
 
         // LocalSend transfer service runs in App process
         Helpers.LocalSend.LocalSendAppEventHandler.Initialize(settings);
