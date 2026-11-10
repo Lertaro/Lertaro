@@ -40,6 +40,8 @@ public class SearchViewModel : ViewModelBase, IDisposable
     private bool _allResultsHoldContentRows;
     private string _resultCountText = "";
     private bool _regexLimitExceeded;
+    internal string? QueryFailure => _searchEngine.FailureMessage;
+    private bool _isRegexPath;
     private bool _isSearching;
     private bool _isResultsListEnabled = true;
     private SearchSidebarCountHelper? _sidebarCountHelper;
@@ -78,7 +80,9 @@ public class SearchViewModel : ViewModelBase, IDisposable
             () => _renderExtendsContent,
             finalResults => ReferenceEquals(finalResults, _allResults) ? _renderUnchangedPrefix : 0,
             SetResultCount,
-            () => Hints.Refresh());
+            () => Hints.Refresh(),
+            () => _isRegexPath ? Mapping.StreamingResultAccumulator.RegexPathResultLimit : int.MaxValue,
+            exceeded => _regexLimitExceeded = exceeded);
 
         _dispatcher = new SearchQueryDispatchController(
             _searchEngine,
@@ -101,7 +105,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
             replaceSidebarCounts: results => _sidebarCountHelper?.Replace(results),
             applyFiltersAndRender: ApplyFiltersAndRender,
             isTypeFilterSelected: () => IsTypeFilterSelected,
-            setRegexLimitExceeded: value => _regexLimitExceeded = value);
+            setRegexPath: value => _isRegexPath = value);
 
         // Initialize dynamic plugin sidebar groups -- PluginManager.SidebarFilterProviders already
         // applies the user's saved order (falling back to each provider's own SortOrder).

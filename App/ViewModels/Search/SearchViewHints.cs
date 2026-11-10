@@ -52,15 +52,20 @@ public sealed class SearchViewHints(SearchViewModel viewModel) : INotifyProperty
         {
             if (!ShowNoResultsHint)
                 return null;
+            if (viewModel.QueryFailure is { } failure)
+                return failure;
 
             // Asked of the query being displayed rather than read out of shared state, so the answer cannot
             // be stale (a search the user has already typed past), missing (a clause the compile cache
             // answered without re-reporting), or empty for the common case (a clause compiled in the
             // service process, whose report never came back).
-            var clean = Core.SearchIndex.Query.QueryTokenScanner.Scan(
+            var scan = Core.SearchIndex.Query.QueryTokenScanner.Scan(
                 Core.SearchIndex.Query.QueryTokenScanner.StripExclusionBypass(viewModel.AdvancedQuery, out _),
-                Helpers.GlobalTokenPrefix.Current).Text;
-            var invalid = SearchContext.UncompilableClauses(clean);
+                Helpers.GlobalTokenPrefix.Current);
+            var tokenHint = QueryTokenDispatcher.InvalidTokenHint(scan.Tokens);
+            if (tokenHint != null)
+                return tokenHint;
+            var invalid = SearchContext.UncompilableClauses(scan.Text);
             if (invalid.Count == 0)
                 return null;
 

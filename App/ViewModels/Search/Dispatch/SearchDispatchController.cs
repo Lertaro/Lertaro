@@ -433,7 +433,11 @@ internal sealed class SearchDispatchController
         // renders the synthetic "Empty" row inline. Only on the final snapshot, though -- an empty
         // intermediate streaming update just means results haven't arrived yet, not that there are none.
         if (composed.Count == 0 && final)
-            composed.Add(SearchResultMapper.CreateNoResultsResult(query));
+        {
+            var empty = SearchResultMapper.CreateNoResultsResult(query);
+            empty.Name = _engine.FailureMessage ?? QueryTokenDispatcher.InvalidTokenHint(tokensSnapshot) ?? empty.Name;
+            composed.Add(empty);
+        }
         if (HoldsPreviousRender(composed.Count, final)) return;
 
         rankingTrace?.RecordDisplayedPage(uiResults, composed, final, fileRows, processedFileRows);

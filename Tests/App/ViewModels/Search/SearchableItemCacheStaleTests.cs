@@ -9,6 +9,36 @@ namespace Lertaro.App.Tests.ViewModels.Search;
 [TestClass]
 public sealed class SearchableItemCacheStaleTests
 {
+    [TestMethod]
+    public void TitleMatch_PreservesExclusionOrAlternative()
+    {
+        var entry = new SearchableItemCache.CacheEntry(new SearchableItem { Title = "report temp" }, [], null);
+        var match = SearchableItemMapper.MatchCatalogEntryWithEvidence(FuzzyQuery.Parse("report | :temp"), ["report"], entry, "test");
+        Assert.IsTrue(match.Rank.IsMatch);
+        Assert.AreEqual(MatchEvidenceField.DisplayTitle, match.Evidence.Field);
+    }
+    [TestMethod]
+    [DataRow("blocked.txt", "report.pdf", @"report /\.pdf$/", false)]
+    [DataRow("temp target", "report", "report :temp", false)]
+    [DataRow("target.pdf", "report", @"report /\.pdf$/", true)]
+    [DataRow("Ａ.pdf", "report", @"report /^Ａ/", true)]
+    public void CatalogAndShadowAliases_RequireTitleClauses(string title, string alias, string text, bool expected)
+    {
+        foreach (var kind in Enum.GetValues<SearchableItemAliasKind>())
+        {
+            var entry = new SearchableItemCache.CacheEntry(new SearchableItem
+            {
+                Title = title, Aliases = [new SearchableItemAlias(alias, kind)]
+            }, [], null);
+            var query = FuzzyQuery.Parse(text);
+            var actual = SearchableItemMapper.MatchCatalogEntryWithEvidence(query, SearchableItemMapper.PositiveTermWords(text), entry, "test");
+            Assert.AreEqual(expected, actual.Rank.IsMatch, kind.ToString());
+            Assert.AreEqual(expected, SearchableItemMapper.MatchShadowAliases(query, entry, "test").Rank.IsMatch, kind.ToString());
+        }
+        var baked = new SearchableItemCache.CacheEntry(new SearchableItem { Title = title }, [alias], null);
+        Assert.AreEqual(expected, SearchableItemMapper.MatchCatalogEntryWithEvidence(FuzzyQuery.Parse(text),
+            SearchableItemMapper.PositiveTermWords(text), baked, "test").Rank.IsMatch);
+    }
     private static string NewProviderId() => "TestProvider_" + Guid.NewGuid().ToString("N");
 
     [TestMethod]

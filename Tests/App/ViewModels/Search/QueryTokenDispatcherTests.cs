@@ -12,6 +12,14 @@ namespace Lertaro.App.Tests.ViewModels.Search;
 [DoNotParallelize]
 public sealed class QueryTokenDispatcherTests
 {
+    [TestMethod]
+    public void InvalidTokenHint_OnlyReportsUnclaimedTokens()
+    {
+        var provider = new TokenProvider((_, rows) => Task.FromResult(rows));
+        Assert.IsNull(QueryTokenDispatcher.InvalidTokenHint(["sort"], [provider]));
+        Assert.IsNotNull(QueryTokenDispatcher.InvalidTokenHint(["<s>garbage"], []));
+        Assert.IsNull(QueryTokenDispatcher.InvalidTokenHint([], []));
+    }
     [STATestMethod]
     public async Task QuickController_LateOlderSnapshot_DoesNotOverwriteTheFinalSnapshot()
     {

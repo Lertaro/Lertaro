@@ -113,26 +113,25 @@ public static class AppSearchPipeService
         await SearchResultWithHighlightBinarySerializer.WriteHeaderAsync(buffered, token);
         await buffered.FlushAsync(token);
 
-        if (!string.IsNullOrWhiteSpace(query))
+        try
         {
-            // The bypass marker is stripped before the scan (see QueryTokenScanner.StripExclusionBypass).
-            var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(query, out var bypassExclusions), GlobalTokenPrefix.Current);
-            var cleanQuery = scan.Text;
-            var tokens = scan.Tokens;
-            // The same trigger-word strip the full window applies, so a CLI query and the identical text
-            // typed in the window search the same thing rather than matching "cs" against file names here.
-            // The full window's own inventory (SearchWindowType.Main) is what a CLI client is asking for.
-            // ponytail: this runs on the pipe's thread while the GUI runs it on the UI thread; a provider
-            // reading its own settings is a dictionary lookup, but a plugin with non-thread-safe state in
-            // QueryTriggerKeywords could be read concurrently. Upgrade path: marshal to the dispatcher.
-            cleanQuery = PluginTriggerQuery.Strip(cleanQuery, SearchWindowType.Main);
-
-            if (tokens.Count > 0)
-                await RunTokenizedSearchAsync(cleanQuery, tokens, directoryFilter, bypassExclusions, buffered, token);
-            else
-                await RunStreamingSearchAsync(cleanQuery, directoryFilter, bypassExclusions, buffered, token);
+            if (!string.IsNullOrWhiteSpace(query))
+            {
+                var scan = QueryTokenScanner.Scan(QueryTokenScanner.StripExclusionBypass(query, out var bypassExclusions), GlobalTokenPrefix.Current);
+                var cleanQuery = PluginTriggerQuery.Strip(scan.Text, SearchWindowType.Main);
+                var tokens = scan.Tokens;
+                if (QueryTokenDispatcher.InvalidTokenHint(tokens) is { } invalid)
+                    await SearchResultWithHighlightBinarySerializer.WriteQueryErrorAsync(buffered, invalid, token);
+                else if (tokens.Count > 0)
+                    await RunTokenizedSearchAsync(cleanQuery, tokens, directoryFilter, bypassExclusions, buffered, token);
+                else
+                    await RunStreamingSearchAsync(cleanQuery, directoryFilter, bypassExclusions, buffered, token);
+            }
         }
-
+        catch (Exception ex) when (Core.SearchIndex.SearchRegexTimeoutException.IsTimeout(ex))
+        {
+            await SearchResultWithHighlightBinarySerializer.WriteRegexTimeoutAsync(buffered, token);
+        }
         await SearchResultWithHighlightBinarySerializer.WriteEndAsync(buffered, token);
         await buffered.FlushAsync(token);
     }

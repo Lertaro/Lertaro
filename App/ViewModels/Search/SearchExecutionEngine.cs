@@ -21,6 +21,7 @@ internal sealed class SearchExecutionEngine : IDisposable
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _debounceCts;
     private int _searchVersion;
+    internal string? FailureMessage { get; private set; }
 
     internal CancellationToken CurrentCancellationToken
     {
@@ -68,6 +69,7 @@ internal sealed class SearchExecutionEngine : IDisposable
         // The previous query is obsolete as soon as input changes, including while the new one
         // debounces. Otherwise its rows keep repainting ahead of the next keystroke.
         CancelPendingSearch();
+        FailureMessage = null;
 
         var delay = string.IsNullOrEmpty(query) || query.Length <= 1 ? 0 : (fileLimit > 100 ? 150 : 30);
         if (delay == 0)
@@ -134,6 +136,7 @@ internal sealed class SearchExecutionEngine : IDisposable
     {
         Logger.Log($"[SearchExecutionEngine] Performing search: '{query}', scope: '{searchScope}'", LogLevel.Debug);
         CancelPendingSearch();
+        FailureMessage = null;
         if (string.IsNullOrWhiteSpace(query))
         {
             onSearchStateChanged(false);
@@ -193,6 +196,13 @@ internal sealed class SearchExecutionEngine : IDisposable
             catch (OperationCanceledException)
             {
             }
+            catch (Exception ex) when (SearchRegexTimeoutException.IsTimeout(ex))
+            {
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    ReportRegexFailure(searchVersion, token, onResultsUpdated);
+                }, DispatcherPriority.Background);
+            }
             catch (Exception ex)
             {
                 Logger.Log($"[SearchExecutionEngine] PerformSearch failed: {ex}", LogLevel.Error);
@@ -209,6 +219,18 @@ internal sealed class SearchExecutionEngine : IDisposable
                 }));
             }
         }, token);
+    }
+
+    internal void ReportRegexFailure(int searchVersion, CancellationToken token,
+        Action<List<AppSearchResult>, string, bool> onResultsUpdated)
+    {
+        if (searchVersion != Volatile.Read(ref _searchVersion) || token.IsCancellationRequested)
+            return;
+        FailureMessage = TranslationManager.Instance["Search_RegexTimeout"];
+        _searchCts?.Cancel();
+        var failure = SearchResultMapper.CreateNoResultsResult(string.Empty);
+        failure.Name = FailureMessage;
+        onResultsUpdated([failure], FailureMessage, true);
     }
 
     /// <summary>
@@ -335,19 +357,32 @@ internal sealed class SearchExecutionEngine : IDisposable
         Action<List<AppSearchResult>, string, bool> onResultsUpdated,
         Func<bool>? shouldEmitInstantResults, string? contextDirectory,
         Func<string?, List<AppSearchResult>>? collectInstantResults) => _ = Task.Run(() =>
-                                                      {
-                                                          var instantResults = collectInstantResults?.Invoke(contextDirectory) ?? new List<AppSearchResult>();
-                                                          if (collectInstantResults == null)
-                                                              PluginSearchResultMapper.AddInstantResults(instantResults, query, highlightQuery, isInlineSearchContext, contextDirectory);
-                                                          if (instantResults.Count == 0 || token.IsCancellationRequested)
-                                                              return;
+        {
+            try
+            {
+                var instantResults = collectInstantResults?.Invoke(contextDirectory) ?? new List<AppSearchResult>();
+                if (collectInstantResults == null)
+                    PluginSearchResultMapper.AddInstantResults(instantResults, query, highlightQuery, isInlineSearchContext, contextDirectory);
+                if (instantResults.Count == 0 || token.IsCancellationRequested)
+                    return;
 
-                                                          _ = System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
-                                                          {
-                                                              if (token.IsCancellationRequested || searchVersion != Volatile.Read(ref _searchVersion))
-                                                                  return;
-                                                              if (shouldEmitInstantResults?.Invoke() ?? true)
-                                                                  onResultsUpdated(instantResults, string.Empty, false);
-                                                          }), DispatcherPriority.Background);
-                                                      }, token);
+                _ = System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (token.IsCancellationRequested || searchVersion != Volatile.Read(ref _searchVersion))
+                        return;
+                    if (shouldEmitInstantResults?.Invoke() ?? true)
+                        onResultsUpdated(instantResults, string.Empty, false);
+                }), DispatcherPriority.Background);
+            }
+            catch (Exception ex) when (SearchRegexTimeoutException.IsTimeout(ex))
+            {
+                _ = System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+                    () => ReportRegexFailure(searchVersion, token, onResultsUpdated), DispatcherPriority.Background);
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                Logger.Log($"[SearchExecutionEngine] Instant results failed: {ex}", LogLevel.Warn);
+            }
+        }, token);
 }

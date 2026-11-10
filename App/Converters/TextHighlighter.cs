@@ -140,31 +140,20 @@ public static class TextHighlighter
         // else to that split -- "/report/" would have its slashes rewritten to "\", and "/\.docx$/" its
         // escaped dot read as a directory separator. Both used to end up as a bogus path part and paint
         // nothing (see ClauseMask).
-        var text = RegexQueryParser.Split(highlight.Trim(), out var regexClauses);
-        var normalizedHighlight = NormalizePathSeparators(text);
-        var plan = PlanFor(normalizedHighlight);
+        var plan = PlanFor(highlight);
 
         var highlights = new bool[fullText.Length];
         foreach (var part in plan.Parts)
             OrInto(highlights, part.HighlightMask(fullText));
-        if (regexClauses is { Length: > 0 })
-            OrInto(highlights, ClauseMask(fullText, regexClauses));
+        if (!plan.Regex.IsEmpty)
+            OrInto(highlights, plan.Regex.HighlightMask(fullText));
 
         MarkDrivePrefix(highlights, fullText, plan.Drive);
         return highlights;
     }
 
-    // A "/.../" clause is a name-level clause, so it paints the column text once instead of riding on a
-    // path part: RegexQueryParser.Split hands back the clause bodies, and a body can never contain a bare
-    // '/', so wrapping each in slashes reproduces the query the matcher itself compiled.
-    private static bool[] ClauseMask(string fullText, string[] clauses)
-    {
-        var clauseQuery = string.Join(' ', Array.ConvertAll(clauses, clause => "/" + clause + "/"));
-        return FuzzyQuery.Parse(clauseQuery).HighlightMask(fullText);
-    }
-
     // What a highlight string resolves to once: the term(s) to light up and the drive filter (if any).
-    private readonly record struct MaskPlan(FuzzyQuery[] Parts, string? Drive);
+    private readonly record struct MaskPlan(FuzzyQuery[] Parts, string? Drive, FuzzyQuery Regex);
 
     // One parsed plan per highlight string and matching precision/precedence, per thread.
     //
@@ -200,10 +189,15 @@ public static class TextHighlighter
         return plan;
     }
 
-    private static MaskPlan BuildPlan(string normalizedHighlight)
+    private static MaskPlan BuildPlan(string highlight)
     {
+        var text = RegexQueryParser.Split(highlight.Trim(), out var clauses);
+        var normalizedHighlight = NormalizePathSeparators(text);
+        var regex = clauses is { Length: > 0 }
+            ? FuzzyQuery.Parse(string.Join(' ', Array.ConvertAll(clauses, clause => "/" + clause + "/")))
+            : default;
         if (!ContainsPathSeparator(normalizedHighlight))
-            return new MaskPlan(new[] { FuzzyQuery.Parse(normalizedHighlight) }, FindDriveFilter(normalizedHighlight));
+            return new MaskPlan(new[] { FuzzyQuery.Parse(normalizedHighlight) }, FindDriveFilter(normalizedHighlight), regex);
 
         var term = TryNormalizeDrivePath(normalizedHighlight, out var pathDrive, out var normalizedDrivePath)
             ? normalizedDrivePath
@@ -235,7 +229,7 @@ public static class TextHighlighter
         if (!string.IsNullOrEmpty(dirPart))
             parts.Add(FuzzyQuery.Parse(dirPart));
 
-        return new MaskPlan(parts.ToArray(), pathDrive);
+        return new MaskPlan(parts.ToArray(), pathDrive, regex);
     }
 
     // The same drive spec FzfPattern.Parse folds away: a standalone "X:" token, last one typed wins. It is

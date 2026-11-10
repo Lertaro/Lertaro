@@ -10,6 +10,16 @@ namespace Lertaro.App.Tests.Converters;
 public class TextHighlighterTests
 {
     [TestMethod]
+    [DataRow(@"/^Ａ$/", "Ａ", true)]
+    [DataRow(@"/^\uFF21$/", "Ａ", true)]
+    [DataRow(@"/^Ａ$/", "A", false)]
+    [DataRow(@"/e\u0301/", "e\u0301", true)]
+    public void RegexHighlights_UseOriginalCharacters(string query, string text, bool expected)
+    {
+        for (var i = 0; i < 2; i++)
+            CollectionAssert.AreEqual(Enumerable.Repeat(expected, text.Length).ToArray(), TextHighlighter.ComputeMask(text, query));
+    }
+    [TestMethod]
     public void SameQueryAfterPrecisionChange_RebuildsItsPlan()
     {
         var previous = Core.SearchContext.FuzzyMatchEnabled;

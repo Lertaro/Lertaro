@@ -47,20 +47,18 @@ public sealed class StreamingResultAccumulatorTests
     // makes the ordering assertions below mean something.
 
     [TestMethod]
-    [DataRow(7999, false)]
-    [DataRow(8000, false)]
-    [DataRow(8001, true)]
-    public void AbsorbBatch_RegexPath_TruncatesOnlyBeyondLimit(int count, bool exceeded)
+    [DataRow(7999)]
+    [DataRow(8000)]
+    [DataRow(8001)]
+    public void AbsorbBatch_RegexPath_PreservesAllCandidatesForFinalFiltering(int count)
     {
         var accumulator = new StreamingResultAccumulator(@"D:\abc\ /xxx/");
         var arrivals = Enumerable.Range(0, count).Select(i => Result(@"D:\abc\xxx" + i)).ToList();
         accumulator.AbsorbBatch(arrivals.GetRange(0, 4000));
         var rows = accumulator.AbsorbBatch(arrivals.GetRange(4000, count - 4000));
-        Assert.HasCount(Math.Min(count, 8000), rows);
-        Assert.AreEqual(exceeded, accumulator.RegexLimitExceeded);
+        Assert.HasCount(count, rows);
         Assert.IsTrue(accumulator.IsRegexPath);
-        if (exceeded)
-            Assert.IsFalse(rows.Any(row => row.FullPath == @"D:\abc\xxx8000"));
+        Assert.IsTrue(rows.Any(row => row.FullPath == @"D:\abc\xxx" + (count - 1)));
     }
 
     [TestMethod]
@@ -71,7 +69,7 @@ public sealed class StreamingResultAccumulatorTests
         var accumulator = new StreamingResultAccumulator(query);
         var rows = accumulator.AbsorbBatch(Enumerable.Range(0, 8001).Select(i => Result(@"D:\abc\xxx" + i)).ToList());
         Assert.HasCount(8001, rows);
-        Assert.IsFalse(accumulator.RegexLimitExceeded);
+        Assert.IsFalse(accumulator.IsRegexPath);
     }
 
     private static SearchResult Result(string path) => new()

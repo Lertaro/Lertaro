@@ -302,39 +302,23 @@ internal sealed class SearchStreamRenderer
                 {
                     await localSearchTask.ConfigureAwait(false);
                 }
-                catch
+                catch (Exception ex) when (!Core.SearchIndex.SearchRegexTimeoutException.IsTimeout(ex))
                 {
                 }
             }
         }
+        catch
+        {
+            pumpCts.Cancel();
+            throw;
+        }
         finally
         {
-            if (priorityTask != null)
-            {
-                try
-                {
-                    await priorityTask.ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                }
-            }
-
-            if (shortcutTask != null)
-            {
-                try
-                {
-                    await shortcutTask.ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                }
-            }
-
             streamDone.TrySetResult();
             try
             {
-                await pump.ConfigureAwait(false);
+                await Task.WhenAll(pump, priorityTask ?? Task.CompletedTask,
+                    shortcutTask ?? Task.CompletedTask).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {

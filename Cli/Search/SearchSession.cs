@@ -188,7 +188,9 @@ public sealed class SearchSession
             catch (Exception ex)
             {
                 if (generation == _searchGeneration)
-                    StatusLine = $"[error] {ex.GetType().Name}: {ex.Message} -- is the Lertaro App running?";
+                    StatusLine = ex is Core.SearchIndex.SearchRegexTimeoutException or FormatException
+                        ? $"[error] {ex.Message}"
+                        : $"[error] {ex.GetType().Name}: {ex.Message} -- is the Lertaro App running?";
             }
         }
 

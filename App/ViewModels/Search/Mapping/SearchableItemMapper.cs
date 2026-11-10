@@ -131,7 +131,7 @@ public static class SearchableItemMapper
     // veto, asked against the entry's own name -- see the tier itself). Exposed for the tests, which drive
     // the tier through the same door the search does.
     internal static string[] PositiveTermWords(string query) =>
-        query.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
+        Core.SearchIndex.Query.RegexQueryParser.Split(query, out _).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
             .Select(TermTriggers.Read)
             .Where(term => !term.Inverse && term.Body.Length > 0)
             .Select(term => term.Body)
@@ -159,12 +159,17 @@ public static class SearchableItemMapper
         if (primary.Rank.IsStrong)
             return (primary, null);
 
+        // Keep the title's OR semantics; secondary fields may not revive a name-level veto.
+        if (!query.NameClausesPass(entry.Item.Title))
+            return (primary, null);
+        var positiveQuery = query.PositiveTerms;
+
         var best = primary;
         string? matchedSecondary = null;
 
         foreach (var alias in entry.Aliases)
         {
-            var candidate = query.RankWithEvidence(alias, MatchEvidenceField.ProviderAlias, providerId);
+            var candidate = positiveQuery.RankWithEvidence(alias, MatchEvidenceField.ProviderAlias, providerId);
             if (!candidate.Rank.IsStrong)
                 continue;
             if (FuzzyMatcher.IsStronger(candidate.Rank, best.Rank))
@@ -182,7 +187,7 @@ public static class SearchableItemMapper
                 SearchableItemAliasKind.ProductMetadata => MatchEvidenceField.ProductMetadata,
                 _ => MatchEvidenceField.CuratedAlias,
             };
-            var candidate = query.RankWithEvidence(alias.Text, field, providerId, MatchQueryVariant.ProviderAlias);
+            var candidate = positiveQuery.RankWithEvidence(alias.Text, field, providerId, MatchQueryVariant.ProviderAlias);
             // Scattered matches against secondary metadata/aliases produce #440 false positives ("zbl");
             // require a clean match before admitting non-title representations.
             if (!candidate.Rank.IsStrong)
@@ -249,6 +254,9 @@ public static class SearchableItemMapper
         string? providerId)
     {
         var best = new MatchEvidenceResult(MatchRank.NoMatch, MatchEvidence.LegacyUnknown);
+        if (!query.NameClausesPass(entry.Item.Title))
+            return best;
+        query = query.PositiveTerms;
         foreach (var alias in entry.ProviderAliases)
         {
             var field = alias.Kind switch

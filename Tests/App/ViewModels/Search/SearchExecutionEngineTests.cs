@@ -6,6 +6,26 @@ namespace Lertaro.App.Tests.ViewModels.Search;
 [TestClass]
 public sealed class SearchExecutionEngineTests
 {
+    [TestMethod]
+    public void RegexFailure_ReplacesPartialResultsAndIgnoresSupersededQueries()
+    {
+        using var service = new Core.Services.Search.SearchService();
+        using var engine = new SearchExecutionEngine(service);
+        var rows = new List<AppSearchResult> { new() { Name = "partial" } };
+        var final = false;
+        void Paint(List<AppSearchResult> next, string status, bool settled) { rows = next; final = settled; }
+        engine.ReportRegexFailure(-1, CancellationToken.None, Paint);
+        Assert.AreEqual("partial", rows[0].Name);
+        engine.ReportRegexFailure(0, new CancellationToken(true), Paint);
+        Assert.AreEqual("partial", rows[0].Name);
+        engine.ReportRegexFailure(0, CancellationToken.None, Paint);
+        Assert.IsTrue(final);
+        Assert.IsTrue(Assert.ContainsSingle(rows).IsEmptyResult);
+        Assert.AreEqual(engine.FailureMessage, rows[0].Name);
+        engine.PerformSearch("", null, false, 10, 0, (_, _, _) => [], _ => { }, Paint);
+        Assert.IsNull(engine.FailureMessage);
+        Assert.IsEmpty(rows);
+    }
     [STATestMethod]
     public async Task RunDebouncedSearchAsync_ReadySearch_LetsQueuedInputRunFirst()
     {
