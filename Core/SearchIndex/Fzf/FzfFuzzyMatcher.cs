@@ -44,7 +44,7 @@ internal static class FzfFuzzyMatcher
 
         var patternIndex = 0;
         var lastIdx = 0;
-        var firstPatternChar = pattern[0];
+        var firstPatternChar = caseSensitive ? pattern[0] : FzfCharTables.ToLower(pattern[0]);
         var previousClass = (byte)FzfAlgorithm.InitialClass(scheme);
         for (var offset = 0; offset < scopedLength; offset++)
         {
@@ -55,7 +55,7 @@ internal static class FzfFuzzyMatcher
             bonus[offset] = FzfCharTables.Bonus(scheme, previousClass, currentClass);
             previousClass = currentClass;
 
-            if (patternIndex < m && normalized == pattern[patternIndex])
+            if (patternIndex < m && FzfCharTables.CharsEqual(normalized, pattern[patternIndex], caseSensitive))
             {
                 first[patternIndex] = offset;
                 lastIdx = offset;
@@ -74,7 +74,7 @@ internal static class FzfFuzzyMatcher
             var bestPos = -1;
             for (var i = 0; i < scopedLength; i++)
             {
-                if (chars[i] != firstPatternChar)
+                if (!FzfCharTables.CharsEqual(chars[i], firstPatternChar, caseSensitive: true))
                     continue;
                 var score = FzfAlgorithm.ScoreMatch + bonus[i] * FzfAlgorithm.BonusFirstCharMultiplier;
                 if (score > bestScore)
@@ -142,7 +142,7 @@ internal static class FzfFuzzyMatcher
 
                 short s1 = 0;
                 short consecutiveScore = 0;
-                if (chars[col] == pattern[pidx] && rel > 0)
+                if (FzfCharTables.CharsEqual(chars[col], pattern[pidx], caseSensitive) && rel > 0)
                 {
                     s1 = (short)(scores[previousRow + rel - 1] + FzfAlgorithm.ScoreMatch);
                     var b = bonus[col];
@@ -206,7 +206,7 @@ internal static class FzfFuzzyMatcher
             var normalized = caseSensitive ? raw : FzfCharTables.ToLower(raw);
             var bonus = FzfCharTables.Bonus(scheme, previousClass, currentClass);
             previousClass = currentClass;
-            if (normalized != pattern)
+            if (!FzfCharTables.CharsEqual(normalized, pattern, caseSensitive))
                 continue;
 
             var score = FzfAlgorithm.ScoreMatch + bonus * FzfAlgorithm.BonusFirstCharMultiplier;
