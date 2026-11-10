@@ -1,0 +1,1425 @@
+{
+  "Main": "5f735e70f67f9e72ffb6b10deeb4e33766f64ad5",
+  "AuditedRebasedHead": "f7e845172dcc38ac55992d1826c4edb403fa7b4b",
+  "OriginalRegex": "2b2a0e50",
+  "Date": "2026-11-10T17:52:39.4908186+08:00",
+  "Environment": {
+    "SDK": "10.0.403",
+    "OS": "Microsoft Windows 10.0.26300",
+    "LogicalProcessors": 12,
+    "TieredCompilation": 0,
+    "Configuration": "Release"
+  },
+  "Method": "Three alternating process pairs. Index: 60000 files, 6000 report names, 54000 notes names, limit 204, 3 warmups/10 samples. Highlight: 100 warmups, 10 batches x1000 masks. No running application, service, network or real user index measured.",
+  "Assemblies": [
+    {
+      "Path": "main-core-probe/Lertaro.Core.dll",
+      "SHA256": "838CAAB49C972B22AF2F6F1C10A157C4822ADF50C8417E4D3B3B917D0F2E63FE"
+    },
+    {
+      "Path": "regex-core-probe/Lertaro.Core.dll",
+      "SHA256": "F2761D42FA13617D6E9B8992EE24C14F4D418BB5129D7800372F8F0188D94FB1"
+    },
+    {
+      "Path": "main-app-probe/Lertaro.App.dll",
+      "SHA256": "EB7AD643E0B1A7A0CA76CAD866DF00AD275430A87F169D935398B8954760F606"
+    },
+    {
+      "Path": "regex-app-probe/Lertaro.App.dll",
+      "SHA256": "7DB3FEB7EFC1E212B70619BF82254692F8A518BE3833C6777475B9340EF74725"
+    }
+  ],
+  "Summary": [
+    {
+      "Scenario": "main|highlight|report",
+      "Samples": 30,
+      "MedianMs": 0.3139,
+      "P95Ms": 1.311,
+      "AllocatedBytesPerRun": 960872
+    },
+    {
+      "Scenario": "main|index|archive report",
+      "Samples": 30,
+      "MedianMs": 1.4632,
+      "P95Ms": 2.6709,
+      "AllocatedBytesPerRun": 13811120
+    },
+    {
+      "Scenario": "main|index|report",
+      "Samples": 30,
+      "MedianMs": 3.3993,
+      "P95Ms": 7.1035,
+      "AllocatedBytesPerRun": 20582152
+    },
+    {
+      "Scenario": "main|index|rprt",
+      "Samples": 30,
+      "MedianMs": 5.78235,
+      "P95Ms": 9.619,
+      "AllocatedBytesPerRun": 26314944
+    },
+    {
+      "Scenario": "regex|highlight|/report.*\\.txt$/",
+      "Samples": 30,
+      "MedianMs": 1.8879000000000001,
+      "P95Ms": 3.356,
+      "AllocatedBytesPerRun": 13288672
+    },
+    {
+      "Scenario": "regex|highlight|report",
+      "Samples": 30,
+      "MedianMs": 0.57945,
+      "P95Ms": 2.4972,
+      "AllocatedBytesPerRun": 960872
+    },
+    {
+      "Scenario": "regex|highlight|report /\\.txt$/",
+      "Samples": 30,
+      "MedianMs": 1.9987,
+      "P95Ms": 4.6994,
+      "AllocatedBytesPerRun": 13365992
+    },
+    {
+      "Scenario": "regex|index|/.*[0-9]/",
+      "Samples": 30,
+      "MedianMs": 30.850450000000002,
+      "P95Ms": 32.3969,
+      "AllocatedBytesPerRun": 396477848
+    },
+    {
+      "Scenario": "regex|index|/report.*\\.txt$/",
+      "Samples": 30,
+      "MedianMs": 5.7697,
+      "P95Ms": 8.3788,
+      "AllocatedBytesPerRun": 50613984
+    },
+    {
+      "Scenario": "regex|index|/report/",
+      "Samples": 30,
+      "MedianMs": 5.48565,
+      "P95Ms": 9.4908,
+      "AllocatedBytesPerRun": 50542240
+    },
+    {
+      "Scenario": "regex|index|archive report",
+      "Samples": 30,
+      "MedianMs": 1.4173499999999999,
+      "P95Ms": 2.386,
+      "AllocatedBytesPerRun": 13946264
+    },
+    {
+      "Scenario": "regex|index|report",
+      "Samples": 30,
+      "MedianMs": 3.5027999999999997,
+      "P95Ms": 6.9678,
+      "AllocatedBytesPerRun": 20700272
+    },
+    {
+      "Scenario": "regex|index|report /\\.txt$/",
+      "Samples": 30,
+      "MedianMs": 9.1278,
+      "P95Ms": 12.1512,
+      "AllocatedBytesPerRun": 74228816
+    },
+    {
+      "Scenario": "regex|index|rprt",
+      "Samples": 30,
+      "MedianMs": 5.21995,
+      "P95Ms": 7.7181,
+      "AllocatedBytesPerRun": 26727744
+    },
+    {
+      "Scenario": "regex|timeout-budget|",
+      "Samples": 3,
+      "MedianMs": 995.6054,
+      "P95Ms": 1012.6574,
+      "AllocatedBytesPerRun": null
+    }
+  ],
+  "Measurements": [
+    {
+      "kind": "index",
+      "query": "report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        3.1766,
+        3.3431,
+        4.9335,
+        7.1085,
+        3.4137,
+        3.3849,
+        5.1227,
+        4.6835,
+        3.278,
+        6.6625
+      ],
+      "allocatedBytes": 20582152,
+      "count": 204,
+      "Side": "main",
+      "Round": 1
+    },
+    {
+      "kind": "index",
+      "query": "rprt",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        4.8653,
+        4.9331,
+        9.8774,
+        4.9408,
+        6.0601,
+        5.8171,
+        4.8064,
+        6.2496,
+        6.1453,
+        4.9701
+      ],
+      "allocatedBytes": 26314944,
+      "count": 204,
+      "Side": "main",
+      "Round": 1
+    },
+    {
+      "kind": "index",
+      "query": "archive report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        1.7052,
+        1.3849,
+        1.4379,
+        2.6397,
+        1.3619,
+        1.3528,
+        1.6789,
+        1.9086,
+        1.305,
+        1.2641
+      ],
+      "allocatedBytes": 13325104,
+      "count": 204,
+      "Side": "main",
+      "Round": 1
+    },
+    {
+      "kind": "live-drive",
+      "query": "z: report",
+      "live": 1,
+      "index": 204,
+      "Side": "main",
+      "Round": 1
+    },
+    {
+      "kind": "index",
+      "query": "report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        5.4347,
+        4.8252,
+        3.2052,
+        7.1035,
+        3.2311,
+        3.0741,
+        3.6635,
+        3.3203,
+        3.0977,
+        3.0114
+      ],
+      "allocatedBytes": 20652936,
+      "count": 204,
+      "Side": "main",
+      "Round": 2
+    },
+    {
+      "kind": "index",
+      "query": "rprt",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        6.0936,
+        5.2322,
+        5.1732,
+        6.8274,
+        4.8795,
+        6.0089,
+        7.9377,
+        5.0636,
+        7.2898,
+        5.2998
+      ],
+      "allocatedBytes": 26643608,
+      "count": 204,
+      "Side": "main",
+      "Round": 2
+    },
+    {
+      "kind": "index",
+      "query": "archive report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        1.782,
+        1.4885,
+        1.3353,
+        2.0368,
+        1.3391,
+        1.3825,
+        1.3124,
+        1.9275,
+        1.3631,
+        1.2702
+      ],
+      "allocatedBytes": 13811120,
+      "count": 204,
+      "Side": "main",
+      "Round": 2
+    },
+    {
+      "kind": "live-drive",
+      "query": "z: report",
+      "live": 1,
+      "index": 204,
+      "Side": "main",
+      "Round": 2
+    },
+    {
+      "kind": "index",
+      "query": "report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        3.045,
+        3.2076,
+        3.1093,
+        7.015,
+        3.671,
+        3.1893,
+        3.5847,
+        3.4993,
+        3.356,
+        4.9042
+      ],
+      "allocatedBytes": 20559864,
+      "count": 204,
+      "Side": "main",
+      "Round": 3
+    },
+    {
+      "kind": "index",
+      "query": "rprt",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        9.619,
+        5.0088,
+        5.6163,
+        6.2392,
+        5.3197,
+        5.7476,
+        6.012,
+        4.8955,
+        6.9109,
+        6.4128
+      ],
+      "allocatedBytes": 26219744,
+      "count": 204,
+      "Side": "main",
+      "Round": 3
+    },
+    {
+      "kind": "index",
+      "query": "archive report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        2.6709,
+        1.5104,
+        1.6111,
+        1.3698,
+        2.1538,
+        1.3558,
+        1.3609,
+        1.6285,
+        2.7883,
+        1.5013
+      ],
+      "allocatedBytes": 14085224,
+      "count": 204,
+      "Side": "main",
+      "Round": 3
+    },
+    {
+      "kind": "live-drive",
+      "query": "z: report",
+      "live": 1,
+      "index": 204,
+      "Side": "main",
+      "Round": 3
+    },
+    {
+      "kind": "highlight",
+      "query": "report",
+      "iterations": 10000,
+      "elapsedMs": [
+        1.3876,
+        0.3251,
+        0.3059,
+        0.309,
+        0.3101,
+        0.3085,
+        0.3079,
+        0.308,
+        0.3173,
+        0.309
+      ],
+      "allocatedBytes": 960872,
+      "marked": 60000,
+      "Side": "main",
+      "Round": 1
+    },
+    {
+      "kind": "highlight",
+      "query": "report",
+      "iterations": 10000,
+      "elapsedMs": [
+        1.311,
+        0.3174,
+        0.3135,
+        0.3106,
+        0.3116,
+        0.3208,
+        0.3096,
+        0.3091,
+        0.313,
+        0.3084
+      ],
+      "allocatedBytes": 960872,
+      "marked": 60000,
+      "Side": "main",
+      "Round": 2
+    },
+    {
+      "kind": "highlight",
+      "query": "report",
+      "iterations": 10000,
+      "elapsedMs": [
+        1.3055,
+        0.3169,
+        0.3082,
+        0.32,
+        0.3161,
+        0.3193,
+        0.3186,
+        0.3143,
+        0.3226,
+        0.3267
+      ],
+      "allocatedBytes": 960872,
+      "marked": 60000,
+      "Side": "main",
+      "Round": 3
+    },
+    {
+      "kind": "index",
+      "query": "report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        3.2529,
+        3.4785,
+        3.2064,
+        6.9678,
+        3.5859,
+        3.3091,
+        3.7468,
+        3.2269,
+        2.9409,
+        3.1495
+      ],
+      "allocatedBytes": 20700272,
+      "count": 204,
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "index",
+      "query": "rprt",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        6.5292,
+        4.8894,
+        4.8273,
+        6.706,
+        4.8442,
+        5.3933,
+        10.2129,
+        6.1337,
+        7.7181,
+        4.8392
+      ],
+      "allocatedBytes": 26727744,
+      "count": 204,
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "index",
+      "query": "archive report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        1.4212,
+        1.3141,
+        1.2958,
+        2.494,
+        1.4761,
+        2.0411,
+        1.4104,
+        2.386,
+        1.4729,
+        1.4135
+      ],
+      "allocatedBytes": 13946264,
+      "count": 204,
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "index",
+      "query": "/report/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        5.6645,
+        4.1073,
+        5.2404,
+        5.5933,
+        4.2304,
+        9.4908,
+        4.2222,
+        7.8646,
+        5.7698,
+        4.2639
+      ],
+      "allocatedBytes": 50756032,
+      "count": 204,
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "index",
+      "query": "/report.*\\.txt$/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        6.3731,
+        4.3343,
+        5.365,
+        5.5724,
+        4.2328,
+        6.3531,
+        6.3427,
+        4.5235,
+        5.7171,
+        6.2717
+      ],
+      "allocatedBytes": 50972040,
+      "count": 204,
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "index",
+      "query": "report /\\.txt$/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        8.8143,
+        9.5879,
+        8.4777,
+        8.6587,
+        9.7129,
+        11.9838,
+        8.5147,
+        8.6537,
+        8.6266,
+        8.5806
+      ],
+      "allocatedBytes": 74805616,
+      "count": 204,
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "index",
+      "query": "/.*[0-9]/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        32.335,
+        30.787,
+        30.7771,
+        31.3076,
+        29.5878,
+        32.046,
+        31.1354,
+        30.9089,
+        30.0815,
+        31.4146
+      ],
+      "allocatedBytes": 407768584,
+      "count": 204,
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "live-drive",
+      "query": "z: report",
+      "live": 0,
+      "index": 204,
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "timeout-budget",
+      "candidates": 4,
+      "elapsedMs": 987.2523,
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "literal-normalization",
+      "query": "/^Ａ$/",
+      "name": "A",
+      "oracle": false,
+      "actual": true,
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "literal-normalization",
+      "query": "/\\uFF21/",
+      "name": "Ａ",
+      "oracle": true,
+      "actual": false,
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "rebase-filter-regression",
+      "count": 0,
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "evicted-dispose",
+      "completedOnReturn": false,
+      "disposeMs": 156.8986,
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "index",
+      "query": "report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        3.5271,
+        3.5978,
+        4.2825,
+        7.1778,
+        4.843,
+        3.5433,
+        3.9517,
+        2.9584,
+        2.8595,
+        3.9062
+      ],
+      "allocatedBytes": 21062520,
+      "count": 204,
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "index",
+      "query": "rprt",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        5.0836,
+        5.2151,
+        6.1196,
+        5.3023,
+        5.2248,
+        6.127,
+        4.9948,
+        5.072,
+        6.0365,
+        5.097
+      ],
+      "allocatedBytes": 26361848,
+      "count": 204,
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "index",
+      "query": "archive report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        1.3357,
+        1.357,
+        2.1197,
+        1.7353,
+        1.3423,
+        1.3347,
+        1.9734,
+        1.44,
+        1.3425,
+        1.4087
+      ],
+      "allocatedBytes": 13540648,
+      "count": 204,
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "index",
+      "query": "/report/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        5.8309,
+        4.4481,
+        6.5922,
+        4.8738,
+        5.31,
+        5.525,
+        4.2236,
+        5.5805,
+        5.5622,
+        4.4526
+      ],
+      "allocatedBytes": 50497816,
+      "count": 204,
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "index",
+      "query": "/report.*\\.txt$/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        5.9136,
+        4.5202,
+        8.6507,
+        6.0748,
+        4.4109,
+        8.3788,
+        6.0203,
+        7.0811,
+        7.3562,
+        4.4776
+      ],
+      "allocatedBytes": 50613984,
+      "count": 204,
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "index",
+      "query": "report /\\.txt$/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        8.3553,
+        10.8264,
+        8.4313,
+        10.7966,
+        9.5524,
+        8.8147,
+        9.4172,
+        8.4387,
+        10.3221,
+        8.9946
+      ],
+      "allocatedBytes": 74228816,
+      "count": 204,
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "index",
+      "query": "/.*[0-9]/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        30.2724,
+        30.2477,
+        31.2696,
+        32.1048,
+        32.3969,
+        29.3282,
+        31.6108,
+        30.792,
+        30.7182,
+        32.2232
+      ],
+      "allocatedBytes": 396477848,
+      "count": 204,
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "live-drive",
+      "query": "z: report",
+      "live": 0,
+      "index": 204,
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "timeout-budget",
+      "candidates": 4,
+      "elapsedMs": 1012.6574,
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "literal-normalization",
+      "query": "/^Ａ$/",
+      "name": "A",
+      "oracle": false,
+      "actual": true,
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "literal-normalization",
+      "query": "/\\uFF21/",
+      "name": "Ａ",
+      "oracle": true,
+      "actual": false,
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "rebase-filter-regression",
+      "count": 0,
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "evicted-dispose",
+      "completedOnReturn": false,
+      "disposeMs": 158.5445,
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "index",
+      "query": "report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        3.303,
+        3.4293,
+        3.9172,
+        6.9421,
+        3.1288,
+        4.4649,
+        4.2667,
+        3.2797,
+        3.0277,
+        3.073
+      ],
+      "allocatedBytes": 20498872,
+      "count": 204,
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "index",
+      "query": "rprt",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        6.3651,
+        4.8604,
+        4.9443,
+        6.2125,
+        4.9228,
+        4.8586,
+        6.3341,
+        4.9839,
+        4.9272,
+        6.5652
+      ],
+      "allocatedBytes": 26770264,
+      "count": 204,
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "index",
+      "query": "archive report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        1.3257,
+        1.3499,
+        1.3706,
+        1.886,
+        1.3531,
+        1.3675,
+        1.4711,
+        2.3388,
+        1.4395,
+        1.858
+      ],
+      "allocatedBytes": 14012448,
+      "count": 204,
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "index",
+      "query": "/report/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        5.4463,
+        5.798,
+        4.2601,
+        10.2594,
+        4.2681,
+        8.1269,
+        4.8937,
+        6.1986,
+        5.2116,
+        6.8819
+      ],
+      "allocatedBytes": 50542240,
+      "count": 204,
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "index",
+      "query": "/report.*\\.txt$/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        4.5615,
+        5.4031,
+        5.8319,
+        4.4093,
+        5.3487,
+        5.8223,
+        4.2199,
+        5.8702,
+        5.9508,
+        4.3031
+      ],
+      "allocatedBytes": 50562264,
+      "count": 204,
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "index",
+      "query": "report /\\.txt$/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        9.261,
+        8.5684,
+        10.9181,
+        9.672,
+        8.3811,
+        14.0743,
+        10.448,
+        8.4479,
+        9.4386,
+        12.1512
+      ],
+      "allocatedBytes": 73733368,
+      "count": 204,
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "index",
+      "query": "/.*[0-9]/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        31.7031,
+        19.9876,
+        27.2968,
+        16.1689,
+        18.7879,
+        26.4787,
+        30.1967,
+        31.4651,
+        31.9241,
+        32.8578
+      ],
+      "allocatedBytes": 387260168,
+      "count": 204,
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "live-drive",
+      "query": "z: report",
+      "live": 0,
+      "index": 204,
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "timeout-budget",
+      "candidates": 4,
+      "elapsedMs": 995.6054,
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "literal-normalization",
+      "query": "/^Ａ$/",
+      "name": "A",
+      "oracle": false,
+      "actual": true,
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "literal-normalization",
+      "query": "/\\uFF21/",
+      "name": "Ａ",
+      "oracle": true,
+      "actual": false,
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "rebase-filter-regression",
+      "count": 0,
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "evicted-dispose",
+      "completedOnReturn": false,
+      "disposeMs": 164.65,
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "highlight",
+      "query": "report",
+      "iterations": 10000,
+      "elapsedMs": [
+        2.4972,
+        0.5969,
+        0.5921,
+        0.5794,
+        0.5823,
+        0.5741,
+        0.6006,
+        0.6123,
+        0.5905,
+        0.5579
+      ],
+      "allocatedBytes": 960872,
+      "marked": 60000,
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "highlight",
+      "query": "report /\\.txt$/",
+      "iterations": 10000,
+      "elapsedMs": [
+        2.1282,
+        2.1478,
+        3.9412,
+        2.0743,
+        1.6974,
+        1.7094,
+        1.8961,
+        3.0234,
+        1.7029,
+        1.7356
+      ],
+      "allocatedBytes": 13365992,
+      "marked": 100000,
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "highlight",
+      "query": "/report.*\\.txt$/",
+      "iterations": 10000,
+      "elapsedMs": [
+        2.0627,
+        2.5587,
+        1.5528,
+        1.633,
+        1.5621,
+        1.6207,
+        2.2165,
+        1.553,
+        1.5624,
+        1.8748
+      ],
+      "allocatedBytes": 13288672,
+      "marked": 100000,
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "catalog-name-clause",
+      "title": "blocked.txt",
+      "alias": "report.pdf",
+      "query": "report /\\.pdf$/",
+      "match": true,
+      "field": "CuratedAlias",
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "catalog-name-clause",
+      "title": "temp target",
+      "alias": "report",
+      "query": "report :temp",
+      "match": true,
+      "field": "CuratedAlias",
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "path-cap-order",
+      "count": 8000,
+      "bestPresent": false,
+      "exceeded": true,
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "49.1.1",
+      "year": 2049,
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "50.1.1",
+      "year": 2050,
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "99.1.1",
+      "year": 2099,
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "invalid-threshold",
+      "token": "<s>garbage",
+      "claimed": true,
+      "names": [
+        "dir",
+        "file"
+      ],
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "invalid-threshold",
+      "token": "<f>wrong",
+      "claimed": true,
+      "names": [
+        "file"
+      ],
+      "Side": "regex",
+      "Round": 1
+    },
+    {
+      "kind": "highlight",
+      "query": "report",
+      "iterations": 10000,
+      "elapsedMs": [
+        2.5132,
+        0.5884,
+        0.5871,
+        0.5856,
+        0.6158,
+        0.5573,
+        0.5795,
+        0.5895,
+        0.5787,
+        0.569
+      ],
+      "allocatedBytes": 960872,
+      "marked": 60000,
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "highlight",
+      "query": "report /\\.txt$/",
+      "iterations": 10000,
+      "elapsedMs": [
+        3.4505,
+        3.6016,
+        4.9764,
+        1.9231,
+        1.6203,
+        1.9062,
+        1.6323,
+        3.1449,
+        1.5904,
+        1.6318
+      ],
+      "allocatedBytes": 13365992,
+      "marked": 100000,
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "highlight",
+      "query": "/report.*\\.txt$/",
+      "iterations": 10000,
+      "elapsedMs": [
+        2.9218,
+        4.3547,
+        2.8167,
+        2.7185,
+        2.7839,
+        2.9532,
+        3.356,
+        1.5136,
+        1.5096,
+        1.5069
+      ],
+      "allocatedBytes": 13288672,
+      "marked": 100000,
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "catalog-name-clause",
+      "title": "blocked.txt",
+      "alias": "report.pdf",
+      "query": "report /\\.pdf$/",
+      "match": true,
+      "field": "CuratedAlias",
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "catalog-name-clause",
+      "title": "temp target",
+      "alias": "report",
+      "query": "report :temp",
+      "match": true,
+      "field": "CuratedAlias",
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "path-cap-order",
+      "count": 8000,
+      "bestPresent": false,
+      "exceeded": true,
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "49.1.1",
+      "year": 2049,
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "50.1.1",
+      "year": 2050,
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "99.1.1",
+      "year": 2099,
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "invalid-threshold",
+      "token": "<s>garbage",
+      "claimed": true,
+      "names": [
+        "dir",
+        "file"
+      ],
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "invalid-threshold",
+      "token": "<f>wrong",
+      "claimed": true,
+      "names": [
+        "file"
+      ],
+      "Side": "regex",
+      "Round": 2
+    },
+    {
+      "kind": "highlight",
+      "query": "report",
+      "iterations": 10000,
+      "elapsedMs": [
+        1.6597,
+        0.3195,
+        0.3099,
+        0.312,
+        0.331,
+        0.3584,
+        0.386,
+        0.3122,
+        0.3145,
+        0.3126
+      ],
+      "allocatedBytes": 960872,
+      "marked": 60000,
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "highlight",
+      "query": "report /\\.txt$/",
+      "iterations": 10000,
+      "elapsedMs": [
+        2.2417,
+        2.2822,
+        4.6994,
+        2.6556,
+        1.8736,
+        1.8844,
+        1.7134,
+        3.0543,
+        1.7178,
+        2.3242
+      ],
+      "allocatedBytes": 13365992,
+      "marked": 100000,
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "highlight",
+      "query": "/report.*\\.txt$/",
+      "iterations": 10000,
+      "elapsedMs": [
+        1.647,
+        2.5884,
+        1.5418,
+        1.5397,
+        1.5334,
+        1.5898,
+        2.1724,
+        1.901,
+        1.9624,
+        2.5662
+      ],
+      "allocatedBytes": 13288672,
+      "marked": 100000,
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "catalog-name-clause",
+      "title": "blocked.txt",
+      "alias": "report.pdf",
+      "query": "report /\\.pdf$/",
+      "match": true,
+      "field": "CuratedAlias",
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "catalog-name-clause",
+      "title": "temp target",
+      "alias": "report",
+      "query": "report :temp",
+      "match": true,
+      "field": "CuratedAlias",
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "path-cap-order",
+      "count": 8000,
+      "bestPresent": false,
+      "exceeded": true,
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "49.1.1",
+      "year": 2049,
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "50.1.1",
+      "year": 2050,
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "99.1.1",
+      "year": 2099,
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "invalid-threshold",
+      "token": "<s>garbage",
+      "claimed": true,
+      "names": [
+        "dir",
+        "file"
+      ],
+      "Side": "regex",
+      "Round": 3
+    },
+    {
+      "kind": "invalid-threshold",
+      "token": "<f>wrong",
+      "claimed": true,
+      "names": [
+        "file"
+      ],
+      "Side": "regex",
+      "Round": 3
+    }
+  ]
+}
