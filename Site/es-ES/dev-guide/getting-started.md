@@ -1,4 +1,4 @@
-# Guía de inicio rápido
+# Guía de página inicial
 
 Este capítulo describe cómo crear un proyecto de plugin nativo en C# para Lertaro desde cero, implementar las interfaces principales y probarlo localmente.
 

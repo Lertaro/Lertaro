@@ -16,7 +16,7 @@ General Settings covers core application behaviors, search window dimensions and
 - **Inline Window Width (%)**: Accepts `20`–`100`. Values other than the default `60` specify a percentage of the host window width. `60` selects automatic sizing: the larger of 40% of the host width or one fifth of the screen. The final width is bounded below by the larger of 20% of the host or one sixth of the screen, and above by the smaller of the host width or 90% of the screen.
 - **Inline Window Rows (Ordinary Window)**: Show 4–10 results when docked to a regular window (default: 10). Section headers do not count. Ctrl+1–9 selects results 1–9; Ctrl+0 selects result 10. Scroll to see rows that do not fit on screen.
 - **Inline Window Rows (File Dialog)**: Shows `4`–`10` results in Open, Save, or Browse dialogs; default `4`. Section headers, navigation shortcuts, and screen-height limits work as above.
-- **Query Token Delimiter**: Single-character text box (default `:`). Defines the leading character for suffix tokens (e.g. `:.pdf`, `:@doc`, `:[S]`).
+- **Plugin Query Token Prefix**: Single-character text box (default `\`). Sets the leading character of a plugin query token (e.g. `\audio`, `\doc`). It cannot be empty, and cannot be a character the search syntax already reads (`<` `>` `:` `*` `/` `?`) — the field reports that rather than letting one meaning silently win (see [**Search Syntax**](../search-syntax)).
 - **Log Level**: Dropdown selecting Error / Warning / Info (default) / Debug, controlling log verbosity across all processes.
 - **UI Language**: Selects the active display language across the entire application.
 
@@ -39,7 +39,7 @@ Fine-tunes the dimensions, layout, and priority rankings of the centered floatin
 ### Result Type Priority & Trigger Characters
 
 - **Priority Sorting List**: Drag Applications, System Settings, Files, and Folders into the preferred order. This breaks ties after match grade, priority, usage, and placement. Putting applications or settings above files/folders also makes exact names in those lower groups compete as strong matches. See [Search Syntax](../search-syntax) for examples.
-- **Exclusive Single-Character Trigger**: Assign a dedicated character prefix (e.g. `;` for File Filters) to restrict searches exclusively to that type when typed at the start of a query.
+- **Exclusive Single-Character Trigger**: Assign a dedicated character prefix (e.g. `;` for File Filters) to restrict searches exclusively to that type when typed at the start of a query. A trigger cannot be one of the characters the search syntax reads itself (`\` `<` `>` `:` `*` `/` `?`), because the syntax consumes it before the trigger is ever consulted and the trigger would silently stop working; two types also cannot share one character. The settings field reports both cases. The built-in instant answers also read their own leading characters -- `#` and `$` run a shell command, `%` searches environment variables -- so those are unavailable too.
 - **Ranking Details Export**: In the quick window, right-click any result and choose **Export This Page's Ranking Details** to write one plaintext file for the whole displayed page. Nothing is logged in the background. The action is shown while **Enable ranking details export** is on (default).
 
 ## 3. Full Search Window

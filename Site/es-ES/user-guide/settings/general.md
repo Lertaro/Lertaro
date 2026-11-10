@@ -16,7 +16,7 @@ Configuración general abarca el comportamiento central del sistema, las dimensi
 - **Ancho de la Ventana Integrada (%)**: Admite `20`–`100`. Salvo el valor predeterminado `60`, indica el porcentaje del ancho de la ventana anfitriona. `60` activa el tamaño automático: el mayor entre el 40% del anfitrión y un quinto de la pantalla. El mínimo es el mayor entre el 20% del anfitrión y un sexto de la pantalla; el máximo, el menor entre el ancho del anfitrión y el 90% de la pantalla.
 - **Filas de la Ventana Integrada (Ventana Normal)**: Muestra de 4 a 10 resultados al acoplarse a una ventana normal (10 de forma predeterminada). Los encabezados no cuentan. Ctrl+1–9 selecciona los resultados 1–9 y Ctrl+0 el décimo. Desplázate para ver las filas que no quepan.
 - **Filas de la Ventana Integrada (Selector de Archivos)**: Muestra de `4` a `10` resultados en diálogos Abrir, Guardar o Examinar; el valor predeterminado es `4`. Los encabezados, atajos y límites de altura funcionan como se indica arriba.
-- **Delimitador de tokens de consulta**: Campo de un solo carácter (por defecto `:`). Define el prefijo para los tokens de sufijo (p. ej. `:.pdf`, `:@doc`, `:[S]`).
+- **Prefijo de tokens de consulta de plugins**: Campo de texto de un solo carácter (por defecto `\`). Define el carácter inicial de un token de consulta de plugin (p. ej. `\audio`, `\doc`). No puede estar vacío, ni puede ser un carácter que ya lea la sintaxis de búsqueda (`<` `>` `:` `*` `/` `?`): el campo lo informa en lugar de dejar que un significado gane en silencio (ver [**Sintaxis de búsqueda**](../search-syntax)).
 - **Nivel de registro**: Selecciona Error / Advertencia / Información (predeterminado) / Depuración para la verbosidad de los registros.
 - **Idioma de la interfaz**: Selecciona el idioma global de la aplicación.
 
@@ -39,7 +39,7 @@ Permite ajustar con precisión las dimensiones geométricas y las prioridades de
 ### Prioridad de tipos de resultado y activadores
 
 - **Lista de ordenación de prioridades**: Arrastra Aplicaciones, Ajustes del sistema, Archivos y Carpetas al orden deseado. Desempata después del grado, la prioridad, el uso y la posición. Poner aplicaciones o ajustes antes de archivos y carpetas hace que los nombres exactos de estos últimos compitan como coincidencias fuertes. Consulta [Sintaxis de búsqueda](../search-syntax).
-- **Carácter activador exclusivo**: Asigna un prefijo de un solo carácter (p. ej. `;` para Filtros de archivos) para aislar las búsquedas a ese tipo concreto.
+- **Carácter activador exclusivo**: Asigna un prefijo de un solo carácter (p. ej. `;` para Filtros de archivos) para aislar las búsquedas a ese tipo concreto. No puede ser uno de los caracteres que la propia sintaxis de búsqueda utiliza (`\` `<` `>` `:` `*` `/` `?`), porque la sintaxis lo consume antes de leer el activador y este dejaría de funcionar en silencio; dos tipos tampoco pueden compartir el mismo carácter. El campo de ajustes avisa en ambos casos. Las respuestas instantáneas integradas también usan sus propios caracteres iniciales: `#` y `$` ejecutan un comando y `%` busca variables de entorno, así que tampoco están disponibles.
 - **Exportación de detalles de ordenación**: En la ventana rápida, haz clic derecho en cualquier resultado y elige **Exportar los detalles de ordenación de esta página** para escribir un archivo de texto de toda la página mostrada. El ajuste **Permitir exportar los detalles de ordenación** está activado por defecto.
 
 ## 3. Ventana de búsqueda principal
