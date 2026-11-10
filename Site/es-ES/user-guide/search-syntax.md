@@ -191,11 +191,11 @@ Hay cuatro cosas que conviene saber:
 - **Coincide con el nombre, no con la ruta**, y tampoco con el contenido del archivo. Usa una consulta de ruta para las carpetas.
 - **No pasa por los alias de pinyin.** Una expresión regular describe los caracteres que hay realmente en el nombre, así que un nombre en chino coincide por sus propios caracteres, no por una grafía en pinyin de ellos.
 - **La barra delimita la cláusula y la barra inversa escapa caracteres.** Escribe `\.` para un punto literal y `\/` para una barra literal. La cláusula debe ocupar una palabra completa terminada en `/` sin escapar. Una barra interior sin escapar hace que toda la palabra se trate como ruta. Por eso `C:/Users/me`, `/mnt/c/Users` y `/usr/local/` siguen siendo rutas. Una cláusula sin cerrar también se conserva como texto normal.
-- **El prefiltro regex solo extrae literales cuya presencia es obligatoria.** `/\.exe$/` aporta `.exe`; `/^(ogg|mp3)$/` no tiene un literal obligatorio. Los escapes complejos, el modo de espacios extendido, los comentarios, la resta de clases y las expresiones largas omiten esta optimización para no perder resultados válidos. Añade un término normal para reducir los candidatos. El motor prefiere la ejecución sin retroceso; cuando se necesita retroceso, cada candidato dispone de 250 ms y se omite si agota ese tiempo.
+- **El prefiltro regex solo extrae literales cuya presencia es obligatoria.** `/\.exe$/` aporta `.exe`; `/^(ogg|mp3)$/` no tiene un literal obligatorio. Los escapes complejos, el modo de espacios extendido, los comentarios, la resta de clases y las expresiones largas omiten esta optimización para no perder resultados válidos. Añade un término normal para reducir los candidatos. Las expresiones regulares comparan los caracteres originales del nombre; los términos normales siguen normalizándose. El límite de retroceso es de 250 ms: un solo tiempo agotado detiene la consulta y borra los resultados parciales. Las coincidencias paralelas ya iniciadas pueden tardar hasta su propio límite en finalizar.
 
 Las cláusulas ignoran las mayúsculas por defecto. Para distinguirlas, escribe `(?-i)` al inicio de la expresión. `/(?-i)Report/` coincide con `Report` y deja fuera `report` y `REPORT`. La opción interna rige desde la posición donde se escribe, y `(?i)` reanuda la indiferencia.
 
-En la ventana de búsqueda completa, las consultas de ruta con regex conservan como máximo 8,000 coincidencias y descartan las posteriores. El contador muestra «Límite de resultados regex superado» solo al encontrar la coincidencia 8,001. La ordenación y los filtros posteriores se aplican a los resultados conservados. Las búsquedas difusas normales y las regex sin ruta no usan este límite. Un tiempo de espera agotado sigue omitiendo ese candidato sin terminar toda la consulta; el usuario puede cancelarla.
+En la ventana de búsqueda completa, las consultas de ruta con regex muestran como máximo 8,000 filas después de la clasificación, los filtros de tokens y de la barra lateral y la ordenación por columnas. Los resultados tardíos pueden sustituir a los anteriores. El aviso aparece solo si quedan más de 8,000 filas tras filtrar. Es un límite de visualización, no de trabajo de búsqueda ni de memoria. No se aplica a búsquedas normales ni a regex sin ruta.
 
 ## 4. Modo de ruta y delimitación por unidad
 
@@ -296,7 +296,9 @@ Añade un segundo desencadenante más un umbral para conservar solo un lado:
 
 El segundo desencadenante es una **comparación**, no una repetición de la flecha de ordenación: `>` siempre significa un límite inferior y `<` siempre significa un límite superior.
 
-Los tamaños aceptan los sufijos `k`, `m`, `g` y `t` (unidades binarias, así que `1m` es 1 MiB) o un número de bytes sin más. En la clave carpeta/archivo, `<f>f` (o un umbral que empiece por `folder` / `dir`) deja solo carpetas; cualquier otro umbral, p. ej. `<f<1`, deja solo archivos.
+Los tamaños aceptan los sufijos `k`, `m`, `g` y `t` (unidades binarias, así que `1m` es 1 MiB) o un número de bytes sin más.
+
+Un umbral sin introducir, como `<s>`, solo ordena. Un umbral no vacío pero inválido de tamaño, fecha o carpeta no devuelve resultados y muestra un aviso de token inválido. Las carpetas aceptan exactamente f, folder o dir; `>` selecciona carpetas y `<` selecciona archivos.
 
 Las fechas deben escribirse **primero el año**. Se aceptan estas formas (un año de dos dígitos se lee como `20xx`):
 
