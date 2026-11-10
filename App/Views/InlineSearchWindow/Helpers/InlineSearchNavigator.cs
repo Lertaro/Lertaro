@@ -220,6 +220,12 @@ public static class InlineSearchNavigator
     {
         var tracker = window.Manager.ExplorerTracker;
 
+        // Which branch the card's Enter takes is the whole answer to "the dialog did not switch": without
+        // this line a run that never reached the adapter looks the same as one the adapter refused.
+        Logger.Log($"[InlineSearchNavigator] Enter on '{path}' (isDir={(isDir.HasValue ? isDir.Value.ToString() : "null")})"
+            + $": dialog={tracker.IsActiveWindowDialog} explorerOrDesktop={tracker.IsExplorerOrDesktopActive}"
+            + $" hwnd=0x{tracker.ActiveHwnd.ToInt64():x}.", LogLevel.Debug);
+
         if (!forceRealOpen && path != "__SHOW_MORE__" && tracker.IsExplorerOrDesktopActive && tracker.IsActiveWindowDialog && tracker.ActiveHwnd != IntPtr.Zero)
         {
             // Only a folder-only target (WinRAR/Bandizip's own "extract to" field, see
@@ -246,6 +252,9 @@ public static class InlineSearchNavigator
                 // the foreground window or that window's owner (FileDialogCommandHandler
                 // .IsForegroundDialogOrOwnedWindow), and at this instant the foreground is this card.
                 window.ResetInlineSearchAndFocusDialog();
+
+                Logger.Log($"[InlineSearchNavigator] NavigateDialog 0x{tracker.ActiveHwnd.ToInt64():x} -> '{dialogTarget}'"
+                    + $" (folderOnly={tracker.ActiveAdapter?.TargetIsFolderOnly == true}).", LogLevel.Debug);
 
                 App.HookClient?.SendMessage(new IpcMessage
                 {

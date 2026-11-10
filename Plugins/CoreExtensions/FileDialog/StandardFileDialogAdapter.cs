@@ -1,6 +1,7 @@
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using Lertaro.PluginSdk;
 using Lertaro.PluginSdk.Services;
 using Lertaro.PluginSdk.Helpers;
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
@@ -21,7 +22,11 @@ public class StandardFileDialogAdapter : IFileDialogAdapter
     {
         if (!className.Equals("#32770", StringComparison.OrdinalIgnoreCase))
             return false;
-        if (FindBreadcrumbParent(hwnd) == IntPtr.Zero)
+        // The address bar is the usual tell, but not the only one: a dialog whose address band is collapsed
+        // or absent still carries the DirectUI shell view every IFileDialog frame draws its list in. Requiring
+        // the bar alone made tssh's zenity folder picker fall to the legacy browse adapter, whose only lever
+        // (BFFM_SETSELECTION) it ignores -- a navigation that returned true and did nothing.
+        if (FindBreadcrumbParent(hwnd) == IntPtr.Zero && FindDescendantByClass(hwnd, "DUIViewWndClassName") == IntPtr.Zero)
             return false;
         _lastMatchWasFolderOnly = LooksLikeFolderOnlyPicker(hwnd);
         return true;
@@ -110,14 +115,28 @@ public class StandardFileDialogAdapter : IFileDialogAdapter
         return null;
     }
 
-    public bool NavigateTo(IntPtr hwnd, string targetPath)
+    public bool NavigateTo(IntPtr hwnd, string targetPath) =>
+        NavigateTo(hwnd, targetPath, static () => Thread.Sleep(300), GetForegroundWindow);
+
+    // The hook calls navigation on a worker thread. Wait here so a refused/failed Enter returns false
+    // to its caller, rather than reporting success before the delayed operation has even started.
+    internal bool NavigateTo(IntPtr hwnd, string targetPath, Action waitForEdit, Func<IntPtr> foregroundWindow)
     {
         try
         {
-            var targetEdit = FindSubEditBox(hwnd);
-            if (targetEdit == IntPtr.Zero) return false;
+            // Entry and every refusal are logged: without them a navigation that went nowhere looks exactly
+            // like one that was never asked for, and this dialog is the only place that can tell them apart.
+            Logger.Log($"[StandardFileDialogAdapter] Navigate 0x{hwnd.ToInt64():x} -> '{targetPath}'.", LogLevel.Debug);
 
-            if (Directory.Exists(targetPath) && !targetPath.EndsWith("\\"))
+            var targetEdit = FindSubEditBox(hwnd);
+            if (targetEdit == IntPtr.Zero)
+            {
+                Logger.Log($"[StandardFileDialogAdapter] 0x{hwnd.ToInt64():x} has no Edit field; cannot navigate it to '{targetPath}'.", LogLevel.Warn);
+                return false;
+            }
+
+            var isDirectory = Directory.Exists(targetPath);
+            if (isDirectory && !targetPath.EndsWith("\\"))
                 targetPath += "\\";
 
             if (DialogEditVerifier.Matches(GetCurrentPath(hwnd), targetPath)) return true;
@@ -133,37 +152,60 @@ public class StandardFileDialogAdapter : IFileDialogAdapter
 
             // Same rule as ClassicFileDialogAdapter: a name field that never received the path must not be
             // handed an Enter, which would submit whatever it still holds.
-            if (!DialogEditVerifier.Matches(DialogEditVerifier.ReadText(targetEdit), targetPath)) return false;
-
-            Task.Run(async () =>
+            var written = DialogEditVerifier.ReadText(targetEdit);
+            if (!DialogEditVerifier.Matches(written, targetPath))
             {
-                await Task.Delay(300);
-                var currentActive = GetForegroundWindow();
-                var isAllowed = (currentActive == hwnd);
+                // The classic UIPI signature: a lower-integrity sender's WM_SETTEXT is discarded with no
+                // error, so the field keeps what it had (or stays empty) and nothing else would report it.
+                Logger.Log($"[StandardFileDialogAdapter] 0x{hwnd.ToInt64():x} field 0x{targetEdit.ToInt64():x} did not take"
+                    + $" '{targetPath}' (read back '{written}'); not pressing Enter.", LogLevel.Warn);
+                return false;
+            }
 
-                if (isAllowed)
+            waitForEdit();
+            if (!DialogEditVerifier.CanSubmit(hwnd, targetEdit, targetPath, foregroundWindow))
+            {
+                Logger.Log($"[StandardFileDialogAdapter] Not submitting to 0x{hwnd.ToInt64():x}:"
+                    + " the dialog, field or foreground changed.", LogLevel.Debug);
+                return false;
+            }
+
+            var targetThread = GetWindowThreadProcessId(targetEdit, out var _);
+            var currentThread = GetCurrentThreadId();
+            var attached = false;
+            try
+            {
+                if (targetThread != 0 && targetThread != currentThread)
+                    attached = AttachThreadInput(currentThread, targetThread, true);
+
+                SetForegroundWindow(hwnd);
+                SetFocus(targetEdit);
+                var down = PostMessage(targetEdit, WM_KEYDOWN, (IntPtr)VK_RETURN, IntPtr.Zero);
+                var up = PostMessage(targetEdit, WM_KEYUP, (IntPtr)VK_RETURN, IntPtr.Zero);
+                if (!down || !up)
                 {
-                    var targetThread = GetWindowThreadProcessId(targetEdit, out var _);
-                    var currentThread = GetCurrentThreadId();
-                    var attached = false;
-                    try
-                    {
-                        if (targetThread != 0 && targetThread != currentThread)
-                            attached = AttachThreadInput(currentThread, targetThread, true);
-
-                        SetForegroundWindow(hwnd);
-                        SetFocus(targetEdit);
-                        PostMessage(targetEdit, WM_KEYDOWN, (IntPtr)VK_RETURN, IntPtr.Zero);
-                        PostMessage(targetEdit, WM_KEYUP, (IntPtr)VK_RETURN, IntPtr.Zero);
-                        PostMessage(targetEdit, WM_LBUTTONDOWN, (IntPtr)1, IntPtr.Zero);
-                        PostMessage(targetEdit, WM_LBUTTONUP, IntPtr.Zero, IntPtr.Zero);
-                        PostMessage(targetEdit, EM_SETSEL, IntPtr.Zero, (IntPtr)(-1));
-                    }
-                    finally
-                    {
-                        if (attached) AttachThreadInput(currentThread, targetThread, false);
-                    }
+                    Logger.Log($"[StandardFileDialogAdapter] Could not post Enter to 0x{targetEdit.ToInt64():x}.", LogLevel.Warn);
+                    return false;
                 }
+                PostMessage(targetEdit, WM_LBUTTONDOWN, (IntPtr)1, IntPtr.Zero);
+                PostMessage(targetEdit, WM_LBUTTONUP, IntPtr.Zero, IntPtr.Zero);
+                PostMessage(targetEdit, EM_SETSEL, IntPtr.Zero, (IntPtr)(-1));
+            }
+            finally
+            {
+                if (attached) AttachThreadInput(currentThread, targetThread, false);
+            }
+
+            // Delivery is not completion. This is a best-effort diagnostic for directory navigation;
+            // submitting a file can legitimately leave the dialog in its parent awaiting confirmation.
+            if (isDirectory) _ = Task.Run(async () =>
+            {
+                await Task.Delay(400);
+                if (!IsWindow(hwnd)) return;
+                var landed = GetCurrentPath(hwnd);
+                if (!string.IsNullOrEmpty(landed) && !DialogEditVerifier.Matches(landed, targetPath))
+                    Logger.Log($"[StandardFileDialogAdapter] Sent Enter to 0x{hwnd.ToInt64():x} for '{targetPath}'"
+                        + $", but the dialog is still at '{landed}'.", LogLevel.Warn);
             });
             return true;
         }
@@ -240,6 +282,8 @@ public class StandardFileDialogAdapter : IFileDialogAdapter
     [DllImport("dwmapi.dll")]
     private static extern int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, out RECT pvAttribute, int cbAttribute);
     [DllImport("user32.dll")]
+    private static extern bool IsWindow(IntPtr hWnd);
+    [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
@@ -283,6 +327,24 @@ public class StandardFileDialogAdapter : IFileDialogAdapter
             var classNameSb = new StringBuilder(256);
             GetClassName(childHwnd, classNameSb, classNameSb.Capacity);
             if (classNameSb.ToString().Equals("Breadcrumb Parent", StringComparison.OrdinalIgnoreCase))
+            {
+                result = childHwnd;
+                return false;
+            }
+            return true;
+        }, IntPtr.Zero);
+        return result;
+    }
+
+    private static IntPtr FindDescendantByClass(IntPtr parent, string className)
+    {
+        if (parent == IntPtr.Zero) return IntPtr.Zero;
+        var result = IntPtr.Zero;
+        EnumChildWindows(parent, (childHwnd, lParam) =>
+        {
+            var classNameSb = new StringBuilder(256);
+            GetClassName(childHwnd, classNameSb, classNameSb.Capacity);
+            if (classNameSb.ToString().Equals(className, StringComparison.OrdinalIgnoreCase))
             {
                 result = childHwnd;
                 return false;

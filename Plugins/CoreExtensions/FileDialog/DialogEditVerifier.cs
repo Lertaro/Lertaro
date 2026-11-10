@@ -40,6 +40,30 @@ internal static class DialogEditVerifier
         readBack != null
         && string.Equals(readBack.TrimEnd('\\'), wanted.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
 
+    internal static bool CanSubmit(IntPtr dialog, IntPtr edit, string path, Func<IntPtr> foregroundWindow)
+    {
+        if (!IsWindowEnabled(dialog) || !IsChild(dialog, edit) || !Matches(ReadText(edit), path))
+            return false;
+
+        // The inline card is owned by its host dialog. Allow that hand-off, but stop when the user
+        // has switched elsewhere; read the foreground after the potentially blocking text read.
+        for (var foreground = foregroundWindow(); foreground != IntPtr.Zero; foreground = GetParent(foreground))
+            if (foreground == dialog)
+                return true;
+        return false;
+    }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsWindowEnabled(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsChild(IntPtr hWndParent, IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetParent(IntPtr hWnd);
+
     [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     private static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, IntPtr wParam, StringBuilder lParam,
         uint fuFlags, uint uTimeout, out IntPtr lpdwResult);

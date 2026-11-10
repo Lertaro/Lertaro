@@ -17,6 +17,10 @@ internal static class FileDialogCommandHandler
         var navPath = msg.StringVal1;
         if (dialogHwnd == IntPtr.Zero || string.IsNullOrEmpty(navPath)) return;
 
+        // The one line that separates "the App never sent it" from "the Hook could not act on it": every
+        // refusal below used to be silent, so a card whose Enter went nowhere left nothing behind.
+        Logger.Log($"[FileDialogCommandHandler] NavigateDialog 0x{dialogHwnd.ToInt64():x} -> '{navPath}' (restoreFocus={msg.BoolVal}).", LogLevel.Debug);
+
         ThreadPool.QueueUserWorkItem(_ =>
         {
             try
@@ -38,6 +42,13 @@ internal static class FileDialogCommandHandler
                     // Through the logging wrapper: the card is already gone when this fails, so hook.log is
                     // the only place a navigation that quietly went nowhere can still be seen.
                     NavigateLoggingFailures(adapter, dialogHwnd, navPath, msg.BoolVal);
+                }
+                else
+                {
+                    // A window no adapter claims cannot be driven at all -- and until this line, that answer
+                    // was indistinguishable from the message never arriving.
+                    Logger.Log($"[FileDialogCommandHandler] No adapter matched 0x{dialogHwnd.ToInt64():x};"
+                        + $" cannot navigate it to '{navPath}'.", LogLevel.Warn);
                 }
             }
             catch (Exception ex)
@@ -172,7 +183,12 @@ internal static class FileDialogCommandHandler
             }
         }
         catch { }
-        return FileDialogAdapterRegistry.GetMatchingAdapter(hwnd, className, processName);
+        var adapter = FileDialogAdapterRegistry.GetMatchingAdapter(hwnd, className, processName);
+        // Which adapter owns a window is otherwise invisible, and two of them returning true while doing
+        // nothing is exactly how a navigation disappears without a trace.
+        Logger.Log($"[FileDialogCommandHandler] 0x{hwnd.ToInt64():x} class='{className}' process='{processName}'"
+            + $" matched {adapter?.GetType().Name ?? "no adapter"}.", LogLevel.Debug);
+        return adapter;
     }
 
     private static IFileDialogAdapter? ResolveAdapter(HookProcess process, IntPtr hwnd) => ResolveAdapter(process.ExplorerTracker, hwnd);

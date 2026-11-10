@@ -58,7 +58,7 @@ public sealed class DialogEditVerifierTests
         try
         {
             var target = @"C:\Lertaro-NoSuch-Path";
-            Assert.IsTrue(new ClassicFileDialogAdapter().NavigateTo(frame, target));
+            Assert.IsTrue(new ClassicFileDialogAdapter().NavigateTo(frame, target, () => { }, () => frame));
             Assert.AreEqual(target, DialogEditVerifier.ReadText(edit));
         }
         finally

@@ -1,6 +1,7 @@
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using Lertaro.PluginSdk;
 using Lertaro.PluginSdk.Services;
 
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
@@ -79,14 +80,27 @@ public class ClassicFileDialogAdapter : IFileDialogAdapter
         }
     }
 
-    public bool NavigateTo(IntPtr hwnd, string targetPath)
+    public bool NavigateTo(IntPtr hwnd, string targetPath) =>
+        NavigateTo(hwnd, targetPath, static () => Thread.Sleep(300), GetForegroundWindow);
+
+    // Navigation runs on a hook worker; return only after the guarded Enter was actually queued.
+    internal bool NavigateTo(IntPtr hwnd, string targetPath, Action waitForEdit, Func<IntPtr> foregroundWindow)
     {
         try
         {
-            var targetEdit = FindSubEditBox(hwnd);
-            if (targetEdit == IntPtr.Zero) return false;
+            // Entry and every refusal are logged: a navigation that went nowhere is otherwise
+            // indistinguishable from one that was never asked for.
+            Logger.Log($"[ClassicFileDialogAdapter] Navigate 0x{hwnd.ToInt64():x} -> '{targetPath}'.", LogLevel.Debug);
 
-            if (Directory.Exists(targetPath) && !targetPath.EndsWith("\\"))
+            var targetEdit = FindSubEditBox(hwnd);
+            if (targetEdit == IntPtr.Zero)
+            {
+                Logger.Log($"[ClassicFileDialogAdapter] 0x{hwnd.ToInt64():x} has no Edit field; cannot navigate it to '{targetPath}'.", LogLevel.Warn);
+                return false;
+            }
+
+            var isDirectory = Directory.Exists(targetPath);
+            if (isDirectory && !targetPath.EndsWith("\\"))
                 targetPath += "\\";
 
             SendMessage(targetEdit, WM_SETTEXT, IntPtr.Zero, targetPath);
@@ -99,38 +113,59 @@ public class ClassicFileDialogAdapter : IFileDialogAdapter
             }
 
             // Declining here is the whole point: the dialog is still the foreground window and the Enter
-            // below would fire into a name field that was never filled.
-            if (!DialogEditVerifier.Matches(DialogEditVerifier.ReadText(targetEdit), targetPath)) return false;
-
-            Task.Run(async () =>
+            // below would fire into a name field that was never filled. A field that did not take the text is
+            // also how a lower-integrity sender's WM_SETTEXT gets discarded (UIPI), with no error anywhere.
+            var written = DialogEditVerifier.ReadText(targetEdit);
+            if (!DialogEditVerifier.Matches(written, targetPath))
             {
-                await Task.Delay(300);
-                var currentActive = GetForegroundWindow();
-                var isAllowed = (currentActive == hwnd);
+                Logger.Log($"[ClassicFileDialogAdapter] 0x{hwnd.ToInt64():x} field 0x{targetEdit.ToInt64():x} did not take"
+                    + $" '{targetPath}' (read back '{written}'); not pressing Enter.", LogLevel.Warn);
+                return false;
+            }
 
-                if (isAllowed)
+            waitForEdit();
+            if (!DialogEditVerifier.CanSubmit(hwnd, targetEdit, targetPath, foregroundWindow))
+            {
+                Logger.Log($"[ClassicFileDialogAdapter] Not submitting to 0x{hwnd.ToInt64():x}:"
+                    + " the dialog, field or foreground changed.", LogLevel.Debug);
+                return false;
+            }
+
+            var targetThread = GetWindowThreadProcessId(targetEdit, out var _);
+            var currentThread = GetCurrentThreadId();
+            var attached = false;
+            try
+            {
+                if (targetThread != 0 && targetThread != currentThread)
+                    attached = AttachThreadInput(currentThread, targetThread, true);
+
+                SetForegroundWindow(hwnd);
+                SetFocus(targetEdit);
+                var down = PostMessage(targetEdit, WM_KEYDOWN, (IntPtr)VK_RETURN, IntPtr.Zero);
+                var up = PostMessage(targetEdit, WM_KEYUP, (IntPtr)VK_RETURN, IntPtr.Zero);
+                if (!down || !up)
                 {
-                    var targetThread = GetWindowThreadProcessId(targetEdit, out var _);
-                    var currentThread = GetCurrentThreadId();
-                    var attached = false;
-                    try
-                    {
-                        if (targetThread != 0 && targetThread != currentThread)
-                            attached = AttachThreadInput(currentThread, targetThread, true);
-
-                        SetForegroundWindow(hwnd);
-                        SetFocus(targetEdit);
-                        PostMessage(targetEdit, WM_KEYDOWN, (IntPtr)VK_RETURN, IntPtr.Zero);
-                        PostMessage(targetEdit, WM_KEYUP, (IntPtr)VK_RETURN, IntPtr.Zero);
-                        PostMessage(targetEdit, WM_LBUTTONDOWN, (IntPtr)1, IntPtr.Zero);
-                        PostMessage(targetEdit, WM_LBUTTONUP, IntPtr.Zero, IntPtr.Zero);
-                        PostMessage(targetEdit, EM_SETSEL, IntPtr.Zero, (IntPtr)(-1));
-                    }
-                    finally
-                    {
-                        if (attached) AttachThreadInput(currentThread, targetThread, false);
-                    }
+                    Logger.Log($"[ClassicFileDialogAdapter] Could not post Enter to 0x{targetEdit.ToInt64():x}.", LogLevel.Warn);
+                    return false;
                 }
+                PostMessage(targetEdit, WM_LBUTTONDOWN, (IntPtr)1, IntPtr.Zero);
+                PostMessage(targetEdit, WM_LBUTTONUP, IntPtr.Zero, IntPtr.Zero);
+                PostMessage(targetEdit, EM_SETSEL, IntPtr.Zero, (IntPtr)(-1));
+            }
+            finally
+            {
+                if (attached) AttachThreadInput(currentThread, targetThread, false);
+            }
+
+            // A readable folder is only a best-effort completion diagnostic, separate from delivery.
+            if (isDirectory) _ = Task.Run(async () =>
+            {
+                await Task.Delay(400);
+                if (!IsWindow(hwnd)) return;
+                var landed = GetCurrentPath(hwnd);
+                if (!string.IsNullOrEmpty(landed) && !DialogEditVerifier.Matches(landed, targetPath))
+                    Logger.Log($"[ClassicFileDialogAdapter] Sent Enter to 0x{hwnd.ToInt64():x} for '{targetPath}'"
+                        + $", but the dialog is still at '{landed}'.", LogLevel.Warn);
             });
             return true;
         }
@@ -206,6 +241,8 @@ public class ClassicFileDialogAdapter : IFileDialogAdapter
     private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
     [DllImport("dwmapi.dll")]
     private static extern int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, out RECT pvAttribute, int cbAttribute);
+    [DllImport("user32.dll")]
+    private static extern bool IsWindow(IntPtr hWnd);
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")]
