@@ -46,25 +46,11 @@ public sealed class FzfPatternAliasReadingTests
     }
 
     [TestMethod]
-    [DataRow("^gx")]
-    [DataRow("gx$")]
-    [DataRow("'gx'")]
-    public void AliasReading_LeavesAnOperatorsOwnKindAlone(string query)
-    {
-        // An operator says exactly what it means, so there is no second reading to offer.
-        var pattern = FzfPattern.Parse(query);
-        var own = Kinds(pattern);
-
-        CollectionAssert.AreEqual(own, Kinds(pattern.AliasReading), query);
-        Assert.HasCount(1, own, query);
-    }
-
-    [TestMethod]
     public void AliasReading_LeavesAnExclusionAlone()
     {
-        // "!term" is only ever compared against the candidate's own name (see FzfPatternExclusionExtensions),
-        // so a second reading would be an instruction nothing reads.
-        var terms = FzfPattern.Parse("!gx").AliasReading.TermSets[0].Terms;
+        // A `:term` is only ever compared against the candidate's own name (see
+        // FzfPatternExclusionExtensions), so a second reading would be an instruction nothing reads.
+        var terms = FzfPattern.Parse(":gx").AliasReading.TermSets[0].Terms;
 
         Assert.HasCount(1, terms);
         Assert.AreEqual(FzfTermKind.Exact, terms[0].Kind);

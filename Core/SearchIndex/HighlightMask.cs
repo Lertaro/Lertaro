@@ -2,14 +2,17 @@ using Lertaro.Core.SearchIndex.Fzf;
 
 namespace Lertaro.Core.SearchIndex;
 
-// The single "final highlight result" computation, shared by App's display highlighting
-// (TextHighlighter, via FuzzyMatcher.ComputeHighlightMask) and Core's ranking measure (below) -- same
-// per-term fallback: literal substring (every occurrence, for display) first, then the real
-// FuzzyMatchV2 backtrace run directly against the text itself (covers a plain scattered/non-contiguous
-// match with zero alias involvement, e.g. "chwx" against "China_White_X" -- previously the single
-// biggest cost here, since it used to fall all the way to a DP re-derivation for this very common
-// case), then the alias-provider tier (see AliasHighlightMarker), which covers a CJK name matched purely
-// through pinyin and maps the matched positions back onto the source text.
+// The "final highlight result" computation for App's display highlighting (TextHighlighter, via
+// FuzzyMatcher.ComputeHighlightMask) and Core's ranking measure (below) -- same per-term fallback:
+// literal substring (every occurrence, for display) first, then the real FuzzyMatchV2 backtrace run
+// directly against the text itself (covers a plain scattered/non-contiguous match with zero alias
+// involvement, e.g. "chwx" against "China_White_X" -- previously the single biggest cost here, since it
+// used to fall all the way to a DP re-derivation for this very common case), then the alias-provider tier
+// (see AliasHighlightMarker), which covers a CJK name matched purely through pinyin and maps the matched
+// positions back onto the source text.
+//
+// The two callers differ in exactly one place: the display mask also paints the "/.../" clauses, while
+// the ranking mask (ComputeRank) does not -- see MarkRegexClauses for why.
 internal static class HighlightMask
 {
     // One reusable DP scratch buffer per thread (mirrors SearchMatcher's per-worker Slab) -- a fresh
@@ -35,6 +38,7 @@ internal static class HighlightMask
         marks.Clear();
         string? materialized = null;
         Mark(text, pattern, marks, ref materialized, RentSlab(), pinyinWitness: null, out _, out _);
+        MarkRegexClauses(text, pattern, marks);
 
         for (var i = 0; i < marks.Length; i++)
         {
@@ -64,6 +68,23 @@ internal static class HighlightMask
         }
 
         return highlights;
+    }
+
+    // A "/.../" clause is a name-level clause, so the display mask has to show the characters it
+    // matched -- without this a regex-only search renders as one long unmarked run, and a word+regex
+    // search lights up the words but never the part the regex described.
+    //
+    // Painted only here, never in Mark: ComputeRank stays on the positive terms on purpose. A clause can
+    // land far from those terms, and its span would then count as one more run against the query's
+    // contiguity, so "report" plus "/\.txt$/" would score below "report" alone for a reason the user
+    // cannot see -- the regex narrowed the set, it did not describe a second word.
+    private static void MarkRegexClauses(ReadOnlySpan<char> text, FzfPattern pattern, Span<bool> marks)
+    {
+        if (pattern.Regexes is not { Length: > 0 } regexes)
+            return;
+
+        foreach (var clause in regexes)
+            RegexClauses.MarkMatches(clause, text, marks);
     }
 
     // Ranking-facing: same computation, but works directly off a char span -- the (common) literal and

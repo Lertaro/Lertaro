@@ -25,6 +25,22 @@ public sealed class FuzzyMatcherTests
     public void ComputeMatchWeight_UpperCaseQuery_MatchesLowerCaseText() =>
         Assert.AreEqual(FuzzyMatcher.ComputeMatchWeight("wxfef.doc", "wx"), FuzzyMatcher.ComputeMatchWeight("wxfef.doc", "WX"));
 
+    // The only spelling that lifts the folding above: an inline option inside a "/.../" clause overrides
+    // RegexClauses.BaseOptions' IgnoreCase. The lookaround form of the same requirement is rejected by
+    // NonBacktracking, so it lands on the backtracking fallback -- both engines have to answer alike.
+    [TestMethod]
+    public void IsMatch_RegexClauseInlineCaseOption_IsCaseSensitiveOnBothEngines()
+    {
+        Assert.IsTrue(FuzzyMatcher.IsMatch("/(?-i)Report/", "Report"));
+        Assert.IsFalse(FuzzyMatcher.IsMatch("/(?-i)Report/", "report"));
+        Assert.IsFalse(FuzzyMatcher.IsMatch("/(?-i)Report/", "REPORT"));
+        Assert.IsTrue(FuzzyMatcher.IsMatch("/(?-i)(?=Report)Report/", "Report"));
+        Assert.IsFalse(FuzzyMatcher.IsMatch("/(?-i)(?=Report)Report/", "report"));
+    }
+
+    [TestMethod]
+    public void IsMatch_RegexClauseWithoutInlineOption_IgnoresCase() => Assert.IsTrue(FuzzyMatcher.IsMatch("/Report/", "report"));
+
     [TestMethod]
     public void IsMatch_NoSubsequence_ReturnsFalse() => Assert.IsFalse(FuzzyMatcher.IsMatch("xyz", "readme.md"));
 
@@ -39,6 +55,54 @@ public sealed class FuzzyMatcherTests
         // "d:\" parses down to zero real search terms (see the method's own comment) -- this seam has
         // no drive-scoped "list everything" mode, so it must not fall into "no terms = match anything".
         Assert.IsFalse(FuzzyMatcher.IsMatch(@"d:\", "readme.md"));
+
+    // This seam reads the precision trigger through the same helper the search pipeline uses, because the
+    // rows it filters (plugin catalog entries, history, favorites, the shell menu) have to answer a query
+    // the file list already answered. Treating the leading '?' as literal text would make "?report" return
+    // files and no catalog rows at all -- a window showing half of what the user asked for.
+    [TestMethod]
+    public void IsMatch_PrecisionTrigger_ReadsTheTermAsExact()
+    {
+        Assert.IsTrue(FuzzyMatcher.IsMatch("rdm", "readme.md"));
+        Assert.IsFalse(FuzzyMatcher.IsMatch("?rdm", "readme.md"));
+        Assert.IsTrue(FuzzyMatcher.IsMatch("?read", "readme.md"));
+    }
+
+    // The seam reads a query with the search box's own parser (FzfPattern.Parse), so the operators the
+    // search box RETIRED are literal text here too. It used to carry its own copy of them ('!' "'" '^' '$'),
+    // which made this seam the one place where "!temp" meant "everything except temp" -- the file list
+    // beside it searched for a literal "!temp" and found nothing, so a query could return catalog rows and
+    // no files, or the reverse, for no reason the user could see.
+    [TestMethod]
+    public void IsMatch_RetiredOperatorCharacters_AreLiteralText()
+    {
+        Assert.IsTrue(FuzzyMatcher.IsMatch("!temp", "a!temp.txt"));
+        Assert.IsTrue(FuzzyMatcher.IsMatch("^read", "^readme.txt"));
+        Assert.IsTrue(FuzzyMatcher.IsMatch("cost$", "cost$.txt"));
+        Assert.IsTrue(FuzzyMatcher.IsMatch("it's", "it's.txt"));
+    }
+
+    // The other half of the same alignment: the operators that still EXIST have to work here as well, not
+    // just the ones that were removed. ":" was a literal character on this seam right up until the seam
+    // started using the search box's parser.
+    [TestMethod]
+    public void IsMatch_ExclusionOperator_ReadsAsAnExclusion()
+    {
+        Assert.IsTrue(FuzzyMatcher.IsMatch("report :draft", "report-final.txt"));
+        Assert.IsFalse(FuzzyMatcher.IsMatch("report :draft", "report-draft.txt"));
+    }
+
+    [TestMethod]
+    public void IsMatch_PipeOperator_ReadsAsOr()
+    {
+        Assert.IsTrue(FuzzyMatcher.IsMatch("png | jpg", "photo.jpg"));
+        Assert.IsFalse(FuzzyMatcher.IsMatch("png | jpg", "photo.gif"));
+    }
+
+    [TestMethod]
+    public void IsMatch_LonePrecisionTrigger_MatchesNothing() =>
+        // A query of nothing but a trigger is not a query -- same as the empty pattern above.
+        Assert.IsFalse(FuzzyMatcher.IsMatch("?", "readme.md"));
 
     [TestMethod]
     public void ComputeHighlightMask_EmptyText_ReturnsEmptyArray() => Assert.IsEmpty(FuzzyMatcher.ComputeHighlightMask("", "read"));

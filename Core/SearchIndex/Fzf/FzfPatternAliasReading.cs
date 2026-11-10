@@ -21,7 +21,7 @@ namespace Lertaro.Core.SearchIndex.Fzf;
 // reading of "jt" matches wide across a 188-character alias, the quality gate rejects that match, and the
 // tight "jt" run is never examined at all.
 //
-// What deliberately does NOT get a second reading: an exclusion (`!term` is only ever compared against
+// What deliberately does NOT get a second reading: an exclusion (`:term` is only ever compared against
 // the candidate's own name), an operator kind (it says exactly what it means), a provider's query form (it
 // is already a rewrite of the typed term, whose own second reading supplies the loose one), and an alias
 // that is the candidate's text rewritten rather than a spelling of it (see the overload of ReadingFor that
@@ -61,11 +61,15 @@ internal static class FzfPatternAliasReading
     internal static FzfPattern ReadingFor(this FzfPattern pattern, char separator, ReadOnlySpan<char> alias)
         => AliasMatchRules.IsTransliteration(alias) ? pattern.ReadingFor(separator) : pattern;
 
+    // The clauses that read the candidate's own text have to survive the copy: the alias tiers answer a
+    // query through this view while handing them the NAME (FzfPattern.TryMatchAlias), and a view without
+    // them would silently answer a `/.../` query as if no clause had been typed.
     internal static FzfPattern Build(FzfPattern source)
         => new(
             source.TargetDrive,
             Twin(source.TermSets),
-            source.OrGroups == null ? null : TwinGroups(source.OrGroups));
+            source.OrGroups == null ? null : TwinGroups(source.OrGroups),
+            source.Regexes);
 
     private static FzfTermSet[] Twin(FzfTermSet[] sets)
     {
