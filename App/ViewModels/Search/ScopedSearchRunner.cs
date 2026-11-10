@@ -1,6 +1,7 @@
 using Lertaro.App.ViewModels.Search.Dispatch;
 using Lertaro.Core;
 using Lertaro.Core.Services.Search;
+using Lertaro.Core.SearchIndex.Query;
 
 namespace Lertaro.App.ViewModels.Search;
 
@@ -10,15 +11,21 @@ internal static class ScopedSearchRunner
 {
     public const string ShortcutSupplementFilter = "*.lnk;*.url";
 
+    internal static bool ShouldRunPriorityRoots(string query, string? searchScope,
+        FileFilterScopeDirective? scopeDirective, bool bypassExclusions) =>
+        !bypassExclusions && string.IsNullOrEmpty(searchScope)
+        && scopeDirective is not { Folders.Count: > 0 } && !SearchQueryParser.Parse(query).IsPathMode;
+
     public static bool ShouldRunShortcutSupplement(
         int fileLimit,
         bool foldersOnly,
         string? searchScope,
-        FileFilterScopeDirective? scopeDirective) =>
+        FileFilterScopeDirective? scopeDirective, string query = "") =>
         fileLimit < int.MaxValue
         && !foldersOnly
         && string.IsNullOrEmpty(searchScope)
-        && scopeDirective is not { Folders.Count: > 0 };
+        && scopeDirective is not { Folders.Count: > 0 }
+        && !SearchQueryParser.Parse(query).IsPathMode;
 
     // The rows ShortcutSupplementFilter would contribute. The renderer asks whether the main query already
     // surfaced one before paying for the second pass, so these two extension lists have to stay in step.

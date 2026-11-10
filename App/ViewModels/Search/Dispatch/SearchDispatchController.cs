@@ -26,6 +26,7 @@ internal sealed class SearchDispatchController
     private readonly ResultTypeTriggerHandler _resultTypeTrigger;
     private IReadOnlyList<string> _queryTokens = Array.Empty<string>();
     private bool _bypassExclusions;
+    private CancellationTokenSource? _tokenBatchCts;
 
     public SearchDispatchController(
         SearchExecutionEngine engine,
@@ -65,6 +66,7 @@ internal sealed class SearchDispatchController
 
     public void DispatchSearch(string value)
     {
+        _tokenBatchCts?.Cancel();
         var globalPrefixChar = GetGlobalTokenPrefixChar();
         var strippedTrailing = SearchQuerySortParser.Strip(value, out var tokens, globalPrefixChar);
         _queryTokens = tokens;
@@ -137,7 +139,7 @@ internal sealed class SearchDispatchController
         bool isInlineSearchContext,
         int fileLimit,
         int appLimit,
-        Func<List<SearchResult>?, string?, List<AppSearchResult>> resultMapper,
+        Func<List<SearchResult>?, string?, CancellationToken, List<AppSearchResult>> resultMapper,
         Action<bool> onSearchStateChanged,
         Action<List<AppSearchResult>, string, bool> onResultsUpdated,
         Action? onLocalServiceUnavailable,
@@ -191,6 +193,7 @@ internal sealed class SearchDispatchController
         // Per search, not per paint: the mapper below is the render callback, and it asks every instant
         // provider and search-action plugin on each call. See SearchResultMapper.InstantPassCache.
         var instantPass = new SearchResultMapper.InstantPassCache();
+        var fileMatchCache = new SearchResultMapper.QuickFileMatchCache();
         var rankRules = ExclusionRuleSet.From(UserSettings.Load());
         // Also per search, not per paint: the history score decays at read time, and repainting a streaming
         // result set must not re-decay the same query's rows into a different order between two paints.
@@ -226,7 +229,7 @@ internal sealed class SearchDispatchController
             _getIsInlineSearchContext(),
             fileLimit,
             appLimit,
-            (resp, contextDir) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope || filenameLike, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass, rankContext: rankContext, rankingTrace: rankingTrace, categoryFilter: _mainVm.ActiveCategoryFilter),
+            (resp, contextDir, token) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope || filenameLike, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass, rankContext: rankContext, rankingTrace: rankingTrace, categoryFilter: _mainVm.ActiveCategoryFilter, cancellationToken: token, fileMatchCache: fileMatchCache),
             state => _setIsSearching(state),
             (results, status, final) => ApplySearchResults(originalValue, searchQuery, results, status, final, rankingTrace),
             HandleLocalServiceUnavailable,
@@ -250,6 +253,7 @@ internal sealed class SearchDispatchController
     }
     public void PerformSearch(string query)
     {
+        _tokenBatchCts?.Cancel();
         if (string.IsNullOrWhiteSpace(query))
         {
             _engine.CancelPendingSearch();
@@ -349,17 +353,25 @@ internal sealed class SearchDispatchController
     /// </summary>
     private async Task ComposeAndApplyGuardedAsync(string query, string searchQuery, List<AppSearchResult> uiResults, IReadOnlyList<string> tokensSnapshot, string statusText, bool final, QuickSearchRankingTrace? rankingTrace)
     {
+        _tokenBatchCts?.Cancel();
+        using var batch = CancellationTokenSource.CreateLinkedTokenSource(_engine.CurrentCancellationToken);
+        _tokenBatchCts = batch;
         try
         {
-            await ComposeAndApplyAsync(query, searchQuery, uiResults, tokensSnapshot, statusText, final, rankingTrace).ConfigureAwait(false);
+            await ComposeAndApplyAsync(query, searchQuery, uiResults, tokensSnapshot, statusText, final, rankingTrace, batch.Token);
         }
+        catch (OperationCanceledException) when (batch.IsCancellationRequested) { }
         catch (Exception ex)
         {
             Logger.Log($"[SearchDispatch] Query-token composition failed for '{query}': {ex.Message}. Showing the untokenized results.", LogLevel.Warn);
-            if (_getSearchQuery() != query || !ReferenceEquals(_queryTokens, tokensSnapshot))
+            if (batch.IsCancellationRequested || _getSearchQuery() != query || !ReferenceEquals(_queryTokens, tokensSnapshot))
                 return; // a newer query already owns the list; falling back would undo it
 
             ApplyUntokenized(uiResults, statusText, final, rankingTrace);
+        }
+        finally
+        {
+            if (ReferenceEquals(_tokenBatchCts, batch)) _tokenBatchCts = null;
         }
     }
 
@@ -398,7 +410,7 @@ internal sealed class SearchDispatchController
     // file rows] and caps the combined count like an ordinary quick search. QueryTokenDispatcher only
     // transforms a plain list -- deciding what any of this means for the rest of the UI (capping, "no
     // results", visibility) lives here.
-    private async Task ComposeAndApplyAsync(string query, string searchQuery, List<AppSearchResult> uiResults, IReadOnlyList<string> tokensSnapshot, string statusText, bool final, QuickSearchRankingTrace? rankingTrace)
+    private async Task ComposeAndApplyAsync(string query, string searchQuery, List<AppSearchResult> uiResults, IReadOnlyList<string> tokensSnapshot, string statusText, bool final, QuickSearchRankingTrace? rankingTrace, CancellationToken token)
     {
         var fileRows = uiResults.Where(IsFileOrDirectory).ToList();
         // ResultKind == "InstantResult" alone isn't enough: ISearchableItemProvider (a static catalog --
@@ -409,7 +421,8 @@ internal sealed class SearchDispatchController
         // IInstantResultProvider (a per-query computed answer, e.g. a calculator result) survive here.
         var instantRows = uiResults.Where(IsGenuineInstantResult).ToList();
 
-        var processedFileRows = await QueryTokenDispatcher.ApplyAsync(fileRows, tokensSnapshot);
+        var processedFileRows = await QueryTokenDispatcher.ApplyAsync(fileRows, tokensSnapshot, searchQuery, token);
+        token.ThrowIfCancellationRequested();
         if (_getSearchQuery() != query || !ReferenceEquals(_queryTokens, tokensSnapshot))
             return; // superseded by a newer query/token set while the token chain was running
 

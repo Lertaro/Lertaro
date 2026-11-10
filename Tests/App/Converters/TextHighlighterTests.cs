@@ -9,6 +9,20 @@ namespace Lertaro.App.Tests.Converters;
 [TestClass]
 public class TextHighlighterTests
 {
+    [TestMethod]
+    public void SameQueryAfterPrecisionChange_RebuildsItsPlan()
+    {
+        var previous = Core.SearchContext.FuzzyMatchEnabled;
+        try
+        {
+            Core.SearchContext.FuzzyMatchEnabled = true;
+            Assert.AreEqual("a|b|c", Marked("a_b_c", "abc"));
+            Core.SearchContext.FuzzyMatchEnabled = false;
+            Assert.AreEqual(string.Empty, Marked("a_b_c", "abc"));
+        }
+        finally { Core.SearchContext.FuzzyMatchEnabled = previous; }
+    }
+
     [STATestMethod]
     public void MatchingRunsHaveAWeightCueThatClearsWithTheQuery()
     {

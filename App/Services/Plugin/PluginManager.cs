@@ -159,6 +159,7 @@ public class PluginManager : PluginRegistry
     public void RefreshDisabledComponents()
     {
         _filter.Refresh();
+        AliasProviderRegistry.InvalidateQueryPlans();
         ComponentsRefreshed?.Invoke();
         PluginSdk.Services.PluginSettingsService.NotifyComponentEnablementChanged();
     }
