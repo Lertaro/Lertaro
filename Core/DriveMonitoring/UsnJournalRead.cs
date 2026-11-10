@@ -5,6 +5,19 @@ namespace Lertaro.Core.DriveMonitoring;
 
 internal static class UsnJournalRead
 {
+    // These two structs mirror READ_USN_JOURNAL_DATA_V0 / _V1 from winioctl.h and are passed straight to
+    // FSCTL_READ_USN_JOURNAL, so their field order, widths and padding must match the SDK exactly --
+    // the kernel reads this memory by offset, and a wrong width silently shifts every field after it.
+    //
+    // The widths are not the ones the names suggest, which is the trap: Timeout and BytesToWaitFor are
+    // DWORDLONG (8 bytes), NOT DWORD, even though both are "just" millisecond/byte counts. UsnJournalId
+    // is DWORDLONG too, and StartUsn is the USN typedef (LONGLONG). Only ReasonMask and
+    // ReturnOnlyOnClose are actually 4 bytes.
+    //
+    // Layout is 8-byte aligned with no interior padding: 8+4+4+8+8+8 = 40 bytes for V0, and V1 appends
+    // two WORDs for 44 -> 48 after the trailing alignment. NTFS reads journal version 2 through V0;
+    // ReFS reads version 3 through V1, which is what exposes the 128-bit record ids. UsnJournalReadTests
+    // pins the sizes and offsets so this cannot drift silently.
     [StructLayout(LayoutKind.Sequential)]
     internal struct RequestV0
     {
