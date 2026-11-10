@@ -15,23 +15,16 @@ internal static class CustomFilterRuleResolver
     {
         var expanded = new List<string>();
         var output = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        ExpandRule(rule, filters, prefix, allowDisabledReferences, new HashSet<string>(StringComparer.OrdinalIgnoreCase), expanded, output);
-        return string.Join("; ", expanded);
-    }
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var byName = new Dictionary<string, CustomFilterItem>(StringComparer.OrdinalIgnoreCase);
+        foreach (var filter in filters)
+            if (!string.IsNullOrWhiteSpace(filter.Keyword)) byName.TryAdd(filter.Keyword.Trim(), filter);
 
-    private static void ExpandRule(
-        string? rule,
-        IReadOnlyList<CustomFilterItem> filters,
-        string prefix,
-        bool allowDisabledReferences,
-        HashSet<string> activeNames,
-        List<string> expanded,
-        HashSet<string> output)
-    {
-        if (string.IsNullOrWhiteSpace(rule))
-            return;
-
-        foreach (var token in rule.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        // Each named rule contributes the same union on every visit. Visit it once and use an explicit
+        // stack so shared references cannot expand exponentially and long chains cannot overflow the stack.
+        var pending = new Stack<string>();
+        PushTokens(rule);
+        while (pending.TryPop(out var token))
         {
             if (!token.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) || token.Length <= prefix.Length)
             {
@@ -41,13 +34,20 @@ internal static class CustomFilterRuleResolver
             }
 
             var name = token[prefix.Length..].Trim();
-            var referenced = filters.FirstOrDefault(filter =>
-                string.Equals(filter.Keyword?.Trim(), name, StringComparison.OrdinalIgnoreCase));
-            if (referenced == null || (!allowDisabledReferences && !referenced.Enabled) || string.IsNullOrWhiteSpace(referenced.Keyword) || !activeNames.Add(name))
+            if (!byName.TryGetValue(name, out var referenced)
+                || (!allowDisabledReferences && !referenced.Enabled) || !visited.Add(name))
                 continue;
 
-            ExpandRule(referenced.Rule, filters, prefix, allowDisabledReferences, activeNames, expanded, output);
-            activeNames.Remove(name);
+            PushTokens(referenced.Rule);
+        }
+
+        return string.Join("; ", expanded);
+
+        void PushTokens(string? source)
+        {
+            if (string.IsNullOrWhiteSpace(source)) return;
+            var tokens = source.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            for (var i = tokens.Length - 1; i >= 0; i--) pending.Push(tokens[i]);
         }
     }
 }

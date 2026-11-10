@@ -17,12 +17,12 @@ public sealed class AudioDeviceSelectorPlugin : IPlugin, IConfigurable
             new PluginConfigField
             {
                 Key = "TriggerKeyword",
-                IsTriggerWord = true,
                 LabelKey = "AudioDeviceSelector_Config_TriggerKeywordLabel",
                 DescriptionKey = "AudioDeviceSelector_Config_TriggerKeywordDesc",
                 FieldType = ConfigFieldType.Text,
                 DefaultValue = "ad",
-                RequireNonEmpty = true
+                RequireNonEmpty = true,
+                Validation = ConfigFieldValidation.TriggerKeyword
             },
             new PluginConfigField
             {
