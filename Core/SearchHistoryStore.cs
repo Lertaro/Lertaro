@@ -21,6 +21,10 @@ public static class SearchHistoryStore
     private static Dictionary<string, List<StoredAssociationEntry>>? _associations;
     private static Dictionary<string, int>? _priorityCache;
     private static Dictionary<string, int>? _countCache;
+    private static long _associationVersion;
+
+    /// <summary>Advances whenever query-to-path associations change.</summary>
+    public static long AssociationVersion => Interlocked.Read(ref _associationVersion);
 
     /// <summary>What <see cref="Snapshot"/> returns before the store has any entries at all.</summary>
     private static readonly IReadOnlyDictionary<string, int> EmptyPriorities =
@@ -108,6 +112,7 @@ public static class SearchHistoryStore
                 list.RemoveRange(SearchHistoryBucketSupport.MaxEntriesPerKeyword, list.Count - SearchHistoryBucketSupport.MaxEntriesPerKeyword);
 
             RecordAssociationInMemory(associations, keyword, normalizedPath, kind, now, fromLearnedRecall);
+            Interlocked.Increment(ref _associationVersion);
 
             PersistNoLock();
             PersistAssociationsNoLock();
@@ -410,6 +415,7 @@ public static class SearchHistoryStore
 
             PersistNoLock();
             PersistAssociationsNoLock();
+            Interlocked.Increment(ref _associationVersion);
             _priorityCache = BuildPriorityCache(_buckets);
             _countCache = BuildCountCache(_buckets);
         }
@@ -448,6 +454,7 @@ public static class SearchHistoryStore
             EnsureCacheNoLock();
             _associations = rebuilt;
             PersistAssociationsNoLock();
+            Interlocked.Increment(ref _associationVersion);
         }
 
         Changed?.Invoke();
@@ -461,6 +468,7 @@ public static class SearchHistoryStore
             EnsureCacheNoLock();
             _associations = new Dictionary<string, List<StoredAssociationEntry>>(StringComparer.OrdinalIgnoreCase);
             PersistAssociationsNoLock();
+            Interlocked.Increment(ref _associationVersion);
         }
 
         Changed?.Invoke();
@@ -543,6 +551,7 @@ public static class SearchHistoryStore
         if (_associations == null)
         {
             _associations = LoadAssociationsFromFiles(AssociationsPath, AssociationsBackupPath, _buckets);
+            Interlocked.Increment(ref _associationVersion);
         }
     }
 

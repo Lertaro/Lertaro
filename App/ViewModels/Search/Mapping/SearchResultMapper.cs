@@ -252,6 +252,7 @@ public static class SearchResultMapper
                 historyCandidates = historyCandidates.Where(c => InFileFilterScope(c.NormalizedPath)).ToList();
             }
             candidates.AddRange(historyCandidates);
+            candidates.AddRange(RelatedHistoryCandidateMapper.Collect(fuzzy, scope, rankContext, filesTypeRank));
 
             // Windows' Recent Items: what was opened in any app, ranked right below the user's own picks.
             var recentCandidates = WindowsRecentCandidateMapper.Collect(fuzzy, scope, filesTypeRank);
