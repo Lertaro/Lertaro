@@ -46,16 +46,16 @@ public class SortFilterQueryTokenProvider : IQueryTokenProvider
         // more batch metadata lookup/IPC round trip (see FileSizeFilterProvider/DateModifiedFilterProvider
         // for the same change). A result with no real metadata (not file-index-backed) sorts using
         // Metadata's own default (0 / DateTime.MinValue), matching the old per-path lookup miss fallback.
-        Func<ISearchResult, IComparable> keySelector = letter switch
+        // Keep numeric/date keys typed. IComparable boxes a key for every row and forces object
+        // comparisons through the whole sort, which runs synchronously on the caller's thread.
+        var ordered = letter switch
         {
-            'S' => r => r.Metadata.Size,
-            'C' => r => r.Metadata.Created,
-            'M' => r => r.Metadata.Modified,
-            'A' => r => r.Metadata.Accessed,
-            _ => r => r.Name
+            'S' => hasDash ? results.OrderByDescending(r => r.Metadata.Size) : results.OrderBy(r => r.Metadata.Size),
+            'C' => hasDash ? results.OrderByDescending(r => r.Metadata.Created) : results.OrderBy(r => r.Metadata.Created),
+            'M' => hasDash ? results.OrderByDescending(r => r.Metadata.Modified) : results.OrderBy(r => r.Metadata.Modified),
+            'A' => hasDash ? results.OrderByDescending(r => r.Metadata.Accessed) : results.OrderBy(r => r.Metadata.Accessed),
+            _ => hasDash ? results.OrderByDescending(r => r.Name) : results.OrderBy(r => r.Name)
         };
-
-        var ordered = hasDash ? results.OrderByDescending(keySelector) : results.OrderBy(keySelector);
         return ordered.ToList();
     }
 }
