@@ -58,14 +58,16 @@ public class SortFilterQueryTokenProvider : IQueryTokenProvider
 
         // A bare "<s" is a complete token. Anything longer opens its threshold with a trigger; the threshold
         // itself may be empty ("<s>"), which ApplyAsync reads as "sort, do not filter".
-        return token.Length == 2 || (IsTrigger(token[2]) && token.Length >= 3);
+        if (token.Length == 2) return true;
+        if (!IsTrigger(token[2])) return false;
+        return token.Length == 3 || BuildThresholdPredicate(KeysByLetter[token[1].ToString()], token[2] == '>', token[3..]) != null;
     }
 
     private static bool IsTrigger(char c) => c == AscendingTrigger || c == DescendingTrigger;
 
     public Task<IReadOnlyList<ISearchResult>> ApplyAsync(string token, IReadOnlyList<ISearchResult> results)
     {
-        if (results == null || results.Count == 0)
+        if (!CanHandle(token) || results == null || results.Count == 0)
             return Task.FromResult<IReadOnlyList<ISearchResult>>(Array.Empty<ISearchResult>());
 
         var ascending = token[0] == AscendingTrigger;
@@ -118,8 +120,7 @@ public class SortFilterQueryTokenProvider : IQueryTokenProvider
         return (false, false, string.Empty);
     }
 
-    // Returns null when the threshold text can't be parsed, so an unparseable threshold narrows nothing
-    // rather than silently dropping every result.
+    // Null means invalid: CanHandle refuses it and the host reports an unsupported/invalid token.
     private static Func<ISearchResult, bool>? BuildThresholdPredicate(SortKey key, bool isLowerBound, string raw)
     {
         var threshold = raw.Trim();
@@ -129,9 +130,9 @@ public class SortFilterQueryTokenProvider : IQueryTokenProvider
         if (key == SortKey.IsDirectory)
         {
             // Folders are not ordered, so the only meaningful threshold is membership: "<f>f" -- or the
-            // words the search-syntax documentation offers, "folder" / "dir" -- keeps directories and any
-            // other threshold keeps everything else, mirroring ">20m" = "on this side".
-            var wantsDirectory = isLowerBound && IsDirectoryThreshold(threshold);
+            // documented words "folder" / "dir" -- keeps directories; '<' selects files.
+            if (!IsDirectoryThreshold(threshold)) return null;
+            var wantsDirectory = isLowerBound;
             return r => r.IsDir == wantsDirectory;
         }
 
@@ -158,8 +159,9 @@ public class SortFilterQueryTokenProvider : IQueryTokenProvider
     // The folder/file key's own threshold spellings: the key letter (so "f" and "folder" both work) and the
     // alternative word the search-syntax docs list. Case-insensitive, like the rest of the token syntax.
     private static bool IsDirectoryThreshold(string threshold)
-        => threshold.StartsWith("f", StringComparison.OrdinalIgnoreCase)
-            || threshold.StartsWith("dir", StringComparison.OrdinalIgnoreCase);
+        => threshold.Equals("f", StringComparison.OrdinalIgnoreCase)
+            || threshold.Equals("folder", StringComparison.OrdinalIgnoreCase)
+            || threshold.Equals("dir", StringComparison.OrdinalIgnoreCase);
 
     // "20m" / "1.5g" / "512k" / a plain byte count. Binary units, matching how Explorer reports sizes.
     internal static bool TryParseSize(string text, out long bytes)
@@ -179,14 +181,14 @@ public class SortFilterQueryTokenProvider : IQueryTokenProvider
             case 't': multiplier = 1024L * 1024 * 1024 * 1024; digits = text[..^1]; break;
         }
 
-        if (!double.TryParse(digits, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+        if (!double.TryParse(digits, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) || value < 0)
             return false;
 
         // A double that is NaN, infinite, or outside long's range has an UNSPECIFIED result when converted
         // to long in an unchecked context, and NumberStyles.Float happily parses "NaN", "Infinity" and
         // "1e300". Unchecked, an absurd threshold silently became a nonsense bound (usually long.MinValue,
         // which makes a "greater than" filter keep everything) instead of being rejected as unparseable --
-        // which the caller already handles by narrowing nothing. checked() makes that case explicit.
+        // which the caller rejects. checked() makes that case explicit.
         try
         {
             bytes = checked((long)(value * multiplier));
