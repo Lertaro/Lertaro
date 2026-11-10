@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using Lertaro.PluginSdk;
 using Lertaro.PluginSdk.Services;
 
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
@@ -23,6 +24,13 @@ public class FolderBrowserDialogAdapter : IFileDialogAdapter
         if (FindBreadcrumbParent(hwnd) != IntPtr.Zero)
             return false;
 
+        // A modern FOS_PICKFOLDERS picker is not this dialog: it is the shell's IFileDialog frame, which
+        // carries a DirectUI shell view the legacy browse dialog has no equivalent of. Its navigation pane
+        // is a SysTreeView32 id=100 as well, so the tree test alone would claim it -- and BFFM_SETSELECTION
+        // means nothing to it, which is a navigation that reports success and does nothing.
+        if (FindDescendantByClass(hwnd, "DUIViewWndClassName") != IntPtr.Zero)
+            return false;
+
         var treeView = FindTreeView(hwnd);
         if (treeView == IntPtr.Zero)
             return false;
@@ -43,11 +51,19 @@ public class FolderBrowserDialogAdapter : IFileDialogAdapter
         {
             if (hwnd == IntPtr.Zero) return false;
 
+            // BFFM_SETSELECTION is the only lever this dialog has, and it answers nothing: without this line
+            // "the folder did not change" and "the message was never sent" look the same.
+            Logger.Log($"[FolderBrowserDialogAdapter] Navigate 0x{hwnd.ToInt64():x} -> '{targetPath}' (BFFM_SETSELECTION).", LogLevel.Debug);
+
             GetWindowThreadProcessId(hwnd, out var pid);
             if (pid == 0) return false;
 
             var hProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_WRITE, false, (int)pid);
-            if (hProcess == IntPtr.Zero) return false;
+            if (hProcess == IntPtr.Zero)
+            {
+                Logger.Log($"[FolderBrowserDialogAdapter] OpenProcess for 0x{hwnd.ToInt64():x} failed; not navigating.", LogLevel.Warn);
+                return false;
+            }
 
             try
             {
@@ -179,6 +195,22 @@ public class FolderBrowserDialogAdapter : IFileDialogAdapter
                 return child;
             var subParent = FindBreadcrumbParent(child);
             if (subParent != IntPtr.Zero) return subParent;
+            child = FindWindowEx(parent, child, null, null);
+        }
+        return IntPtr.Zero;
+    }
+
+    private static IntPtr FindDescendantByClass(IntPtr parent, string className)
+    {
+        if (parent == IntPtr.Zero) return IntPtr.Zero;
+        var direct = FindWindowEx(parent, IntPtr.Zero, className, null);
+        if (direct != IntPtr.Zero) return direct;
+
+        var child = FindWindowEx(parent, IntPtr.Zero, null, null);
+        while (child != IntPtr.Zero)
+        {
+            var found = FindDescendantByClass(child, className);
+            if (found != IntPtr.Zero) return found;
             child = FindWindowEx(parent, child, null, null);
         }
         return IntPtr.Zero;

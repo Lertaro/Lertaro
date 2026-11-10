@@ -1,6 +1,7 @@
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using Lertaro.PluginSdk;
 using Lertaro.PluginSdk.Services;
 using Lertaro.PluginSdk.Helpers;
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
@@ -21,7 +22,11 @@ public class StandardFileDialogAdapter : IFileDialogAdapter
     {
         if (!className.Equals("#32770", StringComparison.OrdinalIgnoreCase))
             return false;
-        if (FindBreadcrumbParent(hwnd) == IntPtr.Zero)
+        // The address bar is the usual tell, but not the only one: a dialog whose address band is collapsed
+        // or absent still carries the DirectUI shell view every IFileDialog frame draws its list in. Requiring
+        // the bar alone made tssh's zenity folder picker fall to the legacy browse adapter, whose only lever
+        // (BFFM_SETSELECTION) it ignores -- a navigation that returned true and did nothing.
+        if (FindBreadcrumbParent(hwnd) == IntPtr.Zero && FindDescendantByClass(hwnd, "DUIViewWndClassName") == IntPtr.Zero)
             return false;
         _lastMatchWasFolderOnly = LooksLikeFolderOnlyPicker(hwnd);
         return true;
@@ -114,8 +119,16 @@ public class StandardFileDialogAdapter : IFileDialogAdapter
     {
         try
         {
+            // Entry and every refusal are logged: without them a navigation that went nowhere looks exactly
+            // like one that was never asked for, and this dialog is the only place that can tell them apart.
+            Logger.Log($"[StandardFileDialogAdapter] Navigate 0x{hwnd.ToInt64():x} -> '{targetPath}'.", LogLevel.Debug);
+
             var targetEdit = FindSubEditBox(hwnd);
-            if (targetEdit == IntPtr.Zero) return false;
+            if (targetEdit == IntPtr.Zero)
+            {
+                Logger.Log($"[StandardFileDialogAdapter] 0x{hwnd.ToInt64():x} has no Edit field; cannot navigate it to '{targetPath}'.", LogLevel.Warn);
+                return false;
+            }
 
             if (Directory.Exists(targetPath) && !targetPath.EndsWith("\\"))
                 targetPath += "\\";
@@ -133,37 +146,65 @@ public class StandardFileDialogAdapter : IFileDialogAdapter
 
             // Same rule as ClassicFileDialogAdapter: a name field that never received the path must not be
             // handed an Enter, which would submit whatever it still holds.
-            if (!DialogEditVerifier.Matches(DialogEditVerifier.ReadText(targetEdit), targetPath)) return false;
+            var written = DialogEditVerifier.ReadText(targetEdit);
+            if (!DialogEditVerifier.Matches(written, targetPath))
+            {
+                // The classic UIPI signature: a lower-integrity sender's WM_SETTEXT is discarded with no
+                // error, so the field keeps what it had (or stays empty) and nothing else would report it.
+                Logger.Log($"[StandardFileDialogAdapter] 0x{hwnd.ToInt64():x} field 0x{targetEdit.ToInt64():x} did not take"
+                    + $" '{targetPath}' (read back '{written}'); not pressing Enter.", LogLevel.Warn);
+                return false;
+            }
 
             Task.Run(async () =>
             {
                 await Task.Delay(300);
-                var currentActive = GetForegroundWindow();
-                var isAllowed = (currentActive == hwnd);
 
-                if (isAllowed)
+                // The path still being in the field is what makes the Enter safe, not the dialog being the
+                // foreground window. The card that started this navigation keeps the keyboard (it stays up
+                // on purpose, see InlineSearchNavigator.RunFallbackChain), so requiring the foreground here
+                // dropped the Enter while NavigateTo still returned true: nothing moved and nothing was
+                // logged. A folder-only picker (FOS_PICKFOLDERS -- trzsz's `tsz` download dialog, "选择文件
+                // 夹") is exactly that case, and its #1152 field navigates from the background as well.
+                if (!DialogEditVerifier.Matches(DialogEditVerifier.ReadText(targetEdit), targetPath))
                 {
-                    var targetThread = GetWindowThreadProcessId(targetEdit, out var _);
-                    var currentThread = GetCurrentThreadId();
-                    var attached = false;
-                    try
-                    {
-                        if (targetThread != 0 && targetThread != currentThread)
-                            attached = AttachThreadInput(currentThread, targetThread, true);
-
-                        SetForegroundWindow(hwnd);
-                        SetFocus(targetEdit);
-                        PostMessage(targetEdit, WM_KEYDOWN, (IntPtr)VK_RETURN, IntPtr.Zero);
-                        PostMessage(targetEdit, WM_KEYUP, (IntPtr)VK_RETURN, IntPtr.Zero);
-                        PostMessage(targetEdit, WM_LBUTTONDOWN, (IntPtr)1, IntPtr.Zero);
-                        PostMessage(targetEdit, WM_LBUTTONUP, IntPtr.Zero, IntPtr.Zero);
-                        PostMessage(targetEdit, EM_SETSEL, IntPtr.Zero, (IntPtr)(-1));
-                    }
-                    finally
-                    {
-                        if (attached) AttachThreadInput(currentThread, targetThread, false);
-                    }
+                    Logger.Log($"[StandardFileDialogAdapter] Field 0x{targetEdit.ToInt64():x} no longer holds"
+                        + $" '{targetPath}'; not pressing Enter on 0x{hwnd.ToInt64():x}.", LogLevel.Warn);
+                    return;
                 }
+
+                var targetThread = GetWindowThreadProcessId(targetEdit, out var _);
+                var currentThread = GetCurrentThreadId();
+                var attached = false;
+                try
+                {
+                    if (targetThread != 0 && targetThread != currentThread)
+                        attached = AttachThreadInput(currentThread, targetThread, true);
+
+                    SetForegroundWindow(hwnd);
+                    SetFocus(targetEdit);
+                    PostMessage(targetEdit, WM_KEYDOWN, (IntPtr)VK_RETURN, IntPtr.Zero);
+                    PostMessage(targetEdit, WM_KEYUP, (IntPtr)VK_RETURN, IntPtr.Zero);
+                    PostMessage(targetEdit, WM_LBUTTONDOWN, (IntPtr)1, IntPtr.Zero);
+                    PostMessage(targetEdit, WM_LBUTTONUP, IntPtr.Zero, IntPtr.Zero);
+                    PostMessage(targetEdit, EM_SETSEL, IntPtr.Zero, (IntPtr)(-1));
+                }
+                finally
+                {
+                    if (attached) AttachThreadInput(currentThread, targetThread, false);
+                }
+
+                // Success is the folder moving, not the Enter being queued. One that the dialog ignored used
+                // to look identical to one that worked, which left "the dialog did not switch" with nothing
+                // in any log to say why. A dialog that answers nothing about its current folder (an address
+                // band collapsed or absent -- tssh's zenity picker is one) is not evidence of failure: it is
+                // no evidence at all, so only a readable, different folder counts as not landed.
+                await Task.Delay(400);
+                if (!IsWindow(hwnd)) return;
+                var landed = GetCurrentPath(hwnd);
+                if (!string.IsNullOrEmpty(landed) && !DialogEditVerifier.Matches(landed, targetPath))
+                    Logger.Log($"[StandardFileDialogAdapter] Sent Enter to 0x{hwnd.ToInt64():x} for '{targetPath}'"
+                        + $", but the dialog is still at '{landed}'.", LogLevel.Warn);
             });
             return true;
         }
@@ -240,7 +281,7 @@ public class StandardFileDialogAdapter : IFileDialogAdapter
     [DllImport("dwmapi.dll")]
     private static extern int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, out RECT pvAttribute, int cbAttribute);
     [DllImport("user32.dll")]
-    private static extern IntPtr GetForegroundWindow();
+    private static extern bool IsWindow(IntPtr hWnd);
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
     [DllImport("kernel32.dll")]
@@ -283,6 +324,24 @@ public class StandardFileDialogAdapter : IFileDialogAdapter
             var classNameSb = new StringBuilder(256);
             GetClassName(childHwnd, classNameSb, classNameSb.Capacity);
             if (classNameSb.ToString().Equals("Breadcrumb Parent", StringComparison.OrdinalIgnoreCase))
+            {
+                result = childHwnd;
+                return false;
+            }
+            return true;
+        }, IntPtr.Zero);
+        return result;
+    }
+
+    private static IntPtr FindDescendantByClass(IntPtr parent, string className)
+    {
+        if (parent == IntPtr.Zero) return IntPtr.Zero;
+        var result = IntPtr.Zero;
+        EnumChildWindows(parent, (childHwnd, lParam) =>
+        {
+            var classNameSb = new StringBuilder(256);
+            GetClassName(childHwnd, classNameSb, classNameSb.Capacity);
+            if (classNameSb.ToString().Equals(className, StringComparison.OrdinalIgnoreCase))
             {
                 result = childHwnd;
                 return false;

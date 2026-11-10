@@ -1,6 +1,7 @@
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using Lertaro.PluginSdk;
 using Lertaro.PluginSdk.Services;
 
 using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
@@ -83,8 +84,16 @@ public class ClassicFileDialogAdapter : IFileDialogAdapter
     {
         try
         {
+            // Entry and every refusal are logged: a navigation that went nowhere is otherwise
+            // indistinguishable from one that was never asked for.
+            Logger.Log($"[ClassicFileDialogAdapter] Navigate 0x{hwnd.ToInt64():x} -> '{targetPath}'.", LogLevel.Debug);
+
             var targetEdit = FindSubEditBox(hwnd);
-            if (targetEdit == IntPtr.Zero) return false;
+            if (targetEdit == IntPtr.Zero)
+            {
+                Logger.Log($"[ClassicFileDialogAdapter] 0x{hwnd.ToInt64():x} has no Edit field; cannot navigate it to '{targetPath}'.", LogLevel.Warn);
+                return false;
+            }
 
             if (Directory.Exists(targetPath) && !targetPath.EndsWith("\\"))
                 targetPath += "\\";
@@ -99,38 +108,62 @@ public class ClassicFileDialogAdapter : IFileDialogAdapter
             }
 
             // Declining here is the whole point: the dialog is still the foreground window and the Enter
-            // below would fire into a name field that was never filled.
-            if (!DialogEditVerifier.Matches(DialogEditVerifier.ReadText(targetEdit), targetPath)) return false;
+            // below would fire into a name field that was never filled. A field that did not take the text is
+            // also how a lower-integrity sender's WM_SETTEXT gets discarded (UIPI), with no error anywhere.
+            var written = DialogEditVerifier.ReadText(targetEdit);
+            if (!DialogEditVerifier.Matches(written, targetPath))
+            {
+                Logger.Log($"[ClassicFileDialogAdapter] 0x{hwnd.ToInt64():x} field 0x{targetEdit.ToInt64():x} did not take"
+                    + $" '{targetPath}' (read back '{written}'); not pressing Enter.", LogLevel.Warn);
+                return false;
+            }
 
             Task.Run(async () =>
             {
                 await Task.Delay(300);
-                var currentActive = GetForegroundWindow();
-                var isAllowed = (currentActive == hwnd);
 
-                if (isAllowed)
+                // The path still being in the field is what makes the Enter safe, not the dialog being the
+                // foreground window. The card that asked for this navigation keeps the keyboard on purpose
+                // (see InlineSearchNavigator.RunFallbackChain), so requiring the foreground here dropped the
+                // Enter while NavigateTo still returned true -- the dialog sat unchanged and nothing was
+                // logged. Same rule the modern adapter already follows.
+                if (!DialogEditVerifier.Matches(DialogEditVerifier.ReadText(targetEdit), targetPath))
                 {
-                    var targetThread = GetWindowThreadProcessId(targetEdit, out var _);
-                    var currentThread = GetCurrentThreadId();
-                    var attached = false;
-                    try
-                    {
-                        if (targetThread != 0 && targetThread != currentThread)
-                            attached = AttachThreadInput(currentThread, targetThread, true);
-
-                        SetForegroundWindow(hwnd);
-                        SetFocus(targetEdit);
-                        PostMessage(targetEdit, WM_KEYDOWN, (IntPtr)VK_RETURN, IntPtr.Zero);
-                        PostMessage(targetEdit, WM_KEYUP, (IntPtr)VK_RETURN, IntPtr.Zero);
-                        PostMessage(targetEdit, WM_LBUTTONDOWN, (IntPtr)1, IntPtr.Zero);
-                        PostMessage(targetEdit, WM_LBUTTONUP, IntPtr.Zero, IntPtr.Zero);
-                        PostMessage(targetEdit, EM_SETSEL, IntPtr.Zero, (IntPtr)(-1));
-                    }
-                    finally
-                    {
-                        if (attached) AttachThreadInput(currentThread, targetThread, false);
-                    }
+                    Logger.Log($"[ClassicFileDialogAdapter] Field 0x{targetEdit.ToInt64():x} no longer holds"
+                        + $" '{targetPath}'; not pressing Enter on 0x{hwnd.ToInt64():x}.", LogLevel.Warn);
+                    return;
                 }
+
+                var targetThread = GetWindowThreadProcessId(targetEdit, out var _);
+                var currentThread = GetCurrentThreadId();
+                var attached = false;
+                try
+                {
+                    if (targetThread != 0 && targetThread != currentThread)
+                        attached = AttachThreadInput(currentThread, targetThread, true);
+
+                    SetForegroundWindow(hwnd);
+                    SetFocus(targetEdit);
+                    PostMessage(targetEdit, WM_KEYDOWN, (IntPtr)VK_RETURN, IntPtr.Zero);
+                    PostMessage(targetEdit, WM_KEYUP, (IntPtr)VK_RETURN, IntPtr.Zero);
+                    PostMessage(targetEdit, WM_LBUTTONDOWN, (IntPtr)1, IntPtr.Zero);
+                    PostMessage(targetEdit, WM_LBUTTONUP, IntPtr.Zero, IntPtr.Zero);
+                    PostMessage(targetEdit, EM_SETSEL, IntPtr.Zero, (IntPtr)(-1));
+                }
+                finally
+                {
+                    if (attached) AttachThreadInput(currentThread, targetThread, false);
+                }
+
+                // Success is CDM_GETFOLDERPATH answering with the folder, not the Enter being queued: one the
+                // dialog ignored used to be indistinguishable from one that worked. A dialog that answers
+                // nothing is no evidence at all, so only a readable, different folder counts as not landed.
+                await Task.Delay(400);
+                if (!IsWindow(hwnd)) return;
+                var landed = GetCurrentPath(hwnd);
+                if (!string.IsNullOrEmpty(landed) && !DialogEditVerifier.Matches(landed, targetPath))
+                    Logger.Log($"[ClassicFileDialogAdapter] Sent Enter to 0x{hwnd.ToInt64():x} for '{targetPath}'"
+                        + $", but the dialog is still at '{landed}'.", LogLevel.Warn);
             });
             return true;
         }
@@ -207,7 +240,7 @@ public class ClassicFileDialogAdapter : IFileDialogAdapter
     [DllImport("dwmapi.dll")]
     private static extern int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, out RECT pvAttribute, int cbAttribute);
     [DllImport("user32.dll")]
-    private static extern IntPtr GetForegroundWindow();
+    private static extern bool IsWindow(IntPtr hWnd);
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
     [DllImport("kernel32.dll")]
