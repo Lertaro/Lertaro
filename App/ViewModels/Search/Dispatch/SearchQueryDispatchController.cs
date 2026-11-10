@@ -50,7 +50,7 @@ internal sealed class SearchQueryDispatchController : IDisposable
     private readonly Action<Visibility> _setLoadingPanelVisibility;
     private readonly Action<bool> _setIsSearchBoxEnabled;
     private readonly Action<int> _setReceivedCount;
-    private readonly Action<bool> _setRegexLimitExceeded;
+    private readonly Action<bool> _setRegexPath;
     private readonly Action<IReadOnlyList<AppSearchResult>, bool> _updateSidebarCounts;
     private readonly Action<IReadOnlyList<AppSearchResult>> _replaceSidebarCounts;
     private readonly Action? _onResultsSettled;
@@ -93,7 +93,7 @@ internal sealed class SearchQueryDispatchController : IDisposable
         Action<IReadOnlyList<AppSearchResult>> replaceSidebarCounts,
         Action<bool, int> applyFiltersAndRender,
         Action? onResultsSettled = null,
-        Action<bool>? setRegexLimitExceeded = null)
+        Action<bool>? setRegexPath = null)
     {
         _searchEngine = searchEngine;
         _serviceStatus = serviceStatus;
@@ -107,7 +107,7 @@ internal sealed class SearchQueryDispatchController : IDisposable
         _replaceSidebarCounts = replaceSidebarCounts;
         _applyFiltersAndRender = applyFiltersAndRender;
         _onResultsSettled = onResultsSettled;
-        _setRegexLimitExceeded = setRegexLimitExceeded ?? (_ => { });
+        _setRegexPath = setRegexPath ?? (_ => { });
     }
 
     public void OnAdvancedQueryChanged(string query)
@@ -207,8 +207,8 @@ internal sealed class SearchQueryDispatchController : IDisposable
             cleanQuery,
             searchScope: null,
             isInlineSearchContext: false,
-            // One extra match proves overflow; the accumulator discards it before creating a UI row.
-            fileLimit: accumulator.IsRegexPath ? StreamingResultAccumulator.RegexPathResultLimit + 1 : SearchViewModel.FullSearchFileLimit,
+            // The display limit is applied after ranking and all user filters.
+            fileLimit: SearchViewModel.FullSearchFileLimit,
             appLimit: SearchViewModel.FullSearchAppLimit,
             // Local (USN-indexed) and network-drive results stream in from separate, independently-timed
             // sources (see Core.Services.SearchService.SearchStreamingAsync's localTask/networkTask) and
@@ -245,7 +245,17 @@ internal sealed class SearchQueryDispatchController : IDisposable
                 _serviceStatus.ClearReconnectState();
                 _setLoadingPanelVisibility(Visibility.Collapsed);
                 _setIsSearchBoxEnabled(true);
-                _setRegexLimitExceeded(accumulator.RegexLimitExceeded);
+                _setRegexPath(accumulator.IsRegexPath);
+                if (_searchEngine.FailureMessage != null)
+                {
+                    Interlocked.Increment(ref _contentAppendGeneration);
+                    _tokenBatchCts?.Cancel();
+                    _setAllResults([], false);
+                    _replaceSidebarCounts([]);
+                    _applyFiltersAndRender(false, 0);
+                    _setIsSearching(false);
+                    return;
+                }
                 // This window has its own "no results" hint (ShowNoResultsHint, keyed off an empty
                 // FilteredResults) -- the shared engine's synthetic "Empty" placeholder row is meant
                 // for the quick/inline windows, which have no such hint and render it inline instead.

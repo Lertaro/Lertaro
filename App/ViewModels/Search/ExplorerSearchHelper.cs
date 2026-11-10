@@ -54,7 +54,7 @@ public static class ExplorerSearchHelper
         catch (OperationCanceledException)
         {
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!Core.SearchIndex.SearchRegexTimeoutException.IsTimeout(ex))
         {
             Logger.Log($"[ExplorerSearchHelper] Direct-child locate failed: {ex.Message}", LogLevel.Error);
         }

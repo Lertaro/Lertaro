@@ -41,6 +41,8 @@ public class SearchViewModel : ViewModelBase, IDisposable
     private bool _allResultsHoldContentRows;
     private string _resultCountText = "";
     private bool _regexLimitExceeded;
+    internal string? QueryFailure => _searchEngine.FailureMessage;
+    private bool _isRegexPath;
     private bool _isSearching;
     private bool _isQueryRunning;
     private bool _isFiltering;
@@ -93,7 +95,9 @@ public class SearchViewModel : ViewModelBase, IDisposable
             () => _renderExtendsContent,
             finalResults => ReferenceEquals(finalResults, _allResults) ? _renderUnchangedPrefix : 0,
             SetResultCount,
-            () => Hints.Refresh());
+            () => Hints.Refresh(),
+            () => _isRegexPath ? Mapping.StreamingResultAccumulator.RegexPathResultLimit : int.MaxValue,
+            exceeded => _regexLimitExceeded = exceeded);
 
         SearchResultRefreshWatcher? refreshWatcher = null;
         _dispatcher = new SearchQueryDispatchController(
@@ -124,7 +128,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
                 refreshWatcher?.UpdateResults(_allResults);
                 _refreshKeepsViewport = false;
             },
-            setRegexLimitExceeded: value => _regexLimitExceeded = value);
+            setRegexPath: value => _isRegexPath = value);
 
         refreshWatcher = new SearchResultRefreshWatcher(
             () => _allResults,

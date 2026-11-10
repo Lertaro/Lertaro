@@ -13,19 +13,25 @@ internal sealed class SearchViewResultRenderer
     private readonly Func<List<AppSearchResult>, int> _getEffectiveUnchangedPrefix;
     private readonly Action<int> _setResultCount;
     private readonly Action _refreshHints;
+    private readonly Func<int>? _getDisplayLimit;
+    private readonly Action<bool>? _setLimitExceeded;
 
     public SearchViewResultRenderer(
         ObservableRangeCollection<AppSearchResult> filteredResults,
         Func<bool> getExtendsContent,
         Func<List<AppSearchResult>, int> getEffectiveUnchangedPrefix,
         Action<int> setResultCount,
-        Action refreshHints)
+        Action refreshHints,
+        Func<int>? getDisplayLimit = null,
+        Action<bool>? setLimitExceeded = null)
     {
         _filteredResults = filteredResults;
         _getExtendsContent = getExtendsContent;
         _getEffectiveUnchangedPrefix = getEffectiveUnchangedPrefix;
         _setResultCount = setResultCount;
         _refreshHints = refreshHints;
+        _getDisplayLimit = getDisplayLimit;
+        _setLimitExceeded = setLimitExceeded;
     }
 
     public void Render(List<AppSearchResult> finalResults)
@@ -35,6 +41,12 @@ internal sealed class SearchViewResultRenderer
         // the entire list. The unchanged-prefix promise applies only when the result list is the
         // original accumulator list and no sort or filter created a different list object.
         var unchangedPrefix = _getEffectiveUnchangedPrefix(finalResults);
+        var limit = _getDisplayLimit?.Invoke() ?? int.MaxValue;
+        var exceeded = finalResults.Count > limit;
+        _setLimitExceeded?.Invoke(exceeded);
+        if (exceeded)
+            finalResults = finalResults.GetRange(0, limit);
+        unchangedPrefix = Math.Min(unchangedPrefix, finalResults.Count);
         _filteredResults.ReconcileTo(finalResults, SearchResultsReconciler.ItemsEqual, _getExtendsContent(), unchangedPrefix);
         // Same reason as the streaming path's own call: ItemsEqual keeps a row whose content matches, so
         // the kept instance still holds the previous query and has to be told this one for its highlight
