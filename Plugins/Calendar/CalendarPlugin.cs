@@ -82,7 +82,7 @@ public sealed class CalendarPlugin : IPlugin, IConfigurable
             new PluginConfigField
             {
                 Key = "TriggerKeyword",
-                IsTriggerWord = true,
+                Validation = ConfigFieldValidation.TriggerKeyword,
                 LabelKey = "Calendar_Config_TriggerLabel",
                 DescriptionKey = "Calendar_Config_TriggerDesc",
                 FieldType = ConfigFieldType.Text,
