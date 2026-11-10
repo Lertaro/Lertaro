@@ -8,7 +8,7 @@
 
 冲突逐块合并，保留了 main 的候选过滤、category、取消、稳定 Top-N、强类型 token 排序、缓存范围/过期和 UI 更新改进。regex 的新解析器、名称级正则子句、SDK 取消重载、provider 故障隔离也保留。`LiveScanCache` 接入 main 的 direct/recursive 分离、两秒过期与显式失效；冷请求保留只匹配一次。退役的 SearchQuerySortParserTests 经用户批准删除，将 main 的连续路径空格回归迁移到 QueryTokenScannerTests，并使扫描器保留普通文本内部空白。两边的 token dispatcher 测试均保留，旧排序测试改用 `<s`/`>s`。
 
-审计发现的下列缺陷尚未修复；本次产品改动限于让 rebase 同时保留两边已存在的语义和修复。不能把“测试通过”解释为下列缺陷已不存在。
+下文保留审计发现时的状态。2026-11-10 后续已修复 R1–R8，逐项方案、最终测试、压测和呈现一致性复核见 [search-regex-fixes.md](search-regex-fixes.md)，新样本见 [search-regex-fixes-results.json](search-regex-fixes-results.json)。不要将下文修复前的复现结果当作当前实现；旧样本保留用于对照。
 
 ## 发现
 
