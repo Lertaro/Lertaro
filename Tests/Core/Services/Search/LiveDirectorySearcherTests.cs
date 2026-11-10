@@ -6,6 +6,120 @@ namespace Lertaro.Core.Tests.Services.Search;
 public sealed class LiveDirectorySearcherTests
 {
     [TestMethod]
+    public async Task DirectAndRecursiveSearches_DoNotShareAnIncompleteCache()
+    {
+        using var directory = new TempDirectory();
+        File.WriteAllText(Path.Combine(directory.Path, "direct.txt"), "abc");
+        var child = Directory.CreateDirectory(Path.Combine(directory.Path, "child")).FullName;
+        File.WriteAllText(Path.Combine(child, "nested.txt"), "12345");
+        using var service = new SearchService();
+        var direct = new List<SearchResult>();
+        await service.SearchLiveDirectoryAsync(directory.Path, "", direct.Add, CancellationToken.None, onlyDirectChildren: true);
+        Assert.HasCount(2, direct);
+        Assert.AreEqual(3L, direct.Single(row => row.Name == "direct.txt").Metadata.Size);
+        var recursive = new List<SearchResult>();
+        await service.SearchLiveDirectoryAsync(directory.Path, "", recursive.Add, CancellationToken.None);
+        Assert.HasCount(3, recursive);
+        Assert.AreEqual(5L, recursive.Single(row => row.Name == "nested.txt").Metadata.Size);
+    }
+
+    [TestMethod]
+    public async Task InvalidateLiveDirectory_RefreshesDirectAndRecursiveAnswers()
+    {
+        using var directory = new TempDirectory();
+        File.WriteAllText(Path.Combine(directory.Path, "old.txt"), "old");
+        using var service = new SearchService();
+        await service.SearchLiveDirectoryAsync(directory.Path, "", _ => { }, CancellationToken.None, true);
+        await service.SearchLiveDirectoryAsync(directory.Path, "", _ => { }, CancellationToken.None);
+        File.Delete(Path.Combine(directory.Path, "old.txt"));
+        File.WriteAllText(Path.Combine(directory.Path, "new.txt"), "new content");
+        service.InvalidateLiveDirectory(directory.Path + Path.DirectorySeparatorChar);
+        foreach (var direct in new[] { true, false })
+        {
+            var rows = new List<SearchResult>();
+            await service.SearchLiveDirectoryAsync(directory.Path, "", rows.Add, CancellationToken.None, direct);
+            Assert.AreEqual("new.txt", Assert.ContainsSingle(rows).Name);
+            Assert.AreEqual(11L, rows[0].Metadata.Size);
+        }
+    }
+
+    [TestMethod]
+    public async Task CompletedLiveCache_ExpiresWithoutAWatcher()
+    {
+        using var directory = new TempDirectory();
+        using var service = new SearchService();
+        await service.SearchLiveDirectoryAsync(directory.Path, "", _ => { }, CancellationToken.None);
+        File.WriteAllText(Path.Combine(directory.Path, "later.txt"), "new");
+        await Task.Delay(TimeSpan.FromMilliseconds(SearchService.LiveDirectoryCacheLifetimeMs + 50));
+        var rows = new List<SearchResult>();
+        await service.SearchLiveDirectoryAsync(directory.Path, "", rows.Add, CancellationToken.None);
+        Assert.AreEqual("later.txt", Assert.ContainsSingle(rows).Name);
+    }
+
+    [TestMethod]
+    public async Task SearchLiveDirectoryAsync_ColdAndWarmCallsEachDeliverMatchesOnce()
+    {
+        using var directory = new TempDirectory();
+        for (var i = 0; i < 20; i++) File.WriteAllText(Path.Combine(directory.Path, $"report{i}.txt"), "text");
+        using var service = new SearchService();
+        var cold = new List<SearchResult>();
+        var warm = new List<SearchResult>();
+        Assert.IsTrue(await service.SearchLiveDirectoryAsync(directory.Path, "report", cold.Add, CancellationToken.None));
+        Assert.IsTrue(await service.SearchLiveDirectoryAsync(directory.Path, "report", warm.Add, CancellationToken.None));
+        Assert.HasCount(20, cold);
+        CollectionAssert.AreEqual(cold.Select(r => r.Path).ToArray(), warm.Select(r => r.Path).ToArray());
+    }
+
+    [TestMethod]
+    public async Task SearchLiveDirectoryAsync_CancelledColdQueryLeavesReusableScan()
+    {
+        using var directory = new TempDirectory();
+        for (var i = 0; i < 20; i++) File.WriteAllText(Path.Combine(directory.Path, $"report{i}.txt"), "text");
+        using var service = new SearchService();
+        using var cancellation = new CancellationTokenSource();
+        var delivered = 0;
+        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await service.SearchLiveDirectoryAsync(directory.Path, "report", _ => { delivered++; cancellation.Cancel(); }, cancellation.Token));
+        var warm = new List<SearchResult>();
+        Assert.IsTrue(await service.SearchLiveDirectoryAsync(directory.Path, "report", warm.Add, CancellationToken.None));
+        Assert.AreEqual(1, delivered);
+        Assert.HasCount(20, warm);
+    }
+
+    [TestMethod]
+    public void MatchAndStream_ConstrainsFileNamesAndCategory()
+    {
+        var entries = new List<SearchResult>
+        {
+            new() { Name = "report.md", Path = @"Z:\report.md" },
+            new() { Name = "report.txt", Path = @"Z:\report.txt" },
+            new() { Name = "report.exe", Path = @"Z:\report.exe" },
+            new() { Name = "report-folder", Path = @"Z:\report-folder", IsDir = true }
+        };
+        var results = new List<SearchResult>();
+        LiveDirectorySearcher.MatchAndStream(entries, "report", results.Add, CancellationToken.None,
+            fileNameFilter: "*.txt;*.exe", category: PluginSdk.Helpers.SearchCategoryFilter.Document);
+        Assert.AreEqual("report.txt", Assert.ContainsSingle(results).Name);
+    }
+
+    [TestMethod]
+    public void ScanDirectory_FilteredColdCallbacksStillCacheEveryEntryForOtherQueries()
+    {
+        using var directory = new TempDirectory();
+        File.WriteAllText(Path.Combine(directory.Path, "report.txt"), "text");
+        File.WriteAllText(Path.Combine(directory.Path, "report.md"), "markdown");
+        var cold = new List<SearchResult>();
+        var cached = LiveDirectorySearcher.ScanDirectory(directory.Path, 100, CancellationToken.None,
+            liveQuery: "report", onLiveMatch: cold.Add, fileNameFilter: "*.txt",
+            category: PluginSdk.Helpers.SearchCategoryFilter.Document);
+        Assert.AreEqual("report.txt", Assert.ContainsSingle(cold).Name);
+        Assert.HasCount(2, cached);
+        var warm = new List<SearchResult>();
+        LiveDirectorySearcher.MatchAndStream(cached, "report", warm.Add, CancellationToken.None, fileNameFilter: "*.md");
+        Assert.AreEqual("report.md", Assert.ContainsSingle(warm).Name);
+    }
+
+    [TestMethod]
     public void ScanDirectory_EmptyPath_ReturnsEmpty()
     {
         var results = LiveDirectorySearcher.ScanDirectory("", 100, CancellationToken.None);

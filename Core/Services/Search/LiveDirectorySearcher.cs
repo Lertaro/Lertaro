@@ -1,6 +1,8 @@
 using Lertaro.Core.SearchIndex.Fzf;
 
 using Lertaro.Core.SearchIndex;
+using Lertaro.Core.Services.Plugin.DirectoryIndex;
+using Lertaro.PluginSdk.Helpers;
 namespace Lertaro.Core.Services.Search;
 
 public static class LiveDirectorySearcher
@@ -17,9 +19,12 @@ public static class LiveDirectorySearcher
         string? liveQuery = null,
         Action<SearchResult>? onLiveMatch = null,
         bool onlyDirectChildren = false,
-        string? parentPath = null)
+        string? parentPath = null,
+        string? fileNameFilter = null,
+        SearchCategoryFilter category = SearchCategoryFilter.All)
     {
         var results = new List<SearchResult>();
+        var fileNamePatterns = FilterPatternHelper.SplitOrNullIfMatchAll(fileNameFilter);
         var exists = !string.IsNullOrWhiteSpace(directory) && Directory.Exists(directory);
         Logger.Log($"[LiveDirectorySearcher] ScanDirectory starting for '{directory}'. Exists: {exists}", LogLevel.Debug);
         if (!exists)
@@ -77,14 +82,24 @@ public static class LiveDirectorySearcher
                     Drive = drive,
                     Attributes = attrs
                 };
+                // DirectoryInfo enumeration pre-populates these values on Windows. Keep an entry even
+                // if it disappears before metadata can be read; default explicitly means unavailable.
+                try
+                {
+                    result.Metadata = new(entry is FileInfo file ? file.Length : 0,
+                        entry.CreationTime, entry.LastWriteTime, entry.LastAccessTime);
+                }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
                 results.Add(result);
 
-                if (isDir)
+                if (isDir && !onlyDirectChildren)
                 {
                     queue.Enqueue(entry.FullName);
                 }
 
-                if (onLiveMatch != null && TryMatchEntry(result, livePattern, liveSlab, onlyDirectChildren, normalizedParent))
+                if (onLiveMatch != null && FilterPatternHelper.MatchesSearchResult(result.Name, result.IsDir, fileNamePatterns, category)
+                    && TryMatchEntry(result, livePattern, liveSlab, onlyDirectChildren, normalizedParent))
                 {
                     try
                     {
@@ -115,7 +130,9 @@ public static class LiveDirectorySearcher
         Action<SearchResult> onResult,
         CancellationToken token,
         bool onlyDirectChildren = false,
-        string? parentPath = null)
+        string? parentPath = null,
+        string? fileNameFilter = null,
+        SearchCategoryFilter category = SearchCategoryFilter.All)
     {
         if (entries == null || entries.Count == 0)
             return false;
@@ -131,6 +148,7 @@ public static class LiveDirectorySearcher
         }
 
         var foundCount = 0;
+        var fileNamePatterns = FilterPatternHelper.SplitOrNullIfMatchAll(fileNameFilter);
         var normalizedParent = onlyDirectChildren && !string.IsNullOrEmpty(parentPath)
             ? parentPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
             : null;
@@ -139,7 +157,8 @@ public static class LiveDirectorySearcher
         {
             token.ThrowIfCancellationRequested();
 
-            if (TryMatchEntry(entry, pattern, slab, onlyDirectChildren, normalizedParent))
+            if (FilterPatternHelper.MatchesSearchResult(entry.Name, entry.IsDir, fileNamePatterns, category)
+                && TryMatchEntry(entry, pattern, slab, onlyDirectChildren, normalizedParent))
             {
                 onResult(entry);
                 foundCount++;
