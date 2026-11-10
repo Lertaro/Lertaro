@@ -14,13 +14,15 @@ public sealed class ServicePluginLoaderTests
             var nested = directory.CreateSubdirectory("nested");
             var disabled = Path.Combine(nested.FullName, "Lertaro.Plugins.Disabled.dll");
             var enabled = Path.Combine(nested.FullName, "Lertaro.Plugins.Enabled.dll");
-            File.WriteAllText(enabled, "not an assembly: discovery must not load it");
+            var rootCopy = Path.Combine(directory.FullName, "Lertaro.Plugins.Enabled.dll");
+            File.WriteAllText(enabled, "nested copy");
+            File.WriteAllText(rootCopy, "root copy");
             File.WriteAllText(Path.Combine(directory.FullName, "Dependency.dll"), "not a plugin");
             File.WriteAllText(Path.Combine(directory.FullName, "Lertaro.Plugins.Other.json"), "not a DLL");
             using (var locked = new FileStream(disabled, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
                 var files = ServicePluginLoader.EnabledAssemblyFiles(directory.FullName, ["lertaro.plugins.disabled.DLL"]).ToArray();
-                CollectionAssert.AreEqual(new[] { enabled }, files);
+                CollectionAssert.AreEqual(new[] { rootCopy }, files);
             }
             Assert.HasCount(2, ServicePluginLoader.EnabledAssemblyFiles(directory.FullName, []).ToArray());
         }

@@ -15,7 +15,15 @@ public static class ServicePluginLoader
         return Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)
             .Where(file => Path.GetFileName(file).StartsWith("Lertaro.Plugins.", StringComparison.OrdinalIgnoreCase)
                 && file.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)
-                && !disabled.Contains(Path.GetFileName(file)));
+                && !disabled.Contains(Path.GetFileName(file)))
+            // Some deploy layouts leave a plugin both at Plugins\ and in its own subdirectory. Loading the
+            // second copy cannot succeed (the runtime refuses a second assembly with the same identity), so
+            // pick one deterministically and prefer the shallow/root copy.
+            .GroupBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group
+                .OrderBy(file => file.Count(ch => ch == Path.DirectorySeparatorChar))
+                .ThenBy(file => file, StringComparer.OrdinalIgnoreCase)
+                .First());
     }
 
     public static void LoadForService() => LoadPlugins(loadHookPlugins: false);

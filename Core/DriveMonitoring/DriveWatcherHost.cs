@@ -8,7 +8,7 @@ internal sealed class DriveWatcherHost : IDisposable
     private readonly string _rootPath;
     private readonly Func<string, bool> _exists;
     private readonly Func<FileSystemWatcher, string, Action, Action, Action<string>, bool> _configure;
-    private readonly Action<string> _onLog;
+    private readonly Action<string, LogLevel> _onLog;
     private readonly Action? _onStarted;
     private readonly TimeSpan _retryDelay;
     private readonly object _gate = new();
@@ -17,7 +17,7 @@ internal sealed class DriveWatcherHost : IDisposable
     private bool _disposed;
 
     public DriveWatcherHost(string name, string drive, Func<string, bool> exists,
-        Func<FileSystemWatcher, string, Action, Action, Action<string>, bool> configure, Action<string> onLog,
+        Func<FileSystemWatcher, string, Action, Action, Action<string>, bool> configure, Action<string, LogLevel> onLog,
         TimeSpan? retryDelay = null, Action? onStarted = null)
     {
         _name = name;
@@ -73,7 +73,7 @@ internal sealed class DriveWatcherHost : IDisposable
                     watcher.EnableRaisingEvents = true;
                     _watcher = watcher;
                     started = true;
-                    _onLog($"[{_name}] Started monitoring {_drive}: via FileSystemWatcher.");
+                    _onLog($"[{_name}] Started monitoring {_drive}: via FileSystemWatcher.", LogLevel.Info);
                 }
                 else
                 {
@@ -139,5 +139,5 @@ internal sealed class DriveWatcherHost : IDisposable
         });
     }
 
-    private void LogError(string message) => _onLog($"[{_name}] {message}");
+    private void LogError(string message) => _onLog($"[{_name}] {message}", LogLevel.Warn);
 }
