@@ -48,14 +48,14 @@ internal static class HistorySearchCandidateMapper
             rankContext,
             MaxLearnedCandidatesPerQuery);
 
-    private static bool SafeFileExists(string path)
+    internal static bool SafeFileExists(string path)
     {
         if (path.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase))
             return SearchReachabilityGate.IsPathReachable(path);
         return File.Exists(path);
     }
 
-    private static bool SafeDirectoryExists(string path)
+    internal static bool SafeDirectoryExists(string path)
     {
         if (path.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase))
             return SearchReachabilityGate.IsPathReachable(path);
