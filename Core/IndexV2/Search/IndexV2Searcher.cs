@@ -25,8 +25,10 @@ public static class IndexV2Searcher
             return;
 
         var captured = cacheKey == null ? null : new List<SearchResult>(Math.Min(limit, QueryPageCache.MaxRows));
+        var emitted = 0;
         void Capture(SearchResult row)
         {
+            emitted++;
             if (captured != null && captured.Count < QueryPageCache.MaxRows)
                 captured.Add(row);
             onResult(row);
@@ -62,7 +64,7 @@ public static class IndexV2Searcher
             return null;
         });
         if (cacheKey != null)
-            index.SearchPages.Store(cacheKey, captured!, limit, searchRevision);
+            index.SearchPages.Store(cacheKey, captured!, limit, searchRevision, emitted);
         SearchPerf.Log($"[search] q='{query}' limit={limit} dir='{directoryFilter}' pathMode={parsed.IsPathMode} build={SearchPerf.BuildFlavor} total={SearchPerf.Ms(perfStart):F0}ms");
 
         Action<SearchResult> CacheOrOriginal() => cacheKey == null ? onResult : Capture;

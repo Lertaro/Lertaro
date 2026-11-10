@@ -12,6 +12,7 @@ internal sealed class QueryPageCache
     {
         public required List<SearchResult> Rows { get; init; }
         public required bool Complete { get; init; }
+        public required bool Truncated { get; init; }
         public required long Revision { get; init; }
         public long LastUsed { get; set; }
     }
@@ -24,10 +25,23 @@ internal sealed class QueryPageCache
     private readonly object _gate = new();
 
     internal static string KeyFor(string query, string? directoryFilter, string? fileNameFilter,
-        SearchCategoryFilter category) =>
-        string.Concat(query, "\u0001", directoryFilter ?? string.Empty, "\u0001",
+        SearchCategoryFilter category)
+    {
+        // The same text means different things in exact/fuzzy mode, under either operator precedence,
+        // and with alias providers disabled. Revision alone cannot distinguish those requests.
+        var disabledAliases = SearchContext.DisabledAliasIds;
+        var disabledKey = disabledAliases == null
+            ? string.Empty
+            : string.Join(',', disabledAliases.Order());
+        return string.Concat(
+            query, "\u0001",
+            directoryFilter ?? string.Empty, "\u0001",
             fileNameFilter ?? string.Empty, "\u0001",
-            ((byte)category).ToString(System.Globalization.CultureInfo.InvariantCulture));
+            ((byte)category).ToString(System.Globalization.CultureInfo.InvariantCulture), "\u0001",
+            SearchContext.FuzzyMatchEnabled ? "fuzzy" : "exact", "\u0001",
+            SearchContext.AndFirstPrecedence ? "and-first" : "or-first", "\u0001",
+            disabledKey);
+    }
 
     internal bool TryReplay(string key, int limit, Action<SearchResult> onResult,
         CancellationToken token, long revision)
@@ -38,13 +52,14 @@ internal sealed class QueryPageCache
             if (!_pages.TryGetValue(key, out var entry)
                 || entry.Revision != revision
                 || Environment.TickCount64 - entry.LastUsed > IdleExpiryMs
-                || entry.Rows.Count < limit && !(entry.Rows.Count == 0 && entry.Complete))
+                || (entry.Truncated && limit > MaxRows)
+                || (entry.Rows.Count < limit && !entry.Complete))
             {
                 return false;
             }
 
             entry.LastUsed = Environment.TickCount64;
-            page = entry.Rows.Count == limit ? entry.Rows : entry.Rows.GetRange(0, limit);
+            page = entry.Rows.Count <= limit ? entry.Rows : entry.Rows.GetRange(0, limit);
         }
 
         foreach (var row in page)
@@ -55,15 +70,20 @@ internal sealed class QueryPageCache
         return true;
     }
 
-    internal void Store(string key, List<SearchResult> rows, int requestLimit, long revision)
+    internal void Store(string key, List<SearchResult> rows, int requestLimit, long revision,
+        int totalRows = -1)
     {
+        if (totalRows < 0)
+            totalRows = rows.Count;
+
         if (rows.Count > MaxRows)
             rows = rows.GetRange(0, MaxRows);
 
         var entry = new Entry
         {
             Rows = rows,
-            Complete = rows.Count < requestLimit,
+            Complete = totalRows < requestLimit,
+            Truncated = totalRows > MaxRows,
             Revision = revision,
             LastUsed = Environment.TickCount64,
         };

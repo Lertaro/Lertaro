@@ -1,4 +1,5 @@
 using Lertaro.Core.IndexV2.Search;
+using Lertaro.Core.SearchIndex;
 using Lertaro.PluginSdk.Helpers;
 
 namespace Lertaro.Core.Tests.IndexV2.Search;
@@ -34,6 +35,38 @@ public sealed class QueryPageCacheTests
         cache.Store(video, [Row("a.mp4")], requestLimit: 10, revision: 7);
 
         Assert.IsFalse(cache.TryReplay(audio, 10, _ => { }, CancellationToken.None, revision: 7));
+    }
+
+    [TestMethod]
+    public void RequestMatchModesCannotReuseThePage()
+    {
+        var previousFuzzy = SearchContext.FuzzyMatchEnabled;
+        var previousPrecedence = SearchContext.AndFirstPrecedence;
+        var previousDisabledAliases = SearchContext.DisabledAliasIds;
+        try
+        {
+            SearchContext.FuzzyMatchEnabled = true;
+            SearchContext.AndFirstPrecedence = true;
+            SearchContext.DisabledAliasIds = null;
+            var fuzzy = QueryPageCache.KeyFor("a", null, null, SearchCategoryFilter.All);
+
+            SearchContext.FuzzyMatchEnabled = false;
+            var exact = QueryPageCache.KeyFor("a", null, null, SearchCategoryFilter.All);
+            SearchContext.AndFirstPrecedence = false;
+            var orFirst = QueryPageCache.KeyFor("a", null, null, SearchCategoryFilter.All);
+            SearchContext.DisabledAliasIds = [7];
+            var aliasesDisabled = QueryPageCache.KeyFor("a", null, null, SearchCategoryFilter.All);
+
+            Assert.AreNotEqual(fuzzy, exact);
+            Assert.AreNotEqual(exact, orFirst);
+            Assert.AreNotEqual(orFirst, aliasesDisabled);
+        }
+        finally
+        {
+            SearchContext.FuzzyMatchEnabled = previousFuzzy;
+            SearchContext.AndFirstPrecedence = previousPrecedence;
+            SearchContext.DisabledAliasIds = previousDisabledAliases;
+        }
     }
 
     [TestMethod]
@@ -84,5 +117,21 @@ public sealed class QueryPageCacheTests
         Assert.IsTrue(cache.TryReplay(key, 51, replay.Add, CancellationToken.None, revision: 7));
         Assert.HasCount(51, replay);
         Assert.IsFalse(cache.TryReplay(key, QueryPageCache.MaxRows + 1, _ => { }, CancellationToken.None, revision: 7));
+    }
+
+    [TestMethod]
+    public void CompletePageWhoseCaptureWasTruncatedOnlyReplaysWithinTheStoredRows()
+    {
+        var cache = new QueryPageCache();
+        var key = QueryPageCache.KeyFor("a", null, null, SearchCategoryFilter.All);
+        var stored = Enumerable.Range(0, QueryPageCache.MaxRows).Select(i => Row($"a{i}")).ToList();
+        cache.Store(
+            key, stored, requestLimit: QueryPageCache.MaxRows + 500, revision: 7,
+            totalRows: QueryPageCache.MaxRows + 200);
+
+        Assert.IsTrue(cache.TryReplay(
+            key, QueryPageCache.MaxRows, _ => { }, CancellationToken.None, revision: 7));
+        Assert.IsFalse(cache.TryReplay(
+            key, QueryPageCache.MaxRows + 1, _ => { }, CancellationToken.None, revision: 7));
     }
 }
