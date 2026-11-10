@@ -54,7 +54,7 @@ internal static class NameSearch
 
         try
         {
-            PublishRanks(snapshot, delta, pattern, hits, matchAll, topN, scanKeep, limit, directoryFilterLower, token, onResult);
+            PublishRanks(snapshot, delta, pattern, hits, matchAll, topN, scanKeep, limit, directoryFilterLower, token, onResult, category);
         }
         finally
         {
@@ -64,7 +64,8 @@ internal static class NameSearch
     }
 
     private static void PublishRanks(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, List<UniqueMatch>? hits, bool matchAll,
-        FzfTopN topN, int scanKeep, int limit, string? directoryFilterLower, CancellationToken token, Action<SearchResult> onResult)
+        FzfTopN topN, int scanKeep, int limit, string? directoryFilterLower, CancellationToken token, Action<SearchResult> onResult,
+        SearchCategoryFilter category)
     {
         var ranks = topN.Finish(scanKeep);
         // Whether RefineRanks below is about to pack the SAME relevance key into each row's high 32
@@ -123,7 +124,7 @@ internal static class NameSearch
             {
                 SearchResultRelevance.Apply(result, pattern);
                 onResult(result);
-            }, token, directoryFilterLower, reportedUids);
+            }, token, directoryFilterLower, reportedUids, category);
         }
     }
 
@@ -281,6 +282,11 @@ internal static class NameSearch
         var flags = snapshot.Flags;
         const ushort deletedFlag = (ushort)FileRecordFlags.Deleted;
         var mayBeSuperseded = !delta.HasNoBaseChanges;
+        var categoryNeedsName = category is not (SearchCategoryFilter.All or SearchCategoryFilter.Folder);
+        var categoryAdmitsDir = category == SearchCategoryFilter.Folder;
+        // Filename patterns only restrict files. A folder-only search needs flags, never name decoding.
+        if (categoryAdmitsDir) fileNamePatterns = null;
+        var needsName = categoryNeedsName || fileNamePatterns != null;
 
         if (matchAll)
         {
@@ -295,10 +301,14 @@ internal static class NameSearch
                 var utf8 = snapshot.UniqueNameUtf8(uid);
                 if (utf8.Length == 0)
                     continue;
-                if (fileNamePatterns != null
-                    && !FilterPatternHelper.Matches(snapshot.GetUniqueName(uid), fileNamePatterns)
-                    && !SearchMatcher.HasDirectoryRow(snapshot, uid))
+                var name = needsName ? snapshot.GetUniqueName(uid) : null;
+                var fileScopeAdmits = fileNamePatterns == null || FilterPatternHelper.Matches(name!, fileNamePatterns);
+                if (!fileScopeAdmits && !SearchMatcher.HasDirectoryRow(snapshot, uid))
                     continue;
+                // Category and filename-pattern tests depend on the unique NAME, not the row. A broad name
+                // can fan out through many hard-link rows, so classify once and reuse the answer.
+                var categoryAdmitsFile = categoryNeedsName &&
+                    SearchCategoryClassifier.Matches(category, name, isDirectory: false);
                 var sortKey = MatchAllSortKey(snapshot, uid, worker, utf8);
                 foreach (var row in snapshot.RowsForUid(uid))
                 {
@@ -306,9 +316,11 @@ internal static class NameSearch
                         continue;
                     if (membership != null && !RowMatchesFilter(snapshot, delta, row, ctx, membership))
                         continue;
-                    if (!MatchesFileScope(snapshot, delta, row, fileNamePatterns))
+                    var isDirectory = (flags[row] & (ushort)FileRecordFlags.Directory) != 0;
+                    if (!isDirectory && !fileScopeAdmits)
                         continue;
-                    if (!CategoryAdmits(category, snapshot, delta, row))
+                    if (category != SearchCategoryFilter.All &&
+                        !(isDirectory ? categoryAdmitsDir : categoryAdmitsFile))
                         continue;
                     topN.Add(new FzfRank(row, 0, sortKey));
                 }
@@ -322,15 +334,22 @@ internal static class NameSearch
             SearchMatcher.MatchUniques(snapshot, pattern, hits, token, fileNamePatterns);
             foreach (var m in hits)
             {
+                var name = needsName ? snapshot.GetUniqueName(m.Uid) : null;
+                var categoryAdmitsFile = categoryNeedsName &&
+                    SearchCategoryClassifier.Matches(category, name, isDirectory: false);
+                var fileScopeAdmits = fileNamePatterns == null ||
+                    FilterPatternHelper.Matches(name!, fileNamePatterns);
                 foreach (var row in snapshot.RowsForUid(m.Uid))
                 {
                     if ((flags[row] & deletedFlag) != 0 || (mayBeSuperseded && delta.IsSuperseded(row)))
                         continue;
                     if (membership != null && !RowMatchesFilter(snapshot, delta, row, ctx, membership))
                         continue;
-                    if (!MatchesFileScope(snapshot, delta, row, fileNamePatterns))
+                    var isDirectory = (flags[row] & (ushort)FileRecordFlags.Directory) != 0;
+                    if (!isDirectory && !fileScopeAdmits)
                         continue;
-                    if (!CategoryAdmits(category, snapshot, delta, row))
+                    if (category != SearchCategoryFilter.All &&
+                        !(isDirectory ? categoryAdmitsDir : categoryAdmitsFile))
                         continue;
                     // The per-unique sort key applies verbatim to every row of that unique --
                     // EntryIndex isn't packed into the key, so nothing is recomputed per row.
@@ -339,42 +358,9 @@ internal static class NameSearch
             }
         }
 
-        MatchDeltaRows(snapshot, delta, pattern, matchAll, ctx, topN, fileNamePatterns);
+        MatchDeltaRows(snapshot, delta, pattern, matchAll, ctx, topN, fileNamePatterns, category);
         return rentHits;
     }
-
-    // The engine-side category test. Applied per row inside the collection loops, not to the finished list:
-    // the point is to keep rows out of the ranking budget, so the budget is spent on the category the caller
-    // asked for rather than on every kind competing for the same slots.
-    //
-    // Only the NAME is at hand here -- rebuilding a row's path would mean walking its parent chain once per
-    // candidate -- so the classifier is deliberately name-safe. Two ceilings follow from that and are
-    // accepted on purpose: a shortcut is admitted under every category because only the caller can resolve
-    // its target, and a path-mode query (parsed.IsPathMode, which never reaches this loop) carries no
-    // category at all -- exactly like fileNameFilter, which path mode ignores for the same reason. The
-    // caller's own classification is what the list shows either way.
-    private static bool CategoryAdmits(SearchCategoryFilter category, Snapshot snapshot, DeltaOverlay delta, int row)
-    {
-        if (category == SearchCategoryFilter.All)
-            return true;
-
-        // Classify answers Folder for any directory without reading the name, so evaluating NameOf for a
-        // row that is about to be filed by its kind alone allocates a string for nothing. That is one
-        // allocation per matched row, which a single-character query multiplies across the whole index.
-        if (category == SearchCategoryFilter.Folder)
-            return IsDirectory(snapshot, delta, row);
-
-        return SearchCategoryClassifier.Matches(category, delta.NameOf(row), IsDirectory(snapshot, delta, row));
-    }
-
-    private static bool MatchesFileScope(Snapshot snapshot, DeltaOverlay delta, int row, string[]? patterns)
-        => patterns == null || IsDirectory(snapshot, delta, row) || FilterPatternHelper.Matches(delta.NameOf(row), patterns);
-    private static bool IsDirectory(Snapshot snapshot, DeltaOverlay delta, int row)
-        // Overrides only exist for the handful of rows a live batch touched; asking the dictionary first
-        // costs a hash lookup on every row of a broad query before the common answer is known.
-        => !delta.HasNoBaseChanges && delta.BaseOverrides.TryGetValue(row, out var record)
-            ? (record.Flags & (ushort)FileRecordFlags.Directory) != 0
-            : snapshot.IsDirectory(row);
 
     private static bool MatchesFileScope(string name, ushort flags, string[]? patterns)
         => patterns == null || (flags & (ushort)FileRecordFlags.Directory) != 0 || FilterPatternHelper.Matches(name, patterns);
@@ -392,7 +378,8 @@ internal static class NameSearch
     // Delta churn is always small (live USN/watcher batches, not bulk scans), so both loops just check
     // the row's own full path against the filter prefix -- correct for renamed/moved/added rows alike,
     // unlike the row-index ancestor cache above (a snapshot-only optimization for the hot base-row path).
-    private static void MatchDeltaRows(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, bool matchAll, DirectoryContext ctx, FzfTopN topN, string[]? fileNamePatterns)
+    private static void MatchDeltaRows(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, bool matchAll, DirectoryContext ctx,
+        FzfTopN topN, string[]? fileNamePatterns, SearchCategoryFilter category)
     {
         var slab = new FzfSlab();
         var queryLen = pattern.GetTotalTermLength();
@@ -400,6 +387,9 @@ internal static class NameSearch
         foreach (var (row, record) in delta.BaseOverrides)
         {
             if (record.Name.Length == 0)
+                continue;
+            var isDirectory = (record.Flags & (ushort)FileRecordFlags.Directory) != 0;
+            if (category == SearchCategoryFilter.Folder ? !isDirectory : !SearchCategoryClassifier.Matches(category, record.Name, isDirectory))
                 continue;
             if (!MatchesFileScope(record.Name, record.Flags, fileNamePatterns))
                 continue;
@@ -414,6 +404,9 @@ internal static class NameSearch
         {
             var record = delta.Added[i];
             if (record.Removed || record.Name.Length == 0)
+                continue;
+            var isDirectory = (record.Flags & (ushort)FileRecordFlags.Directory) != 0;
+            if (category == SearchCategoryFilter.Folder ? !isDirectory : !SearchCategoryClassifier.Matches(category, record.Name, isDirectory))
                 continue;
             if (!MatchesFileScope(record.Name, record.Flags, fileNamePatterns))
                 continue;
