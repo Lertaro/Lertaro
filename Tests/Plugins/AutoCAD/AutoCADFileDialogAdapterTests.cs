@@ -38,6 +38,8 @@ public sealed class AutoCADFileDialogAdapterTests
     {
         var adapter = new AutoCADFileDialogAdapter();
 
+        // Unlike the archive-tool adapters, whose destination field can only hold a folder, this one is an
+        // Open/Save file-name box: a picked file must arrive as that file, not as its parent folder.
         Assert.IsFalse(adapter.TargetIsFolderOnly);
         Assert.IsInstanceOfType<IFileDialogAdapter>(adapter);
         Assert.IsFalse(string.IsNullOrWhiteSpace(adapter.Name));

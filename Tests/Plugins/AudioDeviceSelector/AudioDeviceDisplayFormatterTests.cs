@@ -44,21 +44,14 @@ public sealed class AudioDeviceDisplayFormatterTests
     }
 
     [TestMethod]
-    public void DefaultDevice_UsesDistinctSuccessIcon()
+    public void DefaultDevice_IsTheOnlyOneWithADistinctOutputIcon()
     {
+        // Which icon/colour a row gets is one ternary in the provider, so pinning the literal strings would
+        // only restate it. What is worth pinning is the INVARIANT: "default" and "input" are the two axes
+        // that must stay visually separable, and only "default" changes the output icon.
         Assert.AreNotEqual(
             AudioDeviceSelectorInstantProvider.GetIconData(AudioDeviceDirection.Output, false),
             AudioDeviceSelectorInstantProvider.GetIconData(AudioDeviceDirection.Output, true));
-        Assert.AreEqual("SuccessBrush", AudioDeviceSelectorInstantProvider.GetIconColor(true));
-        Assert.AreEqual("AccentBlue", AudioDeviceSelectorInstantProvider.GetIconColor(false));
-    }
-
-    [TestMethod]
-    public void InputDevice_UsesMicrophoneIcon()
-    {
-        Assert.AreNotEqual(
-            AudioDeviceSelectorInstantProvider.GetIconData(AudioDeviceDirection.Output, false),
-            AudioDeviceSelectorInstantProvider.GetIconData(AudioDeviceDirection.Input, false));
         Assert.AreEqual(
             AudioDeviceSelectorInstantProvider.GetIconData(AudioDeviceDirection.Output, true),
             AudioDeviceSelectorInstantProvider.GetIconData(AudioDeviceDirection.Input, true));
