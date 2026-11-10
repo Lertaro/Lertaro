@@ -11,6 +11,7 @@
 | [pitfalls.md](pitfalls.md) | 取证、验证、构建与维护经验 |
 | [search-grammar.md](search-grammar.md) | 当前语法边界与解析层职责 |
 | [search-regex-incremental-audit.md](search-regex-incremental-audit.md) | regex 分支相对 main 的增量审计、语法缺口与 rebase 验证；样本见配套 JSON |
+| [search-regex-fixes.md](search-regex-fixes.md) | R1–R8 修复方案、前后对照与 8,000 行展示上限的实测证据；样本见配套 JSON |
 | [search-ranking.md](search-ranking.md) | V3 排序、候选合并与历史反馈 |
 | [search-performance.md](search-performance.md) | 11 月 10 日测量结论、复现入口与剩余限制 |
 | [pinyin-matching.md](pinyin-matching.md) | 拼音规则、别名精度与匹配证据复用 |

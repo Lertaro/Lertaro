@@ -1,0 +1,3268 @@
+{
+  "date": "2026-11-10",
+  "baselineCommit": "0a87b10f",
+  "main": "5f735e70",
+  "environment": {
+    "os": "Windows-11-10.0.26300-SP0",
+    "sdk": "10.0.403",
+    "configuration": "Release",
+    "tieredCompilation": false
+  },
+  "protocol": "Saved audited binaries vs current binaries; alternating process order in 3 rounds; no concurrent tests during measurement. Index: 60,000 rows, limit 204, 3 warmups, 10 samples/run. Highlight: 100 warmups, 10 samples/run, 1,000 masks/sample. Index allocation per query; highlight allocation per 10,000 masks. Accumulator: 1,000 arrivals/batch, 2 warmups, 5 samples/run. Allocations include creation of incoming rows.",
+  "hashes": {
+    "before/core/Lertaro.Core.dll": "f2761d42fa13617d6e9b8992ee24c14f4d418bb5129d7800372f8f0188d94fb1",
+    "before/app/Lertaro.Core.dll": "f2761d42fa13617d6e9b8992ee24c14f4d418bb5129d7800372f8f0188d94fb1",
+    "before/app/Lertaro.App.dll": "7db3feb7efc1e212b70619bf82254692f8a518be3833c6777475b9340ef74725",
+    "before/app/Lertaro.Plugins.CoreExtensions.dll": "5b29424cafe0cdb9d27737b6d6b9acbba26e875cc9830fe6732e09a5e5dc4b48",
+    "after/core/Lertaro.Core.dll": "9dfd16548cc98aa688337fe2e8a2a6cbb7997b2138f2732d30dc7a59ed5e5dea",
+    "after/app/Lertaro.Core.dll": "9dfd16548cc98aa688337fe2e8a2a6cbb7997b2138f2732d30dc7a59ed5e5dea",
+    "after/app/Lertaro.App.dll": "e187a356ad9b2acfa256d487062354d76fe1427357d4421c1bfc7382f3d028ea",
+    "after/app/Lertaro.Plugins.CoreExtensions.dll": "c2ac8bf738a12727707e023eb4ed0556736bd916ddb0254b3e014a99428a05ec"
+  },
+  "summary": [
+    {
+      "kind": "index",
+      "query": "report",
+      "side": "before",
+      "samples": 30,
+      "medianMs": 3.2128500000000004,
+      "p95Ms": 7.084,
+      "allocatedBytes": 2077014.4
+    },
+    {
+      "kind": "index",
+      "query": "report",
+      "side": "after",
+      "samples": 30,
+      "medianMs": 3.3127,
+      "p95Ms": 6.9706,
+      "allocatedBytes": 2057342.4
+    },
+    {
+      "kind": "index",
+      "query": "rprt",
+      "side": "before",
+      "samples": 30,
+      "medianMs": 5.2824,
+      "p95Ms": 6.8185,
+      "allocatedBytes": 2660227.2
+    },
+    {
+      "kind": "index",
+      "query": "rprt",
+      "side": "after",
+      "samples": 30,
+      "medianMs": 5.4895,
+      "p95Ms": 6.5743,
+      "allocatedBytes": 2607385.6
+    },
+    {
+      "kind": "index",
+      "query": "archive report",
+      "side": "before",
+      "samples": 30,
+      "medianMs": 1.75555,
+      "p95Ms": 2.5667,
+      "allocatedBytes": 1421828.0
+    },
+    {
+      "kind": "index",
+      "query": "archive report",
+      "side": "after",
+      "samples": 30,
+      "medianMs": 1.7496999999999998,
+      "p95Ms": 2.8039,
+      "allocatedBytes": 1394576.0
+    },
+    {
+      "kind": "index",
+      "query": "/report/",
+      "side": "before",
+      "samples": 30,
+      "medianMs": 5.18205,
+      "p95Ms": 6.1027,
+      "allocatedBytes": 4932249.6
+    },
+    {
+      "kind": "index",
+      "query": "/report/",
+      "side": "after",
+      "samples": 30,
+      "medianMs": 5.61095,
+      "p95Ms": 6.4811,
+      "allocatedBytes": 4986341.6
+    },
+    {
+      "kind": "index",
+      "query": "/report.*\\.txt$/",
+      "side": "before",
+      "samples": 30,
+      "medianMs": 5.3379,
+      "p95Ms": 6.2461,
+      "allocatedBytes": 5005142.4
+    },
+    {
+      "kind": "index",
+      "query": "/report.*\\.txt$/",
+      "side": "after",
+      "samples": 30,
+      "medianMs": 5.614850000000001,
+      "p95Ms": 5.9692,
+      "allocatedBytes": 4925289.6
+    },
+    {
+      "kind": "index",
+      "query": "report /\\.txt$/",
+      "side": "before",
+      "samples": 30,
+      "medianMs": 8.8356,
+      "p95Ms": 9.7739,
+      "allocatedBytes": 7283355.2
+    },
+    {
+      "kind": "index",
+      "query": "report /\\.txt$/",
+      "side": "after",
+      "samples": 30,
+      "medianMs": 8.87845,
+      "p95Ms": 9.84,
+      "allocatedBytes": 7332649.6
+    },
+    {
+      "kind": "index",
+      "query": "/.*[0-9]/",
+      "side": "before",
+      "samples": 30,
+      "medianMs": 31.0711,
+      "p95Ms": 32.4038,
+      "allocatedBytes": 39795486.4
+    },
+    {
+      "kind": "index",
+      "query": "/.*[0-9]/",
+      "side": "after",
+      "samples": 30,
+      "medianMs": 30.8559,
+      "p95Ms": 33.4977,
+      "allocatedBytes": 40257948.0
+    },
+    {
+      "kind": "highlight",
+      "query": "report",
+      "side": "before",
+      "samples": 30,
+      "medianMs": 0.3166,
+      "p95Ms": 1.9191,
+      "allocatedBytes": 960872.0
+    },
+    {
+      "kind": "highlight",
+      "query": "report",
+      "side": "after",
+      "samples": 30,
+      "medianMs": 0.3055,
+      "p95Ms": 1.6249,
+      "allocatedBytes": 960872.0
+    },
+    {
+      "kind": "highlight",
+      "query": "report /\\.txt$/",
+      "side": "before",
+      "samples": 30,
+      "medianMs": 1.9697,
+      "p95Ms": 3.9608,
+      "allocatedBytes": 13365992.0
+    },
+    {
+      "kind": "highlight",
+      "query": "report /\\.txt$/",
+      "side": "after",
+      "samples": 30,
+      "medianMs": 0.7402,
+      "p95Ms": 0.8188,
+      "allocatedBytes": 1440784.0
+    },
+    {
+      "kind": "highlight",
+      "query": "/report.*\\.txt$/",
+      "side": "before",
+      "samples": 30,
+      "medianMs": 1.69775,
+      "p95Ms": 2.2976,
+      "allocatedBytes": 13288672.0
+    },
+    {
+      "kind": "highlight",
+      "query": "/report.*\\.txt$/",
+      "side": "after",
+      "samples": 30,
+      "medianMs": 0.5479499999999999,
+      "p95Ms": 0.5894,
+      "allocatedBytes": 960784.0
+    },
+    {
+      "kind": "timeout-budget",
+      "query": "",
+      "side": "before",
+      "samples": 3,
+      "medianMs": 1005.5271,
+      "p95Ms": 1012.3107,
+      "allocatedBytes": null
+    },
+    {
+      "kind": "timeout-budget",
+      "query": "",
+      "side": "after",
+      "samples": 3,
+      "medianMs": 261.7315,
+      "p95Ms": 265.3238,
+      "allocatedBytes": null
+    }
+  ],
+  "samples": [
+    {
+      "kind": "index",
+      "query": "report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        3.4518,
+        3.1876,
+        3.0646,
+        7.6248,
+        3.1836,
+        3.1461,
+        3.4938,
+        3.0416,
+        2.9985,
+        2.982
+      ],
+      "allocatedBytes": 20770144,
+      "count": 204,
+      "side": "before",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "rprt",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        6.257,
+        6.6925,
+        15.7613,
+        6.8185,
+        5.3138,
+        5.0565,
+        6.1853,
+        5.251,
+        6.4012,
+        6.2649
+      ],
+      "allocatedBytes": 26602272,
+      "count": 204,
+      "side": "before",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "archive report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        2.2677,
+        1.3651,
+        1.3628,
+        1.3895,
+        2.0725,
+        1.3063,
+        1.3539,
+        1.3412,
+        2.2245,
+        1.6261
+      ],
+      "allocatedBytes": 14218280,
+      "count": 204,
+      "side": "before",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "/report/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        5.4319,
+        5.7371,
+        4.2313,
+        6.1027,
+        4.2558,
+        5.0205,
+        5.454,
+        4.2015,
+        5.1515,
+        5.8952
+      ],
+      "allocatedBytes": 50851944,
+      "count": 204,
+      "side": "before",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "/report.*\\.txt$/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        5.2681,
+        5.887,
+        4.2844,
+        5.2899,
+        5.6233,
+        4.3974,
+        6.3934,
+        4.6144,
+        5.1126,
+        5.618
+      ],
+      "allocatedBytes": 50713464,
+      "count": 204,
+      "side": "before",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "report /\\.txt$/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        8.4305,
+        9.1045,
+        9.5016,
+        8.4944,
+        9.7202,
+        8.4107,
+        8.3358,
+        9.4845,
+        8.3219,
+        8.0978
+      ],
+      "allocatedBytes": 74562880,
+      "count": 204,
+      "side": "before",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "/.*[0-9]/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        31.3436,
+        31.0963,
+        18.0554,
+        30.3341,
+        30.9844,
+        30.6821,
+        32.4593,
+        30.3612,
+        16.1011,
+        31.7159
+      ],
+      "allocatedBytes": 392434128,
+      "count": 204,
+      "side": "before",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "live-drive",
+      "query": "z: report",
+      "live": 0,
+      "index": 204,
+      "side": "before",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "timeout-budget",
+      "candidates": 4,
+      "elapsedMs": 1012.3107,
+      "side": "before",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "literal-normalization",
+      "query": "/^Ａ$/",
+      "name": "A",
+      "oracle": false,
+      "actual": true,
+      "side": "before",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "literal-normalization",
+      "query": "/\\uFF21/",
+      "name": "Ａ",
+      "oracle": true,
+      "actual": false,
+      "side": "before",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "rebase-filter-regression",
+      "count": 0,
+      "side": "before",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "evicted-dispose",
+      "completedOnReturn": false,
+      "disposeMs": 154.0025,
+      "side": "before",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        3.3274,
+        3.2099,
+        3.2023,
+        6.803,
+        3.4274,
+        3.2158,
+        3.6713,
+        3.3312,
+        3.5165,
+        3.0963
+      ],
+      "allocatedBytes": 20481112,
+      "count": 204,
+      "side": "before",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "rprt",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        6.0293,
+        5.2133,
+        5.0149,
+        6.4942,
+        5.1534,
+        4.8982,
+        6.553,
+        4.9508,
+        4.893,
+        6.1285
+      ],
+      "allocatedBytes": 26021616,
+      "count": 204,
+      "side": "before",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "archive report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        1.8955,
+        1.9358,
+        2.6202,
+        2.3728,
+        2.4149,
+        2.5667,
+        1.9369,
+        1.885,
+        2.4426,
+        1.9778
+      ],
+      "allocatedBytes": 15370720,
+      "count": 204,
+      "side": "before",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "/report/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        5.2323,
+        5.592,
+        4.7888,
+        4.4321,
+        6.1278,
+        4.2697,
+        5.3453,
+        5.4488,
+        4.3153,
+        5.3068
+      ],
+      "allocatedBytes": 44935144,
+      "count": 204,
+      "side": "before",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "/report.*\\.txt$/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        5.7697,
+        4.6719,
+        5.7273,
+        5.7861,
+        4.491,
+        5.4666,
+        5.7305,
+        4.4909,
+        5.3859,
+        6.1976
+      ],
+      "allocatedBytes": 45580712,
+      "count": 204,
+      "side": "before",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "report /\\.txt$/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        9.4104,
+        9.2704,
+        9.0346,
+        8.8497,
+        8.8296,
+        9.5574,
+        8.524,
+        9.6777,
+        9.1711,
+        8.7775
+      ],
+      "allocatedBytes": 67735536,
+      "count": 204,
+      "side": "before",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "/.*[0-9]/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        31.1921,
+        31.187,
+        32.3071,
+        30.9927,
+        31.2576,
+        32.4038,
+        30.7822,
+        31.2027,
+        30.3625,
+        31.0459
+      ],
+      "allocatedBytes": 403527192,
+      "count": 204,
+      "side": "before",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "live-drive",
+      "query": "z: report",
+      "live": 0,
+      "index": 204,
+      "side": "before",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "timeout-budget",
+      "candidates": 4,
+      "elapsedMs": 1005.5271,
+      "side": "before",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "literal-normalization",
+      "query": "/^Ａ$/",
+      "name": "A",
+      "oracle": false,
+      "actual": true,
+      "side": "before",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "literal-normalization",
+      "query": "/\\uFF21/",
+      "name": "Ａ",
+      "oracle": true,
+      "actual": false,
+      "side": "before",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "rebase-filter-regression",
+      "count": 0,
+      "side": "before",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "evicted-dispose",
+      "completedOnReturn": false,
+      "disposeMs": 164.0533,
+      "side": "before",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        3.1619,
+        3.3113,
+        3.1561,
+        7.084,
+        3.1007,
+        3.2863,
+        4.0659,
+        2.8538,
+        2.8908,
+        3.6752
+      ],
+      "allocatedBytes": 21191120,
+      "count": 204,
+      "side": "before",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "rprt",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        4.8744,
+        5.0857,
+        5.8989,
+        4.8475,
+        4.8329,
+        5.8117,
+        5.0045,
+        5.0807,
+        5.9233,
+        4.8216
+      ],
+      "allocatedBytes": 26766112,
+      "count": 204,
+      "side": "before",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "archive report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        1.4165,
+        1.3616,
+        2.0783,
+        1.453,
+        1.3298,
+        1.4121,
+        2.2916,
+        1.4911,
+        1.3112,
+        1.3042
+      ],
+      "allocatedBytes": 14216616,
+      "count": 204,
+      "side": "before",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "/report/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        4.1443,
+        4.8966,
+        5.3566,
+        4.1455,
+        5.1778,
+        5.4073,
+        4.3156,
+        5.1863,
+        5.5734,
+        4.9588
+      ],
+      "allocatedBytes": 49322496,
+      "count": 204,
+      "side": "before",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "/report.*\\.txt$/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        5.4489,
+        4.2499,
+        5.1769,
+        5.7381,
+        4.6028,
+        6.2461,
+        4.3042,
+        5.2376,
+        5.4259,
+        4.2624
+      ],
+      "allocatedBytes": 50051424,
+      "count": 204,
+      "side": "before",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "report /\\.txt$/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        9.7739,
+        8.2693,
+        8.4882,
+        8.6304,
+        8.0731,
+        8.5287,
+        13.5333,
+        8.8416,
+        8.2296,
+        9.1702
+      ],
+      "allocatedBytes": 72833552,
+      "count": 204,
+      "side": "before",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "/.*[0-9]/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        31.5487,
+        31.6556,
+        30.3048,
+        31.3501,
+        30.6023,
+        30.5492,
+        31.6436,
+        31.0032,
+        30.1961,
+        31.6092
+      ],
+      "allocatedBytes": 397954864,
+      "count": 204,
+      "side": "before",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "live-drive",
+      "query": "z: report",
+      "live": 0,
+      "index": 204,
+      "side": "before",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "timeout-budget",
+      "candidates": 4,
+      "elapsedMs": 993.2361,
+      "side": "before",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "literal-normalization",
+      "query": "/^Ａ$/",
+      "name": "A",
+      "oracle": false,
+      "actual": true,
+      "side": "before",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "literal-normalization",
+      "query": "/\\uFF21/",
+      "name": "Ａ",
+      "oracle": true,
+      "actual": false,
+      "side": "before",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "rebase-filter-regression",
+      "count": 0,
+      "side": "before",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "evicted-dispose",
+      "completedOnReturn": false,
+      "disposeMs": 158.9299,
+      "side": "before",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "highlight",
+      "query": "report",
+      "iterations": 10000,
+      "elapsedMs": [
+        1.6156,
+        0.3189,
+        0.3097,
+        0.3194,
+        0.3125,
+        0.3121,
+        0.3109,
+        0.3115,
+        0.3145,
+        0.3199
+      ],
+      "allocatedBytes": 960872,
+      "marked": 60000,
+      "side": "before",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "highlight",
+      "query": "report /\\.txt$/",
+      "iterations": 10000,
+      "elapsedMs": [
+        1.9876,
+        1.9922,
+        4.0844,
+        1.6443,
+        1.6213,
+        1.603,
+        2.1287,
+        2.7969,
+        1.5505,
+        1.5524
+      ],
+      "allocatedBytes": 13365992,
+      "marked": 100000,
+      "side": "before",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "highlight",
+      "query": "/report.*\\.txt$/",
+      "iterations": 10000,
+      "elapsedMs": [
+        2.0028,
+        2.2947,
+        1.6732,
+        1.4787,
+        1.4904,
+        1.5437,
+        2.0143,
+        1.4845,
+        1.7855,
+        1.4964
+      ],
+      "allocatedBytes": 13288672,
+      "marked": 100000,
+      "side": "before",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "catalog-name-clause",
+      "title": "blocked.txt",
+      "alias": "report.pdf",
+      "query": "report /\\.pdf$/",
+      "match": true,
+      "field": "CuratedAlias",
+      "side": "before",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "catalog-name-clause",
+      "title": "temp target",
+      "alias": "report",
+      "query": "report :temp",
+      "match": true,
+      "field": "CuratedAlias",
+      "side": "before",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "path-cap-order",
+      "count": 8000,
+      "bestPresent": false,
+      "exceeded": true,
+      "side": "before",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "49.1.1",
+      "year": 2049,
+      "side": "before",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "50.1.1",
+      "year": 2050,
+      "side": "before",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "99.1.1",
+      "year": 2099,
+      "side": "before",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "invalid-threshold",
+      "token": "<s>garbage",
+      "claimed": true,
+      "names": [
+        "dir",
+        "file"
+      ],
+      "side": "before",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "invalid-threshold",
+      "token": "<f>wrong",
+      "claimed": true,
+      "names": [
+        "file"
+      ],
+      "side": "before",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "highlight",
+      "query": "report",
+      "iterations": 10000,
+      "elapsedMs": [
+        1.9191,
+        0.3212,
+        0.3105,
+        0.312,
+        0.3126,
+        0.3206,
+        0.3113,
+        0.3117,
+        0.315,
+        0.3114
+      ],
+      "allocatedBytes": 960872,
+      "marked": 60000,
+      "side": "before",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "highlight",
+      "query": "report /\\.txt$/",
+      "iterations": 10000,
+      "elapsedMs": [
+        2.23,
+        2.2353,
+        3.9516,
+        1.9518,
+        1.7841,
+        1.7618,
+        1.9992,
+        2.9713,
+        1.7683,
+        1.7916
+      ],
+      "allocatedBytes": 13365992,
+      "marked": 100000,
+      "side": "before",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "highlight",
+      "query": "/report.*\\.txt$/",
+      "iterations": 10000,
+      "elapsedMs": [
+        1.7743,
+        1.671,
+        2.2976,
+        1.6948,
+        1.8013,
+        1.6659,
+        2.1647,
+        1.6193,
+        1.6057,
+        1.7007
+      ],
+      "allocatedBytes": 13288672,
+      "marked": 100000,
+      "side": "before",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "catalog-name-clause",
+      "title": "blocked.txt",
+      "alias": "report.pdf",
+      "query": "report /\\.pdf$/",
+      "match": true,
+      "field": "CuratedAlias",
+      "side": "before",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "catalog-name-clause",
+      "title": "temp target",
+      "alias": "report",
+      "query": "report :temp",
+      "match": true,
+      "field": "CuratedAlias",
+      "side": "before",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "path-cap-order",
+      "count": 8000,
+      "bestPresent": false,
+      "exceeded": true,
+      "side": "before",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "49.1.1",
+      "year": 2049,
+      "side": "before",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "50.1.1",
+      "year": 2050,
+      "side": "before",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "99.1.1",
+      "year": 2099,
+      "side": "before",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "invalid-threshold",
+      "token": "<s>garbage",
+      "claimed": true,
+      "names": [
+        "dir",
+        "file"
+      ],
+      "side": "before",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "invalid-threshold",
+      "token": "<f>wrong",
+      "claimed": true,
+      "names": [
+        "file"
+      ],
+      "side": "before",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "highlight",
+      "query": "report",
+      "iterations": 10000,
+      "elapsedMs": [
+        2.3797,
+        0.3372,
+        0.338,
+        0.3232,
+        0.3182,
+        0.3134,
+        0.3109,
+        0.3211,
+        0.3258,
+        0.3265
+      ],
+      "allocatedBytes": 960872,
+      "marked": 60000,
+      "side": "before",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "highlight",
+      "query": "report /\\.txt$/",
+      "iterations": 10000,
+      "elapsedMs": [
+        3.3255,
+        3.0719,
+        3.9608,
+        1.7674,
+        3.0061,
+        1.7552,
+        1.7524,
+        3.056,
+        1.8056,
+        1.7893
+      ],
+      "allocatedBytes": 13365992,
+      "marked": 100000,
+      "side": "before",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "highlight",
+      "query": "/report.*\\.txt$/",
+      "iterations": 10000,
+      "elapsedMs": [
+        1.9986,
+        1.7298,
+        2.3448,
+        1.6156,
+        1.6224,
+        1.6855,
+        2.0961,
+        1.6025,
+        2.2347,
+        2.0211
+      ],
+      "allocatedBytes": 13288672,
+      "marked": 100000,
+      "side": "before",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "catalog-name-clause",
+      "title": "blocked.txt",
+      "alias": "report.pdf",
+      "query": "report /\\.pdf$/",
+      "match": true,
+      "field": "CuratedAlias",
+      "side": "before",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "catalog-name-clause",
+      "title": "temp target",
+      "alias": "report",
+      "query": "report :temp",
+      "match": true,
+      "field": "CuratedAlias",
+      "side": "before",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "path-cap-order",
+      "count": 8000,
+      "bestPresent": false,
+      "exceeded": true,
+      "side": "before",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "49.1.1",
+      "year": 2049,
+      "side": "before",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "50.1.1",
+      "year": 2050,
+      "side": "before",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "99.1.1",
+      "year": 2099,
+      "side": "before",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "invalid-threshold",
+      "token": "<s>garbage",
+      "claimed": true,
+      "names": [
+        "dir",
+        "file"
+      ],
+      "side": "before",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "invalid-threshold",
+      "token": "<f>wrong",
+      "claimed": true,
+      "names": [
+        "file"
+      ],
+      "side": "before",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "index",
+      "query": "report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        3.4932,
+        3.1761,
+        3.126,
+        6.9706,
+        3.1949,
+        3.19,
+        3.4645,
+        3.5416,
+        3.2828,
+        3.0393
+      ],
+      "allocatedBytes": 20692048,
+      "count": 204,
+      "side": "after",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "rprt",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        5.9096,
+        6.5385,
+        4.9742,
+        5.8253,
+        6.5023,
+        5.1012,
+        6.0013,
+        5.0615,
+        4.9445,
+        5.9637
+      ],
+      "allocatedBytes": 25947472,
+      "count": 204,
+      "side": "after",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "archive report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        1.9043,
+        1.9069,
+        2.766,
+        2.0012,
+        1.8656,
+        2.488,
+        2.3185,
+        2.2372,
+        1.9575,
+        3.321
+      ],
+      "allocatedBytes": 15087528,
+      "count": 204,
+      "side": "after",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "/report/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        5.3074,
+        5.9311,
+        5.8036,
+        4.592,
+        6.1384,
+        6.0468,
+        4.7163,
+        6.2066,
+        5.8432,
+        4.9925
+      ],
+      "allocatedBytes": 45966840,
+      "count": 204,
+      "side": "after",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "/report.*\\.txt$/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        5.8442,
+        5.8557,
+        4.858,
+        5.7114,
+        6.0774,
+        4.9373,
+        5.7885,
+        5.9298,
+        4.696,
+        5.7954
+      ],
+      "allocatedBytes": 46465368,
+      "count": 204,
+      "side": "after",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "report /\\.txt$/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        9.397,
+        8.8566,
+        8.9003,
+        9.84,
+        8.8512,
+        9.2559,
+        9.4982,
+        9.0086,
+        9.4249,
+        9.3371
+      ],
+      "allocatedBytes": 67064688,
+      "count": 204,
+      "side": "after",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "/.*[0-9]/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        30.7384,
+        30.7973,
+        30.8061,
+        31.0175,
+        30.7751,
+        31.2131,
+        33.4102,
+        29.8075,
+        32.2386,
+        31.452
+      ],
+      "allocatedBytes": 402579480,
+      "count": 204,
+      "side": "after",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "live-drive",
+      "query": "z: report",
+      "live": 1,
+      "index": 204,
+      "side": "after",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "timeout-budget",
+      "candidates": 4,
+      "failures": 4,
+      "elapsedMs": 265.3238,
+      "side": "after",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "rebase-filter-regression",
+      "count": 0,
+      "side": "after",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "evicted-dispose",
+      "completedOnReturn": true,
+      "disposeMs": 153.0023,
+      "side": "after",
+      "run": 1,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        3.185,
+        3.6467,
+        3.1482,
+        6.9127,
+        3.4221,
+        3.2475,
+        3.802,
+        3.5517,
+        3.0831,
+        3.4229
+      ],
+      "allocatedBytes": 20573424,
+      "count": 204,
+      "side": "after",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "rprt",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        6.1285,
+        5.693,
+        5.0443,
+        6.2043,
+        5.286,
+        5.028,
+        6.1758,
+        5.1878,
+        5.0487,
+        6.2204
+      ],
+      "allocatedBytes": 26360640,
+      "count": 204,
+      "side": "after",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "archive report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        1.4364,
+        1.6338,
+        1.3626,
+        2.0106,
+        1.4412,
+        1.4091,
+        1.4115,
+        2.1012,
+        1.4262,
+        1.286
+      ],
+      "allocatedBytes": 13945760,
+      "count": 204,
+      "side": "after",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "/report/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        4.6699,
+        6.1425,
+        4.631,
+        6.4811,
+        4.5647,
+        5.4179,
+        5.5747,
+        4.4991,
+        5.807,
+        5.6472
+      ],
+      "allocatedBytes": 50231440,
+      "count": 204,
+      "side": "after",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "/report.*\\.txt$/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        5.4705,
+        5.4584,
+        4.2785,
+        5.8441,
+        5.5041,
+        4.2786,
+        5.6454,
+        5.6185,
+        4.3204,
+        5.6731
+      ],
+      "allocatedBytes": 49252896,
+      "count": 204,
+      "side": "after",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "report /\\.txt$/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        9.0041,
+        8.808,
+        10.1463,
+        8.426,
+        8.6785,
+        8.7607,
+        8.3061,
+        8.6887,
+        9.3414,
+        8.4992
+      ],
+      "allocatedBytes": 73676192,
+      "count": 204,
+      "side": "after",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "/.*[0-9]/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        31.0211,
+        31.3905,
+        33.4977,
+        16.311,
+        30.5844,
+        30.8369,
+        29.7243,
+        30.8749,
+        31.1944,
+        32.0704
+      ],
+      "allocatedBytes": 411526400,
+      "count": 204,
+      "side": "after",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "live-drive",
+      "query": "z: report",
+      "live": 1,
+      "index": 204,
+      "side": "after",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "timeout-budget",
+      "candidates": 4,
+      "failures": 4,
+      "elapsedMs": 253.67,
+      "side": "after",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "rebase-filter-regression",
+      "count": 0,
+      "side": "after",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "evicted-dispose",
+      "completedOnReturn": true,
+      "disposeMs": 154.6312,
+      "side": "after",
+      "run": 2,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        3.1985,
+        3.1934,
+        3.1486,
+        7.3533,
+        3.7331,
+        3.3388,
+        3.7604,
+        3.2866,
+        3.1138,
+        3.3788
+      ],
+      "allocatedBytes": 20480696,
+      "count": 204,
+      "side": "after",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "rprt",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        6.6557,
+        5.1553,
+        5.2202,
+        6.5743,
+        5.143,
+        5.2456,
+        6.4442,
+        5.0791,
+        5.1116,
+        6.3974
+      ],
+      "allocatedBytes": 26073856,
+      "count": 204,
+      "side": "after",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "archive report",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        2.8039,
+        1.627,
+        1.6328,
+        1.6091,
+        2.4125,
+        1.5695,
+        1.6033,
+        1.567,
+        1.62,
+        2.1057
+      ],
+      "allocatedBytes": 13118688,
+      "count": 204,
+      "side": "after",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "/report/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        4.4987,
+        6.7993,
+        4.5379,
+        5.3588,
+        5.655,
+        4.6075,
+        5.8573,
+        6.1502,
+        4.4861,
+        5.6572
+      ],
+      "allocatedBytes": 49863416,
+      "count": 204,
+      "side": "after",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "/report.*\\.txt$/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        4.6493,
+        5.3504,
+        5.6112,
+        4.3683,
+        5.6393,
+        5.6932,
+        4.4203,
+        5.9692,
+        5.7692,
+        4.3697
+      ],
+      "allocatedBytes": 50112080,
+      "count": 204,
+      "side": "after",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "report /\\.txt$/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        9.0085,
+        8.2717,
+        8.9111,
+        9.2052,
+        8.1779,
+        9.5529,
+        8.5414,
+        8.5934,
+        8.6548,
+        8.7508
+      ],
+      "allocatedBytes": 73326496,
+      "count": 204,
+      "side": "after",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "index",
+      "query": "/.*[0-9]/",
+      "rows": 60000,
+      "limit": 204,
+      "elapsedMs": [
+        30.3793,
+        32.1826,
+        33.5284,
+        28.2403,
+        30.4119,
+        33.2184,
+        28.6498,
+        20.6027,
+        27.0203,
+        31.0869
+      ],
+      "allocatedBytes": 350109016,
+      "count": 204,
+      "side": "after",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "live-drive",
+      "query": "z: report",
+      "live": 1,
+      "index": 204,
+      "side": "after",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "timeout-budget",
+      "candidates": 4,
+      "failures": 4,
+      "elapsedMs": 261.7315,
+      "side": "after",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "rebase-filter-regression",
+      "count": 0,
+      "side": "after",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "evicted-dispose",
+      "completedOnReturn": true,
+      "disposeMs": 156.8168,
+      "side": "after",
+      "run": 3,
+      "project": "core"
+    },
+    {
+      "kind": "highlight",
+      "query": "report",
+      "iterations": 10000,
+      "elapsedMs": [
+        1.6249,
+        0.3298,
+        0.3012,
+        0.3197,
+        0.2983,
+        0.3543,
+        0.306,
+        0.3086,
+        0.3125,
+        0.3006
+      ],
+      "allocatedBytes": 960872,
+      "marked": 60000,
+      "side": "after",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "highlight",
+      "query": "report /\\.txt$/",
+      "iterations": 10000,
+      "elapsedMs": [
+        0.7476,
+        0.7201,
+        0.7309,
+        0.7025,
+        0.7526,
+        0.7176,
+        0.7156,
+        0.722,
+        0.7137,
+        0.717
+      ],
+      "allocatedBytes": 1440784,
+      "marked": 100000,
+      "side": "after",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "highlight",
+      "query": "/report.*\\.txt$/",
+      "iterations": 10000,
+      "elapsedMs": [
+        0.5789,
+        1.7708,
+        0.5519,
+        0.5349,
+        0.5418,
+        0.5311,
+        0.5395,
+        0.5325,
+        0.5669,
+        0.5375
+      ],
+      "allocatedBytes": 960784,
+      "marked": 100000,
+      "side": "after",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "catalog-name-clause",
+      "title": "blocked.txt",
+      "alias": "report.pdf",
+      "query": "report /\\.pdf$/",
+      "match": false,
+      "field": "LegacyUnknown",
+      "side": "after",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "catalog-name-clause",
+      "title": "temp target",
+      "alias": "report",
+      "query": "report :temp",
+      "match": false,
+      "field": "LegacyUnknown",
+      "side": "after",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "path-cap-order",
+      "candidates": 8001,
+      "count": 8000,
+      "bestPresent": true,
+      "exceeded": true,
+      "side": "after",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "path-cap-tail-filter",
+      "count": 1,
+      "names": [
+        "report-best.txt"
+      ],
+      "exceeded": false,
+      "side": "after",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "49.1.1",
+      "year": 2049,
+      "side": "after",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "50.1.1",
+      "year": 2050,
+      "side": "after",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "99.1.1",
+      "year": 2099,
+      "side": "after",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "invalid-threshold",
+      "token": "<s>garbage",
+      "claimed": false,
+      "names": [],
+      "side": "after",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "invalid-threshold",
+      "token": "<f>wrong",
+      "claimed": false,
+      "names": [],
+      "side": "after",
+      "run": 1,
+      "project": "app"
+    },
+    {
+      "kind": "highlight",
+      "query": "report",
+      "iterations": 10000,
+      "elapsedMs": [
+        1.9993,
+        0.329,
+        0.3052,
+        0.3067,
+        0.2986,
+        0.3147,
+        0.3011,
+        0.3042,
+        0.3212,
+        0.3058
+      ],
+      "allocatedBytes": 960872,
+      "marked": 60000,
+      "side": "after",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "highlight",
+      "query": "report /\\.txt$/",
+      "iterations": 10000,
+      "elapsedMs": [
+        0.7643,
+        0.7175,
+        0.7795,
+        0.7486,
+        0.8188,
+        0.7256,
+        0.7277,
+        0.7324,
+        0.7205,
+        0.7307
+      ],
+      "allocatedBytes": 1440784,
+      "marked": 100000,
+      "side": "after",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "highlight",
+      "query": "/report.*\\.txt$/",
+      "iterations": 10000,
+      "elapsedMs": [
+        0.5894,
+        0.5511,
+        0.5469,
+        0.551,
+        0.5514,
+        0.5407,
+        0.5341,
+        0.5864,
+        0.5597,
+        0.556
+      ],
+      "allocatedBytes": 960784,
+      "marked": 100000,
+      "side": "after",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "catalog-name-clause",
+      "title": "blocked.txt",
+      "alias": "report.pdf",
+      "query": "report /\\.pdf$/",
+      "match": false,
+      "field": "LegacyUnknown",
+      "side": "after",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "catalog-name-clause",
+      "title": "temp target",
+      "alias": "report",
+      "query": "report :temp",
+      "match": false,
+      "field": "LegacyUnknown",
+      "side": "after",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "path-cap-order",
+      "candidates": 8001,
+      "count": 8000,
+      "bestPresent": true,
+      "exceeded": true,
+      "side": "after",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "path-cap-tail-filter",
+      "count": 1,
+      "names": [
+        "report-best.txt"
+      ],
+      "exceeded": false,
+      "side": "after",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "49.1.1",
+      "year": 2049,
+      "side": "after",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "50.1.1",
+      "year": 2050,
+      "side": "after",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "99.1.1",
+      "year": 2099,
+      "side": "after",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "invalid-threshold",
+      "token": "<s>garbage",
+      "claimed": false,
+      "names": [],
+      "side": "after",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "invalid-threshold",
+      "token": "<f>wrong",
+      "claimed": false,
+      "names": [],
+      "side": "after",
+      "run": 2,
+      "project": "app"
+    },
+    {
+      "kind": "highlight",
+      "query": "report",
+      "iterations": 10000,
+      "elapsedMs": [
+        1.617,
+        0.3016,
+        0.2917,
+        0.2949,
+        0.3025,
+        0.2982,
+        0.294,
+        0.2943,
+        0.303,
+        0.3107
+      ],
+      "allocatedBytes": 960872,
+      "marked": 60000,
+      "side": "after",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "highlight",
+      "query": "report /\\.txt$/",
+      "iterations": 10000,
+      "elapsedMs": [
+        0.7328,
+        0.8157,
+        0.7645,
+        0.7525,
+        0.7514,
+        0.772,
+        0.749,
+        1.0009,
+        0.7566,
+        0.7488
+      ],
+      "allocatedBytes": 1440784,
+      "marked": 100000,
+      "side": "after",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "highlight",
+      "query": "/report.*\\.txt$/",
+      "iterations": 10000,
+      "elapsedMs": [
+        0.5696,
+        0.5474,
+        0.5678,
+        0.5362,
+        0.5352,
+        0.5539,
+        0.5398,
+        0.5363,
+        0.5485,
+        0.5434
+      ],
+      "allocatedBytes": 960784,
+      "marked": 100000,
+      "side": "after",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "catalog-name-clause",
+      "title": "blocked.txt",
+      "alias": "report.pdf",
+      "query": "report /\\.pdf$/",
+      "match": false,
+      "field": "LegacyUnknown",
+      "side": "after",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "catalog-name-clause",
+      "title": "temp target",
+      "alias": "report",
+      "query": "report :temp",
+      "match": false,
+      "field": "LegacyUnknown",
+      "side": "after",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "path-cap-order",
+      "candidates": 8001,
+      "count": 8000,
+      "bestPresent": true,
+      "exceeded": true,
+      "side": "after",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "path-cap-tail-filter",
+      "count": 1,
+      "names": [
+        "report-best.txt"
+      ],
+      "exceeded": false,
+      "side": "after",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "49.1.1",
+      "year": 2049,
+      "side": "after",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "50.1.1",
+      "year": 2050,
+      "side": "after",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "two-digit-year",
+      "threshold": "99.1.1",
+      "year": 2099,
+      "side": "after",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "invalid-threshold",
+      "token": "<s>garbage",
+      "claimed": false,
+      "names": [],
+      "side": "after",
+      "run": 3,
+      "project": "app"
+    },
+    {
+      "kind": "invalid-threshold",
+      "token": "<f>wrong",
+      "claimed": false,
+      "names": [],
+      "side": "after",
+      "run": 3,
+      "project": "app"
+    }
+  ],
+  "limitSummary": [
+    {
+      "candidates": 8000,
+      "side": "before",
+      "samples": 15,
+      "medianMs": 8.1447,
+      "allocatedBytes": 3064568,
+      "retained": 8000,
+      "tailPresent": true
+    },
+    {
+      "candidates": 8000,
+      "side": "after",
+      "samples": 15,
+      "medianMs": 6.2606,
+      "allocatedBytes": 3064568,
+      "retained": 8000,
+      "tailPresent": true
+    },
+    {
+      "candidates": 50000,
+      "side": "before",
+      "samples": 15,
+      "medianMs": 16.0374,
+      "allocatedBytes": 14506376,
+      "retained": 8000,
+      "tailPresent": false
+    },
+    {
+      "candidates": 50000,
+      "side": "after",
+      "samples": 15,
+      "medianMs": 56.3553,
+      "allocatedBytes": 19904720,
+      "retained": 50000,
+      "tailPresent": true
+    }
+  ],
+  "limitSamples": [
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 5.4194,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "before",
+      "run": 1
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 13.1635,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "before",
+      "run": 1
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 5.571,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "before",
+      "run": 1
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 10.1987,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "before",
+      "run": 1
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 5.6411,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "before",
+      "run": 1
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 13.4103,
+      "allocatedBytes": 14506376,
+      "tailPresent": false,
+      "side": "before",
+      "run": 1
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 13.4901,
+      "allocatedBytes": 14506376,
+      "tailPresent": false,
+      "side": "before",
+      "run": 1
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 32.22,
+      "allocatedBytes": 14506440,
+      "tailPresent": false,
+      "side": "before",
+      "run": 1
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 16.0374,
+      "allocatedBytes": 14506376,
+      "tailPresent": false,
+      "side": "before",
+      "run": 1
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 15.964,
+      "allocatedBytes": 14506376,
+      "tailPresent": false,
+      "side": "before",
+      "run": 1
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 5.3708,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "before",
+      "run": 2
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 16.4505,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "before",
+      "run": 2
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 8.5263,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "before",
+      "run": 2
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 10.0212,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "before",
+      "run": 2
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 6.8758,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "before",
+      "run": 2
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 12.9766,
+      "allocatedBytes": 14506376,
+      "tailPresent": false,
+      "side": "before",
+      "run": 2
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 12.9357,
+      "allocatedBytes": 14506376,
+      "tailPresent": false,
+      "side": "before",
+      "run": 2
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 19.9668,
+      "allocatedBytes": 14506408,
+      "tailPresent": false,
+      "side": "before",
+      "run": 2
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 20.9744,
+      "allocatedBytes": 14506376,
+      "tailPresent": false,
+      "side": "before",
+      "run": 2
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 16.5757,
+      "allocatedBytes": 14506376,
+      "tailPresent": false,
+      "side": "before",
+      "run": 2
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 5.8161,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "before",
+      "run": 3
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 17.0306,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "before",
+      "run": 3
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 8.1447,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "before",
+      "run": 3
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 9.2201,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "before",
+      "run": 3
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 6.8643,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "before",
+      "run": 3
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 14.0829,
+      "allocatedBytes": 14506376,
+      "tailPresent": false,
+      "side": "before",
+      "run": 3
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 12.8721,
+      "allocatedBytes": 14506376,
+      "tailPresent": false,
+      "side": "before",
+      "run": 3
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 24.3355,
+      "allocatedBytes": 14506392,
+      "tailPresent": false,
+      "side": "before",
+      "run": 3
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 16.8402,
+      "allocatedBytes": 14506376,
+      "tailPresent": false,
+      "side": "before",
+      "run": 3
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 16.479,
+      "allocatedBytes": 14506376,
+      "tailPresent": false,
+      "side": "before",
+      "run": 3
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 5.7946,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "after",
+      "run": 1
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 12.998,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "after",
+      "run": 1
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 6.1423,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "after",
+      "run": 1
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 9.4882,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "after",
+      "run": 1
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 6.2606,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "after",
+      "run": 1
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 50000,
+      "displayed": 8000,
+      "elapsedMs": 60.312,
+      "allocatedBytes": 19906472,
+      "tailPresent": true,
+      "side": "after",
+      "run": 1
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 50000,
+      "displayed": 8000,
+      "elapsedMs": 54.0728,
+      "allocatedBytes": 19904680,
+      "tailPresent": true,
+      "side": "after",
+      "run": 1
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 50000,
+      "displayed": 8000,
+      "elapsedMs": 50.2033,
+      "allocatedBytes": 19904680,
+      "tailPresent": true,
+      "side": "after",
+      "run": 1
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 50000,
+      "displayed": 8000,
+      "elapsedMs": 65.782,
+      "allocatedBytes": 19906104,
+      "tailPresent": true,
+      "side": "after",
+      "run": 1
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 50000,
+      "displayed": 8000,
+      "elapsedMs": 57.5748,
+      "allocatedBytes": 19911648,
+      "tailPresent": true,
+      "side": "after",
+      "run": 1
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 5.4449,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "after",
+      "run": 2
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 16.2316,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "after",
+      "run": 2
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 5.7962,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "after",
+      "run": 2
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 9.4434,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "after",
+      "run": 2
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 6.0663,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "after",
+      "run": 2
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 50000,
+      "displayed": 8000,
+      "elapsedMs": 60.2533,
+      "allocatedBytes": 19904720,
+      "tailPresent": true,
+      "side": "after",
+      "run": 2
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 50000,
+      "displayed": 8000,
+      "elapsedMs": 56.3553,
+      "allocatedBytes": 19904680,
+      "tailPresent": true,
+      "side": "after",
+      "run": 2
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 50000,
+      "displayed": 8000,
+      "elapsedMs": 50.7498,
+      "allocatedBytes": 19904680,
+      "tailPresent": true,
+      "side": "after",
+      "run": 2
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 50000,
+      "displayed": 8000,
+      "elapsedMs": 65.3565,
+      "allocatedBytes": 19906104,
+      "tailPresent": true,
+      "side": "after",
+      "run": 2
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 50000,
+      "displayed": 8000,
+      "elapsedMs": 62.2682,
+      "allocatedBytes": 19911648,
+      "tailPresent": true,
+      "side": "after",
+      "run": 2
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 6.8944,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "after",
+      "run": 3
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 13.5689,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "after",
+      "run": 3
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 5.6352,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "after",
+      "run": 3
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 10.093,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "after",
+      "run": 3
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 8000,
+      "retained": 8000,
+      "displayed": 8000,
+      "elapsedMs": 5.7385,
+      "allocatedBytes": 3064568,
+      "tailPresent": true,
+      "side": "after",
+      "run": 3
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 50000,
+      "displayed": 8000,
+      "elapsedMs": 47.188,
+      "allocatedBytes": 19904680,
+      "tailPresent": true,
+      "side": "after",
+      "run": 3
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 50000,
+      "displayed": 8000,
+      "elapsedMs": 53.3448,
+      "allocatedBytes": 19904680,
+      "tailPresent": true,
+      "side": "after",
+      "run": 3
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 50000,
+      "displayed": 8000,
+      "elapsedMs": 52.4381,
+      "allocatedBytes": 19904680,
+      "tailPresent": true,
+      "side": "after",
+      "run": 3
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 50000,
+      "displayed": 8000,
+      "elapsedMs": 62.1848,
+      "allocatedBytes": 19908736,
+      "tailPresent": true,
+      "side": "after",
+      "run": 3
+    },
+    {
+      "kind": "accumulator-workload",
+      "candidates": 50000,
+      "retained": 50000,
+      "displayed": 8000,
+      "elapsedMs": 53.5986,
+      "allocatedBytes": 19911648,
+      "tailPresent": true,
+      "side": "after",
+      "run": 3
+    }
+  ],
+  "scan": [
+    {
+      "Files": 63,
+      "Scope": "Current search production C# delta relative to main, including untracked fixes"
+    },
+    {
+      "Recipe": "IndexOfLiteral",
+      "MatchingLines": 0
+    },
+    {
+      "Recipe": "Substring",
+      "MatchingLines": 9
+    },
+    {
+      "Recipe": "StartsEndsLiteral",
+      "MatchingLines": 1
+    },
+    {
+      "Recipe": "ContainsLiteral",
+      "MatchingLines": 0
+    },
+    {
+      "Recipe": "AsyncVoid",
+      "MatchingLines": 0
+    },
+    {
+      "Recipe": "SyncWait",
+      "MatchingLines": 3
+    },
+    {
+      "Recipe": "ValueTask",
+      "MatchingLines": 0
+    },
+    {
+      "Recipe": "Stackalloc",
+      "MatchingLines": 4
+    },
+    {
+      "Recipe": "CultureCaseConversion",
+      "MatchingLines": 0
+    },
+    {
+      "Recipe": "Replace",
+      "MatchingLines": 3
+    },
+    {
+      "Recipe": "ReplaceChain3",
+      "MatchingLines": 0
+    },
+    {
+      "Recipe": "Params",
+      "MatchingLines": 0
+    },
+    {
+      "Recipe": "LinqChars",
+      "MatchingLines": 0
+    },
+    {
+      "Recipe": "CompiledRegex",
+      "MatchingLines": 2
+    },
+    {
+      "Recipe": "GeneratedRegex",
+      "MatchingLines": 0
+    },
+    {
+      "Recipe": "NewRegex",
+      "MatchingLines": 5
+    },
+    {
+      "Recipe": "StaticDictionary",
+      "MatchingLines": 1
+    },
+    {
+      "Recipe": "StaticFrozenDictionary",
+      "MatchingLines": 0
+    },
+    {
+      "Recipe": "NewList",
+      "MatchingLines": 69
+    },
+    {
+      "Recipe": "NewDictionary",
+      "MatchingLines": 13
+    },
+    {
+      "Recipe": "CultureComparer",
+      "MatchingLines": 0
+    },
+    {
+      "Recipe": "Linq",
+      "MatchingLines": 36
+    },
+    {
+      "Recipe": "LinqSortGroup",
+      "MatchingLines": 13
+    },
+    {
+      "Recipe": "LinqAnyAll",
+      "MatchingLines": 13
+    },
+    {
+      "Recipe": "ContainsKey",
+      "MatchingLines": 1
+    },
+    {
+      "Recipe": "NewHttpClient",
+      "MatchingLines": 0
+    },
+    {
+      "Recipe": "NewJsonOptions",
+      "MatchingLines": 0
+    },
+    {
+      "Recipe": "JsonSerialize",
+      "MatchingLines": 0
+    },
+    {
+      "Recipe": "UnsealedClasses",
+      "MatchingLines": 4
+    },
+    {
+      "Recipe": "SealedClasses",
+      "MatchingLines": 20
+    }
+  ],
+  "tests": [
+    {
+      "suite": "Core",
+      "report": "scratch/regex-fixes/verified-core/Linked_DESKTOP-SJMOB6U_2026-11-10_19_28_10_net10.0.trx",
+      "counters": {
+        "total": "2733",
+        "executed": "2733",
+        "passed": "2733",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "suite": "App",
+      "report": "scratch/regex-fixes/verified-app/Linked_DESKTOP-SJMOB6U_2026-11-10_19_30_12_net10.0.trx",
+      "counters": {
+        "total": "2666",
+        "executed": "2666",
+        "passed": "2666",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "suite": "QueryTokens",
+      "report": "scratch/regex-fixes/final-tokens/Linked_DESKTOP-SJMOB6U_2026-11-10_19_30_53_net10.0.trx",
+      "counters": {
+        "total": "109",
+        "executed": "109",
+        "passed": "109",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "suite": "CLI",
+      "report": "scratch/regex-fixes/final-cli/Linked_DESKTOP-SJMOB6U_2026-11-10_19_27_24_net10.0.trx",
+      "counters": {
+        "total": "28",
+        "executed": "28",
+        "passed": "28",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "suite": "Regex clause boundary follow-up",
+      "report": "scratch/regex-fixes/clause-boundary/Linked_DESKTOP-SJMOB6U_2026-11-10_19_38_35_net10.0.trx",
+      "counters": {
+        "total": "205",
+        "executed": "205",
+        "passed": "205",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    }
+  ]
+}
