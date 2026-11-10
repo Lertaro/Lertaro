@@ -172,7 +172,10 @@ public sealed class HookIpcClient : IDisposable
                 }
                 else if (!sent)
                 {
-                    Logger.Log($"[HookIpcClient] Dropped {msg.Id}: the hook pipe is not connected.", LogLevel.Debug);
+                    // Warn, not Debug: this drops a command the user just asked for (a dialog navigation, a
+                    // focus hand-off) with no reply channel to report it, so the line is the only evidence
+                    // that it never left this process.
+                    Logger.Log($"[HookIpcClient] Dropped {msg.Id}: the hook pipe is not connected.", LogLevel.Warn);
                 }
             }
 
