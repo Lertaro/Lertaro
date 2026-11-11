@@ -17,6 +17,7 @@ internal static class UsnIndexerMonitorExtensions
         lock (indexer.LockObj)
         {
             indexer._driveMonitors.TryGetValue(drive, out old);
+            (old as DriveMonitorRegistration)?.InvalidateCallbacks();
             indexer._driveMonitors[drive] = monitor;
         }
         old?.Dispose();
@@ -35,12 +36,18 @@ internal static class UsnIndexerMonitorExtensions
     // already-disposed instance. (A non-journal FolderDriveMonitor drive deliberately does NOT call this
     // -- see ApplyFolderChange's own comment on why keeping ITS monitor alive throughout is what closes a
     // real gap for that case instead.)
-    internal static void RemoveDriveMonitor(this UsnIndexer indexer, string drive)
+    internal static bool RemoveDriveMonitor(this UsnIndexer indexer, string drive, IDisposable? expected = null)
     {
         IDisposable? old;
         lock (indexer.LockObj)
-            indexer._driveMonitors.Remove(drive, out old);
-        old?.Dispose();
+        {
+            if (!indexer._driveMonitors.TryGetValue(drive, out old) ||
+                (expected != null && !ReferenceEquals(old, expected))) return false;
+            (old as DriveMonitorRegistration)?.InvalidateCallbacks();
+            indexer._driveMonitors.Remove(drive);
+        }
+        old.Dispose();
+        return true;
     }
 
     // Releases only the live filesystem watcher while keeping the PnP notification registered until
@@ -55,6 +62,35 @@ internal static class UsnIndexerMonitorExtensions
         registration?.DisposeMonitor();
     }
 
+    internal static bool TryInvokeRemovalCallback(this UsnIndexer indexer, string drive,
+        DriveMonitorRegistration expected, DriveDeviceRemovalMonitor removal, Action action)
+    {
+        lock (indexer.LockObj)
+            return indexer._driveMonitors.TryGetValue(drive, out var current) && ReferenceEquals(current, expected)
+                && expected.TryInvokeRemovalCallback(removal, action);
+    }
+
+    internal static bool ReleaseDriveMonitor(this UsnIndexer indexer, string drive,
+        DriveMonitorRegistration expected, DriveDeviceRemovalMonitor removal, Action? beforeStop = null)
+    {
+        if (!indexer.TryInvokeRemovalCallback(drive, expected, removal, () => beforeStop?.Invoke())) return false;
+        // Stop only the captured instance, outside the locks. Any later cache mutation must recheck it.
+        expected.DisposeMonitor();
+        return true;
+    }
+
+    internal static bool TryRecoverDriveMonitor(this UsnIndexer indexer, string drive,
+        DriveMonitorRegistration expected, Action recover)
+    {
+        lock (indexer.LockObj)
+        {
+            if (!indexer._driveMonitors.TryGetValue(drive, out var current) || !ReferenceEquals(current, expected))
+                return false;
+            recover();
+            return true;
+        }
+    }
+
     // Stops every currently-registered monitor -- a full rebuild-from-scratch tearing down and restarting
     // everything, or final app shutdown.
     internal static void DisposeAllDriveMonitors(this UsnIndexer indexer)
@@ -63,6 +99,8 @@ internal static class UsnIndexerMonitorExtensions
         lock (indexer.LockObj)
         {
             monitors = indexer._driveMonitors.Values.ToList();
+            foreach (var monitor in monitors)
+                (monitor as DriveMonitorRegistration)?.InvalidateCallbacks();
             indexer._driveMonitors.Clear();
         }
         foreach (var monitor in monitors)

@@ -15,6 +15,7 @@ public class UsnMonitor : IDisposable
     // the loop token is cancelled as soon as the monitor is disposed. See DriveArrivalRecovery.
     private readonly CancellationToken _parentToken;
     private readonly Action<string>? _onReindexRequired;
+    private readonly Func<SafeFileHandle, bool>? _onVolumeOpened;
     private readonly UsnMonitorHandleState _handleState = new();
     // Own token (linked to the caller's), so Dispose can stop the loop itself -- see MonitorLoopJoin.
     private readonly CancellationTokenSource _loopCts;
@@ -28,6 +29,12 @@ public class UsnMonitor : IDisposable
         UsnIndexer indexer,
         CancellationToken token,
         Action<string>? onReindexRequired = null)
+        : this(drive, journalId, startUsn, indexer, token, onReindexRequired, null)
+    {
+    }
+
+    internal UsnMonitor(string drive, ulong journalId, long startUsn, UsnIndexer indexer,
+        CancellationToken token, Action<string>? onReindexRequired, Func<SafeFileHandle, bool>? onVolumeOpened)
     {
         _drive = drive;
         _journalId = journalId;
@@ -37,6 +44,7 @@ public class UsnMonitor : IDisposable
         _loopCts = CancellationTokenSource.CreateLinkedTokenSource(token);
         _token = _loopCts.Token;
         _onReindexRequired = onReindexRequired;
+        _onVolumeOpened = onVolumeOpened;
     }
 
     public void Dispose()
@@ -85,7 +93,8 @@ public class UsnMonitor : IDisposable
             handle.Dispose();
             return;
         }
-        _handleState.Set(handle);
+        if (!TrackVolumeHandle(handle))
+            return;
 
         var outBuf = new byte[64 * 1024];
         var consecutiveUnexpectedErrors = 0;
@@ -102,6 +111,7 @@ public class UsnMonitor : IDisposable
                     if (!success)
                     {
                         var err = Marshal.GetLastWin32Error();
+                        _token.ThrowIfCancellationRequested();
                         Logger.Log($"[Monitor] FSCTL_READ_USN_JOURNAL error on drive {_drive}: {err}", LogLevel.Warn);
                         if (IsJournalReindexError(err))
                         {
@@ -218,8 +228,7 @@ public class UsnMonitor : IDisposable
 
         await Task.Delay(500, _token);
     }
-    // FILE_SHARE_DELETE, because this handle stays open for hours: a volume handle that withholds it makes
-    // FSCTL_LOCK_VOLUME fail, which is the "device is currently in use" answer to a safe-removal request.
+    // Share deletion, but still close on QUERYREMOVE: sharing flags do not replace releasing a device.
     private static SafeFileHandle OpenVolume(string volumePath) => Win32Api.CreateFileW(
         volumePath,
         Win32Api.GENERIC_READ,
@@ -260,7 +269,8 @@ public class UsnMonitor : IDisposable
                 return new SafeFileHandle(IntPtr.Zero, ownsHandle: true);
             }
 
-            _handleState.Set(handle);
+            if (!TrackVolumeHandle(handle))
+                return new SafeFileHandle(IntPtr.Zero, ownsHandle: true);
 
             var journal = UsnJournalInfo.TryQuery(handle);
             if (journal is { } info && info.JournalId == _journalId)
@@ -302,4 +312,17 @@ public class UsnMonitor : IDisposable
         err is Win32Api.ERROR_NOT_READY or Win32Api.ERROR_INVALID_HANDLE or Win32Api.ERROR_DEVICE_NOT_CONNECTED;
     private static bool IsJournalReindexError(int err) =>
         err is Win32Api.ERROR_JOURNAL_DELETE_IN_PROGRESS or Win32Api.ERROR_JOURNAL_NOT_ACTIVE or Win32Api.ERROR_JOURNAL_ENTRY_DELETED;
+
+    internal bool TrackVolumeHandle(SafeFileHandle handle)
+    {
+        if (!_handleState.TrySet(handle))
+            return false;
+        if (_onVolumeOpened == null || _onVolumeOpened(handle))
+            return true;
+
+        _handleState.Clear(handle);
+        handle.Dispose();
+        Logger.Log($"[Monitor] Drive {_drive}: stopping because removal notification could not be attached to the current handle.", LogLevel.Error);
+        return false;
+    }
 }

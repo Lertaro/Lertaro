@@ -65,7 +65,7 @@ internal static class VolumeArrivalMonitor
         }
     }
 
-    private static uint HandleNotification(IntPtr notification, IntPtr context, int action, IntPtr eventData, uint eventDataSize)
+    internal static uint HandleNotification(IntPtr notification, IntPtr context, int action, IntPtr eventData, uint eventDataSize)
     {
         if (action != DeviceNotificationNative.DeviceInterfaceArrival)
             return DeviceNotificationNative.Success;

@@ -1,3 +1,4 @@
+using Lertaro.Core.DriveMonitoring;
 using Lertaro.Core.IndexV2;
 
 using Lertaro.Core.IndexV2.Alias;
@@ -127,6 +128,22 @@ public static class UsnIndexerCacheExtensions
 
             return metadata.IsComplete;
         }
+    }
+
+    internal static bool DropDriveFromRuntime(this UsnIndexer indexer, string drive,
+        DriveMonitorRegistration expected, DriveDeviceRemovalMonitor removal, bool removalCompleted)
+    {
+        var dropped = indexer.TryInvokeRemovalCallback(drive, expected, removal, () =>
+        {
+            indexer.DropDriveFromRuntime(drive);
+            var status = indexer.Status.Drives.FirstOrDefault(d => d.Drive.Equals(drive, StringComparison.OrdinalIgnoreCase));
+            if (status != null) status.State = "unavailable";
+            // ponytail: retain this stopped registration as the reattach waiter's identity, not another
+            // per-drive generation map. Replacement/removal/shutdown invalidates it via the dictionary.
+            if (removalCompleted) expected.InvalidateCallbacks();
+        });
+        if (dropped) indexer.NotifyStatusChanged();
+        return dropped;
     }
 
     public static void DropDriveFromRuntime(this UsnIndexer indexer, string drive)

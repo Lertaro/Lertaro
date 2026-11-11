@@ -1,4 +1,5 @@
 using Lertaro.Core.Indexer.Usn;
+using Microsoft.Win32.SafeHandles;
 
 namespace Lertaro.Core.DriveMonitoring;
 
@@ -30,9 +31,16 @@ internal static class DriveMonitorFactory
             // closes the volume handle immediately; cancellation then lets its loop unwind cleanly.
             var cts = CancellationTokenSource.CreateLinkedTokenSource(parentToken);
             var startUsn = ResolveStartUsn(drive, journalId, nextUsn);
-            var monitor = new UsnMonitor(drive, journalId, startUsn, indexer, cts.Token, onReindexRequired);
-            var removal = RegisterRemovalMonitor(indexer, drive, parentToken, onReindexRequired, onRemovalRequested, onReindexAfterRemoval);
-            indexer.RegisterDriveMonitor(drive, new DriveMonitorRegistration(new CancellationDisposable(monitor, cts), removal));
+            DriveMonitorRegistration? registration = null;
+            var monitor = new UsnMonitor(drive, journalId, startUsn, indexer, cts.Token, onReindexRequired, handle =>
+            {
+                // The USN reader can reopen a volume after an invalid handle/disconnect. Its removal
+                // notification must follow that exact handle, not remain on a separate stale one.
+                return AttachRemovalMonitor(indexer, drive, registration!, parentToken, onReindexRequired,
+                    onRemovalRequested, onReindexAfterRemoval, handle);
+            });
+            registration = new DriveMonitorRegistration(new CancellationDisposable(monitor, cts), null);
+            indexer.RegisterDriveMonitor(drive, registration);
             monitor.Start();
             return;
         }
@@ -45,8 +53,10 @@ internal static class DriveMonitorFactory
             // per-drive re-walk is the only way to reconcile, the same callback a removed-and-reattached
             // drive uses.
             () => onReindexRequired?.Invoke(drive));
-        var folderRemoval = RegisterRemovalMonitor(indexer, drive, parentToken, onReindexRequired, onRemovalRequested, onReindexAfterRemoval);
-        indexer.RegisterDriveMonitor(drive, new DriveMonitorRegistration(folderMonitor, folderRemoval));
+        var folderRegistration = new DriveMonitorRegistration(folderMonitor, null);
+        indexer.RegisterDriveMonitor(drive, folderRegistration);
+        AttachRemovalMonitor(indexer, drive, folderRegistration, parentToken, onReindexRequired,
+            onRemovalRequested, onReindexAfterRemoval);
         folderMonitor.Start();
     }
 
@@ -66,46 +76,42 @@ internal static class DriveMonitorFactory
         return decision.StartUsn;
     }
 
-    private static DriveDeviceRemovalMonitor? RegisterRemovalMonitor(
-        UsnIndexer indexer,
-        string drive,
-        CancellationToken parentToken,
-        Action<string>? onReindexRequired,
-        Action<string>? onRemovalRequested,
-        Action<string>? onReindexAfterRemoval) =>
-        CreateRemovalMonitor(indexer, drive, parentToken, onReindexRequired, onRemovalRequested, onReindexAfterRemoval);
-
-    private static DriveDeviceRemovalMonitor? CreateRemovalMonitor(
-        UsnIndexer indexer,
-        string drive,
-        CancellationToken parentToken,
-        Action<string>? onReindexRequired,
-        Action<string>? onRemovalRequested,
-        Action<string>? onReindexAfterRemoval)
+    private static bool AttachRemovalMonitor(
+        UsnIndexer indexer, string drive, DriveMonitorRegistration registration, CancellationToken parentToken,
+        Action<string>? onReindexRequired, Action<string>? onRemovalRequested, Action<string>? onReindexAfterRemoval,
+        SafeFileHandle? volumeHandle = null)
     {
-        void ReleaseDriveMonitor()
-        {
-            onRemovalRequested?.Invoke(drive);
-            indexer.ReleaseDriveMonitor(drive);
-            indexer.DropDriveFromRuntime(drive);
-            indexer.SetDriveState(drive, "unavailable");
-        }
+        var removal = CreateRemovalMonitor(indexer, drive, registration, parentToken,
+            onReindexRequired, onRemovalRequested, onReindexAfterRemoval);
+        // Publish both identities before native registration can deliver its first callback.
+        if (!registration.ReplaceRemovalMonitor(removal)) return false;
+        if (removal.RegisterCore(drive, volumeHandle)) return true;
+        indexer.TryInvokeRemovalCallback(drive, registration, removal, () => indexer.SetDriveState(drive, "failed"));
+        removal.Dispose();
+        return false;
+    }
 
-        void ReleaseDrive()
-        {
-            indexer.RemoveDriveMonitor(drive);
-            indexer.DropDriveFromRuntime(drive);
-            indexer.SetDriveState(drive, "unavailable");
-        }
+    internal static DriveDeviceRemovalMonitor CreateRemovalMonitor(
+        UsnIndexer indexer, string drive, DriveMonitorRegistration registration, CancellationToken parentToken,
+        Action<string>? onReindexRequired, Action<string>? onRemovalRequested, Action<string>? onReindexAfterRemoval)
+    {
+        void Recover() => (onReindexAfterRemoval ?? onReindexRequired)?.Invoke(drive);
 
-        return DriveDeviceRemovalMonitor.Register(
+        return new DriveDeviceRemovalMonitor(
             drive,
-            ReleaseDriveMonitor,
-            () => (onReindexAfterRemoval ?? onReindexRequired)?.Invoke(drive),
-            () =>
+            removal =>
             {
-                ReleaseDrive();
-                DriveReattachWaiter.Start(drive, parentToken, () => (onReindexAfterRemoval ?? onReindexRequired)?.Invoke(drive));
+                if (indexer.ReleaseDriveMonitor(drive, registration, removal, () => onRemovalRequested?.Invoke(drive)))
+                    indexer.DropDriveFromRuntime(drive, registration, removal, removalCompleted: false);
+            },
+            removal => indexer.TryInvokeRemovalCallback(drive, registration, removal, Recover),
+            removal =>
+            {
+                if (!indexer.ReleaseDriveMonitor(drive, registration, removal) ||
+                    !indexer.DropDriveFromRuntime(drive, registration, removal, removalCompleted: true)) return;
+                registration.Dispose();
+                DriveReattachWaiter.Start(drive, parentToken,
+                    () => indexer.TryRecoverDriveMonitor(drive, registration, Recover));
             });
     }
 
