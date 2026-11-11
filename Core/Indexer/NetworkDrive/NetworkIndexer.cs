@@ -40,7 +40,7 @@ public sealed class NetworkIndexer : IDisposable
         );
 
         _scheduler = new Scheduler(
-            (drive, mode) => _watcherManager?.EnsureWatcher(drive),
+            (drive, needsInitialReconciliation) => _watcherManager?.EnsureWatcher(drive, needsInitialReconciliation),
             drive => _watcherManager?.RemoveWatcher(drive),
             _publisher.SetStatus,
             _publisher.OnRefreshFinished,
@@ -115,7 +115,7 @@ public sealed class NetworkIndexer : IDisposable
         lock (_gate)
         {
             changedRoots = NetworkIndexerHelper.FindConfigurationChangedRoots(_refreshModes.Keys, enabledDrives);
-            foreach (var removed in _indexes.Keys.Except(enabledDrives, StringComparer.OrdinalIgnoreCase).ToList())
+            foreach (var removed in _refreshModes.Keys.Except(enabledDrives, StringComparer.OrdinalIgnoreCase).ToList())
             {
                 if (_indexes.Remove(removed, out var removedIndex))
                     removedIndexes.Add(removedIndex);
@@ -190,7 +190,7 @@ public sealed class NetworkIndexer : IDisposable
                 return false;
         }
 
-        _publisher.SetStatus(drive, "indexing", 0, null);
+        _publisher.SetStatus(drive, "indexing", null, null);
         _scheduler?.QueueRefreshDrive(drive, "manual");
         return true;
     }

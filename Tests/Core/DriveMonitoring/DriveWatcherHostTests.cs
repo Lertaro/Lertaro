@@ -6,6 +6,81 @@ namespace Lertaro.Core.Tests.DriveMonitoring;
 public sealed class DriveWatcherHostTests
 {
     [TestMethod]
+    public void Start_InitiallyUnavailable_ReconcilesOnceWhenWatcherStarts()
+    {
+        using var dir = new TempDirectory();
+        var available = false;
+        var loss = new WatcherLossRefreshGate();
+        var reconciliations = 0;
+        FileSystemWatcher? watcher = null;
+        using var host = new DriveWatcherHost("Test", dir.Path, _ => available,
+            (current, _, _, _, _) => { watcher = current; return true; }, (_, _) => { },
+            onStarted: () =>
+            {
+                Assert.IsTrue(watcher!.EnableRaisingEvents);
+                if (loss.Recovered(dir.Path)) reconciliations++;
+            },
+            onUnavailable: () => loss.ShouldRequestRefresh(dir.Path));
+
+        host.Start();
+        host.Start();
+        Assert.AreEqual(0, reconciliations);
+        available = true;
+        host.Start();
+        host.Start();
+
+        Assert.AreEqual(1, reconciliations);
+    }
+
+    [TestMethod]
+    public void Start_WatcherSetupFails_ReportsTheGapAndRecovers()
+    {
+        using var dir = new TempDirectory();
+        var failSetup = true;
+        var unavailable = 0;
+        var starts = 0;
+        using var host = new DriveWatcherHost("Test", dir.Path, _ => true,
+            (_, _, _, _, _) => failSetup ? throw new IOException("share disconnected") : true,
+            (_, _) => { }, onStarted: () => starts++, onUnavailable: () => unavailable++);
+
+        host.Start();
+        Assert.AreEqual(1, unavailable);
+        Assert.AreEqual(0, starts);
+        failSetup = false;
+        host.Start();
+
+        Assert.AreEqual(1, starts);
+        Assert.AreEqual(1, unavailable);
+    }
+
+    [TestMethod]
+    public async Task Dispose_DuringBlockedProbe_DoesNotWaitOrStartALateWatcher()
+    {
+        using var releaseProbe = new ManualResetEventSlim();
+        var probeEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var configured = 0;
+        using var host = new DriveWatcherHost("Test", @"C:\unused", _ =>
+            {
+                probeEntered.SetResult();
+                releaseProbe.Wait();
+                return true;
+            }, (_, _, _, _, _) => { configured++; return true; }, (_, _) => { });
+        var start = Task.Run(host.Start);
+        try
+        {
+            await probeEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await Task.Run(host.Dispose).WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally
+        {
+            releaseProbe.Set();
+            await start.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+
+        Assert.AreEqual(0, configured);
+    }
+
+    [TestMethod]
     public async Task Start_OfflineRoot_ReturnsOnlineAndNotifiesOnlyAfterWatching()
     {
         using var dir = new TempDirectory();

@@ -15,6 +15,7 @@ internal sealed class SchedulerQueueRunner
     private readonly Dictionary<string, CancellationTokenSource> _debounceCts;
     private readonly Dictionary<string, CancellationTokenSource> _activeCts;
     private readonly HashSet<string> _pendingRefreshDrives;
+    private readonly HashSet<string> _configuredDrives;
     private readonly CancellationTokenSource _lifetimeCts;
     private readonly Action<string, string, int?, string?> _setStatus;
     private readonly Func<string, FileRecordStore?> _getPreviousStore;
@@ -27,6 +28,7 @@ internal sealed class SchedulerQueueRunner
         Dictionary<string, CancellationTokenSource> debounceCts,
         Dictionary<string, CancellationTokenSource> activeCts,
         HashSet<string> pendingRefreshDrives,
+        HashSet<string> configuredDrives,
         CancellationTokenSource lifetimeCts,
         Action<string, string, int?, string?> setStatus,
         Func<string, FileRecordStore?> getPreviousStore,
@@ -38,6 +40,7 @@ internal sealed class SchedulerQueueRunner
         _debounceCts = debounceCts;
         _activeCts = activeCts;
         _pendingRefreshDrives = pendingRefreshDrives;
+        _configuredDrives = configuredDrives;
         _lifetimeCts = lifetimeCts;
         _setStatus = setStatus;
         _getPreviousStore = getPreviousStore;
@@ -52,7 +55,7 @@ internal sealed class SchedulerQueueRunner
         CancellationTokenSource debounce;
         lock (_gate)
         {
-            if (_lifetimeCts.IsCancellationRequested)
+            if (_lifetimeCts.IsCancellationRequested || !_configuredDrives.Contains(drive))
                 return;
 
             if (_debounceCts.TryGetValue(drive, out oldDebounce))
@@ -104,7 +107,7 @@ internal sealed class SchedulerQueueRunner
         CancellationTokenSource active;
         lock (_gate)
         {
-            if (_lifetimeCts.IsCancellationRequested)
+            if (_lifetimeCts.IsCancellationRequested || !_configuredDrives.Contains(drive))
                 return;
 
             if (_activeCts.ContainsKey(drive))
