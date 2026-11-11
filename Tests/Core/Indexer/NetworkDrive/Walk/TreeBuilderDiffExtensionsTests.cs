@@ -86,7 +86,7 @@ public sealed class TreeBuilderDiffExtensionsTests
         builder.RegisterDirectoryIndices(0, builder._store.Records);
         var current = new WorkItem(reuseDir, "reuseDir", 10, 1, NetworkIgnoreRuleSet.Empty);
 
-        var reused = builder.TryReuseUnchangedDirectory(current);
+        var reused = builder.TryReuseUnchangedDirectory(current, NativeFileEnumerator.Enumerate(reuseDir).ToList());
 
         Assert.IsTrue(reused);
         Assert.AreEqual(1, builder._reusedDirectories);
@@ -113,7 +113,7 @@ public sealed class TreeBuilderDiffExtensionsTests
         builder.RegisterDirectoryIndices(0, builder._store.Records);
         var current = new WorkItem(reuseDir, "reuseDir", 10, 1, NetworkIgnoreRuleSet.Empty);
 
-        var reused = builder.TryReuseUnchangedDirectory(current);
+        var reused = builder.TryReuseUnchangedDirectory(current, NativeFileEnumerator.Enumerate(reuseDir).ToList());
 
         Assert.IsFalse(reused);
         Assert.HasCount(1, builder._store.Records); // only the seeded reuseDir record itself
@@ -139,7 +139,7 @@ public sealed class TreeBuilderDiffExtensionsTests
         builder.RegisterDirectoryIndices(0, builder._store.Records);
         var current = new WorkItem(reuseDir, "reuseDir", 10, 1, NetworkIgnoreRuleSet.Empty);
 
-        var reused = builder.TryReuseUnchangedDirectory(current);
+        var reused = builder.TryReuseUnchangedDirectory(current, NativeFileEnumerator.Enumerate(reuseDir).ToList());
 
         Assert.IsFalse(reused);
         Assert.HasCount(1, builder._store.Records);
@@ -163,7 +163,7 @@ public sealed class TreeBuilderDiffExtensionsTests
         builder.RegisterDirectoryIndices(0, builder._store.Records);
         var current = new WorkItem(reuseDir, "reuseDir", 10, 1, NetworkIgnoreRuleSet.Empty);
 
-        var reused = builder.TryReuseUnchangedDirectory(current);
+        var reused = builder.TryReuseUnchangedDirectory(current, NativeFileEnumerator.Enumerate(reuseDir).ToList());
 
         Assert.IsTrue(reused);
         var names = builder._store.Records.Select(r => r.Name).ToList();

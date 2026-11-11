@@ -148,22 +148,42 @@ internal sealed class TreeBuilder
         }
     }
 
-    private void WalkDirectory(WorkItem current)
+    internal void WalkDirectory(
+        WorkItem current,
+        Func<string, IEnumerable<NativeFileEntry>>? enumerate = null,
+        Func<int, bool>? waitForCancellation = null)
     {
-        IReadOnlyList<NativeFileEntry>? liveEntries = null;
-        if (_diffBaseline != null && this.TryReuseUnchangedDirectory(current, out liveEntries))
-            return;
-
-        var ignoreRules = _filter.LoadIgnoreRules(current.Path, current.LogicalPath, current.IgnoreRules);
         var stopwatch = Stopwatch.StartNew();
-        IEnumerable<NativeFileEntry> children = liveEntries!;
-        if (liveEntries == null && !this.TryEnumerateChildren(current.Path, out children, out var failure))
+        if (!this.TryEnumerateChildren(current.Path, out var children, out var failure, enumerate, waitForCancellation))
         {
             this.CountEnumerationFailure(current.Path, failure!);
             return;
         }
 
-        this.ConsumeChildren(current, ignoreRules, children);
+        Exception? enumerationFailure = null;
+        if (_diffBaseline?.TryGetListedChildren(current.LocalId, out _) == true)
+        {
+            var liveEntries = new List<NativeFileEntry>();
+            try
+            {
+                foreach (var child in children)
+                {
+                    _token.ThrowIfCancellationRequested();
+                    liveEntries.Add(child);
+                }
+            }
+            catch (Exception ex) when (TreeBuilderEnumerationExtensions.IsEnumerationFailure(ex))
+            {
+                enumerationFailure = ex;
+            }
+
+            children = liveEntries;
+            if (enumerationFailure == null && this.TryReuseUnchangedDirectory(current, liveEntries))
+                return;
+        }
+
+        var ignoreRules = _filter.LoadIgnoreRules(current.Path, current.LogicalPath, current.IgnoreRules);
+        this.ConsumeChildren(current, ignoreRules, children, enumerationFailure);
 
         if (stopwatch.ElapsedMilliseconds >= 2_000)
             Interlocked.Increment(ref _slowDirectories);

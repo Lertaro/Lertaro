@@ -8,13 +8,10 @@ namespace Lertaro.Core.Indexer.NetworkDrive.Walk;
 // down with it, because TreeBuilder.Run's Task.WaitAll ends that drive's whole scan on a faulted worker.
 internal static class TreeBuilderEnumerationExtensions
 {
-    // Retry budget for OPENING a directory (a failure raised mid-iteration is not retried -- see
-    // ConsumeChildren). ponytail: a heuristic, not a measured value. Four attempts with 250ms/1s/3s
-    // backoff rides out a momentary SMB reconnect while capping the added latency at ~4.25s per failing
-    // directory; that ceiling is accepted because DriveRefreshRunner already skips a share whose root is
-    // unreachable, so only a share that drops MID-walk pays it -- and for those directories the
-    // alternative is losing them entirely. Upgrade path: a walk-wide retry budget/circuit breaker if that
-    // ceiling ever shows up in a real trace.
+    // Retry only transient native I/O failures when OPENING a directory. Missing paths and access
+    // denials used to pay all three waits too, adding 4.25 seconds per permanent failure on large trees.
+    // ponytail: transient failures still get a per-directory 4.25-second backoff budget (excluding
+    // native call time); a walk-wide retry budget is the upgrade if sustained outages dominate scans.
     private const int EnumerateAttempts = 4;
     private static readonly int[] EnumerateBackoffMilliseconds = [250, 1000, 3000];
 
@@ -22,15 +19,18 @@ internal static class TreeBuilderEnumerationExtensions
         this TreeBuilder builder,
         string directoryPath,
         out IEnumerable<NativeFileEntry> children,
-        out Exception? failure)
+        out Exception? failure,
+        Func<string, IEnumerable<NativeFileEntry>>? enumerate = null,
+        Func<int, bool>? waitForCancellation = null)
     {
+        enumerate ??= NativeFileEnumerator.Enumerate;
         failure = null;
         for (var attempt = 0; attempt < EnumerateAttempts; attempt++)
         {
             builder._token.ThrowIfCancellationRequested();
             try
             {
-                children = NativeFileEnumerator.Enumerate(directoryPath);
+                children = enumerate(directoryPath);
                 return true;
             }
             catch (Exception ex) when (IsEnumerationFailure(ex))
@@ -38,15 +38,29 @@ internal static class TreeBuilderEnumerationExtensions
                 failure = ex;
                 // The last attempt breaks instead of sleeping, and so does an already-cancelled walk:
                 // there is nothing left to wait for either way.
-                if (attempt == EnumerateAttempts - 1)
+                if (attempt == EnumerateAttempts - 1 || !IsTransientEnumerationFailure(ex))
                     break;
-                if (builder._token.WaitHandle.WaitOne(EnumerateBackoffMilliseconds[attempt]))
+                var delay = EnumerateBackoffMilliseconds[attempt];
+                if (waitForCancellation?.Invoke(delay) ?? builder._token.WaitHandle.WaitOne(delay))
                     builder._token.ThrowIfCancellationRequested();
             }
         }
 
         children = Array.Empty<NativeFileEntry>();
         return false;
+    }
+
+    private static bool IsTransientEnumerationFailure(Exception ex)
+    {
+        var code = ex switch
+        {
+            Win32Exception native => native.NativeErrorCode,
+            IOException io when (io.HResult & 0xFFFF0000) == 0x80070000 => io.HResult & 0xFFFF,
+            _ => 0
+        };
+        return code is 32 or 33 // sharing/lock violation
+            or 53 or 54 or 55 or 59 or 64 or 71 // network unavailable/busy/disconnected
+            or 121 or 1231 or 1232 or 1236 or 1237 or 1460; // timeout/unreachable/aborted/retry
     }
 
     // Shared failure tail for a directory whose enumeration failed -- whether it failed to open or failed
@@ -69,7 +83,8 @@ internal static class TreeBuilderEnumerationExtensions
         this TreeBuilder builder,
         WorkItem current,
         NetworkIgnoreRuleSet ignoreRules,
-        IEnumerable<NativeFileEntry> children)
+        IEnumerable<NativeFileEntry> children,
+        Exception? enumerationFailure = null)
     {
         var batch = new List<FileRecord>(TreeBuilder.RecordBatchSize);
         try
@@ -121,19 +136,16 @@ internal static class TreeBuilderEnumerationExtensions
         }
         catch (Exception ex) when (IsEnumerationFailure(ex))
         {
-            // Same treatment as a directory that failed to open: counted, logged once, and left un-Listed
-            // by returning before MarkListed below. Letting this escape instead faults the worker, which is
-            // what used to end the drive's whole scan (and, before the walker's finally, wedge every other
-            // worker on a channel that never completed) over one bad directory.
-            builder.CountEnumerationFailure(current.Path, ex);
-            // Children captured before the failure are real and were already counted as indexed, so they
-            // are committed rather than thrown away; the directory below is never MarkListed, so no later
-            // pass treats this partial listing as complete.
-            builder.FlushRecords(batch);
-            return;
+            enumerationFailure = ex;
         }
 
         builder.FlushRecords(batch);
+        if (enumerationFailure != null)
+        {
+            builder.CountEnumerationFailure(current.Path, enumerationFailure);
+            return;
+        }
+
         builder.MarkListed(current.LocalId);
     }
 
@@ -142,7 +154,7 @@ internal static class TreeBuilderEnumerationExtensions
     // file system ones a listing can hit on the way. Deliberately narrow: anything else is a bug in this
     // walker, and hiding it behind "un-captured directory" would leave the directory permanently un-Listed
     // instead of surfacing the bug. Cancellation is not in this set either -- it must keep propagating.
-    private static bool IsEnumerationFailure(Exception ex) =>
+    internal static bool IsEnumerationFailure(Exception ex) =>
         ex is Win32Exception or IOException or UnauthorizedAccessException;
 
     // Exception type plus the codes a log reader needs to tell "share dropped" from "access denied": the

@@ -41,21 +41,10 @@ internal static class TreeBuilderDiffExtensions
     // reconstruction, not the network enumeration -- and it still recurses into every cached child
     // directory individually, since a directory's own LastWriteTime only reflects its direct children,
     // never anything deeper. So this covers one level per call, never a whole subtree at once.
-    public static bool TryReuseUnchangedDirectory(this TreeBuilder builder, WorkItem current) =>
-        builder.TryReuseUnchangedDirectory(current, out _);
-
-    public static bool TryReuseUnchangedDirectory(this TreeBuilder builder, WorkItem current, out IReadOnlyList<NativeFileEntry>? liveEntries)
+    public static bool TryReuseUnchangedDirectory(this TreeBuilder builder, WorkItem current, IReadOnlyList<NativeFileEntry> liveEntries)
     {
-        liveEntries = null;
         if (!builder._diffBaseline!.TryGetListedChildren(current.LocalId, out var previousChildren))
             return false;
-
-        try { liveEntries = NativeFileEnumerator.Enumerate(current.Path).ToList(); }
-        catch
-        {
-            liveEntries = null;
-            return false;
-        }
 
         var ignoreRules = builder._filter.LoadIgnoreRules(current.Path, current.LogicalPath, current.IgnoreRules);
         var previousByName = new Dictionary<string, FileRecord>(StringComparer.OrdinalIgnoreCase);
