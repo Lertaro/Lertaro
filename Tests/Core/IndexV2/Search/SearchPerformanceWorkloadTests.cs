@@ -136,4 +136,61 @@ public sealed class SearchPerformanceWorkloadTests(TestContext context)
             }));
         }
     }
+
+    [TestMethod]
+    [TestCategory("SearchPerformance")]
+    public void QueryPageCache_RecordsColdAndHitLatencyAllocationsAndRetainedRows()
+    {
+        const int count = 60_000;
+        const int limit = 204;
+        var records = new List<FileRecord> { LiveIndexFixture.Root() };
+        records.AddRange(Enumerable.Range(0, count).Select(i => new FileRecord((ulong)i + 2, 1,
+            $"report-{i:D6}.txt", FileRecordFlags.None)));
+        using var fixture = LiveIndexFixture.Build("Z", records);
+
+        List<SearchResult> Search()
+        {
+            var results = new List<SearchResult>();
+            IndexV2Searcher.SearchStreaming(
+                fixture.Index, "report", limit, results.Add, CancellationToken.None);
+            return results;
+        }
+
+        var memoryBefore = GC.GetTotalMemory(forceFullCollection: true);
+        var coldTimer = Stopwatch.StartNew();
+        var cold = Search();
+        coldTimer.Stop();
+        var memoryAfterCold = GC.GetTotalMemory(forceFullCollection: true);
+        var allocatedBeforeHits = GC.GetTotalAllocatedBytes(precise: true);
+        var hitTimes = new List<double>(10);
+        List<SearchResult>? final = null;
+        for (var i = 0; i < 10; i++)
+        {
+            var timer = Stopwatch.StartNew();
+            final = Search();
+            timer.Stop();
+            hitTimes.Add(timer.Elapsed.TotalMilliseconds);
+        }
+        var allocatedByHits = GC.GetTotalAllocatedBytes(precise: true) - allocatedBeforeHits;
+
+        Assert.AreEqual(limit, cold.Count);
+        Assert.AreEqual(limit, final!.Count);
+        Assert.AreEqual(204, fixture.Index.SearchPages.RetainedRowCount);
+        context.WriteLine("SEARCH_PERF " + JsonSerializer.Serialize(new
+        {
+            scenario = "query-page-cache",
+            rows = count,
+            limit,
+            coldMs = coldTimer.Elapsed.TotalMilliseconds,
+            hitMs = hitTimes,
+            requestedQueries = 11,
+            expectedHits = 10,
+            hitRate = 10d / 11d,
+            allocatedByHits,
+            retainedEntries = fixture.Index.SearchPages.RetainedEntryCount,
+            retainedRows = fixture.Index.SearchPages.RetainedRowCount,
+            memoryDeltaBytes = memoryAfterCold - memoryBefore,
+            theoreticalMaximumRetainedRows = 128 * QueryPageCache.MaxRows
+        }));
+    }
 }
