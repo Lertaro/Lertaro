@@ -1,4 +1,6 @@
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Threading;
 using Lertaro.App.Helpers.Visuals;
 
@@ -25,6 +27,37 @@ public sealed class WindowParkingTests
         Assert.AreEqual(WindowParking.OffScreen, window.Left, "Left alone keeps Windows using CW_USEDEFAULT for x and ignoring y");
         Assert.AreEqual(WindowParking.OffScreen, window.Top);
     }
+
+    // A parked window is still a visible top-level window, so what keeps it out of the Alt+Tab list is the
+    // extended style, not ShowInTaskbar: WPF's own answer to ShowInTaskbar=false is a hidden owner window,
+    // and the shell lists a visible window whose owner is hidden. Asserted here because the anchors that
+    // caused the ghost entries are parked from outside their own class -- see TrayMenuController.EnsureAnchor.
+    [StaTestMethod]
+    public void Park_TakesTheWindowOutOfAltTab()
+    {
+        var window = new Window();
+
+        WindowParking.Park(window);
+        window.Show();
+
+        try
+        {
+            var hwnd = new WindowInteropHelper(window).Handle;
+            var exStyle = GetWindowLongPtr(hwnd, GWL_EXSTYLE).ToInt64();
+            Assert.AreNotEqual(0, exStyle & WS_EX_TOOLWINDOW,
+                "without WS_EX_TOOLWINDOW the shell keeps a parked window as an untitled Alt+Tab entry");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    private const int GWL_EXSTYLE = -20;
+    private const int WS_EX_TOOLWINDOW = 0x00000080;
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+    private static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
 
     [StaTestMethod]
     public void ShowThenPlace_ShowsAtTheParkingRowAndKeepsTheTargetX()

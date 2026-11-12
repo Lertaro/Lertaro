@@ -41,6 +41,13 @@ internal static class WindowParking
     /// enough, and it is what <see cref="ShowThenPlace"/> does on purpose.</summary>
     internal static void Park(Window window)
     {
+        // Parked is dismissed, and a parked window stays a visible top-level window at -32000: without
+        // WS_EX_TOOLWINDOW the shell lists it in Alt+Tab as an untitled entry carrying the process name.
+        // ShowInTaskbar=false does not do that, because WPF answers it by pointing the owner at a hidden
+        // window and the shell still lists a visible window whose owner is hidden. The bit belongs here
+        // rather than at each call site: every window this app parks is one the user has put away, and the
+        // anchors that keep the tray and action menus alive are parked exactly like the cards are.
+        AltTabExcluder.Attach(window);
         window.Left = OffScreen;
         window.Top = OffScreen;
     }
