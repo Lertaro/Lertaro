@@ -107,6 +107,23 @@ public sealed class UpdaterRollbackTests
     }
 
     [TestMethod]
+    public async Task StopService_Persistent1061_RetriesOnceEvenWithNoRetryBudget()
+    {
+        var root = Directory.CreateTempSubdirectory("LertaroUpdaterStop_").FullName;
+        try
+        {
+            var sc = WriteFakeSc(root, 1061);
+            var runner = WriteUpdaterRunner(root);
+
+            var run = await RunUpdaterActionAsync(runner, "StopNoBudget", sc);
+
+            Assert.AreEqual(0, run.ExitCode, run.Error);
+            Assert.AreEqual(2, ReadFakeScCalls(sc));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [TestMethod]
     public async Task StartService_Transient1061_RetriesUntilStartIsAccepted()
     {
         var root = Directory.CreateTempSubdirectory("LertaroUpdaterStart_").FullName;
@@ -116,6 +133,23 @@ public sealed class UpdaterRollbackTests
             var runner = WriteUpdaterRunner(root);
 
             var run = await RunUpdaterActionAsync(runner, "StartTransient", sc);
+
+            Assert.AreEqual(0, run.ExitCode, run.Error);
+            Assert.AreEqual(2, ReadFakeScCalls(sc));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [TestMethod]
+    public async Task StartService_Persistent1061_RetriesOnceEvenWithNoRetryBudget()
+    {
+        var root = Directory.CreateTempSubdirectory("LertaroUpdaterStart_").FullName;
+        try
+        {
+            var sc = WriteFakeSc(root, 1061);
+            var runner = WriteUpdaterRunner(root);
+
+            var run = await RunUpdaterActionAsync(runner, "StartNoBudget", sc);
 
             Assert.AreEqual(0, run.ExitCode, run.Error);
             Assert.AreEqual(2, ReadFakeScCalls(sc));
@@ -252,6 +286,25 @@ public sealed class UpdaterRollbackTests
                         exit 90
                     } catch {
                         if ($_.Exception.Message -eq 'Could not stop service: 1061') { exit 0 }
+                        throw
+                    }
+                }
+                'StopNoBudget' {
+                    # A zero budget still buys the first retry: the budget bounds the retrying, not the first call.
+                    try {
+                        Stop-LertaroService $Sc 0 10
+                        exit 90
+                    } catch {
+                        if ($_.Exception.Message -eq 'Could not stop service: 1061') { exit 0 }
+                        throw
+                    }
+                }
+                'StartNoBudget' {
+                    try {
+                        Start-LertaroService $Sc 0 10
+                        exit 90
+                    } catch {
+                        if ($_.Exception.Message -eq 'Could not restart service: 1061') { exit 0 }
                         throw
                     }
                 }
