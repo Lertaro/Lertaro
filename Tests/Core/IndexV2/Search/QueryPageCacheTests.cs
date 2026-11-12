@@ -164,4 +164,34 @@ public sealed class QueryPageCacheTests
         Assert.IsTrue(cache.TryReplay(key, 10, secondReplay.Add, CancellationToken.None, revision: 7));
         Assert.AreEqual(42UL, secondReplay[0].RankSortKey);
     }
+
+    [TestMethod]
+    public void ClearDropsEveryPage()
+    {
+        var cache = new QueryPageCache();
+        var key = QueryPageCache.KeyFor("a", null, null, SearchCategoryFilter.All);
+        cache.Store(key, [Row("a.txt")], requestLimit: 10, revision: 7);
+
+        cache.Clear();
+
+        Assert.AreEqual(0, cache.RetainedEntryCount);
+        Assert.IsFalse(cache.TryReplay(key, 10, _ => { }, CancellationToken.None, revision: 7));
+    }
+
+    [TestMethod]
+    public void TotalRowBudgetEvictsOldestPages()
+    {
+        var cache = new QueryPageCache();
+        var rows = Enumerable.Range(0, QueryPageCache.MaxRows).Select(i => Row($"a{i}")).ToList();
+        for (var i = 0; i < 33; i++)
+        {
+            // clone:false reuses the detached list; the cache only retains row references.
+            cache.Store($"q{i}", rows, requestLimit: QueryPageCache.MaxRows, revision: 7, clone: false);
+        }
+
+        Assert.AreEqual(QueryPageCache.MaxTotalRows, cache.RetainedRowCount);
+        Assert.AreEqual(32, cache.RetainedEntryCount);
+        Assert.IsFalse(cache.TryReplay("q0", QueryPageCache.MaxRows, _ => { }, CancellationToken.None, revision: 7));
+        Assert.IsTrue(cache.TryReplay("q32", QueryPageCache.MaxRows, _ => { }, CancellationToken.None, revision: 7));
+    }
 }

@@ -65,7 +65,7 @@ public static class IndexV2Searcher
             return null;
         });
         if (cacheKey != null)
-            index.SearchPages.Store(cacheKey, captured!, limit, searchRevision, emitted);
+            index.SearchPages.Store(cacheKey, captured!, limit, searchRevision, emitted, clone: false);
         SearchPerf.Log($"[search] q='{query}' limit={limit} dir='{directoryFilter}' pathMode={parsed.IsPathMode} build={SearchPerf.BuildFlavor} total={SearchPerf.Ms(perfStart):F0}ms");
 
         Action<SearchResult> CacheOrOriginal() => cacheKey == null ? onResult : Capture;

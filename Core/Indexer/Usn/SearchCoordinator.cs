@@ -119,9 +119,21 @@ internal static class SearchCoordinator
         return false;
     }
 
-    // IndexV2 has no cross-search rank/candidate cache yet (a known follow-up, not a correctness gap
-    // -- see the IndexV2 migration notes); kept as a no-op call site so callers don't need to know that.
+    // Per-drive query page caches live on each LiveIndex; the idle/activity release paths clear them
+    // through UsnIndexer.ClearCaches. This no-arg hook remains for callers that only hold the
+    // coordinator -- there is no cross-drive cache here to clear.
     public static void ClearCaches()
     {
+    }
+
+    public static void ClearCaches(Dictionary<string, LiveIndex> recordIndexes, object lockObj)
+    {
+        LiveIndex[] drives;
+        lock (lockObj)
+        {
+            drives = recordIndexes.Values.ToArray();
+        }
+        foreach (var drive in drives)
+            drive.SearchPages.Clear();
     }
 }

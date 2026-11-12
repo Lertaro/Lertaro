@@ -154,7 +154,7 @@ public partial class UsnIndexer : IDisposable
         catch { }
     }
 
-    public void ClearCaches() => SearchCoordinator.ClearCaches();
+    public void ClearCaches() => SearchCoordinator.ClearCaches(_recordIndexes, LockObj);
 
     // IndexV2's Snapshot has no per-row path memo to clear -- GetFullPath rebuilds a path from cheap
     // mmap reads every call, so there's nothing to reclaim here. Kept as a no-op so callers (a search
