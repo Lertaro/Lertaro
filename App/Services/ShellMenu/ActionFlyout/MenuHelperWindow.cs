@@ -12,7 +12,8 @@ internal class MenuHelperWindow : Window, ITransientHostWindow
 {
     // One window for the process, not one per right-click: each menu used to pay a fresh handle, render
     // target and foreground handoff, and leave a new HwndWrapper class GUID behind in every window
-    // enumerator. A closed WPF window cannot be shown again, so this one is shown once and then only moved.
+    // enumerator. A closed WPF window cannot be shown again, so this one is shown once and then only moved;
+    // anything that does close it drops the singleton, and the next Acquire builds a replacement.
     private static MenuHelperWindow? _shared;
 
     private MenuHelperWindow()
@@ -32,7 +33,18 @@ internal class MenuHelperWindow : Window, ITransientHostWindow
         Opacity = 0;
         ShowInTaskbar = false; IsTabStop = false; Focusable = true;
         ThemedWindowIconHelper.Apply(this);
+        // The one real top-level window on this path. ShowInTaskbar=false only removes the taskbar button
+        // (WPF points the owner at its hidden window); the Alt+Tab entry goes away only with WS_EX_TOOLWINDOW.
+        AltTabExcluder.Attach(this);
         Deactivated += (_, _) => LostActivation?.Invoke();
+
+        // Alt+Tab, Alt+F4 or a task-view close can close this window. Show() on a closed Window throws and
+        // Acquire would hit it on the next right-click, so hand the next caller a fresh instance instead.
+        Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_shared, this))
+                _shared = null;
+        };
     }
 
     // Owned by whichever menu is using the window right now, cleared when that menu lets go: a handler left
