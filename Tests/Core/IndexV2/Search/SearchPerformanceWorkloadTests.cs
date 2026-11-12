@@ -162,6 +162,7 @@ public sealed class SearchPerformanceWorkloadTests(TestContext context)
         coldTimer.Stop();
         var memoryAfterCold = GC.GetTotalMemory(forceFullCollection: true);
         var allocatedBeforeHits = GC.GetTotalAllocatedBytes(precise: true);
+        var replaysBefore = fixture.Index.SearchPages.ReplayCount;
         var hitTimes = new List<double>(10);
         List<SearchResult>? final = null;
         for (var i = 0; i < 10; i++)
@@ -176,6 +177,11 @@ public sealed class SearchPerformanceWorkloadTests(TestContext context)
         Assert.AreEqual(limit, cold.Count);
         Assert.AreEqual(limit, final!.Count);
         Assert.AreEqual(204, fixture.Index.SearchPages.RetainedRowCount);
+        // The benchmark must fail if replay stops working; counts alone pass even when every "hit"
+        // falls through to a full search.
+        Assert.AreEqual(10L, fixture.Index.SearchPages.ReplayCount - replaysBefore);
+        Assert.IsTrue(cold.Select(row => (row.Path, row.IsDir, row.RankSortKey))
+            .SequenceEqual(final.Select(row => (row.Path, row.IsDir, row.RankSortKey))));
         context.WriteLine("SEARCH_PERF " + JsonSerializer.Serialize(new
         {
             scenario = "query-page-cache",

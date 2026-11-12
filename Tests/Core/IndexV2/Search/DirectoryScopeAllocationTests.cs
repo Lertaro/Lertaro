@@ -15,7 +15,11 @@ public sealed class DirectoryScopeAllocationTests
         using var fixture = BuildDrive(fileCount: 10_000);
 
         Search(fixture, "item", null); // Warm JIT and thread-static search scratch state.
+        // The page cache would turn the second query into a replay and hide the cold-start allocation
+        // difference this test measures, so each sample must start without a cached page.
+        fixture.Index.SearchPages.Clear();
         var unscopedBytes = MeasureAllocatedBytes(() => Search(fixture, "item", null));
+        fixture.Index.SearchPages.Clear();
         var scopedBytes = MeasureAllocatedBytes(() => Search(fixture, "item", @"C:\Scope"));
         var unscopedTime = MeasureMedianElapsed(() => Search(fixture, "item", null));
         var scopedTime = MeasureMedianElapsed(() => Search(fixture, "item", @"C:\Scope"));
