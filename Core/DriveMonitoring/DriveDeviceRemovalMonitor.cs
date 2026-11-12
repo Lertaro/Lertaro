@@ -2,23 +2,25 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Lertaro.Core.DriveMonitoring;
 
-// Registers PnP removal notifications for one volume. The target handle must stay open until the
-// query-remove callback; otherwise Configuration Manager has no live device handle to notify.
+// Registers PnP removal notifications for a volume handle. USN monitoring supplies its actual read
+// handle, so replacing that handle also replaces the notification registration.
 internal sealed class DriveDeviceRemovalMonitor : IDisposable
 {
     private readonly string _drive;
-    private readonly Action _onRemovalRequested;
-    private readonly Action _onRemovalFailed;
-    private readonly Action _onRemovalComplete;
+    private readonly Action<DriveDeviceRemovalMonitor> _onRemovalRequested;
+    private readonly Action<DriveDeviceRemovalMonitor> _onRemovalFailed;
+    private readonly Action<DriveDeviceRemovalMonitor> _onRemovalComplete;
     private readonly DeviceNotificationNative.Callback _callback;
     private readonly object _gate = new();
     private SafeFileHandle? _targetHandle;
     private IntPtr _notification;
     private int _callbackDepth;
-    private int _disposed;
-    private int _removalRequested;
+    private bool _disposed;
+    private bool _invalidated;
+    private bool _removalRequested;
 
-    private DriveDeviceRemovalMonitor(string drive, Action onRemovalRequested, Action onRemovalFailed, Action onRemovalComplete)
+    internal DriveDeviceRemovalMonitor(string drive, Action<DriveDeviceRemovalMonitor> onRemovalRequested,
+        Action<DriveDeviceRemovalMonitor> onRemovalFailed, Action<DriveDeviceRemovalMonitor> onRemovalComplete)
     {
         _drive = drive;
         _onRemovalRequested = onRemovalRequested;
@@ -31,10 +33,12 @@ internal sealed class DriveDeviceRemovalMonitor : IDisposable
         string drive,
         Action onRemovalRequested,
         Action onRemovalFailed,
-        Action onRemovalComplete)
+        Action onRemovalComplete,
+        SafeFileHandle? volumeHandle = null)
     {
-        var monitor = new DriveDeviceRemovalMonitor(drive, onRemovalRequested, onRemovalFailed, onRemovalComplete);
-        if (!monitor.RegisterCore(drive))
+        var monitor = new DriveDeviceRemovalMonitor(drive, source => source.TryInvoke(onRemovalRequested),
+            source => source.TryInvoke(onRemovalFailed), source => source.TryInvoke(onRemovalComplete));
+        if (!monitor.RegisterCore(drive, volumeHandle))
         {
             monitor.Dispose();
             return null;
@@ -42,24 +46,40 @@ internal sealed class DriveDeviceRemovalMonitor : IDisposable
         return monitor;
     }
 
-    public void Dispose()
+    internal void Invalidate()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0)
-            return;
-
-        if (Volatile.Read(ref _callbackDepth) != 0)
-        {
-            _ = Task.Run(UnregisterCore);
-            return;
-        }
-        UnregisterCore();
+        lock (_gate) _invalidated = true;
     }
 
-    private bool RegisterCore(string drive)
+    internal bool TryInvoke(Action action)
     {
-        // Shares delete so the handle this registration reports on is not itself what vetoes the removal it
-        // is being asked about -- the same shape as UsnFilePathResolver's volume open.
-        var handle = Win32Api.CreateFileW(
+        lock (_gate)
+        {
+            if (_invalidated) return false;
+            action();
+            return true;
+        }
+    }
+
+    public void Dispose()
+    {
+        bool defer;
+        lock (_gate)
+        {
+            _invalidated = true;
+            if (_disposed) return;
+            _disposed = true;
+            defer = _callbackDepth != 0;
+        }
+        if (defer) _ = Task.Run(UnregisterCore);
+        else UnregisterCore();
+    }
+
+    internal bool RegisterCore(string drive, SafeFileHandle? volumeHandle)
+    {
+        // The shared SafeFileHandle is idempotently closed by either its I/O owner or removal.
+        // Folder scans without a persistent volume handle still need their own notification handle.
+        var handle = volumeHandle ?? Win32Api.CreateFileW(
             $"\\\\.\\{drive}:",
             Win32Api.GENERIC_READ,
             Win32Api.FILE_SHARE_READ | Win32Api.FILE_SHARE_WRITE | Win32Api.FILE_SHARE_DELETE,
@@ -80,23 +100,58 @@ internal sealed class DriveDeviceRemovalMonitor : IDisposable
             FilterType = DeviceNotificationNative.DeviceHandleFilter,
             UnionData = new byte[400]
         };
-        BitConverter.GetBytes(handle.DangerousGetHandle().ToInt64()).CopyTo(filter.UnionData, 0);
-        var result = DeviceNotificationNative.CM_Register_Notification(ref filter, IntPtr.Zero, _callback, out _notification);
+        lock (_gate)
+        {
+            if (_invalidated)
+            {
+                handle.Dispose();
+                return false;
+            }
+            _targetHandle = handle;
+        }
+        var addedReference = false;
+        uint result;
+        IntPtr notification;
+        try
+        {
+            handle.DangerousAddRef(ref addedReference);
+            BitConverter.GetBytes(handle.DangerousGetHandle().ToInt64()).CopyTo(filter.UnionData, 0);
+            result = DeviceNotificationNative.CM_Register_Notification(ref filter, IntPtr.Zero, _callback, out notification);
+        }
+        catch (ObjectDisposedException) when (handle.IsClosed)
+        {
+            return false;
+        }
+        finally
+        {
+            if (addedReference) handle.DangerousRelease();
+        }
         if (result != DeviceNotificationNative.Success)
         {
-            handle.Dispose();
+            CloseTargetHandle();
             Logger.Log($"[DeviceNotification] Failed to register removal notifications for {drive}: {result}.", LogLevel.Warn);
             return false;
         }
-        _targetHandle = handle;
-        return true;
+        lock (_gate)
+        {
+            _notification = notification;
+            if (!_invalidated) return true;
+        }
+        // Disposal can win while CM_Register_Notification is still returning its handle.
+        _ = Task.Run(UnregisterCore);
+        return false;
     }
 
-    private uint HandleNotification(IntPtr notification, IntPtr context, int action, IntPtr eventData, uint eventDataSize)
+    internal uint HandleNotification(IntPtr notification, IntPtr context, int action, IntPtr eventData, uint eventDataSize)
     {
-        Interlocked.Increment(ref _callbackDepth);
+        lock (_gate)
+        {
+            if (_invalidated) return DeviceNotificationNative.Success;
+            _callbackDepth++;
+        }
         try
         {
+            Logger.Log($"[DeviceNotification] Drive {_drive}: action={action}.");
             if (action is DeviceNotificationNative.DeviceQueryRemove or DeviceNotificationNative.DeviceRemovePending)
             {
                 RequestRemoval();
@@ -107,10 +162,12 @@ internal sealed class DriveDeviceRemovalMonitor : IDisposable
             }
             else if (action == DeviceNotificationNative.DeviceRemoveComplete)
             {
-                CloseTargetHandle();
-                try { _onRemovalComplete(); }
-                catch (Exception ex) { Logger.Log($"[DeviceNotification] Failed to handle completed drive removal: {ex.Message}", LogLevel.Error); }
-                _ = Task.Run(UnregisterCore);
+                if (TryInvoke(CloseTargetHandle))
+                {
+                    try { _onRemovalComplete(this); }
+                    catch (Exception ex) { Logger.Log($"[DeviceNotification] Failed to handle completed drive removal: {ex.Message}", LogLevel.Error); }
+                    Dispose();
+                }
             }
             else if (action == DeviceNotificationNative.DeviceCustomEvent &&
                      DeviceNotificationNative.TryReadCustomEventGuid(eventData, eventDataSize, out var eventGuid))
@@ -124,61 +181,49 @@ internal sealed class DriveDeviceRemovalMonitor : IDisposable
         }
         finally
         {
-            Interlocked.Decrement(ref _callbackDepth);
+            lock (_gate) _callbackDepth--;
         }
     }
 
     private void UnregisterCore()
     {
+        IntPtr notification;
         lock (_gate)
         {
-            var notification = Interlocked.Exchange(ref _notification, IntPtr.Zero);
-            if (notification != IntPtr.Zero)
-                DeviceNotificationNative.CM_Unregister_Notification(notification);
-            CloseTargetHandle();
+            notification = _notification;
+            _notification = IntPtr.Zero;
         }
+        // CM waits for callbacks: neither the admission gate nor an owner's gate may be held here.
+        if (notification != IntPtr.Zero)
+            DeviceNotificationNative.CM_Unregister_Notification(notification);
+        CloseTargetHandle();
+        GC.KeepAlive(_callback);
     }
-
-    // Puts the notification back after a removal attempt was refused, because answering one closed the very
-    // handle the registration reports on: an unarmed monitor never hears the next attempt, so a single eject
-    // vetoed by another program would leave the volume un-ejectable until something else rebuilt its monitor.
-    // Off the callback thread, and serialized with Dispose: CM_Unregister_Notification for a notification that
-    // is mid-callback is the same hazard Dispose() already defers for.
-    private void Rearm() => _ = Task.Run(() =>
-    {
-        lock (_gate)
-        {
-            // Skip when already armed (another refusal re-armed first), when this volume is gone for good,
-            // and while a removal request is being answered -- re-arming inside that window would put a handle
-            // back on the volume the system is trying to lock, and the next refusal would bring us back here.
-            if (Volatile.Read(ref _disposed) != 0 || _targetHandle != null || Volatile.Read(ref _removalRequested) != 0)
-                return;
-
-            var notification = Interlocked.Exchange(ref _notification, IntPtr.Zero);
-            if (notification != IntPtr.Zero)
-                DeviceNotificationNative.CM_Unregister_Notification(notification);
-
-            RegisterCore(_drive);
-        }
-    });
 
     private void CloseTargetHandle() => Interlocked.Exchange(ref _targetHandle, null)?.Dispose();
 
     private void RequestRemoval()
     {
-        CloseTargetHandle();
-        if (Interlocked.Exchange(ref _removalRequested, 1) != 0)
-            return;
+        var requested = false;
+        if (!TryInvoke(() =>
+        {
+            CloseTargetHandle();
+            requested = !_removalRequested;
+            _removalRequested = true;
+        }) || !requested) return;
 
-        try { _onRemovalRequested(); }
+        // Owner callbacks fence their short side effects with TryInvoke (and their registration identity),
+        // but must join their monitor outside this gate so a loop replacing its handle can finish.
+        try { _onRemovalRequested(this); }
         catch (Exception ex) { Logger.Log($"[DeviceNotification] Failed to release a drive monitor: {ex.Message}", LogLevel.Error); }
     }
 
     private void RestoreAfterFailedRemoval()
     {
-        Interlocked.Exchange(ref _removalRequested, 0);
-        try { _onRemovalFailed(); }
+        if (!TryInvoke(() => _removalRequested = false)) return;
+        try { _onRemovalFailed(this); }
         catch (Exception ex) { Logger.Log($"[DeviceNotification] Failed to restore a drive monitor: {ex.Message}", LogLevel.Error); }
-        Rearm();
+        // CM keeps the registration valid after QUERYREMOVEFAILED even though its handle was closed.
+        // The owner recreates its monitor/handle; opening a second handle here could race that recovery.
     }
 }

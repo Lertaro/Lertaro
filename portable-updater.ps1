@@ -102,26 +102,33 @@ function Wait-LertaroProcessExit([string]$Name, [string]$Root, [int]$TimeoutMs =
 
 function Stop-LertaroService {
     param([string]$Sc, [int]$TimeoutMs = 60000, [int]$PollMs = 100)
-    $deadline = [Diagnostics.Stopwatch]::StartNew()
+    # The budget bounds the retrying, not the first call: a slow sc.exe must not use up the budget and turn
+    # one transient 1061 into a failure without ever retrying. The clock starts after that first refusal.
+    $deadline = $null
     while ($true) {
         & $Sc stop LertaroService | Out-Null
         $exit = $LASTEXITCODE
         # 1061 means the SCM is already processing a stop; retry until it accepts a stop or reports stopped.
         if ($exit -in 0, 1060, 1062) { return }
-        if ($exit -ne 1061 -or $deadline.Elapsed.TotalMilliseconds -ge $TimeoutMs) { throw "Could not stop service: $exit" }
+        if ($exit -ne 1061) { throw "Could not stop service: $exit" }
+        if ($null -eq $deadline) { $deadline = [Diagnostics.Stopwatch]::StartNew() }
+        elseif ($deadline.Elapsed.TotalMilliseconds -ge $TimeoutMs) { throw "Could not stop service: $exit" }
         Start-Sleep -Milliseconds $PollMs
     }
 }
 
 function Start-LertaroService {
     param([string]$Sc, [int]$TimeoutMs = 15000, [int]$PollMs = 100)
-    $deadline = [Diagnostics.Stopwatch]::StartNew()
+    # Same as the stop above: only the retrying is bounded, so a transient 1061 is always retried once.
+    $deadline = $null
     while ($true) {
         & $Sc start LertaroService | Out-Null
         $exit = $LASTEXITCODE
         if ($exit -in 0, 1056) { return }
         # A stop from another controller can still make start report 1061 briefly.
-        if ($exit -ne 1061 -or $deadline.Elapsed.TotalMilliseconds -ge $TimeoutMs) { throw "Could not restart service: $exit" }
+        if ($exit -ne 1061) { throw "Could not restart service: $exit" }
+        if ($null -eq $deadline) { $deadline = [Diagnostics.Stopwatch]::StartNew() }
+        elseif ($deadline.Elapsed.TotalMilliseconds -ge $TimeoutMs) { throw "Could not restart service: $exit" }
         Start-Sleep -Milliseconds $PollMs
     }
 }

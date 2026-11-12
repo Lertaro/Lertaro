@@ -9,6 +9,29 @@ namespace Lertaro.Core.Tests.Indexer.NetworkDrive.Scheduling;
 public sealed class DriveRefreshRunnerTests
 {
     [TestMethod]
+    public void RefreshDrive_UnreachableRoot_LeavesBusyStateWithoutTouchingCache()
+    {
+        using var dir = new TempDirectory();
+        var missing = Path.Combine(dir.Path, "offline");
+        var states = new List<string>();
+
+        DriveRefreshRunner.RefreshDrive(missing, CancellationToken.None,
+            (drive, state, items, error) =>
+            {
+                Assert.AreEqual(missing, drive);
+                Assert.IsNull(items, "Keep the cached count instead of resetting it to zero.");
+                Assert.IsFalse(string.IsNullOrEmpty(error));
+                states.Add(state);
+            },
+            _ => throw new AssertFailedException("An offline probe must not copy a large cached index."),
+            (_, _, _, _) => Assert.Fail("An offline probe must not overwrite the checkpoint."),
+            (_, _) => Assert.Fail("An offline probe must not publish an empty index."),
+            _ => Assert.Fail("An offline probe must not release the searchable cache."));
+
+        CollectionAssert.AreEqual(new[] { "error" }, states);
+    }
+
+    [TestMethod]
     public void SetUncapturedMarker_UnwritablePath_ReportsFailure()
     {
         using var dir = new TempDirectory();

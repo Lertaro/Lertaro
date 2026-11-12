@@ -10,15 +10,17 @@ internal sealed class DriveWatcherHost : IDisposable
     private readonly Func<FileSystemWatcher, string, Action, Action, Action<string>, bool> _configure;
     private readonly Action<string, LogLevel> _onLog;
     private readonly Action? _onStarted;
+    private readonly Action? _onUnavailable;
     private readonly TimeSpan _retryDelay;
     private readonly object _gate = new();
     private FileSystemWatcher? _watcher;
+    private bool _starting;
     private bool _retryInFlight;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     public DriveWatcherHost(string name, string drive, Func<string, bool> exists,
         Func<FileSystemWatcher, string, Action, Action, Action<string>, bool> configure, Action<string, LogLevel> onLog,
-        TimeSpan? retryDelay = null, Action? onStarted = null)
+        TimeSpan? retryDelay = null, Action? onStarted = null, Action? onUnavailable = null)
     {
         _name = name;
         _drive = drive;
@@ -31,6 +33,7 @@ internal sealed class DriveWatcherHost : IDisposable
         _configure = configure;
         _onLog = onLog;
         _onStarted = onStarted;
+        _onUnavailable = onUnavailable;
         _retryDelay = retryDelay ?? TimeSpan.FromSeconds(10);
     }
 
@@ -53,39 +56,59 @@ internal sealed class DriveWatcherHost : IDisposable
 
     private void EnsureWatcher()
     {
-        var started = false;
         lock (_gate)
         {
-            if (_disposed || _watcher != null)
+            if (_disposed || _watcher != null || _starting)
                 return;
-            if (!_exists(_rootPath))
-            {
-                ScheduleRetry();
-                return;
-            }
+            _starting = true;
+        }
 
-            FileSystemWatcher? watcher = null;
-            try
+        var started = false;
+        var unavailable = false;
+        FileSystemWatcher? watcher = null;
+        try
+        {
+            // A remote probe may block in Windows. Keep it outside the lock so removing this
+            // root can dispose the host immediately and discard any late probe result.
+            if (!_exists(_rootPath))
+                unavailable = true;
+            else
             {
-                watcher = new FileSystemWatcher(_rootPath);
-                if (_configure(watcher, _drive, RestartWatcher, ScheduleRetry, LogError))
+                lock (_gate)
                 {
-                    watcher.EnableRaisingEvents = true;
-                    _watcher = watcher;
-                    started = true;
-                    _onLog($"[{_name}] Started monitoring {_drive}: via FileSystemWatcher.", LogLevel.Info);
-                }
-                else
-                {
-                    watcher.Dispose();
+                    if (_disposed)
+                        return;
+                    watcher = new FileSystemWatcher(_rootPath);
+                    if (_configure(watcher, _drive, RestartWatcher, ScheduleRetry, LogError))
+                    {
+                        watcher.EnableRaisingEvents = true;
+                        _watcher = watcher;
+                        started = true;
+                        _onLog($"[{_name}] Started monitoring {_drive}: via FileSystemWatcher.", LogLevel.Info);
+                    }
+                    else
+                    {
+                        watcher.Dispose();
+                    }
                 }
             }
-            catch (Exception ex)
-            {
-                watcher?.Dispose();
-                LogError($"Failed to start monitoring {_drive}: {ex.Message}");
-                ScheduleRetry();
-            }
+        }
+        catch (Exception ex)
+        {
+            watcher?.Dispose();
+            LogError($"Failed to start monitoring {_drive}: {ex.Message}");
+            unavailable = true;
+        }
+        finally
+        {
+            lock (_gate)
+                _starting = false;
+        }
+
+        if (unavailable && !_disposed)
+        {
+            _onUnavailable?.Invoke();
+            ScheduleRetry();
         }
         // Reconciliation must start after events are enabled, closing the gap during the outage.
         if (started && !_disposed) _onStarted?.Invoke();

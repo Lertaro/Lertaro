@@ -3,10 +3,6 @@ using Lertaro.Core.Indexer.Usn;
 
 namespace Lertaro.Core.Tests.DriveMonitoring;
 
-// CancelDriveRebuild's own bookkeeping (does it find and cancel the right CTS) is pure dictionary logic,
-// independent of the real filesystem/service-process work SearchEngineDriveMaintenance's other methods do
-// -- so these tests seed _activeRebuildCts directly (internal, reachable from this assembly) rather than
-// driving a real rebuild through RebuildDriveIndex.
 [TestClass]
 public sealed class SearchEngineDriveMaintenanceCancellationExtensionsTests
 {
@@ -16,6 +12,33 @@ public sealed class SearchEngineDriveMaintenanceCancellationExtensionsTests
         () => CancellationToken.None,
         () => false,
         () => { });
+
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public void CancelDriveRebuild_WorkStillQueued_CancelsRegisteredTokenBeforeExecution(bool forceRebuild)
+    {
+        using var lifetime = new CancellationTokenSource();
+        using var indexer = new UsnIndexer();
+        var completed = 0;
+        var queued = new List<Action>();
+        var maintenance = new SearchEngineDriveMaintenance(indexer, () => new MachineSettings(),
+            () => lifetime.Token, () => false, () => completed++);
+        const string drive = "QODER-TEST-REBUILD";
+
+        Assert.IsTrue(maintenance.QueueDriveRebuild(drive, forceRebuild, queued.Add));
+        Assert.IsTrue(maintenance._activeRebuildCts.TryGetValue(drive, out var cts));
+        Assert.IsTrue(maintenance.CancelDriveRebuild(drive));
+        Assert.IsTrue(cts.IsCancellationRequested);
+        Assert.IsFalse(maintenance.QueueDriveRebuild(drive, forceRebuild, queued.Add));
+        lifetime.Cancel();
+
+        Assert.ContainsSingle(queued)();
+
+        Assert.AreEqual(1, completed);
+        Assert.IsFalse(maintenance.HasPendingRebuilds);
+        Assert.IsEmpty(maintenance._activeRebuildCts);
+    }
 
     [TestMethod]
     public void CancelDriveRebuild_DriveHasAnActiveRebuild_CancelsItsTokenAndReturnsTrue()

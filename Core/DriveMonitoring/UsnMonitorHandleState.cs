@@ -8,11 +8,20 @@ internal sealed class UsnMonitorHandleState
 {
     private readonly object _gate = new();
     private SafeFileHandle? _handle;
+    private bool _disposed;
 
-    public void Set(SafeFileHandle handle)
+    public bool TrySet(SafeFileHandle handle)
     {
         lock (_gate)
+        {
+            if (_disposed)
+            {
+                handle.Dispose();
+                return false;
+            }
             _handle = handle;
+            return true;
+        }
     }
 
     public void Clear(SafeFileHandle handle)
@@ -28,6 +37,7 @@ internal sealed class UsnMonitorHandleState
     {
         lock (_gate)
         {
+            _disposed = true;
             _handle?.Dispose();
             _handle = null;
         }

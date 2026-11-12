@@ -140,8 +140,9 @@ internal sealed class SearchEngineDriveMaintenance
     }
     public void QueueDriveRebuild(string drive) => QueueDriveRebuild(drive, forceRebuild: false);
 
-    internal bool QueueDriveRebuild(string drive, bool forceRebuild)
+    internal bool QueueDriveRebuild(string drive, bool forceRebuild, Action<Action>? queueWork = null)
     {
+        CancellationTokenSource cts;
         lock (_pendingDriveRebuilds)
         {
             if (_isRebuilding())
@@ -159,21 +160,25 @@ internal sealed class SearchEngineDriveMaintenance
                 Logger.Log($"[SearchEngine] Ignored duplicate rebuild request for drive {drive}.");
                 return false;
             }
+            cts = CancellationTokenSource.CreateLinkedTokenSource(_token());
+            _activeRebuildCts[drive] = cts;
         }
         UpdateMaintenanceBusyState();
         _indexer.SetDriveState(drive, "indexing", resetCounts: true);
-        Task.Run(() => RebuildDrive(drive, forceRebuild));
+        Action work = () => RebuildDrive(drive, forceRebuild, cts);
+        if (queueWork == null)
+            Task.Run(work);
+        else
+            queueWork(work);
         return true;
     }
 
-    private void RebuildDrive(string drive, bool forceRebuild)
+    private void RebuildDrive(string drive, bool forceRebuild, CancellationTokenSource cts)
     {
-        var cts = CancellationTokenSource.CreateLinkedTokenSource(_token());
         var retryAfterRemoval = false;
-        lock (_pendingDriveRebuilds)
-            _activeRebuildCts[drive] = cts;
         try
         {
+            cts.Token.ThrowIfCancellationRequested();
             if (forceRebuild)
                 ForceRebuildDrive(drive, cts.Token);
             else

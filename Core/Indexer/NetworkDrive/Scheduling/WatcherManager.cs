@@ -9,6 +9,8 @@ internal class WatcherManager : IDisposable
     private readonly Func<string, NetworkIndex?> _getIndex;
     private readonly Action<string, NetworkIndex, IReadOnlyCollection<string>?> _onIncrementalUpdate;
     private readonly Func<string, bool> _markMissedIfRescanning;
+    private readonly Func<string, bool> _directoryExists;
+    private readonly TimeSpan? _retryDelay;
     private volatile bool _disposed;
 
     // Every raw FileSystemWatcher event that changed the in-memory index used to trigger _onIncrementalUpdate
@@ -33,15 +35,19 @@ internal class WatcherManager : IDisposable
         Action<string, string> queueRefresh,
         Func<string, NetworkIndex?> getIndex,
         Action<string, NetworkIndex, IReadOnlyCollection<string>?> onIncrementalUpdate,
-        Func<string, bool> markMissedIfRescanning)
+        Func<string, bool> markMissedIfRescanning,
+        Func<string, bool>? directoryExists = null,
+        TimeSpan? retryDelay = null)
     {
         _queueRefresh = queueRefresh;
         _getIndex = getIndex;
         _onIncrementalUpdate = onIncrementalUpdate;
         _markMissedIfRescanning = markMissedIfRescanning;
+        _directoryExists = directoryExists ?? Directory.Exists;
+        _retryDelay = retryDelay;
     }
 
-    public void EnsureWatcher(string drive)
+    public void EnsureWatcher(string drive, bool needsInitialReconciliation = false)
     {
         // WSL UNC paths do not support ReadDirectoryChangesW/FileSystemWatcher (raises "Function incorrect" /
         // ERROR_INVALID_FUNCTION). Checked precisely (not every "\\wsl"-prefixed path) so a real UNC share
@@ -52,47 +58,55 @@ internal class WatcherManager : IDisposable
 
         lock (_watchers)
         {
-            if (_watchers.ContainsKey(drive))
+            if (_disposed || _watchers.ContainsKey(drive))
                 return;
 
-            var host = new DriveWatcherHost(
+            DriveWatcherHost? host = null;
+            host = new DriveWatcherHost(
                 nameof(WatcherManager),
                 drive,
-                Directory.Exists,
+                _directoryExists,
                 ConfigureWatcher,
                 Logger.Log,
+                retryDelay: _retryDelay,
                 onStarted: () =>
                 {
                     // A live watcher is only safe to keep on a removable volume if a removal request can
                     // take it down in time, and a re-established one owes the tree a re-walk for whatever
                     // changed while nothing was watching.
-                    WatchVolumeRemoval(drive);
-                    if (!_disposed && _lossGate.Recovered(drive))
+                    WatchVolumeRemoval(drive, host!);
+                    // The first scan can finish before monitoring starts, leaving an unobserved gap.
+                    if (!_disposed && (_lossGate.Recovered(drive) || needsInitialReconciliation || _getIndex(drive) == null))
                         _queueRefresh(drive, "watcher recovered, reconcile the outage");
-                });
+                },
+                // An initially offline root has no watcher Error event. Remember that gap too,
+                // so the first successful start reconciles files created before monitoring began.
+                onUnavailable: () => _lossGate.ShouldRequestRefresh(drive));
             _watchers[drive] = host;
-            host.Start();
+            // Directory.Exists and watcher startup may wait for a remote server. Never do that
+            // on the settings/UI caller or while holding the manager's dictionary lock.
+            _ = Task.Run(host.Start);
         }
     }
 
     public void RemoveWatcher(string drive)
     {
-        TakeRemovalMonitor(drive)?.Dispose();
-
+        DriveWatcherHost? watcher;
         lock (_watchers)
+            _watchers.Remove(drive, out watcher);
+
+        try
         {
-            if (_watchers.Remove(drive, out var watcher))
-            {
-                try
-                {
-                    watcher.Dispose();
-                }
-                catch
-                {
-                }
-            }
+            watcher?.Dispose();
+        }
+        catch
+        {
         }
 
+        // Remove ownership before taking the registration: a late background start can no longer
+        // register a new removal handle after this cleanup has already passed.
+        TakeRemovalMonitor(drive)?.Dispose();
+        _lossGate.Recovered(drive);
         _publishDebounce.Cancel(drive);
     }
 
@@ -100,7 +114,7 @@ internal class WatcherManager : IDisposable
     // folder-index root needs every handle on it gone by the time Windows asks, and asking is what this
     // registration buys: it costs one read handle of our own, which the answer closes again. A UNC share or
     // a mapped drive has no local volume to eject, so those roots are left alone.
-    private void WatchVolumeRemoval(string drive)
+    private void WatchVolumeRemoval(string drive, DriveWatcherHost host)
     {
         var letter = EjectableVolumeOf(PathHelpers.BuildSourceRoot(drive));
         if (letter == null)
@@ -108,12 +122,14 @@ internal class WatcherManager : IDisposable
 
         // Re-armed on every (re)start: the registration that answered the last removal request closed its
         // own handle and can never report again for this root.
-        var previous = TakeRemovalMonitor(drive);
-        DriveDeviceRemovalMonitor? monitor;
-        lock (_removalsGate)
+        DriveDeviceRemovalMonitor? previous;
+        lock (_watchers)
         {
-            monitor = DriveDeviceRemovalMonitor.Register(letter, () => ReleaseForRemoval(drive), () => { }, () => { });
-            _removals[drive] = monitor;
+            if (_disposed || !_watchers.TryGetValue(drive, out var current) || !ReferenceEquals(current, host))
+                return;
+            previous = TakeRemovalMonitor(drive);
+            lock (_removalsGate)
+                _removals[drive] = DriveDeviceRemovalMonitor.Register(letter, () => ReleaseForRemoval(drive), () => { }, () => { });
         }
         previous?.Dispose();
     }
@@ -227,7 +243,8 @@ internal class WatcherManager : IDisposable
         {
             var ex = e.GetException();
             logError($"Watcher error on {drive}: {ex?.Message ?? "unknown"}");
-            RemoveWatcher(drive);
+            TakeRemovalMonitor(drive)?.Dispose();
+            _publishDebounce.Cancel(drive);
 
             // The watcher is gone, and every change it failed to deliver (the classic case is a buffer
             // overflow on a busy share) is only recoverable by re-walking the drive: the retry below resumes
@@ -236,27 +253,9 @@ internal class WatcherManager : IDisposable
             if (!_disposed && _lossGate.ShouldRequestRefresh(drive))
                 _queueRefresh(drive, "watcher lost, changes may have been missed");
 
-            if (_getIndex(drive) != null)
-            {
-                // Existing index is still valid for live search; keep retrying until the watcher comes
-                // back up. ponytail: fixed 10 s back-off; upgrade to exponential if flapping becomes an
-                // issue.
-                _ = Task.Run(async () =>
-                {
-                    while (!_disposed)
-                    {
-                        await Task.Delay(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-                        if (_disposed)
-                            break;
-                        EnsureWatcher(drive);
-                        lock (_watchers)
-                        {
-                            if (_watchers.ContainsKey(drive))
-                                break;
-                        }
-                    }
-                });
-            }
+            // Keep the same host and its single retry loop, including before the first index
+            // exists. Removing this configured root disposes the host and stops these retries.
+            restart();
         };
         return true;
     }

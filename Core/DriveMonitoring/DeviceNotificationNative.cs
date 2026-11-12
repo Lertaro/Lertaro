@@ -13,10 +13,10 @@ internal static class DeviceNotificationNative
     internal const int DeviceRemoveComplete = 5;
     internal const int DeviceCustomEvent = 6;
 
-    // Device interface notifications are not DBT_* codes, they reuse the device broadcast event
-    // numbers (CM_NOTIFY_ACTION): arrival 0x8000, removal complete 0x8004.
-    internal const int DeviceInterfaceArrival = 0x8000;
-    internal const int DeviceInterfaceRemoveComplete = 0x8004;
+    // CM_NOTIFY_ACTION uses a separate enum from the DBT_* broadcast values. The Windows SDK defines
+    // interface arrival/removal as 0 and 1; using 0x8000/0x8004 silently ignored every volume arrival.
+    internal const int DeviceInterfaceArrival = 0;
+    internal const int DeviceInterfaceRemoveComplete = 1;
 
     // The volume device interface. It belongs to the volume device, so it arrives and is removed with
     // the mounted volume itself and the filesystem driver (NTFS, exFAT, ...) plays no part in it.

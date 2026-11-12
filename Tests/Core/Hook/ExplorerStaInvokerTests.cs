@@ -3,11 +3,19 @@ using Lertaro.Core.Hook;
 
 namespace Lertaro.Core.Tests.Hook;
 
+// [DoNotParallelize]: ResetAbandonedReads_ReopensReadsThatTheExhaustedBudgetRefused drives
+// ExplorerStaInvoker's process-wide abandoned-read budget to its cap, and a read from any test running
+// beside it -- a sibling here or another suite -- would be refused with its fallback instead of dispatched.
 [TestClass]
+[DoNotParallelize]
 public sealed class ExplorerStaInvokerTests
 {
     // More than ExplorerStaInvoker.WorkerCount, so round-robin reaches every worker at least twice.
     private const int Reads = 12;
+
+    // Reads abandoned elsewhere in the suite count against the same latch, so start each test from zero.
+    [TestInitialize]
+    public void ResetAbandonedBudget() => ExplorerStaInvoker.ResetAbandonedReads();
 
     [TestMethod]
     public void RunOnStaWithTimeout_RunsTheReadOnAStaWorkerThatIsNotTheCaller()

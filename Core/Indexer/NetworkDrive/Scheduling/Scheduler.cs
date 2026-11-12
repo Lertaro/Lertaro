@@ -11,6 +11,7 @@ internal sealed class Scheduler : IDisposable
     // a drive's entry here and its busy-ness are definitionally the same thing.
     private readonly Dictionary<string, CancellationTokenSource> _activeCts = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _pendingRefreshDrives = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _configuredDrives = new(StringComparer.OrdinalIgnoreCase);
     // Cancelled only on Dispose() -- unlike the old shared _refreshCts (recreated on every StartRefresh
     // call), this never interrupts a drive that's still configured. Only a drive genuinely removed from
     // config gets its own _activeCts entry cancelled (see StartRefresh); everything else keeps running
@@ -18,7 +19,7 @@ internal sealed class Scheduler : IDisposable
     // different drive, or an exclusions change elsewhere).
     private readonly CancellationTokenSource _lifetimeCts = new();
 
-    private readonly Action<string, string> _onWatcherEnsure;
+    private readonly Action<string, bool> _onWatcherEnsure;
     private readonly Action<string> _onWatcherRemove;
     private readonly Action<string, string, int?, string?> _setStatus;
     private readonly Action<string, NetworkIndex> _onRefreshFinished;
@@ -27,14 +28,14 @@ internal sealed class Scheduler : IDisposable
     private readonly Action<string> _releaseCachedIndex;
     private readonly SchedulerQueueRunner _queueRunner;
 
-    public Scheduler(Action<string, string> onWatcherEnsure, Action<string> onWatcherRemove, Action<string, string, int?, string?> setStatus,
+    public Scheduler(Action<string, bool> onWatcherEnsure, Action<string> onWatcherRemove, Action<string, string, int?, string?> setStatus,
         Action<string, NetworkIndex> onRefreshFinished, Action<string, FileRecordStore, NetworkDriveWalkStats, CancellationToken> onPublishCheckpoint,
         Func<string, FileRecordStore?> getPreviousStore, Action<string> releaseCachedIndex)
     {
         _onWatcherEnsure = onWatcherEnsure; _onWatcherRemove = onWatcherRemove; _setStatus = setStatus;
         _onRefreshFinished = onRefreshFinished; _onPublishCheckpoint = onPublishCheckpoint;
         _getPreviousStore = getPreviousStore; _releaseCachedIndex = releaseCachedIndex;
-        _queueRunner = new SchedulerQueueRunner(_gate, _debounceCts, _activeCts, _pendingRefreshDrives, _lifetimeCts,
+        _queueRunner = new SchedulerQueueRunner(_gate, _debounceCts, _activeCts, _pendingRefreshDrives, _configuredDrives, _lifetimeCts,
             setStatus, getPreviousStore, onPublishCheckpoint, onRefreshFinished, releaseCachedIndex);
     }
 
@@ -52,7 +53,10 @@ internal sealed class Scheduler : IDisposable
             // that is no longer in the incoming drives list is the only thing this call actually
             // interrupts -- a drive that's still configured never gets touched here, no matter why
             // StartRefresh was called.
-            var removedDrives = _periodicCts.Keys
+            // Manual roots still own a watcher after their initial attempt finishes, even when
+            // they have no cache or active timer. Track configuration independently of busy work.
+            var removedDrives = _configuredDrives
+                .Concat(_periodicCts.Keys)
                 .Concat(_debounceCts.Keys)
                 .Concat(_activeCts.Keys)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -75,11 +79,14 @@ internal sealed class Scheduler : IDisposable
                 _pendingRefreshDrives.Remove(removed);
             }
 
+            _configuredDrives.Clear();
+            _configuredDrives.UnionWith(drives);
+
             foreach (var drive in drives)
             {
                 var mode = refreshModes.TryGetValue(drive, out var value) ? value : "Manual";
                 var lastUpdated = lastUpdatedTimes != null && lastUpdatedTimes.TryGetValue(drive, out var lu) ? lu : (DateTime?)null;
-                _onWatcherEnsure(drive, mode);
+                _onWatcherEnsure(drive, cachedDrives == null || !cachedDrives.Contains(drive) || mode == "startup");
                 EnsurePeriodicRefreshLocked(drive, mode, lastUpdated);
             }
         }
@@ -208,6 +215,7 @@ internal sealed class Scheduler : IDisposable
                 cts.Dispose();
             }
             _activeCts.Clear();
+            _configuredDrives.Clear();
         }
 
         _lifetimeCts.Dispose();

@@ -1,15 +1,32 @@
-using Lertaro.Core.IndexV2;
+using System.Reflection;
+
 using Lertaro.Core.Indexer.NetworkDrive;
 using Lertaro.Core.SearchIndex.Query;
 
 namespace Lertaro.Core.Tests.Indexer.NetworkDrive;
 
-// Only the pure cachedDrives decision is covered here: Configure itself loads UserSettings and resolves
-// real cache paths under Logger.UserDataDir (NetworkDriveCacheLocator's WNet syscalls), the same
-// non-injectable-real-path hazard NetworkIndexerPublisherTests already documents.
 [TestClass]
 public sealed class NetworkIndexerTests
 {
+    [TestMethod]
+    public void RefreshDrive_PendingProbe_PreservesCachedItemCount()
+    {
+        using var indexer = new NetworkIndexer();
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        typeof(NetworkIndexer).GetField("_configured", flags)!.SetValue(indexer, true);
+        var modes = (Dictionary<string, string>)typeof(NetworkIndexer).GetField("_refreshModes", flags)!.GetValue(indexer)!;
+        var statuses = (Dictionary<string, NetworkIndexStatus>)typeof(NetworkIndexer).GetField("_statuses", flags)!.GetValue(indexer)!;
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        modes[root] = "Manual";
+        statuses[root] = new NetworkIndexStatus { Drive = root, State = "cached", Items = 42 };
+
+        Assert.IsTrue(indexer.RefreshDrive(root));
+
+        var status = Assert.ContainsSingle(indexer.GetStatuses());
+        Assert.AreEqual("indexing", status.State);
+        Assert.AreEqual(42, status.Items);
+    }
+
     [TestMethod]
     [DataRow(1)]
     [DataRow(2)]
