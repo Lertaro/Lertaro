@@ -73,6 +73,7 @@ public static class SettingsSearchIndex
         new("General_AutoCheckUpdates", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowAutoCheckUpdates", "General_SysTitle"),
         new("General_AutoSilentUpdate", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowAutoSilentUpdate", "General_SysTitle"),
         new("General_GitHubMirrors", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowGitHubMirrors", "General_SysTitle"),
+        new("General_GitLabToken", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowGitLabToken", "General_SysTitle"),
         new("General_HardwareAcceleration", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowHardwareAcceleration", "General_SysTitle"),
         new("General_HideTrayIcon", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowHideTrayIcon", "General_SysTitle"),
         new("General_EnableEverythingIpc", "General", vm => vm.General.SelectedTab = "System", "TabSystem/RowEnableEverythingIpc", "General_SysTitle"),

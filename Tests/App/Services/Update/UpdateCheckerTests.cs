@@ -8,8 +8,8 @@ namespace Lertaro.App.Tests.Services.Update;
 // sees one shape, so the mapping is where a silent break would land: a release that parses but carries no
 // downloadable asset looks exactly like "you are up to date".
 //
-// The network loop itself is not exercised here -- it owns a private HttpClient and the decision it makes
-// is PickNewest, which is. Both endpoints are public and were checked live instead.
+// The network loop itself is not exercised here -- it owns a private HttpClient and the decisions it makes
+// are PickNewest and UsableSources, which are. Both endpoints are public and were checked live instead.
 [TestClass]
 public sealed class UpdateCheckerTests
 {
@@ -56,6 +56,30 @@ public sealed class UpdateCheckerTests
 
     private static ReleaseAssetLink AssetNamed(ReleaseInfo release, string name)
         => release.Assets.Links.Single(a => a.Name == name);
+
+    [TestMethod]
+    public void UsableSources_NoToken_AsksGitHubOnly()
+    {
+        // GitLab's line is asked with a personal access token. Without one it is skipped outright, which
+        // is also what guarantees no update is downloaded from GitLab: nothing there is ever discovered.
+        var sources = UpdateChecker.UsableSources(string.Empty).ToList();
+
+        Assert.HasCount(1, sources);
+        Assert.IsTrue(sources[0].IsGitHub);
+    }
+
+    [TestMethod]
+    public void UsableSources_AConfiguredToken_AsksBothLinesGitHubFirst()
+    {
+        var sources = UpdateChecker.UsableSources("glpat-abc123").ToList();
+
+        Assert.HasCount(2, sources);
+        Assert.IsTrue(sources[0].IsGitHub);
+        Assert.IsFalse(sources[1].IsGitHub);
+
+        // The token belongs on the GitLab request only; the record carries the URL the header is added to.
+        StringAssert.Contains(sources[1].Url, "gitlab.com");
+    }
 
     [TestMethod]
     public void PickNewest_TakesTheHigherVersionEvenWhenItIsNotTheFirstAnswered()

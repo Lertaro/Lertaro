@@ -141,14 +141,66 @@ public sealed class UpdateMirrorSettingsViewModelTests
     [TestMethod]
     public void TheGeneralPageExposesTheSubViewModelTheSystemTabBindsTo()
     {
-        // The XAML path is General.UpdateMirrors.Mirror1 and a name missing from the DataContext fails
-        // silently at bind time, so pin the two hops the binding walks.
+        // The XAML path is General.UpdateMirrors.Slots[0] and a name missing from the DataContext fails
+        // silently at bind time, so pin the hops the binding walks.
         var settings = new UserSettings { GitHubUpdateMirrors = ["https://one.example.com/"] };
 
         var general = new GeneralSettingsViewModel(settings);
 
         Assert.IsNotNull(general.UpdateMirrors);
-        Assert.AreEqual("https://one.example.com/", general.UpdateMirrors.Mirror1);
+        Assert.HasCount(3, general.UpdateMirrors.Slots);
+        Assert.AreEqual("https://one.example.com/", general.UpdateMirrors.Slots[0].Value);
         general.Cleanup();
+    }
+
+    [TestMethod]
+    public void ASlot_ReadsAndWritesTheMirrorBoxItStandsFor()
+    {
+        // The three boxes are bound to slots rather than to Mirror1/2/3 because the auto-expanding editor
+        // takes its bindings from its own DataContext, which is the one slot it edits.
+        var settings = new UserSettings();
+        var vm = new UpdateMirrorSettingsViewModel(settings);
+
+        vm.Slots[0].Value = "https://one.example.com";
+        vm.Slots[1].Value = "https://two.example.com";
+
+        // Trimmed as typed, not yet given its trailing slash -- that is Save()'s job, through Normalize.
+        Assert.AreEqual("https://one.example.com", vm.Mirror1);
+        Assert.AreEqual("https://two.example.com", vm.Mirror2);
+        Assert.AreEqual(string.Empty, vm.Slots[2].Value);
+    }
+
+    [TestMethod]
+    public void ASlot_ValidatesExactlyLikeThePropertyBehindIt()
+    {
+        var vm = new UpdateMirrorSettingsViewModel(new UserSettings());
+
+        // A slot is a view of MirrorN, not a second, laxer path into the settings.
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => vm.Slots[1].Value = "not a url");
+    }
+
+    [TestMethod]
+    public void Save_WritesTheGitLabTokenTrimmed()
+    {
+        // A pasted token usually carries a trailing newline, and the updater compares it against "" to
+        // decide whether GitLab is asked at all.
+        var settings = new UserSettings();
+        var vm = new UpdateMirrorSettingsViewModel(settings) { GitLabToken = "  glpat-abc123\n" };
+
+        vm.Save();
+
+        Assert.AreEqual("glpat-abc123", settings.GitLabUpdateToken);
+    }
+
+    [TestMethod]
+    public void Save_AWhitespaceOnlyToken_StoresItAsUnset()
+    {
+        var settings = new UserSettings { GitLabUpdateToken = "glpat-abc123" };
+        var vm = new UpdateMirrorSettingsViewModel(settings) { GitLabToken = "   " };
+
+        vm.Save();
+
+        // Empty is the one value that means "do not ask GitLab", so whitespace must not survive as a token.
+        Assert.AreEqual(string.Empty, settings.GitLabUpdateToken);
     }
 }

@@ -61,6 +61,12 @@ public class UserSettings
     /// list to at most <see cref="UpdateMirrorSettings.MaxMirrors"/> prefixes, each ending in one '/'.
     /// </summary>
     public List<string> GitHubUpdateMirrors { get; set; } = new();
+    /// <summary>
+    /// The personal access token GitLab's API is asked with. Empty means "not set", and then the GitLab
+    /// release line is not polled at all -- see UpdateChecker -- so the only updates on offer are the
+    /// GitHub line's. Persistence trims it; it is never logged.
+    /// </summary>
+    public string GitLabUpdateToken { get; set; } = string.Empty;
     // Bookkeeping rather than a preference: the release tag whose last startup install attempt failed, and
     // when. Without it a startup that cannot update (service not running, download failed) re-downloads a
     // full release zip on every single launch. Only UpdateCheckService reads or writes these; the About

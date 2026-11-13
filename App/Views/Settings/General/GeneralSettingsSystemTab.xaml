@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:services="clr-namespace:Lertaro.App.Services"
+             xmlns:ctrl="clr-namespace:Lertaro.App.Views.Controls"
              mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="700">
     <!-- Split out of GeneralSettingsPage.xaml (the "System" tab) to keep that file under the
@@ -49,6 +50,20 @@
                     </Setter.Value>
                 </Setter>
             </Style>
+
+            <!-- What a mirror box turns into while it is being edited: the same InlineEditorHost the
+                 plugin config's own text fields use. The box rests at a compact width and grows to
+                 the rest of the row once what is in it no longer fits, so three long URLs do not sit
+                 as three permanent full-width boxes; clicking away collapses it back.
+
+                 This one commits on every keystroke rather than on LostFocus, unlike the resting box
+                 it replaces: the editor is torn out of the tree by the collapse itself, and a
+                 LostFocus binding on an element that is being removed is not guaranteed to write
+                 back, which would silently drop the last edit. -->
+            <DataTemplate x:Key="MirrorEditorTemplate">
+                <TextBox Style="{StaticResource SettingsTextBox}"
+                         Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, NotifyOnValidationError=True, ValidatesOnExceptions=True}"/>
+            </DataTemplate>
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -82,7 +97,8 @@
                      one they cannot talk to, so routing it through a GitHub proxy would defeat the point.
                      These bind on LostFocus (the TextBox default) rather than PropertyChanged so a
                      half-typed URL is not flagged on every keystroke; an invalid one still reaches the
-                     window's validation error count and gates Apply/OK, like the inline card width boxes. -->
+                     window's validation error count and gates Apply/OK, like the inline card width boxes.
+                     Each box is the auto-expanding kind (MirrorEditorTemplate), one slot per box. -->
                 <TextBlock x:Name="RowGitHubMirrors" Margin="0,12,0,4"
                            Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_GitHubMirrors]}"/>
                 <Grid>
@@ -97,22 +113,51 @@
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0" Text="1" Margin="0,0,8,4" VerticalAlignment="Center"
                                Foreground="{DynamicResource TextSecondary2}"/>
-                    <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,4"
-                             Style="{StaticResource SettingsTextBox}"
-                             Text="{Binding General.UpdateMirrors.Mirror1, Mode=TwoWay, NotifyOnValidationError=True, ValidatesOnExceptions=True}"/>
+                    <ctrl:InlineEditorHost Grid.Row="0" Grid.Column="1" Margin="0,0,0,4" AutoExpandEnabled="True"
+                                           EditorTemplate="{StaticResource MirrorEditorTemplate}"
+                                           DataContext="{Binding General.UpdateMirrors.Slots[0]}">
+                        <ctrl:InlineEditorHost.NormalContent>
+                            <TextBox Style="{StaticResource SettingsTextBox}" Width="260" HorizontalAlignment="Left"
+                                     Text="{Binding Value, Mode=TwoWay, NotifyOnValidationError=True, ValidatesOnExceptions=True}"/>
+                        </ctrl:InlineEditorHost.NormalContent>
+                    </ctrl:InlineEditorHost>
                     <TextBlock Grid.Row="1" Text="2" Margin="0,0,8,4" VerticalAlignment="Center"
                                Foreground="{DynamicResource TextSecondary2}"/>
-                    <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,4"
-                             Style="{StaticResource SettingsTextBox}"
-                             Text="{Binding General.UpdateMirrors.Mirror2, Mode=TwoWay, NotifyOnValidationError=True, ValidatesOnExceptions=True}"/>
+                    <ctrl:InlineEditorHost Grid.Row="1" Grid.Column="1" Margin="0,0,0,4" AutoExpandEnabled="True"
+                                           EditorTemplate="{StaticResource MirrorEditorTemplate}"
+                                           DataContext="{Binding General.UpdateMirrors.Slots[1]}">
+                        <ctrl:InlineEditorHost.NormalContent>
+                            <TextBox Style="{StaticResource SettingsTextBox}" Width="260" HorizontalAlignment="Left"
+                                     Text="{Binding Value, Mode=TwoWay, NotifyOnValidationError=True, ValidatesOnExceptions=True}"/>
+                        </ctrl:InlineEditorHost.NormalContent>
+                    </ctrl:InlineEditorHost>
                     <TextBlock Grid.Row="2" Text="3" Margin="0,0,8,0" VerticalAlignment="Center"
                                Foreground="{DynamicResource TextSecondary2}"/>
-                    <TextBox Grid.Row="2" Grid.Column="1"
-                             Style="{StaticResource SettingsTextBox}"
-                             Text="{Binding General.UpdateMirrors.Mirror3, Mode=TwoWay, NotifyOnValidationError=True, ValidatesOnExceptions=True}"/>
+                    <ctrl:InlineEditorHost Grid.Row="2" Grid.Column="1" AutoExpandEnabled="True"
+                                           EditorTemplate="{StaticResource MirrorEditorTemplate}"
+                                           DataContext="{Binding General.UpdateMirrors.Slots[2]}">
+                        <ctrl:InlineEditorHost.NormalContent>
+                            <TextBox Style="{StaticResource SettingsTextBox}" Width="260" HorizontalAlignment="Left"
+                                     Text="{Binding Value, Mode=TwoWay, NotifyOnValidationError=True, ValidatesOnExceptions=True}"/>
+                        </ctrl:InlineEditorHost.NormalContent>
+                    </ctrl:InlineEditorHost>
                 </Grid>
                 <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_GitHubMirrorsHint]}"
                            Style="{StaticResource SettingsHintText}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+
+                <!-- GitLab's release line is asked with this token and skipped entirely without one, which
+                     is why the row is next to the mirrors: both decide where an update can come from. -->
+                <TextBlock x:Name="RowGitLabToken" Margin="0,12,0,4"
+                           Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_GitLabToken]}"/>
+                <TextBox Style="{StaticResource SettingsTextBox}"
+                         Text="{Binding General.UpdateMirrors.GitLabToken, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock Style="{StaticResource SettingsHintText}" TextWrapping="Wrap" Margin="0,4,0,0">
+                    <Run Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_GitLabTokenHint], Mode=OneWay}"/><Run Text=" "/>
+                    <Hyperlink NavigateUri="https://docs.gitlab.com/user/profile/personal_access_tokens"
+                               RequestNavigate="Hyperlink_RequestNavigate">
+                        <Run Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_GitLabTokenLink], Mode=OneWay}"/>
+                    </Hyperlink>
+                </TextBlock>
 
                 <CheckBox x:Name="RowHardwareAcceleration" Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_HardwareAcceleration]}"
                            IsChecked="{Binding General.EnableHardwareAcceleration, Mode=TwoWay}"

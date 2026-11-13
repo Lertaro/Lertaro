@@ -19,6 +19,7 @@ public class UpdateChecker
     // Asked in this order, and both are asked even once the first answers: the two pipelines throttle
     // independently (36h each, and GitLab's additionally needs a self-hosted runner that may be offline),
     // so either line can be the one holding the newer tag. A tie keeps the earlier entry, i.e. GitHub.
+    // Whether the GitLab one is asked at all depends on the user's token -- see UsableSources.
     private static readonly ReleaseSource[] Sources =
     [
         new ReleaseSource("https://api.github.com/repos/Lertaro/Lertaro/releases/latest", true),
@@ -49,15 +50,25 @@ public class UpdateChecker
     /// </remarks>
     public async Task<ReleaseInfo?> CheckForUpdatesAsync()
     {
-        var mirrors = Core.UpdateMirrorSettings.Normalize(Core.UserSettings.Load().GitHubUpdateMirrors);
+        var settings = Core.UserSettings.Load();
+        var mirrors = Core.UpdateMirrorSettings.Normalize(settings.GitHubUpdateMirrors);
+        var token = Core.UpdateMirrorSettings.NormalizeToken(settings.GitLabUpdateToken);
         var found = new List<ReleaseInfo>(Sources.Length);
         Exception? failure = null;
 
-        foreach (var source in Sources)
+        foreach (var source in UsableSources(token))
         {
             try
             {
-                var json = await _httpClient.GetStringAsync(source.Url);
+                // A request rather than GetStringAsync so the GitLab one can carry the user's token: it
+                // belongs on that one request only, never on the shared client, or every GitHub call
+                // would hand it out too.
+                using var request = new HttpRequestMessage(HttpMethod.Get, source.Url);
+                if (!source.IsGitHub) request.Headers.Add("PRIVATE-TOKEN", token);
+                using var response = await _httpClient.SendAsync(request);
+                response.EnsureSuccessStatusCode();
+
+                var json = await response.Content.ReadAsStringAsync();
                 var release = source.IsGitHub ? ParseGitHub(json, mirrors) : ParseGitLab(json);
                 if (release != null) found.Add(release);
             }
@@ -73,6 +84,20 @@ public class UpdateChecker
         if (failure != null) ExceptionDispatchInfo.Capture(failure).Throw();
         return null;
     }
+
+    /// <summary>
+    /// The lines this settings state can actually use: GitHub always, GitLab only once the user has
+    /// supplied a personal access token.
+    /// </summary>
+    /// <remarks>
+    /// The token is what GitLab's API is asked with, so with none set there is nothing to ask and -- the
+    /// point of the gate -- nothing to download from there either: a user who never configured one gets
+    /// the GitHub line only, which its own mirror publishes about two days later. Skipping the request
+    /// rather than sending it unauthenticated is also what keeps an anonymous 429 from being logged as a
+    /// failed check on every startup.
+    /// </remarks>
+    internal static IEnumerable<ReleaseSource> UsableSources(string token) =>
+        Sources.Where(source => source.IsGitHub || token.Length > 0);
 
     /// <summary>
     /// The highest tag that parses as a version, keeping the earlier of two equal ones -- which is how
@@ -127,7 +152,9 @@ public class UpdateChecker
         return release;
     }
 
-    private sealed record ReleaseSource(string Url, bool IsGitHub);
+    // Internal rather than private so the tests can ask which of these a given settings state leaves
+    // reachable (see UsableSources).
+    internal sealed record ReleaseSource(string Url, bool IsGitHub);
 }
 
 public class ReleaseInfo

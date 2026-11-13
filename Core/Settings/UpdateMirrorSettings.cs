@@ -22,6 +22,12 @@ public static class UpdateMirrorSettings
         uri.Host.Length > 0;
 
     /// <summary>
+    /// Trims a typed token. Null and whitespace both become the empty string, which is the one value that
+    /// means "not set" -- the updater decides whether GitLab is asked at all from it.
+    /// </summary>
+    public static string NormalizeToken(string? token) => token?.Trim() ?? string.Empty;
+
+    /// <summary>
     /// Trims, drops what <see cref="IsValid"/> refuses and duplicates, and keeps at most
     /// <see cref="MaxMirrors"/> entries in order. Every surviving prefix ends in exactly one '/', which is
     /// what lets the updater concatenate a whole original URL onto it without having to ask whether the
