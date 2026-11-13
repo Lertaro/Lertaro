@@ -36,6 +36,22 @@ public sealed class ExplorerSelectionQueryTests
         Assert.IsFalse(ExplorerSelectionQuery.HasNoSelectedItems(new object()));
     }
 
+    [TestMethod]
+    [DataRow(2L, 2L, true)]
+    [DataRow(3L, 2L, false)]
+    [DataRow(0L, 2L, false)]
+    public void OnlyTheActiveTabOfTheClickedWindowIsTheViewedOne(long itemTab, long activeTab, bool expected) =>
+        Assert.AreEqual(
+            expected,
+            ExplorerSelectionQuery.IsWindowForActiveTab(new IntPtr(10), new IntPtr(itemTab), new IntPtr(10), new IntPtr(activeTab)));
+
+    [TestMethod]
+    public void UnknownActiveTabFallsBackToTheWindowHandle()
+    {
+        Assert.IsTrue(ExplorerSelectionQuery.IsWindowForActiveTab(new IntPtr(10), IntPtr.Zero, new IntPtr(10), IntPtr.Zero));
+        Assert.IsFalse(ExplorerSelectionQuery.IsWindowForActiveTab(new IntPtr(11), IntPtr.Zero, new IntPtr(10), IntPtr.Zero));
+    }
+
     [StaTestMethod]
     [DataRow(0L)]
     [DataRow(-1L)]

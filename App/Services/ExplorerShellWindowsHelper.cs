@@ -209,7 +209,9 @@ internal static class ExplorerShellWindowsHelper
         }
     }
 
-    private static bool TryGetTabHandle(object window, out IntPtr tabHwnd)
+    // Also for callers walking ShellWindows themselves: every item reports its window's HWND, so this tab
+    // handle is the only discriminator. Makes an outgoing COM call -- see FindShellWindowForTab.
+    internal static bool TryGetTabHandle(object window, out IntPtr tabHwnd)
     {
         tabHwnd = IntPtr.Zero;
         if (window is not IComServiceProvider serviceProvider) return false;

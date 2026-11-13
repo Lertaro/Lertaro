@@ -17,6 +17,9 @@ internal static class ExplorerSelectionQuery
             var rootHwnd = Native.GetAncestor(hwnd, GA_ROOT);
             if (rootHwnd == IntPtr.Zero || !Native.IsWindow(rootHwnd)) return false;
             var isActiveDesktop = Native.IsDesktopWindow(rootHwnd, out _);
+            // ShellWindows exposes one item per tab and they all report the window's HWND, so the tab
+            // handle is what says which of them the user is looking at.
+            var activeTab = isActiveDesktop ? IntPtr.Zero : ExplorerShellWindowsHelper.GetActiveTabHandle(rootHwnd);
 
             var shellType = Type.GetTypeFromProgID("Shell.Application");
             if (shellType == null) return false;
@@ -44,6 +47,11 @@ internal static class ExplorerSelectionQuery
 
                     var isMatch = isActiveDesktop ? Native.IsDesktopWindow(wHwnd, out _) : wHwnd == rootHwnd;
                     if (!isMatch) continue;
+                    if (!isActiveDesktop)
+                    {
+                        ExplorerShellWindowsHelper.TryGetTabHandle(window, out var itemTab);
+                        if (!IsWindowForActiveTab(wHwnd, itemTab, rootHwnd, activeTab)) continue;
+                    }
 
                     doc = w.Document;
                     return HasNoSelectedItems(doc);
@@ -63,6 +71,23 @@ internal static class ExplorerSelectionQuery
             ReleaseComObject(shell);
         }
         return false;
+    }
+
+    /// <summary>
+    /// Whether one Shell.Application window item is the view the user is looking at.
+    /// </summary>
+    /// <remarks>
+    /// Matching the top-level HWND alone answers for whichever tab of that window enumerates first. In a
+    /// window whose other tab had nothing selected, that reported "empty space" while the user was
+    /// double-clicking a folder in the active tab, and the QuickNav menu opened over the navigation it had
+    /// just started -- reproducible by clicking the new-tab button and then double-clicking any folder.
+    /// An item whose tab handle cannot be read is not the active view (unknown is not empty space), and a
+    /// zero <paramref name="activeTabHwnd"/> means the window has no tab to compare against.
+    /// </remarks>
+    internal static bool IsWindowForActiveTab(IntPtr windowHwnd, IntPtr windowTabHwnd, IntPtr rootHwnd, IntPtr activeTabHwnd)
+    {
+        if (windowHwnd != rootHwnd) return false;
+        return activeTabHwnd == IntPtr.Zero || windowTabHwnd == activeTabHwnd;
     }
 
     internal static bool HasNoSelectedItems(object? document)
