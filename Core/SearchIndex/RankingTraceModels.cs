@@ -43,6 +43,7 @@ internal enum RankingCandidateSource : ushort
     InstantProvider = 1 << 5,
     PluginAction = 1 << 6,
     Synthetic = 1 << 7,
+    RelatedHistory = 1 << 8,
 }
 
 /// <summary>The cache state observed for a searchable-item provider during this query.</summary>

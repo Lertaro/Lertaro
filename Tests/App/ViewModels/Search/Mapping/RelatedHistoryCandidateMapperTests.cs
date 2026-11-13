@@ -1,3 +1,4 @@
+using System.IO;
 using Lertaro.App.ViewModels.Search.Mapping;
 using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
@@ -6,6 +7,7 @@ using Lertaro.PluginSdk.Services;
 namespace Lertaro.App.Tests.ViewModels.Search.Mapping;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class RelatedHistoryCandidateMapperTests
 {
     private static HistoryEntry Entry(string keyword, string path, int count = 3, long time = 0) =>
@@ -99,6 +101,8 @@ public sealed class RelatedHistoryCandidateMapperTests
 
         Assert.HasCount(1, candidates);
         Assert.IsTrue(candidates[0].IsHistoryOnly);
+        Assert.IsFalse(candidates[0].Result.IsLearnedAliasRecall);
+        Assert.IsTrue(candidates[0].Source.HasFlag(RankingCandidateSource.RelatedHistory));
     }
 
     [TestMethod]
@@ -120,6 +124,22 @@ public sealed class RelatedHistoryCandidateMapperTests
     }
 
     [TestMethod]
+    public void CurrentFolderScopeExcludesRelatedHistoryOutsideIt()
+    {
+        var entries = new[]
+        {
+            Entry("cca", @"C:\Allowed\cc.txt"),
+            Entry("ccb", @"C:\Outside\cc.txt"),
+        };
+
+        var candidates = RelatedHistoryCandidateMapper.Collect(
+            FuzzyQuery.Parse("cc"), scope: @"C:\Allowed", entries,
+            _ => true, _ => false);
+
+        Assert.AreEqual(@"C:\Allowed\cc.txt", Assert.ContainsSingle(candidates).Result.FullPath);
+    }
+
+    [TestMethod]
     public void ScopeFilteringHappensBeforeTheTwoCandidateLimit()
     {
         var entries = Enumerable.Range(0, 16)
@@ -127,12 +147,16 @@ public sealed class RelatedHistoryCandidateMapperTests
             .Append(Entry("cc-in", @"C:\Allowed\cc.txt", time: 1))
             .ToArray();
 
+        var dropped = new List<(string Path, RankingCandidateSource Source)>();
         var candidates = RelatedHistoryCandidateMapper.Collect(
-            FuzzyQuery.Parse("cc"), scope: null, entries,
-            _ => true, _ => false,
-            pathFilter: path => path.StartsWith(@"C:\Allowed\", StringComparison.OrdinalIgnoreCase));
+            FuzzyQuery.Parse("cc"), scope: null, entries: entries,
+            fileExists: _ => true, directoryExists: _ => false,
+            pathFilter: path => path.StartsWith(@"C:\Allowed\", StringComparison.OrdinalIgnoreCase),
+            onScopeDropped: (path, source) => dropped.Add((path, source)));
 
         Assert.AreEqual(@"C:\Allowed\cc.txt", Assert.ContainsSingle(candidates).Result.FullPath);
+        Assert.HasCount(16, dropped);
+        Assert.IsTrue(dropped.All(item => item.Source.HasFlag(RankingCandidateSource.RelatedHistory)));
     }
 
     [TestMethod]
@@ -154,5 +178,77 @@ public sealed class RelatedHistoryCandidateMapperTests
 
         Assert.AreEqual(@"C:\Docs\cc-direct.txt", ranked[0].Result.FullPath);
         Assert.AreEqual(@"C:\Docs\cc.txt", ranked[1].Result.FullPath);
+    }
+
+    [TestMethod]
+    public void CatalogVersionChangeInvalidatesTheStaticCatalog()
+    {
+        var previousVersion = RelatedHistoryCandidateMapper.VersionSource;
+        var previousEntries = RelatedHistoryCandidateMapper.EntriesSource;
+        var firstPath = Path.GetTempFileName();
+        var secondPath = Path.GetTempFileName();
+        var version = 1L;
+        var entries = new[] { Entry("cca", firstPath) };
+        try
+        {
+            RelatedHistoryCandidateMapper.VersionSource = () => version;
+            RelatedHistoryCandidateMapper.EntriesSource = () => entries;
+
+            var first = RelatedHistoryCandidateMapper.Collect(
+                FuzzyQuery.Parse("cc"), scope: null, rankContext: null, typeRank: 0);
+            Assert.AreEqual(firstPath, Assert.ContainsSingle(first).Result.FullPath);
+
+            version++;
+            entries = [Entry("ccb", secondPath)];
+            var second = RelatedHistoryCandidateMapper.Collect(
+                FuzzyQuery.Parse("cc"), scope: null, rankContext: null, typeRank: 0);
+
+            Assert.AreEqual(secondPath, Assert.ContainsSingle(second).Result.FullPath);
+        }
+        finally
+        {
+            RelatedHistoryCandidateMapper.VersionSource = previousVersion;
+            RelatedHistoryCandidateMapper.EntriesSource = previousEntries;
+            File.Delete(firstPath);
+            File.Delete(secondPath);
+        }
+    }
+
+    [TestMethod]
+    public void BuildQuickResultsKeepsRelatedHistoryBehindADirectIndexHit()
+    {
+        var previousVersion = RelatedHistoryCandidateMapper.VersionSource;
+        var previousEntries = RelatedHistoryCandidateMapper.EntriesSource;
+        var relatedPath = Path.GetTempFileName();
+        try
+        {
+            RelatedHistoryCandidateMapper.VersionSource = () => 1;
+            RelatedHistoryCandidateMapper.EntriesSource = () => [Entry("cca", relatedPath)];
+            var direct = new SearchResult
+            {
+                Name = "cc-direct.txt",
+                Path = Path.ChangeExtension(relatedPath, ".direct.txt"),
+                Drive = "C",
+            };
+            File.WriteAllText(direct.Path, "direct");
+
+            var results = SearchResultMapper.BuildQuickResults(
+                [direct], "cc", scope: null, contextDirectory: null, isInlineWindow: false,
+                instantPass: new SearchResultMapper.InstantPassCache { Collected = true });
+
+            var directIndex = results.FindIndex(row =>
+                row.FullPath.Equals(direct.Path, StringComparison.OrdinalIgnoreCase));
+            var relatedIndex = results.FindIndex(row =>
+                row.FullPath.Equals(relatedPath, StringComparison.OrdinalIgnoreCase));
+            Assert.IsGreaterThanOrEqualTo(0, relatedIndex);
+            Assert.IsLessThan(relatedIndex, directIndex);
+            File.Delete(direct.Path);
+        }
+        finally
+        {
+            RelatedHistoryCandidateMapper.VersionSource = previousVersion;
+            RelatedHistoryCandidateMapper.EntriesSource = previousEntries;
+            File.Delete(relatedPath);
+        }
     }
 }

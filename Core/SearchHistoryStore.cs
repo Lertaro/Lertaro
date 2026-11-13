@@ -111,11 +111,14 @@ public static class SearchHistoryStore
             if (list.Count > SearchHistoryBucketSupport.MaxEntriesPerKeyword)
                 list.RemoveRange(SearchHistoryBucketSupport.MaxEntriesPerKeyword, list.Count - SearchHistoryBucketSupport.MaxEntriesPerKeyword);
 
-            RecordAssociationInMemory(associations, keyword, normalizedPath, kind, now, fromLearnedRecall);
-            Interlocked.Increment(ref _associationVersion);
+            var associationChanged = RecordAssociationInMemory(
+                associations, keyword, normalizedPath, kind, now, fromLearnedRecall);
+            if (associationChanged)
+                Interlocked.Increment(ref _associationVersion);
 
             PersistNoLock();
-            PersistAssociationsNoLock();
+            if (associationChanged)
+                PersistAssociationsNoLock();
             _priorityCache = BuildPriorityCache(buckets);
             _countCache = BuildCountCache(buckets);
         }
@@ -123,7 +126,7 @@ public static class SearchHistoryStore
         Changed?.Invoke();
     }
 
-    internal static void RecordAssociationInMemory(
+    internal static bool RecordAssociationInMemory(
         Dictionary<string, List<StoredAssociationEntry>> associations,
         string rawQuery,
         string normalizedPath,
@@ -133,11 +136,11 @@ public static class SearchHistoryStore
     {
         // Learned-alias clicks must not self-reinforce an unconfirmed association or create new ones.
         if (fromLearnedRecall)
-            return;
+            return false;
 
         var canonicalQuery = NormalizeAssociationQuery(rawQuery);
         if (canonicalQuery.Length == 0)
-            return;
+            return false;
 
         if (!associations.TryGetValue(canonicalQuery, out var list))
             associations[canonicalQuery] = list = new List<StoredAssociationEntry>();
@@ -156,6 +159,7 @@ public static class SearchHistoryStore
 
         if (list.Count > SearchHistoryBucketSupport.MaxEntriesPerKeyword)
             list.RemoveRange(SearchHistoryBucketSupport.MaxEntriesPerKeyword, list.Count - SearchHistoryBucketSupport.MaxEntriesPerKeyword);
+        return true;
     }
 
     /// <summary>

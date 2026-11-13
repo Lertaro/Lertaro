@@ -7,7 +7,10 @@ using System.Windows.Data;
 using Lertaro.App.Helpers;
 using Lertaro.App.ViewModels.Search;
 using Lertaro.App.ViewModels.Search.DynamicSidebar;
+using Lertaro.App.ViewModels.Search.Mapping;
+using Lertaro.Core;
 using Lertaro.PluginSdk.Abstractions;
+using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.App.Tests.ViewModels.Search;
 
@@ -15,6 +18,41 @@ namespace Lertaro.App.Tests.ViewModels.Search;
 [DoNotParallelize]
 public sealed class SearchPerformanceWorkloadTests(TestContext context)
 {
+    [TestMethod]
+    [TestCategory("SearchPerformance")]
+    public void RelatedHistory_LargeCatalog_SelectsTwoWithoutSortingEveryMatch()
+    {
+        const int count = 50_000;
+        var entries = Enumerable.Range(0, count)
+            .Select(i => new HistoryEntry(
+                $"related-{i:D6}", $@"Z:\History\{i:D6}.txt", HistoryEntryKind.File, i, 3))
+            .ToArray();
+        var catalog = RelatedHistoryCandidateMapper.BuildCatalog(version: 1, entries).Entries;
+
+        for (var i = 0; i < 3; i++)
+            RelatedHistoryCandidateMapper.MatchCatalog("related", catalog, RelatedHistoryCandidateMapper.MaxCandidates);
+
+        var bytes = GC.GetTotalAllocatedBytes(precise: true);
+        var timer = Stopwatch.StartNew();
+        IReadOnlyList<RelatedHistoryCandidateMapper.CatalogEntry> final = [];
+        for (var i = 0; i < 20; i++)
+            final = RelatedHistoryCandidateMapper.MatchCatalog(
+                "related", catalog, RelatedHistoryCandidateMapper.MaxCandidates);
+        timer.Stop();
+        bytes = GC.GetTotalAllocatedBytes(precise: true) - bytes;
+
+        Assert.HasCount(RelatedHistoryCandidateMapper.MaxCandidates, final);
+        context.WriteLine("SEARCH_PERF " + JsonSerializer.Serialize(new
+        {
+            scenario = "related-history-scan",
+            rows = count,
+            iterations = 20,
+            elapsedMs = timer.Elapsed.TotalMilliseconds,
+            allocatedBytes = bytes,
+            resultCount = final.Count
+        }));
+    }
+
     // Scenario measurements, not timing assertions: keep the same workload for before/after builds.
     [TestMethod]
     [TestCategory("SearchPerformance")]
