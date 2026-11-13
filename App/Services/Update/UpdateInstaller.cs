@@ -126,7 +126,11 @@ public class UpdateInstaller
     // zip is never verified or handed to the service.
     private async Task DownloadPackageAsync(string zipUrl, string zipFile, string signatureFile, Action<double>? progressCallback)
     {
-        using (var response = await _httpClient.GetAsync(zipUrl, HttpCompletionOption.ResponseHeadersRead))
+        // Decided once per address rather than put on the shared client: only a GitLab address may see the
+        // token, so the GitHub line, its mirrors, and anything else the release JSON names go out without it.
+        var token = TokenFor(zipUrl);
+
+        using (var response = await GetAsync(zipUrl, token))
         {
             response.EnsureSuccessStatusCode();
             var totalBytes = response.Content.Headers.ContentLength ?? -1L;
@@ -149,11 +153,48 @@ public class UpdateInstaller
 
         // Both release lines publish the signature beside the zip under exactly this name, so appending
         // ".sig" follows the zip through whichever mirror answered for it.
-        using var sigResponse = await _httpClient.GetAsync(zipUrl + ".sig");
+        using var sigResponse = await GetAsync(zipUrl + ".sig", token);
         sigResponse.EnsureSuccessStatusCode();
         using var sigFileStream = new FileStream(signatureFile, FileMode.Create, FileAccess.Write, FileShare.None);
         await sigResponse.Content.CopyToAsync(sigFileStream);
     }
+
+    // The same "PRIVATE-TOKEN" request the GitLab docs hand out for a release asset download, e.g.
+    // `curl --location --header "PRIVATE-TOKEN: <token>" ".../releases/v0.1/downloads/bin/asset.exe"`.
+    // An empty token adds no header at all, which is what keeps a public GitLab download (and every
+    // other address) exactly as anonymous as it was.
+    private async Task<HttpResponseMessage> GetAsync(string url, string token)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        if (token.Length > 0) request.Headers.Add("PRIVATE-TOKEN", token);
+
+        // The caller disposes the response; disposing the request here is fine, the response has already
+        // been handed back with its headers.
+        return await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+    }
+
+    /// <summary>
+    /// Whether this address is GitLab's, and therefore the only kind that may carry the user's token.
+    /// </summary>
+    /// <remarks>
+    /// Not about mirrors: GitLab never goes through one. <see cref="ReleaseInfo.Mirrors"/> is filled for a
+    /// GitHub release only, so a GitLab release arrives with its own single address and the mirror boxes
+    /// cannot reach it. The address is still checked against the host rather than assumed, because the
+    /// URL itself comes out of the release JSON: a release whose asset links point somewhere other than
+    /// <see cref="UpdateChecker.GitLabHost"/> would otherwise be handed the user's token, and it is the
+    /// host that answers, not the fact that the release came from GitLab. https only, so an entry naming
+    /// the right host over plain http cannot talk the token onto the wire in clear text.
+    /// </remarks>
+    internal static bool IsGitLabAddress(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+        uri.Scheme == Uri.UriSchemeHttps &&
+        (uri.Host.Equals(UpdateChecker.GitLabHost, StringComparison.OrdinalIgnoreCase) ||
+         uri.Host.EndsWith("." + UpdateChecker.GitLabHost, StringComparison.OrdinalIgnoreCase));
+
+    private static string TokenFor(string url) =>
+        IsGitLabAddress(url)
+            ? Core.UpdateMirrorSettings.NormalizeToken(Core.UserSettings.Load().GitLabUpdateToken)
+            : string.Empty;
 
     // Best effort. What's left behind is a few megabytes in this user's own temp directory, which is the
     // least harmful place in this flow to be untidy. Always this process's job, on success too: the service

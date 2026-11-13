@@ -16,6 +16,10 @@ public class UpdateChecker
     private static readonly Lazy<UpdateChecker> _instance = new Lazy<UpdateChecker>(() => new UpdateChecker());
     public static UpdateChecker Instance => _instance.Value;
 
+    // The one host GitLab's line lives on. A download address on it is the only kind the installer is
+    // allowed to hand the user's token to (see UpdateInstaller.IsGitLabAddress).
+    internal const string GitLabHost = "gitlab.com";
+
     // Asked in this order, and both are asked even once the first answers: the two pipelines throttle
     // independently (36h each, and GitLab's additionally needs a self-hosted runner that may be offline),
     // so either line can be the one holding the newer tag. A tie keeps the earlier entry, i.e. GitHub.
@@ -25,7 +29,7 @@ public class UpdateChecker
         new ReleaseSource("https://api.github.com/repos/Lertaro/Lertaro/releases/latest", true),
         // The project path has to be percent-encoded to address it through the API. `permalink/latest` is
         // the release published most recently, which is what the GitHub endpoint answers with.
-        new ReleaseSource("https://gitlab.com/api/v4/projects/Mikachu2333%2Flertaro/releases/permalink/latest", false),
+        new ReleaseSource($"https://{GitLabHost}/api/v4/projects/Mikachu2333%2Flertaro/releases/permalink/latest", false),
     ];
 
     private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -148,7 +152,7 @@ public class UpdateChecker
 
         // GitLab's release object names no page URL, unlike GitHub's html_url. Mirrors stay empty: a
         // GitLab download is never routed through a prefix the user typed for GitHub.
-        release.HtmlUrl = $"https://gitlab.com/Mikachu2333/lertaro/-/releases/{Uri.EscapeDataString(release.TagName)}";
+        release.HtmlUrl = $"https://{GitLabHost}/Mikachu2333/lertaro/-/releases/{Uri.EscapeDataString(release.TagName)}";
         return release;
     }
 
