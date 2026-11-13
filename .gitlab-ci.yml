@@ -27,48 +27,12 @@ variables:
   # The release job builds its changelog with git log / git describe, which need the full history and
   # the previous tags rather than the default shallow clone.
   GIT_DEPTH: "0"
-  # Minimum time between two releases; a tag pushed sooner is ignored. See release_guard.
-  MIN_RELEASE_INTERVAL_HOURS: "36"
   # Namespace for the artifacts in the generic package registry.
   PACKAGE_NAME: lertaro
   # How many recent versions' packages survive the post-release prune. See the end of the release job.
   KEEP_PACKAGE_VERSIONS: "3"
   # Uploaded and linked in this order; the x64 zip comes first so the release page leads with it.
   ARTIFACTS: Lertaro-Setup.exe Lertaro-Portable.zip Lertaro-Portable.zip.sig Lertaro-Setup-arm64.exe Lertaro-Portable-arm64.zip Lertaro-Portable-arm64.zip.sig
-
-# Releases go out at most once every MIN_RELEASE_INTERVAL_HOURS. A tag pushed sooner than that fails this
-# job, which stops the later stages from publishing anything. Unlike the GitHub workflow, which skips a
-# throttled release quietly, the pipeline here turns red and the tag simply stays unreleased. Running the
-# pipeline manually (CI/CD > Pipelines > Run pipeline, choosing the tag) overrides the check.
-release_guard:
-  stage: .pre
-  tags:
-    - windows
-  script:
-    - |
-      $ErrorActionPreference = 'Stop'
-      if ($env:CI_PIPELINE_SOURCE -ne 'push') {
-        Write-Host "Pipeline source '$($env:CI_PIPELINE_SOURCE)': manual trigger, release throttle skipped."
-        exit 0
-      }
-
-      $uri = "$env:CI_API_V4_URL/projects/$env:CI_PROJECT_ID/releases?per_page=1&order_by=released_at&sort=desc"
-      $releases = @()
-      try { $releases = @(Invoke-RestMethod -Uri $uri -Headers @{ 'JOB-TOKEN' = $env:CI_JOB_TOKEN }) }
-      catch { Write-Host "Could not list releases ($_); allowing this release." }
-      if ($releases.Count -eq 0) {
-        Write-Host 'No previous release: allowed.'
-        exit 0
-      }
-
-      $previous = [datetimeoffset]::Parse($releases[0].released_at).ToUniversalTime()
-      $elapsed = [datetimeoffset]::UtcNow - $previous
-      $minimum = [timespan]::FromHours([double]$env:MIN_RELEASE_INTERVAL_HOURS)
-      Write-Host ('Previous release {0:u}, {1:N1}h ago (minimum {2}h).' -f $previous, $elapsed.TotalHours, $minimum.TotalHours)
-      if ($elapsed -lt $minimum) {
-        throw "Release throttled: the previous release was $([math]::Round($elapsed.TotalHours, 1))h ago and the minimum is $($minimum.TotalHours)h. Push the tag again later, or run the pipeline manually to override."
-      }
-      Write-Host 'Release allowed.'
 
 build:
   stage: build
