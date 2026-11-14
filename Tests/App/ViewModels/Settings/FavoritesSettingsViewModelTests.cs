@@ -144,6 +144,34 @@ public sealed class FavoritesSettingsViewModelTests
     }
 
     [TestMethod]
+    public void ClearInvalidCommand_Execute_RemovesOnlyUnavailableItems()
+    {
+        var existing = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        Directory.CreateDirectory(existing);
+        try
+        {
+            var settings = new UserSettings
+            {
+                Favorites = new List<FavoriteItemSetting>
+                {
+                    new() { Name = "Existing", Path = existing },
+                    new() { Name = "Web", Path = "https://example.com" },
+                    new() { Name = "Missing", Path = Path.Combine(existing, "missing") },
+                }
+            };
+            var vm = new FavoritesSettingsViewModel(settings);
+
+            vm.ClearInvalidCommand.Execute(null);
+
+            CollectionAssert.AreEqual(new[] { "Existing", "Web" }, vm.Items.Select(item => item.Name).ToList());
+        }
+        finally
+        {
+            Directory.Delete(existing);
+        }
+    }
+
+    [TestMethod]
     public void EditCommand_Execute_StartsInlineEditWithoutRemovingItem()
     {
         var vm = new FavoritesSettingsViewModel(new UserSettings()) { NewName = "Docs", NewPath = Path.GetTempPath() };

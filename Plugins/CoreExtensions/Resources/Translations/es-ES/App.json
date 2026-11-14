@@ -290,6 +290,7 @@
   "Common_Add": "Añadir Elemento",
   "Common_Duplicate": "Duplicar",
   "Common_Delete": "Eliminar",
+  "Common_ClearInvalid": "Limpiar no válidos",
   "Common_SelectAll": "Seleccionar Todo",
   "Common_DeselectAll": "Deseleccionar Todo",
   "Common_ExpandAll": "Expandir Todo",

@@ -1,3 +1,4 @@
+using System.IO;
 using Lertaro.Core;
 using Lertaro.PluginSdk.Abstractions;
 using Lertaro.App.ViewModels.Settings.Plugins;
@@ -171,5 +172,45 @@ public sealed class PluginConfigArrayFieldSupportTests
 
         var saved = settings.GetPluginSetting<List<object?>?>("plugin", "items", null);
         CollectionAssert.AreEqual(new object?[] { "b", "a" }, saved);
+    }
+
+    [TestMethod]
+    public void ClearInvalid_RemovesRowsWithUnreachablePathAndKeepsTheRest()
+    {
+        var existing = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        Directory.CreateDirectory(existing);
+        try
+        {
+            var objectField = new PluginConfigField
+            {
+                Key = "items",
+                FieldType = ConfigFieldType.Array,
+                DefaultValue = new List<object>(),
+                AllowClearInvalid = true,
+                SubFields = new List<PluginConfigField>
+                {
+                    new() { Key = "name", FieldType = ConfigFieldType.Text, DefaultValue = "" },
+                    new() { Key = "path", FieldType = ConfigFieldType.FolderPath, DefaultValue = "" },
+                },
+            };
+            var settings = new UserSettings();
+            settings.SetPluginSetting("plugin", "items", new List<object>
+            {
+                new Dictionary<string, object> { ["name"] = "kept", ["path"] = existing },
+                new Dictionary<string, object> { ["name"] = "dropped", ["path"] = Path.Combine(existing, "missing") },
+            });
+            var field = new PluginConfigFieldViewModel("plugin", objectField, settings, null);
+
+            Assert.IsTrue(field.SupportsClearInvalid);
+            field.ClearInvalid();
+
+            Assert.HasCount(1, field.ArrayItems);
+            var kept = (Dictionary<string, object?>)field.ArrayItems[0].GetValue()!;
+            Assert.AreEqual("kept", kept["name"]);
+        }
+        finally
+        {
+            Directory.Delete(existing);
+        }
     }
 }

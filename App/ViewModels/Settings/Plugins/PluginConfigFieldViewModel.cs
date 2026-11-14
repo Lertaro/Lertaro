@@ -92,9 +92,14 @@ public class PluginConfigFieldViewModel : ViewModelBase
     public bool IsObjectArray => IsArray && SchemaField.SubFields is { Count: > 0 };
     public bool SupportsEntryTransfer => !HasValueChangedCallback && !string.IsNullOrEmpty(PluginVersion)
         && PluginConfigEntryTransfer.IsSupported(SchemaField);
+    /// <summary>Whether the host offers the "clear invalid" row action: an object array with a path
+    /// child, explicitly opted in by the schema.</summary>
+    public bool SupportsClearInvalid => SchemaField.AllowClearInvalid && IsObjectArray
+        && SchemaField.SubFields!.Any(sf => sf.FieldType is ConfigFieldType.FilePath or ConfigFieldType.FolderPath);
     public bool CanExportEntry => SupportsEntryTransfer && SelectedArrayItem != null;
     internal byte[] ExportEntry() => _arraySupport.ExportEntry();
     internal string ImportEntry(ReadOnlyMemory<byte> json) => _arraySupport.ImportEntry(json);
+    public void ClearInvalid() => _arraySupport.ClearInvalid();
     public bool IsScalarArray => IsArray && !IsObjectArray;
     public bool IsObject => FieldType == ConfigFieldType.Object;
     public bool IsGroup => FieldType == ConfigFieldType.Group;

@@ -14,6 +14,12 @@ namespace Lertaro.App.Views.Settings.Plugins;
 // depend on PluginConfigSection's own state.
 public partial class PluginConfigFieldRowTemplate : ResourceDictionary
 {
+    private void ClearInvalid_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: PluginConfigFieldViewModel field })
+            field.ClearInvalid();
+    }
+
     private void ImportEntry_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement { DataContext: PluginConfigFieldViewModel { SupportsEntryTransfer: true } field } element) return;

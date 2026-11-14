@@ -61,6 +61,7 @@ public class FolderCascaderPlugin : IPlugin, IConfigurable
                         Key = "Folders",
                         LabelKey = "FolderCascader_Config_FoldersLabel",
                         DescriptionKey = "FolderCascader_Config_FoldersDesc",
+                        AllowClearInvalid = true,
                         FieldType = ConfigFieldType.Array,
                         DefaultValue = new List<object>
                         {

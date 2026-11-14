@@ -163,10 +163,15 @@
                     <Grid Margin="0,0,0,8">
                         <TextBlock x:Name="RowListTitle" Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_ListTitle]}"
                                    FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center"/>
-                        <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_ClearList]}"
-                                Style="{StaticResource SettingsButton}" HorizontalAlignment="Right"
-                                Visibility="{Binding HasItems, Converter={StaticResource BoolToVis}}"
-                                Command="{Binding ClearCommand}"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                    Visibility="{Binding HasItems, Converter={StaticResource BoolToVis}}">
+                            <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Common_ClearInvalid]}"
+                                    Style="{StaticResource SettingsButton}"
+                                    Command="{Binding ClearInvalidCommand}"/>
+                            <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Favorites_ClearList]}"
+                                    Style="{StaticResource SettingsButton}" Margin="8,0,0,0"
+                                    Command="{Binding ClearCommand}"/>
+                        </StackPanel>
                     </Grid>
 
                     <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource FavItemTemplate}" helpers:DragReorder.IsEnabled="True">

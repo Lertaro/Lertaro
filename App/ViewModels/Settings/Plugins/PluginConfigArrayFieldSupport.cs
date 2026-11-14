@@ -142,6 +142,22 @@ internal sealed class PluginConfigArrayFieldSupport
             ? TranslationService.Get("Plugins_EntryConflict") : string.Empty;
     }
 
+    /// <summary>Deletes every row whose first FilePath/FolderPath child is unreachable right now.
+    /// The child is matched by key, so unrelated text (a display name) cannot keep a dead row alive.</summary>
+    public void ClearInvalid()
+    {
+        var pathField = _field.SchemaField.SubFields?
+            .FirstOrDefault(sf => sf.FieldType is ConfigFieldType.FilePath or ConfigFieldType.FolderPath);
+        if (pathField == null) return;
+
+        foreach (var item in _field.ArrayItems.ToList())
+        {
+            var path = item.Children.FirstOrDefault(c => c.SchemaField.Key == pathField.Key)?.LocalValueStore as string;
+            if (!FavoritePathResolver.IsPathAvailable(path))
+                item.DeleteCommand.Execute(null);
+        }
+    }
+
     private void AddArrayItemViewModel(object? itemValue)
     {
         PluginConfigArrayItemViewModel? itemVM = null;

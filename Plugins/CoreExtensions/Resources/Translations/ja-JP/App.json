@@ -290,6 +290,7 @@
   "Common_Add": "項目を追加",
   "Common_Duplicate": "複製",
   "Common_Delete": "削除",
+  "Common_ClearInvalid": "無効項目を削除",
   "Common_SelectAll": "すべて選択",
   "Common_DeselectAll": "すべて選択解除",
   "Common_ExpandAll": "すべて展開",

@@ -290,6 +290,7 @@
   "Common_Add": "항목 추가",
   "Common_Duplicate": "복제",
   "Common_Delete": "삭제",
+  "Common_ClearInvalid": "유효하지 않은 항목 정리",
   "Common_SelectAll": "모두 선택",
   "Common_DeselectAll": "모두 선택 해제",
   "Common_ExpandAll": "모두 펼치기",

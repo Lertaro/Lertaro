@@ -290,6 +290,7 @@
   "Common_Add": "新增項目",
   "Common_Duplicate": "複製一份",
   "Common_Delete": "刪除",
+  "Common_ClearInvalid": "清理失效",
   "Common_SelectAll": "全選",
   "Common_DeselectAll": "全部取消選取",
   "Common_ExpandAll": "全部展開",

@@ -290,6 +290,7 @@
   "Common_Add": "添加项目",
   "Common_Duplicate": "复制一份",
   "Common_Delete": "删除",
+  "Common_ClearInvalid": "清理失效",
   "Common_SelectAll": "全选",
   "Common_DeselectAll": "全不选",
   "Common_ExpandAll": "展开全部",

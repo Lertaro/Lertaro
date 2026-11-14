@@ -290,6 +290,7 @@
   "Common_Add": "Add Item",
   "Common_Duplicate": "Duplicate",
   "Common_Delete": "Delete",
+  "Common_ClearInvalid": "Clear invalid",
   "Common_SelectAll": "Select All",
   "Common_DeselectAll": "Deselect All",
   "Common_ExpandAll": "Expand All",

@@ -32,6 +32,7 @@ public class FavoritesSettingsViewModel : ViewModelBase
 
         AddCommand = new RelayCommand(Add, CanAdd);
         ClearCommand = new RelayCommand(Clear);
+        ClearInvalidCommand = new RelayCommand(ClearInvalid);
         RemoveCommand = new RelayCommand<FavoriteItemViewModel>(Remove);
         EditCommand = new RelayCommand<FavoriteItemViewModel>(Edit);
         SaveEditCommand = new RelayCommand<FavoriteItemViewModel>(SaveEdit, CanSaveEdit);
@@ -56,6 +57,7 @@ public class FavoritesSettingsViewModel : ViewModelBase
 
     public ICommand AddCommand { get; }
     public ICommand ClearCommand { get; }
+    public ICommand ClearInvalidCommand { get; }
     public ICommand RemoveCommand { get; }
     public ICommand EditCommand { get; }
     public ICommand SaveEditCommand { get; }
@@ -127,6 +129,14 @@ public class FavoritesSettingsViewModel : ViewModelBase
     {
         foreach (var item in Items) item.PropertyChanged -= OnItemPropertyChanged;
         Items.Clear();
+    }
+
+    // Availability is decided at click time, not when the item was added: a path that is back by
+    // then is kept.
+    private void ClearInvalid()
+    {
+        foreach (var item in Items.Where(item => !FavoritePathResolver.IsPathAvailable(item.Path)).ToList())
+            Items.Remove(item);
     }
 
     private void Add()
