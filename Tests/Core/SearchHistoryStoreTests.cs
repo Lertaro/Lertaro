@@ -423,14 +423,14 @@ public sealed class SearchHistoryStoreTests
     {
         var associations = new Dictionary<string, List<SearchHistoryStore.StoredAssociationEntry>>(StringComparer.OrdinalIgnoreCase);
 
-        SearchHistoryStore.RecordAssociationInMemory(associations, "  Pix   Pin ", @"X:\Fixture\Target.exe", HistoryEntryKind.File, 100, fromLearnedRecall: false);
-        SearchHistoryStore.RecordAssociationInMemory(associations, "pix pin", @"X:\Fixture\Target.exe", HistoryEntryKind.File, 200, fromLearnedRecall: false);
+        Assert.IsTrue(SearchHistoryStore.RecordAssociationInMemory(associations, "  Pix   Pin ", @"X:\Fixture\Target.exe", HistoryEntryKind.File, 100, fromLearnedRecall: false));
+        Assert.IsTrue(SearchHistoryStore.RecordAssociationInMemory(associations, "pix pin", @"X:\Fixture\Target.exe", HistoryEntryKind.File, 200, fromLearnedRecall: false));
         // Self-feedback open from a recalled row must NOT push count from 2 -> 3.
-        SearchHistoryStore.RecordAssociationInMemory(associations, "pix pin", @"X:\Fixture\Target.exe", HistoryEntryKind.File, 300, fromLearnedRecall: true);
+        Assert.IsFalse(SearchHistoryStore.RecordAssociationInMemory(associations, "pix pin", @"X:\Fixture\Target.exe", HistoryEntryKind.File, 300, fromLearnedRecall: true));
 
         Assert.IsEmpty(SearchHistoryStore.FlattenAssociations(associations, SearchHistoryStore.MinAssociationOrganicOpens));
 
-        SearchHistoryStore.RecordAssociationInMemory(associations, "PIX PIN", @"X:\Fixture\Target.exe", HistoryEntryKind.File, 400, fromLearnedRecall: false);
+        Assert.IsTrue(SearchHistoryStore.RecordAssociationInMemory(associations, "PIX PIN", @"X:\Fixture\Target.exe", HistoryEntryKind.File, 400, fromLearnedRecall: false));
         var confirmed = SearchHistoryStore.FlattenAssociations(associations, SearchHistoryStore.MinAssociationOrganicOpens);
         Assert.HasCount(1, confirmed);
         Assert.AreEqual("pixpin", confirmed[0].Keyword);

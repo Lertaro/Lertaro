@@ -21,6 +21,10 @@ public static class SearchHistoryStore
     private static Dictionary<string, List<StoredAssociationEntry>>? _associations;
     private static Dictionary<string, int>? _priorityCache;
     private static Dictionary<string, int>? _countCache;
+    private static long _associationVersion;
+
+    /// <summary>Advances whenever query-to-path associations change.</summary>
+    public static long AssociationVersion => Interlocked.Read(ref _associationVersion);
 
     /// <summary>What <see cref="Snapshot"/> returns before the store has any entries at all.</summary>
     private static readonly IReadOnlyDictionary<string, int> EmptyPriorities =
@@ -107,10 +111,14 @@ public static class SearchHistoryStore
             if (list.Count > SearchHistoryBucketSupport.MaxEntriesPerKeyword)
                 list.RemoveRange(SearchHistoryBucketSupport.MaxEntriesPerKeyword, list.Count - SearchHistoryBucketSupport.MaxEntriesPerKeyword);
 
-            RecordAssociationInMemory(associations, keyword, normalizedPath, kind, now, fromLearnedRecall);
+            var associationChanged = RecordAssociationInMemory(
+                associations, keyword, normalizedPath, kind, now, fromLearnedRecall);
+            if (associationChanged)
+                Interlocked.Increment(ref _associationVersion);
 
             PersistNoLock();
-            PersistAssociationsNoLock();
+            if (associationChanged)
+                PersistAssociationsNoLock();
             _priorityCache = BuildPriorityCache(buckets);
             _countCache = BuildCountCache(buckets);
         }
@@ -118,7 +126,7 @@ public static class SearchHistoryStore
         Changed?.Invoke();
     }
 
-    internal static void RecordAssociationInMemory(
+    internal static bool RecordAssociationInMemory(
         Dictionary<string, List<StoredAssociationEntry>> associations,
         string rawQuery,
         string normalizedPath,
@@ -128,11 +136,11 @@ public static class SearchHistoryStore
     {
         // Learned-alias clicks must not self-reinforce an unconfirmed association or create new ones.
         if (fromLearnedRecall)
-            return;
+            return false;
 
         var canonicalQuery = NormalizeAssociationQuery(rawQuery);
         if (canonicalQuery.Length == 0)
-            return;
+            return false;
 
         if (!associations.TryGetValue(canonicalQuery, out var list))
             associations[canonicalQuery] = list = new List<StoredAssociationEntry>();
@@ -151,6 +159,7 @@ public static class SearchHistoryStore
 
         if (list.Count > SearchHistoryBucketSupport.MaxEntriesPerKeyword)
             list.RemoveRange(SearchHistoryBucketSupport.MaxEntriesPerKeyword, list.Count - SearchHistoryBucketSupport.MaxEntriesPerKeyword);
+        return true;
     }
 
     /// <summary>
@@ -410,6 +419,7 @@ public static class SearchHistoryStore
 
             PersistNoLock();
             PersistAssociationsNoLock();
+            Interlocked.Increment(ref _associationVersion);
             _priorityCache = BuildPriorityCache(_buckets);
             _countCache = BuildCountCache(_buckets);
         }
@@ -448,6 +458,7 @@ public static class SearchHistoryStore
             EnsureCacheNoLock();
             _associations = rebuilt;
             PersistAssociationsNoLock();
+            Interlocked.Increment(ref _associationVersion);
         }
 
         Changed?.Invoke();
@@ -461,6 +472,7 @@ public static class SearchHistoryStore
             EnsureCacheNoLock();
             _associations = new Dictionary<string, List<StoredAssociationEntry>>(StringComparer.OrdinalIgnoreCase);
             PersistAssociationsNoLock();
+            Interlocked.Increment(ref _associationVersion);
         }
 
         Changed?.Invoke();
@@ -543,6 +555,7 @@ public static class SearchHistoryStore
         if (_associations == null)
         {
             _associations = LoadAssociationsFromFiles(AssociationsPath, AssociationsBackupPath, _buckets);
+            Interlocked.Increment(ref _associationVersion);
         }
     }
 
