@@ -65,6 +65,8 @@ public class PluginManagementViewModel : ViewModelBase
     /// The scan is reflection-heavy and the page is opened while the user waits, so it runs on the thread pool
     /// and the rows are added when it returns. Safe to call repeatedly: the second call is a no-op, which is
     /// what lets both the page's Loaded handler and any later trigger ask for it without coordinating.
+    /// The constructor already fills the list synchronously, so the scan below is skipped when rows exist --
+    /// adding a second copy would show every plugin twice.
     /// </remarks>
     public async Task LoadAsync()
     {
@@ -72,10 +74,13 @@ public class PluginManagementViewModel : ViewModelBase
             return;
         _loaded = true;
 
-        var list = await Task.Run(() => PluginLoaderHelper.BuildPluginList(_userSettings)).ConfigureAwait(true);
+        if (Plugins.Count == 0)
+        {
+            var list = await Task.Run(() => PluginLoaderHelper.BuildPluginList(_userSettings)).ConfigureAwait(true);
 
-        foreach (var plugin in list)
-            Plugins.Add(plugin);
+            foreach (var plugin in list)
+                Plugins.Add(plugin);
+        }
 
         // The default sort splits enabled from disabled, so reconcile the freshly built list to it once here --
         // BuildPluginList only returns plain name order. Selecting happens after the sort, so the initial
