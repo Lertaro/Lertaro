@@ -226,7 +226,7 @@ public sealed class SearchableItemCacheStaleTests
 
     private sealed class ReadinessProvider : ISearchableItemProvider
     {
-        public event Action? ItemsChanged;
+        public event Action? ItemsChanged { add { } remove { } }
         public IEnumerable<SearchableItem> GetSearchableItems() => Array.Empty<SearchableItem>();
     }
 }

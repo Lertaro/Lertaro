@@ -384,7 +384,7 @@ public sealed class ExclusionSettingsViewModelTests
 
         vm.Save();
 
-        Assert.IsTrue(settings.IndexRules.Single(r => r.Pattern == @"C:\work").AlwaysTop);
+        Assert.IsTrue(settings.IndexRules!.Single(r => r.Pattern == @"C:\work").AlwaysTop);
     }
 
     [TestMethod]
@@ -401,7 +401,7 @@ public sealed class ExclusionSettingsViewModelTests
 
         vm.Save();
 
-        Assert.IsFalse(settings.IndexRules.Single(r => r.Pattern == @"C:\tmp").AlwaysTop);
+        Assert.IsFalse(settings.IndexRules!.Single(r => r.Pattern == @"C:\tmp").AlwaysTop);
     }
 
     [TestMethod]
@@ -459,7 +459,7 @@ public sealed class ExclusionSettingsViewModelTests
 
         vm.Save();
 
-        Assert.IsFalse(settings.IndexRules.Single(r => r.Pattern == @"C:\work").AlwaysTop);
+        Assert.IsFalse(settings.IndexRules!.Single(r => r.Pattern == @"C:\work").AlwaysTop);
     }
 
     [TestMethod]
