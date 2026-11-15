@@ -55,9 +55,9 @@ Muchos programas profesionales emplean ventanas propias en lugar de los diálogo
 | Aplicación y tipo de diálogo | Búsqueda incrustada | Activador de Navegación rápida | Notas de integración |
 | :--- | :--- | :--- | :--- |
 | Diálogos Abrir/Guardar de **WPS Office** | Compatible | Clic central o clic en el logotipo | Compatible con WPS Writer, Spreadsheets, Presentation y PDF |
-| Diálogo de extracción de **WinRAR** | Compatible | Clic central o clic en el logotipo | Selección rápida del directorio de destino |
-| Diálogo de extracción de **Bandizip** | Compatible | Clic central o clic en el logotipo | Especificación inmediata de la carpeta de extracción |
-| Diálogo de adición de archivos de **Bandizip** | Compatible | Clic central o clic en el logotipo | Selección rápida de archivos fuente |
+| Diálogo de extracción de **WinRAR** | Compatible | Clic central o clic en el logotipo | Selección del directorio de destino |
+| Diálogo de extracción de **Bandizip** | Compatible | Clic central o clic en el logotipo | Especificación de la carpeta de extracción |
+| Diálogo de adición de archivos de **Bandizip** | Compatible | Clic central o clic en el logotipo | Selección de archivos fuente |
 | Diálogos Abrir/Guardar de **AutoCAD** | Compatible | Clic central o clic en el logotipo | Optimizado para el almacenamiento y consulta de planos CAD |
 
 Los plugins identifican la jerarquía de controles internos, manteniéndose compatibles con independencia de paquetes de idioma o modificaciones visuales de la interfaz.

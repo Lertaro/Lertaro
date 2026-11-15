@@ -1,6 +1,6 @@
 # Space Analyzer
 
-Lertaro includes a disk and directory **Space Analyzer**. Unlike traditional disk analyzers that require lengthy physical drive scans, it leverages Lertaro's existing in-memory index tree to render storage breakdowns in seconds — even on drives hosting millions of files.
+Lertaro includes a disk and directory **Space Analyzer**. Unlike traditional disk analyzers that require lengthy physical drive scans, it uses Lertaro's existing in-memory index tree to render storage breakdowns in seconds — even on drives hosting millions of files.
 
 ## 1. Accessing Space Analyzer
 

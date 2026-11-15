@@ -9,7 +9,7 @@ English | [简体中文](Readmes/zh-CN.md) | [繁體中文（香港）](Readmes/
 > [!CAUTION]
 > **Security notice: download Lertaro only from official sources.** For your security, download Lertaro only from the official repository, website, and [GitHub Releases](https://github.com/Lertaro/Lertaro/releases). Do not download or run files from unverified sources or repositories.
 
-Lertaro is an ultra-lightweight, high-performance, extensible global search and productivity launcher for Windows, built on **.NET 10 (WPF)**. It's a modern, open-source alternative to **Listary** and **Everything** — indexing local drives via the NTFS **USN Journal** and $MFT for near-instant, low-resource search.
+Lertaro is an open-source alternative to **Listary** and **Everything**: a file search and productivity launcher for Windows, built on **.NET 10 (WPF)**. It indexes local drives through the NTFS **USN Journal** and $MFT, so searches across millions of files come back as you type while memory and CPU stay low.
 
 📖 **[Full Documentation, User Manual & Developer Manual](https://lertaro.github.io/)**
 
@@ -18,9 +18,9 @@ Lertaro is an ultra-lightweight, high-performance, extensible global search and 
 - ⚡ **USN & MFT Low-Level Indexing** — reads the NTFS/ReFS USN Change Journal and $MFT directly instead of walking directories; a lightweight background service keeps the index in sync in real time with FAT32/exFAT monitoring and network share caching.
 - 🎯 **fzf-Style Fuzzy Search & Aliases** — multi-keyword jump matching with directory path tokens and prefix/suffix/exact/exclude operators, plus non-ASCII pinyin alias transliteration.
 - 📂 **Three Window Modes & Deep Docking** — a quick popup window, a full main window, and an inline bar that automatically docks into native Open/Save file dialogs and major file managers (File Explorer, Total Commander, Directory Opus, OneCommander).
-- 🎬 **Actions Menu & QuickLook Preview** — press `Ctrl+O` for the actions menu with native Shell right-click integration, or press `Alt+P` for seamless QuickLook file previews.
+- 🎬 **Actions Menu & QuickLook Preview** — press `Ctrl+O` for the actions menu with native Shell right-click integration, or press `Alt+P` for QuickLook file previews.
 - 📊 **Instant Disk Space Treemap** — explore indexed disk usage visually in a real-time Treemap without rescanning disks, drill down into oversized folders, and execute cleanup actions.
-- 🧩 **Open Plugin SDK & Ecosystem Bridge** — clean .NET 10 C# SDK contracts for custom search providers, aliases, actions, columns, and previews, plus compatibility with Flow Launcher community plugins.
+- 🧩 **Open Plugin SDK & Ecosystem Bridge** — typed .NET 10 C# contracts for custom search providers, aliases, actions, columns, and previews, plus compatibility with Flow Launcher community plugins.
 - 🛡️ **3-Process Isolation & Offline Privacy** — SYSTEM background service (`Lertaro.Service`), user-mode WPF UI (`Lertaro.App`), and UIPI-bypassing hook helper (`Lertaro.Service --hook`) are strictly isolated. 100% local with zero telemetry.
 
 See the **[User Manual](https://lertaro.github.io/user-guide/)** for search syntax, every hotkey, and every settings option; the **[Developer Manual](https://lertaro.github.io/dev-guide/)** for architecture and the plugin SDK reference.

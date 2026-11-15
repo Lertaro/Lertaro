@@ -91,7 +91,7 @@
   "Settings_LocalSend_SendWindowTitle": "他のデバイスへ送信...",
   "Settings_LocalSend_Send": "送信",
   "Settings_LocalSend_TargetPin": "送信先 PIN (任意)",
-  "Settings_LocalSend_Description": "LocalSendプロトコルと互換性があり、LAN内の各種デバイスと相互検出・高速ファイル転送が可能です。",
+  "Settings_LocalSend_Description": "LocalSendプロトコルに対応し、LAN内のデバイスと相互検出してファイルを転送できます。",
   "Settings_LocalSend_Enable": "LAN転送サービスを有効化",
   "Settings_LocalSend_EnableDesc": "ローカルネットワークでのデバイス検出とファイル転送を許可します",
   "Settings_LocalSend_DeviceAlias": "デバイス名",

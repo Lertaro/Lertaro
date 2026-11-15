@@ -18,7 +18,7 @@ Lertaro/
 ```
 
 - **의존성 자동 탐색**: Lertaro 로더가 `Assembly.LoadFrom`으로 메인 DLL을 로드하면 .NET 런타임이 동일 폴더 내의 의존 라이브러리를 다른 플러그인 간섭 없이 자동 해석하여 로드합니다.
-- **네이티브 의존성은 `runtimes\<rid>\native`가 아니라 DLL 바로 옆에**: 배포되는 플러그인 프로젝트들은 `<GenerateDependencyFile>false</GenerateDependencyFile>`를 설정하므로 `.deps.json`이 생성되지 않고, 런타임에는 RID 하위 폴더를 해석할 deps 그래프가 없습니다. 따라서 네이티브 라이브러리는 애플리케이션 기본 디렉토리에서 발견 가능해야 하고, 그래서 하위 폴더 없이 나란히 복사해야 합니다. 두 아키텍처를 통합 설치 프로그램 하나가 아니라 별도의 산출물로 게시하는 이유도 이것입니다 — 그 평면 로드 디렉토리를 차지할 수 있는 네이티브 복사본은 하나뿐입니다.
+- **네이티브 의존성은 `runtimes\<rid>\native` 대신 DLL 바로 옆에**: 배포되는 플러그인 프로젝트들은 `<GenerateDependencyFile>false</GenerateDependencyFile>`를 설정하므로 `.deps.json`이 생성되지 않고, 런타임에는 RID 하위 폴더를 해석할 deps 그래프가 없습니다. 따라서 네이티브 라이브러리는 애플리케이션 기본 디렉토리에서 발견 가능해야 하고, 그래서 하위 폴더 없이 나란히 복사해야 합니다. 두 아키텍처를 통합 설치 프로그램 하나로 묶는 대신 별도의 산출물로 게시하는 이유도 이것입니다 — 그 평면 로드 디렉토리를 차지할 수 있는 네이티브 복사본은 하나뿐입니다.
 - App과 사용자별 Hook은 `Lertaro.Plugins.*.dll` 파일명을 선택하고 로드나 리플렉션 전에 비활성화한 어셈블리를 제외합니다. `AssemblyName`에 이 접두사를 유지하고 SDK 복사본을 추가로 배포하지 마세요. 다른 네이티브 플러그인 진입 DLL을 참조하면 표준 의존성 해석기가 비활성화한 DLL을 로드할 수 있으므로 피하세요.
 
 ## 2. 빌드 후 자동 복사 설정 (PostBuild)
@@ -73,4 +73,4 @@ Windows에서 저장소 루트의 `make.bat`을 실행하기 전에 .NET SDK와 
 - `Lertaro-Setup.exe` 및 `Lertaro-Portable.zip`(x64).
 - `Lertaro-Setup-arm64.exe` 및 `Lertaro-Portable-arm64.zip`(arm64).
 
-두 아키텍처가 통합 설치 프로그램 하나가 아니라 별도 산출물로 게시되는 이유는 BrowserData 플러그인이 네이티브 라이브러리를 함께 싣기 때문입니다. 그 평면이고 `.deps.json`이 없는 로드 디렉토리에 놓일 수 있는 네이티브 복사본은 하나뿐입니다(스크립트 상단 주석 참조). arm64 설치 프로그램은 `Installer/installer.iss`에서 x64판과 다음이 다릅니다: `ArchitecturesAllowed`(`arm64` 대 `x64compatible`), `ArchitecturesInstallIn64BitMode`, `SetupArchitecture=x64`(x64에만 설정), 함께 번들되는 .NET 데스크톱 런타임 파일과 다운로드 주소, `PublishDir`, 출력 파일명. 각 안에 담긴 페이로드는 자기 아키텍처의 네이티브입니다. 릴리스 워크플로는 정확히 이 네 이름의 해시를 계산하고 업로드하며, `UpdateAssetSelector`는 이름으로 이전 설치본을 업데이트 채널에 대응시키므로 이름을 바꾸면 이미 설치된 사용자가 끊깁니다. 산출물 이름은 `make.bat`, `Installer/installer.iss`, 릴리스 워크플로의 자산 목록과 일치하게 유지하세요.
+두 아키텍처가 통합 설치 프로그램 하나 대신 별도 산출물로 게시되는 이유는 BrowserData 플러그인이 네이티브 라이브러리를 함께 싣기 때문입니다. 그 평면이고 `.deps.json`이 없는 로드 디렉토리에 놓일 수 있는 네이티브 복사본은 하나뿐입니다(스크립트 상단 주석 참조). arm64 설치 프로그램은 `Installer/installer.iss`에서 x64판과 다음이 다릅니다: `ArchitecturesAllowed`(`arm64` 대 `x64compatible`), `ArchitecturesInstallIn64BitMode`, `SetupArchitecture=x64`(x64에만 설정), 함께 번들되는 .NET 데스크톱 런타임 파일과 다운로드 주소, `PublishDir`, 출력 파일명. 각 안에 담긴 페이로드는 자기 아키텍처의 네이티브입니다. 릴리스 워크플로는 정확히 이 네 이름의 해시를 계산하고 업로드하며, `UpdateAssetSelector`는 이름으로 이전 설치본을 업데이트 채널에 대응시키므로 이름을 바꾸면 이미 설치된 사용자가 끊깁니다. 산출물 이름은 `make.bat`, `Installer/installer.iss`, 릴리스 워크플로의 자산 목록과 일치하게 유지하세요.

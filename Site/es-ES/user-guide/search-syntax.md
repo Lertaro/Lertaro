@@ -224,7 +224,7 @@ Aplica rápidamente reglas preestablecidas de extensión de archivo, admitiendo 
 > [!NOTE]
 > Estas seis reglas predeterminadas, los filtros de tipo de la barra lateral de la ventana de búsqueda completa y la **barra de filtros por tipo** bajo el cuadro de búsqueda de la ventana de búsqueda rápida leen una sola tabla: el mismo archivo nunca es tres tipos distintos. Las reglas se pueden editar en **Configuración → Plugins → CoreExtensions → Configurar → Filtros personalizados**, y un cambio aparece a la vez en los tres sitios.
 >
-> Un acceso directo se clasifica por aquello a lo que apunta, no por ser un acceso directo: un acceso directo a un documento cuenta como documento, y solo un acceso directo cuyo destino no se puede leer vuelve a Aplicaciones.
+> Un acceso directo se clasifica por aquello a lo que apunta: un acceso directo a un documento cuenta como documento, y solo un acceso directo cuyo destino no se puede leer vuelve a Aplicaciones.
 
 **Ejemplos**:
 

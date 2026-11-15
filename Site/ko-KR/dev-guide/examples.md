@@ -34,7 +34,7 @@
 ### 핵심 구현 사항
 
 - **다중 언어 프로세스 간 브리지**: C# (.NET), Python 3.12, Node.js v20 LTS 및 `.exe` 플러그인을 원활히 실행.
-- **완전 격리 독립 런타임**: Python / Node.js 런타임을 사용자별 데이터 폴더가 아니라 Lertaro의 **공용 데이터 디렉토리**(`SharedDataDirectory\FlowData\PythonEmbeded-{arch}`) 아래에 자동 배치합니다. 각 플러그인은 자기 인터프리터와 **리디렉션된 표준 입출력**으로 JSON-RPC를 주고받으며, 명명된 파이프는 쓰지 않고 시스템 PATH에도 손대지 않습니다.
+- **완전 격리 독립 런타임**: Python / Node.js 런타임을 사용자별 데이터 폴더 대신 Lertaro의 **공용 데이터 디렉토리**(`SharedDataDirectory\FlowData\PythonEmbeded-{arch}`) 아래에 자동 배치합니다. 각 플러그인은 자기 인터프리터와 **리디렉션된 표준 입출력**으로 JSON-RPC를 주고받으며, 명명된 파이프는 쓰지 않고 시스템 PATH에도 손대지 않습니다.
 - **동적 설정 폼 및 WebView2 리치 미리보기**: 외부 플러그인의 `SettingsTemplate.yaml`/`.json`을 `PluginConfigSchema`로 동적 매핑하고 사전이나 날씨 등의 HTML 카드를 QuickLook 내에 렌더링.
 
 ## 4. FileUnlocker —— 파일 점유 해제 액션

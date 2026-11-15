@@ -1,15 +1,15 @@
 # Development Guide
 
-When interacting with this repository, performing code modification, compilation, testing, or deployment, the AI agent must strictly adhere to the following guidelines:
+These rules apply whenever an agent edits, builds, tests, or deploys this repository.
 
 1. **On-Demand and Narrow-Scope Compilation**
     - Compile projects only when absolutely necessary.
-    - **Blind compilation of the entire production solution (e.g., `dotnet build Lertaro.slnx` or `Lertaro.Plugins.slnx`) is strictly prohibited**. You must compile only the specific subproject/csproj to which the modified files belong (for example: `dotnet build Src/MySubProject.csproj`).
-    - This maximizes compilation efficiency, reduces resource usage, and avoids file lock conflicts in large workspaces.
+    - Do not build the whole production solution blind (`dotnet build Lertaro.slnx`, `Lertaro.Plugins.slnx`). Build only the subproject the changed files belong to, for example `dotnet build Src/MySubProject.csproj`.
+    - A single-project build keeps turnaround short and avoids the file locks a full solution build takes in a workspace this size.
     - **Full Test Suite Rule**: Running `dotnet test Tests/Tests.slnx` for the full solution test suite is **strictly prohibited during regular development, bug fixing, or feature modification tasks**. You must only build and run the specific test project(s) you modified (e.g., `dotnet test Tests/App/App.csproj`). Running the full aggregate test suite (`dotnet test Tests/Tests.slnx`) is **ONLY** allowed during the formal release process (Release Flow) as a final pre-release validation step after the touched test projects pass.
 
 2. **Do Not Terminate App and Service**
-    - **Do NOT proactively terminate the app and background service processes. Only perform testing and compilation. The build process does not conflict with the running app and service.**
+    - Do not stop the app or the service on your own. Building and testing do not conflict with them while they run.
 
     - Only when a binary/DLL lock conflict occurs during compilation leading to a build failure, and with explicit user authorization or instruction, you may release the locks using the following sequence:
 
@@ -96,7 +96,7 @@ When interacting with this repository, performing code modification, compilation
 
 8. **No Lazy #pragma Warning Disables**
     - **Do NOT use `#pragma warning disable` / `#pragma warning restore` as a shortcut to ignore compiler warnings**.
-    - You must write clean, type-safe, and null-safe code that naturally resolves all compiler warnings (e.g., proper null checks, pattern matching, explicit casting). Warnings must be resolved programmatically rather than suppressed.
+    - Fix the warning in the code itself: null checks, pattern matching, explicit casts. Suppressing it is not a fix.
     - This applies to test code too: an MSTest analyzer warning (e.g. `MSTEST0037` suggesting `Assert.IsTrue`/`Assert.HasCount`/`Assert.IsGreaterThan` over a raw `Assert.AreEqual`/boolean comparison) gets fixed by using the suggested assertion, never suppressed.
 
 9. **No Fallback Translation Strings in Code**
@@ -111,7 +111,7 @@ When interacting with this repository, performing code modification, compilation
 - Prefer this kind of additive extraction over introducing new dependency-injection plumbing through several constructors; reach for a larger DI refactor only when the user explicitly asks for it.
 - This rule is forward-looking: it does not require retroactively covering pre-existing code you are not otherwise touching in the current change.
 
-1. **Test Code Conventions & Infrastructure**
+11. **Test Code Conventions & Infrastructure**
     - **Directory structure and namespaces mirror production 1:1**: a test for `App/ViewModels/Settings/Plugins/PluginConfigFieldViewModel.cs` lives at `Tests/App/ViewModels/Settings/Plugins/PluginConfigFieldViewModelTests.cs`. Its namespace is the production namespace with `Lertaro.<ProjectName>` replaced by `Lertaro.<ProjectName>.Tests` and every segment after that left unchanged (production `Lertaro.App.ViewModels.Settings.Plugins` → test `Lertaro.App.Tests.ViewModels.Settings.Plugins`). New test subfolders/namespace segments must appear the moment the matching production subfolder does --- do not flatten multiple production subfolders into one test file's namespace, and do not invent a test-side folder that has no production counterpart.
     - Test class naming: one `[TestClass]` named `<ProductionTypeName>Tests` per production type under test. When a single production file declares several small related types (as rule 6 already allows for tightly-coupled helpers), its test file may likewise declare one `[TestClass]` per type, keeping the same grouping the production file uses.
     - Give each new test project its own `MSTestSettings.cs` containing `[assembly: Parallelize(Scope = ExecutionScope.MethodLevel)]`.
@@ -122,35 +122,35 @@ When interacting with this repository, performing code modification, compilation
     - **No mocking frameworks**: fakes/stubs are hand-written nested classes implementing only the interface/abstract members the test actually needs (look for `Fake*`/`private sealed class Fake...` anywhere under `Tests/` for the existing pattern) --- do not add Moq, NSubstitute, or similar as a dependency.
     - **Verify before trusting**: before writing a test against a class, read its actual constructor and the method bodies under test yourself. Do not assume a class is safe to construct, or that a member's accessibility (`public`/`internal`/`private`) matches what a prior summary, comment, or triage pass claimed --- verify directly, every time.
     - Build and run only the specific test project you changed (see rule 1 --- never blind-build the whole solution), and when a test fails, fix it based on the real failure output, not by re-guessing what the "correct" expected value should have been.
-2. **Comment Language & Detailed Documentation**
+12. **Comment Language & Detailed Documentation**
     - All comments in `.cs` files must be written in **English**, including comments that explain or reference Chinese-language text, bug reports, or user-facing strings.
     - **Detailed Comments When Necessary**: Whenever code contains non-obvious logic, complex algorithms, edge-case handlings, or architectural rationale, write clear and detailed comments explaining the context so future maintainers understand why it was built that way.
-3. **No Double-Hyphen in XML-Style Comments**
+13. **No Double-Hyphen in XML-Style Comments**
     - Do not use `--` inside `<!-- ... -->` comments in `.xaml` or `.csproj` files --- MSBuild/XAML parses a literal `--` inside an XML comment as a syntax error (`MC3000`/`MSB4025`). Use `:` or rephrase instead. This is a recurring mistake; double-check any comment you write in these file types before saving.
-4. **How to Split a File (Composition, Naming, Subfolders)**
+14. **How to Split a File (Composition, Naming, Subfolders)**
     - When rule 5 requires splitting a file, extract the cohesive piece into a separate class the original _holds a reference to and delegates to_ (composition) --- never a base class the original inherits from, and never `partial` (already banned by rule 5). The extracted class typically takes the owning instance as a constructor parameter when it needs to read/write the owner's state (e.g. `PluginConfigArrayFieldSupport(PluginConfigFieldViewModel field)`; a static helper instead takes the owner as a per-call parameter, e.g. `NetworkDrivePermissionsHelper.UpdateRowPermissions(NetworkDriveSettingsViewModel vm, ...)`).
     - Name the extracted class for its concern, ending in `Helper`/`Support`/a specific role noun (`NetworkDrivePermissionsHelper`, `NetworkDriveSummaryHelper`, `PluginConfigArrayFieldSupport`, `ActionsMenuNavigator`) --- never a generic `Utils`/`Common`/`Misc` grab-bag.
     - State the reason for the split in a short comment on the extracted class or file (this codebase's existing convention is close to: _"Split out purely to keep that file under the repo's per-file line limit; this class has no state of its own, it always operates on the one X that owns it"_) --- expected documentation here, not optional decoration.
     - **Single overflowing class vs. topic subfolder**: one class alone crossing 300 lines gets one sibling helper file in the same folder. When a whole _feature area_ accumulates several related files (not just one overflowing class), group them into a topic-named subfolder with a matching nested namespace segment per rule 6 (e.g. `Settings/NetworkDrive/`, `Settings/LocalDrive/`, `Settings/Plugins/`, `Providers/InstantAnswers/`, `Providers/Filters/`, `Providers/Indexing/`). Subfolder names are the feature/topic, not the file type (no `Helpers/`/`Models/`-style grouping by kind).
     - This kind of split stays inside the existing project (App, Core, a given plugin) --- it is never a reason to carve off a new `.csproj`.
-5. **No Privacy-Sensitive Information in Code, Comments, or Tests**
+15. **No Privacy-Sensitive Information in Code, Comments, or Tests**
     - **Production code, comments, and test code/fixtures must never contain privacy-sensitive information** --- the developer's real Windows username, machine name, email address, personal file paths, or any other personally-identifying data --- even when it was copied verbatim from a real screenshot, log, or live debugging session. Use a generic placeholder instead (e.g. `C:\Users\testuser\Desktop`, not the developer's real profile path) in all three: the code itself, comments explaining it, and any test that exercises it.
     - This applies regardless of how innocuous the string seems ("it's just a username"): this repo is public with active forks, and anything pushed can end up copied into a fork before you notice the mistake --- at that point it's effectively unrecoverable (rewriting/force-pushing history only cleans the origin repo going forward, not any fork that already synced the old commits). Treat it with the same "assume it's now permanent" caution as any other exposed personal data, rather than something a later commit can quietly undo.
     - Before committing, scan any new or touched file for real paths/usernames/identifiers that slipped in from a live debugging session (screenshots, logs, pasted output) --- do not rely on remembering to substitute them as you write, verify at the end.
     - (Incident: a WinRAR/Bandizip test suite hardcoded the developer's real `C:\Users\<realusername>\Desktop` path, copied directly from a live debugging screenshot, and it was pushed to the public repo before being caught.)
-6. **Never Hard-Wrap a CJK Paragraph in Markdown**
+16. **Never Hard-Wrap a CJK Paragraph in Markdown**
     - **In `Site/**/\*.md`, a paragraph of Chinese or Japanese text goes on one line, however long.** Markdown joins the lines of a wrapped paragraph with a space when it renders, which is correct between Latin words and between a CJK character and a Latin one, but between two CJK characters it renders a space nobody wrote: `…专门负责文件索引。这`+`个拆分是有意为之的…`comes out as`…这 个拆分…`. Breaking a line is only safe where Latin sits on one side of the break.
     - Applies to `zh-CN`, `zh-HK`, `zh-TW` and `ja-JP`. `ko-KR`, `es-ES` and `en-US` are unaffected --- a break between two words there renders exactly the space those languages already want.
     - **Never put a line break directly beside a `**`or`\_`.\*\* Whether those delimiters open or close depends on the characters either side of them, and a line break counts as whitespace there, so a break next to one can silently turn the emphasis into literal asterisks in the output. Applies both to breaking a line there and to joining one.
     - **Write `[**text**](url)`, not `**[text](url)**`, when CJK or Hangul sits directly against it.** The outer form does not parse in that position and leaks literal `**` into the page --- the only construct found to break this way. Adding a space around the `**` also fixes it, but that is the space this rule exists to avoid.
     - Verify by building the site before and after (`npm run site:build` in `Site/`) and comparing the rendered output, not by reading the Markdown: the whole class of bug is invisible in the source. Count `<strong>`/`<em>` (must not move), literal `**` in the text (must not increase --- the exclusion-rule pages legitimately contain some, as glob wildcards), and matches of "CJK, space, CJK".
     - (Incident: 1418 of these across 108 files in four locales, plus eight bold spans already broken by the `**[link]**` form, all shipped and live before anyone noticed.)
-7. **Mandatory All-Locale Synchronization for Site Documentation (`Site/`)**
+17. **Mandatory All-Locale Synchronization for Site Documentation (`Site/`)**
     - Whenever any Site documentation file (under `Site/`) is created, modified, or updated, **ALL supported site locales** (all language directories under `Site/` including `user-guide/` root and any future added locales) must be updated and kept in sync simultaneously.
     - Never update only one locale (e.g. `zh-CN`) and leave the others behind. Every change, feature addition, or troubleshooting note in documentation must be translated and synchronized across every locale directory that exists in `Site/`.
     - Always enforce Rule 16 (single un-wrapped lines for CJK/Japanese paragraphs) when editing Chinese or Japanese site pages.
     - Always verify by running `npm run site:build` in `Site/` after making any documentation changes.
-8. **Mandatory All-Locale Synchronization for Plugin Translations (`Plugins/`)**
+18. **Mandatory All-Locale Synchronization for Plugin Translations (`Plugins/`)**
     - Whenever a plugin translation key, string, or locale file (under `Plugins/<PluginName>/Resources/Translations/`) is added, updated, or modified, **ALL supported plugin locales** (all locale directories present under `Resources/Translations/` for that plugin) must be updated in sync.
     - Never add or update a translation key in only one locale while leaving other locale JSON files missing the key.
     - Combine with Rule 9: No hardcoded fallback strings in `.cs` code --- when a new user-facing string is introduced in a plugin, add the translation key to all locale JSON files shipped by that plugin simultaneously.

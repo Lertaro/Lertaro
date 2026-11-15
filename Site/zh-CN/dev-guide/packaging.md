@@ -18,7 +18,7 @@ Lertaro/
 ```
 
 - **依赖自动探测**：Lertaro 的程序集加载器通过 `Assembly.LoadFrom` 机制加载主 DLL，.NET 运行时会自动从该子目录中解析并加载其同级依赖库，绝不会与其他插件相互干扰。
-- **原生依赖与 DLL 同级，而不是放在 `runtimes\<rid>\native` 下**：随包发布的插件工程都设置了 `<GenerateDependencyFile>false</GenerateDependencyFile>`，因此不会生成 `.deps.json`，运行时也就没有可据以解析 RID 子目录的依赖图。原生库必须能在应用程序基目录中被发现——所以要平铺复制。这也是两种架构要分别发布为独立产物、而不是合成一个安装包的原因：那个平铺的加载目录只能容纳一种架构的原生副本。
+- **原生依赖与 DLL 同级，而不是放在 `runtimes\<rid>\native` 下**：随包发布的插件工程都设置了 `<GenerateDependencyFile>false</GenerateDependencyFile>`，因此不会生成 `.deps.json`，运行时也就没有可据以解析 RID 子目录的依赖图。原生库必须能在应用程序基目录中被发现，所以要平铺复制。这也是两种架构要分别发布为独立产物、而不是合成一个安装包的原因：那个平铺的加载目录只能容纳一种架构的原生副本。
 - App 与当前用户的 Hook 按 `Lertaro.Plugins.*.dll` 文件名筛选，并在加载或反射之前排除禁用的程序集。请在 `AssemblyName` 中保留此前缀，且不要附带另一份 SDK。避免引用其他原生插件入口 DLL，否则标准程序集解析器可能把已禁用的依赖加载进来。
 
 ## 2. 自动化构建复制配置（PostBuild）

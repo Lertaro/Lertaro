@@ -91,7 +91,7 @@
   "Settings_LocalSend_SendWindowTitle": "Enviar a otros dispositivos...",
   "Settings_LocalSend_Send": "Enviar",
   "Settings_LocalSend_TargetPin": "PIN de destino (opcional)",
-  "Settings_LocalSend_Description": "Compatible con el protocolo LocalSend para descubrir y transferir archivos sin problemas entre dispositivos LAN.",
+  "Settings_LocalSend_Description": "Compatible con el protocolo LocalSend: descubre dispositivos de la red local y transfiere archivos entre ellos.",
   "Settings_LocalSend_Enable": "Habilitar servicio de transferencia LAN",
   "Settings_LocalSend_EnableDesc": "Permite el descubrimiento de dispositivos y transferencia de archivos en la red local",
   "Settings_LocalSend_DeviceAlias": "Nombre del dispositivo",

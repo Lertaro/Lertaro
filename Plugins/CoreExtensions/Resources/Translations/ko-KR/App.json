@@ -91,7 +91,7 @@
   "Settings_LocalSend_SendWindowTitle": "다른 기기로 전송...",
   "Settings_LocalSend_Send": "전송",
   "Settings_LocalSend_TargetPin": "대상 PIN (선택 사항)",
-  "Settings_LocalSend_Description": "LocalSend 프로토콜과 호환되며 로컬 네트워크 기기 간에 원활하게 기기를 검색하고 파일을 전송합니다.",
+  "Settings_LocalSend_Description": "LocalSend 프로토콜과 호환되며 로컬 네트워크의 기기를 검색해 파일을 주고받습니다.",
   "Settings_LocalSend_Enable": "로컬 네트워크 전송 서비스 활성화",
   "Settings_LocalSend_EnableDesc": "로컬 네트워크에서 기기 검색 및 파일 전송을 허용합니다",
   "Settings_LocalSend_DeviceAlias": "기기 이름",

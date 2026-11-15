@@ -6,8 +6,8 @@ Lertaro supports theme mode switching and multiple color palettes. The Appearanc
 
 Three mode selection cards are displayed at the top of the page:
 
-- **Light Mode**: Locks the interface to a bright aesthetic; the theme selector grid displays only light-themed cards.
-- **Dark Mode**: Locks the interface to a sleek dark aesthetic; the grid displays only dark-themed cards.
+- **Light Mode**: Keeps the interface light; the theme selector grid displays only light-themed cards.
+- **Dark Mode**: Keeps the interface dark; the grid displays only dark-themed cards.
 - **Follow System**: Automatically switches between two user-specified themes as Windows toggles between light and dark modes. In this mode, the grid splits into **Light Theme** and **Dark Theme** selectors, allowing you to choose distinct palettes for day and night without requiring application restarts.
 
 > [!NOTE]
@@ -23,7 +23,7 @@ Themes are presented in an interactive card grid. Each card renders an accurate 
   - **Light** / **Dark**: Clean and minimalistic designs that integrate with native Windows styling.
   - **Nordic Blue**: Cool-toned geek aesthetic featuring soft ice-blue accents against a deep navy backdrop.
   - **Sakura Pink**: Gentle, refreshing pastel rose and white palette.
-  - **Cyberpunk**: High-contrast neon yellow and midnight purple for a futuristic flair.
+  - **Cyberpunk**: High-contrast neon yellow and midnight purple.
 - **Anime Themes (AnimeThemes, Bundled)**:
   - **Evangelion**, **Sakura Blossom**, and **Weathering with You**.
 - **Curated Theme Pairs (Curated Themes, Bundled)**:

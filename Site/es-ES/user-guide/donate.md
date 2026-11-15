@@ -1,6 +1,6 @@
 # 🎁 Donaciones y apoyo
 
-Si Lertaro te resulta útil, mejora tu productividad diaria y deseas apoyar su mantenimiento y desarrollo continuo, ¡agradecemos enormemente tu generosidad y contribución!
+Si Lertaro te ahorra tiempo y deseas apoyar su desarrollo continuo, las donaciones son bienvenidas.
 
 ## Canales de donación
 
@@ -13,4 +13,4 @@ Actualmente aceptamos contribuciones en criptomoneda mediante Tether USDT:
 
 ---
 
-*¡Muchísimas gracias por tu generosidad! Cada muestra de apoyo impulsa la evolución y mejora constante de Lertaro.*
+*Gracias.*

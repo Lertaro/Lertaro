@@ -224,7 +224,7 @@ Quickly apply preset file extension category rules, supporting `|` combinations:
 > [!NOTE]
 > These six default rules, the type filters in the full search window's sidebar, and the **type filter bar** under the quick window's search box all read one table: the same file is never three different kinds. The rules are editable in **Settings → Plugins → CoreExtensions → Configure → Custom Filters**, and an edit shows up in all three places at once.
 >
-> A shortcut is filed by what it points at, not by being a shortcut: a shortcut to a document counts as a document, and only a shortcut whose target cannot be read falls back to Programs.
+> A shortcut is filed by what it points at: a shortcut to a document counts as a document, and only a shortcut whose target cannot be read falls back to Programs.
 
 **Examples**:
 

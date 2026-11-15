@@ -1,6 +1,6 @@
 # Settings Reference
 
-Lertaro provides a granular suite of customization options. Whether you want to fine-tune search bar pixel dimensions, customize global hotkeys, adjust drive indexing schedules, or manage third-party plugins and workspaces, everything can be configured in the Settings Center.
+Everything in Lertaro is configured in the Settings Center: search bar dimensions, global hotkeys, drive indexing schedules, plugins, and workspaces.
 
 ## 1. Window Features & Navigation
 

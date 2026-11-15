@@ -9,7 +9,7 @@
 > [!CAUTION]
 > **Aviso de seguridad: descarga Lertaro únicamente desde fuentes oficiales.** Por tu seguridad, descarga Lertaro únicamente desde el repositorio oficial, el sitio web oficial y [GitHub Releases](https://github.com/Lertaro/Lertaro/releases). No descargues ni ejecutes archivos provenientes de fuentes o repositorios no verificados.
 
-Lertaro es un buscador y lanzador de productividad global ultraligero, de alto rendimiento y extensible para Windows, construido sobre **.NET 10 (WPF)**. Es una alternativa moderna y de código abierto a **Listary** y **Everything**, que indexa unidades locales mediante el **USN Journal** y $MFT de NTFS para búsquedas instantáneas con un consumo mínimo de recursos.
+Lertaro es una alternativa de código abierto a **Listary** y **Everything**: un buscador y lanzador de productividad para Windows, construido sobre **.NET 10 (WPF)**. Indexa las unidades locales leyendo el **USN Journal** y el $MFT de NTFS, así que las búsquedas responden en milisegundos con un consumo de memoria y CPU bajo.
 
 📖 **[Documentación Completa, Manual de Usuario y Manual de Desarrollador](https://lertaro.github.io/es-ES/)**
 

@@ -11,7 +11,7 @@ Welcome to the official Lertaro User Guide! Lertaro is a file search launcher an
 - **[CLI Search (lff)](./cli)** —— Terminal companion tool for interactive fuzzy finding, sharing the memory index with pipeline and shell integration.
 - **[URI Protocol (lertaro://)](./uri-protocol)** —— Deep-linking from browsers, shortcuts, and scripts to searches, settings pages, and LocalSend transfers.
 - **[Supported File Managers](./file-manager-support)** —— Integration with Windows dialogs, Directory Opus, Total Commander, XYplorer, Files, and One Commander.
-- **[Settings Reference](./settings/)** —— Comprehensive walkthrough of Service Status, Indexing, General, Appearance, Hotkeys, and Plugin options.
+- **[Settings Reference](./settings/)** —— Walkthrough of Service Status, Indexing, General, Appearance, Hotkeys, and Plugin options.
 - **[Troubleshooting](./troubleshooting)** —— Step-by-step diagnostic guide for hotkeys, indexing, IMEs, and live log inspection.
 - **[Donate & Support](./donate)** —— Support the ongoing development and open-source maintenance of Lertaro.
 

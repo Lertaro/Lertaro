@@ -9,7 +9,7 @@
 > [!CAUTION]
 > **보안 경고: 공식 소스에서만 Lertaro를 다운로드하세요.** 안전을 위해 Lertaro는 공식 저장소, 공식 웹사이트 및 [GitHub Releases](https://github.com/Lertaro/Lertaro/releases)에서만 다운로드하세요. 확인되지 않은 소스나 저장소의 파일은 다운로드하거나 실행하지 마세요.
 
-Lertaro는 **.NET 10 (WPF)** 기반으로 제작된 초경량, 고성능, 확장형 Windows 전역 파일 검색 및 생산성 런처 도구입니다. **Listary**와 **Everything**의 모던한 오픈소스 대안으로서, NTFS **USN 저널** 및 $MFT를 직접 파싱하여 적은 리소스 점유율로 밀리초 단위의 즉각적인 검색을 제공합니다.
+Lertaro는 **Listary**와 **Everything**을 대신할 수 있는 오픈소스 파일 검색·런처 도구입니다(**.NET 10 (WPF)** 기반, Windows용). NTFS **USN 저널**과 $MFT를 직접 읽어 로컬 드라이브를 인덱싱하며, 밀리초 단위로 결과를 돌려주고 리소스 사용량은 적습니다.
 
 📖 **[전체 문서, 사용자 매뉴얼 및 개발자 가이드](https://lertaro.github.io/ko-KR/)**
 

@@ -6,8 +6,8 @@ Lertaro admite cambio de modo de tema y varias paletas de color. La página de A
 
 En la parte superior se presentan tres tarjetas de selección:
 
-- **Modo Claro**: Fija la interfaz en una estética luminosa; la cuadrícula inferior muestra únicamente los temas de estilo claro.
-- **Modo Oscuro**: Fija la interfaz en una estética oscura; la cuadrícula inferior muestra únicamente los temas de estilo oscuro.
+- **Modo Claro**: Mantiene la interfaz en claro; la cuadrícula inferior muestra únicamente los temas claros.
+- **Modo Oscuro**: Mantiene la interfaz en oscuro; la cuadrícula inferior muestra únicamente los temas oscuros.
 - **Seguir al sistema**: Alterna automáticamente entre dos temas seleccionados según el modo claro u oscuro de Windows. En este modo, la cuadrícula se divide en **Tema claro** y **Tema oscuro**, permitiéndote elegir esquemas distintos para el día y la noche sin reiniciar la aplicación.
 
 > [!NOTE]
@@ -23,7 +23,7 @@ Los temas se presentan en una cuadrícula interactiva. Cada tarjeta renderiza un
   - **Claro (Light)** / **Oscuro (Dark)**: Diseños minimalistas y limpios integrados con la estética nativa de Windows.
   - **Azul nórdico (Nordic Blue)**: Estilo elegante en tonos fríos con detalles azul hielo sobre fondo azul marino.
   - **Rosa sakura (Sakura Pink)**: Paleta suave y fresca en tonos pastel blanco y rosa.
-  - **Ciberpunk (Cyberpunk)**: Alto contraste entre amarillo neón y púrpura medianoche de estética futurista.
+  - **Ciberpunk (Cyberpunk)**: Alto contraste entre amarillo neón y púrpura medianoche.
 - **Temas Anime (AnimeThemes, incluidos)**:
   - **Evangelion**, **Sakura Blossom** y **Weathering with You**.
 - **Parejas de temas seleccionados (Curated Themes, incluidos)**:

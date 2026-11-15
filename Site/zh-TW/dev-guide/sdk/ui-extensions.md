@@ -153,7 +153,7 @@ public interface IFilePreviewProvider : IPluginComponent
 
 #### 預覽生命週期與複用契約
 
-當你的**提供者**實作下面第一個選填契約，或你所返回的 `UIElement` 實作第二個契約時，宿主會最佳化預覽的生命週期：
+你的**提供者**實作下面第一個選填契約，或你所返回的 `UIElement` 實作第二個契約，宿主會最佳化預覽的生命週期：
 
 - **`IPreviewSessionAware`** — 宿主把轉型套用在**提供者**身上，而不是它回傳的那個控制項：`void EndPreviewSession();`。提供者擁有一個真正的外部視窗（`HwndHost`、原生 `IPreviewHandler` 及其 `prevhost` 代理常駐程序），而不只是程序內的控制項，因此當它的擁有視窗關閉時便會被告知結束工作階段；而就程序內轉譯的提供者而言——只在預覽面板隱藏或整個預覽工作階段結束時才通知。若沒有這個契約，宿主的視窗會滯留卻沒有任何東西指向它。
 - **`IReusablePreview`** — 宿主把轉型套用在返回的那個元件上：`bool TrySetTarget(string path, bool isDir);`。當使用者用方向鍵在相似檔案間移動時，宿主會要求同一個控制項重新鎖定目標，而不是銷毀並重建它，這正是消除閃爍的方法。當新目標不適合此執行個體時返回 `false`，宿主便退回建立一個全新的預覽。

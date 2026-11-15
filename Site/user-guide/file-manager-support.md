@@ -55,9 +55,9 @@ Many software suites use custom-drawn windows instead of native Windows dialogs.
 | Application & Dialog Type | Inline Search | Quick Navigation Trigger | Integration Notes |
 | :--- | :--- | :--- | :--- |
 | **WPS Office** Open/Save Dialogs | Supported | Middle-click or click embedded logo | Supports WPS Writer, Spreadsheets, Presentation, and PDF |
-| **WinRAR** Extraction Dialog | Supported | Middle-click or click embedded logo | Quickly target destination extraction paths |
-| **Bandizip** Extraction Dialog | Supported | Middle-click or click embedded logo | Specify extraction output folders instantly |
-| **Bandizip** Add Files Dialog | Supported | Middle-click or click embedded logo | Select archive source files rapidly |
+| **WinRAR** Extraction Dialog | Supported | Middle-click or click embedded logo | Target destination extraction paths |
+| **Bandizip** Extraction Dialog | Supported | Middle-click or click embedded logo | Specify extraction output folders |
+| **Bandizip** Add Files Dialog | Supported | Middle-click or click embedded logo | Select archive source files |
 | **AutoCAD** Open/Save Dialogs | Supported | Middle-click or click embedded logo | Optimized for CAD drawing retrieval and storage |
 
 Integrations identify internal control hierarchies and handle levels, remaining fully compatible regardless of software language packs or UI skin variations.

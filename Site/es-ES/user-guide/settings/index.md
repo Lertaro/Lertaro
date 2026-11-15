@@ -1,6 +1,6 @@
 # Referencia de configuración
 
-Lertaro ofrece un conjunto granular de opciones de personalización. Tanto si deseas ajustar las dimensiones en píxeles de la barra de búsqueda como personalizar atajos globales, modificar la frecuencia de indexación o gestionar plugins y espacios de trabajo, todo se configura desde el Centro de Configuración.
+Todo en Lertaro se configura en el Centro de Configuración: las dimensiones de la barra de búsqueda, los atajos globales, la frecuencia de indexación, los plugins y los espacios de trabajo.
 
 ## 1. Características de la ventana e interacción
 

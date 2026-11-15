@@ -156,7 +156,7 @@ public interface IFilePreviewProvider : IPluginComponent
 当你的**提供者**实现下面第一个契约，或你返回的 `UIElement` 实现第二个时，宿主会对预览生命周期做进阶优化：
 
 - **`IPreviewSessionAware`** —— 强转的对象是**提供者**，而不是它返回的那个控件：`void EndPreviewSession();`。提供者拥有的是一个真正的外部窗口（一个 `HwndHost`、一个原生 `IPreviewHandler` 及其 `prevhost` 代理进程），而不仅仅是进程内的控件，因此所属窗口关闭时它就会被通知结束会话——而对在进程内渲染的提供者来说，只有到预览面板隐藏或整个会话结束时才收到通知。没有它，宿主留下的窗口将没有任何东西指向它。
-- **`IReusablePreview`** —— 强转的对象是返回的那个元素：`bool TrySetTarget(string path, bool isDir);`。当用户用上/下方向键在同类文件之间移动时，宿主会请求同一个控件就地更换目标，而不是销毁并重建它，正是这一点消除了闪烁。新目标不适合这个实例时返回 `false`，宿主退回构建一个全新的预览。
+- **`IReusablePreview`** —— 强转的对象是返回的那个元素：`bool TrySetTarget(string path, bool isDir);`。用户用上/下方向键在同类文件之间移动时，宿主会请求同一个控件就地更换目标，而不是销毁并重建它，正是这一点消除了闪烁。新目标不适合这个实例时返回 `false`，宿主退回构建一个全新的预览。
 - **`IReceivesPreviewPanelBounds`** —— `void OnPreviewPanelBoundsAvailable(int left, int top, int width, int height);`。承载自己那个跨进程窗口的提供者需要知道面板所占的矩形，才能把自己的窗口挂到它之下或在其中定位；实现这个契约，矩形一旦确定就会被交给你。
 
 ### 自定义缩略图提供者 `IThumbnailProvider`

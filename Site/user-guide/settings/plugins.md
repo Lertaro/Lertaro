@@ -57,7 +57,7 @@ When a matching favicon is available in the browser's local database, the plugin
 
 ## 3. Flow Launcher Community Ecosystem Bridge
 
-In addition to native plugins built against `Lertaro.PluginSdk`, Lertaro includes a built-in **Flow Launcher Bridge** providing native-grade compatibility for the expansive Flow Launcher plugin community.
+In addition to native plugins built against `Lertaro.PluginSdk`, Lertaro includes a built-in **Flow Launcher Bridge** providing native-grade compatibility for the Flow Launcher plugin community.
 
 ### Multi-Language Isolated Runtimes
 

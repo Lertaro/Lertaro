@@ -108,7 +108,7 @@ public interface IConfigurable
 
 ### 本地化选择标签
 
-当选项需要使用本地化标签，同时还要保存稳定的配置值时，应使用 `ChoiceOptions`。`PluginConfigChoice.Value` 会写入插件设置，`LabelKey` 会解析为界面显示文本；如果保存值和显示文本相同，继续使用旧的 `Choices` 列表即可。
+选项需要使用本地化标签，同时还要保存稳定的配置值时，应使用 `ChoiceOptions`。`PluginConfigChoice.Value` 会写入插件设置，`LabelKey` 会解析为界面显示文本；如果保存值和显示文本相同，继续使用旧的 `Choices` 列表即可。
 
 ```csharp
 new PluginConfigField
@@ -145,7 +145,7 @@ public interface IFullSearchFileResultProvider : IPluginComponent
 
 ## 6. 用户配置路径解析 `UserPathResolver`
 
-当插件接受用户输入或配置中的路径时，应使用 `Lertaro.PluginSdk.Helpers.UserPathResolver`，在调用文件系统 API 前统一处理环境变量和 Windows Shell 虚拟路径：
+插件接受用户输入或配置中的路径时，应使用 `Lertaro.PluginSdk.Helpers.UserPathResolver`，在调用文件系统 API 前统一处理环境变量和 Windows Shell 虚拟路径：
 
 ```csharp
 string expanded = UserPathResolver.Expand(rawPath);            // 接收 string?，返回 string

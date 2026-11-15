@@ -91,7 +91,7 @@
   "Settings_LocalSend_SendWindowTitle": "Send to other devices...",
   "Settings_LocalSend_Send": "Send",
   "Settings_LocalSend_TargetPin": "Target PIN (optional)",
-  "Settings_LocalSend_Description": "Compatible with LocalSend protocol to discover and transfer files seamlessly across LAN devices.",
+  "Settings_LocalSend_Description": "Works with the LocalSend protocol to discover and transfer files between devices on the local network.",
   "Settings_LocalSend_Enable": "Enable LAN Transfer Service",
   "Settings_LocalSend_EnableDesc": "Allow device discovery and file transfers over local network",
   "Settings_LocalSend_DeviceAlias": "Device Name",

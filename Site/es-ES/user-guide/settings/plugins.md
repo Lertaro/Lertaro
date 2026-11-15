@@ -57,7 +57,7 @@ El complemento de configuración del sistema usa las palabras clave localizadas 
 
 ## 3. Soporte del ecosistema de plugins de Flow Launcher
 
-Además de los plugins nativos de `Lertaro.PluginSdk`, el módulo integrado **Flow Launcher Bridge** ofrece compatibilidad con el extenso catálogo de Flow Launcher.
+Además de los plugins nativos de `Lertaro.PluginSdk`, el módulo integrado **Flow Launcher Bridge** ofrece compatibilidad con la comunidad de plugins de Flow Launcher.
 
 ### Entornos aislados y multilingües
 
