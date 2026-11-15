@@ -331,6 +331,12 @@ public class InlineSearchManager : IDisposable
         ResetHookState();
 
         var win = _window;
+        // Read before the hide, while the card is still on screen: Hide() makes the OS move the foreground
+        // itself, so the restore below needs to know who held it while the card was up, and which window
+        // the card was docked to.
+        var ownHwnd = new System.Windows.Interop.WindowInteropHelper(win).Handle;
+        var foregroundAtHide = InlineSearchWindowNativeMethods.GetForegroundWindow();
+        var hostHwnd = _currentHostHwnd;
         _currentHostHwnd = IntPtr.Zero;
         win.ViewModel.Monitor.StopStatusTimer();
         // Parked, not destroyed. A card built for every summon brings its view model, its visual tree and its
@@ -341,6 +347,13 @@ public class InlineSearchManager : IDisposable
         win.RestoreKeyboardLayout();
         win.Hide();
         WindowParking.Park(win);
+        // Hand the foreground back to the window the card was docked to. Hiding a foreground window makes
+        // the OS pick whatever comes next in z-order, and the next window in z-order is not necessarily
+        // the one the user was working in -- this is the "another window jumped in front of Explorer the
+        // moment the card went away" report, and it also costs the user the next keystroke aimed at
+        // Explorer.
+        if (ShouldRestoreHostForeground(hostHwnd, foregroundAtHide, ownHwnd))
+            InlineSearchWindowNativeMethods.SetForegroundWindow(hostHwnd);
         // After the park, so the card is off its host before anything else can destroy the host and take the
         // card with it: a parked card is meant to survive and be re-docked by the next summon.
         win.ReleaseHost();
@@ -358,6 +371,13 @@ public class InlineSearchManager : IDisposable
 
         Logger.Log($"[InlineSearchManager] InlineSearchWindow dismissed and parked. Reason: {reason}", LogLevel.Debug);
     }
+
+    // The foreground only has to be handed back when the card was actually holding it and we know the
+    // window it was docked to. A card closed because the user left Explorer, or clicked into another app,
+    // no longer has the foreground -- restoring over whatever they moved to would fight the user, the same
+    // trap QuickSearchWindowController.ShouldRestoreForeground documents for the quick window.
+    internal static bool ShouldRestoreHostForeground(IntPtr hostHwnd, IntPtr foregroundAtHide, IntPtr ownHwnd)
+        => hostHwnd != IntPtr.Zero && hostHwnd != ownHwnd && foregroundAtHide == ownHwnd;
 
     // Idempotent: the only state that outlives the card lives in the hook process, so it is also reachable
     // when the card was destroyed underneath us and there is nothing left to hide or park.

@@ -41,6 +41,10 @@ public static class InlineSearchWindowNativeMethods
     [DllImport("user32.dll")]
     public static extern IntPtr GetForegroundWindow();
 
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetForegroundWindow(IntPtr hWnd);
+
     [DllImport("kernel32.dll")]
     public static extern uint GetCurrentThreadId();
 
