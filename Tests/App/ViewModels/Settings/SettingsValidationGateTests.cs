@@ -253,8 +253,8 @@ public sealed class SettingsValidationGateTests
     public void Gate_Refusal_IsShownUntilCleared()
     {
         var gate = new SettingsValidationGate(new GeneralSettingsViewModel(new UserSettings()), () => null);
-        var notified = new List<string?>();
-        gate.PropertyChanged += (_, e) => notified.Add(e.PropertyName);
+        var notified = new List<string>();
+        gate.PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
 
         gate.Refuse(2);
         Assert.IsTrue(gate.HasRefusal);
