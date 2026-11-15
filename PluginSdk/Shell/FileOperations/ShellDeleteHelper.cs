@@ -7,6 +7,9 @@ namespace Lertaro.PluginSdk.Shell.FileOperations;
 // still gets a single native confirmation + progress dialog, exactly like Explorer's own Delete.
 public static class ShellDeleteHelper
 {
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
     // Fire-and-forget by design: nothing downstream needs to know when the delete actually finishes,
     // and blocking the caller (the UI thread, per HotkeyActionTrigger) for however long the native
     // confirm dialog sits open would freeze the search window for no reason.
@@ -21,16 +24,24 @@ public static class ShellDeleteHelper
             return;
         }
 
-        dispatcher.BeginInvoke(new Action(() => DeleteCore(paths, permanent)));
+        // Captured here, on the calling (UI) thread, while the window the user is looking at still holds
+        // the foreground. Handing it to IFileOperation makes the native confirm/progress dialog an OWNED
+        // window: unowned, the dialog takes the foreground for itself on its own thread and, when it goes
+        // away, the foreground lands on whatever comes next in z-order instead of back where the user was
+        // working.
+        var ownerWindow = GetForegroundWindow();
+        dispatcher.BeginInvoke(new Action(() => DeleteCore(paths, permanent, ownerWindow)));
     }
 
-    private static void DeleteCore(IReadOnlyList<string> paths, bool permanent)
+    private static void DeleteCore(IReadOnlyList<string> paths, bool permanent, IntPtr ownerWindow)
     {
         object? fileOpObj = null;
         try
         {
             fileOpObj = new FileOperation();
             var fileOp = (IFileOperation)fileOpObj;
+
+            if (ownerWindow != IntPtr.Zero) fileOp.SetOwnerWindow(ownerWindow);
 
             // Recycle: FOF_ALLOWUNDO sends it to the Recycle Bin (native "move to Recycle Bin?"
             // prompt); FOF_WANTNUKEWARNING falls back to a native permanent-delete warning instead of

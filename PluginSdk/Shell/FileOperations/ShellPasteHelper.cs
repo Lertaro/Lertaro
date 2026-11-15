@@ -13,6 +13,9 @@ namespace Lertaro.PluginSdk.Shell.FileOperations;
 // disabled. Both reference this project already, so it is the one place both can see.
 public static class ShellPasteHelper
 {
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
     // Fire-and-forget by design, same reasoning as ShellDeleteHelper.DeleteAsync: nothing downstream
     // needs to WAIT for the copy, and blocking the caller for however long the native progress/conflict
     // dialog sits open would freeze the search window for no reason.
@@ -35,11 +38,15 @@ public static class ShellPasteHelper
             return;
         }
 
+        // See ShellDeleteHelper.DeleteAsync: capture the window the user is looking at here, on the calling
+        // thread, so the shell's own conflict/progress dialog ends up OWNED by it instead of grabbing the
+        // foreground for itself on the STA worker and then dropping it on an unrelated window.
+        var ownerWindow = GetForegroundWindow();
         dispatcher.BeginInvoke(new Action(() =>
         {
             try
             {
-                PasteCore(sourcePaths, destinationFolder, move);
+                PasteCore(sourcePaths, destinationFolder, move, ownerWindow);
             }
             finally
             {
@@ -48,13 +55,14 @@ public static class ShellPasteHelper
         }));
     }
 
-    private static void PasteCore(IReadOnlyList<string> sourcePaths, string destinationFolder, bool move)
+    private static void PasteCore(IReadOnlyList<string> sourcePaths, string destinationFolder, bool move, IntPtr ownerWindow)
     {
         object? fileOpObj = null;
         try
         {
             fileOpObj = new FileOperation();
             var fileOp = (IFileOperation)fileOpObj;
+            if (ownerWindow != IntPtr.Zero) fileOp.SetOwnerWindow(ownerWindow);
 
             var destIid = typeof(IShellItem).GUID;
             ShellItemInterop.SHCreateItemFromParsingName(destinationFolder, IntPtr.Zero, ref destIid, out var destItem);
