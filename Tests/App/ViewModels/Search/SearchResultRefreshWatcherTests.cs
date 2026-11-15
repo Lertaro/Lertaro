@@ -120,6 +120,52 @@ public sealed class SearchResultRefreshWatcherTests
             [@"C:\Projects"]));
     }
 
+    [STATestMethod]
+    public void RunRefresh_RetriesWhenTheSearchSettlesWithoutANewResultSet()
+    {
+        var refreshes = 0;
+        var searching = true;
+        using var watcher = new SearchResultRefreshWatcher(
+            () => [new AppSearchResult { FullPath = @"C:\Projects\a.txt" }],
+            () => refreshes++,
+            isSearchRunning: () => searching,
+            Dispatcher.CurrentDispatcher);
+
+        // A change that lands while the query runs parks the refresh, and nothing guarantees the settled
+        // callback ever runs: the user deleted a row and stopped typing. The parked change therefore has
+        // to retry on its own instead of waiting for a result set that never arrives.
+        watcher.RunRefresh();
+        Assert.AreEqual(0, refreshes);
+
+        searching = false;
+        PumpFor(TimeSpan.FromSeconds(1.5));
+
+        Assert.AreEqual(1, refreshes);
+    }
+
+    [STATestMethod]
+    public void RunRefresh_KeepsRetryingWhileTheSearchStaysRunning()
+    {
+        var refreshes = 0;
+        var searching = true;
+        using var watcher = new SearchResultRefreshWatcher(
+            () => [new AppSearchResult { FullPath = @"C:\Projects\a.txt" }],
+            () => refreshes++,
+            isSearchRunning: () => searching,
+            Dispatcher.CurrentDispatcher);
+
+        watcher.RunRefresh();
+
+        // Two retry intervals elapse with the query still in flight: every attempt has to defer again
+        // instead of refreshing under the running search or giving up.
+        PumpFor(TimeSpan.FromSeconds(1.3));
+        Assert.AreEqual(0, refreshes);
+
+        searching = false;
+        PumpFor(TimeSpan.FromSeconds(1));
+        Assert.AreEqual(1, refreshes);
+    }
+
     private static void PumpFor(TimeSpan duration)
     {
         var frame = new DispatcherFrame();

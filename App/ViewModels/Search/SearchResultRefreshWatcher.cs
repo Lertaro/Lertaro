@@ -313,11 +313,15 @@ internal sealed class SearchResultRefreshWatcher : IDisposable
             return;
 
         // Refreshing means running the query again, and a query starts by cancelling the one in flight:
-        // firing now would restart it from zero, and on a busy file system it could never settle. Defer to
-        // the settled callback instead.
+        // firing now would restart it from zero, and on a busy file system it could never settle.
         if (_isSearchRunning())
         {
+            // Park the change for the settled callback, but keep the timer armed as well: that callback
+            // only runs when another result set arrives, and a user who deletes a row and stops typing
+            // never produces one, so a singly parked change would leave the deleted row on screen for the
+            // rest of the session. The retry is what makes the deferred refresh unconditional.
             _refreshPending = true;
+            _timer.Start();
             return;
         }
 
