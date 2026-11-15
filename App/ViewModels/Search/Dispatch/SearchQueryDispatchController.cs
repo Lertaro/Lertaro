@@ -490,7 +490,12 @@ internal sealed class SearchQueryDispatchController
         }
 
         if (batch.IsCancellationRequested || !ReferenceEquals(_getAllResults(), resultsSnapshot) || !ReferenceEquals(_queryTokens, tokensSnapshot))
+        {
+            // A newer query already owns the window, but its rows are now the ones on screen, so the
+            // watcher must follow them rather than the folders of the query this batch belonged to.
+            _onResultsSettled?.Invoke();
             return;
+        }
         _setAllResults(dispatched, false);
         // A token provider may filter or reorder anything, so no prefix survives.
         _applyFiltersAndRender(extendsContent, 0);

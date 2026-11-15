@@ -114,7 +114,10 @@ public class SearchViewModel : ViewModelBase, IDisposable
             {
                 if (!IsActionsMode && !string.IsNullOrWhiteSpace(AdvancedQuery))
                     _dispatcher.PerformSearch(AdvancedQuery);
-            });
+            },
+            // A query starts by cancelling the one in flight, so a refresh that lands mid-search would
+            // restart it from zero; the watcher parks the change until the search settles instead.
+            isSearchRunning: () => IsSearching);
         _refreshWatcher = refreshWatcher;
         _refreshWatcher.UpdateResults(_allResults);
 
