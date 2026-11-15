@@ -32,6 +32,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
     private readonly SearchServiceStatusViewModel _serviceStatus;
     private readonly SearchQueryDispatchController _dispatcher;
     private readonly SearchViewResultRenderer _resultRenderer;
+    private readonly SearchResultRefreshWatcher _refreshWatcher;
 
     private string _advancedQuery = string.Empty;
     private List<AppSearchResult> _allResults = new();
@@ -83,6 +84,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(ShowWelcomeHint));
             });
 
+        SearchResultRefreshWatcher? refreshWatcher = null;
         _dispatcher = new SearchQueryDispatchController(
             _searchEngine,
             _serviceStatus,
@@ -103,7 +105,18 @@ public class SearchViewModel : ViewModelBase, IDisposable
             updateSidebarCounts: (batch, final) => _sidebarCountHelper?.Update(batch, final),
             replaceSidebarCounts: results => _sidebarCountHelper?.Replace(results),
             applyFiltersAndRender: ApplyFiltersAndRender,
-            isTypeFilterSelected: () => IsTypeFilterSelected);
+            isTypeFilterSelected: () => IsTypeFilterSelected,
+            onResultsSettled: () => refreshWatcher?.UpdateResults(_allResults));
+
+        refreshWatcher = new SearchResultRefreshWatcher(
+            () => _allResults,
+            () =>
+            {
+                if (!IsActionsMode && !string.IsNullOrWhiteSpace(AdvancedQuery))
+                    _dispatcher.PerformSearch(AdvancedQuery);
+            });
+        _refreshWatcher = refreshWatcher;
+        _refreshWatcher.UpdateResults(_allResults);
 
         // Initialize dynamic plugin sidebar groups -- PluginManager.SidebarFilterProviders already
         // applies the user's saved order (falling back to each provider's own SortOrder).
@@ -153,6 +166,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
             return;
 
         _allResults = new List<AppSearchResult>(rows);
+        _refreshWatcher.UpdateResults(_allResults);
         ApplyFiltersAndRender(extendsContent: false, unchangedPrefix: 0);
         OnPropertyChanged(nameof(ShowNoResultsHint));
     }
@@ -337,6 +351,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
     public void Dispose()
     {
         TranslationManager.Instance.PropertyChanged -= OnTranslationsChanged;
+        _refreshWatcher.Dispose();
         _searchEngine.Dispose();
         _serviceStatus.Dispose();
         _searchService.Dispose();

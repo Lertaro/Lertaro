@@ -21,7 +21,8 @@ public static class UsnIndexerExtensions
         | Win32Api.USN_REASON_BASIC_INFO_CHANGE | Win32Api.USN_REASON_COMPRESSION_CHANGE | Win32Api.USN_REASON_ENCRYPTION_CHANGE
         | Win32Api.USN_REASON_HARD_LINK_CHANGE | Win32Api.USN_REASON_REPARSE_POINT_CHANGE;
     private const uint AttributeRefreshReasons = MetadataRefreshReasons;
-    private const uint DirectoryChangeReasons = MetadataRefreshReasons | Win32Api.USN_REASON_RENAME_OLD_NAME;
+    private const uint DirectoryChangeReasons = MetadataRefreshReasons | Win32Api.USN_REASON_RENAME_OLD_NAME
+        | Win32Api.USN_REASON_FILE_DELETE;
     // Returns whether the batch landed in this drive's live index. UsnMonitor needs that to decide
     // whether the drive's durable journal watermark may advance (see UsnIndexerDurabilityExtensions):
     // a batch with nowhere to go must never be stamped as applied, or the next cold start replays from

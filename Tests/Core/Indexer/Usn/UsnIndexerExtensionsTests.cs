@@ -95,6 +95,33 @@ public sealed class UsnIndexerExtensionsTests
     }
 
     [TestMethod]
+    public void ApplyUsnRecord_Delete_NotifiesParentDirectory()
+    {
+        using var fixture = LiveIndexFixture.Build("C", new[]
+        {
+            LiveIndexFixture.Root(),
+            new FileRecord(2, 1, "Projects", FileRecordFlags.Directory),
+            new FileRecord(3, 2, "readme.txt", FileRecordFlags.None),
+        });
+        var indexer = new UsnIndexer();
+        indexer._recordIndexes["C"] = fixture.Index;
+        var notifications = new List<(string Drive, IReadOnlyCollection<string>? Directories)>();
+        indexer.DirectoriesChanged += (drive, directories) => notifications.Add((drive, directories));
+
+        indexer.ApplyUsnRecord("C", new ParsedUsnRecord
+        {
+            FileReferenceNumber = 3,
+            ParentFileReferenceNumber = 2,
+            FileName = "readme.txt",
+            Reason = Win32Api.USN_REASON_FILE_DELETE,
+        });
+
+        Assert.HasCount(1, notifications);
+        Assert.AreEqual("C", notifications[0].Drive);
+        CollectionAssert.AreEqual(new[] { @"C:\Projects" }, notifications[0].Directories!.ToArray());
+    }
+
+    [TestMethod]
     public void ApplyUsnRecords_CloseOnlyRecord_DoesNotNotifyChangedDirectory()
     {
         using var fixture = LiveIndexFixture.Build("C", new[]

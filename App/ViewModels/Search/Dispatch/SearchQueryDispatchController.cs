@@ -52,6 +52,7 @@ internal sealed class SearchQueryDispatchController
     private readonly Action<IReadOnlyList<AppSearchResult>, bool> _updateSidebarCounts;
     private readonly Action<IReadOnlyList<AppSearchResult>> _replaceSidebarCounts;
     private readonly Func<bool> _isTypeFilterSelected;
+    private readonly Action? _onResultsSettled;
     // bool: whether this render extends what is already on screen (a later paint of a search still
     // streaming) rather than replacing it with a different result set.
     // int: index of the first row this render changed -- everything before it is already correct on
@@ -90,7 +91,8 @@ internal sealed class SearchQueryDispatchController
         Action<IReadOnlyList<AppSearchResult>, bool> updateSidebarCounts,
         Action<IReadOnlyList<AppSearchResult>> replaceSidebarCounts,
         Action<bool, int> applyFiltersAndRender,
-        Func<bool> isTypeFilterSelected)
+        Func<bool> isTypeFilterSelected,
+        Action? onResultsSettled = null)
     {
         _searchEngine = searchEngine;
         _serviceStatus = serviceStatus;
@@ -104,6 +106,7 @@ internal sealed class SearchQueryDispatchController
         _replaceSidebarCounts = replaceSidebarCounts;
         _applyFiltersAndRender = applyFiltersAndRender;
         _isTypeFilterSelected = isTypeFilterSelected;
+        _onResultsSettled = onResultsSettled;
     }
 
     public void OnAdvancedQueryChanged(string query)
@@ -297,6 +300,8 @@ internal sealed class SearchQueryDispatchController
                     // itself. See ScheduleContentRowAppend.
                     _searchSettled = true;
                     _setIsSearching(false);
+                    if (_queryTokens.Count == 0)
+                        _onResultsSettled?.Invoke();
                 }
             },
             () => _serviceStatus.CheckServiceStatusOnStartup(),
@@ -449,6 +454,7 @@ internal sealed class SearchQueryDispatchController
             _setAllResults(accumulator.AbsorbBatch(Array.Empty<SearchResult>()), true);
             // Prepending moves every row that was already there, so no scroll anchor survives this one.
             _applyFiltersAndRender(false, accumulator.FirstChangedIndex);
+            _onResultsSettled?.Invoke();
         }, System.Windows.Threading.DispatcherPriority.Background);
     }
 
@@ -472,7 +478,10 @@ internal sealed class SearchQueryDispatchController
             // honest untokenized fallback.
             Logger.Log($"[SearchQueryDispatch] Query-token dispatch failed: {ex.Message}. Showing the untokenized results.", LogLevel.Warn);
             if (!batch.IsCancellationRequested && ReferenceEquals(_getAllResults(), resultsSnapshot) && ReferenceEquals(_queryTokens, tokensSnapshot))
+            {
                 _applyFiltersAndRender(extendsContent, 0);
+                _onResultsSettled?.Invoke();
+            }
             return;
         }
         finally
@@ -485,6 +494,7 @@ internal sealed class SearchQueryDispatchController
         _setAllResults(dispatched, false);
         // A token provider may filter or reorder anything, so no prefix survives.
         _applyFiltersAndRender(extendsContent, 0);
+        _onResultsSettled?.Invoke();
     }
 
     public void PerformSearch(string query)
@@ -508,6 +518,7 @@ internal sealed class SearchQueryDispatchController
         _searchSettled = false;
         _getAllResults().Clear();
         _applyFiltersAndRender(false, 0);
+        _onResultsSettled?.Invoke();
         _setLoadingPanelVisibility(Visibility.Collapsed);
     }
 
