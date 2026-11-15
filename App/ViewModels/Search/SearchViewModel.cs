@@ -104,16 +104,25 @@ public class SearchViewModel : ViewModelBase, IDisposable
             },
             updateSidebarCounts: (batch, final) => _sidebarCountHelper?.Update(batch, final),
             replaceSidebarCounts: results => _sidebarCountHelper?.Replace(results),
-            applyFiltersAndRender: ApplyFiltersAndRender,
+            applyFiltersAndRender: (extendsContent, unchangedPrefix) =>
+                ApplyFiltersAndRender(extendsContent || _refreshKeepsViewport, unchangedPrefix),
             isTypeFilterSelected: () => IsTypeFilterSelected,
-            onResultsSettled: () => refreshWatcher?.UpdateResults(_allResults));
+            // Settling runs after the final paint, so the refresh flag is still live for every paint of
+            // the refreshed query and is dropped here for whatever the user does next.
+            onResultsSettled: () =>
+            {
+                refreshWatcher?.UpdateResults(_allResults);
+                _refreshKeepsViewport = false;
+            });
 
         refreshWatcher = new SearchResultRefreshWatcher(
             () => _allResults,
             () =>
             {
-                if (!IsActionsMode && !string.IsNullOrWhiteSpace(AdvancedQuery))
-                    _dispatcher.PerformSearch(AdvancedQuery);
+                if (IsActionsMode || string.IsNullOrWhiteSpace(AdvancedQuery))
+                    return;
+                _refreshKeepsViewport = true;
+                _dispatcher.PerformSearch(AdvancedQuery);
             },
             // A query starts by cancelling the one in flight, so a refresh that lands mid-search would
             // restart it from zero; the watcher parks the change until the search settles instead.
@@ -199,6 +208,8 @@ public class SearchViewModel : ViewModelBase, IDisposable
         {
             if (SetProperty(ref _advancedQuery, value))
             {
+                // New text is a new result set even when a refresh is still in flight.
+                _refreshKeepsViewport = false;
                 _sidebarCountHelper?.Reset();
                 if (string.IsNullOrWhiteSpace(value))
                 {
@@ -283,6 +294,10 @@ public class SearchViewModel : ViewModelBase, IDisposable
     // rides on the instance rather than through that callback's signature.
     private bool _renderExtendsContent;
     private int _renderUnchangedPrefix;
+    // A filesystem refresh repaints the query that is already on screen. The engine paints it like a new
+    // search -- its first paint is reported as a new result set -- which the view answers by scrolling back
+    // to the first row and dropping the selection. While this is set, paints keep the viewport instead.
+    private bool _refreshKeepsViewport;
     // The list currently being filtered/rendered. Normally _allResults itself; when a TYPE filter is
     // selected it is a filtered copy without the full-search-file-provider rows (e.g. ContentSearch
     // hits), so selecting "文件" excludes those rows even if an earlier unfiltered render merged them.
