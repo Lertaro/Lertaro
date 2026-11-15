@@ -67,7 +67,7 @@ public static class HotkeyActionTrigger
                     if (PluginPerformanceMonitor.Measure(action, () => action.IsVisibleInMenu(selection, windowType))
                         && PluginPerformanceMonitor.Measure(action, () => action.CanExecute(selection)))
                     {
-                        if (hideOnRun) view.HideWindow();
+                        if (hideOnRun) view.HideWindowAfterExecution();
                         PluginPerformanceMonitor.Measure(action, () => action.Execute(selection, view));
                         return true;
                     }
@@ -84,7 +84,7 @@ public static class HotkeyActionTrigger
                 if (ParseHotkey(hotkey, out var hotkeyKey, out var hotkeyMods)
                     && key == hotkeyKey && modifiers == hotkeyMods)
                 {
-                    if (hideOnRun) view.HideWindow();
+                    if (hideOnRun) view.HideWindowAfterExecution();
                     execute();
                     return true;
                 }

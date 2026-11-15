@@ -46,7 +46,7 @@ internal sealed class ActionsMenuExecutor
                 // it, and the inline card's keyboard router reads IsInActionsMode before the path that
                 // summons it, so a flag left set sends every later first character into the parked card's
                 // own text box and the card stops opening by itself for the rest of the session.
-                _view.HideWindow();
+                _view.HideWindowAfterExecution();
                 try
                 {
                     item.OnExecute();
@@ -107,7 +107,7 @@ internal sealed class ActionsMenuExecutor
                 {
                     if (!_view.GetType().Name.Equals("SearchWindow", StringComparison.Ordinal))
                     {
-                        _view.HideWindow();
+                        _view.HideWindowAfterExecution();
                     }
                 }
             }
@@ -135,7 +135,7 @@ internal sealed class ActionsMenuExecutor
                 PluginPerformanceMonitor.Measure(provider, () => provider.ExecuteCommand(activeResults, item.CommandId, hwnd));
                 if (!_view.GetType().Name.Equals("SearchWindow", StringComparison.Ordinal))
                 {
-                    _view.HideWindow();
+                    _view.HideWindowAfterExecution();
                 }
             }
 

@@ -290,7 +290,7 @@ public static class InlineSearchNavigator
             // ShellThread, where it can spend its whole poll, and the user has already committed to the
             // action -- the same reasoning TryLocateInActiveHost gives for hiding up front. The search text
             // is read above, because the card is gone by the time the worker has an answer.
-            window.HideWindow();
+            window.HideWindowAfterExecution();
             ShellThread.Run("InlineFolderLocate", () =>
             {
                 if (!FileExecutor.TryLocateInExistingExplorer(path, hostHwnd)) OpenPlainly(path, asAdmin, searchText);
@@ -300,12 +300,12 @@ public static class InlineSearchNavigator
 
         if (path != "__SHOW_MORE__")
         {
-            window.HideWindow();
+            window.HideWindowAfterExecution();
             OpenPlainly(path, asAdmin, searchText);
             return;
         }
 
-        FileExecutor.OpenFileOrFolder(path, searchText, () => window.HideWindow());
+        FileExecutor.OpenFileOrFolder(path, searchText, () => window.HideWindowAfterExecution());
     }
 
     // The plain "hand it to the shell" half, which the in-place locate above falls back to when the host

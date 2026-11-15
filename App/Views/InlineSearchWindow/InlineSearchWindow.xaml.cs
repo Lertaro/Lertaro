@@ -287,8 +287,18 @@ public partial class InlineSearchWindow : Window, ISearchWindow
     // Eight callers reach this (every InlineSearchNavigator execution route, the actions-mode and plugin
     // surfaces), and they all mean the same thing here: put the card away because something was executed. The
     // reason names the method rather than the route, because naming a route would mean threading a reason
-    // through all eight.
+    // through all eight. Escape and Enter-on-empty (InlineSearchWindowInputHandler.ExitSearch) also land
+    // here without executing anything, which is why claiming the execution is a separate method.
     public void HideWindow() => _manager.CloseInlineSearch("HideWindow");
+
+    public void HideWindowAfterExecution()
+    {
+        // The hotkey, actions-mode and plugin surfaces hide BEFORE the action runs, so the flag has to be
+        // claimed here: CloseInlineSearch sends IsExecuting as InlineSearchFinished's executed flag, and
+        // without it every adapter is told the session was cancelled rather than confirmed.
+        _manager.IsExecuting = true;
+        HideWindow();
+    }
 
     public void UpdateSearchDisplay(string text)
     {

@@ -45,6 +45,7 @@ public sealed class ActionsMenuExecutorTests
         executor.Execute(result, [result]);
 
         CollectionAssert.AreEqual(new[] { "execute", "hide" }, calls);
+        Assert.IsTrue(view.ExecutionReported, "the hide did not report that an action was executed");
     }
 
     [StaTestMethod]
@@ -72,6 +73,7 @@ public sealed class ActionsMenuExecutorTests
         Assert.ThrowsExactly<InvalidOperationException>(() => executor.Execute(result, [result]));
 
         CollectionAssert.AreEqual(new[] { "execute", "hide" }, calls);
+        Assert.IsTrue(view.ExecutionReported, "a hide after a failed action is still an execution");
     }
 
     // A CustomActions entry is a direct delegate that does not keep the window visible, so it takes the
@@ -95,6 +97,8 @@ public sealed class ActionsMenuExecutorTests
         executor.Execute(result, [result]);
 
         CollectionAssert.AreEqual(new[] { "hide", "execute", "exit" }, calls);
+        // Hidden BEFORE the delegate runs, which is exactly why the hide has to claim the execution itself.
+        Assert.IsTrue(view.ExecutionReported, "hiding up front dropped the executed flag");
     }
 
     [StaTestMethod]
@@ -122,7 +126,42 @@ public sealed class ActionsMenuExecutorTests
         Assert.ThrowsExactly<InvalidOperationException>(() => executor.Execute(result, [result]));
 
         CollectionAssert.AreEqual(new[] { "hide", "execute", "exit" }, calls);
+        Assert.IsTrue(view.ExecutionReported);
     }
+    // The hotkey trigger and PluginActionExecutor only see the plugin-facing interface, so the extension is
+    // what decides whether a window reports the execution. It lives here because this file already owns the
+    // only ISearchWindow fake.
+    [StaTestMethod]
+    public void HideWindowAfterExecution_ReportsTheExecution_ForWindowsThatOptIn()
+    {
+        var view = new FakeSearchWindow(new List<string>());
+        IPluginSearchWindow asPluginWindow = view;
+
+        asPluginWindow.HideWindowAfterExecution();
+
+        Assert.IsTrue(view.ExecutionReported);
+    }
+
+    [StaTestMethod]
+    public void HideWindowAfterExecution_FallsBackToAPlainHide_ForWindowsThatDoNotReportIt()
+    {
+        var window = new PluginOnlySearchWindow();
+
+        window.HideWindowAfterExecution();
+
+        Assert.IsTrue(window.Hidden);
+    }
+
+    private sealed class PluginOnlySearchWindow : IPluginSearchWindow
+    {
+        public bool Hidden { get; private set; }
+
+        public void LocateInExplorerExternal(string path) { }
+        public void OpenFileOrFolderExternal(string path) { }
+        public void OpenFileOrFolderAsAdminExternal(string path) { }
+        public void HideWindow() => Hidden = true;
+    }
+
     private sealed class RecordingSearchAction(Action onExecute) : ISearchResultAction
     {
         public string GroupName => "Test";
@@ -163,10 +202,20 @@ public sealed class ActionsMenuExecutorTests
         public void LocateInExplorerExternal(string path) { }
         public void OpenFileOrFolderExternal(string path) { }
         public void OpenFileOrFolderAsAdminExternal(string path) { }
+        // HideWindowAfterExecution is the one an executing surface must reach: the inline card reports it to
+        // the hook as "a result was executed" instead of "the session was cancelled".
+        public bool ExecutionReported { get; private set; }
+
         public void HideWindow()
         {
             HideWindowCalled = true;
             calls.Add("hide");
+        }
+
+        public void HideWindowAfterExecution()
+        {
+            ExecutionReported = true;
+            HideWindow();
         }
 
         public void ShowWindow() { }
