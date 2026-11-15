@@ -1,7 +1,7 @@
 namespace Lertaro.Plugins.CoreExtensions.Providers.InstantAnswers;
 
 /// <summary>
-/// Self-contained, robust recursive descent parser for mathematical, trigonometric, and logarithmic expressions.
+/// Recursive descent parser for mathematical, trigonometric, and logarithmic expressions.
 /// </summary>
 internal class ScientificMathParser
 {

@@ -23,7 +23,7 @@ public static class AppsFolderEnumerator
     }
 
     // Both spellings resolve to the Apps known folder; the plain "shell:AppsFolder" works on modern
-    // Windows, the CLSID form is the robust fallback.
+    // Windows, and the CLSID form covers systems where that name is not recognized.
     private static readonly string[] AppsFolderParsingNames =
     {
         "shell:AppsFolder",

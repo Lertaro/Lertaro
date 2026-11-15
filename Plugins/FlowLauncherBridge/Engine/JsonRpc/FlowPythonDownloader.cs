@@ -7,7 +7,7 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
 
 /// <summary>
 /// Downloads and extracts the official embeddable Python package for Flow plugins.
-/// Configures import site and sitecustomize.py hook for seamless execution in FlowData.
+/// Configures <c>import site</c> and a sitecustomize.py hook so Flow plugins run inside FlowData.
 /// </summary>
 public static class FlowPythonDownloader
 {

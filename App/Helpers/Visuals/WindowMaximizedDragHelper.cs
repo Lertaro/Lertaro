@@ -7,7 +7,7 @@ namespace Lertaro.App.Helpers.Visuals;
 
 /// <summary>
 /// Helper providing drag-restore behavior for custom window chromes,
-/// allowing maximized windows to be un-maximized and repositioned seamlessly while dragging.
+/// allowing a maximized window to be restored and repositioned in the same drag.
 /// ponytail: Extracted to decouple window drag restoration logic across custom chrome windows and maintain line limits.
 /// </summary>
 public static class WindowMaximizedDragHelper
@@ -23,7 +23,7 @@ public static class WindowMaximizedDragHelper
     private static extern bool GetCursorPos(out POINT lpPoint);
 
     /// <summary>
-    /// Drag-moves the specified window when restored, or restores and seamlessly drags it when maximized.
+    /// Drag-moves the window when restored; when maximized, restores it first and drags it from there.
     /// </summary>
     public static void DragMoveOrRestore(Window window, MouseButtonEventArgs e)
     {

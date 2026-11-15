@@ -7,7 +7,7 @@ namespace Lertaro.App.Services;
 
 /// <summary>
 /// Manages application-wide translation and i18n support.
-/// Exposes an indexer for seamless WPF XAML data binding.
+/// Exposes a key indexer (<c>this[string key]</c>) so XAML can bind a key to its translation.
 /// </summary>
 public class TranslationManager : INotifyPropertyChanged
 {
