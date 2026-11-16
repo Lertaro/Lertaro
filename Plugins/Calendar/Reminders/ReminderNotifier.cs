@@ -31,5 +31,8 @@ internal static class ReminderNotifier
             DurationSeconds = CalendarPlugin.ReminderDurationSeconds(),
             OnClick = () => CalendarView.ShowOrActivate(reminder.At)
         });
+
+        // After the card, not before: the text saying what the reminder is must not wait on a sound.
+        ReminderSound.Play();
     }
 }

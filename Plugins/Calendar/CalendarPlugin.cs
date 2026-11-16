@@ -39,6 +39,16 @@ public sealed class CalendarPlugin : IPlugin, IConfigurable
     internal const int DefaultReminderDurationSeconds = 8;
 
     /// <summary>
+    /// Whether a reminder is announced with a sound as well as a card. One switch for the whole plugin:
+    /// a per-reminder mute would be a field on every record in the list, and the list holds what the user
+    /// changes several times a day rather than the once-a-year decision this is.
+    /// </summary>
+    internal const string ReminderSoundEnabledKey = "ReminderSoundEnabled";
+
+    /// <summary>The WAV played for a reminder. A value that cannot be played falls back to the default.</summary>
+    internal const string ReminderSoundPathKey = "ReminderSoundPath";
+
+    /// <summary>
     /// Whether the quick window's clock line carries this plugin's 农历 reading. Owned here rather than in the
     /// host's own Layout settings on purpose: the text is this plugin's data, so switching it off belongs in
     /// the same page as the rest of the calendar's settings, and a plugin the user has disabled is never asked
@@ -143,6 +153,22 @@ public sealed class CalendarPlugin : IPlugin, IConfigurable
             },
             new PluginConfigField
             {
+                Key = ReminderSoundEnabledKey,
+                LabelKey = "Calendar_Config_SoundLabel",
+                DescriptionKey = "Calendar_Config_SoundDesc",
+                FieldType = ConfigFieldType.Boolean,
+                DefaultValue = true
+            },
+            new PluginConfigField
+            {
+                Key = ReminderSoundPathKey,
+                LabelKey = "Calendar_Config_SoundPathLabel",
+                DescriptionKey = "Calendar_Config_SoundPathDesc",
+                FieldType = ConfigFieldType.FilePath,
+                DefaultValue = ReminderSound.DefaultPath
+            },
+            new PluginConfigField
+            {
                 Key = "SendTestReminder",
                 LabelKey = "Calendar_Config_TestLabel",
                 DescriptionKey = "Calendar_Config_TestDesc",
@@ -152,7 +178,11 @@ public sealed class CalendarPlugin : IPlugin, IConfigurable
                 OnClick = () => Task.Run(SendTestReminder)
             }
         ],
-        OnSave = UpdateRuntimeState,
+        OnSave = () =>
+        {
+            UpdateRuntimeState();
+            WarnIfSoundUnusable();
+        },
         OnRollback = UpdateRuntimeState
     });
 
@@ -189,6 +219,36 @@ public sealed class CalendarPlugin : IPlugin, IConfigurable
 
     internal static int ReminderDurationSeconds() =>
         PluginSettingsService.GetSetting(PluginId, ReminderDurationKey, DefaultReminderDurationSeconds);
+
+    internal static bool ReminderSoundEnabled() =>
+        PluginSettingsService.GetSetting(PluginId, ReminderSoundEnabledKey, true);
+
+    internal static string ReminderSoundPath() =>
+        PluginSettingsService.GetSetting(PluginId, ReminderSoundPathKey, ReminderSound.DefaultPath);
+
+    /// <summary>
+    /// Tells the user when the sound they picked cannot be played.
+    /// </summary>
+    /// <remarks>
+    /// The settings page's file picker offers every file there is and its schema cannot narrow that, so
+    /// this is where a non-WAV or missing path gets caught. The value is deliberately left as typed: the
+    /// default chime covers the reminder either way, and rewriting the field would leave the user unable
+    /// to see which file was refused.
+    /// </remarks>
+    private static void WarnIfSoundUnusable()
+    {
+        if (!ReminderSoundEnabled()) return;
+
+        var configured = ReminderSoundPath();
+        if (string.IsNullOrWhiteSpace(configured) || ReminderSound.IsPlayable(configured)) return;
+
+        PluginNotificationService.Show(new NotificationRequest
+        {
+            Title = TranslationService.Get("Calendar_SoundInvalidTitle"),
+            Message = TranslationService.Get("Calendar_SoundInvalidDesc"),
+            Level = NotificationLevel.Warn
+        });
+    }
 
     private static void UpdateRuntimeState()
     {
