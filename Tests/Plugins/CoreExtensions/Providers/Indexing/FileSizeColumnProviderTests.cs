@@ -27,7 +27,19 @@ public sealed class FileSizeColumnProviderTests
     }
 
     [TestMethod]
-    public void GetCellValue_Directory_FileSizeColumnIsEmpty() =>
+    public void GetCellValue_IndexedDirectory_FileSizeColumnUsesRecursiveSize()
+    {
+        var result = new FakeResult
+        {
+            IsDir = true,
+            Metadata = new FileMetadata(4096, default, DateTime.Now, default),
+        };
+
+        Assert.AreEqual("4 KB", Provider.GetCellValue(result, "FileSize"));
+    }
+
+    [TestMethod]
+    public void GetCellValue_SyntheticDirectory_FileSizeColumnIsEmpty() =>
         Assert.AreEqual("", Provider.GetCellValue(new FakeResult { IsDir = true }, "FileSize"));
 
     [TestMethod]

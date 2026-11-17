@@ -81,7 +81,7 @@ internal static class LiveSpaceQuery
             !isDirectory && rawSize > 0 && size == 0);
     }
 
-    private static long GetRecursiveSize(Snapshot snapshot, DeltaOverlay delta, DeltaChildLookup? lookup,
+    internal static long GetRecursiveSize(Snapshot snapshot, DeltaOverlay delta, DeltaChildLookup? lookup,
         HashSet<int> affected, Dictionary<UInt128, int> canonicalAddedLinks, int entry, int depth = 0)
     {
         if (depth >= 512)
@@ -96,7 +96,7 @@ internal static class LiveSpaceQuery
         return total;
     }
 
-    private static HashSet<int> BuildAffectedEntries(Snapshot snapshot, DeltaOverlay delta,
+    internal static HashSet<int> BuildAffectedEntries(Snapshot snapshot, DeltaOverlay delta,
         out Dictionary<UInt128, int> canonicalAddedLinks)
     {
         var affected = new HashSet<int>();
@@ -216,7 +216,7 @@ internal static class LiveSpaceQuery
         return true;
     }
 
-    private static List<int> CollectChildren(Snapshot snapshot, DeltaOverlay delta, DeltaChildLookup? lookup, int entry)
+    internal static List<int> CollectChildren(Snapshot snapshot, DeltaOverlay delta, DeltaChildLookup? lookup, int entry)
     {
         var result = new List<int>();
         if (entry < snapshot.Count)
@@ -244,7 +244,7 @@ internal static class LiveSpaceQuery
                 result.Add(child);
     }
 
-    private static bool IsCanonicalFileLink(Snapshot snapshot, DeltaOverlay delta,
+    internal static bool IsCanonicalFileLink(Snapshot snapshot, DeltaOverlay delta,
         Dictionary<UInt128, int> canonicalAddedLinks, int entry)
     {
         var id = entry < snapshot.Count ? snapshot.Ids[entry] : delta.Added[entry - snapshot.Count].Id;

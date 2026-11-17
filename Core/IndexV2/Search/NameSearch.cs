@@ -24,7 +24,7 @@ internal static class NameSearch
 
     public static void SearchStreaming(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, int limit,
         Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower, string[]? fileNamePatterns = null,
-        SearchCategoryFilter category = SearchCategoryFilter.All)
+        SearchCategoryFilter category = SearchCategoryFilter.All, Func<int, long>? getDirectorySize = null)
     {
         token.ThrowIfCancellationRequested();
         if (!DriveAdmits(snapshot, pattern, out var matchAll))
@@ -55,7 +55,8 @@ internal static class NameSearch
 
         try
         {
-            PublishRanks(snapshot, delta, pattern, hits, matchAll, topN, scanKeep, limit, directoryFilterLower, token, onResult, fileNamePatterns, category);
+            PublishRanks(snapshot, delta, pattern, hits, matchAll, topN, scanKeep, limit, directoryFilterLower,
+                token, onResult, fileNamePatterns, category, getDirectorySize);
         }
         finally
         {
@@ -66,7 +67,7 @@ internal static class NameSearch
 
     private static void PublishRanks(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, List<UniqueMatch>? hits, bool matchAll,
         FzfTopN topN, int scanKeep, int limit, string? directoryFilterLower, CancellationToken token, Action<SearchResult> onResult,
-        string[]? fileNamePatterns, SearchCategoryFilter category)
+        string[]? fileNamePatterns, SearchCategoryFilter category, Func<int, long>? getDirectorySize)
     {
         token.ThrowIfCancellationRequested();
         var ranks = topN.Finish(scanKeep);
@@ -88,7 +89,7 @@ internal static class NameSearch
             token.ThrowIfCancellationRequested();
             if (!seen.Add(rank.EntryIndex))
                 continue;
-            var result = ResultBuilder.ToResult(snapshot, delta, rank);
+            var result = ResultBuilder.ToResult(snapshot, delta, rank, getDirectorySize);
             // RefineRanks already wrote the exact key Apply computes into rank.SortKey (and ToResult
             // just copied it into result.RankSortKey above) for every row whose name it could resolve.
             // The only rows it leaves untouched are ones whose name resolves to "" (RefineRanks's own
@@ -127,7 +128,7 @@ internal static class NameSearch
             {
                 SearchResultRelevance.Apply(result, pattern);
                 onResult(result);
-            }, token, directoryFilterLower, reportedUids, category, fileNamePatterns);
+            }, token, directoryFilterLower, reportedUids, category, fileNamePatterns, getDirectorySize);
         }
     }
 

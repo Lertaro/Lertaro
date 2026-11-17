@@ -23,7 +23,8 @@ internal static class PathSearchFuzzy
 
     public static void SearchStreaming(Snapshot snapshot, DeltaOverlay delta, string pathQuery, int limit,
         Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower,
-        string[]? fileNamePatterns = null, SearchCategoryFilter category = SearchCategoryFilter.All)
+        string[]? fileNamePatterns = null, SearchCategoryFilter category = SearchCategoryFilter.All,
+        Func<int, long>? getDirectorySize = null)
     {
         var directoryContext = NameSearch.ResolveDirectoryContext(snapshot, delta, directoryFilterLower);
         if (directoryContext.Excluded)
@@ -77,7 +78,7 @@ internal static class PathSearchFuzzy
             token.ThrowIfCancellationRequested();
             if (!seen.Add(rank.EntryIndex))
                 continue;
-            onResult(ResultBuilder.ToResult(snapshot, delta, rank));
+            onResult(ResultBuilder.ToResult(snapshot, delta, rank, getDirectorySize));
             if (++emitted >= limit)
                 break;
         }
