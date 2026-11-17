@@ -91,6 +91,20 @@ public sealed class InstantPassCacheTests
     }
 
     [TestMethod]
+    public void FileMatchCache_ReusesTheNormalizedPathWithTheMatchEvidence()
+    {
+        var cache = new SearchResultMapper.QuickFileMatchCache();
+        var row = new SearchResult { Name = "alpha.txt", Path = @"C:\Notes\alpha.txt" };
+        var query = cache.Prepare("alpha");
+
+        var first = cache.MatchWithPath(row, query);
+        var second = cache.MatchWithPath(row, query);
+
+        Assert.AreEqual(first, second);
+        Assert.AreEqual(@"C:\Notes\alpha.txt", second.NormalizedPath);
+    }
+
+    [TestMethod]
     public async Task EarlyEmissionAndFilePaint_ShareOneProviderCall()
     {
         var provider = new CountingProvider();

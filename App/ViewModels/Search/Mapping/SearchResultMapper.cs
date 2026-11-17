@@ -15,9 +15,11 @@ public static class SearchResultMapper
 
     // Owned by one query's render callback. Cache only match evidence, never mutable UI rows or the
     // global ordering: history, favorites, plugin rows and type priority still participate per paint.
+    internal readonly record struct CachedFileMatch(MatchEvidenceResult Match, string NormalizedPath);
+
     internal sealed class QuickFileMatchCache
     {
-        private readonly Dictionary<(string Name, string Path, bool IsDir), MatchEvidenceResult> _matches = new();
+        private readonly Dictionary<(string Name, string Path, bool IsDir), CachedFileMatch> _matches = new();
         private string? _query;
         private bool _fuzzy;
         private bool _andFirst;
@@ -43,12 +45,20 @@ public static class SearchResultMapper
             return _parsed;
         }
 
-        internal MatchEvidenceResult Match(SearchResult result, FuzzyQuery query)
+        internal MatchEvidenceResult Match(SearchResult result, FuzzyQuery query) =>
+            MatchWithPath(result, query).Match;
+
+        internal CachedFileMatch MatchWithPath(SearchResult result, FuzzyQuery query)
         {
             var key = (result.Name, result.Path, result.IsDir);
-            if (!_matches.TryGetValue(key, out var match))
-                _matches.Add(key, match = MatchFile(result, query));
-            return match;
+            if (_matches.TryGetValue(key, out var cached))
+                return cached;
+
+            cached = new CachedFileMatch(
+                MatchFile(result, query),
+                SearchResultHelper.NormalizePath(result.Path));
+            _matches.Add(key, cached);
+            return cached;
         }
     }
 
@@ -579,14 +589,15 @@ public static class SearchResultMapper
                 // (SearchResultRelevance.Apply). Leaving it at NoMatch instead made this window order those
                 // rows by path length and name where the full window ordered the same rows by coverage: one
                 // query, two file orders, and exactly the many-CJK-files case pinyin search produces.
-                var matched = fileMatchCache?.Match(result, fuzzy) ?? MatchFile(result, fuzzy);
+                var cachedMatch = fileMatchCache?.MatchWithPath(result, fuzzy);
+                var matched = cachedMatch?.Match ?? MatchFile(result, fuzzy);
                 candidates.Add(new RankedCandidate(
                     SearchResultHelper.CreateUiResult(result, query, 0, isApplication: false, scope),
                     IsFavorite: false,
                     HistoryCount: usage,
                     filesTypeRank,
                     matched.Rank,
-                    SearchResultHelper.NormalizePath(result.Path),
+                    cachedMatch?.NormalizedPath ?? SearchResultHelper.NormalizePath(result.Path),
                     Source: RankingCandidateSource.FileIndex,
                     Evidence: matched.Evidence,
                     TypeRankApplies: SearchResultTypePriority.IsCoreTypeRank(filesTypeRank)));
