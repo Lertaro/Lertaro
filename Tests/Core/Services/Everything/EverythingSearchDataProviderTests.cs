@@ -76,6 +76,18 @@ public class EverythingSearchDataProviderTests
     }
 
     [TestMethod]
+    public void AnswerFolderEntry_UsesTheParentListingValue()
+    {
+        var result = EverythingSearchDataProvider.AnswerFolderEntry(
+            new SpaceIndexEntry(@"C:\Projects\atlas", "atlas", 3072, true, false));
+
+        var item = Assert.ContainsSingle(result.Items);
+        Assert.AreEqual("atlas", item.FileName);
+        Assert.AreEqual(@"C:\Projects", item.Path);
+        Assert.AreEqual(3072L, item.Size);
+    }
+
+    [TestMethod]
     public async Task ExecuteQueryAsync_RootDrivesQuery_ReturnsDrivesList()
     {
         using var searchService = new SearchService();
