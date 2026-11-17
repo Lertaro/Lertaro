@@ -109,7 +109,7 @@ internal sealed class SearchQueryDispatchController
         _onResultsSettled = onResultsSettled;
     }
 
-    public void OnAdvancedQueryChanged(string query)
+    public void OnAdvancedQueryChanged(string query, int fileLimit = SearchViewModel.FullSearchInitialFileLimit)
     {
         _tokenBatchCts?.Cancel();
         var globalPrefixChar = GetGlobalTokenPrefixChar();
@@ -204,7 +204,7 @@ internal sealed class SearchQueryDispatchController
             cleanQuery,
             searchScope: null,
             isInlineSearchContext: false,
-            fileLimit: SearchViewModel.FullSearchFileLimit,
+            fileLimit: fileLimit,
             appLimit: SearchViewModel.FullSearchAppLimit,
             // Local (USN-indexed) and network-drive results stream in from separate, independently-timed
             // sources (see Core.Services.SearchService.SearchStreamingAsync's localTask/networkTask) and
@@ -502,7 +502,7 @@ internal sealed class SearchQueryDispatchController
         _onResultsSettled?.Invoke();
     }
 
-    public void PerformSearch(string query)
+    public void PerformSearch(string query, int fileLimit = SearchViewModel.FullSearchInitialFileLimit)
     {
         if (string.IsNullOrWhiteSpace(query))
         {
@@ -510,7 +510,7 @@ internal sealed class SearchQueryDispatchController
             return;
         }
 
-        OnAdvancedQueryChanged(query);
+        OnAdvancedQueryChanged(query, fileLimit);
     }
 
     private void ClearResults()

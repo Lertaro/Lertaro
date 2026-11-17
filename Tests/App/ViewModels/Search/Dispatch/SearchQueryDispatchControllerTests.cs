@@ -1,4 +1,5 @@
 using System.IO;
+using Lertaro.App.ViewModels.Search;
 using Lertaro.App.ViewModels.Search.Dispatch;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 
@@ -7,6 +8,26 @@ namespace Lertaro.App.Tests.ViewModels.Search.Dispatch;
 [TestClass]
 public sealed class SearchQueryDispatchControllerTests
 {
+    [TestMethod]
+    public void FullSearchFileLimit_BoundsOnlyOneTypedCharacter()
+    {
+        Assert.AreEqual(500, SearchViewModel.ResolveFullSearchFileLimit("a"));
+        Assert.AreEqual(500, SearchViewModel.ResolveFullSearchFileLimit("  a  "));
+        Assert.AreEqual(int.MaxValue, SearchViewModel.ResolveFullSearchFileLimit("ab"));
+        Assert.AreEqual(int.MaxValue, SearchViewModel.ResolveFullSearchFileLimit(string.Empty));
+        Assert.AreEqual(400, SearchViewModel.NextFullSearchFileLimit(200));
+    }
+
+    [TestMethod]
+    public void FullWindow_LoadsTheNextPageNearTheResultBottom()
+    {
+        var source = Source("App/Views/SearchWindow/SearchWindow.xaml.cs");
+
+        StringAssert.Contains(source, "ScrollViewer.ScrollChangedEvent");
+        StringAssert.Contains(source, "_viewModel.LoadMoreResults()");
+        StringAssert.Contains(source, "distanceFromBottom <= 5");
+    }
+
     // Wiring guard. OnAdvancedQueryChanged cannot be executed here -- it builds a streaming accumulator, reads
     // UserSettings and hands the query to a live SearchExecutionEngine -- but what it searches with is exactly
     // the part that has to stay true: the quick window's per-type trigger CHARACTER comes off the text (the
