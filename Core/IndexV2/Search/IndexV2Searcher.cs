@@ -2,6 +2,7 @@ using Lertaro.PluginSdk.Helpers;
 using Lertaro.Core.SearchIndex.Fzf;
 
 using Lertaro.Core.IndexV2.Search.PathMode;
+using Lertaro.Core.IndexV2.Space;
 using Lertaro.Core.SearchIndex.Query;
 using Lertaro.Core.Services.Plugin.DirectoryIndex;
 namespace Lertaro.Core.IndexV2.Search;
@@ -48,6 +49,9 @@ public static class IndexV2Searcher
         index.Read<object?>((snapshot, delta) =>
         {
             searchRevision = index.Revision;
+            DirectorySizeResolver? directorySizes = null;
+            long GetDirectorySize(int row) =>
+                (directorySizes ??= new DirectorySizeResolver(snapshot, delta)).GetRecursiveSize(row);
             var directoryFilterLower = DirectoryFilterResolver.NormalizeFilter(directoryFilter);
             if (directoryFilterLower != null && directoryFilterLower.Equals(snapshot.SourceRoot.ToLowerInvariant(), StringComparison.Ordinal))
                 directoryFilterLower = null;
@@ -55,13 +59,13 @@ public static class IndexV2Searcher
             if (parsed.IsPathMode)
             {
                 PathSearch.SearchStreaming(snapshot, delta, parsed, limit, onResult, token, directoryFilterLower,
-                    FilterPatternHelper.SplitOrNullIfMatchAll(fileNameFilter), category);
+                    FilterPatternHelper.SplitOrNullIfMatchAll(fileNameFilter), category, GetDirectorySize);
                 return null;
             }
 
             var pattern = FzfPattern.Parse(query);
             NameSearch.SearchStreaming(snapshot, delta, pattern, limit, CacheOrOriginal(), token, directoryFilterLower,
-                FilterPatternHelper.SplitOrNullIfMatchAll(fileNameFilter), category);
+                FilterPatternHelper.SplitOrNullIfMatchAll(fileNameFilter), category, GetDirectorySize);
             return null;
         });
         if (cacheKey != null)

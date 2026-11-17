@@ -74,11 +74,13 @@ internal static class PathTermFallback
 
     public static void SearchStreaming(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, int limit,
         Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower, HashSet<int>? reportedUids = null,
-        SearchCategoryFilter category = SearchCategoryFilter.All, string[]? fileNamePatterns = null)
+        SearchCategoryFilter category = SearchCategoryFilter.All, string[]? fileNamePatterns = null,
+        Func<int, long>? getDirectorySize = null)
     {
         if (pattern.OrGroups != null)
         {
-            SearchAndFirstBranches(snapshot, delta, pattern, limit, onResult, token, directoryFilterLower, category, fileNamePatterns);
+            SearchAndFirstBranches(snapshot, delta, pattern, limit, onResult, token, directoryFilterLower,
+                category, fileNamePatterns, getDirectorySize);
             return;
         }
 
@@ -238,14 +240,15 @@ internal static class PathTermFallback
             token.ThrowIfCancellationRequested();
             if (!seen.Add(rank.EntryIndex))
                 continue;
-            onResult(ResultBuilder.ToResult(snapshot, delta, rank));
+            onResult(ResultBuilder.ToResult(snapshot, delta, rank, getDirectorySize));
             if (++emitted >= limit)
                 break;
         }
     }
 
     private static void SearchAndFirstBranches(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, int limit,
-        Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower, SearchCategoryFilter category, string[]? fileNamePatterns)
+        Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower, SearchCategoryFilter category,
+        string[]? fileNamePatterns, Func<int, long>? getDirectorySize)
     {
         var emitted = 0;
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -264,7 +267,8 @@ internal static class PathTermFallback
                     return;
                 emitted++;
                 onResult(result);
-            }, token, directoryFilterLower, category: category, fileNamePatterns: fileNamePatterns);
+            }, token, directoryFilterLower, category: category, fileNamePatterns: fileNamePatterns,
+                getDirectorySize: getDirectorySize);
         }
     }
 

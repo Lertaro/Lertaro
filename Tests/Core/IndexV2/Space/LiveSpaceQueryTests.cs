@@ -1,4 +1,6 @@
 using Lertaro.Core.IndexV2.Space;
+using Lertaro.Core.IndexV2.Search;
+using Lertaro.Core.SearchIndex.Fzf;
 
 namespace Lertaro.Core.Tests.IndexV2.Space;
 
@@ -16,6 +18,31 @@ public sealed class LiveSpaceQueryTests
         Assert.AreEqual(400, root.Size);
         Assert.AreEqual(300, projects[0].Size);
         Assert.AreEqual(100, projects[1].Size);
+    }
+
+    [TestMethod]
+    public void DirectorySizeResolver_FeedsTheSearchResultColumnAndTracksDeltaChanges()
+    {
+        using var fixture = BuildSample();
+
+        SearchResult ReadProject()
+        {
+            return fixture.Index.Read((snapshot, delta) =>
+            {
+                var sizes = new DirectorySizeResolver(snapshot, delta);
+                return ResultBuilder.ToResult(snapshot, delta, new FzfRank(2, 0, 0), sizes.GetRecursiveSize);
+            });
+        }
+
+        var before = ReadProject();
+        Assert.IsTrue(before.IsDir);
+        Assert.AreEqual(300L, before.Metadata.Size);
+
+        fixture.Index.Mutate((_, delta) =>
+            Core.IndexV2.Delta.DeltaLinkOps.UpdateMetadata(delta, 4, 500, 0, 0, 0));
+
+        var after = ReadProject();
+        Assert.AreEqual(500L, after.Metadata.Size);
     }
 
     [TestMethod]

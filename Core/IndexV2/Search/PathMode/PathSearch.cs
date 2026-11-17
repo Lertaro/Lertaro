@@ -15,20 +15,24 @@ internal static class PathSearch
 {
     public static void SearchStreaming(Snapshot snapshot, DeltaOverlay delta, ParsedSearchQuery parsed, int limit,
         Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower,
-        string[]? fileNamePatterns = null, SearchCategoryFilter category = SearchCategoryFilter.All)
+        string[]? fileNamePatterns = null, SearchCategoryFilter category = SearchCategoryFilter.All,
+        Func<int, long>? getDirectorySize = null)
     {
-        if (TryDirectoryChildren(snapshot, delta, parsed, limit, onResult, token, directoryFilterLower, fileNamePatterns, category))
+        if (TryDirectoryChildren(snapshot, delta, parsed, limit, onResult, token, directoryFilterLower,
+                fileNamePatterns, category, getDirectorySize))
             return;
 
         if (parsed.TargetDrive != null && !parsed.TargetDrive.Equals(snapshot.SourceKey, StringComparison.OrdinalIgnoreCase))
             return;
 
-        PathSearchFuzzy.SearchStreaming(snapshot, delta, parsed.PathPatternLower ?? string.Empty, limit, onResult, token, directoryFilterLower, fileNamePatterns, category);
+        PathSearchFuzzy.SearchStreaming(snapshot, delta, parsed.PathPatternLower ?? string.Empty, limit, onResult,
+            token, directoryFilterLower, fileNamePatterns, category, getDirectorySize);
     }
 
     // "t:\a\b\" lists children; "t:\a\b\pre" filters them by the last segment as a name prefix query.
     private static bool TryDirectoryChildren(Snapshot snapshot, DeltaOverlay delta, ParsedSearchQuery parsed, int limit,
-        Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower, string[]? fileNamePatterns, SearchCategoryFilter category)
+        Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower,
+        string[]? fileNamePatterns, SearchCategoryFilter category, Func<int, long>? getDirectorySize)
     {
         if (parsed.ExactPathLower == null || parsed.TargetDrive == null)
             return false;
@@ -123,7 +127,7 @@ internal static class PathSearch
             token.ThrowIfCancellationRequested();
             if (!seen.Add(rank.EntryIndex))
                 continue;
-            onResult(ResultBuilder.ToResult(snapshot, delta, rank));
+            onResult(ResultBuilder.ToResult(snapshot, delta, rank, getDirectorySize));
             if (++emitted >= limit)
                 break;
         }

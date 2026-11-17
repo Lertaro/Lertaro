@@ -31,7 +31,11 @@ public class FileSizeColumnProvider : IResultColumnProvider
     {
         if (result.IsDir)
         {
-            return columnId == "Extension" ? TranslationService.Get("Column_TypeFolder") : string.Empty;
+            if (columnId == "Extension")
+                return TranslationService.Get("Column_TypeFolder");
+            if (columnId == "FileSize" && result.Metadata.Modified != DateTime.MinValue)
+                return FormatSize(result.Metadata.Size);
+            return string.Empty;
         }
 
         if (columnId == "FileSize")

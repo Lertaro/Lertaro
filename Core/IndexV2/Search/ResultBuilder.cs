@@ -10,31 +10,39 @@ namespace Lertaro.Core.IndexV2.Search;
 // row (possibly overridden); entryIndex >= Snapshot.Count addresses delta.Added[entryIndex - Count].
 internal static class ResultBuilder
 {
-    public static SearchResult ToResult(Snapshot snapshot, DeltaOverlay delta, FzfRank rank)
+    public static SearchResult ToResult(Snapshot snapshot, DeltaOverlay delta, FzfRank rank,
+        Func<int, long>? getDirectorySize = null)
     {
         var entryIndex = rank.EntryIndex;
         if (entryIndex >= snapshot.Count)
         {
             var record = delta.Added[entryIndex - snapshot.Count];
+            var isDirectory = (record.Flags & (ushort)FileRecordFlags.Directory) != 0;
+            var resultSize = isDirectory && getDirectorySize != null
+                ? getDirectorySize(entryIndex)
+                : record.Size;
             return new SearchResult
             {
                 Name = record.Name,
                 Path = delta.GetFullPath(record),
-                IsDir = (record.Flags & (ushort)FileRecordFlags.Directory) != 0,
+                IsDir = isDirectory,
                 Drive = snapshot.SourceKey,
                 Attributes = FileRecordFlagsHelper.ToAttributes((FileRecordFlags)record.Flags),
                 RankSortKey = rank.SortKey,
-                Metadata = ToMetadata(record.Size, record.Creation, record.LastWrite, record.LastAccess),
+                Metadata = ToMetadata(resultSize, record.Creation, record.LastWrite, record.LastAccess),
             };
         }
 
         var (size, creation, lastWrite, lastAccess) = delta.MetadataOf(entryIndex);
         var flags = delta.BaseOverrides.TryGetValue(entryIndex, out var o) ? (FileRecordFlags)o.Flags : (FileRecordFlags)snapshot.Flags[entryIndex];
+        var isDir = (flags & FileRecordFlags.Directory) != 0;
+        if (isDir && getDirectorySize != null)
+            size = getDirectorySize(entryIndex);
         return new SearchResult
         {
             Name = delta.NameOf(entryIndex),
             Path = delta.GetFullPath(entryIndex),
-            IsDir = (flags & FileRecordFlags.Directory) != 0,
+            IsDir = isDir,
             Drive = snapshot.SourceKey,
             Attributes = FileRecordFlagsHelper.ToAttributes(flags),
             RankSortKey = rank.SortKey,
