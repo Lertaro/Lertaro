@@ -53,6 +53,20 @@ public sealed class SearchResultRefreshWatcherTests
     }
 
     [TestMethod]
+    public void SnapshotPathsForWatching_StopsAtTheLeadingPage()
+    {
+        var rows = Enumerable.Range(0, SearchResultRefreshWatcher.MaxWatchedRows + 10)
+            .Select(index => new AppSearchResult { FullPath = $@"C:\Projects\{index:D5}.txt" })
+            .ToArray();
+
+        var paths = SearchResultRefreshWatcher.SnapshotPathsForWatching(rows);
+
+        Assert.HasCount(SearchResultRefreshWatcher.MaxWatchedRows, paths);
+        Assert.AreEqual(@"C:\Projects\00000.txt", paths[0]);
+        Assert.AreEqual($@"C:\Projects\{SearchResultRefreshWatcher.MaxWatchedRows - 1:D5}.txt", paths[^1]);
+    }
+
+    [TestMethod]
     public void ShouldRefresh_MatchesTheDirectoryContainingAResult()
     {
         Assert.IsTrue(SearchResultRefreshWatcher.ShouldRefresh(

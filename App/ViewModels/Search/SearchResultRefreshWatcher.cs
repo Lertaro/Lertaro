@@ -41,6 +41,12 @@ internal sealed class SearchResultRefreshWatcher : IDisposable
     // ponytail: 300 ms is a guess at the typing cadence; if a refresh is ever seen to lag, lower it.
     private static readonly TimeSpan ResubscribeDelay = TimeSpan.FromMilliseconds(300);
 
+    // The full window can hold far more rows than it can display at once. Reading every lazy FullPath
+    // on the UI thread made settling a broad query scale with the entire result list, while only the
+    // leading page is immediately actionable. ponytail: rows below this window are not live-refreshed
+    // until the query changes; upgrade path: update the candidate cap from the realized viewport.
+    internal const int MaxWatchedRows = 2048;
+
     private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _timer;
     private readonly DispatcherTimer _subscribeTimer;
@@ -101,20 +107,29 @@ internal sealed class SearchResultRefreshWatcher : IDisposable
             ScheduleRefresh();
         }
 
-        // Only the strings are read here: a content query may hold a very large list, and parsing every
-        // path on the UI thread would stall the render that just produced it.
-        var paths = new List<string>(results is ICollection<AppSearchResult> collection ? collection.Count : 0);
-        foreach (var result in results)
-            paths.Add(result.FullPath);
+        var paths = SnapshotPathsForWatching(results);
 
         var generation = Interlocked.Increment(ref _updateGeneration);
-        if (paths.Count == 0)
+        if (paths.Length == 0)
         {
             QueueWatchedDirectories(new HashSet<string>(StringComparer.OrdinalIgnoreCase), generation);
             return;
         }
 
         _ = Task.Run(() => QueueWatchedDirectories(ResolveWatchedDirectories(paths), generation));
+    }
+
+    internal static string[] SnapshotPathsForWatching(IEnumerable<AppSearchResult> results)
+    {
+        var known = results is ICollection<AppSearchResult> collection ? collection.Count : 0;
+        var paths = new List<string>(Math.Min(known, MaxWatchedRows));
+        foreach (var result in results)
+        {
+            paths.Add(result.FullPath);
+            if (paths.Count == MaxWatchedRows)
+                break;
+        }
+        return paths.ToArray();
     }
 
     internal static HashSet<string> ResolveWatchedDirectories(IEnumerable<AppSearchResult> results)
