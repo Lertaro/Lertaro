@@ -88,6 +88,22 @@ public class EverythingSearchDataProviderTests
     }
 
     [TestMethod]
+    public void CachedParentListing_AnswersExactChildSizeWithoutAnotherServiceQuery()
+    {
+        using var searchService = new SearchService();
+        var provider = new EverythingSearchDataProvider(searchService);
+        provider.CacheFolderSizes(@"C:\Windows",
+        [
+            new SpaceIndexEntry(@"C:\Windows\WinSxS", "WinSxS", 30_000, true, false),
+            new SpaceIndexEntry(@"C:\Windows\System32", "System32", 20_000, true, false),
+        ]);
+
+        Assert.IsTrue(provider.TryGetCachedFolderSize(@"C:\Windows", @"C:\Windows\WinSxS\", out var size));
+        Assert.AreEqual(30_000L, size);
+        Assert.IsFalse(provider.TryGetCachedFolderSize(@"C:\Windows", @"C:\Windows\NotCached", out _));
+    }
+
+    [TestMethod]
     public async Task ExecuteQueryAsync_RootDrivesQuery_ReturnsDrivesList()
     {
         using var searchService = new SearchService();
