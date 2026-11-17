@@ -117,6 +117,26 @@ public static class PluginSearchResultMapper
         }
     }
 
+    public static void AddCategoryResults(
+        List<AppSearchResult> uiResults,
+        IEnumerable<InstantResultItem>? items,
+        string query,
+        IInstantResultProvider provider)
+    {
+        if (items == null || provider.ResultCategory is not { } category)
+            return;
+
+        var firstAdded = uiResults.Count;
+        foreach (var item in items)
+            if (item != null)
+                MapItem(uiResults, item, query, provider);
+        for (var i = firstAdded; i < uiResults.Count; i++)
+        {
+            uiResults[i].Category = category;
+            uiResults[i].IsFullSearchFileResult = false;
+        }
+    }
+
     private static void MapItem(List<AppSearchResult> uiResults, InstantResultItem item, string effectiveHighlightQuery, IPluginComponent provider)
     {
 
@@ -207,7 +227,8 @@ public static class PluginSearchResultMapper
             InstantResultOnExecute = item.OnExecute,
             InstantResultOnExecuteFunc = item.OnExecuteFunc,
             TabCompletion = SanitizeSingleLine(item.TabCompletion),
-            SourceProvider = provider
+            SourceProvider = provider,
+            Category = (provider as IInstantResultProvider)?.ResultCategory
         });
     }
 

@@ -44,4 +44,7 @@ public interface ISearchResult
     /// kind rather than assuming null.
     /// </summary>
     string? InstantActionArgument => null;
+
+    /// <summary>The result type this row belongs to when its provider declares one.</summary>
+    Lertaro.PluginSdk.Helpers.SearchCategoryFilter? Category => null;
 }

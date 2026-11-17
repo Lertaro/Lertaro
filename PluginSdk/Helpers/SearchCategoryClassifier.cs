@@ -32,6 +32,7 @@ public enum SearchCategoryFilter : byte
     Audio = 6,
     Video = 7,
     Archive = 8,
+    File = 9,
 }
 
 /// <summary>
@@ -192,6 +193,8 @@ public static class SearchCategoryClassifier
     {
         if (filter == SearchCategoryFilter.All)
             return true;
+        if (filter == SearchCategoryFilter.File)
+            return !isDirectory;
 
         if (Classify(nameOrPath, isDirectory) == filter)
             return true;
@@ -215,6 +218,8 @@ public static class SearchCategoryClassifier
     {
         if (row is null || string.IsNullOrEmpty(row.FullPath))
             return Classify(null, row?.IsDir == true);
+        if (row.Category is { } declared)
+            return declared;
 
         // One sidebar count pass asks for the same row's category once per type item (nine of them), and
         // every call re-derived it from the path -- the largest single cost of the full window's counting

@@ -1,5 +1,7 @@
 using System.IO;
+using Lertaro.App.ViewModels.Search;
 using Lertaro.App.ViewModels.Search.Dispatch;
+using Lertaro.PluginSdk.Helpers;
 using Lertaro.PluginSdk.Abstractions.Plugins;
 
 namespace Lertaro.App.Tests.ViewModels.Search.Dispatch;
@@ -7,6 +9,14 @@ namespace Lertaro.App.Tests.ViewModels.Search.Dispatch;
 [TestClass]
 public sealed class SearchQueryDispatchControllerTests
 {
+    [TestMethod]
+    public void MultiCategorySearchUsesDistinctSelectedTypes()
+    {
+        var viewModel = Source("App/ViewModels/Search/SearchViewModel.cs");
+        StringAssert.Contains(viewModel, "GetSelectedSearchCategories");
+        StringAssert.Contains(viewModel, ".Distinct()");
+    }
+
     // Wiring guard. OnAdvancedQueryChanged cannot be executed here -- it builds a streaming accumulator, reads
     // UserSettings and hands the query to a live SearchExecutionEngine -- but what it searches with is exactly
     // the part that has to stay true: the quick window's per-type trigger CHARACTER comes off the text (the
@@ -56,6 +66,21 @@ public sealed class SearchQueryDispatchControllerTests
         Assert.AreEqual("second-0", batches[3][0].Name);
         Assert.IsTrue(first.Disposed);
         Assert.IsTrue(second.Disposed);
+    }
+
+    [TestMethod]
+    public void StreamCategoryRows_MapsAnInstantProviderResultIntoTheFullWindow()
+    {
+        var provider = new TestCategoryProvider();
+        var batches = new List<List<AppSearchResult>>();
+
+        SearchQueryDispatchController.StreamCategoryRows(
+            "dark", [SearchCategoryFilter.Settings], [provider], () => true, batches.Add);
+
+        var row = Assert.ContainsSingle(Assert.ContainsSingle(batches));
+        Assert.AreEqual("Dark mode", row.Name);
+        Assert.AreEqual(SearchCategoryFilter.Settings, row.Category);
+        Assert.IsFalse(row.IsFullSearchFileResult);
     }
 
     [TestMethod]
@@ -166,5 +191,22 @@ public sealed class SearchQueryDispatchControllerTests
                 Disposed = true;
             }
         }
+    }
+
+    private sealed class TestCategoryProvider : IInstantResultProvider
+    {
+        public string Name => "Settings";
+        public SearchCategoryFilter? ResultCategory => SearchCategoryFilter.Settings;
+        public IEnumerable<InstantResultItem> GetInstantResults(string query) => [];
+        public IEnumerable<InstantResultItem> GetCategoryResults(string query, int limit) =>
+        [
+            new InstantResultItem
+            {
+                Title = "Dark mode",
+                Description = "Appearance",
+                IconData = "M1 2",
+                ActionType = "None"
+            }
+        ];
     }
 }

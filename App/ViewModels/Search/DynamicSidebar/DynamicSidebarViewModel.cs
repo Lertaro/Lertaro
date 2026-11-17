@@ -128,6 +128,7 @@ public class DynamicSidebarItemViewModel : ViewModelBase
     public string? IconData => _item.IconData;
     public bool HasIconData => !string.IsNullOrEmpty(_item.IconData);
     internal Func<ISearchResult, bool> MatchPredicate => _item.MatchPredicate;
+    internal Lertaro.PluginSdk.Helpers.SearchCategoryFilter? Category => _item.Category;
 
     private int _count;
     public int Count

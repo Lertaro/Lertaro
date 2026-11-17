@@ -1,3 +1,5 @@
+using Lertaro.PluginSdk.Helpers;
+
 namespace Lertaro.PluginSdk.Abstractions.Plugins;
 
 /// <summary>
@@ -6,6 +8,14 @@ namespace Lertaro.PluginSdk.Abstractions.Plugins;
 /// </summary>
 public interface IInstantResultProvider : IPluginComponent
 {
+    /// <summary>The type-search category this provider supplies, when it can answer a direct category query.</summary>
+    SearchCategoryFilter? ResultCategory => null;
+
+    /// <summary>
+    /// Answers a type search by a plain term, without requiring the provider's quick-window trigger word.
+    /// The default keeps every existing provider source- and binary-compatible.
+    /// </summary>
+    IEnumerable<InstantResultItem> GetCategoryResults(string query, int limit) => [];
 
 
     /// <summary>

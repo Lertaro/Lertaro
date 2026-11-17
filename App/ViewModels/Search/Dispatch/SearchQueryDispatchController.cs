@@ -7,6 +7,7 @@ using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Query;
 using Lertaro.App.ViewModels.Search.Mapping;
 using Lertaro.PluginSdk.Abstractions.Plugins;
+using Lertaro.PluginSdk.Helpers;
 
 using SearchWindowType = Lertaro.PluginSdk.Abstractions.SearchWindowType;
 namespace Lertaro.App.ViewModels.Search.Dispatch;
@@ -52,6 +53,7 @@ internal sealed class SearchQueryDispatchController
     private readonly Action<IReadOnlyList<AppSearchResult>, bool> _updateSidebarCounts;
     private readonly Action<IReadOnlyList<AppSearchResult>> _replaceSidebarCounts;
     private readonly Func<bool> _isTypeFilterSelected;
+    private readonly Func<IReadOnlyList<SearchCategoryFilter>> _getSelectedCategories;
     private readonly Action? _onResultsSettled;
     // bool: whether this render extends what is already on screen (a later paint of a search still
     // streaming) rather than replacing it with a different result set.
@@ -92,6 +94,7 @@ internal sealed class SearchQueryDispatchController
         Action<IReadOnlyList<AppSearchResult>> replaceSidebarCounts,
         Action<bool, int> applyFiltersAndRender,
         Func<bool> isTypeFilterSelected,
+        Func<IReadOnlyList<SearchCategoryFilter>> getSelectedCategories,
         Action? onResultsSettled = null)
     {
         _searchEngine = searchEngine;
@@ -106,6 +109,7 @@ internal sealed class SearchQueryDispatchController
         _replaceSidebarCounts = replaceSidebarCounts;
         _applyFiltersAndRender = applyFiltersAndRender;
         _isTypeFilterSelected = isTypeFilterSelected;
+        _getSelectedCategories = getSelectedCategories;
         _onResultsSettled = onResultsSettled;
     }
 
@@ -190,14 +194,27 @@ internal sealed class SearchQueryDispatchController
         // UI-thread state, and waiting to read it is exactly what blocked the render above. It is checked
         // where the rows land instead.
         var wantsContentRows = scopeDirective == null && _queryTokens.Count == 0;
+        var selectedCategories = _getSelectedCategories();
+        var hasCategoryProviders = selectedCategories.Any(category => category != SearchCategoryFilter.All);
+        var includesAllFiles = selectedCategories.Contains(SearchCategoryFilter.All);
         var queryGeneration = Interlocked.Increment(ref _contentAppendGeneration);
         void StartContentRowAppend()
         {
-            if (wantsContentRows)
+            if (wantsContentRows && includesAllFiles)
                 Task.Run(() => StreamFullSearchFileRows(query,
                     PluginManager.Instance.FullSearchFileResultProviders,
                     () => queryGeneration == Volatile.Read(ref _contentAppendGeneration),
                     rows => AppendContentRows(rows, queryGeneration)));
+            if (hasCategoryProviders)
+            {
+                Task.Run(() => StreamCategoryRows(query, selectedCategories,
+                    PluginManager.Instance.InstantResultProviders,
+                    () => queryGeneration == Volatile.Read(ref _contentAppendGeneration),
+                    rows => AppendContentRows(rows, queryGeneration, allowWithSelectedType: true)));
+                Task.Run(() => StreamCategorySearchableRows(query, selectedCategories,
+                    () => queryGeneration == Volatile.Read(ref _contentAppendGeneration),
+                    rows => AppendContentRows(rows, queryGeneration, allowWithSelectedType: true)));
+            }
         }
 
         _searchEngine.QueueSearch(
@@ -414,6 +431,58 @@ internal sealed class SearchQueryDispatchController
         Flush();
     }
 
+    internal static void StreamCategoryRows(string query,
+        IReadOnlyList<SearchCategoryFilter> selectedCategories,
+        IEnumerable<IInstantResultProvider> providers,
+        Func<bool> isCurrent,
+        Action<List<AppSearchResult>> appendRows)
+    {
+        foreach (var provider in providers)
+        {
+            if (!isCurrent())
+                return;
+            if (provider.ResultCategory is not { } category || !selectedCategories.Contains(category))
+                continue;
+
+            var rows = new List<AppSearchResult>();
+            try
+            {
+                var items = provider.GetCategoryResults(query, FullSearchFileRowLimit).ToList();
+                PluginSearchResultMapper.AddCategoryResults(
+                    rows, items, query, provider);
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[SearchQueryDispatch] Category provider '{provider.Name}' failed: {ex.Message}", LogLevel.Error);
+            }
+
+            if (rows.Count > 0 && isCurrent())
+                appendRows(rows);
+        }
+    }
+
+    internal static void StreamCategorySearchableRows(string query,
+        IReadOnlyList<SearchCategoryFilter> selectedCategories,
+        Func<bool> isCurrent,
+        Action<List<AppSearchResult>> appendRows)
+    {
+        if (!isCurrent())
+            return;
+
+        var rows = new List<AppSearchResult>();
+        foreach (var (result, _, _) in SearchableItemMapper.CollectSearchableItemResults(query, isInlineWindow: false))
+        {
+            var category = SearchCategoryClassifier.Categorize(result);
+            if (category is not { } declared || !selectedCategories.Contains(declared))
+                continue;
+            result.Category = declared;
+            rows.Add(result);
+        }
+
+        if (rows.Count > 0 && isCurrent())
+            appendRows(rows);
+    }
+
     /// <summary>
     /// Puts one batch of a streamed provider's rows at the front of the result list, so no render ever
     /// waits on plugin I/O and the first rows are on screen long before the last one is found.
@@ -429,7 +498,7 @@ internal sealed class SearchQueryDispatchController
     /// outside that contract. That check can only be made on the UI thread, which is why this lands here
     /// rather than on the thread doing the walking.
     /// </remarks>
-    private void AppendContentRows(List<AppSearchResult> rows, int generation)
+    private void AppendContentRows(List<AppSearchResult> rows, int generation, bool allowWithSelectedType = false)
     {
         var dispatcher = System.Windows.Application.Current?.Dispatcher;
         if (dispatcher == null)
@@ -438,7 +507,8 @@ internal sealed class SearchQueryDispatchController
         _ = dispatcher.InvokeAsync(() =>
         {
             // Re-checked: the user may have typed again or selected a type filter while the provider ran.
-            if (generation != Volatile.Read(ref _contentAppendGeneration) || _isTypeFilterSelected())
+            if (generation != Volatile.Read(ref _contentAppendGeneration)
+                || (!allowWithSelectedType && _isTypeFilterSelected()))
                 return;
 
             var accumulator = _accumulator;

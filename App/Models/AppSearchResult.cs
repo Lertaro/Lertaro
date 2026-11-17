@@ -110,6 +110,7 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
     }
 
     public string ResultKind { get; set; } = "File";
+    public Lertaro.PluginSdk.Helpers.SearchCategoryFilter? Category { get; set; }
     public int Index { get; set; }
     // True for rows contributed by IFullSearchFileResultProvider (e.g. ContentSearch hits in the
     // full search window). The full window excludes these rows whenever a type filter is selected.
@@ -178,6 +179,23 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
     // so every non-list-item row is uniformly that height -- which InlineSearchWindowLayoutManager's own
     // height-sum relies on to land exactly on a whole multiple of the row height for every row count.
     public double InlineItemHeight => IsListItem ? ItemHeight : UiMetrics.InlineRowHeight;
+
+    /// <summary>
+    /// True when this row is rendered by the quick search window rather than the inline card, so it
+    /// uses the scaled metrics.
+    /// </summary>
+    /// <remarks>
+    /// Set once when the row is built. The template used to answer this itself with
+    /// {RelativeSource AncestorType=Window} on three elements per row, and that walks the visual tree
+    /// every time it is evaluated -- 20 visible rows meant 60 upward walks per frame. The measurement
+    /// said a repaint of a 200-row list took 60-100 ms; a row should cost under one.
+    /// </remarks>
+    public bool IsQuickWindow { get; set; }
+
+    /// <summary>The metrics for this row, already resolved for the window that owns it.</summary>
+    public double EffectiveNameFontSize => IsQuickWindow ? ScaledNameFontSize : NameFontSize;
+    public double EffectivePathFontSize => IsQuickWindow ? ScaledPathFontSize : PathFontSize;
+    public double EffectiveIconSize => IsQuickWindow ? ScaledResultIconSize : ResultIconSize;
     public double ActionsHeaderHeight => Math.Round(ItemHeight * 0.7);
     public string DisplayPath => IsApplication ? ParentDir : FullPath;
 

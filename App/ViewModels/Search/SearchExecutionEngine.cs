@@ -1,9 +1,10 @@
-using Lertaro.PluginSdk.Helpers;
+using Lertaro.Core.Wire;
 using Lertaro.Core;
 using Lertaro.Core.SearchIndex;
 using Lertaro.App.Services;
 using Lertaro.Core.Services.Search;
 using Lertaro.App.ViewModels.Search.Dispatch;
+using Lertaro.PluginSdk.Helpers;
 
 using Lertaro.App.ViewModels.Search.Mapping;
 using System.Windows.Threading;
@@ -14,7 +15,7 @@ internal sealed class SearchExecutionEngine : IDisposable
 {
     private readonly SearchService _searchService;
     private readonly SearchStreamRenderer _streamRenderer;
-    private readonly Func<SearchCategoryFilter> _getCategory;
+    private readonly Func<IReadOnlyList<SearchCategoryFilter>> _getCategories;
     // Per-engine, and the engine lives exactly as long as its window -- see DirectChildrenListingCache.
     private readonly DirectChildrenListingCache _directChildrenListing = new();
     private readonly object _searchCtsLock = new();
@@ -27,11 +28,12 @@ internal sealed class SearchExecutionEngine : IDisposable
         get { lock (_searchCtsLock) return _searchCts?.Token ?? new CancellationToken(canceled: true); }
     }
 
-    public SearchExecutionEngine(SearchService searchService, Func<SearchCategoryFilter>? getCategory = null)
+    public SearchExecutionEngine(SearchService searchService,
+        Func<IReadOnlyList<SearchCategoryFilter>>? getCategories = null)
     {
         _searchService = searchService;
+        _getCategories = getCategories ?? (() => [SearchCategoryFilter.All]);
         _streamRenderer = new SearchStreamRenderer(searchService, () => Volatile.Read(ref _searchVersion));
-        _getCategory = getCategory ?? (() => SearchCategoryFilter.All);
     }
 
     public void QueueSearch(
@@ -69,7 +71,11 @@ internal sealed class SearchExecutionEngine : IDisposable
         // debounces. Otherwise its rows keep repainting ahead of the next keystroke.
         CancelPendingSearch();
 
-        var delay = string.IsNullOrEmpty(query) || query.Length <= 1 ? 0 : (fileLimit > 100 ? 150 : 30);
+        // Was 150 / 30 ms. A warm search is a cache replay on the service side (single-digit ms
+        // plus the pipe round trip), so waiting most of a frame before asking only added to the
+        // time the user spent looking at the previous query's rows. The token path keeps a small
+        // window because its query is wider (fileLimit > 100) and genuinely costs more to rebuild.
+        var delay = string.IsNullOrEmpty(query) || query.Length <= 1 ? 0 : (fileLimit > 100 ? 30 : 10);
         if (delay == 0)
         {
             PerformSearch(query, searchScope, isInlineSearchContext, fileLimit, appLimit, resultMapper, onSearchStateChanged, onResultsUpdated, onLocalServiceUnavailable, shouldEmitInstantResults, bypassExclusions, resultMapperConsumesBatches, onReceivedCountUpdated, scopeDirective, instantQuery, emitInstantResults, beforeSearch, collectInstantResults);
@@ -188,7 +194,7 @@ internal sealed class SearchExecutionEngine : IDisposable
 
                 var streamingScope = tracker.IsActiveWindowExplorer ? searchScope : null;
                 var streamingContextDirectory = commandDirectory;
-                await _streamRenderer.RenderAsync(query, streamingScope, streamingContextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable: onLocalServiceUnavailable, bypassExclusions: bypassExclusions, resultMapperConsumesBatches: resultMapperConsumesBatches, onReceivedCountUpdated: onReceivedCountUpdated, scopeDirective: scopeDirective, foldersOnly: folderScope, priorityRoots: priorityRoots, category: _getCategory()).ConfigureAwait(false);
+                await _streamRenderer.RenderAsync(query, streamingScope, streamingContextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable: onLocalServiceUnavailable, bypassExclusions: bypassExclusions, resultMapperConsumesBatches: resultMapperConsumesBatches, onReceivedCountUpdated: onReceivedCountUpdated, scopeDirective: scopeDirective, foldersOnly: folderScope, priorityRoots: priorityRoots, categories: _getCategories()).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -323,7 +329,7 @@ internal sealed class SearchExecutionEngine : IDisposable
 
         await _streamRenderer.RenderAsync(query, null, contextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token,
             GetLocalSnapshot, () => Volatile.Read(ref localUpdateVersion), localSearchTask, onLocalServiceUnavailable, bypassExclusions,
-            foldersOnly: folderScope, priorityRoots: priorityRoots, category: _getCategory()).ConfigureAwait(false);
+            foldersOnly: folderScope, priorityRoots: priorityRoots, categories: _getCategories()).ConfigureAwait(false);
     }
 
     private void EmitInstantResults(
