@@ -247,7 +247,7 @@ public static class AppSearchPipeService
         {
             await SharedSearchService.SearchStreamingAsync(
                 query,
-                SearchViewModel.FullSearchFileLimit,
+                SearchViewModel.ResolveFullSearchFileLimit(query),
                 SearchViewModel.FullSearchAppLimit,
                 directoryFilter,
                 r =>
@@ -321,7 +321,7 @@ public static class AppSearchPipeService
         var writeLock = new SemaphoreSlim(1, 1);
         await SharedSearchService.SearchStreamingAsync(
             query,
-            SearchViewModel.FullSearchFileLimit,
+            SearchViewModel.ResolveFullSearchFileLimit(query),
             SearchViewModel.FullSearchAppLimit,
             directoryFilter,
             r =>

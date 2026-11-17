@@ -14,13 +14,15 @@ namespace Lertaro.App.ViewModels.Search;
 
 public class SearchViewModel : ViewModelBase, IDisposable
 {
-    // The full window returns everything that matches rather than a ranked first page. Core bounds this
-    // by the index itself (see NameSearch), so the value only has to be larger than any drive's row
-    // count. What it costs is linear in the number of matches -- measured at roughly 1.5us and 2KB per
-    // result -- so a one-character query over a multi-million-row drive is seconds and gigabytes, not
-    // milliseconds. That is the trade this constant makes.
+    // The full window starts with one bounded page and grows only as the user approaches the bottom.
+    internal const int FullSearchInitialFileLimit = 200;
+    internal const int FullSearchPageSize = 200;
+    internal const int SingleCharacterFullSearchFileLimit = 500;
     internal const int FullSearchFileLimit = int.MaxValue;
     internal const int FullSearchAppLimit = 0;
+
+    internal static int ResolveFullSearchFileLimit(string query) =>
+        query.Trim().Length == 1 ? SingleCharacterFullSearchFileLimit : FullSearchFileLimit;
 
     // What the quick window borrows on its token path. It used to borrow FullSearchFileLimit, which was
     // 1000 -- now that the full window is unbounded, borrowing it would make an ordinary keystroke in the
@@ -35,6 +37,8 @@ public class SearchViewModel : ViewModelBase, IDisposable
     private readonly SearchResultRefreshWatcher _refreshWatcher;
 
     private string _advancedQuery = string.Empty;
+    private int _requestedFullSearchFileLimit = FullSearchInitialFileLimit;
+    private int _lastReceivedFileCount;
     private List<AppSearchResult> _allResults = new();
     // Whether _allResults holds content-provider rows (ContentSearch's "cs " hits), reported by the code
     // that puts them in. Needed because a TYPE filter has to drop them, and finding out by asking the list
@@ -99,6 +103,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
             setIsSearchBoxEnabled: v => IsSearchBoxEnabled = v,
             setReceivedCount: count =>
             {
+                _lastReceivedFileCount = count;
                 if (DynamicSidebarGroups.All(group => group.CombinedPredicate == null))
                     ResultCountText = string.Format(TranslationManager.Instance["Search_Total"], count);
             },
@@ -122,7 +127,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
                 if (IsActionsMode || string.IsNullOrWhiteSpace(AdvancedQuery))
                     return;
                 _refreshKeepsViewport = true;
-                _dispatcher.PerformSearch(AdvancedQuery);
+                _dispatcher.PerformSearch(AdvancedQuery, _requestedFullSearchFileLimit);
             },
             // A query starts by cancelling the one in flight, so a refresh that lands mid-search would
             // restart it from zero; the watcher parks the change until the search settles instead.
@@ -208,6 +213,8 @@ public class SearchViewModel : ViewModelBase, IDisposable
         {
             if (SetProperty(ref _advancedQuery, value))
             {
+                _requestedFullSearchFileLimit = FullSearchInitialFileLimit;
+                _lastReceivedFileCount = 0;
                 // New text is a new result set even when a refresh is still in flight.
                 _refreshKeepsViewport = false;
                 _sidebarCountHelper?.Reset();
@@ -219,7 +226,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
                 else
                 {
                     _searchEngine.CancelPendingSearch();
-                    _dispatcher.OnAdvancedQueryChanged(value);
+                    _dispatcher.OnAdvancedQueryChanged(value, _requestedFullSearchFileLimit);
                 }
                 OnPropertyChanged(nameof(ShowWelcomeHint));
                 OnPropertyChanged(nameof(ShowNoResultsHint));
@@ -364,7 +371,25 @@ public class SearchViewModel : ViewModelBase, IDisposable
     public bool ShowNoResultsHint => !IsActionsMode && !IsSearching && FilteredResults.Count == 0 && !string.IsNullOrWhiteSpace(AdvancedQuery);
     public bool ShowWelcomeHint => !IsActionsMode && string.IsNullOrWhiteSpace(AdvancedQuery);
 
-    internal void PerformSearch(string query) => _dispatcher.PerformSearch(query);
+    internal void PerformSearch(string query) =>
+        _dispatcher.PerformSearch(query, _requestedFullSearchFileLimit);
+
+    internal void LoadMoreResults()
+    {
+        if (IsSearching || string.IsNullOrWhiteSpace(AdvancedQuery)
+            || !ShouldLoadMore(_requestedFullSearchFileLimit, _lastReceivedFileCount))
+            return;
+
+        _requestedFullSearchFileLimit = NextFullSearchFileLimit(_requestedFullSearchFileLimit);
+        _refreshKeepsViewport = true;
+        _dispatcher.PerformSearch(AdvancedQuery, _requestedFullSearchFileLimit);
+    }
+
+    internal static int NextFullSearchFileLimit(int current) =>
+        (int)Math.Min(int.MaxValue, (long)current + FullSearchPageSize);
+
+    internal static bool ShouldLoadMore(int requestedLimit, int receivedCount) =>
+        receivedCount >= requestedLimit;
 
     public void Dispose()
     {

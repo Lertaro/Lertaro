@@ -26,6 +26,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
     private readonly SearchWindowChromeHandler _chromeHandler;
     private readonly SearchWindowInputHandler _inputHandler;
     private readonly ShellMenuPresenter _menuPresenter;
+    private ScrollViewer? _resultsScrollViewer;
     // The window is the card: the 8 DIP transparent halo this used to publish is gone with the layered
     // window that needed it, so anything docking against this window targets the real visible edge.
     public Thickness VisibleContentInset => new(0);
@@ -76,6 +77,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
         this.Loaded += (s, e) =>
         {
             MaximizeBoundsHelper.Attach(this);
+            _resultsScrollViewer = FindScrollViewer(LstGridResultsControl);
 
             this.Activate();
             this.Focus();
@@ -103,6 +105,7 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
         activeList.MouseDoubleClick += LstGridResults_MouseDoubleClick;
         activeList.PreviewMouseRightButtonUp += LstGridResults_PreviewMouseRightButtonUp;
         activeList.PreviewMouseWheel += LstGridResults_PreviewMouseWheel;
+        activeList.AddHandler(ScrollViewer.ScrollChangedEvent, new ScrollChangedEventHandler(LstGridResults_ScrollChanged));
         activeList.SelectionChanged += (s, e) =>
         {
             if (activeList.SelectedItem is AppSearchResult result && result.CanPreview)
@@ -244,6 +247,18 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
                 e.Handled = true;
             }
         }
+    }
+
+    private void LstGridResults_ScrollChanged(object sender, ScrollChangedEventArgs e)
+    {
+        if (_resultsScrollViewer == null || !ReferenceEquals(e.OriginalSource, _resultsScrollViewer)
+            || _resultsScrollViewer.ScrollableHeight <= 0)
+            return;
+
+        var distanceFromBottom = _resultsScrollViewer.ScrollableHeight
+            - (_resultsScrollViewer.VerticalOffset + _resultsScrollViewer.ViewportHeight);
+        if (distanceFromBottom <= 5)
+            _viewModel.LoadMoreResults();
     }
 
     private ScrollViewer? FindScrollViewer(DependencyObject depObj)
