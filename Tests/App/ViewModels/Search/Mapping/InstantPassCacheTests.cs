@@ -52,6 +52,45 @@ public sealed class InstantPassCacheTests
     }
 
     [TestMethod]
+    public void CandidatePass_ClearsWhenTheQueryOrRankingInputChanges()
+    {
+        var cache = new SearchResultMapper.QuickCandidatePassCache();
+        var usage = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var sources = new SearchResultMapper.HistoricalCandidateSources([], []);
+
+        cache.Prepare("alpha", null, false, false, false, 3, null, usage);
+        cache.Historical = sources;
+        cache.Prepare("alpha", null, false, false, false, 3, null, usage);
+        Assert.AreSame(sources, cache.Historical);
+
+        cache.Prepare("beta", null, false, false, false, 3, null, usage);
+        Assert.IsNull(cache.Historical);
+        Assert.IsNull(cache.Searchable);
+        Assert.IsNull(cache.Favorites);
+    }
+
+    [TestMethod]
+    public void CandidatePass_IsReusedAcrossPaintsOfTheSameQuery()
+    {
+        var pass = new SearchResultMapper.QuickCandidatePassCache();
+        var instant = new SearchResultMapper.InstantPassCache { Collected = true };
+        var firstFiles = TwoFiles();
+
+        SearchResultMapper.BuildQuickResults(
+            firstFiles, "alpha", null, null, true, instantPass: instant, candidatePass: pass);
+        var searchable = pass.Searchable;
+        var favorites = pass.Favorites;
+
+        SearchResultMapper.BuildQuickResults(
+            [.. firstFiles, new SearchResult { Path = @"C:\Notes\gamma.txt", Name = "gamma.txt" }],
+            "alpha", null, null, true, instantPass: instant, candidatePass: pass);
+
+        Assert.IsNotNull(searchable);
+        Assert.AreSame(searchable, pass.Searchable);
+        Assert.AreSame(favorites, pass.Favorites);
+    }
+
+    [TestMethod]
     public async Task EarlyEmissionAndFilePaint_ShareOneProviderCall()
     {
         var provider = new CountingProvider();

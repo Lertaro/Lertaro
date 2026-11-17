@@ -194,6 +194,7 @@ internal sealed class SearchDispatchController
         // provider and search-action plugin on each call. See SearchResultMapper.InstantPassCache.
         var instantPass = new SearchResultMapper.InstantPassCache();
         var fileMatchCache = new SearchResultMapper.QuickFileMatchCache();
+        var candidatePass = new SearchResultMapper.QuickCandidatePassCache();
         var rankRules = ExclusionRuleSet.From(UserSettings.Load());
         // Also per search, not per paint: the history score decays at read time, and repainting a streaming
         // result set must not re-decay the same query's rows into a different order between two paints.
@@ -229,7 +230,7 @@ internal sealed class SearchDispatchController
             _getIsInlineSearchContext(),
             fileLimit,
             appLimit,
-            (resp, contextDir, token) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope || filenameLike, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass, rankContext: rankContext, rankingTrace: rankingTrace, categoryFilter: _mainVm.ActiveCategoryFilter, cancellationToken: token, fileMatchCache: fileMatchCache),
+            (resp, contextDir, token) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope || filenameLike, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass, rankContext: rankContext, rankingTrace: rankingTrace, categoryFilter: _mainVm.ActiveCategoryFilter, cancellationToken: token, fileMatchCache: fileMatchCache, candidatePass: candidatePass),
             state => _setIsSearching(state),
             (results, status, final) => ApplySearchResults(originalValue, searchQuery, results, status, final, rankingTrace),
             HandleLocalServiceUnavailable,
