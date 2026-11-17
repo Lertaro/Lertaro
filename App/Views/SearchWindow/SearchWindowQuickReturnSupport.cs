@@ -30,11 +30,23 @@ internal static class SearchWindowQuickReturnSupport
             var query = !string.IsNullOrWhiteSpace(window.SearchText)
                 ? window.SearchText
                 : quickSearchWindow.ViewModel.SearchQuery;
+            var quickAlreadySearchedThisQuery = string.Equals(
+                quickSearchWindow.ViewModel.Search.SearchQuery, query, StringComparison.Ordinal);
+
+            // Switching windows replaces one search with another; never run both generations at once.
+            window.CancelActiveSearch();
 
             // caretAtEnd: the query is carried over rather than retyped, so the next keystroke should
             // append to it. Leaving the caret at position 0 put it in front of the text the user already
             // had and made the first key they pressed after coming back land in the wrong place.
             quickSearchWindow.ShowWindow(query, caretAtEnd: true);
+            if (quickAlreadySearchedThisQuery)
+            {
+                // Assigning the same text is a binding no-op, but the quick window still needs a fresh
+                // lightweight search after the full-window generation was cancelled.
+                quickSearchWindow.ViewModel.Search.CancelPendingSearch();
+                quickSearchWindow.ViewModel.Search.PerformSearch(query);
+            }
         }
 
         window.Close();

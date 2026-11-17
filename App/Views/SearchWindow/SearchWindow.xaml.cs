@@ -166,6 +166,8 @@ public partial class SearchWindow : Window, ISearchWindow, IHasVisibleContentIns
 
     public void UpdateActionsLayout() { /* Fixed-size window, no dynamic resizing needed */ }
 
+    internal void CancelActiveSearch() => _viewModel.CancelActiveSearch();
+
     public void FocusSearch()
     {
         SearchBox.SearchTextBox.Focus();

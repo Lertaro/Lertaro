@@ -366,6 +366,12 @@ public class SearchViewModel : ViewModelBase, IDisposable
 
     internal void PerformSearch(string query) => _dispatcher.PerformSearch(query);
 
+    internal void CancelActiveSearch()
+    {
+        _searchEngine.CancelPendingSearch();
+        IsSearching = false;
+    }
+
     public void Dispose()
     {
         TranslationManager.Instance.PropertyChanged -= OnTranslationsChanged;

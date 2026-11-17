@@ -99,6 +99,17 @@ public sealed class AppWindowManagerTests
     }
 
     [TestMethod]
+    public void SwitchingBetweenSearchWindowsStopsTheWindowBeingLeft()
+    {
+        var manager = Source("App/Services/AppWindow/AppWindowManager.cs");
+        var returnSupport = Source("App/Views/SearchWindow/SearchWindowQuickReturnSupport.cs");
+
+        StringAssert.Contains(manager, "FindQuickSearchWindow()?.ViewModel.Search.CancelPendingSearch()");
+        StringAssert.Contains(returnSupport, "window.CancelActiveSearch()");
+        StringAssert.Contains(returnSupport, "quickSearchWindow.ViewModel.Search.PerformSearch(query)");
+    }
+
+    [TestMethod]
     public void OnlyListableRows_KeepsRealFilesInOrder()
     {
         var rows = new[]

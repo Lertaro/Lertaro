@@ -179,6 +179,7 @@ public static class AppWindowManager
 
     private static void ShowSearchWindowCore(bool bringToFront)
     {
+        FindQuickSearchWindow()?.ViewModel.Search.CancelPendingSearch();
         if (_searchWindow == null)
         {
             _searchWindow = UserSettings.Load().MainWindow.SingleInstance
@@ -201,6 +202,7 @@ public static class AppWindowManager
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
             var current = System.Windows.Application.Current;
+            FindQuickSearchWindow()?.ViewModel.Search.CancelPendingSearch();
             var seedRows = ReadQuickSearchRows(query);
             var existing = UserSettings.Load().MainWindow.SingleInstance
                 ? current.Windows.OfType<SearchWindow>().FirstOrDefault()
@@ -220,6 +222,18 @@ public static class AppWindowManager
                 existing.SearchTextBox.SelectionStart = query.Length;
             ShowAndActivateSearchWindow(existing, bringToFront: false);
         });
+    }
+
+    private static QuickSearchWindow? FindQuickSearchWindow()
+    {
+        if (System.Windows.Application.Current is not { } current)
+            return null;
+        if (current.MainWindow is QuickSearchWindow main)
+            return main;
+        foreach (Window window in current.Windows)
+            if (window is QuickSearchWindow quick)
+                return quick;
+        return null;
     }
 
     /// <summary>
