@@ -55,6 +55,7 @@ public class TypeFilterProvider : ISidebarFilterProvider
             Id = "Type_File",
             DisplayName = TranslationService.Get("Filter_TypeFile"),
             IconData = "M6 2c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13z",
+            Category = SearchCategoryFilter.File,
             MatchPredicate = res => !res.IsApplication && !res.IsDir
         });
 
@@ -90,7 +91,7 @@ public class TypeFilterProvider : ISidebarFilterProvider
             // One question, one answer: the row and the quick window's tab both ask SearchCategoryClassifier,
             // so a file cannot be a document here and something else there -- including a shortcut, which is
             // filed by what it points at rather than by the shell being able to launch it.
-            MatchPredicate = res => SearchCategoryClassifier.Categorize(res) == category
+            MatchPredicate = res => res.Category == category || SearchCategoryClassifier.Categorize(res) == category
         });
     }
 

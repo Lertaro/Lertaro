@@ -1,4 +1,5 @@
 using Lertaro.PluginSdk.Services;
+using Lertaro.PluginSdk.Helpers;
 using Lertaro.Plugins.CoreExtensions.Providers.InstantAnswers;
 
 namespace Lertaro.Plugins.CoreExtensions.Tests.Providers.InstantAnswers;
@@ -44,6 +45,17 @@ public sealed class SearchSettingsInstantProviderTests
         ConfigureEntries(new SettingsSearchEntryInfo("Dark mode", "Appearance", 0));
 
         Assert.IsEmpty(new SearchSettingsInstantProvider().GetInstantResults("dark"));
+    }
+
+    [TestMethod]
+    public void GetCategoryResults_UsesPlainTermWithoutTriggerWord()
+    {
+        FuzzyMatchService.IsMatchFunc = (text, _) => text.Contains("Dark", StringComparison.OrdinalIgnoreCase);
+        ConfigureEntries(new SettingsSearchEntryInfo("Dark mode", "Appearance", 0));
+        var provider = new SearchSettingsInstantProvider();
+
+        Assert.AreEqual(SearchCategoryFilter.Settings, provider.ResultCategory);
+        Assert.HasCount(1, provider.GetCategoryResults("dark", 200).ToList());
     }
 
     [TestMethod]

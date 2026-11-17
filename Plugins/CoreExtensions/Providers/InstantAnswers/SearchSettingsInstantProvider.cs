@@ -1,4 +1,5 @@
 using Lertaro.PluginSdk.Abstractions.Plugins;
+using Lertaro.PluginSdk.Helpers;
 using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.CoreExtensions.Providers.InstantAnswers;
@@ -37,6 +38,7 @@ public class SearchSettingsInstantProvider : IInstantResultProvider
     }
 
     public string Name => TranslationService.Get("SearchSettings_Name");
+    public SearchCategoryFilter ResultCategory => SearchCategoryFilter.Settings;
     // The configured word, published so the host strips it before matching file names.
     public IReadOnlyList<string> QueryTriggerKeywords => [GetTriggerKeyword()];
 
@@ -48,22 +50,27 @@ public class SearchSettingsInstantProvider : IInstantResultProvider
         if (!TriggerWord.TryMatchInvoked(query, GetTriggerKeyword(), out var term))
             yield break;
 
-        var browseAll = term.Length == 0;
+        foreach (var item in CreateItems(term, term.Length == 0 ? MaxBrowseAllResults : int.MaxValue))
+            yield return item;
+    }
 
+    public IEnumerable<InstantResultItem> GetCategoryResults(string query, int limit)
+    {
+        foreach (var item in CreateItems(query.Trim(), limit))
+            yield return item;
+    }
+
+    private IEnumerable<InstantResultItem> CreateItems(string term, int limit)
+    {
         IEnumerable<SettingsSearchEntryInfo> entries = SettingsSearchService.GetEntries();
-        if (!browseAll)
+        if (term.Length > 0)
         {
             entries = entries
                 .Where(entry => FuzzyMatchService.IsMatch(term, entry.Label))
-                .OrderByDescending(entry => FuzzyMatchService.GetMatchScore(entry.Label, term))
-                .ToList();
-        }
-        else
-        {
-            entries = entries.Take(MaxBrowseAllResults);
+                .OrderByDescending(entry => FuzzyMatchService.GetMatchScore(entry.Label, term));
         }
 
-        foreach (var entry in entries)
+        foreach (var entry in entries.Take(Math.Max(0, limit)))
         {
             yield return new InstantResultItem
             {

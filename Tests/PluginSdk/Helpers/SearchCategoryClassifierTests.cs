@@ -126,8 +126,16 @@ public sealed class SearchCategoryClassifierTests
     [DataRow(SearchCategoryFilter.All)]
     [DataRow(SearchCategoryFilter.Folder)]
     [DataRow(SearchCategoryFilter.Settings)]
+    [DataRow(SearchCategoryFilter.File)]
     public void RuleOf_TheCategoriesNoGlobCanAnswer_HaveNoRule(SearchCategoryFilter category) =>
         Assert.AreEqual(string.Empty, SearchCategoryClassifier.RuleOf(category));
+
+    [TestMethod]
+    public void Matches_FileCategory_AdmitsEveryNonDirectoryRow()
+    {
+        Assert.IsTrue(SearchCategoryClassifier.Matches(SearchCategoryFilter.File, "unknown.xyz", isDirectory: false));
+        Assert.IsFalse(SearchCategoryClassifier.Matches(SearchCategoryFilter.File, "folder", isDirectory: true));
+    }
 
     // The 24 extensions the :@ rules gained from the table must not answer twice: one file, one category.
     [TestMethod]

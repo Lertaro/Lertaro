@@ -72,7 +72,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
     public SearchViewModel(string initialQuery = "", IReadOnlyList<AppSearchResult>? quickSearchRows = null)
     {
         _searchService = new SearchService();
-        _searchEngine = new SearchExecutionEngine(_searchService);
+        _searchEngine = new SearchExecutionEngine(_searchService, GetSelectedSearchCategories);
         FilteredResults = new ObservableRangeCollection<AppSearchResult>();
 
         _serviceStatus = new SearchServiceStatusViewModel(this, _searchService);
@@ -112,6 +112,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
             applyFiltersAndRender: (extendsContent, unchangedPrefix) =>
                 ApplyFiltersAndRender(extendsContent || _refreshKeepsViewport, unchangedPrefix),
             isTypeFilterSelected: () => IsTypeFilterSelected,
+            getSelectedCategories: GetSelectedSearchCategories,
             // Settling runs after the final paint, so the refresh flag is still live for every paint of
             // the refreshed query and is dropped here for whatever the user does next.
             onResultsSettled: () =>
@@ -206,6 +207,26 @@ public class SearchViewModel : ViewModelBase, IDisposable
     // means the user asked for exactly that type, so the extra content rows are excluded.
     internal bool IsTypeFilterSelected =>
         DynamicSidebarGroups.Any(g => string.Equals(g.Id, "Type", StringComparison.OrdinalIgnoreCase) && g.HasSelection);
+
+    private IReadOnlyList<Lertaro.PluginSdk.Helpers.SearchCategoryFilter> GetSelectedSearchCategories()
+    {
+        var selected = DynamicSidebarGroups
+            .FirstOrDefault(group => string.Equals(group.Id, "Type", StringComparison.OrdinalIgnoreCase))
+            ?.Items.Where(item => item.IsSelected)
+            .ToList();
+        if (selected is not { Count: > 0 })
+            return [Lertaro.PluginSdk.Helpers.SearchCategoryFilter.All];
+        var categories = selected
+            .Where(item => item.Category != null)
+            .Select(item => item.Category!.Value)
+            .Distinct()
+            .ToList();
+        if (selected.Any(item => item.Category == null))
+            categories.Add(Lertaro.PluginSdk.Helpers.SearchCategoryFilter.All);
+        return categories.Count > 0
+            ? categories
+            : [Lertaro.PluginSdk.Helpers.SearchCategoryFilter.All];
+    }
     public string AdvancedQuery
     {
         get => _advancedQuery;
@@ -293,7 +314,13 @@ public class SearchViewModel : ViewModelBase, IDisposable
         ApplyFiltersAndRender(extendsContent: false, unchangedPrefix: 0);
     }
 
-    public void OnDynamicFilterChanged() { _sidebarCountHelper?.Recalculate(); ApplyFiltersAndRender(extendsContent: false, unchangedPrefix: 0); }
+    public void OnDynamicFilterChanged()
+    {
+        _searchEngine.CancelPendingSearch();
+        IsSearching = false;
+        _sidebarCountHelper?.Reset();
+        _dispatcher.PerformSearch(AdvancedQuery);
+    }
     private readonly DynamicFilterCoordinator _dynamicFilterCoordinator = new();
 
     // DynamicFilterCoordinator renders through an Action<List<AppSearchResult>> and can do so twice

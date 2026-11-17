@@ -37,10 +37,9 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
     public SearchExecutionViewModel(QuickSearchViewModel mainVm, SearchService searchService)
     {
         _mainVm = mainVm;
-        // The list's own first row, not a second 全部 of the same shape: the bar selects by reference, so a
-        // look-alike would leave the row with nothing selected and no underline on the first paint.
         _selectedCategory = _categories[0];
-        _engine = new SearchExecutionEngine(searchService, () => _selectedCategory.Category ?? SearchCategoryFilter.All);
+        _engine = new SearchExecutionEngine(searchService,
+            () => [_selectedCategory.Category ?? SearchCategoryFilter.All]);
         Results = new ObservableRangeCollection<AppSearchResult>();
 
         _dispatcher = new SearchDispatchController(
@@ -115,7 +114,11 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
             var query = value ?? string.Empty;
             if (SetProperty(ref _searchQuery, query))
             {
-                _lastQuery = query;
+                // Every typed change is recorded here, not only the ones that reach PerformSearch: a non-empty
+                // query goes through DispatchSearch instead, so saving only in PerformSearch left this empty
+                // and a filter change had nothing to re-run.
+                _currentQuery = value ?? string.Empty;
+
                 if (IsActionsMode)
                 {
                     return;
@@ -123,7 +126,7 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
                 if (string.IsNullOrWhiteSpace(query))
                 {
                     _engine.CancelPendingSearch();
-                    _dispatcher.PerformSearch(query);
+                    _dispatcher.PerformSearch(value ?? string.Empty);
                 }
                 else
                 {
@@ -155,8 +158,6 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
                 return;
             _selectedCategory = value;
             OnPropertyChanged(nameof(SelectedCategory));
-            if (!IsActionsMode && !string.IsNullOrWhiteSpace(_lastQuery))
-                _dispatcher.DispatchSearch(_lastQuery);
         }
     }
 
@@ -193,10 +194,7 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
         _categories = rebuilt;
         OnPropertyChanged(nameof(Categories));
         if (keep != _selectedCategory)
-        {
-            _selectedCategory = keep;
-            OnPropertyChanged(nameof(SelectedCategory));
-        }
+            SelectedCategory = keep;
     }
 
     private static IReadOnlyList<SidebarFilterItem> BuildCategoryTabs()
@@ -286,7 +284,23 @@ public class SearchExecutionViewModel : ViewModelBase, IDisposable
             _dispatcher.PerformSearch(_searchQuery);
     }
 
-    public void PerformSearch(string query) => _dispatcher.PerformSearch(query);
+    // Set when the session's FIRST search starts, cleared when its results arrive: the mapper is warmed at
+    // startup, so whatever is left of the first search's wait is on the service side (pipe + index) or in the
+    // UI, and only an end-to-end number can tell those apart. Information only; changes no behaviour.
+    private long _firstSearchStarted;
+
+    // The query currently being shown, kept so re-running after a filter change can reuse it without asking
+    // the window for its box text (which may have moved on by then).
+    private string _currentQuery = string.Empty;
+
+    public void PerformSearch(string query)
+    {
+        if (_firstSearchStarted == 0)
+            _firstSearchStarted = Environment.TickCount64;
+
+        _currentQuery = query ?? string.Empty;
+        _dispatcher.PerformSearch(query ?? string.Empty);
+    }
 
     private void ReplaceResults(IEnumerable<AppSearchResult> results) =>
         SearchResultsReconciler.Replace(Results, results, SelectedResult, v => SelectedResult = v);

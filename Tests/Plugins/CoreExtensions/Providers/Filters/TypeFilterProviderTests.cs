@@ -42,6 +42,14 @@ public sealed class TypeFilterProviderTests
     public void TypeFile_RegularFile_IsIncluded() => Assert.IsTrue(GetPredicate("Type_File")(new FakeResult { IsDir = false }));
 
     [TestMethod]
+    public void TypeFile_UsesTheFileSearchCategory()
+    {
+        var item = new TypeFilterProvider().GetFilterGroups().Single().Items.Single(i => i.Id == "Type_File");
+
+        Assert.AreEqual(SearchCategoryFilter.File, item.Category);
+    }
+
+    [TestMethod]
     public void TypeDoc_TxtExtension_IsIncluded() => Assert.IsTrue(GetPredicate("Type_Doc")(new FakeResult { FullPath = @"C:\a.txt" }));
 
     [TestMethod]
