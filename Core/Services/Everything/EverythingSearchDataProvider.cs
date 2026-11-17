@@ -43,9 +43,45 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
         string folderPath, EverythingQueryRequest request, CancellationToken token)
     {
         var normalizedPath = NormalizeDirectory(folderPath);
+        var trimmedPath = normalizedPath.TrimEnd('\\');
+        var parentPath = Path.GetDirectoryName(trimmedPath);
+        if (!string.IsNullOrEmpty(parentPath)
+            && !string.Equals(parentPath.TrimEnd('\\'), trimmedPath, StringComparison.OrdinalIgnoreCase))
+        {
+            // A parent listing already carries each child folder's recursive size. One cached parent answer
+            // can therefore serve every sibling folder-size request without materialising, sorting and
+            // transporting all of the target folder's own children.
+            var siblings = await _searchService.GetSpaceEntriesAsync(parentPath, token,
+                IpcSpaceFilters | SpaceEntryFilters.DirectoriesOnly).ConfigureAwait(false);
+            foreach (var sibling in siblings)
+            {
+                if (sibling.IsDirectory
+                    && string.Equals(sibling.Path.TrimEnd('\\'), trimmedPath, StringComparison.OrdinalIgnoreCase))
+                    return AnswerFolderEntry(sibling);
+            }
+        }
+
         var spaceEntries = await _searchService.GetSpaceEntriesAsync(normalizedPath, token,
             IpcSpaceFilters).ConfigureAwait(false);
         return AnswerFolderSubtreeSize(normalizedPath, spaceEntries);
+    }
+
+    internal static EverythingQueryResult AnswerFolderEntry(SpaceIndexEntry folderEntry)
+    {
+        var trimmedPath = folderEntry.Path.TrimEnd('\\');
+        var folderName = string.IsNullOrEmpty(folderEntry.Name)
+            ? Path.GetFileName(trimmedPath)
+            : folderEntry.Name;
+        var parentDir = Path.GetDirectoryName(trimmedPath) ?? trimmedPath;
+        var singleItem = new EverythingResultItem(
+            Path: parentDir,
+            FileName: folderName,
+            Size: Math.Max(0, folderEntry.Size),
+            IsDirectory: false,
+            DateModified: DateTime.UtcNow,
+            Attributes: (uint)FileAttributes.Directory);
+
+        return new EverythingQueryResult(new[] { singleItem }, 1, 0, 1);
     }
 
     // The answer one folder gets for its whole subtree: a single row carrying the total size, or nothing at
