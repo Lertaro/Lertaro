@@ -37,7 +37,7 @@ if (SpaceEntriesCommand.IsRequested(args))
 {
     if (!SpaceEntriesCommand.TryGetDirectory(args, out var directory))
     {
-        Console.Error.WriteLine("Usage: lff --space-entries <directory>");
+        Console.Error.WriteLine("Usage: lff --space-entries|--space-folder-sizes <directory>");
         Environment.ExitCode = 1;
         return;
     }
@@ -45,9 +45,13 @@ if (SpaceEntriesCommand.IsRequested(args))
     var spacePipeName = AppSearchPipeClient.PipeNameFor(CurrentUserIdentity.SessionHash);
     try
     {
-        var entries = await AppSearchPipeClient.GetSpaceEntriesAsync(spacePipeName, directory);
+        var entries = await AppSearchPipeClient.GetSpaceEntriesAsync(
+            spacePipeName, directory, SpaceEntriesCommand.GetFilters(args));
         Console.OutputEncoding = new UTF8Encoding(false);
-        await Console.Out.WriteAsync(SpaceEntriesJsonFormatter.Serialize(entries));
+        var output = SpaceEntriesCommand.IncludesPaths(args)
+            ? SpaceEntriesJsonFormatter.Serialize(entries)
+            : SpaceEntriesJsonFormatter.SerializeFolderSizes(entries);
+        await Console.Out.WriteAsync(output);
     }
     catch (Exception ex)
     {
@@ -62,6 +66,7 @@ if (args.Length == 1 && string.Equals(args[0], "--help", StringComparison.Ordina
     Console.WriteLine("Usage: lff [query]");
     Console.WriteLine("       lff --search <query> [--limit N] [--json] [--files|--folders] [--path <directory>]");
     Console.WriteLine("       lff --space-entries <directory>");
+    Console.WriteLine("       lff --space-folder-sizes <directory>");
     Console.WriteLine();
     Console.WriteLine("Non-interactive search returns matching paths, or one JSON array with --json.");
     return;

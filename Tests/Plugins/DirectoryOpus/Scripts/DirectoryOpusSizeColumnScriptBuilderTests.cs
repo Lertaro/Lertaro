@@ -26,6 +26,7 @@ public sealed class DirectoryOpusSizeColumnScriptBuilderTests
             @"C:\Tools\lff.exe");
 
         StringAssert.Contains(script, "var LertaroSizeLabel = \"Lertaro Size\";");
+        StringAssert.Contains(script, "var LertaroSizeCacheLifetimeMs = 5000;");
         StringAssert.Contains(script, "initData.name = LertaroSizeLabel;");
         StringAssert.Contains(script, "function ReportError(error) {");
         StringAssert.Contains(script, "function ReadRunError(result) {");
@@ -35,12 +36,16 @@ public sealed class DirectoryOpusSizeColumnScriptBuilderTests
         StringAssert.Contains(script, "var shell = new ActiveXObject(\"WScript.Shell\");");
         StringAssert.Contains(script, "var tempDirectory = shell.ExpandEnvironmentStrings(\"%TEMP%\");");
         StringAssert.Contains(script, "var stream = new ActiveXObject(\"ADODB.Stream\");");
-        StringAssert.Contains(script, "var entries = JSON.parse(result.stdout);");
+        StringAssert.Contains(script, "var lines = result.stdout.split(\"\\n\");");
         StringAssert.Contains(script, "DeleteFile(stdoutPath, fileSystem);");
         StringAssert.Contains(script, "DeleteFile(stderrPath, fileSystem);");
         StringAssert.Contains(script, "var itemPath = NormalizePath(String(item.realpath));");
         StringAssert.Contains(script, "var parentPath = NormalizePath(String(item.path));");
+        StringAssert.Contains(script, "\" --space-folder-sizes \"");
+        StringAssert.Contains(script, "previous = previous.substring(0, shared)");
+        StringAssert.Contains(script, "directory.charAt(directory.length - 1) == \"\\\\\"");
         Assert.DoesNotContain("delete LertaroSizeCache[\"\"];", script, StringComparison.Ordinal);
+        StringAssert.Contains(script, "cached.expires <= new Date().getTime()");
         StringAssert.Contains(script, "if (/^[a-z]:$/i.test(normalized))");
         StringAssert.Contains(script, "return AppendBackslashes(quoted, slashCount * 2) + \"\\\"\";");
         StringAssert.Contains(script, "var LertaroCliPath = \"C:\\\\Tools\\\\lff.exe\";");

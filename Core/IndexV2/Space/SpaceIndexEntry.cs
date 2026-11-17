@@ -29,4 +29,10 @@ public enum SpaceEntryFilters : byte
     // per-row impersonated open, which cost ~60us each and silently dropped the SYSTEM-only folders a
     // folder-size client must have an answer for. The search surface already answers on that rule.
     SkipCallerRowAccessChecks = 8,
+    // Directory Opus already knows the parent and child name. Omitting the full path avoids rebuilding
+    // tens of thousands of path strings for a size-only column; such a result is never ACL-filtered
+    // row-by-row, since the queried parent has already passed the caller's own access check.
+    SkipPathMaterialization = 16,
+    // A size lookup maps names to values and does not consume presentation order.
+    SkipSort = 32,
 }

@@ -29,6 +29,23 @@ public sealed class AppSearchPipeClientTests
 
         Assert.IsTrue(parsed);
         Assert.AreEqual(@"C:\Data", directory);
+        Assert.AreEqual(SpaceEntryFilters.None, SpaceEntriesCommand.GetFilters([SpaceEntriesCommand.Switch, @"C:\Data"]));
+    }
+
+    [TestMethod]
+    public void SpaceFolderSizesCommand_UsesDirectoryOnlyRowsWithoutPerRowAccessProbes()
+    {
+        var args = new[] { SpaceEntriesCommand.FolderSizesSwitch, @"C:\Data" };
+
+        Assert.IsTrue(SpaceEntriesCommand.TryGetDirectory(args, out var directory));
+        Assert.AreEqual(@"C:\Data", directory);
+        Assert.AreEqual(
+            SpaceEntryFilters.DirectoriesOnly
+            | SpaceEntryFilters.SkipCallerRowAccessChecks
+            | SpaceEntryFilters.SkipPathMaterialization
+            | SpaceEntryFilters.SkipSort,
+            SpaceEntriesCommand.GetFilters(args));
+        Assert.IsFalse(SpaceEntriesCommand.IncludesPaths(args));
     }
 
     [TestMethod]
@@ -50,5 +67,17 @@ public sealed class AppSearchPipeClientTests
         var json = SpaceEntriesJsonFormatter.Serialize([new SpaceIndexEntry(@"C:\Data", "Data", 10_000_000_000_000, true, false)]);
 
         StringAssert.Contains(json, "\"Size\":\"10000000000000\"");
+    }
+
+    [TestMethod]
+    public void SpaceEntriesFormatter_FrontCodesSortedFolderNames()
+    {
+        var text = SpaceEntriesJsonFormatter.SerializeFolderSizes(
+        [
+            new SpaceIndexEntry(string.Empty, "prefix-beta", 2, true, false),
+            new SpaceIndexEntry(string.Empty, "prefix-alpha", 1, true, false),
+        ]);
+
+        Assert.AreEqual("0\t1\tprefix-alpha\n7\t2\tbeta\n", text);
     }
 }

@@ -124,7 +124,9 @@ internal static class UsnServicePipeRequestProcessor
                     // folder-size client needs their sizes regardless -- see SpaceEntryFilters.
                     Func<string, bool> rowIsVisible =
                         (msg.SpaceOptions & SpaceEntryFilters.SkipCallerRowAccessChecks) != 0
-                        ? path => visibility.IsIndexedPathVisible(path)
+                        ? (msg.SpaceOptions & SpaceEntryFilters.SkipPathMaterialization) != 0
+                            ? _ => true
+                            : path => visibility.IsIndexedPathVisible(path)
                         : path =>
                         {
                             token.ThrowIfCancellationRequested();

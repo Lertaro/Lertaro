@@ -103,7 +103,8 @@ public static class AppSearchPipeService
                     var request = await SearchRequestBinarySerializer.ReadSearchRequestAsync(pipe);
                     if (request.Id == SearchRequestId.GetSpaceEntries)
                     {
-                        await AppSearchPipeSpaceEntries.WriteAsync(SharedSearchService, request.Drive, pipe);
+                        await AppSearchPipeSpaceEntries.WriteAsync(
+                            SharedSearchService, request.Drive, pipe, request.SpaceOptions);
                         continue;
                     }
 
