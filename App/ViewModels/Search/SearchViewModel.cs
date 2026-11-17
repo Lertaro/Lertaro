@@ -418,6 +418,12 @@ public class SearchViewModel : ViewModelBase, IDisposable
     internal static bool ShouldLoadMore(int requestedLimit, int receivedCount) =>
         receivedCount >= requestedLimit;
 
+    internal void CancelActiveSearch()
+    {
+        _searchEngine.CancelPendingSearch();
+        IsSearching = false;
+    }
+
     public void Dispose()
     {
         TranslationManager.Instance.PropertyChanged -= OnTranslationsChanged;
