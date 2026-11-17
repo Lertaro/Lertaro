@@ -7,6 +7,8 @@ namespace Lertaro.Core.Services.Everything;
 /// <summary>Implements IEverythingDataProvider by querying Lertaro's SearchService and space indexers.</summary>
 public sealed class EverythingSearchDataProvider : IEverythingDataProvider
 {
+    private const int FolderSizeCacheParentLimit = 16;
+    private static readonly TimeSpan FolderSizeCacheLifetime = TimeSpan.FromSeconds(10);
     // An Everything-compatible answer describes the index: System-flagged children are not hidden (a
     // disk-browser convenience that shrinks every system folder's total) and rows are not opened under
     // the caller's ACL (which silently dropped the SYSTEM-only folders TC then scanned itself).
@@ -14,6 +16,10 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
         SpaceEntryFilters.IncludeSystemItems | SpaceEntryFilters.SkipCallerRowAccessChecks;
     private readonly SearchService _searchService;
     private readonly ConcurrentDictionary<string, uint> _runHistory = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, FolderSizeCacheEntry> _folderSizeCache =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, Lazy<Task<IReadOnlyDictionary<string, long>>>> _folderSizeLoads =
+        new(StringComparer.OrdinalIgnoreCase);
 
     public EverythingSearchDataProvider(SearchService searchService) => _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
 
@@ -48,17 +54,17 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
         if (!string.IsNullOrEmpty(parentPath)
             && !string.Equals(parentPath.TrimEnd('\\'), trimmedPath, StringComparison.OrdinalIgnoreCase))
         {
+            if (TryGetCachedFolderSize(parentPath, trimmedPath, out var cachedSize))
+                return AnswerFolderEntry(new SpaceIndexEntry(
+                    trimmedPath, Path.GetFileName(trimmedPath), cachedSize, true, false));
+
             // A parent listing already carries each child folder's recursive size. One cached parent answer
             // can therefore serve every sibling folder-size request without materialising, sorting and
             // transporting all of the target folder's own children.
-            var siblings = await _searchService.GetSpaceEntriesAsync(parentPath, token,
-                IpcSpaceFilters | SpaceEntryFilters.DirectoriesOnly).ConfigureAwait(false);
-            foreach (var sibling in siblings)
-            {
-                if (sibling.IsDirectory
-                    && string.Equals(sibling.Path.TrimEnd('\\'), trimmedPath, StringComparison.OrdinalIgnoreCase))
-                    return AnswerFolderEntry(sibling);
-            }
+            var folderSizes = await GetParentFolderSizesAsync(parentPath, token).ConfigureAwait(false);
+            if (folderSizes.TryGetValue(trimmedPath, out var size))
+                return AnswerFolderEntry(new SpaceIndexEntry(
+                    trimmedPath, Path.GetFileName(trimmedPath), size, true, false));
         }
 
         var spaceEntries = await _searchService.GetSpaceEntriesAsync(normalizedPath, token,
@@ -161,6 +167,8 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
             | (criteria.MatchFoldersOnly ? SpaceEntryFilters.DirectoriesOnly : SpaceEntryFilters.None)
             | (criteria.MatchFilesOnly ? SpaceEntryFilters.FilesOnly : SpaceEntryFilters.None);
         var spaceEntries = await _searchService.GetSpaceEntriesAsync(parentDir, token, filters).ConfigureAwait(false);
+        if (!criteria.MatchFilesOnly)
+            CacheFolderSizes(parentDir, spaceEntries);
 
         var items = new List<EverythingResultItem>(spaceEntries.Count);
         foreach (var entry in spaceEntries)
@@ -278,6 +286,71 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
         return new EverythingQueryResult(pagedItems, totalItems, totalFolders, totalFiles);
     }
 
+    internal bool TryGetCachedFolderSize(string parentPath, string folderPath, out long size)
+    {
+        var parentKey = FolderKey(parentPath);
+        if (!_folderSizeCache.TryGetValue(parentKey, out var cache)
+            || DateTimeOffset.UtcNow - cache.StoredAt > FolderSizeCacheLifetime)
+        {
+            _folderSizeCache.TryRemove(parentKey, out _);
+            size = 0;
+            return false;
+        }
+
+        return cache.Sizes.TryGetValue(folderPath.TrimEnd('\\'), out size);
+    }
+
+    internal IReadOnlyDictionary<string, long> CacheFolderSizes(
+        string parentPath, IReadOnlyList<SpaceIndexEntry> entries)
+    {
+        var now = DateTimeOffset.UtcNow;
+        foreach (var expired in _folderSizeCache
+                     .Where(pair => now - pair.Value.StoredAt > FolderSizeCacheLifetime)
+                     .Select(pair => pair.Key)
+                     .ToList())
+            _folderSizeCache.TryRemove(expired, out _);
+
+        if (_folderSizeCache.Count >= FolderSizeCacheParentLimit)
+        {
+            var oldest = _folderSizeCache.MinBy(pair => pair.Value.StoredAt);
+            if (!oldest.Equals(default(KeyValuePair<string, FolderSizeCacheEntry>)))
+                _folderSizeCache.TryRemove(oldest.Key, out _);
+        }
+
+        var sizes = entries
+            .Where(entry => entry.IsDirectory)
+            .GroupBy(entry => entry.Path.TrimEnd('\\'), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First().Size, StringComparer.OrdinalIgnoreCase);
+        _folderSizeCache[FolderKey(parentPath)] = new FolderSizeCacheEntry(sizes, now);
+        return sizes;
+    }
+
+    private async Task<IReadOnlyDictionary<string, long>> GetParentFolderSizesAsync(
+        string parentPath, CancellationToken token)
+    {
+        var parentKey = FolderKey(parentPath);
+        if (_folderSizeCache.TryGetValue(parentKey, out var cached)
+            && DateTimeOffset.UtcNow - cached.StoredAt <= FolderSizeCacheLifetime)
+            return cached.Sizes;
+
+        var load = _folderSizeLoads.GetOrAdd(parentKey, key =>
+            new Lazy<Task<IReadOnlyDictionary<string, long>>>(async () =>
+            {
+                var siblings = await _searchService.GetSpaceEntriesAsync(
+                    key, CancellationToken.None,
+                    IpcSpaceFilters | SpaceEntryFilters.DirectoriesOnly).ConfigureAwait(false);
+                return CacheFolderSizes(key, siblings);
+            }));
+        try
+        {
+            return await load.Value.WaitAsync(token).ConfigureAwait(false);
+        }
+        finally
+        {
+            _folderSizeLoads.TryRemove(parentKey, out _);
+        }
+    }
+
     private static void SortSearchResults(List<SearchResult> items, uint sortType)
     {
         Comparison<SearchResult>? comparison = sortType switch
@@ -361,6 +434,9 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
         return _runHistory.AddOrUpdate(fileName, 1, (_, current) => current + 1);
     }
 
+    private static string FolderKey(string path) =>
+        Path.TrimEndingDirectorySeparator(NormalizeDirectory(path));
+
     private static string NormalizeDirectory(string dir)
     {
         var trimmed = dir.Trim().Trim('"', '<', '>');
@@ -368,4 +444,6 @@ public sealed class EverythingSearchDataProvider : IEverythingDataProvider
             return trimmed + "\\";
         return trimmed;
     }
+
+    private sealed record FolderSizeCacheEntry(IReadOnlyDictionary<string, long> Sizes, DateTimeOffset StoredAt);
 }
