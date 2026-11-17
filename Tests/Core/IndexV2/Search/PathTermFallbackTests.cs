@@ -269,4 +269,38 @@ public sealed class PathTermFallbackTests
         Assert.HasCount(1, results);
         Assert.AreEqual(@"T:\library\drama\Rose Season\Episode01.mp4", results[0].Path);
     }
+
+    [TestMethod]
+    public void MatchUniqueTerms_ProducesTheSamePerTermHitsAsIndependentScans()
+    {
+        using var fixture = BuildSeriesDrive();
+        var patterns = new[]
+        {
+            Lertaro.Core.SearchIndex.Fzf.FzfPattern.ParseText("episode01"),
+            Lertaro.Core.SearchIndex.Fzf.FzfPattern.ParseText("tulip"),
+            Lertaro.Core.SearchIndex.Fzf.FzfPattern.ParseText("library"),
+        };
+
+        fixture.Index.Read<object?>((snapshot, _) =>
+        {
+            var expected = patterns.Select(pattern =>
+            {
+                var hits = new List<UniqueMatch>();
+                SearchMatcher.MatchUniques(snapshot, pattern, hits);
+                return hits.OrderBy(hit => hit.Uid).ToArray();
+            }).ToArray();
+
+            var actual = patterns.Select(_ => new List<UniqueMatch>()).ToArray();
+            SearchMatcher.MatchUniqueTerms(snapshot, patterns, actual, CancellationToken.None);
+
+            for (var i = 0; i < patterns.Length; i++)
+            {
+                CollectionAssert.AreEqual(
+                    expected[i],
+                    actual[i].OrderBy(hit => hit.Uid).ToArray(),
+                    $"term {i} changed its unique-name matches");
+            }
+            return null;
+        });
+    }
 }
