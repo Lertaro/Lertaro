@@ -46,6 +46,21 @@ public sealed class DirectoryChangeSubscriptionWireTests
     }
 
     [TestMethod]
+    public void TheStructuralWatchListUsesTheSamePayload()
+    {
+        var sent = new SearchRequestMessage
+        {
+            Id = SearchRequestId.SubscribeDirectoryStructureChanges,
+            Directories = new List<string> { @"C:\Projects" },
+        };
+
+        var received = RoundTrip(sent);
+
+        Assert.AreEqual(SearchRequestId.SubscribeDirectoryStructureChanges, received.Id);
+        CollectionAssert.AreEqual(sent.Directories, received.Directories);
+    }
+
+    [TestMethod]
     public async Task TheNotificationSurvivesTheTrip()
     {
         var hits = new List<string> { @"C:\ProgramData\Microsoft\Windows\Start Menu\Programs", @"C:\Users\me\Desktop" };

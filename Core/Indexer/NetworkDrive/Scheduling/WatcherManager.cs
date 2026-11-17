@@ -7,7 +7,7 @@ internal class WatcherManager : IDisposable
     private readonly Dictionary<string, DriveWatcherHost> _watchers = new(StringComparer.OrdinalIgnoreCase);
     private readonly Action<string, string> _queueRefresh;
     private readonly Func<string, NetworkIndex?> _getIndex;
-    private readonly Action<string, NetworkIndex, IReadOnlyCollection<string>?> _onIncrementalUpdate;
+    private readonly Action<string, NetworkIndex, IReadOnlyCollection<string>?, bool> _onIncrementalUpdate;
     private readonly Func<string, bool> _markMissedIfRescanning;
     private readonly Func<string, bool> _directoryExists;
     private readonly TimeSpan? _retryDelay;
@@ -34,7 +34,7 @@ internal class WatcherManager : IDisposable
     public WatcherManager(
         Action<string, string> queueRefresh,
         Func<string, NetworkIndex?> getIndex,
-        Action<string, NetworkIndex, IReadOnlyCollection<string>?> onIncrementalUpdate,
+        Action<string, NetworkIndex, IReadOnlyCollection<string>?, bool> onIncrementalUpdate,
         Func<string, bool> markMissedIfRescanning,
         Func<string, bool>? directoryExists = null,
         TimeSpan? retryDelay = null)
@@ -191,8 +191,9 @@ internal class WatcherManager : IDisposable
     // one publish stands for all of them: dropping the ones that were coalesced away would tell a
     // subscriber only about the last file of a copy and leave it believing the rest never happened.
     private readonly Dictionary<string, HashSet<string>> _pendingDirectories = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _pendingStructural = new(StringComparer.OrdinalIgnoreCase);
 
-    private void SchedulePublish(string drive, NetworkIndex index, params string?[] changedDirectories)
+    private void SchedulePublish(string drive, NetworkIndex index, bool structural, params string?[] changedDirectories)
     {
         lock (_pendingDirectories)
         {
@@ -204,19 +205,26 @@ internal class WatcherManager : IDisposable
                 if (!string.IsNullOrEmpty(path))
                     pending.Add(path);
             }
+            if (structural)
+                _pendingStructural.Add(drive);
         }
 
-        _publishDebounce.Schedule(drive, () => _onIncrementalUpdate(drive, index, TakePendingDirectories(drive)));
+        _publishDebounce.Schedule(drive, () =>
+        {
+            var directories = TakePendingDirectories(drive, out var structural);
+            _onIncrementalUpdate(drive, index, directories, structural);
+        });
     }
 
     // Past this a burst is bulk activity across the share rather than something a subscriber could be
     // told precisely, and "somewhere, unknown" is both honest and cheaper than a list nobody can act on.
     private const int MaxPendingDirectories = 64;
 
-    private IReadOnlyCollection<string>? TakePendingDirectories(string drive)
+    private IReadOnlyCollection<string>? TakePendingDirectories(string drive, out bool structural)
     {
         lock (_pendingDirectories)
         {
+            structural = _pendingStructural.Remove(drive);
             if (!_pendingDirectories.Remove(drive, out var pending))
                 return Array.Empty<string>();
             return pending.Count > MaxPendingDirectories ? null : pending;
@@ -299,7 +307,11 @@ internal class WatcherManager : IDisposable
                 // own comment for why the late-only check could miss this drive's rescan finishing (and
                 // the missed flag with it) inside the debounce window.
                 if (!_markMissedIfRescanning(drive))
-                    SchedulePublish(drive, index, GetChangedDirectory(logicalPath, isDirectory));
+                    SchedulePublish(
+                        drive,
+                        index,
+                        structural: changeType is WatcherChangeTypes.Created or WatcherChangeTypes.Deleted,
+                        GetChangedDirectory(logicalPath, isDirectory));
             }
         }
         catch (Exception ex)
@@ -336,6 +348,7 @@ internal class WatcherManager : IDisposable
                     SchedulePublish(
                         drive,
                         index,
+                        structural: true,
                         Path.GetDirectoryName(logicalOldPath),
                         GetChangedDirectory(logicalNewPath, newIsDirectory));
             }

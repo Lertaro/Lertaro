@@ -36,8 +36,14 @@ internal sealed class SearchResultRefreshWatcher : IDisposable
 
     private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(5);
 
+    // A re-subscribe is deferred past the typing burst: while the user is still changing the query the
+    // previous watch list stays in place, and one subscription is opened for the rows that remain.
+    // ponytail: 300 ms is a guess at the typing cadence; if a refresh is ever seen to lag, lower it.
+    private static readonly TimeSpan ResubscribeDelay = TimeSpan.FromMilliseconds(300);
+
     private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _timer;
+    private readonly DispatcherTimer _subscribeTimer;
     private readonly Func<IReadOnlyList<AppSearchResult>> _getResults;
     private readonly Action _refresh;
     private readonly Func<bool> _isSearchRunning;
@@ -55,6 +61,8 @@ internal sealed class SearchResultRefreshWatcher : IDisposable
     private volatile bool _disposed;
     private int _updateGeneration;
     private int _schedulePosted;
+    // Latest watch list a query produced, plus the debounced re-subscribe that adopts it once typing quiets.
+    private volatile HashSet<string>? _pendingDirectories;
 
     // UI thread only: when the current burst of changes started, and whether a change arrived while a
     // search was running (the refresh then waits for it to settle instead of cancelling it).
@@ -73,8 +81,10 @@ internal sealed class SearchResultRefreshWatcher : IDisposable
         _dispatcher = dispatcher ?? Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
         _timer = new DispatcherTimer(DispatcherPriority.Background, _dispatcher) { Interval = RefreshDelay };
         _timer.Tick += OnTimerTick;
+        _subscribeTimer = new DispatcherTimer(DispatcherPriority.Background, _dispatcher) { Interval = ResubscribeDelay };
+        _subscribeTimer.Tick += OnSubscribeTimerTick;
 
-        UserNetworkDriveSearch.DirectoriesChanged += OnNetworkDirectoriesChanged;
+        UserNetworkDriveSearch.DirectoriesStructurallyChanged += OnNetworkDirectoriesChanged;
     }
 
     /// <summary>Rebuilds the watched directories after the window shows a different set of rows.</summary>
@@ -100,11 +110,11 @@ internal sealed class SearchResultRefreshWatcher : IDisposable
         var generation = Interlocked.Increment(ref _updateGeneration);
         if (paths.Count == 0)
         {
-            PublishWatchedDirectories(new HashSet<string>(StringComparer.OrdinalIgnoreCase), generation);
+            QueueWatchedDirectories(new HashSet<string>(StringComparer.OrdinalIgnoreCase), generation);
             return;
         }
 
-        _ = Task.Run(() => PublishWatchedDirectories(ResolveWatchedDirectories(paths), generation));
+        _ = Task.Run(() => QueueWatchedDirectories(ResolveWatchedDirectories(paths), generation));
     }
 
     internal static HashSet<string> ResolveWatchedDirectories(IEnumerable<AppSearchResult> results)
@@ -169,24 +179,64 @@ internal sealed class SearchResultRefreshWatcher : IDisposable
         return false;
     }
 
-    private void PublishWatchedDirectories(HashSet<string> watched, int generation)
+    private void QueueWatchedDirectories(HashSet<string> watched, int generation)
     {
-        CancellationTokenSource? replaced = null;
+        // A result set a newer update already replaced would subscribe to the folders of a query the
+        // window no longer shows.
+        if (_disposed || generation != Volatile.Read(ref _updateGeneration))
+            return;
+
+        _pendingDirectories = watched;
+        // Restart the quiet window on every update: a burst of keystrokes coalesces into one subscription
+        // for the rows that stay, instead of one per keystroke racing the next query on the service.
+        try
+        {
+            _dispatcher.BeginInvoke(new Action(RestartSubscribeTimer), DispatcherPriority.Background);
+        }
+        catch (InvalidOperationException)
+        {
+            // Dispatcher already shutting down; there is no window left to watch.
+        }
+    }
+
+    private void RestartSubscribeTimer()
+    {
+        if (_disposed)
+            return;
+
+        _subscribeTimer.Stop();
+        _subscribeTimer.Start();
+    }
+
+    private void OnSubscribeTimerTick(object? sender, EventArgs e)
+    {
+        _subscribeTimer.Stop();
+        if (_disposed)
+            return;
+
+        var target = _pendingDirectories;
+        if (target == null || target.SetEquals(_watchedDirectories))
+            return;
+
+        SubscribeToDirectories(target);
+    }
+
+    private void SubscribeToDirectories(HashSet<string> watched)
+    {
+        CancellationTokenSource? replaced;
         CancellationTokenSource? subscription = null;
         string[]? watchList = null;
 
         lock (_subscriptionLock)
         {
-            // A result set a newer update already replaced would subscribe to the folders of a query the
-            // window no longer shows.
-            if (_disposed || generation != Volatile.Read(ref _updateGeneration))
+            if (_disposed)
                 return;
 
             var previous = _watchedDirectories;
-            _watchedDirectories = watched;
             if (previous.SetEquals(watched))
                 return;
 
+            _watchedDirectories = watched;
             replaced = _subscription;
             _subscription = null;
 
@@ -213,7 +263,7 @@ internal sealed class SearchResultRefreshWatcher : IDisposable
             {
                 try
                 {
-                    await DirectoryChangeStream.SubscribeAsync(watchList, OnChangedDirectories, token).ConfigureAwait(false);
+                    await DirectoryChangeStream.SubscribeStructuralAsync(watchList, OnChangedDirectories, token).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -363,12 +413,14 @@ internal sealed class SearchResultRefreshWatcher : IDisposable
             _subscription = null;
         }
 
-        UserNetworkDriveSearch.DirectoriesChanged -= OnNetworkDirectoriesChanged;
+        UserNetworkDriveSearch.DirectoriesStructurallyChanged -= OnNetworkDirectoriesChanged;
         subscription?.Cancel();
         // Cancels any subscription still being created and unblocks the pipe read of the current one.
         _lifetime.Cancel();
         _lifetime.Dispose();
         _timer.Stop();
         _timer.Tick -= OnTimerTick;
+        _subscribeTimer.Stop();
+        _subscribeTimer.Tick -= OnSubscribeTimerTick;
     }
 }

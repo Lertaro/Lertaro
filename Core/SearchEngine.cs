@@ -1,3 +1,4 @@
+using Lertaro.Core.Wire;
 using Lertaro.PluginSdk.Helpers;
 using Lertaro.Core.Indexer.Usn;
 
@@ -23,8 +24,16 @@ public class SearchEngine : IDisposable
     // previous pair of process-wide "latest wins" slots.
     private readonly SearchCancellationRegistry _searchCancellations = new();
     private static readonly string IndexCacheDir = LocalDriveCacheLocator.DefaultCacheDir;
+    // Drives whose saved pages have already been loaded this run, so the restore pass stays idempotent
+    // while the rest are still coming up.
 
-    private const long IdleTrimAfterMs = 3000;
+    // How long the service must sit idle before it hands its working set back to the OS. The trim
+    // drops the index's mapped pages, so the next query re-reads them: measured, a query after a pause
+    // costs tens to a couple of hundred milliseconds more than one on resident pages. That is a small
+    // delay at the start of a query, not the stall users reported -- that one held the UI thread and
+    // came from the result list, so this stays at the upstream window and the service keeps a small
+    // working set when nobody is searching.
+    private const long IdleTrimAfterMs = 3_000;
     private readonly IdleTrimGate _idleTrim = new(IdleTrimAfterMs, Environment.TickCount64);
     private readonly Timer? _idleTimer;
 
@@ -60,6 +69,12 @@ public class SearchEngine : IDisposable
         remove => _indexer.DirectoriesChanged -= value;
     }
 
+    public event Action<string, IReadOnlyCollection<string>?> DirectoriesStructurallyChanged
+    {
+        add => _indexer.DirectoriesStructurallyChanged += value;
+        remove => _indexer.DirectoriesStructurallyChanged -= value;
+    }
+
     public event Action<UsnIndexer.IndexerStatus> StatusChanged
     {
         add => _indexer.StatusChanged += value;
@@ -76,7 +91,7 @@ public class SearchEngine : IDisposable
         // merge this does is the biggest allocation of the two, and the trim that follows reclaims it.
         _indexer.CompactIdleDeltas(IndexCacheDir);
 
-        Logger.Log("[SearchEngine] Service has been idle for 3s. Trimming working set...", LogLevel.Debug);
+        Logger.Log($"[SearchEngine] Service has been idle for {IdleTrimAfterMs / 1000}s. Trimming working set...", LogLevel.Debug);
         _indexer.ClearCaches();
         // No compaction: the working-set trim below is what hands memory back to the OS, and compacting
         // the large-object heap only lengthens the pause the next query pays.
@@ -136,6 +151,7 @@ public class SearchEngine : IDisposable
             {
                 RefreshDrivesInStatus();
                 _indexer.RaiseDirectoriesChanged(string.Empty, null);
+                _indexer.RaiseDirectoriesStructurallyChanged(string.Empty, null);
             }
         }
     }

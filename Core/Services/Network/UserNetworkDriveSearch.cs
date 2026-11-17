@@ -19,6 +19,12 @@ public static class UserNetworkDriveSearch
         remove => NetworkIndexer.DirectoriesChanged -= value;
     }
 
+    public static event Action<string, IReadOnlyCollection<string>?>? DirectoriesStructurallyChanged
+    {
+        add => NetworkIndexer.DirectoriesStructurallyChanged += value;
+        remove => NetworkIndexer.DirectoriesStructurallyChanged -= value;
+    }
+
     public static void Configure()
     {
         var settings = UserSettings.Load();

@@ -118,9 +118,13 @@ public sealed class UsnServicePipeServer : IDisposable
                         continue;
                     }
 
-                    if (request.Id == SearchRequestId.SubscribeDirectoryChanges)
+                    if (request.Id is SearchRequestId.SubscribeDirectoryChanges
+                        or SearchRequestId.SubscribeDirectoryStructureChanges)
                     {
-                        await DirectoryChangeSubscription.ServeAsync(pipe, _engine, request.Directories, visibility, token).ConfigureAwait(false);
+                        await DirectoryChangeSubscription.ServeAsync(pipe, _engine, request.Directories,
+                            visibility, token,
+                            structuralOnly: request.Id == SearchRequestId.SubscribeDirectoryStructureChanges)
+                            .ConfigureAwait(false);
                         continue;
                     }
 

@@ -16,11 +16,21 @@ namespace Lertaro.Core.Services.Search;
 public static class DirectoryChangeStream
 {
     public static async Task SubscribeAsync(IReadOnlyList<string> watched, Action<IReadOnlyList<string>> onChanged, CancellationToken token)
+        => await SubscribeCoreAsync(SearchRequestId.SubscribeDirectoryChanges, watched, onChanged, token)
+            .ConfigureAwait(false);
+
+    public static async Task SubscribeStructuralAsync(IReadOnlyList<string> watched,
+        Action<IReadOnlyList<string>> onChanged, CancellationToken token)
+        => await SubscribeCoreAsync(SearchRequestId.SubscribeDirectoryStructureChanges, watched, onChanged, token)
+            .ConfigureAwait(false);
+
+    private static async Task SubscribeCoreAsync(SearchRequestId requestId, IReadOnlyList<string> watched,
+        Action<IReadOnlyList<string>> onChanged, CancellationToken token)
     {
         using var pipe = await ServicePipe.ConnectAsync(2000, token).ConfigureAwait(false);
         await SearchRequestBinarySerializer.WriteSearchRequestAsync(pipe, new SearchRequestMessage
         {
-            Id = SearchRequestId.SubscribeDirectoryChanges,
+            Id = requestId,
             Directories = watched.ToList()
         }, token).ConfigureAwait(false);
 

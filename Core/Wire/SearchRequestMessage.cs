@@ -46,7 +46,12 @@ public enum SearchRequestId : byte
     ApplyUpdate = 20,
     // No payload. A genuine App may ask the service to stop itself for tray "clean exit".
     StopService = 21,
-    GetServiceLog = 22
+    GetServiceLog = 22,
+
+    // Same payload as SubscribeDirectoryChanges, but only create/delete/rename/hard-link movement is
+    // reported. Search result lists use this so a log append or download progress does not rebuild a
+    // query whose paths and names did not change.
+    SubscribeDirectoryStructureChanges = 23
 }
 
 public struct SearchRequestMessage

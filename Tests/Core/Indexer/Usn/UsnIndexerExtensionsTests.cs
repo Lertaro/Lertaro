@@ -147,24 +147,65 @@ public sealed class UsnIndexerExtensionsTests
     }
 
     [TestMethod]
+    public void StructuralNotifications_IgnoreDataWritesAndReportCreates()
+    {
+        using var fixture = LiveIndexFixture.Build("C", new[]
+        {
+            LiveIndexFixture.Root(),
+            new FileRecord(2, 1, "Projects", FileRecordFlags.Directory),
+            new FileRecord(3, 2, "report.txt", FileRecordFlags.None),
+        });
+        var indexer = new UsnIndexer();
+        indexer._recordIndexes["C"] = fixture.Index;
+        var structural = new List<(string Drive, IReadOnlyCollection<string>? Directories)>();
+        indexer.DirectoriesStructurallyChanged += (drive, directories) => structural.Add((drive, directories));
+
+        indexer.ApplyUsnRecord("C", new ParsedUsnRecord
+        {
+            FileReferenceNumber = 3,
+            ParentFileReferenceNumber = 2,
+            FileName = "report.txt",
+            Reason = Win32Api.USN_REASON_DATA_EXTEND,
+        });
+        Assert.IsEmpty(structural);
+
+        indexer.ApplyUsnRecord("C", new ParsedUsnRecord
+        {
+            FileReferenceNumber = 4,
+            ParentFileReferenceNumber = 2,
+            FileName = "new.txt",
+            Reason = Win32Api.USN_REASON_FILE_CREATE,
+        });
+
+        Assert.HasCount(1, structural);
+        CollectionAssert.AreEqual(new[] { @"C:\Projects" }, structural[0].Directories!.ToArray());
+    }
+
+    [TestMethod]
     public void DirectoryChangeNotifications_AreMergedUntilCatchUpEnds()
     {
         var indexer = new UsnIndexer();
         var notifications = new List<(string Drive, IReadOnlyCollection<string>? Directories)>();
+        var structural = new List<(string Drive, IReadOnlyCollection<string>? Directories)>();
         indexer.DirectoriesChanged += (drive, directories) => notifications.Add((drive, directories));
+        indexer.DirectoriesStructurallyChanged += (drive, directories) => structural.Add((drive, directories));
 
         using (indexer.SuspendDirectoryChangeNotifications())
         {
             indexer.RaiseDirectoriesChanged("C", new[] { @"C:\one" });
+            indexer.RaiseDirectoriesStructurallyChanged("C", new[] { @"C:\three" });
             indexer.RaiseDirectoriesChanged("C", new[] { @"C:\two" });
             indexer.RaiseDirectoriesChanged("D", null);
             Assert.IsEmpty(notifications);
+            Assert.IsEmpty(structural);
         }
 
         Assert.HasCount(2, notifications);
         CollectionAssert.AreEquivalent(new[] { @"C:\one", @"C:\two" }, notifications[0].Directories!.ToArray());
         Assert.AreEqual("D", notifications[1].Drive);
         Assert.IsNull(notifications[1].Directories);
+        Assert.HasCount(1, structural);
+        CollectionAssert.AreEqual(new[] { @"C:\three" }, structural[0].Directories!.ToArray());
     }
 
     // Regression coverage for the local-drive counterpart of the network-drive rescan race: a
@@ -206,6 +247,26 @@ public sealed class UsnIndexerExtensionsTests
         indexer.ApplyFolderChange("C", WatcherChangeTypes.Changed, filePath);
 
         Assert.IsFalse(indexer.ConsumeMissedFolderChangeDuringRebuild("C"));
+    }
+
+    [TestMethod]
+    public void ApplyFolderChange_StructuralNotificationsTrackCreationButNotContentChange()
+    {
+        using var tempDir = new TempDirectory();
+        var filePath = Path.Combine(tempDir.Path, "new-file.txt");
+        File.WriteAllText(filePath, "x");
+        using var fixture = LiveIndexFixture.Build("C", new[] { LiveIndexFixture.Root() });
+        var indexer = new UsnIndexer();
+        indexer._recordIndexes["C"] = fixture.Index;
+        indexer.Status.Drives.Add(new UsnIndexer.DriveIndexStatus { Drive = "C", State = "ready" });
+        var structural = 0;
+        indexer.DirectoriesStructurallyChanged += (_, _) => structural++;
+
+        indexer.ApplyFolderChange("C", WatcherChangeTypes.Created, filePath);
+        Assert.AreEqual(1, structural);
+
+        indexer.ApplyFolderChange("C", WatcherChangeTypes.Changed, filePath);
+        Assert.AreEqual(1, structural);
     }
 
     // Regression coverage for the race this whole change opened up: keeping the drive's monitor alive
