@@ -106,8 +106,9 @@ internal static class PathTermFallback
             termAliasBytePatterns[i] = FzfBytePattern.From(termPatterns[i].AliasReading);
         }
 
-        // Phase A once per term instead of once per query: which unique names satisfy term i, and with
-        // what sort key (kept so an emitted row can rank by the term that actually hit its name).
+        // Phase A now walks the unique-name table once, offering every term to each name. The previous
+        // implementation ran MatchUniques once per term, repeating the same mask scan and Unicode decode;
+        // which unique names satisfy term i, and with what sort key, is unchanged.
         //
         // One entry per unique rather than a mask table and a rank table side by side. Both were keyed
         // the same way and written in the same breath, so every hit paid four hash lookups where it
@@ -116,30 +117,29 @@ internal static class PathTermFallback
         var scratch = RentScratch();
         var nameHits = scratch.NameHits;
         var fullMask = (1 << termCount) - 1;
+        var termHitLists = new List<UniqueMatch>[termCount];
         try
         {
             for (var i = 0; i < termCount; i++)
+                termHitLists[i] = SearchMatcher.RentHitList();
+
+            SearchMatcher.MatchUniqueTerms(snapshot, termPatterns, termHitLists, token);
+            for (var i = 0; i < termCount; i++)
             {
                 token.ThrowIfCancellationRequested();
-                var hits = SearchMatcher.RentHitList();
-                try
+                var bit = 1 << i;
+                foreach (var m in termHitLists[i])
                 {
-                    SearchMatcher.MatchUniques(snapshot, termPatterns[i], hits, token);
-                    var bit = 1 << i;
-                    foreach (var m in hits)
+                    token.ThrowIfCancellationRequested();
+                    ref var entry = ref CollectionsMarshal.GetValueRefOrAddDefault(nameHits, m.Uid, out var existed);
+                    entry.Mask |= bit;
+                    // Keep the strongest term hit as the row's ranking basis.
+                    if (!existed || m.Match.Score > entry.Score)
                     {
-                        token.ThrowIfCancellationRequested();
-                        ref var entry = ref CollectionsMarshal.GetValueRefOrAddDefault(nameHits, m.Uid, out var existed);
-                        entry.Mask |= bit;
-                        // Keep the strongest term hit as the row's ranking basis.
-                        if (!existed || m.Match.Score > entry.Score)
-                        {
-                            entry.Score = m.Match.Score;
-                            entry.SortKey = m.SortKey;
-                        }
+                        entry.Score = m.Match.Score;
+                        entry.SortKey = m.SortKey;
                     }
                 }
-                finally { SearchMatcher.ReturnHitList(hits); }
             }
         }
         catch
@@ -147,6 +147,14 @@ internal static class PathTermFallback
             scratch.Reset();
             ScratchPool.Add(scratch);
             throw;
+        }
+        finally
+        {
+            foreach (var hits in termHitLists)
+            {
+                if (hits != null)
+                    SearchMatcher.ReturnHitList(hits);
+            }
         }
 
         if (nameHits.Count == 0)
@@ -245,7 +253,8 @@ internal static class PathTermFallback
     }
 
     private static void SearchAndFirstBranches(Snapshot snapshot, DeltaOverlay delta, FzfPattern pattern, int limit,
-        Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower, SearchCategoryFilter category, string[]? fileNamePatterns)
+        Action<SearchResult> onResult, CancellationToken token, string? directoryFilterLower, SearchCategoryFilter category,
+        string[]? fileNamePatterns)
     {
         var emitted = 0;
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

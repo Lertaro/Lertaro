@@ -21,7 +21,7 @@ internal readonly record struct UniqueMatch(int Uid, FzfPatternResult Match, ulo
 // prefilter covers multi-term OR sets (per-set "any term's mask covered") and its scan is
 // AVX2-vectorized. Workers (slab + scratches + hit list) pool across searches. Delta rows (renamed/
 // added, not in the unique table) are matched separately -- see SearchMatcherRow / NameSearch.
-internal static class SearchMatcher
+internal static partial class SearchMatcher
 {
     internal const int ChunkSize = 8192;
 
@@ -30,6 +30,7 @@ internal static class SearchMatcher
         public readonly FzfSlab Slab = new();
         public readonly FzfByteBuffers ByteBuffers = new();
         public readonly List<UniqueMatch> Hits = new();
+        public List<UniqueMatch>[]? TermHits;
         public char[] Scratch = new char[256];
         public char[] AliasScratch = new char[256];
         public char[] NormalizedScratch = new char[256];
@@ -231,25 +232,36 @@ internal static class SearchMatcher
 
     private static void MatchOne(Snapshot snapshot, QueryContext ctx, int uid, Worker worker, string[]? fileNamePatterns)
     {
+        if (TryMatchOne(snapshot, ctx, uid, worker, fileNamePatterns, out var match))
+            worker.Hits.Add(match);
+    }
+
+    internal static bool TryMatchOne(Snapshot snapshot, QueryContext ctx, int uid, Worker worker,
+        string[]? fileNamePatterns, out UniqueMatch match)
+    {
+        match = default;
         var utf8 = snapshot.UniqueNameUtf8(uid);
         if (utf8.Length == 0)
-            return;
+            return false;
         if (fileNamePatterns != null
             && !FilterPatternHelper.Matches(snapshot.GetUniqueName(uid), fileNamePatterns)
             && !HasDirectoryRow(snapshot, uid))
-            return;
+            return false;
 
         // Pure-ASCII name: bytes ARE the chars (same values, same offsets) -- match with zero decode.
         if (snapshot.IsUniqueAscii(uid))
         {
             if (ctx.BytePattern.TryMatch(utf8, out var byteMatch, FzfScoringScheme.Default, worker.Slab, worker.ByteBuffers))
             {
-                worker.Hits.Add(new UniqueMatch(uid, byteMatch, FzfBytePattern.ForDefaultScheme(uid, utf8, byteMatch).SortKey));
-                return;
+                match = new UniqueMatch(uid, byteMatch, FzfBytePattern.ForDefaultScheme(uid, utf8, byteMatch).SortKey);
+                return true;
             }
             if (snapshot.HasAliases(uid) && TryMatchAliases(snapshot, ctx, uid, worker, out var aliasBest))
-                worker.Hits.Add(new UniqueMatch(uid, aliasBest, FzfBytePattern.ForDefaultScheme(uid, utf8, aliasBest).SortKey));
-            return;
+            {
+                match = new UniqueMatch(uid, aliasBest, FzfBytePattern.ForDefaultScheme(uid, utf8, aliasBest).SortKey);
+                return true;
+            }
+            return false;
         }
 
         if (worker.Scratch.Length < utf8.Length)
@@ -273,25 +285,26 @@ internal static class SearchMatcher
         {
             if (live.TryScore(name, worker.Slab, out var liveMatch))
             {
-                worker.Hits.Add(new UniqueMatch(uid, liveMatch, FzfResultRank.ForDefaultScheme(uid, name, liveMatch).SortKey));
-                return;
+                match = new UniqueMatch(uid, liveMatch, FzfResultRank.ForDefaultScheme(uid, name, liveMatch).SortKey);
+                return true;
             }
         }
-        else if (ctx.Pattern.TryMatch(name, out var match, FzfScoringScheme.Default, worker.Slab))
+        else if (ctx.Pattern.TryMatch(name, out var charMatch, FzfScoringScheme.Default, worker.Slab))
         {
-            worker.Hits.Add(new UniqueMatch(uid, match, FzfResultRank.ForDefaultScheme(uid, name, match).SortKey));
-            return;
+            match = new UniqueMatch(uid, charMatch, FzfResultRank.ForDefaultScheme(uid, name, charMatch).SortKey);
+            return true;
         }
 
         // An alias can never contain the text a `!term` excluded, so the tiers below have to be vetoed on
         // the name themselves -- otherwise the candidate TryMatch just rejected is revived through its
         // pinyin (see FzfPatternExclusionExtensions.ExclusionsPass).
         if (ctx.Pattern.HasExclusions && !ctx.Pattern.ExclusionsPass(name))
-            return;
+            return false;
 
         if (snapshot.HasAliases(uid) && TryMatchAliases(snapshot, ctx, uid, worker, out var best))
         {
-            worker.Hits.Add(new UniqueMatch(uid, best, FzfResultRank.ForDefaultScheme(uid, name, best).SortKey));
+            match = new UniqueMatch(uid, best, FzfResultRank.ForDefaultScheme(uid, name, best).SortKey);
+            return true;
         }
         // The mixed lane needs no baked entry when the provider spells its readings out on demand: a live
         // provider bakes nothing for a name that needs no Simplified spelling, so HasAliases alone would
@@ -300,8 +313,10 @@ internal static class SearchMatcher
             && (snapshot.HasAliases(uid) || ctx.MixedTerm.Provider is PluginSdk.Abstractions.Plugins.IAliasLiveMatcherProvider)
             && SearchMatcherAliasExtensions.TryMatchMixed(snapshot, ctx, uid, name, out var mixedBest))
         {
-            worker.Hits.Add(new UniqueMatch(uid, mixedBest, FzfResultRank.ForDefaultScheme(uid, name, mixedBest).SortKey));
+            match = new UniqueMatch(uid, mixedBest, FzfResultRank.ForDefaultScheme(uid, name, mixedBest).SortKey);
+            return true;
         }
+        return false;
     }
 
     internal static bool HasDirectoryRow(Snapshot snapshot, int uid)
