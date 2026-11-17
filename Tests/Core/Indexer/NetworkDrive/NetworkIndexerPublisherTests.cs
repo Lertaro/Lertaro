@@ -23,6 +23,7 @@ public sealed class NetworkIndexerPublisherTests
         public readonly List<(string Drive, string Reason)> QueuedRefreshes = new();
         public int StatusesChangedCount;
         public readonly List<(string Drive, IReadOnlyCollection<string>? Directories)> DirectoryChanges = new();
+        public readonly List<(string Drive, IReadOnlyCollection<string>? Directories)> StructuralDirectoryChanges = new();
 
         public NetworkIndexerPublisher CreatePublisher() => new(
             Gate, Statuses, Indexes,
@@ -30,7 +31,8 @@ public sealed class NetworkIndexerPublisherTests
             () => Statuses.Values.ToList(),
             _ => StatusesChangedCount++,
             (drive, reason) => QueuedRefreshes.Add((drive, reason)),
-            (drive, directories) => DirectoryChanges.Add((drive, directories)));
+            (drive, directories) => DirectoryChanges.Add((drive, directories)),
+            (drive, directories) => StructuralDirectoryChanges.Add((drive, directories)));
     }
 
     [TestMethod]

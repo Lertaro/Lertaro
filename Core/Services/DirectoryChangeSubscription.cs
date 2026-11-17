@@ -15,7 +15,7 @@ namespace Lertaro.Core.Services;
 internal static class DirectoryChangeSubscription
 {
     public static async Task ServeAsync(NamedPipeServerStream pipe, SearchEngine? engine, IReadOnlyList<string>? watched,
-        CallerVisibility visibility, CancellationToken token)
+        CallerVisibility visibility, CancellationToken token, bool structuralOnly = false)
     {
         if (engine == null)
             return;
@@ -53,7 +53,10 @@ internal static class DirectoryChangeSubscription
 
         try
         {
-            engine.DirectoriesChanged += OnChanged;
+            if (structuralOnly)
+                engine.DirectoriesStructurallyChanged += OnChanged;
+            else
+                engine.DirectoriesChanged += OnChanged;
 
             while (!token.IsCancellationRequested && pipe.IsConnected)
             {
@@ -90,7 +93,10 @@ internal static class DirectoryChangeSubscription
         }
         finally
         {
-            engine.DirectoriesChanged -= OnChanged;
+            if (structuralOnly)
+                engine.DirectoriesStructurallyChanged -= OnChanged;
+            else
+                engine.DirectoriesChanged -= OnChanged;
             signal.Dispose();
         }
     }

@@ -17,7 +17,8 @@ internal sealed partial class NetworkIndexerPublisher
         }
     }
 
-    public void PublishIncrementalUpdate(string drive, NetworkIndex index, IReadOnlyCollection<string>? changedDirectories = null)
+    public void PublishIncrementalUpdate(string drive, NetworkIndex index,
+        IReadOnlyCollection<string>? changedDirectories = null, bool structural = false)
     {
         bool skip;
         lock (_gate)
@@ -34,7 +35,7 @@ internal sealed partial class NetworkIndexerPublisher
             if (!_statuses.TryGetValue(drive, out var current) || current.State == "indexing")
                 return;
             _statuses[drive] = (NetworkIndexerHelper.CreateStatus(drive, "ready", index.Count, index, current));
-            RaiseDirectoriesChanged(drive, changedDirectories);
+            RaiseDirectoriesChanged(drive, changedDirectories, structural);
         }
         PublishStatusesChanged();
     }
@@ -43,11 +44,14 @@ internal sealed partial class NetworkIndexerPublisher
     /// Says this drive's index took content in, and where. <paramref name="changedDirectories"/> null
     /// means a whole tree was replaced and anything under it may have moved.
     /// </summary>
-    private void RaiseDirectoriesChanged(string drive, IReadOnlyCollection<string>? changedDirectories)
+    private void RaiseDirectoriesChanged(string drive, IReadOnlyCollection<string>? changedDirectories,
+        bool structural = false)
     {
         try
         {
             _raiseDirectoriesChanged(drive, changedDirectories);
+            if (structural)
+                _raiseDirectoriesStructurallyChanged(drive, changedDirectories);
         }
         catch (Exception ex)
         {

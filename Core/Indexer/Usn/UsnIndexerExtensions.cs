@@ -23,6 +23,12 @@ public static class UsnIndexerExtensions
     private const uint AttributeRefreshReasons = MetadataRefreshReasons;
     private const uint DirectoryChangeReasons = MetadataRefreshReasons | Win32Api.USN_REASON_RENAME_OLD_NAME
         | Win32Api.USN_REASON_FILE_DELETE;
+    // A search result list only needs changes that can add, remove or rename a row. Data writes and
+    // ordinary metadata refreshes update the same paths and must not rebuild an otherwise idle query.
+    private const uint DirectoryStructureChangeReasons = Win32Api.USN_REASON_FILE_CREATE
+        | Win32Api.USN_REASON_FILE_DELETE | Win32Api.USN_REASON_RENAME_OLD_NAME
+        | Win32Api.USN_REASON_RENAME_NEW_NAME | Win32Api.USN_REASON_HARD_LINK_CHANGE
+        | Win32Api.USN_REASON_REPARSE_POINT_CHANGE;
     // Returns whether the batch landed in this drive's live index. UsnMonitor needs that to decide
     // whether the drive's durable journal watermark may advance (see UsnIndexerDurabilityExtensions):
     // a batch with nowhere to go must never be stamped as applied, or the next cold start replays from
@@ -67,6 +73,7 @@ public static class UsnIndexerExtensions
         // directly, so this costs a hash insert per record and no path work at all for the (many)
         // batches that turn out to be several changes in the same folder.
         var changedParentFrns = new HashSet<UInt128>();
+        var structurallyChangedParentFrns = new HashSet<UInt128>();
 
         // Apply the journal's explicit namespace changes under one write lock. Ambiguous hard-link
         // events and metadata are reconciled afterward, keeping filesystem I/O outside that lock.
@@ -89,6 +96,12 @@ public static class UsnIndexerExtensions
                     changedParentFrns.Add(parentFrn);
                     if ((record.FileAttributes & (uint)FileAttributes.Directory) != 0)
                         changedParentFrns.Add(frn);
+                }
+                if ((record.Reason & DirectoryStructureChangeReasons) != 0)
+                {
+                    structurallyChangedParentFrns.Add(parentFrn);
+                    if ((record.FileAttributes & (uint)FileAttributes.Directory) != 0)
+                        structurallyChangedParentFrns.Add(frn);
                 }
 
                 if ((record.Reason & Win32Api.USN_REASON_HARD_LINK_CHANGE) != 0
@@ -148,6 +161,9 @@ public static class UsnIndexerExtensions
         var changedDirectories = isReplay
             ? null
             : UsnIndexerChangedDirectories.Resolve(live, changedParentFrns, drive);
+        var structurallyChangedDirectories = isReplay
+            ? null
+            : UsnIndexerChangedDirectories.Resolve(live, structurallyChangedParentFrns, drive);
 
         lock (indexer.LockObj)
         {
@@ -161,6 +177,8 @@ public static class UsnIndexerExtensions
             indexer.RaiseDirectoriesChanged(drive, changedDirectories);
             SearchCoordinator.ClearCaches();
         }
+        if (!isReplay && structurallyChangedParentFrns.Count > 0)
+            indexer.RaiseDirectoriesStructurallyChanged(drive, structurallyChangedDirectories);
 
         // Stat outside any lock: a write-heavy burst (build, bulk copy) can touch hundreds of distinct
         // files in one 64KB journal buffer, and holding a lock for that many disk stats would serialize
@@ -232,6 +250,8 @@ public static class UsnIndexerExtensions
             isRebuilding = MarkMissedIfRebuilding(indexer, drive);
         }
         indexer.RaiseDirectoriesChanged(drive, changedDirectories);
+        if (changeType is WatcherChangeTypes.Created or WatcherChangeTypes.Deleted or WatcherChangeTypes.Renamed)
+            indexer.RaiseDirectoriesStructurallyChanged(drive, changedDirectories);
         SearchCoordinator.ClearCaches();
         // While this drive is being rebuilt, its FolderDriveMonitor stays alive (mirroring
         // NetworkIndexerPublisher/WatcherManager's own approach for network/WSL/folder-index drives)

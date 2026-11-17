@@ -11,7 +11,7 @@ public static class SearchRequestBinarySerializer
     private const int Magic = 0x51504C53; // SLPQ
     // v5: Search/SearchDir gained ExactMatch; v6: EnumerateDir; v7: in-memory space entries; v8: file-name filtering.
     // v9: Search/SearchDir gained OrFirstPrecedence. v10: ApplyUpdate. v11: GetSpaceEntries gained filters.
-    // v12: Search/SearchDir gained Category (SearchCategoryFilter).
+// v12: Search/SearchDir gained Category (SearchCategoryFilter).
     // A new id that carries no payload needs no bump: older peers explicitly return Error for an unknown
     // id, while their existing operations still work. Never reuse an id or change its payload in place;
     // a changed frame/payload requires a new protocol version.
@@ -52,6 +52,7 @@ public static class SearchRequestBinarySerializer
                 payloadSize += 1;
                 break;
             case SearchRequestId.SubscribeDirectoryChanges:
+            case SearchRequestId.SubscribeDirectoryStructureChanges:
                 payloadSize += SearchRequestValueCodec.CalculateStringListSize(msg.Directories);
                 break;
             case SearchRequestId.ApplyUpdate:
@@ -127,6 +128,7 @@ public static class SearchRequestBinarySerializer
                     span[offset++] = (byte)(msg.RequestElevation ? 1 : 0);
                     break;
                 case SearchRequestId.SubscribeDirectoryChanges:
+                case SearchRequestId.SubscribeDirectoryStructureChanges:
                     SearchRequestValueCodec.WriteStringList(span, ref offset, msg.Directories);
                     break;
                 case SearchRequestId.ApplyUpdate:
@@ -228,6 +230,7 @@ public static class SearchRequestBinarySerializer
                 msg.RequestElevation = payload[offset++] != 0;
                 break;
             case SearchRequestId.SubscribeDirectoryChanges:
+            case SearchRequestId.SubscribeDirectoryStructureChanges:
                 msg.Directories = SearchRequestValueCodec.ReadStringList(payload, ref offset);
                 break;
             case SearchRequestId.ApplyUpdate:

@@ -1,3 +1,4 @@
+using Lertaro.Core.Wire;
 using Lertaro.PluginSdk.Helpers;
 using Lertaro.Core.IndexV2;
 using Lertaro.Core.DriveMonitoring;
@@ -31,13 +32,20 @@ public partial class UsnIndexer : IDisposable
     // and UsnIndexerDurabilityExtensions.CompactIdleDeltas (stays out of a replay's way).
     internal readonly HashSet<string> _replayingDrives = new(StringComparer.OrdinalIgnoreCase);
     private readonly DirectoryChangeNotificationGate _directoryChangeNotificationGate;
+    private readonly DirectoryChangeNotificationGate _structuralDirectoryChangeNotificationGate;
 
-    public UsnIndexer() => _directoryChangeNotificationGate = new DirectoryChangeNotificationGate(RaiseDirectoriesChangedImmediately);
+    public UsnIndexer()
+    {
+        _directoryChangeNotificationGate = new DirectoryChangeNotificationGate(RaiseDirectoriesChangedImmediately);
+        _structuralDirectoryChangeNotificationGate = new DirectoryChangeNotificationGate(
+            RaiseDirectoriesStructurallyChangedImmediately);
+    }
 
     public IndexerStatus Status { get; } = new();
     public object LockObj => _lockObj;
 
-    internal IDisposable SuspendDirectoryChangeNotifications() => _directoryChangeNotificationGate.Begin();
+    internal IDisposable SuspendDirectoryChangeNotifications() =>
+        new CompositeSuspension(_directoryChangeNotificationGate.Begin(), _structuralDirectoryChangeNotificationGate.Begin());
 
     internal void PublishDirectoryChange(string drive, IReadOnlyCollection<string>? changedDirectories)
     {
@@ -45,6 +53,14 @@ public partial class UsnIndexer : IDisposable
             return;
 
         RaiseDirectoriesChangedImmediately(drive, changedDirectories);
+    }
+
+    internal void PublishStructuralDirectoryChange(string drive, IReadOnlyCollection<string>? changedDirectories)
+    {
+        if (_structuralDirectoryChangeNotificationGate.TryDefer(drive, changedDirectories))
+            return;
+
+        RaiseDirectoriesStructurallyChangedImmediately(drive, changedDirectories);
     }
 
     private void RaiseDirectoriesChangedImmediately(string drive, IReadOnlyCollection<string>? changedDirectories)
@@ -56,6 +72,32 @@ public partial class UsnIndexer : IDisposable
         catch (Exception ex)
         {
             Logger.Log($"[UsnIndexer] A directory-change subscriber threw: {ex.Message}", LogLevel.Error);
+        }
+    }
+
+    private void RaiseDirectoriesStructurallyChangedImmediately(string drive,
+        IReadOnlyCollection<string>? changedDirectories)
+    {
+        try
+        {
+            DirectoriesStructurallyChanged?.Invoke(drive, changedDirectories);
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[UsnIndexer] A structural directory-change subscriber threw: {ex.Message}", LogLevel.Error);
+        }
+    }
+
+    private sealed class CompositeSuspension(IDisposable first, IDisposable second) : IDisposable
+    {
+        private int _disposed;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+                return;
+            first.Dispose();
+            second.Dispose();
         }
     }
 

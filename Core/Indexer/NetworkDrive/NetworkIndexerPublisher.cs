@@ -17,6 +17,7 @@ internal sealed partial class NetworkIndexerPublisher
     private readonly Action<IReadOnlyList<NetworkIndexStatus>> _raiseStatusesChanged;
     private readonly Action<string, string> _queueRefresh;
     private readonly Action<string, IReadOnlyCollection<string>?> _raiseDirectoriesChanged;
+    private readonly Action<string, IReadOnlyCollection<string>?> _raiseDirectoriesStructurallyChanged;
 
     public NetworkIndexerPublisher(
         object gate,
@@ -26,7 +27,8 @@ internal sealed partial class NetworkIndexerPublisher
         Func<IReadOnlyList<NetworkIndexStatus>> getStatuses,
         Action<IReadOnlyList<NetworkIndexStatus>> raiseStatusesChanged,
         Action<string, string> queueRefresh,
-        Action<string, IReadOnlyCollection<string>?> raiseDirectoriesChanged)
+        Action<string, IReadOnlyCollection<string>?> raiseDirectoriesChanged,
+        Action<string, IReadOnlyCollection<string>?> raiseDirectoriesStructurallyChanged)
     {
         _gate = gate;
         _statuses = statuses;
@@ -36,6 +38,7 @@ internal sealed partial class NetworkIndexerPublisher
         _raiseStatusesChanged = raiseStatusesChanged;
         _queueRefresh = queueRefresh;
         _raiseDirectoriesChanged = raiseDirectoriesChanged;
+        _raiseDirectoriesStructurallyChanged = raiseDirectoriesStructurallyChanged;
     }
 
     public void SetStatus(string drive, string state, int? items, string? error)
@@ -83,7 +86,7 @@ internal sealed partial class NetworkIndexerPublisher
                 _statuses[drive] = (NetworkIndexerHelper.CreateStatus(drive, "ready", index.Count, index, null));
                 // A whole tree replaced at once: what moved inside it is not knowable from here, so
                 // this says so rather than guessing, and every subscriber re-lists.
-                RaiseDirectoriesChanged(drive, null);
+                RaiseDirectoriesChanged(drive, null, structural: true);
             }
             else
             {
@@ -175,7 +178,7 @@ internal sealed partial class NetworkIndexerPublisher
                 _statuses[drive] = (NetworkIndexerHelper.CreateStatus(drive, "indexing", index.Count, index, null));
                 // A checkpoint swaps in a whole partial tree, so where it moved is no more knowable
                 // than for a finished rescan.
-                RaiseDirectoriesChanged(drive, null);
+                RaiseDirectoriesChanged(drive, null, structural: true);
             }
             // old is normally null (already released above); only genuinely non-null (and needing its own
             // dispose) if PublishIncrementalUpdate/OnRefreshFinished raced in and stored something new into

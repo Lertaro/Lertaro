@@ -20,7 +20,7 @@ public sealed class WatcherManagerTests
         {
             using var manager = new WatcherManager(
                 (drive, _) => { Interlocked.Increment(ref requests); refreshed.TrySetResult(drive); },
-                _ => { checkedIndex.TrySetResult(); return index; }, (_, _, _) => { }, _ => false);
+                _ => { checkedIndex.TrySetResult(); return index; }, (_, _, _, _) => { }, _ => false);
 
             manager.EnsureWatcher(root);
             await checkedIndex.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -50,7 +50,7 @@ public sealed class WatcherManagerTests
         {
             using var manager = new WatcherManager(
                 (drive, _) => { Interlocked.Increment(ref queued); recovered.TrySetResult(drive); },
-                _ => index, (_, _, _) => { }, _ => false,
+                _ => index, (_, _, _, _) => { }, _ => false,
                 directoryExists: _ =>
                 {
                     var ready = Volatile.Read(ref available) != 0;
@@ -87,7 +87,7 @@ public sealed class WatcherManagerTests
         {
             using var manager = new WatcherManager(
                 (drive, _) => refreshed.TrySetResult(drive),
-                _ => Volatile.Read(ref current), (_, _, _) => { }, _ => false,
+                _ => Volatile.Read(ref current), (_, _, _, _) => { }, _ => false,
                 directoryExists: _ =>
                 {
                     entered.TrySetResult();
@@ -122,7 +122,7 @@ public sealed class WatcherManagerTests
         var returned = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var queued = 0;
         using var manager = new WatcherManager((_, _) => Interlocked.Increment(ref queued),
-            _ => null, (_, _, _) => { }, _ => false,
+            _ => null, (_, _, _, _) => { }, _ => false,
             directoryExists: _ =>
             {
                 entered.SetResult();

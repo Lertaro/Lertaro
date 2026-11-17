@@ -10,6 +10,7 @@ public sealed class NetworkIndexer : IDisposable
     /// tree was replaced. The in-process counterpart of UsnIndexer.DirectoriesChanged.
     /// </summary>
     public event Action<string, IReadOnlyCollection<string>?>? DirectoriesChanged;
+    public event Action<string, IReadOnlyCollection<string>?>? DirectoriesStructurallyChanged;
 
     private readonly object _gate = new();
     internal object Gate => _gate;
@@ -30,12 +31,14 @@ public sealed class NetworkIndexer : IDisposable
             GetStatuses,
             statuses => StatusesChanged?.Invoke(statuses),
             (drive, reason) => _scheduler?.QueueRefreshDrive(drive, reason),
-            NotifyDirectoriesChanged);
+            NotifyDirectoriesChanged,
+            NotifyDirectoriesStructurallyChanged);
 
         _watcherManager = new WatcherManager(
             (drive, reason) => _scheduler?.QueueRefreshDrive(drive, reason),
             drive => { lock (_gate) { _indexes.TryGetValue(drive, out var idx); return idx; } },
-            (drive, idx, changedDirectories) => _publisher.PublishIncrementalUpdate(drive, idx, changedDirectories),
+            (drive, idx, changedDirectories, structural) =>
+                _publisher.PublishIncrementalUpdate(drive, idx, changedDirectories, structural),
             drive => _publisher.MarkMissedIfRescanning(drive)
         );
 
@@ -257,6 +260,13 @@ public sealed class NetworkIndexer : IDisposable
     {
         try { DirectoriesChanged?.Invoke(drive, changedDirectories); }
         catch (Exception ex) { Logger.Log($"[NetworkIndexer] A directory-change subscriber threw: {ex.Message}", LogLevel.Error); }
+    }
+
+    private void NotifyDirectoriesStructurallyChanged(string drive,
+        IReadOnlyCollection<string>? changedDirectories)
+    {
+        try { DirectoriesStructurallyChanged?.Invoke(drive, changedDirectories); }
+        catch (Exception ex) { Logger.Log($"[NetworkIndexer] A structural directory-change subscriber threw: {ex.Message}", LogLevel.Error); }
     }
 
     public void Dispose()

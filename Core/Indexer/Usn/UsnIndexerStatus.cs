@@ -72,6 +72,15 @@ public partial class UsnIndexer
     /// </remarks>
     public event Action<string, IReadOnlyCollection<string>?>? DirectoriesChanged;
 
+    /// <summary>
+    /// Structural-only counterpart of <see cref="DirectoriesChanged"/>: create, delete, rename,
+    /// hard-link and reparse-point movement. Data writes and ordinary metadata changes are omitted.
+    /// </summary>
+    public event Action<string, IReadOnlyCollection<string>?>? DirectoriesStructurallyChanged;
+
     internal void RaiseDirectoriesChanged(string drive, IReadOnlyCollection<string>? changedDirectories)
         => PublishDirectoryChange(drive, changedDirectories);
+
+    internal void RaiseDirectoriesStructurallyChanged(string drive, IReadOnlyCollection<string>? changedDirectories)
+        => PublishStructuralDirectoryChange(drive, changedDirectories);
 }
