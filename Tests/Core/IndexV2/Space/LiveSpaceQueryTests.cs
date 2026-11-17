@@ -322,6 +322,26 @@ public sealed class LiveSpaceQueryTests
         CollectionAssert.AreEqual(new[] { "App" }, directoriesAgain.Select(entry => entry.Name).ToArray());
     }
 
+    [TestMethod]
+    public void GetEntries_SizeOnlyFilters_SkipPathsAndPresentationSort()
+    {
+        using var fixture = BuildSample();
+
+        var entries = LiveSpaceQuery.GetEntries(
+            fixture.Index,
+            @"C:\Projects",
+            null,
+            SpaceEntryFilters.DirectoriesOnly
+            | SpaceEntryFilters.SkipCallerRowAccessChecks
+            | SpaceEntryFilters.SkipPathMaterialization
+            | SpaceEntryFilters.SkipSort).Entries;
+
+        var entry = Assert.ContainsSingle(entries);
+        Assert.AreEqual(string.Empty, entry.Path);
+        Assert.AreEqual("App", entry.Name);
+        Assert.AreEqual(300L, entry.Size);
+    }
+
     private static LiveIndexFixture BuildSample() => LiveIndexFixture.Build("C", new[]
     {
         LiveIndexFixture.Root(),

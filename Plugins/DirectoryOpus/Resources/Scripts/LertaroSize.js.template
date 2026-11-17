@@ -3,7 +3,7 @@ var LertaroSizeLabel = "{{LABEL}}";
 var LertaroSizeDescription = "{{DESCRIPTION}}";
 var LertaroCliPath = "{{LFF_PATH}}";
 var LertaroSizeCache = {};
-var LertaroSizeCacheLifetimeMs = 1000;
+var LertaroSizeCacheLifetimeMs = 5000;
 var LertaroSizeLastError = "";
 
 function OnInit(initData) {
@@ -42,7 +42,9 @@ function OnLertaroSize(scriptColData) {
 
 function OnBeforeFolderChange(beforeFolderChangeData) {
     var path = NormalizePath(String(beforeFolderChangeData.path));
-    delete LertaroSizeCache[path];
+    var cached = LertaroSizeCache[path];
+    if (typeof cached != "undefined" && cached.expires <= new Date().getTime())
+        delete LertaroSizeCache[path];
 }
 
 function GetFolderSizes(directory) {
@@ -53,11 +55,21 @@ function GetFolderSizes(directory) {
 
     var sizes = {};
     try {
-        var result = RunLertaroCli(QuoteArgument(LertaroCliPath) + " --space-entries " + QuoteArgument(directory));
+        var result = RunLertaroCli(QuoteArgument(LertaroCliPath) + " --space-folder-sizes " + QuoteArgument(directory));
         if (result && result.exitcode == 0) {
-            var entries = JSON.parse(result.stdout);
-            for (var i = 0; i < entries.length; i++)
-                sizes[NormalizePath(entries[i].Path)] = entries[i].Size;
+            var childPrefix = directory.charAt(directory.length - 1) == "\\" ? directory : directory + "\\";
+            var lines = result.stdout.split("\n");
+            var previous = "";
+            for (var i = 0; i < lines.length; i++) {
+                if (lines[i].length == 0)
+                    continue;
+                var firstTab = lines[i].indexOf("\t");
+                var secondTab = lines[i].indexOf("\t", firstTab + 1);
+                var shared = parseInt(lines[i].substring(0, firstTab), 10);
+                var size = lines[i].substring(firstTab + 1, secondTab);
+                previous = previous.substring(0, shared) + lines[i].substring(secondTab + 1);
+                sizes[NormalizePath(childPrefix + previous)] = size;
+            }
             LertaroSizeLastError = "";
         }
         else

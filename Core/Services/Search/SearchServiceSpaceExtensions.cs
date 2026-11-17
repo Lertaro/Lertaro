@@ -25,7 +25,30 @@ public static class SearchServiceSpaceExtensions
             throw new IOException(response.Message);
         var local = response.SpaceEntries ?? Array.Empty<SpaceIndexEntry>();
 
-        return local.Concat(network)
+        return MergeEntries(local, network, filters);
+    }
+
+    internal static IReadOnlyList<SpaceIndexEntry> MergeEntries(
+        IReadOnlyList<SpaceIndexEntry> local, IReadOnlyList<SpaceIndexEntry> network,
+        SpaceEntryFilters filters)
+    {
+        var combined = local.Concat(network);
+        // A size-only result deliberately has no path, so path-based de-duplication would collapse every
+        // sibling into one empty-path row.
+        if ((filters & SpaceEntryFilters.SkipPathMaterialization) != 0)
+        {
+            combined = combined
+                .GroupBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First());
+            return (filters & SpaceEntryFilters.SkipSort) != 0
+                ? combined.ToList()
+                : combined.OrderByDescending(entry => entry.Size)
+                    .ThenByDescending(entry => entry.IsDirectory)
+                    .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+        }
+
+        return combined
             .GroupBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .OrderByDescending(entry => entry.Size)
@@ -42,10 +65,14 @@ public static class SearchServiceSpaceExtensions
         // Directory Opus can report a mapped share as either its drive-letter spelling or its UNC
         // spelling. Network indexes retain the spelling used when they were configured, so try both
         // forms against the in-memory indexes before declaring the directory empty.
-        return IndexedPathSpelling.IndexSpellings(directory)
-            .SelectMany(spelling => UserNetworkDriveSearch.GetSpaceEntries(spelling, filters))
-            .GroupBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First())
-            .ToList();
+        var combined = IndexedPathSpelling.IndexSpellings(directory)
+            .SelectMany(spelling => UserNetworkDriveSearch.GetSpaceEntries(spelling, filters));
+        return (filters & SpaceEntryFilters.SkipPathMaterialization) != 0
+            ? combined.GroupBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToList()
+            : combined.GroupBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToList();
     }
 }

@@ -53,7 +53,9 @@ public static class AppSearchPipeClient
         await probePipe.ConnectAsync(ConnectTimeoutMs, probeCts.Token);
     }
 
-    public static async Task<IReadOnlyList<SpaceIndexEntry>> GetSpaceEntriesAsync(string pipeName, string directory, CancellationToken token = default)
+    public static async Task<IReadOnlyList<SpaceIndexEntry>> GetSpaceEntriesAsync(
+        string pipeName, string directory, SpaceEntryFilters filters = SpaceEntryFilters.None,
+        CancellationToken token = default)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
         timeout.CancelAfter(SpaceEntriesTimeoutMs);
@@ -63,7 +65,8 @@ public static class AppSearchPipeClient
         await SearchRequestBinarySerializer.WriteSearchRequestAsync(pipe, new SearchRequestMessage
         {
             Id = SearchRequestId.GetSpaceEntries,
-            Drive = directory
+            Drive = directory,
+            SpaceOptions = filters
         }, timeout.Token);
 
         var response = await PipeResponseBinarySerializer.ReadAsync(pipe, timeout.Token);

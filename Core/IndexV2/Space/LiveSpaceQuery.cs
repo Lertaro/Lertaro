@@ -30,7 +30,7 @@ internal static class LiveSpaceQuery
             if (live.Revision == revision)
                 cache.Store(revision, cacheKey, result);
         }
-        return isVisible == null ? result
+        return isVisible == null || (filters & SpaceEntryFilters.SkipPathMaterialization) != 0 ? result
             : new SpaceQueryResult(result.Found, result.Entries.Where(entry => isVisible(entry.Path)).ToArray());
     }
 
@@ -45,7 +45,7 @@ internal static class LiveSpaceQuery
         if (key == RootCacheKey)
         {
             var rootEntry = CreateEntry(snapshot, delta, lookup, affected, canonicalAddedLinks, root, snapshot.SourceRoot,
-                IsDirectory(snapshot, delta, root));
+                IsDirectory(snapshot, delta, root), filters);
             return new SpaceQueryResult(true, [rootEntry]);
         }
         if (!TryResolve(snapshot, delta, lookup, root, key, out var directory))
@@ -62,19 +62,23 @@ internal static class LiveSpaceQuery
             if ((filters & SpaceEntryFilters.IncludeSystemItems) == 0 && IsSystem(snapshot, delta, child))
                 continue;
             entries.Add(CreateEntry(snapshot, delta, lookup, affected, canonicalAddedLinks, child,
-                GetName(snapshot, delta, child), isDirectory));
+                GetName(snapshot, delta, child), isDirectory, filters));
         }
-        entries.Sort(CompareEntries);
+        if ((filters & SpaceEntryFilters.SkipSort) == 0)
+            entries.Sort(CompareEntries);
         return new SpaceQueryResult(true, entries);
     }
 
     private static SpaceIndexEntry CreateEntry(Snapshot snapshot, DeltaOverlay delta, DeltaChildLookup? lookup,
-        HashSet<int> affected, Dictionary<UInt128, int> canonicalAddedLinks, int entry, string name, bool isDirectory)
+        HashSet<int> affected, Dictionary<UInt128, int> canonicalAddedLinks, int entry, string name,
+        bool isDirectory, SpaceEntryFilters filters)
     {
         var size = GetRecursiveSize(snapshot, delta, lookup, affected, canonicalAddedLinks, entry);
         var rawSize = isDirectory ? 0 : GetRawSize(snapshot, delta, entry);
         return new SpaceIndexEntry(
-            GetPath(snapshot, delta, entry),
+            (filters & SpaceEntryFilters.SkipPathMaterialization) != 0
+                ? string.Empty
+                : GetPath(snapshot, delta, entry),
             name,
             Math.Max(0, size),
             isDirectory,
