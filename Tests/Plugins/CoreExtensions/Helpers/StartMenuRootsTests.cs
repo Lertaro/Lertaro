@@ -11,6 +11,31 @@ namespace Lertaro.Plugins.CoreExtensions.Tests.Helpers;
 public sealed class StartMenuRootsTests
 {
     [TestMethod]
+    public void OfflineShortcutIsNotOpenedToResolveItsTarget()
+    {
+        var directory = Directory.CreateTempSubdirectory("lertaro-cloud-link-");
+        var path = Path.Combine(directory.FullName, "app.lnk");
+        var target = Environment.ProcessPath!;
+        try
+        {
+            dynamic shell = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell", throwOnError: true)!)!;
+            dynamic link = shell.CreateShortcut(path);
+            link.TargetPath = target;
+            link.Save();
+            Assert.AreEqual(target, StartMenuShortcutResolver.ResolveShortcutTarget(path), ignoreCase: true);
+
+            File.SetAttributes(path, File.GetAttributes(path) | FileAttributes.Offline);
+            Assert.IsNull(StartMenuShortcutResolver.ResolveShortcutTarget(path));
+        }
+        finally
+        {
+            if (File.Exists(path))
+                File.SetAttributes(path, FileAttributes.Normal);
+            directory.Delete(recursive: true);
+        }
+    }
+
+    [TestMethod]
     public void TheRootsIncludeTheDesktopTheShellReports()
     {
         var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
