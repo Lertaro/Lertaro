@@ -1,0 +1,7 @@
+{
+  "Tessoa_Description": "tessoa のフォルダーとタブを読み取り、検索結果を開いたり選択したりします。",
+  "Tessoa_Path": "tessoa.exe のパス（空欄で自動検出）",
+  "Tessoa_Typing": "文字入力でインライン検索を開始（テキスト欄も対象）",
+  "Tessoa_Open": "tessoa で開く・選択する",
+  "Tessoa_Failed": "開けませんでした。tessoa.exe のパス、ファイルアプリ API の対応状況、対象のパスを確認してください。"
+}

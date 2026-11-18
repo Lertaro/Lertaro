@@ -1,0 +1,7 @@
+{
+  "Tessoa_Description": "讀取 tessoa 的資料夾和分頁，並在其中開啟或定位搜尋結果。",
+  "Tessoa_Path": "tessoa.exe 路徑（留空自動尋找）",
+  "Tessoa_Typing": "輸入時觸發內嵌搜尋（包含文字欄位）",
+  "Tessoa_Open": "在 tessoa 中開啟或定位",
+  "Tessoa_Failed": "無法開啟此項目。請檢查 tessoa.exe 路徑、檔案應用程式介面支援及目標路徑。"
+}

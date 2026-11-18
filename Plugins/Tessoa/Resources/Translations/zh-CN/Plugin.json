@@ -1,0 +1,7 @@
+{
+  "Tessoa_Description": "读取 tessoa 的目录和标签页，并在其中打开或定位搜索结果。",
+  "Tessoa_Path": "tessoa.exe 路径（留空自动查找）",
+  "Tessoa_Typing": "打字时触发内联搜索（包括在文本框中）",
+  "Tessoa_Open": "在 tessoa 中打开或定位",
+  "Tessoa_Failed": "无法打开此项。请检查 tessoa.exe 路径、文件应用接口支持及目标路径。"
+}

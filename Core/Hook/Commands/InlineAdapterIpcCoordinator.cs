@@ -1,4 +1,8 @@
 using Lertaro.Core.Wire;
+using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
+using Lertaro.PluginSdk.Helpers;
+using Lertaro.PluginSdk.Registries;
+using System.Text;
 namespace Lertaro.Core.Hook.Commands;
 
 // Correlates the App-side blocking ExecuteItem call with the Hook's async reply over the event pipe.
@@ -39,9 +43,41 @@ public static class InlineAdapterIpcCoordinator
     public static bool LocateItem(IntPtr hwnd, string path, bool isDir, Action<IpcMessage> sendMsg, out Task<bool> lateResult)
         => SendItem(IpcMessageId.LocateInlineItem, hwnd, path, isDir, string.Empty, sendMsg, out lateResult);
 
-    private static bool SendItem(IpcMessageId command, IntPtr hwnd, string path, bool isDir, string searchInput, Action<IpcMessage> sendMsg, out Task<bool> lateResult)
+    internal static bool SendItem(IpcMessageId command, IntPtr hwnd, string path, bool isDir, string searchInput,
+        Action<IpcMessage> sendMsg, out Task<bool> lateResult, IReadOnlyList<IInlineSearchAdapter>? adapters = null)
     {
         var normalizedPath = NormalizePath(path, isDir);
+
+        foreach (var adapter in adapters ?? InlineSearchAdapterRegistry.GetAdapters())
+        {
+            try
+            {
+                if (!adapter.NavigateInUserApp) continue;
+                var windowClass = new StringBuilder(256);
+                ExplorerNativeHooks.GetClassName(hwnd, windowClass, windowClass.Capacity);
+                if (!adapter.CanHandle(hwnd, windowClass.ToString(), OpenFolderWindowEnumerator.GetProcessName(hwnd))) continue;
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[Inline navigation] Matching {adapter.GetType().Name}: {ex.Message}", LogLevel.Warn);
+                continue;
+            }
+
+            lateResult = Task.Run(() =>
+            {
+                try
+                {
+                    return command == IpcMessageId.LocateInlineItem ? adapter.LocateItem(hwnd, normalizedPath)
+                        : adapter.ExecuteItem(hwnd, normalizedPath, searchInput);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log($"[Inline navigation] {adapter.GetType().Name}: {ex.Message}", LogLevel.Warn);
+                    return false;
+                }
+            });
+            return false;
+        }
 
         lock (_lock)
         {

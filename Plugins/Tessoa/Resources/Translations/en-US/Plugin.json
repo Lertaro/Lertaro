@@ -1,0 +1,7 @@
+{
+  "Tessoa_Description": "Read folders and tabs from tessoa and navigate to search results.",
+  "Tessoa_Path": "tessoa.exe (leave blank for automatic discovery)",
+  "Tessoa_Typing": "Trigger inline search while typing, including in text fields",
+  "Tessoa_Open": "Open in tessoa",
+  "Tessoa_Failed": "Could not open the item. Check the tessoa.exe path, file-app API support and target path."
+}

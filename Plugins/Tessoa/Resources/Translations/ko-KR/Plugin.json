@@ -1,0 +1,7 @@
+{
+  "Tessoa_Description": "tessoa의 폴더와 탭을 읽고 검색 결과를 열거나 선택합니다.",
+  "Tessoa_Path": "tessoa.exe 경로(비워 두면 자동 검색)",
+  "Tessoa_Typing": "입력할 때 인라인 검색 시작(텍스트 필드 포함)",
+  "Tessoa_Open": "tessoa에서 열기 또는 선택",
+  "Tessoa_Failed": "열 수 없습니다. tessoa.exe 경로, 파일 앱 API 지원 여부 및 대상 경로를 확인하세요."
+}

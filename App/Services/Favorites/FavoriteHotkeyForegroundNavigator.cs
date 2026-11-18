@@ -154,7 +154,7 @@ internal sealed class FavoriteHotkeyForegroundNavigator
         // Off the UI thread: the coordinator blocks for up to a second waiting for the Hook to confirm,
         // and this is called from the message pump's WM_HOTKEY handler. The coordinator and the Hook both
         // resolve everything they need on their own side, so nothing here crosses a thread boundary.
-        _ = Task.Run(() =>
+        _ = Task.Run(async () =>
         {
             try
             {
@@ -169,7 +169,8 @@ internal sealed class FavoriteHotkeyForegroundNavigator
                     return;
                 }
 
-                if (InlineAdapterIpcCoordinator.ExecuteItem(window, folderPath, isDir: true, string.Empty, hookClient.SendMessage, out _))
+                if (InlineAdapterIpcCoordinator.ExecuteItem(window, folderPath, isDir: true, string.Empty, hookClient.SendMessage, out var lateResult)
+                    || await lateResult)
                     return;
 
                 // A timeout is not a confirmed failure -- see the coordinator's own remarks. There is

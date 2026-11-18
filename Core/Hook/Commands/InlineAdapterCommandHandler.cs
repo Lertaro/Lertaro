@@ -64,7 +64,7 @@ internal static class InlineAdapterCommandHandler
                     try
                     {
                         var adapter = ResolveAdapter(process, hwnd);
-                        result = adapter != null && (msg.Id == IpcMessageId.LocateInlineItem
+                        result = adapter is { NavigateInUserApp: false } && (msg.Id == IpcMessageId.LocateInlineItem
                             ? adapter.LocateItem(hwnd, path)
                             : adapter.ExecuteItem(hwnd, path, searchInput));
                     }

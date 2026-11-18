@@ -40,6 +40,9 @@ public interface IInlineSearchAdapter : IPluginComponent
     /// </remarks>
     bool ExecuteItem(IntPtr hwnd, string path, string searchInput);
 
+    /// <summary>Execute and locate in the user App, never in the elevated Hook (e.g. when starting a portable executable).</summary>
+    bool NavigateInUserApp => false;
+
     /// <summary>Shows the item's parent and selects it, without opening the item. The path uses the same
     /// trailing-directory marker as ExecuteItem. Return false when locate is unsupported.</summary>
     bool LocateItem(IntPtr hwnd, string path) => false;

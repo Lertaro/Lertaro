@@ -1,5 +1,6 @@
 using Lertaro.Core.Hook.Commands;
 using Lertaro.Core.Wire;
+using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
 
 namespace Lertaro.Core.Tests.Hook.Commands;
 
@@ -11,6 +12,35 @@ namespace Lertaro.Core.Tests.Hook.Commands;
 [TestClass]
 public sealed class InlineAdapterIpcCoordinatorTests
 {
+    private sealed class UserAdapter(nint target) : IInlineSearchAdapter
+    {
+        public bool NavigateInUserApp => true;
+        public bool CanHandle(nint hwnd, string className, string processName) => hwnd == target;
+        public (nint Hwnd, string Path, string? Query) Call { get; private set; }
+        public bool ExecuteItem(nint hwnd, string path, string searchInput) { Call = (hwnd, path, searchInput); return true; }
+        public bool LocateItem(nint hwnd, string path) { Call = (hwnd, path, null); return true; }
+        public bool CanTrigger(nint hwnd, string className) => false;
+        public string? GetSearchScope(nint hwnd) => null;
+        public bool GetDockBounds(nint hwnd, out AdapterRect rect) { rect = default; return false; }
+        public bool CanEnterActionsMode(nint hwnd) => false;
+    }
+
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task OptedInAdapterNavigatesInUserAppWithoutSendingToHook(bool locate)
+    {
+        nint hwnd = -1;
+        var adapter = new UserAdapter(hwnd);
+        var command = locate ? IpcMessageId.LocateInlineItem : IpcMessageId.ExecuteInlineItem;
+        var confirmed = InlineAdapterIpcCoordinator.SendItem(command, hwnd, @"C:\Folder", true, "query",
+            _ => throw new AssertFailedException("Unexpected navigation via Hook"), out var lateResult, [adapter]);
+
+        Assert.IsFalse(confirmed);
+        Assert.IsTrue(await lateResult.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.AreEqual((hwnd, @"C:\Folder\", locate ? null : "query"), adapter.Call);
+    }
+
     [TestMethod]
     public async Task LocateItem_UsesDistinctCommandAndPreservesDirectoryAcrossWire()
     {

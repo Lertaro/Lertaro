@@ -1,0 +1,7 @@
+{
+  "Tessoa_Description": "Lee las carpetas y pestañas de tessoa y abre o localiza resultados de búsqueda.",
+  "Tessoa_Path": "Ruta de tessoa.exe (en blanco para detectar automáticamente)",
+  "Tessoa_Typing": "Activar la búsqueda al escribir, incluso en campos de texto",
+  "Tessoa_Open": "Abrir o localizar en tessoa",
+  "Tessoa_Failed": "No se pudo abrir el elemento. Comprueba la ruta de tessoa.exe, la compatibilidad con la API y la ruta de destino."
+}
