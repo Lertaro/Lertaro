@@ -10,8 +10,8 @@ using Lertaro.App.Services.Plugin;
 namespace Lertaro.App.ViewModels.Settings.General;
 
 // Lets the user reorder the quick window's search-result "types" -- each enabled
-// ISearchableItemProvider (Applications, Settings, File Filters, any third-party plugin) plus one
-// synthetic "Files" entry for raw file-index results -- as a tie-break inside each evidence grade, after
+// ISearchableItemProvider (Applications, Settings, File Filters, any third-party plugin) plus two
+// synthetic entries for raw file-index results, "Files" and "Folders" -- as a tie-break inside each evidence grade, after
 // match placement and before coverage (see RankKeyComparer.CompareQualityThenType), and optionally give each type a single-character trigger that exclusively filters to just that type
 // (see BuildQuickResults' triggeredTypeId). Favorites and history keep their existing hardcoded
 // placement INSIDE each type (after match quality, before history band) and are deliberately NOT part of
@@ -34,7 +34,14 @@ public class ResultTypeOrderViewModel : ViewModelBase
                 SearchResultTypePriority.FilesTypeId,
                 () => TranslationManager.Instance["General_ResultTypeFiles"],
                 triggers.GetValueOrDefault(SearchResultTypePriority.FilesTypeId, string.Empty),
-                _ => RefreshTriggerWarnings())
+                _ => RefreshTriggerWarnings()),
+            // Placed by the same read-time rule as the ranking (SearchResultTypePriority.WithFolders), so an
+            // order saved before Folders existed shows it right after Files -- where it already ranks.
+            new(
+                SearchResultTypePriority.FoldersTypeId,
+                () => TranslationManager.Instance["General_ResultTypeFolders"],
+                triggers.GetValueOrDefault(SearchResultTypePriority.FoldersTypeId, string.Empty),
+                _ => RefreshTriggerWarnings()),
         };
 
         foreach (var provider in PluginManager.Instance.SearchableItemProviders)

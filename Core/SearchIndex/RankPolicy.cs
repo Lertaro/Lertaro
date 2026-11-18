@@ -70,8 +70,8 @@ public readonly record struct RankKey(
     public RankTail Tail => new(IsDir, Name, NormalizedPath, Drive, EngineTie);
     // The configured result-type order is a late tie-break, not a group: section, grade, priority,
     // history band and the match placement (contiguity, shape, start) all run first; only coverage and
-    // match tier come after it. It only compares the three built-in buckets
-    // (Applications, System settings, Files); every other row shares one rank behind them.
+    // match tier come after it. It only compares the four built-in buckets
+    // (Applications, System settings, Files, Folders); every other row shares one rank behind them.
     public int EffectiveTypeRank => TypeRank;
 }
 
@@ -479,7 +479,7 @@ public sealed class RankKeyComparer : IComparer<RankKey>
         return c != 0 ? c : MatchRank.CompareQualityDetail(x.Match, y.Match);
     }
 
-    // Only the three built-in buckets (Applications / System settings / Files) are ordered against each other;
+    // Only the four built-in buckets (Applications / System settings / Files / Folders) are ordered against each other;
     // every other row shares one rank behind them. That shared rank cannot be "skip the comparison": with
     // coverage after the type step, a pairwise skip makes the sort cyclic (app < file by type, file <
     // plugin row by coverage, plugin row < app by coverage).

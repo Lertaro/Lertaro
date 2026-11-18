@@ -9,18 +9,40 @@ namespace Lertaro.App.Tests.ViewModels.Search;
 [TestClass]
 public sealed class SearchResultTypePriorityTests
 {
+    private const string Files = SearchResultTypePriority.FilesTypeId;
+    private const string Folders = SearchResultTypePriority.FoldersTypeId;
+
     [TestMethod]
-    public void FilesComesFirst_ReadsTheTopOfTheSavedOrder()
+    public void FoldersBehindAnotherType_CountsEveryTypeAboveFoldersExceptFiles()
     {
-        Assert.IsTrue(SearchResultTypePriority.FilesComesFirst(
-            [SearchResultTypePriority.FilesTypeId, "apps", "settings"]));
-        Assert.IsFalse(SearchResultTypePriority.FilesComesFirst(
-            ["apps", SearchResultTypePriority.FilesTypeId, "settings"]));
-        Assert.IsFalse(SearchResultTypePriority.FilesComesFirst(
-            ["apps", "settings", SearchResultTypePriority.FilesTypeId]));
-        // No saved order at all is not "Files first": unlisted types stay neutral and the cap keeps applying.
-        Assert.IsFalse(SearchResultTypePriority.FilesComesFirst([]));
-        Assert.IsFalse(SearchResultTypePriority.FilesComesFirst(["apps", "settings"]));
+        Assert.IsFalse(SearchResultTypePriority.FoldersBehindAnotherType([Folders, "apps", Files]));
+        // The reported VPN case: Files first must keep an exact folder's identity, with Folders listed or not.
+        Assert.IsFalse(SearchResultTypePriority.FoldersBehindAnotherType([Files, Folders, "apps"]));
+        Assert.IsFalse(SearchResultTypePriority.FoldersBehindAnotherType([Files, "apps", "settings"]),
+            "a pre-Folders order gets Folders right after Files");
+        Assert.IsTrue(SearchResultTypePriority.FoldersBehindAnotherType(["apps", Files, Folders]));
+        Assert.IsTrue(SearchResultTypePriority.FoldersBehindAnotherType([Files, "apps", Folders]));
+        // No saved order at all: unlisted types stay neutral and the cap keeps applying, as before.
+        Assert.IsTrue(SearchResultTypePriority.FoldersBehindAnotherType([]));
+        Assert.IsTrue(SearchResultTypePriority.FoldersBehindAnotherType(["apps", "settings"]));
+    }
+
+    [TestMethod]
+    public void WithFolders_PutsFoldersRightAfterFilesInAnOrderSavedBeforeIt()
+    {
+        CollectionAssert.AreEqual(
+            new[] { "apps", Files, Folders, "settings" },
+            SearchResultTypePriority.WithFolders(["apps", Files, "settings"]));
+        CollectionAssert.AreEqual(
+            new[] { Folders, "apps", Files },
+            SearchResultTypePriority.WithFolders([Folders, "apps", Files]),
+            "a placed Folders entry stays where the user put it");
+        Assert.IsEmpty(SearchResultTypePriority.WithFolders([]), "nothing saved: still no type order");
+        CollectionAssert.AreEqual(new[] { "apps" }, SearchResultTypePriority.WithFolders(["apps"]));
+
+        var ranks = SearchResultTypePriority.BuildRanks(["apps", Files, "settings"]);
+        Assert.AreEqual(2, SearchResultTypePriority.Rank(Folders, ranks));
+        Assert.AreEqual(3, SearchResultTypePriority.Rank("settings", ranks));
     }
 
     [TestMethod]
@@ -30,6 +52,10 @@ public sealed class SearchResultTypePriorityTests
         Assert.AreEqual(1, SearchResultTypePriority.FilesRankBehindAnotherType(["apps", files, "settings"]));
         Assert.AreEqual(2, SearchResultTypePriority.FilesRankBehindAnotherType(["apps", "settings", files]));
         Assert.IsNull(SearchResultTypePriority.FilesRankBehindAnotherType([files, "apps", "settings"]));
+        // Only Folders above Files: the type order already settles that pair, and capping the exact file
+        // would let the apps row the user ranked below Files take the top slot.
+        Assert.IsNull(SearchResultTypePriority.FilesRankBehindAnotherType([Folders, files, "apps"]));
+        Assert.AreEqual(2, SearchResultTypePriority.FilesRankBehindAnotherType([Folders, "apps", files]));
         // Unlisted, Files shares int.MaxValue with every other unlisted row, so its rank picks out nothing.
         Assert.IsNull(SearchResultTypePriority.FilesRankBehindAnotherType(["apps", "settings"]));
         Assert.IsNull(SearchResultTypePriority.FilesRankBehindAnotherType([]));
@@ -159,8 +185,9 @@ public sealed class SearchResultTypePriorityTests
             [SearchResultTypePriority.FilesTypeId, "settings", "third"]);
 
         // The Start Menu provider is absent, so no provider declares "Application"; a .lnk must still
-        // borrow the best listed non-Files bucket instead of staying on the Files rank.
-        Assert.AreEqual(1, SearchResultTypePriority.RankForApplication([], ranks));
+        // borrow the best listed bucket that is not a file bucket -- Folders sits at rank 1 here and must not
+        // be the one it borrows.
+        Assert.AreEqual(2, SearchResultTypePriority.RankForApplication([], ranks));
     }
 
     [TestMethod]
@@ -176,11 +203,11 @@ public sealed class SearchResultTypePriorityTests
     }
 
     [TestMethod]
-    public void IsCoreTypeRank_OnlyAcceptsTheThreeBuiltInBuckets()
+    public void IsCoreTypeRank_OnlyAcceptsTheFourBuiltInBuckets()
     {
         Assert.IsTrue(SearchResultTypePriority.IsCoreTypeRank(0));
-        Assert.IsTrue(SearchResultTypePriority.IsCoreTypeRank(2));
-        Assert.IsFalse(SearchResultTypePriority.IsCoreTypeRank(3));
+        Assert.IsTrue(SearchResultTypePriority.IsCoreTypeRank(3));
+        Assert.IsFalse(SearchResultTypePriority.IsCoreTypeRank(4));
         Assert.IsFalse(SearchResultTypePriority.IsCoreTypeRank(int.MaxValue));
     }
 
