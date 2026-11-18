@@ -25,6 +25,12 @@ public static class ShellIconShortcutResolver
             shellLink.GetIconLocation(iconPathBuilder, iconPathBuilder.Capacity, out var iconIndex);
             var iconPath = Environment.ExpandEnvironmentVariables(iconPathBuilder.ToString());
 
+            // The shortcut itself is local, but what it points at may be a cloud-only placeholder, and pulling an
+            // icon out of that downloads it. Answer with the type's icon and stop here: falling through to the
+            // shell's own icon for the .lnk would read the same target.
+            if (PluginSdk.Helpers.ShellPathHelper.IsCloudOnly(iconPath))
+                return ShellIconHelper.GetIconForPath("dummy" + Path.GetExtension(iconPath), false);
+
             if (!string.IsNullOrWhiteSpace(iconPath) && File.Exists(iconPath))
             {
                 var icon = ExtractLargeIcon(iconPath, iconIndex);
@@ -37,6 +43,9 @@ public static class ShellIconShortcutResolver
             var targetPathBuilder = new StringBuilder(ShellIconNativeMethods.MAX_PATH);
             shellLink.GetPath(targetPathBuilder, targetPathBuilder.Capacity, IntPtr.Zero, ShellIconNativeMethods.SLGP_UNCPRIORITY);
             var targetPath = Environment.ExpandEnvironmentVariables(targetPathBuilder.ToString());
+            if (PluginSdk.Helpers.ShellPathHelper.IsCloudOnly(targetPath))
+                return ShellIconHelper.GetIconForPath("dummy" + Path.GetExtension(targetPath), false);
+
             if (!string.IsNullOrWhiteSpace(targetPath) && File.Exists(targetPath))
             {
                 if (targetPath.EndsWith(".msc", StringComparison.OrdinalIgnoreCase))

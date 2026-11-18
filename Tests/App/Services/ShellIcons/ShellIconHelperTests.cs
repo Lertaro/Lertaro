@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows.Media.Imaging;
 using System.Reflection;
 using Lertaro.App.Services.ShellIcons;
@@ -132,5 +133,33 @@ public sealed class ShellIconHelperTests
         var image = new BitmapImage();
 
         Assert.AreSame(image, ShellIconHelper.Step(() => image, "embedded icon", @"C:\Apps\test.exe"));
+    }
+
+    // Painting a row must not download a cloud-only placeholder: extracting an .exe's own icon reads the file.
+    // A real placeholder needs a sync provider; the Offline bit on a plain copy is the same signal here.
+    [StaTestMethod]
+    public void GetIconForPath_CloudOnlyExecutable_GetsTheTypeIconInsteadOfItsOwn()
+    {
+        var dir = Directory.CreateTempSubdirectory("lertaro-icon-");
+        var local = Path.Combine(dir.FullName, "local.exe");
+        var cloud = Path.Combine(dir.FullName, "cloud.exe");
+        try
+        {
+            var source = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
+            File.Copy(source, local);
+            File.Copy(source, cloud);
+            File.SetAttributes(cloud, File.GetAttributes(cloud) | FileAttributes.Offline);
+            var typeIcon = ShellIconHelper.GetIconForPath("dummy.exe", false);
+
+            Assert.AreNotSame(typeIcon, ShellIconHelper.GetIconForPath(local, false),
+                "precondition: a local copy of explorer.exe paints its own icon, not the generic one");
+            Assert.AreSame(typeIcon, ShellIconHelper.GetIconForPath(cloud, false));
+        }
+        finally
+        {
+            if (File.Exists(cloud))
+                File.SetAttributes(cloud, FileAttributes.Normal);
+            dir.Delete(recursive: true);
+        }
     }
 }

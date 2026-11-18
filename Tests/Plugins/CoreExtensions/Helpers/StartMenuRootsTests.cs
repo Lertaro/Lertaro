@@ -1,0 +1,49 @@
+using Lertaro.PluginSdk.Helpers;
+
+namespace Lertaro.Plugins.CoreExtensions.Tests.Helpers;
+
+// The Desktop is an application root, and it has to be the Desktop the shell actually shows. With OneDrive's
+// folder backup on, <profile>\Desktop does not exist and the real one sits under OneDrive -- a root list
+// built only from profile-relative guesses silently scanned nothing there, so a portable app kept on the
+// Desktop never ranked as an application. On a machine whose Desktop was never moved this passes either
+// way; it is a regression test for the machines where it was.
+[TestClass]
+public sealed class StartMenuRootsTests
+{
+    [TestMethod]
+    public void OfflineShortcutIsNotOpenedToResolveItsTarget()
+    {
+        var directory = Directory.CreateTempSubdirectory("lertaro-cloud-link-");
+        var path = Path.Combine(directory.FullName, "app.lnk");
+        var target = Environment.ProcessPath!;
+        try
+        {
+            dynamic shell = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell", throwOnError: true)!)!;
+            dynamic link = shell.CreateShortcut(path);
+            link.TargetPath = target;
+            link.Save();
+            Assert.AreEqual(target, StartMenuShortcutResolver.ResolveShortcutTarget(path), ignoreCase: true);
+
+            File.SetAttributes(path, File.GetAttributes(path) | FileAttributes.Offline);
+            Assert.IsNull(StartMenuShortcutResolver.ResolveShortcutTarget(path));
+        }
+        finally
+        {
+            if (File.Exists(path))
+                File.SetAttributes(path, FileAttributes.Normal);
+            directory.Delete(recursive: true);
+        }
+    }
+
+    [TestMethod]
+    public void TheRootsIncludeTheDesktopTheShellReports()
+    {
+        var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+        if (string.IsNullOrEmpty(desktop) || !Directory.Exists(desktop))
+            Assert.Inconclusive("This account has no Desktop folder to look for.");
+
+        CollectionAssert.Contains(
+            StartMenuShortcutResolver.GetStartMenuRoots().ToList(),
+            Path.GetFullPath(desktop));
+    }
+}
