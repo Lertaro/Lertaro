@@ -16,7 +16,8 @@ public sealed class RankContext
         int historyFiveMax = RankPolicy.HistoryFiveMax,
         int historyThreeMax = RankPolicy.HistoryThreeMax,
         string? query = null,
-        bool demoteDirectoryIdentity = true)
+        bool demoteDirectoryIdentity = true,
+        int? demotedFilesTypeRank = null)
     {
         PriorityResolver = priorityResolver;
         HistoryScoreX100 = historyScoreX100 ?? NoScores;
@@ -25,6 +26,7 @@ public sealed class RankContext
         HistoryThreeMax = Math.Max(0, historyThreeMax);
         Query = query;
         DemoteDirectoryIdentity = demoteDirectoryIdentity;
+        DemotedFilesTypeRank = demotedFilesTypeRank;
     }
 
     public Func<string, bool, PriorityVerdict>? PriorityResolver { get; }
@@ -41,4 +43,10 @@ public sealed class RankContext
     /// caller established that the file bucket is the user's top-ranked type; see RankPolicy.GradeForRanking.
     /// </summary>
     public bool DemoteDirectoryIdentity { get; }
+
+    /// <summary>
+    /// The file bucket's type rank when another type outranks it in the quick window's order, else null. A
+    /// file row still on that rank has its exact name capped at DirectStrong; see RankPolicy.GradeForRanking.
+    /// </summary>
+    public int? DemotedFilesTypeRank { get; }
 }

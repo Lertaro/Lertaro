@@ -142,7 +142,7 @@ internal sealed class V3OfflineRankingPolicy : IOfflineRankingPolicy
         var rows = rankingCase.Candidates
             .Select(candidate => (
                 Candidate: candidate,
-                Signals: candidate.ToV3Signals(),
+                Signals: candidate.ToV3Signals(rankingCase),
                 Evidence: candidate.ToEvidence(rankingCase.RawQuery)))
             .ToArray();
         // Same eligibility rule as the live quick window: a row whose Grade never reads an H5/H3 tier

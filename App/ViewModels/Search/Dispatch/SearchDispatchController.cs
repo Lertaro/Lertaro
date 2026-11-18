@@ -206,8 +206,10 @@ internal sealed class SearchDispatchController
         // the user puts the file bucket first, the cap would demote the exact-named folder to DirectStrong and
         // hand the win to a settings row that merely matched through a keyword, i.e. the exact opposite of the
         // order they configured. Read once per query, like the type order the mapper resolves later.
-        var demoteDirectoryIdentity = isInlineContext
-            || !SearchResultTypePriority.FilesComesFirst(UserSettings.Load().ResultTypeOrder);
+        var typeOrder = UserSettings.Load().ResultTypeOrder;
+        var demoteDirectoryIdentity = isInlineContext || !SearchResultTypePriority.FilesComesFirst(typeOrder);
+        // An exact file name gets the same cap, but only here: the inline card has no type order to win.
+        var demotedFilesTypeRank = isInlineContext ? null : SearchResultTypePriority.FilesRankBehindAnotherType(typeOrder);
         // One trace session covers all streaming paints of this quick-window query. The switch only
         // controls whether the export action is offered; the trace itself never writes anything.
         var rankingTrace = !isInlineContext && UserSettings.Load().EnableRankingDetailsExport
@@ -218,7 +220,8 @@ internal sealed class SearchDispatchController
             SearchHistoryStore.ScoreSnapshot(DateTimeOffset.UtcNow),
             historyFiveMax: isInlineContext ? 1 : RankPolicy.HistoryFiveMax,
             historyThreeMax: isInlineContext ? 3 : RankPolicy.HistoryThreeMax,
-            demoteDirectoryIdentity: demoteDirectoryIdentity);
+            demoteDirectoryIdentity: demoteDirectoryIdentity,
+            demotedFilesTypeRank: demotedFilesTypeRank);
         // The engine truncates before the App can rank, so a high-priority row that matches weakly could
         // never arrive at all. Only high rules pay for the wider window; the default rule set has none.
         if (rankRules.HasHighPriorityRules)

@@ -24,6 +24,18 @@ public sealed class SearchResultTypePriorityTests
     }
 
     [TestMethod]
+    public void FilesRankBehindAnotherType_NamesTheFilesRankOnlyWhenSomethingOutranksIt()
+    {
+        const string files = SearchResultTypePriority.FilesTypeId;
+        Assert.AreEqual(1, SearchResultTypePriority.FilesRankBehindAnotherType(["apps", files, "settings"]));
+        Assert.AreEqual(2, SearchResultTypePriority.FilesRankBehindAnotherType(["apps", "settings", files]));
+        Assert.IsNull(SearchResultTypePriority.FilesRankBehindAnotherType([files, "apps", "settings"]));
+        // Unlisted, Files shares int.MaxValue with every other unlisted row, so its rank picks out nothing.
+        Assert.IsNull(SearchResultTypePriority.FilesRankBehindAnotherType(["apps", "settings"]));
+        Assert.IsNull(SearchResultTypePriority.FilesRankBehindAnotherType([]));
+    }
+
+    [TestMethod]
     public void BuildRanks_MatchesTheListOverload()
     {
         var orders = new[]

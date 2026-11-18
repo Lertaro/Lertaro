@@ -312,6 +312,41 @@ public sealed class RankedCandidateOrderingTests
     }
 
     [TestMethod]
+    public void ContextDecidesWhetherAnExactFileNameOutranksThePreferredType()
+    {
+        // Reported: "nvidia" with Applications before Files listed every nvidia.ico/nvidia.bik on the
+        // machine, and the NVIDIA app after them. Real matcher and evidence, so the grades are the live ones.
+        static SearchResultMapper.RankedCandidate Row(string path, string name, int typeRank, string kind = "")
+        {
+            var match = FuzzyMatcher.ComputeMatchRank(name, "nvidia");
+            return Candidate(path, typeRank) with
+            {
+                Result = new AppSearchResult { FullPath = path, Name = name, ResultKind = kind },
+                Match = match,
+                Evidence = MatchEvidence.Accepted("nvidia", name, MatchEvidenceField.FileName, match),
+            };
+        }
+
+        var app = Row(@"C:\Start Menu\NVIDIA app.lnk", "NVIDIA app", 0, "Application");
+        var icon = Row(@"D:\Games\nvidia.ico", "nvidia.ico", 1);
+        // A desktop shortcut the file index found: it borrowed the application rank, so it is no file to cap.
+        var shortcut = Row(@"C:\Desktop\nvidia.lnk", "nvidia.lnk", 0);
+
+        var uncapped = RankedCandidateOrdering.Order([app, icon, shortcut], new RankContext(Priorities()));
+        var capped = RankedCandidateOrdering.Order(
+            [app, icon, shortcut],
+            new RankContext(Priorities(), demotedFilesTypeRank: 1));
+
+        CollectionAssert.AreEqual(
+            new[] { "nvidia.lnk", "nvidia.ico", "NVIDIA app" },
+            uncapped.Select(row => row.Result.Name).ToArray(),
+            "precondition: without the cap the exact file name wins on grade");
+        CollectionAssert.AreEqual(
+            new[] { "nvidia.lnk", "NVIDIA app", "nvidia.ico" },
+            capped.Select(row => row.Result.Name).ToArray());
+    }
+
+    [TestMethod]
     public void MergeKeepsApplicationExecutionObjectAndFilePathSignals()
     {
         const string path = @"C:\Apps\PixPin.lnk";

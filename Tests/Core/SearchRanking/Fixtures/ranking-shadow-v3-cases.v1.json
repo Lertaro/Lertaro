@@ -152,7 +152,7 @@
         },
         {
           "token": "ssjg-txt",
-          "expectedV3Grade": "ExactIdentity",
+          "expectedV3Grade": "DirectStrong",
           "displayName": "搜索结果.txt",
           "syntheticPath": "X:\\Fixture\\Docs\\搜索结果.txt",
           "kind": ["File"],
@@ -272,7 +272,7 @@
       "candidates": [
         {
           "token": "pixpin-normal-file",
-          "expectedV3Grade": "ExactIdentity",
+          "expectedV3Grade": "DirectStrong",
           "displayName": "PixPin.exe",
           "syntheticPath": "X:\\Fixture\\Tools\\PixPin\\PixPin.exe",
           "kind": ["File"],
@@ -463,7 +463,7 @@
       "candidates": [
         {
           "token": "ocr-file",
-          "expectedV3Grade": "ExactIdentity",
+          "expectedV3Grade": "DirectStrong",
           "displayName": "ocr",
           "syntheticPath": "X:\\Fixture\\Tools\\ocr",
           "kind": ["File"],
@@ -605,6 +605,85 @@
         ],
         "mustBeTopK": [
           { "token": "gog-galaxy-app", "k": 1 }
+        ],
+        "mustBeAbsent": []
+      }
+    },
+    {
+      "id": "nvidia-apps-beat-exact-named-files",
+      "window": "quick",
+      "rawQuery": "nvidia",
+      "fuzzyEnabled": true,
+      "typeOrder": ["App", "Files"],
+      "providerReadiness": "ready",
+      "candidates": [
+        {
+          "token": "nvidia-ico",
+          "expectedV3Grade": "DirectStrong",
+          "displayName": "nvidia.ico",
+          "syntheticPath": "X:\\Fixture\\Games\\Witcher\\nvidia.ico",
+          "kind": ["File"],
+          "source": "FileIndex",
+          "match": { "tier": 0, "start": 0, "coverage": 0.6, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 1,
+          "relevance": 1
+        },
+        {
+          "token": "nvidia-bik",
+          "expectedV3Grade": "DirectStrong",
+          "displayName": "nvidia.bik",
+          "syntheticPath": "X:\\Fixture\\Games\\Witcher\\movies\\nvidia.bik",
+          "kind": ["File"],
+          "source": "FileIndex",
+          "match": { "tier": 0, "start": 0, "coverage": 0.6, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 1,
+          "relevance": 1
+        },
+        {
+          "token": "nvidia-app",
+          "expectedV3Grade": "DirectStrong",
+          "displayName": "NVIDIA app",
+          "syntheticPath": "X:\\Fixture\\Start Menu\\NVIDIA Corporation\\NVIDIA app.lnk",
+          "kind": ["Application", "Shortcut"],
+          "source": "SearchableProvider",
+          "match": { "tier": 0, "start": 0, "coverage": 0.6, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 0,
+          "relevance": 3
+        },
+        {
+          "token": "nvidia-control-panel",
+          "expectedV3Grade": "DirectStrong",
+          "displayName": "NVIDIA Control Panel",
+          "syntheticPath": "X:\\Fixture\\Start Menu\\NVIDIA Control Panel.lnk",
+          "kind": ["Application", "Shortcut"],
+          "source": "SearchableProvider",
+          "match": { "tier": 0, "start": 0, "coverage": 0.3, "contiguity": 1.0, "shape": 0 },
+          "priority": "Normal",
+          "alwaysTop": false,
+          "historyScoreX100": 0,
+          "typeRank": 0,
+          "relevance": 3
+        }
+      ],
+      "assertions": {
+        "mustAppearBefore": [
+          { "before": "nvidia-app", "after": "nvidia-ico" },
+          { "before": "nvidia-app", "after": "nvidia-bik" },
+          { "before": "nvidia-control-panel", "after": "nvidia-ico" },
+          { "before": "nvidia-control-panel", "after": "nvidia-bik" }
+        ],
+        "mustBeTopK": [
+          { "token": "nvidia-app", "k": 1 },
+          { "token": "nvidia-control-panel", "k": 2 }
         ],
         "mustBeAbsent": []
       }

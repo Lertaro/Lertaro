@@ -40,7 +40,7 @@
         },
         {
           "token": "pixpin-exe",
-          "expectedV3Grade": "ExactIdentity",
+          "expectedV3Grade": "DirectStrong",
           "displayName": "PixPin.exe",
           "syntheticPath": "X:\\Fixture\\Program Files\\PixPin\\PixPin.exe",
           "kind": ["File"],
@@ -88,7 +88,7 @@
         },
         {
           "token": "atlas-exe",
-          "expectedV3Grade": "ExactIdentity",
+          "expectedV3Grade": "DirectStrong",
           "displayName": "Atlas.exe",
           "syntheticPath": "X:\\Fixture\\Tools\\Atlas.exe",
           "kind": ["File"],
