@@ -9,6 +9,33 @@ namespace Lertaro.PluginSdk.Helpers;
 /// </summary>
 public static class ShellPathHelper
 {
+    // Offline, plus FILE_ATTRIBUTE_RECALL_ON_OPEN (0x40000) and FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS
+    // (0x400000), which FileAttributes has no names for. Any one of them means "reading this fetches it".
+    private const FileAttributes CloudOnlyAttributes =
+        FileAttributes.Offline | (FileAttributes)0x40000 | (FileAttributes)0x400000;
+
+    /// <summary>
+    /// True for a cloud-only placeholder (OneDrive Files On-Demand and the like): a file that exists here as
+    /// far as File.Exists knows, but whose contents a read would make the sync client download in full.
+    /// </summary>
+    /// <remarks>
+    /// The attributes come from the directory entry, so asking never triggers the download itself. Anything
+    /// that only wants to decorate a row -- a version string, an embedded icon, a thumbnail -- should check
+    /// this first and settle for less on a file the user never asked to bring down. False for a path that
+    /// does not exist or cannot be read.
+    /// </remarks>
+    public static bool IsCloudOnly(string path)
+    {
+        try
+        {
+            return (File.GetAttributes(path) & CloudOnlyAttributes) != 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
     private struct SHFILEINFO
     {

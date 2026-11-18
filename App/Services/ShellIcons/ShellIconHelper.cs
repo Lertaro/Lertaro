@@ -183,6 +183,17 @@ public static class ShellIconHelper
             return cachedIcon;
         }
 
+        // Every step below that looks inside the file -- a thumbnail, the icon embedded in an .exe, the shell's
+        // per-file icon -- makes the sync client download a cloud-only placeholder in full, just to paint a
+        // row. Such a file gets its type's icon instead, which is also what Explorer shows for it.
+        // ponytail: cached under the path, so a row keeps that icon after the file comes down until the icon
+        // cache is next cleared; re-probing per paint would cost a stat on every uncached row for a cosmetic win.
+        if (isPhysicalPath && !isDir && ShellPathHelper.IsCloudOnly(checkPath))
+        {
+            var typeIcon = GetIconForPath("dummy" + ext, false);
+            return typeIcon == null ? null : CacheAndDeduplicateIcon(cacheKey, typeIcon);
+        }
+
         // Every step answers null on its own failure and the chain moves to the next one. One try/catch used
         // to wrap the whole chain, so a single throwing step answered null for the row and cancelled the
         // fallbacks waiting after it -- which is how a row ended up stuck on its placeholder.

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using Lertaro.PluginSdk.Abstractions.Plugins;
+using Lertaro.PluginSdk.Helpers;
 
 namespace Lertaro.Plugins.CoreExtensions.Providers.Indexing;
 
@@ -54,9 +55,13 @@ internal static class StartMenuAppAliasBuilder
         return aliases.ToArray();
     }
 
-    private static FileMetadata ReadMetadata(string targetPath)
+    internal static FileMetadata ReadMetadata(string targetPath)
     {
-        if (!Path.GetExtension(targetPath).Equals(".exe", StringComparison.OrdinalIgnoreCase))
+        // Reading version info opens the file, and opening a cloud-only placeholder makes the sync client
+        // download the whole thing -- for a Desktop full of portable apps, gigabytes, just to learn a product
+        // name. Such a file goes without the metadata aliases; it still matches on its own name.
+        if (!Path.GetExtension(targetPath).Equals(".exe", StringComparison.OrdinalIgnoreCase)
+            || ShellPathHelper.IsCloudOnly(targetPath))
             return default;
         try
         {
