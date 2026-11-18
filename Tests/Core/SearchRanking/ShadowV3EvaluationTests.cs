@@ -71,7 +71,7 @@ public sealed class ShadowV3EvaluationTests
                 continue;
 
             var key = RankPolicyV3.BuildKey(
-                candidate.ToV3Signals(), HistoryTier.None, candidate.ToEvidence(rankingCase.RawQuery));
+                candidate.ToV3Signals(rankingCase), HistoryTier.None, candidate.ToEvidence(rankingCase.RawQuery));
             Assert.AreEqual(
                 expected,
                 key.Grade,
@@ -83,7 +83,7 @@ public sealed class ShadowV3EvaluationTests
     {
         var grades = run.Rows.Select(row =>
         {
-            var signals = row.Candidate.ToV3Signals();
+            var signals = row.Candidate.ToV3Signals(rankingCase);
             var evidence = row.Candidate.ToEvidence(rankingCase.RawQuery);
             return (
                 Row: row.Candidate,

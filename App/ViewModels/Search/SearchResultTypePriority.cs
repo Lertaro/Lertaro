@@ -59,6 +59,13 @@ public static class SearchResultTypePriority
     public static bool FilesComesFirst(List<string> order) =>
         order.Count > 0 && string.Equals(order[0], FilesTypeId, StringComparison.Ordinal);
 
+    // The file bucket's rank when another built-in type sits above it, i.e. when the quick window caps an
+    // exact file name so that type can win (RankPolicy.GradeForRanking). Null when Files leads the order or
+    // is not one of the ordered built-in buckets at all: no type to make room for, or no rank to tell file
+    // rows apart from unlisted ones.
+    public static int? FilesRankBehindAnotherType(List<string> order) =>
+        Rank(FilesTypeId, order) is var rank && rank > 0 && IsCoreTypeRank(rank) ? rank : null;
+
     // The type rank of the provider(s) declaring this ResultKind -- the best one when several do.
     // int.MaxValue when none of them declares it or the type is not in the saved order, i.e. the same
     // "unlisted" fallback every other lookup uses.

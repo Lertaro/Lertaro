@@ -42,7 +42,11 @@ public readonly record struct RankSignals(
     bool TypeRankApplies = true,
     // False when the caller knows nothing outranks the file bucket in the user's result-type order: an
     // exact-named directory then keeps its ExactIdentity (see RankPolicy.GradeForRanking).
-    bool DemoteDirectoryIdentity = true);
+    bool DemoteDirectoryIdentity = true,
+    // True for a file row (not a directory) that sits in the file bucket while another type outranks Files:
+    // its exact name is then capped like a directory's (see RankPolicy.GradeForRanking). Off by default, so
+    // only the quick window, which owns a type order, ever sets it.
+    bool DemoteFileIdentity = false);
 
 public readonly record struct RankKey(
     byte AlwaysTop,
@@ -196,11 +200,18 @@ public static class RankPolicy
     // demoting would instead strip the strongest evidence from the bucket the user ranked first: a settings
     // row that only matched through a keyword would outrank every exact-named folder while the file bucket
     // still led the order. Callers turn the cap off for exactly that case (RankContext.DemoteDirectoryIdentity).
+    //
+    // A file in that bucket is capped the same way (RankSignals.DemoteFileIdentity). Grade is compared before
+    // the type order, so an uncapped exact name skips it entirely: "nvidia" put every nvidia.ico and
+    // nvidia.bik on the machine ahead of the "NVIDIA app" the user ranked first. Capped, both are DirectStrong
+    // at the same placement and the type order decides; an app that matches later in its title still loses
+    // to the exact file on placement, so the cap does not hand the type order a match it would not earn.
     private static MatchEvidenceGrade GradeForRanking(in RankSignals s, in MatchEvidence evidence)
     {
         var strong = !s.IsHistoryOnly && s.Match.IsStrong;
         var grade = MatchEvidence.ResolveGrade(evidence, s.Match, s.IsHistoryOnly, strong);
-        return s.IsDir && s.DemoteDirectoryIdentity && grade == MatchEvidenceGrade.ExactIdentity
+        var capped = s.IsDir ? s.DemoteDirectoryIdentity : s.DemoteFileIdentity;
+        return capped && grade == MatchEvidenceGrade.ExactIdentity
             ? MatchEvidenceGrade.DirectStrong
             : grade;
     }

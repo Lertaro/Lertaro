@@ -355,6 +355,8 @@ internal static class RankedCandidateOrdering
             NormalizedPath: path,
             Drive: RankPolicy.DriveRank(c.Result.Drive),
             TypeRankApplies: c.TypeRankApplies,
-            DemoteDirectoryIdentity: context?.DemoteDirectoryIdentity ?? true);
+            DemoteDirectoryIdentity: context?.DemoteDirectoryIdentity ?? true,
+            // A shortcut that borrowed the application rank has left the file bucket and keeps its identity.
+            DemoteFileIdentity: !c.Result.IsDir && c.TypeRank == context?.DemotedFilesTypeRank);
     }
 }

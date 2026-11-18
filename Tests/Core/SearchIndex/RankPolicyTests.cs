@@ -31,7 +31,8 @@ public sealed class RankPolicyTests
         ulong engineTie = 0,
         MatchRank? match = null,
         bool typeRankApplies = true,
-        bool demoteDirectoryIdentity = true) =>
+        bool demoteDirectoryIdentity = true,
+        bool demoteFileIdentity = false) =>
         new(
             match ?? (strong ? Strong() : Weak()),
             isHistoryOnly,
@@ -46,7 +47,8 @@ public sealed class RankPolicyTests
             drive,
             engineTie,
             typeRankApplies,
-            demoteDirectoryIdentity);
+            demoteDirectoryIdentity,
+            demoteFileIdentity);
 
     private static RankKey KeyOf(
         RankSignals s,
@@ -184,6 +186,41 @@ public sealed class RankPolicyTests
 
         Assert.AreEqual(MatchEvidenceGrade.DirectStrong, capped.Grade);
         Assert.AreEqual(MatchEvidenceGrade.ExactIdentity, uncapped.Grade);
+    }
+
+    [TestMethod]
+    public void Compare_CappedExactFileLetsThePreferredTypeWinAtTheSamePlacement()
+    {
+        // Reported: "nvidia" put every nvidia.ico ahead of "NVIDIA app" with Applications ranked first,
+        // because the exact file name won on grade before the type order was ever read.
+        var placement = Strong(coverage: 0.6, start: 0);
+        var app = KeyOf(Signals(typeRank: 0, name: "NVIDIA app", path: @"D:\NVIDIA app.lnk", match: placement));
+        var uncapped = KeyOf(
+            Signals(typeRank: 1, name: "nvidia.ico", path: @"D:\nvidia.ico", match: placement),
+            HistoryTier.None,
+            EvidenceOf(MatchEvidenceGrade.ExactIdentity));
+        var capped = KeyOf(
+            Signals(typeRank: 1, name: "nvidia.ico", path: @"D:\nvidia.ico", match: placement, demoteFileIdentity: true),
+            HistoryTier.None,
+            EvidenceOf(MatchEvidenceGrade.ExactIdentity));
+
+        Assert.AreEqual(MatchEvidenceGrade.ExactIdentity, uncapped.Grade);
+        Assert.IsGreaterThan(0, RankKeyComparer.Instance.Compare(app, uncapped), "precondition: uncapped, the file wins");
+        Assert.AreEqual(MatchEvidenceGrade.DirectStrong, capped.Grade);
+        Assert.IsLessThan(0, RankKeyComparer.Instance.Compare(app, capped));
+    }
+
+    [TestMethod]
+    public void Grade_EachCapOnlyReachesItsOwnKindOfRow()
+    {
+        var evidence = EvidenceOf(MatchEvidenceGrade.ExactIdentity);
+        var folderWithFileCap = KeyOf(
+            Signals(isDir: true, demoteDirectoryIdentity: false, demoteFileIdentity: true), HistoryTier.None, evidence);
+        var fileWithFolderCap = KeyOf(
+            Signals(isDir: false, demoteDirectoryIdentity: true, demoteFileIdentity: false), HistoryTier.None, evidence);
+
+        Assert.AreEqual(MatchEvidenceGrade.ExactIdentity, folderWithFileCap.Grade);
+        Assert.AreEqual(MatchEvidenceGrade.ExactIdentity, fileWithFolderCap.Grade);
     }
 
     [TestMethod]

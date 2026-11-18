@@ -62,19 +62,27 @@ internal sealed record CandidateSnapshot(
         RankPolicy.DriveRank(Path.GetPathRoot(SyntheticPath)),
         EngineTie);
 
-    public RankSignals ToV3Signals() => new(
-        IsHistoryOnly ? MatchRank.NoMatch : Match,
-        IsHistoryOnly,
-        IsFavorite,
-        ResolveEffectivePriority(),
-        AlwaysTop,
-        HistoryScoreX100,
-        TypeRank,
-        IsDirectory,
-        DisplayName,
-        SyntheticPath.TrimEnd('\\'),
-        RankPolicy.DriveRank(Path.GetPathRoot(SyntheticPath)),
-        EngineTie);
+    // The case's type order decides the file cap the same way the quick window does
+    // (SearchResultTypePriority.FilesRankBehindAnotherType): a file row still on the Files rank, with
+    // another type ahead of Files, has its exact name capped.
+    public RankSignals ToV3Signals(RankingCase rankingCase)
+    {
+        var filesRank = rankingCase.TypeOrder.ToList().IndexOf("Files");
+        return new(
+            IsHistoryOnly ? MatchRank.NoMatch : Match,
+            IsHistoryOnly,
+            IsFavorite,
+            ResolveEffectivePriority(),
+            AlwaysTop,
+            HistoryScoreX100,
+            TypeRank,
+            IsDirectory,
+            DisplayName,
+            SyntheticPath.TrimEnd('\\'),
+            RankPolicy.DriveRank(Path.GetPathRoot(SyntheticPath)),
+            EngineTie,
+            DemoteFileIdentity: !IsDirectory && filesRank > 0 && TypeRank == filesRank);
+    }
 
     public MatchEvidence ToEvidence(string rawQuery)
     {
