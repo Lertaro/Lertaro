@@ -419,15 +419,15 @@ public sealed class HookProcess : IDisposable
             _keyboardHook.OnCtrlNumberPressed += num => _ipcServer.SendMessage(new IpcMessage { Id = IpcMessageId.KeyCtrlNumber, IntVal = num });
             _keyboardHook.Start();
 
-            _mouseHook = new MouseHookService();
+            _mouseHook = new MouseHookService { DoubleClickEnabled = () => _keyboardHook?._settings.Hotkeys.QuickNavTriggerOnDoubleClick == true };
             _mouseHook.OnRightButtonDown += time => _keyboardHook.NotifyRightButtonDown(time);
             _mouseHook.OnMouseClick += (x, y) => _ipcServer.SendMessage(new IpcMessage { Id = IpcMessageId.MouseClick, MouseX = x, MouseY = y });
-            _mouseHook.OnMouseDoubleClick += (x, y) =>
+            _mouseHook.OnMouseDoubleClick += (x, y, view) =>
             {
                 if (ShouldSuppressQuickNavTrigger()) return;
                 Logger.Log($"[HookProcess] OnMouseDoubleClick at ({x}, {y}). ActiveHwnd={_explorerTracker?.ActiveHwnd}, IsExplorerOrDesktopActive={_explorerTracker?.IsExplorerOrDesktopActive}", LogLevel.Debug);
                 RequestMenuTriggerPathRead();
-                _ipcServer.SendMessage(new IpcMessage { Id = IpcMessageId.MouseDoubleClick, MouseX = x, MouseY = y });
+                _ipcServer.SendMessage(new IpcMessage { Id = IpcMessageId.MouseDoubleClick, MouseX = x, MouseY = y, Hwnd = view });
             };
             _mouseHook.OnMouseMiddleClick += (x, y) =>
             {

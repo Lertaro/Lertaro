@@ -16,14 +16,14 @@ internal static class QuickNavigationHookHandlers
 
     public static void AttachTo(HookIpcClient hookClient, Dispatcher dispatcher)
     {
-        hookClient.OnMouseDoubleClick += (x, y) => HandleDoubleClick(dispatcher, x, y);
+        hookClient.OnMouseDoubleClick += (x, y, view) => HandleDoubleClick(dispatcher, x, y, view);
         hookClient.OnMouseMiddleClick += (x, y) => HandleMiddleClick(dispatcher, x, y);
     }
 
-    private static void HandleDoubleClick(Dispatcher dispatcher, int x, int y)
+    private static void HandleDoubleClick(Dispatcher dispatcher, int x, int y, IntPtr view)
     {
-        if (!UserSettings.Load().Hotkeys.QuickNavTriggerOnDoubleClick) return;
-        QueueTrigger(dispatcher, x, y, MouseTriggerType.DoubleClick);
+        if (view == IntPtr.Zero || !UserSettings.Load().Hotkeys.QuickNavTriggerOnDoubleClick) return;
+        QueueTrigger(dispatcher, x, y, MouseTriggerType.DoubleClick, view);
     }
 
     private static void HandleMiddleClick(Dispatcher dispatcher, int x, int y)
@@ -32,7 +32,7 @@ internal static class QuickNavigationHookHandlers
         QueueTrigger(dispatcher, x, y, MouseTriggerType.MiddleClick);
     }
 
-    private static void QueueTrigger(Dispatcher dispatcher, int x, int y, MouseTriggerType triggerType)
+    private static void QueueTrigger(Dispatcher dispatcher, int x, int y, MouseTriggerType triggerType, IntPtr view = default)
     {
         var generation = Interlocked.Increment(ref _triggerGeneration);
         if (InlineSearchWindowNativeMethods.IsPointInsideWindow(x, y)) return;
@@ -47,6 +47,7 @@ internal static class QuickNavigationHookHandlers
         {
             if (generation != Volatile.Read(ref _triggerGeneration)
                 || !IsSameContext(hwnd, path, trk.ActiveHwnd, trk.ActivePath)) return false;
+            if (view != IntPtr.Zero && view != InlineSearchWindowNativeMethods.WindowFromPoint(new() { x = x, y = y })) return false;
             var foreground = InlineSearchWindowNativeMethods.GetForegroundWindow();
             return foreground == hwnd || isDesktop && Core.Hook.ExplorerNativeHooks.IsDesktopWindow(foreground, out _);
         }

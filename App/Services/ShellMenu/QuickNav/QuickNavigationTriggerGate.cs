@@ -16,13 +16,13 @@ internal static class QuickNavigationTriggerGate
     {
         if (string.Equals(processName, "explorer", StringComparison.OrdinalIgnoreCase) || isDesktop)
         {
-            return CanShowInExplorer(activeHwnd, isDesktop, x, y);
+            return CanShowInExplorer(activeHwnd, isDesktop, x, y, triggerType);
         }
 
         return CanShowInOtherFileManager(activeHwnd, processName, className, x, y, triggerType);
     }
 
-    private static bool CanShowInExplorer(IntPtr activeHwnd, bool trackedDesktop, int x, int y)
+    private static bool CanShowInExplorer(IntPtr activeHwnd, bool trackedDesktop, int x, int y, MouseTriggerType triggerType)
     {
         var hwndUnderCursor = PointNative.WindowFromPoint(new PointNative.POINT { x = x, y = y });
         if (hwndUnderCursor == IntPtr.Zero) return false;
@@ -52,7 +52,7 @@ internal static class QuickNavigationTriggerGate
         // to establish.
         if (IsDesktopBackgroundClass(clsName, isDesktopHost)) return true;
 
-        if (!IsDescendantOfShellDllDefView(hwndUnderCursor)) return false;
+        if (!Core.Hook.InlineSearch.ExplorerBackgroundHitTest.IsFolderView(hwndUnderCursor)) return false;
 
         if (!clsName.Equals("DirectUIHWND", StringComparison.OrdinalIgnoreCase) &&
             !clsName.Equals("SysListView32", StringComparison.OrdinalIgnoreCase))
@@ -67,7 +67,9 @@ internal static class QuickNavigationTriggerGate
             return DesktopIconHitTester.IsPointOnDesktopIcon(hwndUnderCursor, x, y) == false;
         }
 
-        return ExplorerSelectionQuery.IsActiveWindowFolderEmptySpace(activeHwnd);
+        return triggerType == MouseTriggerType.DoubleClick
+            ? Core.Hook.InlineSearch.ExplorerBackgroundHitTest.IsBackground(hwndUnderCursor, x, y)
+            : ExplorerSelectionQuery.IsActiveWindowFolderEmptySpace(activeHwnd);
     }
 
     // Third-party file managers (Directory Opus, Total Commander, ...) integrate through their
@@ -128,21 +130,5 @@ internal static class QuickNavigationTriggerGate
         className.Equals("Progman", StringComparison.OrdinalIgnoreCase)
         || className.Equals("WorkerW", StringComparison.OrdinalIgnoreCase)
         || className.Equals("SHELLDLL_DefView", StringComparison.OrdinalIgnoreCase));
-
-    private static bool IsDescendantOfShellDllDefView(IntPtr hwnd)
-    {
-        var current = hwnd;
-        while (current != IntPtr.Zero)
-        {
-            var sbClass = new StringBuilder(256);
-            Native.GetClassName(current, sbClass, sbClass.Capacity);
-            if (sbClass.ToString().Equals("SHELLDLL_DefView", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-            current = Native.GetParent(current);
-        }
-        return false;
-    }
 
 }

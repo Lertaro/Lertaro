@@ -104,6 +104,7 @@ public static class PipeRequestBinarySerializer
             case IpcMessageId.MouseMiddleClick:
                 writer.Write(msg.MouseX);
                 writer.Write(msg.MouseY);
+                if (msg.Id == IpcMessageId.MouseDoubleClick) writer.Write(msg.Hwnd);
                 break;
 
             case IpcMessageId.ExplorerActivated:
@@ -229,6 +230,8 @@ public static class PipeRequestBinarySerializer
             case IpcMessageId.MouseMiddleClick:
                 msg.MouseX = reader.ReadInt32();
                 msg.MouseY = reader.ReadInt32();
+                if (msg.Id == IpcMessageId.MouseDoubleClick && reader.BaseStream.Position < reader.BaseStream.Length)
+                    msg.Hwnd = reader.ReadInt64();
                 break;
 
             case IpcMessageId.ExplorerActivated:

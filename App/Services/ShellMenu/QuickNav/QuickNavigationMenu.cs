@@ -180,7 +180,6 @@ public static class QuickNavigationMenu
         if (App.HookClient != null)
         {
             App.HookClient.OnMouseClick += clickOutsideHandler;
-            App.HookClient.OnMouseDoubleClick += clickOutsideHandler;
             App.HookClient.OnMouseMiddleClick += clickOutsideHandler;
         }
 
@@ -192,7 +191,6 @@ public static class QuickNavigationMenu
             if (App.HookClient != null)
             {
                 App.HookClient.OnMouseClick -= clickOutsideHandler;
-                App.HookClient.OnMouseDoubleClick -= clickOutsideHandler;
                 App.HookClient.OnMouseMiddleClick -= clickOutsideHandler;
             }
             // Parked, not closed: the anchor is one window for the process (see MenuHelperWindow), and

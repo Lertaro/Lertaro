@@ -51,10 +51,13 @@ public sealed class PipeRequestBinarySerializerTests
     }
 
     [TestMethod]
-    public async Task WriteMessageAsync_MouseMessage_RoundTripsCoordinates()
+    [DataRow(IpcMessageId.MouseClick, 0L)]
+    [DataRow(IpcMessageId.MouseMiddleClick, 0L)]
+    [DataRow(IpcMessageId.MouseDoubleClick, 0x123456789L)]
+    public async Task WriteMessageAsync_MouseMessage_RoundTripsCoordinates(IpcMessageId kind, long view)
     {
         using var stream = new MemoryStream();
-        var message = new IpcMessage { Id = IpcMessageId.MouseClick, MouseX = 100, MouseY = -50 };
+        var message = new IpcMessage { Id = kind, MouseX = 100, MouseY = -50, Hwnd = view };
         await PipeRequestBinarySerializer.WriteMessageAsync(stream, message);
         stream.Position = 0;
 
@@ -62,6 +65,7 @@ public sealed class PipeRequestBinarySerializerTests
 
         Assert.AreEqual(100, result.MouseX);
         Assert.AreEqual(-50, result.MouseY);
+        Assert.AreEqual(view, result.Hwnd);
     }
 
     [TestMethod]

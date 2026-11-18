@@ -50,15 +50,17 @@ public class MouseHookService : IDisposable
     [DllImport("user32.dll")]
     private static extern int GetSystemMetrics(int nIndex);
 
+    [DllImport("user32.dll")]
+    private static extern IntPtr WindowFromPoint(POINT point);
+
     private IntPtr _hookId = IntPtr.Zero;
     private LowLevelMouseProc? _proc;
 
-    private int _lastClickTime;
-    private int _lastClickX;
-    private int _lastClickY;
+    private readonly QuickNavDoubleClick _doubleClick = new(ExplorerBackgroundHitTest.Begin);
+    internal Func<bool> DoubleClickEnabled { get; init; } = () => true;
 
     public event Action<int, int>? OnMouseClick;
-    public event Action<int, int>? OnMouseDoubleClick;
+    public event Action<int, int, IntPtr>? OnMouseDoubleClick;
     public event Action<int, int>? OnMouseMiddleClick;
     // Separate from OnMouseClick (which also fires for this same button, for the existing
     // click-outside-closes-menu wiring) -- carries the raw hook timestamp so KeyboardHookService can
@@ -79,6 +81,7 @@ public class MouseHookService : IDisposable
 
     public void Stop()
     {
+        _doubleClick.Clear();
         if (_hookId != IntPtr.Zero)
         {
             UnhookWindowsHookEx(_hookId);
@@ -98,30 +101,25 @@ public class MouseHookService : IDisposable
                 if (wParam == (IntPtr)WM_LBUTTONDOWN)
                 {
                     var hookStruct = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
-                    var clickTime = (int)hookStruct.time;
-                    var doubleClickTime = (int)GetDoubleClickTime();
-                    var dx = Math.Abs(hookStruct.pt.x - _lastClickX);
-                    var dy = Math.Abs(hookStruct.pt.y - _lastClickY);
-
-                    if (clickTime - _lastClickTime <= doubleClickTime &&
-                        dx <= GetSystemMetrics(SM_CXDOUBLECLK) &&
-                        dy <= GetSystemMetrics(SM_CYDOUBLECLK))
+                    if (DoubleClickEnabled())
                     {
-                        OnMouseDoubleClick?.Invoke(hookStruct.pt.x, hookStruct.pt.y);
+                        var view = WindowFromPoint(hookStruct.pt);
+                        if (_doubleClick.Press(view, hookStruct.pt.x, hookStruct.pt.y, hookStruct.time, GetDoubleClickTime(),
+                            GetSystemMetrics(SM_CXDOUBLECLK), GetSystemMetrics(SM_CYDOUBLECLK)))
+                            OnMouseDoubleClick?.Invoke(hookStruct.pt.x, hookStruct.pt.y, view);
                     }
-
-                    _lastClickTime = clickTime;
-                    _lastClickX = hookStruct.pt.x;
-                    _lastClickY = hookStruct.pt.y;
+                    else _doubleClick.Clear();
                     OnMouseClick?.Invoke(hookStruct.pt.x, hookStruct.pt.y);
                 }
                 else if (wParam == (IntPtr)WM_MBUTTONDOWN)
                 {
+                    _doubleClick.Clear();
                     var hookStruct = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
                     OnMouseMiddleClick?.Invoke(hookStruct.pt.x, hookStruct.pt.y);
                 }
                 else if (wParam == (IntPtr)WM_RBUTTONDOWN)
                 {
+                    _doubleClick.Clear();
                     var hookStruct = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
                     OnRightButtonDown?.Invoke(hookStruct.time);
                     OnMouseClick?.Invoke(hookStruct.pt.x, hookStruct.pt.y);
