@@ -68,6 +68,34 @@ Windows build 26300、x64、12 逻辑处理器、Intel Family 6 Model 165、SDK 
 
 验证入口：`DriveWatcherHostTests`、`WatcherManagerTests`、`SchedulerTests`、`NetworkIndexerTests`、`DriveRefreshRunnerTests`、`TreeBuilderTests`、`TreeBuilderEnumerationExtensionsTests`（均在 `Tests/Core`）。
 
+## 待处理的 P2 搜索边界
+
+以下两项仍待实现；验收时应分别验证结果正确性与索引更新延迟。
+
+### 宽查询仍按 raw FZF 分数预选（#535）
+
+单字符和宽泛查询先按 raw FZF 分数保留一个大于显示数量的 headroom 集，再用完整质量键精排。经验倍率既能提前丢掉理论上更优的候选，也让宽查询在 refinement 上承担额外工作。
+
+验收需要覆盖：
+
+- 单字符与多词宽查询的候选保留不再依赖过大的经验倍率。
+- 热扫描准入键与最终排序契约一致，或能证明不一致不会改变候选集合。
+- 固定语料下核对最终有序签名、首行时间、refinement 时间和取消延迟。
+- 质量键本身不能无界进入每个候选的热路径。
+
+### 慢消费者反压传播到索引写锁（#534）
+
+`LiveIndex.Read` 当前覆盖整次搜索及每个 `onResult` 回调。生产回调向有界结果 channel 写入时，慢消费者会延迟同一磁盘的索引更新和压缩。
+
+验收需要覆盖：
+
+- 消费者暂停时，索引更新仍能在有界时间内继续。
+- 搜索仍使用一致的 snapshot/delta 视图。
+- 大结果集保持渐进交付和有界内存，不能退化为锁外一次性收集。
+- 取消后所有生产者等待都能及时释放。
+
+现有复现入口：`SearchChecklistWorkloadTests.Backpressure_BlockedConsumer_RecordsIndexWriterWait`，以及 `SearchPerformance` 固定语料负载。
+
 ## 复现入口
 
 | 工程 | 负载类别与文件 |
