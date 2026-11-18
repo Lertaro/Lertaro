@@ -75,6 +75,15 @@ public static class StartMenuShortcutResolver
             AddIfDirectory(roots, UserProfileHelper.GetDesktopPath(userDir));
         }
 
+        // <profile>\Desktop is only where the Desktop lives by default. OneDrive's folder backup (or any
+        // Known Folder redirect) moves it, and that profile-relative guess then names a folder that does not
+        // exist -- so nothing on the user's real Desktop was ever an application. The shell knows where it
+        // really is; the set dedupes it when it was never moved.
+        // ponytail: only the current user's redirect is visible here. Other profiles keep the default guess,
+        // since their User Shell Folders live in a registry hive that is not loaded; reading them would mean
+        // loading each NTUSER.DAT.
+        AddIfDirectory(roots, Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));
+
         return roots;
     }
 
