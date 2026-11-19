@@ -42,6 +42,8 @@ public class SearchViewModel : ViewModelBase, IDisposable
     private bool _allResultsHoldContentRows;
     private string _resultCountText = "";
     private bool _isSearching;
+    private bool _isQueryRunning;
+    private bool _isFiltering;
     private bool _isResultsListEnabled = true;
     private SearchSidebarCountHelper? _sidebarCountHelper;
     // Deliberately does not toggle IsResultsListEnabled while searching -- that used to disable the
@@ -64,6 +66,18 @@ public class SearchViewModel : ViewModelBase, IDisposable
     {
         get => _isResultsListEnabled;
         private set => SetProperty(ref _isResultsListEnabled, value);
+    }
+
+    internal void SetQueryRunning(bool running)
+    {
+        _isQueryRunning = running;
+        IsSearching = _isQueryRunning || _isFiltering;
+    }
+
+    private void SetFiltering(bool filtering)
+    {
+        _isFiltering = filtering;
+        IsSearching = _isQueryRunning || _isFiltering;
     }
     public SearchViewModel(string initialQuery = "", IReadOnlyList<AppSearchResult>? quickSearchRows = null)
     {
@@ -94,7 +108,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
                 _allResults = v;
                 _allResultsHoldContentRows = holdsContentRows;
             },
-            setIsSearching: v => IsSearching = v,
+            setIsSearching: SetQueryRunning,
             setLoadingPanelVisibility: v => LoadingPanelVisibility = v,
             setIsSearchBoxEnabled: v => IsSearchBoxEnabled = v,
             setReceivedCount: count =>
@@ -126,7 +140,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
             },
             // A query starts by cancelling the one in flight, so a refresh that lands mid-search would
             // restart it from zero; the watcher parks the change until the search settles instead.
-            isSearchRunning: () => IsSearching);
+            isSearchRunning: () => _isQueryRunning);
         _refreshWatcher = refreshWatcher;
         _refreshWatcher.UpdateResults(_allResults);
 
@@ -340,7 +354,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
             },
             () => _filterSource!,
             RenderFinal,
-            v => IsSearching = v);
+            SetFiltering);
     }
 
     private void RenderFinal(List<AppSearchResult> finalResults) => _resultRenderer.Render(finalResults);

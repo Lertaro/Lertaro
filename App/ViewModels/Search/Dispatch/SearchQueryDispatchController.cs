@@ -200,6 +200,7 @@ internal sealed class SearchQueryDispatchController
                     rows => AppendContentRows(rows, queryGeneration)));
         }
 
+        _setIsSearching(true);
         _searchEngine.QueueSearch(
             cleanQuery,
             searchScope: null,
