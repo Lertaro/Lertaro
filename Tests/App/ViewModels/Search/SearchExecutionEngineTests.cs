@@ -6,6 +6,32 @@ namespace Lertaro.App.Tests.ViewModels.Search;
 [TestClass]
 public sealed class SearchExecutionEngineTests
 {
+    [TestMethod]
+    public async Task RunInstantProviderAsync_CancelledWaiterNeverCallsAnotherPlugin()
+    {
+        using var entered = new CountdownEvent(4);
+        using var release = new ManualResetEventSlim();
+        var active = Enumerable.Range(0, 4).Select(_ => SearchExecutionEngine.RunInstantProviderAsync(() =>
+        {
+            entered.Signal();
+            if (!release.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException();
+            return [];
+        }, CancellationToken.None)).ToArray();
+        try
+        {
+            Assert.IsTrue(entered.Wait(TimeSpan.FromSeconds(5)));
+            using var cancellation = new CancellationTokenSource();
+            var called = false;
+            var waiting = SearchExecutionEngine.RunInstantProviderAsync(() => { called = true; return []; }, cancellation.Token);
+            Assert.IsFalse(waiting.IsCompleted);
+            cancellation.Cancel();
+
+            await Assert.ThrowsAsync<OperationCanceledException>(() => waiting);
+            Assert.IsFalse(called);
+        }
+        finally { release.Set(); await Task.WhenAll(active); }
+    }
+
     [STATestMethod]
     public async Task RunDebouncedSearchAsync_ReadySearch_LetsQueuedInputRunFirst()
     {
