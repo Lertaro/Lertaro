@@ -255,7 +255,7 @@ internal sealed class SearchStreamRenderer
         var priorityTask = priorityRoots is { Count: > 0 }
             && ScopedSearchRunner.ShouldRunPriorityRoots(query, searchScope, scopeDirective, bypassExclusions)
             ? ScopedSearchRunner.RunPriorityRootsAsync(
-                _searchService, priorityRoots, query, PriorityRootResultLimit, appLimit, Accumulate, token)
+                _searchService, priorityRoots, query, PriorityRootResultLimit, appLimit, Accumulate, token, category)
             : null;
         Task? shortcutTask = null;
 

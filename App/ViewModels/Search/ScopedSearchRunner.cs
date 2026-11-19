@@ -2,6 +2,7 @@ using Lertaro.App.ViewModels.Search.Dispatch;
 using Lertaro.Core;
 using Lertaro.Core.Services.Search;
 using Lertaro.Core.SearchIndex.Query;
+using Lertaro.PluginSdk.Helpers;
 
 namespace Lertaro.App.ViewModels.Search;
 
@@ -53,7 +54,7 @@ internal static class ScopedSearchRunner
 
         var tasks = directive.Folders.Select(folder => RunFolderAsync(
             searchService, folder, query, fileLimit, appLimit, onResult,
-            ReportLocalSearchFailedOnce, bypassExclusions, directive.FilterPattern, token)).ToArray();
+            ReportLocalSearchFailedOnce, bypassExclusions, directive.FilterPattern, token, SearchCategoryFilter.All)).ToArray();
 
         try
         {
@@ -72,6 +73,7 @@ internal static class ScopedSearchRunner
     /// The engine truncates the shared candidate pool by name relevance before the App can apply priority,
     /// so a promoted folder with ordinary names ("Readme.txt") could never reach the ranking. These rows are
     /// additive and unordered; the App re-ranks the merged set, where the priority rules put them first.
+    /// The category must match the main query, so other kinds cannot consume the per-root budget.
     /// Failures are swallowed per folder: a broken rule must not cost the query its normal results.
     /// </remarks>
     public static async Task RunPriorityRootsAsync(
@@ -81,11 +83,12 @@ internal static class ScopedSearchRunner
         int perRootLimit,
         int appLimit,
         Action<SearchResult> onResult,
-        CancellationToken token)
+        CancellationToken token,
+        SearchCategoryFilter category)
     {
         var tasks = roots.Select(root => RunFolderAsync(
             searchService, root, query, perRootLimit, appLimit, onResult,
-            onLocalSearchFailed: static () => { }, bypassExclusions: false, fileNameFilter: null, token)).ToArray();
+            onLocalSearchFailed: static () => { }, bypassExclusions: false, fileNameFilter: null, token, category)).ToArray();
 
         try
         {
@@ -142,13 +145,14 @@ internal static class ScopedSearchRunner
         Action onLocalSearchFailed,
         bool bypassExclusions,
         string? fileNameFilter,
-        CancellationToken token)
+        CancellationToken token,
+        SearchCategoryFilter category)
     {
         try
         {
             await searchService.SearchStreamingAsync(
                 query, fileLimit, appLimit, folder, onResult, token,
-                onLocalSearchFailed, bypassExclusions, fileNameFilter: fileNameFilter).ConfigureAwait(false);
+                onLocalSearchFailed, bypassExclusions, fileNameFilter: fileNameFilter, category: category).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
