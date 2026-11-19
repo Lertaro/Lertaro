@@ -120,7 +120,6 @@ public class SearchViewModel : ViewModelBase, IDisposable
             replaceSidebarCounts: results => _sidebarCountHelper?.Replace(results),
             applyFiltersAndRender: (extendsContent, unchangedPrefix) =>
                 ApplyFiltersAndRender(extendsContent || _refreshKeepsViewport, unchangedPrefix),
-            isTypeFilterSelected: () => IsTypeFilterSelected,
             // Settling runs after the final paint, so the refresh flag is still live for every paint of
             // the refreshed query and is dropped here for whatever the user does next.
             onResultsSettled: () =>
@@ -211,8 +210,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
     public ObservableCollection<DynamicSidebarGroupViewModel> DynamicSidebarGroups { get; } = new();
 
     // True when any item of the well-known result-type group is selected. Content-search results
-    // are only merged into _allResults while no type filter is active; a selected type (e.g. "文件")
-    // means the user asked for exactly that type, so the extra content rows are excluded.
+    // remain in _allResults, but a selected type (e.g. "文件") excludes them from the displayed projection.
     internal bool IsTypeFilterSelected =>
         DynamicSidebarGroups.Any(g => string.Equals(g.Id, "Type", StringComparison.OrdinalIgnoreCase) && g.HasSelection);
     public string AdvancedQuery
