@@ -8,6 +8,43 @@ namespace Lertaro.App.Tests.Services.ShellMenu.ActionFlyout;
 [TestClass]
 public sealed class ActionsMenuNavigatorTests
 {
+    [StaTestMethod]
+    [DataRow(false, 1)]
+    [DataRow(true, 0)]
+    public void GoBack_DelayedParentRestoresSelectionUnlessNavigationWasReset(bool reset, int expectedIndex)
+    {
+        var previousContext = SynchronizationContext.Current;
+        var dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
+        SynchronizationContext.SetSynchronizationContext(new System.Windows.Threading.DispatcherSynchronizationContext(dispatcher));
+        try
+        {
+            var view = new FakeSearchWindow();
+            view.LstActions.Items.Add(Normal("Open"));
+            view.LstActions.Items.Add(SubMenu("System menu", new IntPtr(42)));
+            view.LstActions.SelectedIndex = 1;
+            var parent = new TaskCompletionSource();
+            var navigator = new ActionsMenuNavigator(view,
+                handle => handle == IntPtr.Zero ? parent.Task : Task.CompletedTask, () => { });
+            navigator.EnterSubMenu();
+            view.LstActions.Items.Clear();
+            view.LstActions.Items.Add(Normal("Native action"));
+            navigator.GoBackMenuOrExit();
+            if (reset) navigator.Reset();
+
+            view.LstActions.Items.Clear();
+            view.LstActions.Items.Add(Normal("Open"));
+            view.LstActions.Items.Add(SubMenu("System menu", new IntPtr(42)));
+            view.LstActions.SelectedIndex = 0;
+            parent.SetResult();
+            var frame = new System.Windows.Threading.DispatcherFrame();
+            dispatcher.BeginInvoke(() => frame.Continue = false, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            System.Windows.Threading.Dispatcher.PushFrame(frame);
+
+            Assert.AreEqual(expectedIndex, view.LstActions.SelectedIndex);
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previousContext); }
+    }
+
     private sealed class FakeSearchWindow : ISearchWindow
     {
         public UIElement ResultsPanel { get; } = new Grid();
@@ -40,7 +77,7 @@ public sealed class ActionsMenuNavigatorTests
     public void NavigateActionsList_EmptyList_DoesNothing()
     {
         var view = new FakeSearchWindow();
-        var navigator = new ActionsMenuNavigator(view, _ => { }, () => { });
+        var navigator = new ActionsMenuNavigator(view, _ => Task.CompletedTask, () => { });
 
         navigator.NavigateActionsList(1);
 
@@ -56,7 +93,7 @@ public sealed class ActionsMenuNavigatorTests
         view.LstActions.Items.Add(new ActionMenuItem { Text = "B", IsDisabled = true });
         view.LstActions.Items.Add(Normal("C"));
         view.LstActions.SelectedIndex = 0;
-        var navigator = new ActionsMenuNavigator(view, _ => { }, () => { });
+        var navigator = new ActionsMenuNavigator(view, _ => Task.CompletedTask, () => { });
 
         navigator.NavigateActionsList(1);
 
@@ -70,7 +107,7 @@ public sealed class ActionsMenuNavigatorTests
         view.LstActions.Items.Add(Normal("A"));
         view.LstActions.Items.Add(Normal("B"));
         view.LstActions.SelectedIndex = 0;
-        var navigator = new ActionsMenuNavigator(view, _ => { }, () => { });
+        var navigator = new ActionsMenuNavigator(view, _ => Task.CompletedTask, () => { });
 
         navigator.NavigateActionsList(-1);
 
@@ -84,7 +121,7 @@ public sealed class ActionsMenuNavigatorTests
         view.LstActions.Items.Add(Normal("A"));
         view.LstActions.Items.Add(Separator());
         view.LstActions.SelectedIndex = 0;
-        var navigator = new ActionsMenuNavigator(view, _ => { }, () => { });
+        var navigator = new ActionsMenuNavigator(view, _ => Task.CompletedTask, () => { });
 
         navigator.NavigateActionsList(1);
 
@@ -99,7 +136,7 @@ public sealed class ActionsMenuNavigatorTests
         view.LstActions.Items.Add(SubMenu("Send to", handle));
         view.LstActions.SelectedIndex = 0;
         var loaded = new List<IntPtr>();
-        var navigator = new ActionsMenuNavigator(view, h => loaded.Add(h), () => { });
+        var navigator = new ActionsMenuNavigator(view, h => { loaded.Add(h); return Task.CompletedTask; }, () => { });
 
         navigator.EnterSubMenu();
 
@@ -114,7 +151,7 @@ public sealed class ActionsMenuNavigatorTests
         view.LstActions.Items.Add(Normal("Copy"));
         view.LstActions.SelectedIndex = 0;
         var loadCount = 0;
-        var navigator = new ActionsMenuNavigator(view, _ => loadCount++, () => { });
+        var navigator = new ActionsMenuNavigator(view, _ => { loadCount++; return Task.CompletedTask; }, () => { });
 
         navigator.EnterSubMenu();
 
@@ -127,7 +164,7 @@ public sealed class ActionsMenuNavigatorTests
     {
         var view = new FakeSearchWindow();
         var exited = false;
-        var navigator = new ActionsMenuNavigator(view, _ => { }, () => exited = true);
+        var navigator = new ActionsMenuNavigator(view, _ => Task.CompletedTask, () => exited = true);
 
         navigator.GoBackMenuOrExit();
 
@@ -142,7 +179,7 @@ public sealed class ActionsMenuNavigatorTests
         view.LstActions.Items.Add(SubMenu("Send to", handle));
         view.LstActions.SelectedIndex = 0;
         var loaded = new List<IntPtr>();
-        var navigator = new ActionsMenuNavigator(view, h => loaded.Add(h), () => { });
+        var navigator = new ActionsMenuNavigator(view, h => { loaded.Add(h); return Task.CompletedTask; }, () => { });
         navigator.EnterSubMenu();
 
         // Simulate the submenu being loaded with its own items before going back.
@@ -163,7 +200,7 @@ public sealed class ActionsMenuNavigatorTests
         view.LstActions.Items.Add(SubMenu("Send to", handle));
         view.LstActions.SelectedIndex = 0;
         var exited = false;
-        var navigator = new ActionsMenuNavigator(view, _ => { }, () => exited = true);
+        var navigator = new ActionsMenuNavigator(view, _ => Task.CompletedTask, () => exited = true);
         navigator.EnterSubMenu();
 
         navigator.Reset();

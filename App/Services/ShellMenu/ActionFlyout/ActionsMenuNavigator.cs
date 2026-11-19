@@ -9,14 +9,15 @@ namespace Lertaro.App.Services.ShellMenu.ActionFlyout;
 internal sealed class ActionsMenuNavigator
 {
     private readonly ISearchWindow _view;
-    private readonly Action<IntPtr> _loadMenuItems;
+    private readonly Func<IntPtr, Task> _loadMenuItems;
     private readonly Action _exitActionsMode;
 
     private readonly Stack<IntPtr> _menuStack = new();
     private readonly Stack<int> _menuSelectedIndexStack = new();
     private readonly Stack<string> _menuTitleStack = new();
+    private int _navigationVersion;
 
-    public ActionsMenuNavigator(ISearchWindow view, Action<IntPtr> loadMenuItems, Action exitActionsMode)
+    public ActionsMenuNavigator(ISearchWindow view, Func<IntPtr, Task> loadMenuItems, Action exitActionsMode)
     {
         _view = view;
         _loadMenuItems = loadMenuItems;
@@ -27,6 +28,7 @@ internal sealed class ActionsMenuNavigator
 
     public void Reset()
     {
+        _navigationVersion++;
         _menuStack.Clear();
         _menuSelectedIndexStack.Clear();
         _menuTitleStack.Clear();
@@ -44,30 +46,36 @@ internal sealed class ActionsMenuNavigator
         _view.LstActions.ScrollIntoView(_view.LstActions.SelectedItem);
     }
 
-    public void EnterSubMenu()
+    public void EnterSubMenu() => _ = EnterSubMenuAsync();
+
+    private async Task EnterSubMenuAsync()
     {
         if (_view.LstActions.SelectedItem is ActionMenuItem item && item.HasSubMenu && item.SubMenuHandle != IntPtr.Zero)
         {
+            _navigationVersion++;
             _menuStack.Push(item.SubMenuHandle);
             _menuSelectedIndexStack.Push(_view.LstActions.SelectedIndex);
             _menuTitleStack.Push(item.Text);
             FocusActionSearch();
-            _loadMenuItems(item.SubMenuHandle);
+            await _loadMenuItems(item.SubMenuHandle);
         }
     }
 
-    public void GoBackMenuOrExit()
+    public void GoBackMenuOrExit() => _ = GoBackMenuOrExitAsync();
+
+    private async Task GoBackMenuOrExitAsync()
     {
+        var version = ++_navigationVersion;
         if (_menuStack.Count > 0)
         {
             _menuStack.Pop();
             if (_menuTitleStack.Count > 0) _menuTitleStack.Pop();
             var parentMenu = _menuStack.Count > 0 ? _menuStack.Peek() : IntPtr.Zero;
+            var prevIndex = _menuSelectedIndexStack.Count > 0 ? _menuSelectedIndexStack.Pop() : -1;
             FocusActionSearch();
-            _loadMenuItems(parentMenu);
-            if (_menuSelectedIndexStack.Count > 0)
+            await _loadMenuItems(parentMenu);
+            if (version == _navigationVersion)
             {
-                var prevIndex = _menuSelectedIndexStack.Pop();
                 if (prevIndex >= 0 && prevIndex < _view.LstActions.Items.Count)
                 {
                     _view.LstActions.SelectedIndex = prevIndex;
