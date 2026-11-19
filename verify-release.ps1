@@ -34,6 +34,8 @@ try {
             } catch {
                 throw 'LERTARO_SIGNING_KEY must contain a base64-encoded ECDSA private-key PEM.'
             }
+            # Compare public-key bytes, not PEM/base64 text: LF and CRLF encode differently
+            # but ImportFromPem loads the same key from either newline convention.
             $actualPublic = $signer.ExportSubjectPublicKeyInfo()
             if ([Convert]::ToBase64String($actualPublic) -cne [Convert]::ToBase64String($trustedPublic)) {
                 throw "The signing key does not match the updater trust anchor (SHA256:$fingerprint)."

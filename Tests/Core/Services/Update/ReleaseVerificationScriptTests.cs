@@ -29,6 +29,40 @@ public sealed class ReleaseVerificationScriptTests : IDisposable
     }
 
     [TestMethod]
+    [DataRow("\n", false, false)]
+    [DataRow("\r\n", false, false)]
+    [DataRow("\n", true, false)]
+    [DataRow("\r\n", true, false)]
+    [DataRow("\n", false, true)]
+    [DataRow("\r\n", false, true)]
+    [DataRow("\n", true, true)]
+    [DataRow("\r\n", true, true)]
+    public async Task CheckSigningKey_PemLineEndingsAndWrappedBase64KeepTheSameKey(string newline, bool pkcs8, bool wrappedBase64)
+    {
+        var pem = (pkcs8 ? _trusted.ExportPkcs8PrivateKeyPem() : _trusted.ExportECPrivateKeyPem())
+            .ReplaceLineEndings(newline) + newline;
+
+        var result = await RunAsync(_trusted, checkKey: true, pemOverride: pem, wrappedBase64: wrappedBase64);
+
+        Assert.AreEqual(0, result.ExitCode, result.Output);
+        var fingerprint = Convert.ToHexString(SHA256.HashData(_trusted.ExportSubjectPublicKeyInfo())).ToLowerInvariant();
+        Assert.Contains("Signing key matches updater trust anchor SHA256:" + fingerprint, result.Output);
+    }
+
+    [TestMethod]
+    [DataRow("\\n")]
+    [DataRow("\\r\\n")]
+    public async Task CheckSigningKey_LiteralBackslashEscapesAreNotPemNewlines(string escapedNewline)
+    {
+        var pem = _trusted.ExportECPrivateKeyPem().ReplaceLineEndings(escapedNewline);
+
+        var result = await RunAsync(_trusted, checkKey: true, pemOverride: pem);
+
+        Assert.AreNotEqual(0, result.ExitCode);
+        Assert.Contains("base64-encoded ECDSA private-key PEM", result.Output);
+    }
+
+    [TestMethod]
     public async Task CheckSigningKey_PublicHalfAloneCannotSignARelease()
     {
         using var publicOnly = ECDsa.Create();
@@ -77,7 +111,8 @@ public sealed class ReleaseVerificationScriptTests : IDisposable
     }
 
     private async Task<(int ExitCode, string Output)> RunAsync(ECDsa signer, bool checkKey = false,
-        bool tamper = false, bool omitSignature = false, bool publicOnly = false)
+        bool tamper = false, bool omitSignature = false, bool publicOnly = false,
+        string? pemOverride = null, bool wrappedBase64 = false)
     {
         var trustSource = Path.Combine(_directory, "UpdatePackage.cs");
         var lines = _trusted.ExportSubjectPublicKeyInfoPem().Split('\n', StringSplitOptions.RemoveEmptyEntries);
@@ -93,8 +128,9 @@ public sealed class ReleaseVerificationScriptTests : IDisposable
         start.Environment.Remove("LERTARO_SIGNING_KEY");
         if (checkKey)
         {
-            var pem = publicOnly ? signer.ExportSubjectPublicKeyInfoPem() : signer.ExportECPrivateKeyPem();
-            start.Environment["LERTARO_SIGNING_KEY"] = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(pem));
+            var pem = pemOverride ?? (publicOnly ? signer.ExportSubjectPublicKeyInfoPem() : signer.ExportECPrivateKeyPem());
+            start.Environment["LERTARO_SIGNING_KEY"] = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(pem),
+                wrappedBase64 ? Base64FormattingOptions.InsertLineBreaks : Base64FormattingOptions.None);
             start.ArgumentList.Add("-CheckSigningKey");
         }
         else

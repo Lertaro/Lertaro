@@ -24,7 +24,7 @@ stages:
   - release
 
 variables:
-  # The release job builds its changelog with git log / git describe, which need the full history and
+  # The build job writes release-notes.md with git log / git describe, which need the full history and
   # the previous tags rather than the default shallow clone.
   GIT_DEPTH: "0"
   # Namespace for the artifacts in the generic package registry.
@@ -71,6 +71,8 @@ build:
       foreach ($zip in @('Lertaro-Portable.zip', 'Lertaro-Portable-arm64.zip')) {
         if ((Get-Item "dist/$zip.sig").Length -lt 8) { throw "Empty signature: dist/$zip.sig" }
       }
+      # Save the complete notes beside the exact signed files, before any network publish can fail.
+      .\generate-release-notes.ps1 -Tag $env:CI_COMMIT_TAG
   artifacts:
     paths:
       - dist/
@@ -91,44 +93,8 @@ release:
       $tag = $env:CI_COMMIT_TAG
       $files = $env:ARTIFACTS.Split(' ')
 
-      # Changelog: commits since the previous tag, as the GitHub workflow wrote it.
-      $previous = git describe --tags --abbrev=0 "$tag^" 2>$null
-      $range = if ($LASTEXITCODE -eq 0 -and $previous) { "$previous..$tag" } else { $tag }
-      $commits = (git log --pretty=format:"* %s (%h)" --no-merges $range) -join "`n"
-
-      $lines = [System.Collections.Generic.List[string]]::new()
-      $lines.Add('## Changelog (Commits)')
-      $lines.Add('')
-      $lines.Add($commits)
-      $lines.Add('')
-      $lines.Add('## Security Verification')
-      $lines.Add('')
-      $lines.Add('### SHA-256 Checksums')
-      foreach ($name in $files) {
-        $hash = (Get-FileHash -Path "dist/$name" -Algorithm SHA256).Hash.ToLower()
-        $lines.Add("* **$name**: ``$hash``")
-      }
-
-      # The public key is read out of the source so the notes cannot drift from what the app trusts.
-      $source = Get-Content 'Core/Services/Update/UpdatePackage.cs' -Raw
-      $parts = [regex]::Matches($source, '"([A-Za-z0-9+/=]{40,})\\n"') | ForEach-Object { $_.Groups[1].Value }
-      if ($parts) {
-        $lines.Add('')
-        $lines.Add('### Signature Verification (ECDsa NistP256)')
-        $lines.Add('The portable zips are signed with the release key. Save the public key below as')
-        $lines.Add('`public_key.pem`, then run:')
-        $lines.Add('')
-        $lines.Add('```bash')
-        $lines.Add('openssl dgst -sha256 -verify public_key.pem -signature Lertaro-Portable.zip.sig Lertaro-Portable.zip')
-        $lines.Add('# Expected output: Verified OK')
-        $lines.Add('```')
-        $lines.Add('')
-        $lines.Add('```')
-        $lines.Add('-----BEGIN PUBLIC KEY-----')
-        foreach ($part in $parts) { $lines.Add($part) }
-        $lines.Add('-----END PUBLIC KEY-----')
-        $lines.Add('```')
-      }
+      # Publish the file created by the build job, so the local Markdown and GitLab page agree.
+      $releaseNotes = Get-Content -LiteralPath 'dist/release-notes.md' -Raw -Encoding utf8
 
       # 1. Publish the artifacts, then 2. link them from the release.
       $base = "$env:CI_API_V4_URL/projects/$env:CI_PROJECT_ID/packages/generic/$env:PACKAGE_NAME/$tag"
@@ -153,7 +119,7 @@ release:
 
       $payload = @{
         name        = $tag
-        description = ($lines -join "`n")
+        description = $releaseNotes
         assets      = @{ links = $links }
       }
       # tag_name is only accepted when creating a release; the update endpoint takes it from the URL.

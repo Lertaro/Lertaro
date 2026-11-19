@@ -18,7 +18,7 @@
 | [window-rendering.md](window-rendering.md) | 字体、首帧、DPI 与窗口复用 |
 | [windows-integration.md](windows-integration.md) | Hook 恢复、跨进程对话框与宿主适配 |
 | [settings-permissions.md](settings-permissions.md) | 权限诊断、数据目录与启动失败处理 |
-| [gitlab-self-hosted-runner.md](gitlab-self-hosted-runner.md) | runner、签名与发布保留策略 |
+| [gitlab-self-hosted-runner.md](gitlab-self-hosted-runner.md) | runner、签名故障取证、本地 release notes 与可复现构建边界 |
 
 性能原始样本保留在 [第一轮证据](search-performance-results.json) 与 [第二轮证据](search-performance-checklist-results.json)。第二轮基线是第一轮修复后的产物，两组前后对照不能混用。
 
