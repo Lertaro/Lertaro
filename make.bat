@@ -70,6 +70,13 @@ echo App Version: %APP_VER% (PE Version: %APP_VER_4%)
 :: workflow share. The sweep below clears the leftovers of a run that died halfway.
 echo.
 echo Decoding the signing key...
+where pwsh >nul 2>&1
+if errorlevel 1 (
+    echo [Error] PowerShell 7 is required to verify releases against the updater trust anchor.
+    exit /b 1
+)
+pwsh -NoProfile -File "%ROOT%verify-release.ps1" -CheckSigningKey
+if errorlevel 1 exit /b 1
 if not defined LERTARO_SIGNING_KEY (
     echo [Error] LERTARO_SIGNING_KEY is not set. It must hold the key file as one base64 line, for example
     echo         the output of:  openssl base64 -A -in lertaro-release.key
@@ -210,7 +217,7 @@ if defined OPENSSL (
         echo [Error] Signing %SIGN_ZIP% failed.
         exit /b 1
     )
-    goto :eof
+    goto :verify_signature
 )
 
 :: No OpenSSL anywhere: fall back to the same ECDsa code the app verifies with. That needs PowerShell 7,
@@ -234,4 +241,7 @@ if not exist "%SIGN_ZIP%.sig" (
     exit /b 1
 )
 
-goto :eof
+:verify_signature
+pwsh -NoProfile -File "%ROOT%verify-release.ps1" -PackagePath "%SIGN_ZIP%"
+if errorlevel 1 exit /b 1
+exit /b 0

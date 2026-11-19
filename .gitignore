@@ -117,6 +117,7 @@ publish/
 *-Setup*.exe
 *-Portable*.zip
 *-Portable*.zip.sig
+dist/release-notes.md
 
 # VitePress site exclusions
 Site/node_modules/
