@@ -186,8 +186,9 @@ public class UserSettings
 
     /// <summary>
     /// User-chosen priority order for the quick window's search-result "types" -- each
-    /// ISearchableItemProvider (Applications, Settings, File Filters, any third-party plugin) plus one
-    /// synthetic entry for raw file-index results (SearchResultTypePriority.FilesTypeId), most-preferred
+    /// ISearchableItemProvider (Applications, Settings, File Filters, any third-party plugin) plus two
+    /// synthetic entries for raw file-index results (SearchResultTypePriority.FilesTypeId and FoldersTypeId;
+    /// an order saved before Folders existed gets it right after Files, see WithFolders), most-preferred
     /// first. Applied inside each index-priority band (high/low/normal, see IndexRules), before any
     /// match-quality key (RankedCandidate.TypeRank in RankedCandidateOrdering), so e.g. Applications
     /// outrank Files of the same priority whatever matched the query text better; a file in a

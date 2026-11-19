@@ -216,13 +216,14 @@ public static class SearchResultMapper
         // section-local group inside RankPolicy.BuildKey/RankKeyComparer, not a group above the sections
         // or above the evidence grade. Pinned, Boosted and Low compare it after grade, priority, history
         // band and match placement (contiguity, shape, start) have tied, but before coverage, and only
-        // between the three built-in buckets. Every file-backed row (index files,
-        // favorites, history, Windows' Recent) starts on FilesTypeRank so those rows stay one group; a
-        // shortcut then borrows the better of that rank and the application type's (below). The inline
-        // window never consults the list at all.
+        // between the four built-in buckets. Every file-backed row (index files,
+        // favorites, history, Windows' Recent) starts on FilesTypeRank; a directory then moves to the
+        // Folders rank and a shortcut borrows the better of the Files and application ranks (below). The
+        // inline window never consults the list at all.
         var typeOrder = isInlineWindow ? new List<string>() : UserSettings.Load().ResultTypeOrder;
         var typeRanks = SearchResultTypePriority.BuildRanks(typeOrder);
         var filesTypeRank = SearchResultTypePriority.Rank(SearchResultTypePriority.FilesTypeId, typeRanks);
+        var foldersTypeRank = SearchResultTypePriority.Rank(SearchResultTypePriority.FoldersTypeId, typeRanks);
 
         // A .lnk/.appref-ms is a file row that is also an application shortcut. Taking the better of
         // the two ranks keeps the user's "Applications first" order working for shortcuts the app provider
@@ -441,27 +442,27 @@ public static class SearchResultMapper
             }
         }
 
-        // Only entered when nothing is triggered, or "Files" itself is the triggered type -- fileResults
-        // was already fetched from the backend using the trigger-stripped query (SearchDispatchController
-        // strips it before ever dispatching the search), so this gets the same clean-text recall any
-        // other type gets, not just whatever a trigger-polluted query happened to match.
-        if (preRankingDrops != null && fileResults != null && triggeredTypeId != null
-            && triggeredTypeId != SearchResultTypePriority.FilesTypeId)
-        {
-            foreach (var result in fileResults)
-                preRankingDrops.Add(new RankingDroppedCandidate(
-                    result.Path,
-                    RankingCandidateSource.FileIndex,
-                    null,
-                    RankingProviderState.Unknown,
-                    0,
-                    RankingDropStage.TypeTriggerFilter));
-        }
-        if (fileResults != null && (triggeredTypeId == null || triggeredTypeId == SearchResultTypePriority.FilesTypeId))
+        // A row survives a type trigger only when it belongs to the triggered file bucket (see
+        // InTriggeredFileBucket) -- fileResults was already fetched from the backend using the
+        // trigger-stripped query (SearchDispatchController strips it before ever dispatching the search), so
+        // this gets the same clean-text recall any other type gets, not just whatever a trigger-polluted
+        // query happened to match.
+        if (fileResults != null)
         {
             foreach (var result in fileResults)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (!InTriggeredFileBucket(result.IsDir, triggeredTypeId))
+                {
+                    preRankingDrops?.Add(new RankingDroppedCandidate(
+                        result.Path,
+                        RankingCandidateSource.FileIndex,
+                        null,
+                        RankingProviderState.Unknown,
+                        0,
+                        RankingDropStage.TypeTriggerFilter));
+                    continue;
+                }
                 var lookupPath = result.Path.Length > 3 && result.Path[^1] == '\\' ? result.Path.TrimEnd('\\') : result.Path;
                 var usage = historyUsage.TryGetValue(lookupPath, out var uc) ? uc : 0;
                 // A row the index returned whose own NAME does not match the query at all -- it was reached
@@ -488,6 +489,7 @@ public static class SearchResultMapper
         // favorite, history, Windows Recent -- the searchable-item loop already carries the app rank) takes
         // the better of the two. Nothing moves when the app type is unlisted or ranked below Files.
         ApplyShortcutTypeRank(candidates, filesTypeRank, shortcutTypeRank);
+        ApplyFolderTypeRank(candidates, filesTypeRank, foldersTypeRank);
 
         // The history and favorite rows merged above never pass through the engine's own folder filter, so the
         // scope has to be re-applied to them here. Before ranking and before the display cap, so a dropped
@@ -656,6 +658,36 @@ public static class SearchResultMapper
         RankingCandidateSource Source = RankingCandidateSource.Unknown,
         MatchEvidence Evidence = default,
         bool TypeRankApplies = true);
+
+    // Directories leave the Files rank for the Folders one, whatever source found them (index, favorite,
+    // history, Windows Recent). Only rows still on the Files rank move, so a provider row keeps its own type.
+    // A no-op while both buckets are unlisted (they share int.MaxValue).
+    internal static void ApplyFolderTypeRank(List<RankedCandidate> candidates, int filesTypeRank, int foldersTypeRank)
+    {
+        if (foldersTypeRank == filesTypeRank)
+            return;
+
+        for (var i = 0; i < candidates.Count; i++)
+        {
+            var row = candidates[i];
+            if (row.Result.IsDir && row.TypeRank == filesTypeRank)
+                candidates[i] = row with
+                {
+                    TypeRank = foldersTypeRank,
+                    TypeRankApplies = SearchResultTypePriority.IsCoreTypeRank(foldersTypeRank),
+                };
+        }
+    }
+
+    // The file-index rows a type trigger keeps: every one with no trigger, files for "Files", directories
+    // for "Folders", none for any other type.
+    internal static bool InTriggeredFileBucket(bool isDir, string? triggeredTypeId) => triggeredTypeId switch
+    {
+        null => true,
+        SearchResultTypePriority.FilesTypeId => !isDir,
+        SearchResultTypePriority.FoldersTypeId => isDir,
+        _ => false,
+    };
 
     // A shortcut file is both a file row and an application shortcut, and it ranks as whichever identity the
     // user put first -- where the app provider never indexed it, the file row is the only row it has, so

@@ -330,7 +330,7 @@ public sealed class SearchRequestBinarySerializerTests
         foreach (var category in new[]
                  {
                      SearchCategoryFilter.All, SearchCategoryFilter.Folder, SearchCategoryFilter.Settings,
-                     SearchCategoryFilter.Archive, SearchCategoryFilter.Video,
+                     SearchCategoryFilter.Archive, SearchCategoryFilter.Video, SearchCategoryFilter.File,
                  })
         {
             var result = await RoundTripAsync(new SearchRequestMessage

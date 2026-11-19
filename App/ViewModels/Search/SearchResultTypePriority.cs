@@ -5,6 +5,7 @@ using Lertaro.App.Services.PluginManagerCore;
 using Lertaro.App.ViewModels.Settings.Plugins;
 using Lertaro.Core;
 using Lertaro.PluginSdk.Abstractions.Plugins;
+using Lertaro.PluginSdk.Helpers;
 
 using Lertaro.App.Services.Plugin;
 namespace Lertaro.App.ViewModels.Search;
@@ -20,14 +21,18 @@ public static class SearchResultTypePriority
     // for its own non-plugin entries.
     public const string FilesTypeId = "__builtin::Files";
 
+    // Directories from the same sources as Files (index, favorites, history, Windows Recent). Its own entry so
+    // "Applications, Files, Folders" can be said in the order; until then folders shared the Files rank.
+    public const string FoldersTypeId = "__builtin::Folders";
+
     // The ResultKind AppSearchResult.IsApplication reads. A named constant so the shortcut-identity path
     // below and the app provider's own declaration cannot drift apart.
     public const string ApplicationResultKind = "Application";
 
-    // Rank 0..2 are the three built-in buckets the user asked to order explicitly (Applications, System
-    // settings, Files). Anything beyond that -- a third-party provider, or a row whose type is not listed --
-    // is neutral in the rank kernel and must not be moved by the type order.
-    public const int CoreResultTypeCount = 3;
+    // Rank 0..3 are the four built-in buckets the user asked to order explicitly (Applications, System
+    // settings, Files, Folders). Anything beyond that -- a third-party provider, or a row whose type is not
+    // listed -- is neutral in the rank kernel and must not be moved by the type order.
+    public const int CoreResultTypeCount = 4;
 
     public static bool IsCoreTypeRank(int rank) => rank >= 0 && rank < CoreResultTypeCount;
 
@@ -44,6 +49,7 @@ public static class SearchResultTypePriority
     /// <summary>First occurrence wins, matching IndexOf. Ordinal comparer keeps the old case sensitivity.</summary>
     public static Dictionary<string, int> BuildRanks(List<string> order)
     {
+        order = WithFolders(order);
         var ranks = new Dictionary<string, int>(order.Count, StringComparer.Ordinal);
         for (var i = 0; i < order.Count; i++)
             ranks.TryAdd(order[i], i);
@@ -52,19 +58,70 @@ public static class SearchResultTypePriority
 
     public static int Rank(string typeId, List<string> order) => Rank(typeId, BuildRanks(order));
 
-    // "Files comes first": the file bucket is the top of the user's saved order, so no other type sits
-    // above it for the type tie-break to favour. The quick window uses this to stop capping an exact-named
-    // directory at DirectStrong (RankPolicy.GradeForRanking): with Files first the cap protects nothing and
-    // would only let a keyword-only ExactIdentity on a settings row outrank every folder.
-    public static bool FilesComesFirst(List<string> order) =>
-        order.Count > 0 && string.Equals(order[0], FilesTypeId, StringComparison.Ordinal);
+    // A saved order from before Folders existed lists Files but not Folders: Folders takes the slot right
+    // after Files, so files lead folders at an equally good match. Read-time rather than a settings rewrite,
+    // so every reader agrees and the Settings list shows the same slot it will save. An order that never
+    // listed Files (nothing saved yet) is left alone: no type order applies there at all.
+    public static List<string> WithFolders(List<string> order)
+    {
+        if (order.Contains(FoldersTypeId))
+            return order;
+        var files = order.IndexOf(FilesTypeId);
+        if (files < 0)
+            return order;
+        var withFolders = new List<string>(order);
+        withFolders.Insert(files + 1, FoldersTypeId);
+        return withFolders;
+    }
+
+    // Whether the quick window caps an exact-named directory at DirectStrong (RankPolicy.GradeForRanking),
+    // so that a type ranked above Folders -- an application, a setting -- can win against a folder with the
+    // same leading word. Only Files above Folders does not count: the cap exists to make room for another
+    // kind of thing, and files beat folders by the type order already. With nothing but file buckets on top,
+    // the cap would only let a keyword-only ExactIdentity on a settings row outrank every exact folder.
+    public static bool FoldersBehindAnotherType(List<string> order)
+    {
+        order = WithFolders(order);
+        var folders = order.IndexOf(FoldersTypeId);
+        if (folders < 0)
+            return true;
+        for (var i = 0; i < folders; i++)
+        {
+            if (order[i] != FilesTypeId)
+                return true;
+        }
+        return false;
+    }
 
     // The file bucket's rank when another built-in type sits above it, i.e. when the quick window caps an
     // exact file name so that type can win (RankPolicy.GradeForRanking). Null when Files leads the order or
     // is not one of the ordered built-in buckets at all: no type to make room for, or no rank to tell file
-    // rows apart from unlisted ones.
-    public static int? FilesRankBehindAnotherType(List<string> order) =>
-        Rank(FilesTypeId, order) is var rank && rank > 0 && IsCoreTypeRank(rank) ? rank : null;
+    // rows apart from unlisted ones. Folders above Files does not count, the mirror of FoldersBehindAnotherType:
+    // folders already beat files by the type order, and the cap would only hand the win to a type ranked below.
+    public static int? FilesRankBehindAnotherType(List<string> order)
+    {
+        order = WithFolders(order);
+        var files = order.IndexOf(FilesTypeId);
+        if (!IsCoreTypeRank(files))
+            return null;
+        for (var i = 0; i < files; i++)
+        {
+            if (order[i] != FoldersTypeId)
+                return files;
+        }
+        return null;
+    }
+
+    // What a type trigger asks the index walk for. The mapper keeps only the triggered kind of file row
+    // (SearchResultMapper.InTriggeredFileBucket); asking the walk for the same kind is what lets a "Files"
+    // search find the files behind a page of folders, instead of cutting the mixed list first and finding none.
+    // Every other trigger keeps no file row at all, so it leaves the walk as it was.
+    public static SearchCategoryFilter IndexCategoryFor(string? triggeredTypeId) => triggeredTypeId switch
+    {
+        FilesTypeId => SearchCategoryFilter.File,
+        FoldersTypeId => SearchCategoryFilter.Folder,
+        _ => SearchCategoryFilter.All,
+    };
 
     // The type rank of the provider(s) declaring this ResultKind -- the best one when several do.
     // int.MaxValue when none of them declares it or the type is not in the saved order, i.e. the same
@@ -86,8 +143,8 @@ public static class SearchResultTypePriority
 
     // A shortcut must still look like an application when the Start Menu provider is not loaded: the live
     // provider is the only thing that declares ResultKind "Application", so without a fallback a .lnk stays
-    // on the Files rank and cannot be moved by the configured order at all. Use the best listed non-Files
-    // type as that fallback -- normally Applications itself, which is the first bucket in the default order.
+    // on the Files rank and cannot be moved by the configured order at all. Use the best listed type that is
+    // not a file bucket as that fallback -- normally Applications itself, the first bucket in the default order.
     public static int RankForApplication(
         IEnumerable<ISearchableItemProvider> providers,
         IReadOnlyDictionary<string, int> ranks)
@@ -98,7 +155,7 @@ public static class SearchResultTypePriority
 
         foreach (var (typeId, candidate) in ranks)
         {
-            if (typeId != FilesTypeId)
+            if (typeId is not (FilesTypeId or FoldersTypeId))
                 rank = Math.Min(rank, candidate);
         }
         return rank;
@@ -147,6 +204,8 @@ public static class SearchResultTypePriority
     {
         if (typeId == FilesTypeId)
             return TranslationManager.Instance["General_ResultTypeFiles"];
+        if (typeId == FoldersTypeId)
+            return TranslationManager.Instance["General_ResultTypeFolders"];
 
         foreach (var provider in PluginManager.Instance.SearchableItemProviders)
         {

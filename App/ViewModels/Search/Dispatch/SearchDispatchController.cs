@@ -2,6 +2,7 @@ using System.Windows;
 using Lertaro.Core;
 using Lertaro.App.Services;
 using Lertaro.PluginSdk.Services;
+using Lertaro.PluginSdk.Helpers;
 using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Query;
 using Lertaro.App.ViewModels.Search.Mapping;
@@ -108,7 +109,7 @@ internal sealed class SearchDispatchController
             ClearForTokenOnlyQuery();
             return;
         }
-        RunEngineSearch(_engine.QueueSearch, value, searchQuery, scopeDirective);
+        RunEngineSearch(_engine.QueueSearch, value, searchQuery, scopeDirective, triggeredTypeId);
     }
     // An operator typed with no keyword after it yet -- a token-only query (e.g. "::foo" with no
     // keyword before it), or a bare "*" (bypass exclusion rules) -- strips down to an empty clean
@@ -151,13 +152,15 @@ internal sealed class SearchDispatchController
         string? instantQuery,
         bool emitInstantResults,
         Action? beforeSearch,
-        Func<string?, List<AppSearchResult>>? collectInstantResults);
+        Func<string?, List<AppSearchResult>>? collectInstantResults,
+        SearchCategoryFilter typeCategory);
 
     private void RunEngineSearch(
         EngineSearchCall engineCall,
         string originalValue,
         string searchQuery,
-        FileFilterScopeDirective? scopeDirective)
+        FileFilterScopeDirective? scopeDirective,
+        string? triggeredTypeId)
     {
         // A query token (e.g. "::bzsc") filters/reorders whatever candidate set it's handed in
         // ComposeAndApplyAsync, AFTER this search already ran -- the usual 51/51 quick-window budget
@@ -189,6 +192,9 @@ internal sealed class SearchDispatchController
         // 51-row budget would leave about ten folders on a mixed query. Same widening the token and scoped
         // paths above already use, for the same reason: the rows the card may keep have to arrive first.
         var fileLimit = hasTokens || hasScope || folderScope || filenameLike ? SearchViewModel.TokenQuickSearchFileLimit : 51;
+        // The Files and Folders triggers need no widening: the index walk itself admits only their kind, so
+        // the budget is spent before the cut on rows the mapper will keep (see SearchCategoryFilter).
+        var typeCategory = SearchResultTypePriority.IndexCategoryFor(triggeredTypeId);
         var appLimit = hasScope ? 0 : hasTokens ? SearchViewModel.FullSearchAppLimit : 51;
         // Per search, not per paint: the mapper below is the render callback, and it asks every instant
         // provider and search-action plugin on each call. See SearchResultMapper.InstantPassCache.
@@ -202,12 +208,12 @@ internal sealed class SearchDispatchController
         // user checkbox and does not spend a history slot, so pinning still works in the card.
         var isInlineContext = _getIsInlineSearchContext();
         // The directory grade cap exists to keep a preferred application/settings row ahead of an unrelated
-        // folder with the same leading word. That only makes sense while some other type outranks Files: when
-        // the user puts the file bucket first, the cap would demote the exact-named folder to DirectStrong and
-        // hand the win to a settings row that merely matched through a keyword, i.e. the exact opposite of the
-        // order they configured. Read once per query, like the type order the mapper resolves later.
+        // folder with the same leading word. That only makes sense while some type other than Files outranks
+        // Folders: when the user puts the file buckets first, the cap would demote the exact-named folder to
+        // DirectStrong and hand the win to a settings row that merely matched through a keyword, i.e. the exact
+        // opposite of the order they configured. Read once per query, like the type order the mapper resolves later.
         var typeOrder = UserSettings.Load().ResultTypeOrder;
-        var demoteDirectoryIdentity = isInlineContext || !SearchResultTypePriority.FilesComesFirst(typeOrder);
+        var demoteDirectoryIdentity = isInlineContext || SearchResultTypePriority.FoldersBehindAnotherType(typeOrder);
         // An exact file name gets the same cap, but only here: the inline card has no type order to win.
         var demotedFilesTypeRank = isInlineContext ? null : SearchResultTypePriority.FilesRankBehindAnotherType(typeOrder);
         // One trace session covers all streaming paints of this quick-window query. The switch only
@@ -251,7 +257,8 @@ internal sealed class SearchDispatchController
             // Nothing to start alongside a quick-window search: the rows this window can show all come from
             // the one search already, and its instant providers are folded into the mapper above.
             null,
-            contextDir => SearchResultMapper.CollectInstantPass(instantPass, originalValue, searchQuery, _getIsInlineSearchContext(), contextDir)
+            contextDir => SearchResultMapper.CollectInstantPass(instantPass, originalValue, searchQuery, _getIsInlineSearchContext(), contextDir),
+            typeCategory
         );
     }
     public void PerformSearch(string query)
@@ -321,7 +328,7 @@ internal sealed class SearchDispatchController
             ClearForTokenOnlyQuery();
             return;
         }
-        RunEngineSearch(_engine.PerformSearch, query, searchQuery, scopeDirective);
+        RunEngineSearch(_engine.PerformSearch, query, searchQuery, scopeDirective, triggeredTypeId);
     }
     private void HandleLocalServiceUnavailable() => _mainVm.TriggerIndexBuild();
 

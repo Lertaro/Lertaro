@@ -32,6 +32,12 @@ public enum SearchCategoryFilter : byte
     Audio = 6,
     Video = 7,
     Archive = 8,
+
+    /// <summary>
+    /// Every entry that is not a directory, whatever its kind. A filter only: <see cref="SearchCategoryClassifier.Classify(string?, bool)"/>
+    /// never answers it, because each file already has a narrower category or none.
+    /// </summary>
+    File = 9,
 }
 
 /// <summary>
@@ -192,6 +198,8 @@ public static class SearchCategoryClassifier
     {
         if (filter == SearchCategoryFilter.All)
             return true;
+        if (filter == SearchCategoryFilter.File)
+            return !isDirectory;
 
         if (Classify(nameOrPath, isDirectory) == filter)
             return true;
