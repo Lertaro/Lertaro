@@ -8,6 +8,36 @@ namespace Lertaro.App.Tests.ViewModels.Search;
 public sealed class SearchResultsReconcilerTests
 {
     [TestMethod]
+    public void Replace_SelectedRowRemoved_SelectsTheRetainedLiveInstance()
+    {
+        var retained = Result(@"Z:\a", query: "r");
+        var removed = Result(@"Z:\b", query: "r");
+        var results = new ObservableRangeCollection<AppSearchResult> { retained, removed };
+        AppSearchResult? selected = removed;
+
+        SearchResultsReconciler.Replace(results, [Result(@"Z:\a", query: "ra")], removed, row => selected = row);
+
+        Assert.AreSame(retained, selected);
+        Assert.Contains(selected, results);
+        Assert.AreEqual("ra", retained.SearchQuery);
+    }
+
+    [TestMethod]
+    public void Replace_UnchangedCollectionWithoutSelection_SelectsAnExistingRow()
+    {
+        var retained = Result(@"Z:\a");
+        var results = new ObservableRangeCollection<AppSearchResult> { retained };
+        AppSearchResult? selected = null;
+        var changes = 0;
+        results.CollectionChanged += (_, _) => changes++;
+
+        SearchResultsReconciler.Replace(results, [Result(@"Z:\a")], null, row => selected = row);
+
+        Assert.AreEqual(0, changes, "No collection event is available to repair selection later.");
+        Assert.AreSame(retained, selected);
+    }
+
+    [TestMethod]
     public void Replace_LargeUnchangedIdentity_PreservesSelectionAndUpdatesHighlightAndAction()
     {
         var before = Enumerable.Range(0, 600).Select(i => Result($@"Z:\report{i}", query: "r")).ToArray();

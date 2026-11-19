@@ -25,7 +25,7 @@ internal static class SearchResultsReconciler
             return;
 
         AppSearchResult? firstSelectable = null;
-        foreach (var result in list)
+        foreach (var result in results)
         {
             if (!result.IsEmptyResult && !result.IsSearchSectionHeader)
             {
