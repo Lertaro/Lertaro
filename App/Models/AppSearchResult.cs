@@ -278,7 +278,7 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
             // from its own record must not have to allocate to do it.
             var known = Metadata.Modified;
             if (known != DateTime.MinValue)
-                return (Extras.DateModified = known).Value;
+                return known;
             return AppSearchResultDisplaySupport.GetDateModified(this);
         }
     }

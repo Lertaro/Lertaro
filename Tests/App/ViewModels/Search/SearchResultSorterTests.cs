@@ -6,6 +6,38 @@ namespace Lertaro.App.Tests.ViewModels.Search;
 [TestClass]
 public sealed class SearchResultSorterTests
 {
+    [TestMethod]
+    public async Task SortAsync_MissingDates_AwaitsMetadataBeforePublishingDateOrder()
+    {
+        var directory = System.IO.Directory.CreateTempSubdirectory("lertaro-sort-");
+        try
+        {
+            var newer = System.IO.Path.Combine(directory.FullName, "newer.txt");
+            var older = System.IO.Path.Combine(directory.FullName, "older.txt");
+            System.IO.File.WriteAllText(newer, "new");
+            System.IO.File.WriteAllText(older, "old");
+            System.IO.File.SetLastWriteTime(newer, new DateTime(2026, 11, 18));
+            System.IO.File.SetLastWriteTime(older, new DateTime(2026, 1, 1));
+            List<AppSearchResult> rows = [Make("newer", newer, default), Make("older", older, default)];
+
+            var sorted = await SearchResultSorter.SortAsync(rows, "DateModified", true, CancellationToken.None);
+
+            CollectionAssert.AreEqual(new[] { "older", "newer" }, sorted.Select(row => row.Name).ToArray());
+            var descending = await SearchResultSorter.SortAsync(rows, "DateModified", false, CancellationToken.None);
+            CollectionAssert.AreEqual(new[] { "newer", "older" }, descending.Select(row => row.Name).ToArray());
+        }
+        finally { directory.Delete(recursive: true); }
+    }
+
+    [TestMethod]
+    public async Task SortAsync_CancelledQuery_DoesNotStartLoadingDates()
+    {
+        var row = Make("unknown", @"Z:\unknown", default);
+        await Assert.ThrowsAsync<OperationCanceledException>(() => SearchResultSorter.SortAsync(
+            [row], "DateModified", true, new CancellationToken(canceled: true)));
+        Assert.IsNull(row.ExistingExtras?.DateModifiedTask);
+    }
+
     private static AppSearchResult Make(string name, string fullPath, DateTime modified) => new()
     {
         Name = name,

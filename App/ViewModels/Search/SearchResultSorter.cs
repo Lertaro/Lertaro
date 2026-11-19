@@ -5,6 +5,40 @@ namespace Lertaro.App.ViewModels.Search;
 
 internal static class SearchResultSorter
 {
+    public static async Task<List<AppSearchResult>> SortAsync(IEnumerable<AppSearchResult> results, string column, bool ascending, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        var rows = results as List<AppSearchResult> ?? results.ToList();
+        if (column != "DateModified")
+        {
+            var sorted = Sort(rows, column, ascending, token);
+            return ReferenceEquals(sorted, rows) ? rows : sorted.ToList();
+        }
+
+        // Sorting against placeholder MinValue keys is irreversible once the list is published. Load
+        // missing dates on bounded workers, then sort one fixed set of keys for this projection.
+        var dates = new DateTime[rows.Count];
+        var missing = new List<int>();
+        for (var i = 0; i < rows.Count; i++)
+        {
+            token.ThrowIfCancellationRequested();
+            dates[i] = rows[i].Metadata.Modified;
+            if (dates[i] == DateTime.MinValue)
+            {
+                if (rows[i].ExistingExtras?.DateModified is { } cached) dates[i] = cached;
+                else missing.Add(i);
+            }
+        }
+        await Parallel.ForEachAsync(missing, new ParallelOptions { MaxDegreeOfParallelism = 8, CancellationToken = token },
+            async (index, cancellation) => dates[index] = await AppSearchResultDisplaySupport.GetDateModifiedAsync(rows[index])
+                .WaitAsync(cancellation).ConfigureAwait(false)).ConfigureAwait(false);
+        var comparer = WithCancellation(Comparer<DateTime>.Default, token);
+        var indexes = ascending
+            ? Enumerable.Range(0, rows.Count).OrderBy(index => dates[index], comparer)
+            : Enumerable.Range(0, rows.Count).OrderByDescending(index => dates[index], comparer);
+        return indexes.Select(index => rows[index]).ToList();
+    }
+
     // currentSortColumn is a stable id -- "Name"/"Path"/"DateModified" for the built-in columns (see
     // Helpers/Visuals/ColumnIdentity), or a plugin's own ResultColumnDefinition.ColumnId -- never the
     // column's displayed (translated) header text, which would break on a language switch or collide

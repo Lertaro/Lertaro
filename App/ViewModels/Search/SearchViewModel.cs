@@ -342,18 +342,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
         PendingFilter = _dynamicFilterCoordinator.Apply(
             _filterSource,
             activeFilters,
-            // ToList only when the sort actually reordered something. With no column selected --
-            // relevance order, the default -- Sort hands back the very list it was given, and
-            // materializing that again is another full-size copy per paint for no change at all.
-            (results, token) =>
-            {
-                var sorted = SearchResultSorter.Sort(results, sortColumn, ascending, token);
-                var list = ReferenceEquals(sorted, results) && results is List<AppSearchResult> asList
-                    ? asList
-                    : sorted.ToList();
-                token.ThrowIfCancellationRequested();
-                return Task.FromResult(list);
-            },
+            (results, token) => SearchResultSorter.SortAsync(results, sortColumn, ascending, token),
             () => _filterSource!,
             rows =>
             {
