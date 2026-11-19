@@ -270,16 +270,9 @@ internal sealed class SearchQueryDispatchController
                 // would then immediately clobber its filtered result with the unfiltered one.
                 if (_queryTokens.Count > 0)
                 {
-                    // Copied because this outlives the render: the accumulator hands back one buffer it
-                    // reuses on the next paint, which is safe for a synchronous consumer and not for one
-                    // that awaits.
-                    //
-                    // The SAME copy has to become _allResults. RefreshAfterTokenDispatchAsync decides
-                    // whether its result is still wanted by comparing the snapshot it was handed against
-                    // _allResults BY REFERENCE, so handing it a copy while _allResults kept the original
-                    // made that check fail every single time and silently discard every token dispatch --
-                    // tokens in this window quietly stopped doing anything at all.
-                    var snapshot = new List<AppSearchResult>(filteredResults);
+                    // The accumulator publishes a stable snapshot. Keep that same reference for the
+                    // token dispatch's stale-result check, including across an await.
+                    var snapshot = filteredResults;
                     _setAllResults(snapshot, false);
                     _ = RefreshAfterTokenDispatchAsync(snapshot, _queryTokens, extendsContent, cleanQuery);
                 }
@@ -521,7 +514,7 @@ internal sealed class SearchQueryDispatchController
         _setIsSearching(false);
         _accumulator = null;
         _searchSettled = false;
-        _getAllResults().Clear();
+        _setAllResults(new List<AppSearchResult>(), false);
         _applyFiltersAndRender(false, 0);
         _onResultsSettled?.Invoke();
         _setLoadingPanelVisibility(Visibility.Collapsed);

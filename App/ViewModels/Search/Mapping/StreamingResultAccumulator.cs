@@ -141,9 +141,9 @@ internal sealed class StreamingResultAccumulator
     public int FirstChangedIndex => _firstChanged;
 
     /// <summary>
-    /// The one list <see cref="Absorb"/> hands back: the content prefix, then the ranked index matches.
+    /// A stable list of the content prefix followed by the ranked index matches.
     /// </summary>
-    public List<AppSearchResult> Rows => _rows;
+    public List<AppSearchResult> Rows => new(_rows);
 
     /// <summary>How many leading rows came from a content provider rather than from the index.</summary>
     public int ContentPrefixCount => _prefixCount;
@@ -190,11 +190,9 @@ internal sealed class StreamingResultAccumulator
     /// must never rewrite the prefix a previous call read.
     /// </summary>
     /// <remarks>
-    /// The SAME list instance comes back every time, updated in place -- a fresh one per paint would be
-    /// a multi-megabyte large-object allocation several times a second for a big search. It is valid
-    /// until the next call, which is all any synchronous consumer needs; the render pump waits for the
-    /// UI to finish applying a paint before computing the next, so no consumer overlaps one. A caller
-    /// that does keep it across an await (the query-token path) must copy it first.
+    /// The merge buffer stays on the producer thread. Published lists copy references, so a user can
+    /// filter, sort or clear the previous answer while the next batch is being merged. Row identities
+    /// are retained for reconciliation; the list's membership and order remain stable.
     /// </remarks>
     public List<AppSearchResult> Absorb(IReadOnlyList<SearchResult> arrivals, CancellationToken token = default)
     {
@@ -256,12 +254,12 @@ internal sealed class StreamingResultAccumulator
             RewriteRows(prefixLanded ? 0 : firstChanged, token);
             _firstChanged = prefixLanded ? 0 : _prefixCount + firstChanged;
             SearchPerf.Log($"[absorb] in={count} kept={chunk.Count} total={_ranked.Count} build={buildMs:F0}ms sort={sortMs:F0}ms merge={mergeMs:F0}ms rewrite={SearchPerf.Ms(rewriteStart):F0}ms firstChanged={firstChanged}");
-            return _rows;
+            return new(_rows);
         }
 
         RewriteRows(prefixLanded ? 0 : firstChanged, token);
         _firstChanged = prefixLanded ? 0 : _prefixCount + firstChanged;
-        return _rows;
+        return new(_rows);
     }
 
     // Only the disturbed suffix is rewritten. Index is restamped over the same range because a row
