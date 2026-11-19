@@ -25,7 +25,7 @@ internal sealed class LiveIndexFixture : IDisposable
     // and, via PathHelpers.BuildSourceRoot, Snapshot.SourceRoot (e.g. "C:\").
     public static LiveIndexFixture Build(string driveKey, IEnumerable<FileRecord> records, bool isComplete = false)
     {
-        var tempDir = Directory.CreateTempSubdirectory("lertaro-tests-").FullName;
+        var tempDir = System.IO.Directory.CreateTempSubdirectory("lertaro-tests-").FullName;
         var path = System.IO.Path.Combine(tempDir, "test.idx");
 
         var store = new FileRecordStore
@@ -50,6 +50,6 @@ internal sealed class LiveIndexFixture : IDisposable
     public void Dispose()
     {
         Index.Dispose();
-        try { Directory.Delete(_tempDir, recursive: true); } catch { }
+        try { System.IO.Directory.Delete(_tempDir, recursive: true); } catch { }
     }
 }

@@ -20,6 +20,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- A real LiveIndex for the type-trigger tests that run the index walk end to end. -->
+    <Compile Include="..\Core\IndexV2\LiveIndexFixture.cs" Link="Shared\LiveIndexFixture.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\App\App.csproj" />
     <ProjectReference Include="..\..\Plugins\SystemSettings\SystemSettings.csproj" />
     <ProjectReference Include="..\..\Plugins\CustomActions\CustomActions.csproj" />

@@ -5,6 +5,7 @@ using Lertaro.App.Services.PluginManagerCore;
 using Lertaro.App.ViewModels.Settings.Plugins;
 using Lertaro.Core;
 using Lertaro.PluginSdk.Abstractions.Plugins;
+using Lertaro.PluginSdk.Helpers;
 
 using Lertaro.App.Services.Plugin;
 namespace Lertaro.App.ViewModels.Search;
@@ -110,6 +111,17 @@ public static class SearchResultTypePriority
         }
         return null;
     }
+
+    // What a type trigger asks the index walk for. The mapper keeps only the triggered kind of file row
+    // (SearchResultMapper.InTriggeredFileBucket); asking the walk for the same kind is what lets a "Files"
+    // search find the files behind a page of folders, instead of cutting the mixed list first and finding none.
+    // Every other trigger keeps no file row at all, so it leaves the walk as it was.
+    public static SearchCategoryFilter IndexCategoryFor(string? triggeredTypeId) => triggeredTypeId switch
+    {
+        FilesTypeId => SearchCategoryFilter.File,
+        FoldersTypeId => SearchCategoryFilter.Folder,
+        _ => SearchCategoryFilter.All,
+    };
 
     // The type rank of the provider(s) declaring this ResultKind -- the best one when several do.
     // int.MaxValue when none of them declares it or the type is not in the saved order, i.e. the same

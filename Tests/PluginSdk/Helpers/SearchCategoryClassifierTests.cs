@@ -85,6 +85,7 @@ public sealed class SearchCategoryClassifierTests
     [DataRow(SearchCategoryFilter.Video)]
     [DataRow(SearchCategoryFilter.Archive)]
     [DataRow(SearchCategoryFilter.Folder)]
+    [DataRow(SearchCategoryFilter.File)]
     public void Matches_AShortcutPassesEveryCategory(SearchCategoryFilter filter) =>
         Assert.IsTrue(SearchCategoryClassifier.Matches(filter, "Edge.lnk", isDirectory: false),
             "the walk cannot resolve a target, so it must not be the side that drops the row");
@@ -103,6 +104,19 @@ public sealed class SearchCategoryClassifierTests
     {
         Assert.IsTrue(SearchCategoryClassifier.Matches(SearchCategoryFilter.Folder, @"D:\Downloads", isDirectory: true));
         Assert.IsFalse(SearchCategoryClassifier.Matches(SearchCategoryFilter.Document, @"D:\Downloads", isDirectory: true));
+    }
+
+    [TestMethod]
+    [DataRow("notes.docx")]
+    [DataRow("readme.xyz")]
+    [DataRow("Makefile")]
+    public void Matches_TheFileCategoryAdmitsEveryFileAndNoFolder(string name)
+    {
+        Assert.IsTrue(SearchCategoryClassifier.Matches(SearchCategoryFilter.File, name, isDirectory: false),
+            "a file with no narrower category is still a file");
+        Assert.IsFalse(SearchCategoryClassifier.Matches(SearchCategoryFilter.File, name, isDirectory: true));
+        Assert.AreNotEqual(SearchCategoryFilter.File, SearchCategoryClassifier.Classify(name, isDirectory: false),
+            "File is a filter, never a classification");
     }
 
     [TestMethod]

@@ -2,6 +2,7 @@ using System.Windows;
 using Lertaro.Core;
 using Lertaro.App.Services;
 using Lertaro.PluginSdk.Services;
+using Lertaro.PluginSdk.Helpers;
 using Lertaro.Core.SearchIndex;
 using Lertaro.Core.SearchIndex.Query;
 using Lertaro.App.ViewModels.Search.Mapping;
@@ -151,7 +152,8 @@ internal sealed class SearchDispatchController
         string? instantQuery,
         bool emitInstantResults,
         Action? beforeSearch,
-        Func<string?, List<AppSearchResult>>? collectInstantResults);
+        Func<string?, List<AppSearchResult>>? collectInstantResults,
+        SearchCategoryFilter typeCategory);
 
     private void RunEngineSearch(
         EngineSearchCall engineCall,
@@ -189,12 +191,10 @@ internal sealed class SearchDispatchController
         // A folder scope drops most of what the engine answers before it reaches the list, so the ordinary
         // 51-row budget would leave about ten folders on a mixed query. Same widening the token and scoped
         // paths above already use, for the same reason: the rows the card may keep have to arrive first.
-        // The Folders trigger is the same situation in the quick window: the mapper keeps only the directories.
-        // ponytail: it widens the budget instead of asking the engine for folders only (the foldersOnly the
-        // inline card's folder picker gets inside SearchExecutionEngine), so a query whose first 1000 rows are
-        // all files still finds no folder. Upgrade path: route foldersOnly from here through the engine call.
-        var foldersTriggered = triggeredTypeId == SearchResultTypePriority.FoldersTypeId;
-        var fileLimit = hasTokens || hasScope || folderScope || foldersTriggered || filenameLike ? SearchViewModel.TokenQuickSearchFileLimit : 51;
+        var fileLimit = hasTokens || hasScope || folderScope || filenameLike ? SearchViewModel.TokenQuickSearchFileLimit : 51;
+        // The Files and Folders triggers need no widening: the index walk itself admits only their kind, so
+        // the budget is spent before the cut on rows the mapper will keep (see SearchCategoryFilter).
+        var typeCategory = SearchResultTypePriority.IndexCategoryFor(triggeredTypeId);
         var appLimit = hasScope ? 0 : hasTokens ? SearchViewModel.FullSearchAppLimit : 51;
         // Per search, not per paint: the mapper below is the render callback, and it asks every instant
         // provider and search-action plugin on each call. See SearchResultMapper.InstantPassCache.
@@ -257,7 +257,8 @@ internal sealed class SearchDispatchController
             // Nothing to start alongside a quick-window search: the rows this window can show all come from
             // the one search already, and its instant providers are folded into the mapper above.
             null,
-            contextDir => SearchResultMapper.CollectInstantPass(instantPass, originalValue, searchQuery, _getIsInlineSearchContext(), contextDir)
+            contextDir => SearchResultMapper.CollectInstantPass(instantPass, originalValue, searchQuery, _getIsInlineSearchContext(), contextDir),
+            typeCategory
         );
     }
     public void PerformSearch(string query)
