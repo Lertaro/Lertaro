@@ -65,7 +65,9 @@ public class ObservableRangeCollection<T> : ObservableCollection<T>
             if (Items is List<T> backing && collection is ICollection<T> sized && sized.Count > backing.Capacity)
                 backing.Capacity = sized.Count;
 
-            foreach (var item in collection)
+            if (Items is List<T> list)
+                list.AddRange(collection);
+            else foreach (var item in collection)
             {
                 Items.Add(item);
             }

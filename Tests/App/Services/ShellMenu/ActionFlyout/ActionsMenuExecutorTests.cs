@@ -38,7 +38,7 @@ public sealed class ActionsMenuExecutorTests
         var executor = new ActionsMenuExecutor(
             view,
             new Dictionary<uint, IDynamicActionProvider>(),
-            new ActionsMenuNavigator(view, _ => { }, () => { }),
+            new ActionsMenuNavigator(view, _ => Task.CompletedTask, () => { }),
             () => { });
         var result = new AppSearchResult { Name = "result", FullPath = "result" };
 
@@ -66,7 +66,7 @@ public sealed class ActionsMenuExecutorTests
         var executor = new ActionsMenuExecutor(
             view,
             new Dictionary<uint, IDynamicActionProvider>(),
-            new ActionsMenuNavigator(view, _ => { }, () => { }),
+            new ActionsMenuNavigator(view, _ => Task.CompletedTask, () => { }),
             () => { });
         var result = new AppSearchResult { Name = "result", FullPath = "result" };
 
@@ -90,7 +90,7 @@ public sealed class ActionsMenuExecutorTests
         var executor = new ActionsMenuExecutor(
             view,
             new Dictionary<uint, IDynamicActionProvider>(),
-            new ActionsMenuNavigator(view, _ => { }, () => { }),
+            new ActionsMenuNavigator(view, _ => Task.CompletedTask, () => { }),
             () => calls.Add("exit"));
         var result = new AppSearchResult { Name = "result", FullPath = "result" };
 
@@ -119,7 +119,7 @@ public sealed class ActionsMenuExecutorTests
         var executor = new ActionsMenuExecutor(
             view,
             new Dictionary<uint, IDynamicActionProvider>(),
-            new ActionsMenuNavigator(view, _ => { }, () => { }),
+            new ActionsMenuNavigator(view, _ => Task.CompletedTask, () => { }),
             () => calls.Add("exit"));
         var result = new AppSearchResult { Name = "result", FullPath = "result" };
 

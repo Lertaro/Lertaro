@@ -46,13 +46,21 @@ internal static class AppSearchResultDisplaySupport
         if (WslPath.IsPath(owner.FullPath))
             return DateTime.MinValue;
 
-        var extras = owner.DisplayExtras;
-        if (!extras.DateModifiedLoadingStarted)
-        {
-            extras.DateModifiedLoadingStarted = true;
-            LoadDateModifiedAsync(owner);
-        }
+        _ = GetDateModifiedAsync(owner);
         return DateTime.MinValue;
+    }
+
+    internal static Task<DateTime> GetDateModifiedAsync(AppSearchResult owner)
+    {
+        var known = owner.Metadata.Modified;
+        if (known != DateTime.MinValue) return Task.FromResult(known);
+        if (WslPath.IsPath(owner.FullPath)) return Task.FromResult(DateTime.MinValue);
+        var extras = owner.DisplayExtras;
+        lock (extras)
+        {
+            if (extras.DateModified is { } cached) return Task.FromResult(cached);
+            return extras.DateModifiedTask ??= LoadDateModifiedAsync(owner);
+        }
     }
 
     public static bool[]? GetHighlightMask(AppSearchResult owner, string text, string query) =>
@@ -122,25 +130,32 @@ internal static class AppSearchResultDisplaySupport
         }));
     }
 
-    private static void LoadDateModifiedAsync(AppSearchResult owner)
+    private static Task<DateTime> LoadDateModifiedAsync(AppSearchResult owner)
     {
         var path = owner.FullPath;
         var isDirectory = owner.IsDir;
-        LazyBackgroundLoader.Start(DateModifiedSemaphore, () =>
+        return Task.Run(async () =>
         {
-            if (path.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase) && !ViewModels.Search.SearchReachabilityGate.IsPathReachable(path))
-                return Task.CompletedTask;
+            if (!await DateModifiedSemaphore.WaitAsync(5000).ConfigureAwait(false))
+            {
+                var extras = owner.DisplayExtras;
+                lock (extras) extras.DateModifiedTask = null;
+                return DateTime.MinValue;
+            }
 
             var modified = DateTime.MinValue;
             try
             {
-                if (isDirectory ? Directory.Exists(path) : File.Exists(path))
+                if ((!path.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase)
+                    || ViewModels.Search.SearchReachabilityGate.IsPathReachable(path))
+                    && (isDirectory ? Directory.Exists(path) : File.Exists(path)))
                     modified = isDirectory ? Directory.GetLastWriteTime(path) : File.GetLastWriteTime(path);
             }
             catch
             {
                 modified = DateTime.MinValue;
             }
+            finally { DateModifiedSemaphore.Release(); }
 
             LazyBackgroundLoader.ApplyOnUiThread(() =>
             {
@@ -148,7 +163,7 @@ internal static class AppSearchResultDisplaySupport
                 owner.NotifyDisplayPropertyChanged(nameof(AppSearchResult.DateModified));
                 owner.NotifyDisplayPropertyChanged(nameof(AppSearchResult.DateModifiedText));
             });
-            return Task.CompletedTask;
+            return modified;
         });
     }
 }

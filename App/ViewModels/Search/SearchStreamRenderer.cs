@@ -65,7 +65,8 @@ internal sealed class SearchStreamRenderer
         FileFilterScopeDirective? scopeDirective = null,
         bool foldersOnly = false,
         IReadOnlyList<string>? priorityRoots = null,
-        SearchCategoryFilter category = SearchCategoryFilter.All)
+        SearchCategoryFilter category = SearchCategoryFilter.All,
+        Task? instantSearchTask = null)
     {
         var streamedResponse = new List<SearchResult>();
         object responseLock = new();
@@ -341,8 +342,20 @@ internal sealed class SearchStreamRenderer
             }
         }
 
-        await RenderSnapshotAsync(final: true, int.MaxValue).ConfigureAwait(false);
+        await RenderWithLateResultsAsync(final => RenderSnapshotAsync(final, int.MaxValue), instantSearchTask, token).ConfigureAwait(false);
         SearchPerf.Log($"[stream] results={Volatile.Read(ref streamedCount)} lastArrival={Volatile.Read(ref lastArrivalMs)}ms wall={SearchPerf.Ms(perfStart):F0}ms consume={SearchPerf.MsFromTicks(Volatile.Read(ref consumeTicks)):F0}ms");
+    }
+
+    internal static async Task RenderWithLateResultsAsync(Func<bool, Task> render, Task? pendingResults, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        var pending = pendingResults is { IsCompleted: false };
+        await render(!pending).ConfigureAwait(false);
+        if (!pending) return;
+
+        await pendingResults!.WaitAsync(token).ConfigureAwait(false);
+        token.ThrowIfCancellationRequested();
+        await render(true).ConfigureAwait(false);
     }
 
     internal static List<SearchResult> CopySnapshot(

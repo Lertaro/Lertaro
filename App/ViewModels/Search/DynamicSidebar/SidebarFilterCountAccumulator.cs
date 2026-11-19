@@ -9,6 +9,8 @@ internal sealed class SidebarFilterCountAccumulator
     private readonly IReadOnlyList<IReadOnlyList<Func<ISearchResult, bool>>> _predicatesByGroup;
     private readonly int[] _counts;
     private readonly List<ISearchResult> _results = new();
+    private IReadOnlyList<IReadOnlyList<Func<ISearchResult, bool>>>? _selection;
+    private int _counted;
 
     public SidebarFilterCountAccumulator(IReadOnlyList<IReadOnlyList<Func<ISearchResult, bool>>> predicatesByGroup)
     {
@@ -25,19 +27,27 @@ internal sealed class SidebarFilterCountAccumulator
     {
         _results.Clear();
         Array.Clear(_counts, 0, _counts.Length);
+        _selection = null;
+        _counted = 0;
     }
 
     public void AddBatch(IReadOnlyList<ISearchResult> results) => _results.AddRange(results);
 
     public void ReplaceResults(IReadOnlyList<ISearchResult> results)
     {
-        _results.Clear();
+        Reset();
         _results.AddRange(results);
     }
 
-    public IReadOnlyList<int> Calculate(IReadOnlyList<IReadOnlyList<Func<ISearchResult, bool>>> selectedPredicatesByGroup)
+    public IReadOnlyList<int> Calculate(IReadOnlyList<IReadOnlyList<Func<ISearchResult, bool>>> selectedPredicatesByGroup, CancellationToken token = default)
     {
-        Array.Clear(_counts, 0, _counts.Length);
+        if (_selection == null || !_selection.Zip(selectedPredicatesByGroup).All(pair => pair.First.SequenceEqual(pair.Second))
+            || _selection.Count != selectedPredicatesByGroup.Count)
+        {
+            Array.Clear(_counts, 0, _counts.Length);
+            _counted = 0;
+            _selection = selectedPredicatesByGroup;
+        }
         var groupMatches = new bool[_predicatesByGroup.Count];
         var groupOffsets = new int[_predicatesByGroup.Count];
         var offset = 0;
@@ -47,8 +57,10 @@ internal sealed class SidebarFilterCountAccumulator
             offset += _predicatesByGroup[groupIndex].Count;
         }
 
-        foreach (var result in _results)
+        for (; _counted < _results.Count; _counted++)
         {
+            token.ThrowIfCancellationRequested();
+            var result = _results[_counted];
             for (var groupIndex = 0; groupIndex < _predicatesByGroup.Count; groupIndex++)
             {
                 // Plain loop rather than Enumerable.Any: the lambda closes over `result`, so a LINQ pass

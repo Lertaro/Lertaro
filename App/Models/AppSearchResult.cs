@@ -17,7 +17,7 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
     private Core.SearchResult? _source;
     private AppSearchResultExtras? _extras;
 
-    private AppSearchResultExtras Extras => _extras ??= new AppSearchResultExtras();
+    private AppSearchResultExtras Extras => LazyInitializer.EnsureInitialized(ref _extras, static () => new AppSearchResultExtras());
     internal AppSearchResultExtras DisplayExtras => Extras;
     internal AppSearchResultExtras? ExistingExtras => _extras;
     internal bool IsIndexBacked => _source != null;
@@ -278,7 +278,7 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
             // from its own record must not have to allocate to do it.
             var known = Metadata.Modified;
             if (known != DateTime.MinValue)
-                return (Extras.DateModified = known).Value;
+                return known;
             return AppSearchResultDisplaySupport.GetDateModified(this);
         }
     }

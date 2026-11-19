@@ -7,6 +7,38 @@ namespace Lertaro.App.Tests.ViewModels.Search;
 [TestClass]
 public sealed class SearchStreamRendererTests
 {
+    [TestMethod]
+    public async Task RenderWithLateResults_PublishesFilesBeforeWaitingForPlugins()
+    {
+        var plugin = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var renders = new List<bool>();
+        var work = SearchStreamRenderer.RenderWithLateResultsAsync(
+            final => { renders.Add(final); return Task.CompletedTask; }, plugin.Task, CancellationToken.None);
+
+        CollectionAssert.AreEqual(new[] { false }, renders);
+        Assert.IsFalse(work.IsCompleted);
+        plugin.SetResult();
+        await work;
+
+        CollectionAssert.AreEqual(new[] { false, true }, renders);
+    }
+
+    [TestMethod]
+    public async Task RenderWithLateResults_NewInputCancelsTheWaitWithoutPublishingOldPlugins()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var plugin = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var renders = new List<bool>();
+        var work = SearchStreamRenderer.RenderWithLateResultsAsync(
+            final => { renders.Add(final); return Task.CompletedTask; }, plugin.Task, cancellation.Token);
+
+        cancellation.Cancel();
+        await Assert.ThrowsAsync<OperationCanceledException>(() => work);
+        plugin.SetResult();
+
+        CollectionAssert.AreEqual(new[] { false }, renders);
+    }
+
     private static SearchResult Result(string path) => new() { Path = path };
 
     [TestMethod]

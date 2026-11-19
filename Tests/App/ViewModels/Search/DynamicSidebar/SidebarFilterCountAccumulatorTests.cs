@@ -6,6 +6,23 @@ namespace Lertaro.App.Tests.ViewModels.Search.DynamicSidebar;
 [TestClass]
 public sealed class SidebarFilterCountAccumulatorTests
 {
+    [TestMethod]
+    public void Calculate_UnchangedSelectionOnlyVisitsNewArrivals()
+    {
+        var calls = 0;
+        var accumulator = new SidebarFilterCountAccumulator([
+            new Func<ISearchResult, bool>[] { row => { calls++; return row.IsDir; } }]);
+        IReadOnlyList<Func<ISearchResult, bool>>[] selected = [[]];
+        accumulator.AddBatch([new FakeResult { IsDir = true }]);
+        accumulator.Calculate(selected);
+        accumulator.AddBatch([new FakeResult { IsDir = false }]);
+        accumulator.Calculate([Array.Empty<Func<ISearchResult, bool>>()]);
+        accumulator.Calculate(selected);
+
+        Assert.AreEqual(2, calls);
+        Assert.AreEqual(1, accumulator.Counts[0]);
+    }
+
     private sealed class FakeResult : ISearchResult
     {
         public string Name { get; init; } = string.Empty;

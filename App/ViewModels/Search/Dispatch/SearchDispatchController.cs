@@ -199,6 +199,7 @@ internal sealed class SearchDispatchController
         // Per search, not per paint: the mapper below is the render callback, and it asks every instant
         // provider and search-action plugin on each call. See SearchResultMapper.InstantPassCache.
         var instantPass = new SearchResultMapper.InstantPassCache();
+        var categoryFilter = _mainVm.ActiveCategoryFilter;
         var fileMatchCache = new SearchResultMapper.QuickFileMatchCache();
         var rankRules = ExclusionRuleSet.From(UserSettings.Load());
         // Also per search, not per paint: the history score decays at read time, and repainting a streaming
@@ -238,7 +239,7 @@ internal sealed class SearchDispatchController
             _getIsInlineSearchContext(),
             fileLimit,
             appLimit,
-            (resp, contextDir, token) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope || filenameLike, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass, rankContext: rankContext, rankingTrace: rankingTrace, categoryFilter: _mainVm.ActiveCategoryFilter, cancellationToken: token, fileMatchCache: fileMatchCache),
+            (resp, contextDir, token) => SearchResultMapper.BuildQuickResults(resp, searchQuery, hasScope ? null : _getIsInlineSearchContext() ? null : _getSearchScope(), contextDir, _getIsInlineSearchContext(), originalValue, skipDisplayCap: hasTokens || hasScope || filenameLike, fileFilterScope: scopeDirective, folderScope: folderScope, instantPass: instantPass, rankContext: rankContext, rankingTrace: rankingTrace, categoryFilter: categoryFilter, cancellationToken: token, fileMatchCache: fileMatchCache),
             state => _setIsSearching(state),
             (results, status, final) => ApplySearchResults(originalValue, searchQuery, results, status, final, rankingTrace),
             HandleLocalServiceUnavailable,
@@ -257,7 +258,11 @@ internal sealed class SearchDispatchController
             // Nothing to start alongside a quick-window search: the rows this window can show all come from
             // the one search already, and its instant providers are folded into the mapper above.
             null,
-            contextDir => SearchResultMapper.CollectInstantPass(instantPass, originalValue, searchQuery, _getIsInlineSearchContext(), contextDir),
+            contextDir =>
+            {
+                SearchResultMapper.CollectInstantPass(instantPass, originalValue, searchQuery, _getIsInlineSearchContext(), contextDir);
+                return instantPass.GetRows(categoryFilter);
+            },
             typeCategory
         );
     }

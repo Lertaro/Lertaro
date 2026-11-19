@@ -14,7 +14,7 @@ namespace Lertaro.App.ViewModels.Search.Dispatch;
 // Owns query-token parsing and search dispatch for the full search window's SearchViewModel --
 // extracted into its own class (composition, not a partial class) purely to keep SearchViewModel.cs
 // under the repo's per-file line limit.
-internal sealed class SearchQueryDispatchController
+internal sealed class SearchQueryDispatchController : IDisposable
 {
     // The full window has no favorite-only rows, but an indexed favorite must still get the same
     // favorite band the quick window gives it. Paths are normalized the way the ladder compares them.
@@ -51,7 +51,6 @@ internal sealed class SearchQueryDispatchController
     private readonly Action<int> _setReceivedCount;
     private readonly Action<IReadOnlyList<AppSearchResult>, bool> _updateSidebarCounts;
     private readonly Action<IReadOnlyList<AppSearchResult>> _replaceSidebarCounts;
-    private readonly Func<bool> _isTypeFilterSelected;
     private readonly Action? _onResultsSettled;
     // bool: whether this render extends what is already on screen (a later paint of a search still
     // streaming) rather than replacing it with a different result set.
@@ -91,7 +90,6 @@ internal sealed class SearchQueryDispatchController
         Action<IReadOnlyList<AppSearchResult>, bool> updateSidebarCounts,
         Action<IReadOnlyList<AppSearchResult>> replaceSidebarCounts,
         Action<bool, int> applyFiltersAndRender,
-        Func<bool> isTypeFilterSelected,
         Action? onResultsSettled = null)
     {
         _searchEngine = searchEngine;
@@ -105,7 +103,6 @@ internal sealed class SearchQueryDispatchController
         _updateSidebarCounts = updateSidebarCounts;
         _replaceSidebarCounts = replaceSidebarCounts;
         _applyFiltersAndRender = applyFiltersAndRender;
-        _isTypeFilterSelected = isTypeFilterSelected;
         _onResultsSettled = onResultsSettled;
     }
 
@@ -200,6 +197,7 @@ internal sealed class SearchQueryDispatchController
                     rows => AppendContentRows(rows, queryGeneration)));
         }
 
+        _setIsSearching(true);
         _searchEngine.QueueSearch(
             cleanQuery,
             searchScope: null,
@@ -270,16 +268,9 @@ internal sealed class SearchQueryDispatchController
                 // would then immediately clobber its filtered result with the unfiltered one.
                 if (_queryTokens.Count > 0)
                 {
-                    // Copied because this outlives the render: the accumulator hands back one buffer it
-                    // reuses on the next paint, which is safe for a synchronous consumer and not for one
-                    // that awaits.
-                    //
-                    // The SAME copy has to become _allResults. RefreshAfterTokenDispatchAsync decides
-                    // whether its result is still wanted by comparing the snapshot it was handed against
-                    // _allResults BY REFERENCE, so handing it a copy while _allResults kept the original
-                    // made that check fail every single time and silently discard every token dispatch --
-                    // tokens in this window quietly stopped doing anything at all.
-                    var snapshot = new List<AppSearchResult>(filteredResults);
+                    // The accumulator publishes a stable snapshot. Keep that same reference for the
+                    // token dispatch's stale-result check, including across an await.
+                    var snapshot = filteredResults;
                     _setAllResults(snapshot, false);
                     _ = RefreshAfterTokenDispatchAsync(snapshot, _queryTokens, extendsContent, cleanQuery);
                 }
@@ -425,9 +416,8 @@ internal sealed class SearchQueryDispatchController
     /// them up only at the settled render is what made a slow file search delay content hits by however
     /// long it took.
     ///
-    /// A selected TYPE filter drops them -- a type filter means "exactly this type", and these rows are
-    /// outside that contract. That check can only be made on the UI thread, which is why this lands here
-    /// rather than on the thread doing the walking.
+    /// Keep content rows even while a type is selected. The view hides them until the filter is cleared;
+    /// discarding arrivals here would make that transition lose results until the next query.
     /// </remarks>
     private void AppendContentRows(List<AppSearchResult> rows, int generation)
     {
@@ -435,27 +425,23 @@ internal sealed class SearchQueryDispatchController
         if (dispatcher == null)
             return;
 
-        _ = dispatcher.InvokeAsync(() =>
-        {
-            // Re-checked: the user may have typed again or selected a type filter while the provider ran.
-            if (generation != Volatile.Read(ref _contentAppendGeneration) || _isTypeFilterSelected())
-                return;
+        _ = dispatcher.InvokeAsync(() => ApplyContentRows(rows, generation),
+            System.Windows.Threading.DispatcherPriority.Background);
+    }
 
-            var accumulator = _accumulator;
-            if (accumulator == null)
-                return;
+    internal void ApplyContentRows(List<AppSearchResult> rows, int generation)
+    {
+        if (generation != Volatile.Read(ref _contentAppendGeneration) || _accumulator is not { } accumulator)
+            return;
 
-            accumulator.QueueContentPrefix(rows);
-            if (!_searchSettled)
-                return;
+        accumulator.QueueContentPrefix(rows);
+        if (!_searchSettled)
+            return;
 
-            // The file search is done, so nothing else will take the prefix up: absorb an empty batch,
-            // which is how the accumulator applies a queued prefix and hands the same list back.
-            _setAllResults(accumulator.AbsorbBatch(Array.Empty<SearchResult>()), true);
-            // Prepending moves every row that was already there, so no scroll anchor survives this one.
-            _applyFiltersAndRender(false, accumulator.FirstChangedIndex);
-            _onResultsSettled?.Invoke();
-        }, System.Windows.Threading.DispatcherPriority.Background);
+        _setAllResults(accumulator.AbsorbBatch(Array.Empty<SearchResult>()), true);
+        _replaceSidebarCounts(_getAllResults());
+        _applyFiltersAndRender(false, accumulator.FirstChangedIndex);
+        _onResultsSettled?.Invoke();
     }
 
     private async Task RefreshAfterTokenDispatchAsync(List<AppSearchResult> resultsSnapshot, IReadOnlyList<string> tokensSnapshot, bool extendsContent, string baseQuery)
@@ -521,7 +507,7 @@ internal sealed class SearchQueryDispatchController
         _setIsSearching(false);
         _accumulator = null;
         _searchSettled = false;
-        _getAllResults().Clear();
+        _setAllResults(new List<AppSearchResult>(), false);
         _applyFiltersAndRender(false, 0);
         _onResultsSettled?.Invoke();
         _setLoadingPanelVisibility(Visibility.Collapsed);
@@ -531,5 +517,13 @@ internal sealed class SearchQueryDispatchController
     {
         var prefix = UserSettings.Load().GlobalTokenPrefix;
         return !string.IsNullOrEmpty(prefix) ? prefix[0] : ':';
+    }
+
+    public void Dispose()
+    {
+        Interlocked.Increment(ref _contentAppendGeneration);
+        _tokenBatchCts?.Cancel();
+        _tokenBatchCts = null;
+        _accumulator = null;
     }
 }

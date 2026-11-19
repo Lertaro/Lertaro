@@ -77,9 +77,12 @@ public static class SearchResultMapper
     /// </remarks>
     internal sealed class InstantPassCache
     {
-        public bool Collected;
+        public volatile bool Collected;
         public readonly List<AppSearchResult> Rows = new();
         public bool HasPluginSearchActions;
+
+        internal List<AppSearchResult> GetRows(Func<PluginSdk.Abstractions.ISearchResult, bool>? categoryFilter) =>
+            !Collected ? [] : categoryFilter == null ? Rows : Rows.FindAll(row => categoryFilter(row));
     }
 
     internal static List<AppSearchResult> CollectInstantPass(InstantPassCache pass, string rawQuery, string query, bool isInlineWindow, string? contextDirectory,
@@ -146,10 +149,15 @@ public static class SearchResultMapper
         // One pass over the plugin providers per search, not per paint. This method IS a paint callback --
         // the quick and inline windows re-run it on every intermediate paint of a streaming search, and a
         // paint cannot reach the screen until the pass below finishes. See InstantPassCache.
-        instantPass ??= new InstantPassCache();
-        CollectInstantPass(instantPass, rawQuery ?? query, query, isInlineWindow, contextDirectory);
+        // A supplied cache is collected independently by the engine. Read only its published answer:
+        // waiting for its lock here would put every file paint behind the slowest synchronous plugin.
+        if (instantPass == null)
+        {
+            instantPass = new InstantPassCache();
+            CollectInstantPass(instantPass, rawQuery ?? query, query, isInlineWindow, contextDirectory);
+        }
         cancellationToken.ThrowIfCancellationRequested();
-        uiResults.AddRange(instantPass.Rows);
+        uiResults.AddRange(instantPass.GetRows(categoryFilter));
         var prefixCount = uiResults.Count(result =>
             !result.IsEmptyResult && !result.IsSearchSectionHeader &&
             !string.IsNullOrWhiteSpace(result.FullPath) && result.FullPath != "__SHOW_MORE__");

@@ -361,18 +361,33 @@ public sealed class StreamingResultAccumulatorTests
     }
 
     [TestMethod]
-    public void Absorb_ReusesOneOutputBuffer()
+    public void Absorb_NextBatchDoesNotMutateAPublishedList()
     {
-        // A fresh multi-megabyte list per paint would be a large-object allocation several times a
-        // second on a big search. Safe because the render pump waits for the UI to finish applying one
-        // paint before computing the next, so no synchronous consumer ever overlaps a call.
         var accumulator = new StreamingResultAccumulator("a");
         var growing = Arrivals(@"D:\aa");
         var first = accumulator.Absorb(growing);
+        using var reader = first.GetEnumerator();
+        Assert.IsTrue(reader.MoveNext());
 
-        growing.Add(Result(@"D:\aaa"));
+        growing.Add(Result(@"D:\a"));
+        var second = accumulator.Absorb(growing);
 
-        Assert.AreSame(first, accumulator.Absorb(growing));
+        Assert.IsFalse(reader.MoveNext(), "Reading the displayed snapshot must survive the next merge.");
+        CollectionAssert.AreEqual(new[] { @"D:\aa" }, Paths(first));
+        CollectionAssert.AreEqual(new[] { @"D:\a", @"D:\aa" }, Paths(second));
+        Assert.AreSame(first[0], second[1]);
+    }
+
+    [TestMethod]
+    public void Absorb_ClearingPublishedResultsDoesNotClearTheProducer()
+    {
+        var accumulator = new StreamingResultAccumulator("a");
+        var first = accumulator.AbsorbBatch(Arrivals(@"D:\a"));
+        first.Clear();
+
+        var second = accumulator.AbsorbBatch(Arrivals(@"D:\aa"));
+
+        CollectionAssert.AreEqual(new[] { @"D:\a", @"D:\aa" }, Paths(second));
     }
 
     [TestMethod]
@@ -493,15 +508,14 @@ public sealed class StreamingResultAccumulatorTests
     [TestMethod]
     public void QueueContentPrefix_AfterTheSearchSettles_AnEmptyAbsorbAppliesIt()
     {
-        // No further batch is coming once the file search has answered, so the append takes the prefix up
-        // by absorbing nothing at all -- and the view must still be handed the same list it had before.
+        // A late content batch publishes another snapshot without changing the previous answer.
         var accumulator = new StreamingResultAccumulator("a");
         var rows = accumulator.Absorb(Arrivals(@"D:\aaa"));
 
         accumulator.QueueContentPrefix(ContentRows(@"D:\hit.md"));
         var after = accumulator.AbsorbBatch(new List<SearchResult>());
 
-        Assert.AreSame(rows, after);
+        CollectionAssert.AreEqual(new[] { @"D:\aaa" }, Paths(rows));
         CollectionAssert.AreEqual(new[] { @"D:\hit.md", @"D:\aaa" }, Paths(after));
         Assert.AreEqual(0, accumulator.FirstChangedIndex);
     }

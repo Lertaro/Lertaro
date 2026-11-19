@@ -13,6 +13,44 @@ namespace Lertaro.Plugins.CoreExtensions.Tests.Shell.ContextMenu;
 [DoNotParallelize]
 public sealed class ShellMenuStaWorkerTests
 {
+    [TestMethod]
+    public async Task Dispose_WhileNativeWorkerIsBlocked_ReturnsWithoutReusingItsApartment()
+    {
+        var workers = AcquireAll();
+        var worker = workers[0];
+        _acquired.Remove(worker); // The session now owns returning this slot.
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        var blocked = worker.InvokeAsync(() =>
+        {
+            entered.Set();
+            if (!release.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException();
+        });
+        var session = new ShellMenuSession(worker);
+        Task? closing = null;
+        try
+        {
+            Assert.IsTrue(entered.Wait(TimeSpan.FromSeconds(5)));
+            closing = Task.Run(session.Dispose);
+            await closing.WaitAsync(TimeSpan.FromSeconds(2));
+
+            Assert.IsFalse(blocked.Task.IsCompleted, "Closing must not wait for the blocked handler.");
+            Assert.IsNull(Acquire(), "A pending cleanup must not return a busy apartment to the pool.");
+            session.Dispose(); // Repeated close must not return the same worker twice.
+        }
+        finally
+        {
+            release.Set();
+            await blocked.Task;
+            if (closing != null) await closing;
+            else session.Dispose();
+            await worker.InvokeAsync(() => { }).Task;
+        }
+
+        Assert.AreSame(worker, Acquire());
+        Assert.IsNull(Acquire());
+    }
+
     private readonly List<Dispatcher> _acquired = new();
 
     private Dispatcher? Acquire()

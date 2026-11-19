@@ -42,6 +42,8 @@ public class SearchViewModel : ViewModelBase, IDisposable
     private bool _allResultsHoldContentRows;
     private string _resultCountText = "";
     private bool _isSearching;
+    private bool _isQueryRunning;
+    private bool _isFiltering;
     private bool _isResultsListEnabled = true;
     private SearchSidebarCountHelper? _sidebarCountHelper;
     // Deliberately does not toggle IsResultsListEnabled while searching -- that used to disable the
@@ -64,6 +66,18 @@ public class SearchViewModel : ViewModelBase, IDisposable
     {
         get => _isResultsListEnabled;
         private set => SetProperty(ref _isResultsListEnabled, value);
+    }
+
+    internal void SetQueryRunning(bool running)
+    {
+        _isQueryRunning = running;
+        IsSearching = _isQueryRunning || _isFiltering;
+    }
+
+    private void SetFiltering(bool filtering)
+    {
+        _isFiltering = filtering;
+        IsSearching = _isQueryRunning || _isFiltering;
     }
     public SearchViewModel(string initialQuery = "", IReadOnlyList<AppSearchResult>? quickSearchRows = null)
     {
@@ -94,19 +108,18 @@ public class SearchViewModel : ViewModelBase, IDisposable
                 _allResults = v;
                 _allResultsHoldContentRows = holdsContentRows;
             },
-            setIsSearching: v => IsSearching = v,
+            setIsSearching: SetQueryRunning,
             setLoadingPanelVisibility: v => LoadingPanelVisibility = v,
             setIsSearchBoxEnabled: v => IsSearchBoxEnabled = v,
             setReceivedCount: count =>
             {
-                if (DynamicSidebarGroups.All(group => group.CombinedPredicate == null))
+                if (DynamicSidebarGroups.All(group => !group.HasSelection))
                     ResultCountText = string.Format(TranslationManager.Instance["Search_Total"], count);
             },
             updateSidebarCounts: (batch, final) => _sidebarCountHelper?.Update(batch, final),
             replaceSidebarCounts: results => _sidebarCountHelper?.Replace(results),
             applyFiltersAndRender: (extendsContent, unchangedPrefix) =>
                 ApplyFiltersAndRender(extendsContent || _refreshKeepsViewport, unchangedPrefix),
-            isTypeFilterSelected: () => IsTypeFilterSelected,
             // Settling runs after the final paint, so the refresh flag is still live for every paint of
             // the refreshed query and is dropped here for whatever the user does next.
             onResultsSettled: () =>
@@ -126,7 +139,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
             },
             // A query starts by cancelling the one in flight, so a refresh that lands mid-search would
             // restart it from zero; the watcher parks the change until the search settles instead.
-            isSearchRunning: () => IsSearching);
+            isSearchRunning: () => _isQueryRunning);
         _refreshWatcher = refreshWatcher;
         _refreshWatcher.UpdateResults(_allResults);
 
@@ -197,8 +210,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
     public ObservableCollection<DynamicSidebarGroupViewModel> DynamicSidebarGroups { get; } = new();
 
     // True when any item of the well-known result-type group is selected. Content-search results
-    // are only merged into _allResults while no type filter is active; a selected type (e.g. "文件")
-    // means the user asked for exactly that type, so the extra content rows are excluded.
+    // remain in _allResults, but a selected type (e.g. "文件") excludes them from the displayed projection.
     internal bool IsTypeFilterSelected =>
         DynamicSidebarGroups.Any(g => string.Equals(g.Id, "Type", StringComparison.OrdinalIgnoreCase) && g.HasSelection);
     public string AdvancedQuery
@@ -211,6 +223,8 @@ public class SearchViewModel : ViewModelBase, IDisposable
                 // New text is a new result set even when a refresh is still in flight.
                 _refreshKeepsViewport = false;
                 _sidebarCountHelper?.Reset();
+                _dynamicFilterCoordinator.Cancel();
+                SetFiltering(false);
                 if (string.IsNullOrWhiteSpace(value))
                 {
                     _searchEngine.CancelPendingSearch();
@@ -288,6 +302,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
 
     public void OnDynamicFilterChanged() { _sidebarCountHelper?.Recalculate(); ApplyFiltersAndRender(extendsContent: false, unchangedPrefix: 0); }
     private readonly DynamicFilterCoordinator _dynamicFilterCoordinator = new();
+    internal Task PendingFilter { get; private set; } = Task.CompletedTask;
 
     // DynamicFilterCoordinator renders through an Action<List<AppSearchResult>> and can do so twice
     // (immediately with the unfiltered list, then again once async predicates resolve), so the flag
@@ -306,9 +321,6 @@ public class SearchViewModel : ViewModelBase, IDisposable
     private void ApplyFiltersAndRender(bool extendsContent, int unchangedPrefix)
     {
         if (_allResults == null) return;
-        _renderExtendsContent = extendsContent;
-        _renderUnchangedPrefix = unchangedPrefix;
-
         var activeFilters = DynamicSidebarGroups
             .Select(g => g.CombinedPredicate)
             .Where(p => p != null)
@@ -319,28 +331,27 @@ public class SearchViewModel : ViewModelBase, IDisposable
         // only when a type filter is open AND this list actually holds content rows. Those arrive once per
         // query, on the append that adds them -- every streaming paint before that was paying the copy to
         // filter a list that had nothing in it to filter.
-        _filterSource = IsTypeFilterSelected && _allResultsHoldContentRows
-            ? _allResults.Where(r => !r.IsFullSearchFileResult).ToList()
-            : _allResults;
+        _filterSource = _allResults;
+        if (IsTypeFilterSelected && _allResultsHoldContentRows)
+            activeFilters.Add(row => row is not AppSearchResult { IsFullSearchFileResult: true });
+        var sortColumn = _currentSortColumn;
+        var ascending = _isSortAscending;
 
         // Query-token providers (sort/filter/etc) have already been applied to _allResults by the
         // time this runs -- this only handles the column-header sort and dynamic sidebar filters.
-        _dynamicFilterCoordinator.Apply(
+        PendingFilter = _dynamicFilterCoordinator.Apply(
             _filterSource,
             activeFilters,
-            // ToList only when the sort actually reordered something. With no column selected --
-            // relevance order, the default -- Sort hands back the very list it was given, and
-            // materializing that again is another full-size copy per paint for no change at all.
-            results =>
-            {
-                var sorted = SearchResultSorter.Sort(results, _currentSortColumn, _isSortAscending);
-                return ReferenceEquals(sorted, results) && results is List<AppSearchResult> asList
-                    ? asList
-                    : sorted.ToList();
-            },
+            (results, token) => SearchResultSorter.SortAsync(results, sortColumn, ascending, token),
             () => _filterSource!,
-            RenderFinal,
-            v => IsSearching = v);
+            rows =>
+            {
+                _renderExtendsContent = extendsContent;
+                _renderUnchangedPrefix = unchangedPrefix;
+                RenderFinal(rows);
+            },
+            SetFiltering,
+            runInBackground: activeFilters.Count > 0 || sortColumn.Length > 0);
     }
 
     private void RenderFinal(List<AppSearchResult> finalResults) => _resultRenderer.Render(finalResults);
@@ -368,8 +379,11 @@ public class SearchViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
+        _dispatcher.Dispose();
         TranslationManager.Instance.PropertyChanged -= OnTranslationsChanged;
         _refreshWatcher.Dispose();
+        _dynamicFilterCoordinator.Cancel();
+        _sidebarCountHelper?.Dispose();
         _searchEngine.Dispose();
         _serviceStatus.Dispose();
         _searchService.Dispose();

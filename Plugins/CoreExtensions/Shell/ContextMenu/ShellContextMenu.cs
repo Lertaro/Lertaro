@@ -60,7 +60,7 @@ public class ShellMenuSession : IDisposable
     public const uint CMD_FIRST = 1;
     public const uint CMD_LAST = 30000;
 
-    private ShellMenuSession(Dispatcher worker) => _worker = worker;
+    internal ShellMenuSession(Dispatcher worker) => _worker = worker;
 
     public static ShellMenuSession? Create(string path)
     {
@@ -246,16 +246,18 @@ public class ShellMenuSession : IDisposable
         if (worker == null)
             return;
 
-        var operation = worker.InvokeAsync(() => { DisposeCore(); return true; });
-        if (operation.Wait(TimeSpan.FromMilliseconds(ShellMenuStaWorker.InvokeTimeoutMs)) != DispatcherOperationStatus.Completed)
+        // Closing an actions menu runs on the UI thread. Do not wait for an extension or COM release
+        // here: built-in folder opens must remain usable while a native handler is stuck (#550).
+        // A worker stays unavailable until cleanup finishes, so a hung apartment cannot be reused.
+        _ = worker.InvokeAsync(() =>
         {
-            // The apartment is wedged too: its COM objects cannot be released safely from any other
-            // thread, so the worker is abandoned (never returned to the pool) along with them.
-            Logger.Log($"[ShellMenuSession] STA dispatcher call timed out after {ShellMenuStaWorker.InvokeTimeoutMs}ms while closing; abandoning that STA worker.", LogLevel.Error);
-            return;
-        }
-
-        ShellMenuStaWorker.Release(worker);
+            try
+            {
+                DisposeCore();
+                ShellMenuStaWorker.Release(worker);
+            }
+            catch (Exception ex) { Logger.Log($"[ShellMenuSession] Cleanup failed: {ex.Message}", LogLevel.Error); }
+        });
     }
 
     // Runs callback on this session's pinned apartment, or returns default when the session is closed

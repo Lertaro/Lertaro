@@ -49,7 +49,7 @@ public class DynamicSidebarGroupViewModel : ViewModelBase
     // Combines every currently-selected item's predicate with OR: a result survives if it matches ANY
     // of them. Null (not an identity no-op) when nothing is selected, so the caller can tell "this
     // group contributes no filter at all" apart from "this group's filter happens to keep everything".
-    public Func<IReadOnlyList<ISearchResult>, Task<IReadOnlyList<ISearchResult>>>? CombinedPredicate
+    public Func<ISearchResult, bool>? CombinedPredicate
     {
         get
         {
@@ -57,11 +57,14 @@ public class DynamicSidebarGroupViewModel : ViewModelBase
             if (selected.Count == 0)
                 return null;
             if (selected.Count == 1)
-                return results => Task.FromResult<IReadOnlyList<ISearchResult>>(
-                    results.Where(selected[0].MatchPredicate).ToList());
+                return selected[0].MatchPredicate;
 
-            return results => Task.FromResult<IReadOnlyList<ISearchResult>>(
-                results.Where(result => selected.Any(item => item.MatchPredicate(result))).ToList());
+            return result =>
+            {
+                foreach (var item in selected)
+                    if (item.MatchPredicate(result)) return true;
+                return false;
+            };
         }
     }
 

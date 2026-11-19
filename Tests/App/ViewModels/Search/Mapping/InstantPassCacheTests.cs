@@ -14,6 +14,44 @@ namespace Lertaro.App.Tests.ViewModels.Search.Mapping;
 public sealed class InstantPassCacheTests
 {
     [TestMethod]
+    public async Task FilePaint_DoesNotWaitForAnUnfinishedProvider_AndLaterIncludesItsAnswer()
+    {
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        var provider = new BlockingProvider(entered, release);
+        var pass = new SearchResultMapper.InstantPassCache();
+        var collection = Task.Run(() => SearchResultMapper.CollectInstantPass(pass, "alpha", "alpha", false, null, [provider]));
+        try
+        {
+            Assert.IsTrue(entered.Wait(TimeSpan.FromSeconds(5)));
+            var first = await Task.Run(() => SearchResultMapper.BuildQuickResults(TwoFiles(), "alpha", null, null, false,
+                instantPass: pass)).WaitAsync(TimeSpan.FromSeconds(5));
+
+            Assert.Contains(@"C:\Notes\alpha.txt", first.Select(row => row.FullPath));
+            Assert.IsFalse(first.Any(row => ReferenceEquals(row.SourceProvider, provider)));
+            Assert.IsFalse(collection.IsCompleted, "The file answer must precede the blocked provider.");
+            release.Set();
+            await collection;
+
+            var final = SearchResultMapper.BuildQuickResults(TwoFiles(), "alpha", null, null, false, instantPass: pass);
+            Assert.HasCount(1, final.Where(row => ReferenceEquals(row.SourceProvider, provider)));
+            Assert.Contains(@"C:\Notes\alpha.txt", final.Select(row => row.FullPath));
+        }
+        finally { release.Set(); await collection; }
+    }
+
+    private sealed class BlockingProvider(ManualResetEventSlim entered, ManualResetEventSlim release) : IInstantResultProvider
+    {
+        public string Name => "Blocked provider";
+        public IEnumerable<InstantResultItem> GetInstantResults(string query)
+        {
+            entered.Set();
+            if (!release.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException();
+            return [new InstantResultItem { Title = "alpha answer", IconData = "path:unused.ico" }];
+        }
+    }
+
+    [TestMethod]
     public void FileMatchCache_PreservesOrderAndRebuildsRowsWithFreshMetadata()
     {
         var cache = new SearchResultMapper.QuickFileMatchCache();

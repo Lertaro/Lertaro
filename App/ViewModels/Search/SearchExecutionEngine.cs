@@ -21,6 +21,9 @@ internal sealed class SearchExecutionEngine : IDisposable
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _debounceCts;
     private int _searchVersion;
+    // ponytail: four synchronous plugin passes can be stuck at once; cancelled waiters never enter.
+    // Uninterruptible plugin calls require process isolation to recover these permits after a hang.
+    private static readonly SemaphoreSlim InstantProviderGate = new(4, 4);
 
     internal CancellationToken CurrentCancellationToken
     {
@@ -170,8 +173,9 @@ internal sealed class SearchExecutionEngine : IDisposable
         // recognising it), but their rows are highlighted against `query` -- what the file search beside
         // them was matched with, with that word (and any :token suffix) already taken off. Same split
         // BuildQuickResults makes, so a row painted from either path highlights identically.
-        if (emitInstantResults)
-            EmitInstantResults(instantQuery ?? query, query, isInlineSearchContext, searchVersion, token, onResultsUpdated, shouldEmitInstantResults, commandDirectory, collectInstantResults);
+        var instantSearchTask = emitInstantResults
+            ? EmitInstantResults(instantQuery ?? query, query, isInlineSearchContext, searchVersion, token, onResultsUpdated, shouldEmitInstantResults, commandDirectory, collectInstantResults)
+            : null;
         _ = Task.Run(async () =>
         {
             try
@@ -188,14 +192,14 @@ internal sealed class SearchExecutionEngine : IDisposable
                     var contextDirectory = commandDirectory;
                     if (!string.IsNullOrEmpty(contextDirectory))
                     {
-                        await RenderInlineSearchAsync(query, contextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable, bypassExclusions, folderScope, priorityRoots).ConfigureAwait(false);
+                        await RenderInlineSearchAsync(query, contextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable, bypassExclusions, folderScope, priorityRoots, instantSearchTask).ConfigureAwait(false);
                         return;
                     }
                 }
 
                 var streamingScope = tracker.IsActiveWindowExplorer ? searchScope : null;
                 var streamingContextDirectory = commandDirectory;
-                await _streamRenderer.RenderAsync(query, streamingScope, streamingContextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable: onLocalServiceUnavailable, bypassExclusions: bypassExclusions, resultMapperConsumesBatches: resultMapperConsumesBatches, onReceivedCountUpdated: onReceivedCountUpdated, scopeDirective: scopeDirective, foldersOnly: folderScope, priorityRoots: priorityRoots, category: category).ConfigureAwait(false);
+                await _streamRenderer.RenderAsync(query, streamingScope, streamingContextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token, onLocalServiceUnavailable: onLocalServiceUnavailable, bypassExclusions: bypassExclusions, resultMapperConsumesBatches: resultMapperConsumesBatches, onReceivedCountUpdated: onReceivedCountUpdated, scopeDirective: scopeDirective, foldersOnly: folderScope, priorityRoots: priorityRoots, category: category, instantSearchTask: instantSearchTask).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -281,7 +285,8 @@ internal sealed class SearchExecutionEngine : IDisposable
         Action? onLocalServiceUnavailable,
         bool bypassExclusions,
         bool folderScope,
-        IReadOnlyList<string> priorityRoots)
+        IReadOnlyList<string> priorityRoots,
+        Task? instantSearchTask)
     {
         var localMatches = new List<AppSearchResult>();
         var rankRules = ExclusionRuleSet.From(UserSettings.Load());
@@ -330,10 +335,20 @@ internal sealed class SearchExecutionEngine : IDisposable
 
         await _streamRenderer.RenderAsync(query, null, contextDirectory, fileLimit, appLimit, resultMapper, searchVersion, onResultsUpdated, token,
             GetLocalSnapshot, () => Volatile.Read(ref localUpdateVersion), localSearchTask, onLocalServiceUnavailable, bypassExclusions,
-            foldersOnly: folderScope, priorityRoots: priorityRoots, category: _getCategory()).ConfigureAwait(false);
+            foldersOnly: folderScope, priorityRoots: priorityRoots, category: _getCategory(), instantSearchTask: instantSearchTask).ConfigureAwait(false);
     }
 
-    private void EmitInstantResults(
+    internal static async Task<List<AppSearchResult>> RunInstantProviderAsync(Func<List<AppSearchResult>> collect, CancellationToken token)
+    {
+        await InstantProviderGate.WaitAsync(token).ConfigureAwait(false);
+        try
+        {
+            return await Task.Run(collect, token).ConfigureAwait(false);
+        }
+        finally { InstantProviderGate.Release(); }
+    }
+
+    private async Task EmitInstantResults(
         string query,
         string highlightQuery,
         bool isInlineSearchContext,
@@ -341,20 +356,27 @@ internal sealed class SearchExecutionEngine : IDisposable
         CancellationToken token,
         Action<List<AppSearchResult>, string, bool> onResultsUpdated,
         Func<bool>? shouldEmitInstantResults, string? contextDirectory,
-        Func<string?, List<AppSearchResult>>? collectInstantResults) => _ = Task.Run(() =>
-                                                      {
-                                                          var instantResults = collectInstantResults?.Invoke(contextDirectory) ?? new List<AppSearchResult>();
-                                                          if (collectInstantResults == null)
-                                                              PluginSearchResultMapper.AddInstantResults(instantResults, query, highlightQuery, isInlineSearchContext, contextDirectory);
-                                                          if (instantResults.Count == 0 || token.IsCancellationRequested)
-                                                              return;
+        Func<string?, List<AppSearchResult>>? collectInstantResults)
+    {
+        try
+        {
+            var rows = await RunInstantProviderAsync(() =>
+            {
+                if (collectInstantResults != null) return collectInstantResults(contextDirectory);
+                var results = new List<AppSearchResult>();
+                PluginSearchResultMapper.AddInstantResults(results, query, highlightQuery, isInlineSearchContext, contextDirectory);
+                return results;
+            }, token).ConfigureAwait(false);
+            if (rows.Count == 0 || token.IsCancellationRequested) return;
 
-                                                          _ = System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
-                                                          {
-                                                              if (token.IsCancellationRequested || searchVersion != Volatile.Read(ref _searchVersion))
-                                                                  return;
-                                                              if (shouldEmitInstantResults?.Invoke() ?? true)
-                                                                  onResultsUpdated(instantResults, string.Empty, false);
-                                                          }), DispatcherPriority.Background);
-                                                      }, token);
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                if (!token.IsCancellationRequested && searchVersion == Volatile.Read(ref _searchVersion)
+                    && (shouldEmitInstantResults?.Invoke() ?? true))
+                    onResultsUpdated(rows, string.Empty, false);
+            }, DispatcherPriority.Background, token).Task.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        catch (Exception ex) { Logger.Log($"[SearchExecutionEngine] Instant results failed: {ex}", LogLevel.Error); }
+    }
 }

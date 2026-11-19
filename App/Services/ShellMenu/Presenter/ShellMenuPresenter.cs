@@ -34,7 +34,7 @@ public class ShellMenuPresenter : IDisposable
     public ShellMenuPresenter(ISearchWindow view)
     {
         _view = view;
-        _navigator = new ActionsMenuNavigator(view, LoadMenuItems, ExitActionsMode);
+        _navigator = new ActionsMenuNavigator(view, LoadMenuItemsAsync, ExitActionsMode);
         _executor = new ActionsMenuExecutor(view, _commandToProviderMap, _navigator, ExitActionsMode);
         _mouseHandler = new ShellMenuMouseInputHandler(this, view);
         _view.LstActions.MouseMove += _mouseHandler.HandleActionsMouseMove;
@@ -193,24 +193,41 @@ public class ShellMenuPresenter : IDisposable
             }));
         });
     }
-    private void LoadMenuItems(IntPtr hMenu)
+    private async Task LoadMenuItemsAsync(IntPtr hMenu)
     {
         if (_activeResult == null) return;
         // The header always describes the original target; submenu titles belong to the menu items.
         _view.TxtActionsTarget.Text = Path.GetFileName(_activeResult.FullPath) + (_activeResults.Count > 1 ? $" (+{_activeResults.Count - 1})" : string.Empty);
 
-        var finalItems = ActionMenuBuilder.Build(
-            _activeResults,
-            hMenu,
-            GetWindowType(),
-            _commandToProviderMap,
-            _subMenuToProviderMap
-        );
-        if (hMenu != IntPtr.Zero)
-            ActionMenuBuilder.PrependSubmenuGroupHeader(finalItems, _navigator.CurrentSubMenuTitle);
-        _currentRawItems = finalItems;
+        var generation = ++_actionsGeneration;
+        var selection = _activeResults;
+        var windowType = GetWindowType();
+        var title = _navigator.CurrentSubMenuTitle;
+        var commands = hMenu == IntPtr.Zero ? new() : new Dictionary<uint, IDynamicActionProvider>(_commandToProviderMap);
+        var submenus = hMenu == IntPtr.Zero ? new() : new Dictionary<IntPtr, IDynamicActionProvider>(_subMenuToProviderMap);
+        var staticItems = hMenu == IntPtr.Zero ? BuildStaticItems() : new List<ActionMenuItem>();
+        _currentRawItems = staticItems;
         ApplyFilter(GetActionSearchTextBox().Text);
         _view.UpdateActionsLayout();
+        try
+        {
+            // Native submenu creation can load arbitrary extensions. Keep it off the input thread
+            // just like the root dynamic pass, and discard it if the user navigates back or closes.
+            var dynamicItems = await Task.Run(() => ActionMenuBuilder.BuildDynamic(
+                selection, hMenu, windowType, commands, submenus)).WaitAsync(TimeSpan.FromSeconds(2));
+            if (!_isInActionsMode || generation != _actionsGeneration) return;
+            _commandToProviderMap.Clear();
+            foreach (var entry in commands) _commandToProviderMap[entry.Key] = entry.Value;
+            _subMenuToProviderMap.Clear();
+            foreach (var entry in submenus) _subMenuToProviderMap[entry.Key] = entry.Value;
+            var items = new List<ActionMenuItem>(staticItems);
+            items.AddRange(dynamicItems);
+            _currentRawItems = ActionMenuBuilder.FinalizeItems(items);
+            if (hMenu != IntPtr.Zero) ActionMenuBuilder.PrependSubmenuGroupHeader(_currentRawItems, title);
+            ApplyFilter(GetActionSearchTextBox().Text);
+            _view.UpdateActionsLayout();
+        }
+        catch (Exception ex) { Core.Logger.Log($"[ShellMenuPresenter] Submenu build failed: {ex.Message}", Core.LogLevel.Warn); }
     }
     private void ApplyFilter(string filter, bool preserveSelection = false)
     {
