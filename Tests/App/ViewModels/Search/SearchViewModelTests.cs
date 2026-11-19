@@ -83,6 +83,6 @@ public sealed class SearchViewModelTests
 
         Assert.IsFalse(vm.IsSearching);
         Assert.IsEmpty(vm.FilteredResults);
-        Assert.IsTrue(vm.ShowWelcomeHint);
+        Assert.IsTrue(vm.Hints.ShowWelcomeHint);
     }
 }
