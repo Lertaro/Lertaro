@@ -48,5 +48,5 @@ internal sealed class AppSearchResultExtras
     public Visibility ShortcutVisibility = Visibility.Collapsed;
     public DateTime? DateModified;
     public bool DateModifiedLoadingStarted;
-    public Dictionary<string, string>? ExtendedValues;
+    public System.Collections.Concurrent.ConcurrentDictionary<string, string>? ExtendedValues;
 }

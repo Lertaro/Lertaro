@@ -12,7 +12,7 @@ namespace Lertaro.App.Tests.ViewModels.Search;
 public sealed class SearchViewModelTests
 {
     [TestMethod]
-    public void ContentArrivesWithTypeSelected_ClearingTypeRestoresItWithoutAnotherQuery()
+    public async Task ContentArrivesWithTypeSelected_ClearingTypeRestoresItWithoutAnotherQuery()
     {
         using var vm = new SearchViewModel();
         var group = new DynamicSidebarGroupViewModel(new SidebarFilterGroup
@@ -29,8 +29,10 @@ public sealed class SearchViewModelTests
         var content = new AppSearchResult { Name = "report", FullPath = @"Z:\report.txt", IsFullSearchFileResult = true };
 
         dispatcher.ApplyContentRows([content], 0);
+        await vm.PendingFilter;
         Assert.IsEmpty(vm.FilteredResults);
         group.Items[0].IsSelected = false;
+        await vm.PendingFilter;
 
         Assert.AreSame(content, Assert.ContainsSingle(vm.FilteredResults));
         dispatcher.ApplyContentRows([new AppSearchResult { Name = "stale" }], -1);

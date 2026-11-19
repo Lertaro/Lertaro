@@ -47,6 +47,7 @@ internal static class SearchResultsReconciler
     // content (path + name + kind + metadata); the query is presentation state, carried across by
     // SyncMutableDisplayState below. Changed metadata replaces the row so cached dates/columns refresh.
     internal static bool ItemsEqual(AppSearchResult a, AppSearchResult b) =>
+        ReferenceEquals(a, b) ||
         string.Equals(a.FullPath, b.FullPath, StringComparison.OrdinalIgnoreCase) &&
         string.Equals(a.Name, b.Name, StringComparison.Ordinal) &&
         string.Equals(a.ResultKind, b.ResultKind, StringComparison.Ordinal) &&

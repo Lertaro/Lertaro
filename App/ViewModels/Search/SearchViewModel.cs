@@ -113,7 +113,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
             setIsSearchBoxEnabled: v => IsSearchBoxEnabled = v,
             setReceivedCount: count =>
             {
-                if (DynamicSidebarGroups.All(group => group.CombinedPredicate == null))
+                if (DynamicSidebarGroups.All(group => !group.HasSelection))
                     ResultCountText = string.Format(TranslationManager.Instance["Search_Total"], count);
             },
             updateSidebarCounts: (batch, final) => _sidebarCountHelper?.Update(batch, final),
@@ -223,6 +223,8 @@ public class SearchViewModel : ViewModelBase, IDisposable
                 // New text is a new result set even when a refresh is still in flight.
                 _refreshKeepsViewport = false;
                 _sidebarCountHelper?.Reset();
+                _dynamicFilterCoordinator.Cancel();
+                SetFiltering(false);
                 if (string.IsNullOrWhiteSpace(value))
                 {
                     _searchEngine.CancelPendingSearch();
@@ -300,6 +302,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
 
     public void OnDynamicFilterChanged() { _sidebarCountHelper?.Recalculate(); ApplyFiltersAndRender(extendsContent: false, unchangedPrefix: 0); }
     private readonly DynamicFilterCoordinator _dynamicFilterCoordinator = new();
+    internal Task PendingFilter { get; private set; } = Task.CompletedTask;
 
     // DynamicFilterCoordinator renders through an Action<List<AppSearchResult>> and can do so twice
     // (immediately with the unfiltered list, then again once async predicates resolve), so the flag
@@ -318,9 +321,6 @@ public class SearchViewModel : ViewModelBase, IDisposable
     private void ApplyFiltersAndRender(bool extendsContent, int unchangedPrefix)
     {
         if (_allResults == null) return;
-        _renderExtendsContent = extendsContent;
-        _renderUnchangedPrefix = unchangedPrefix;
-
         var activeFilters = DynamicSidebarGroups
             .Select(g => g.CombinedPredicate)
             .Where(p => p != null)
@@ -331,28 +331,38 @@ public class SearchViewModel : ViewModelBase, IDisposable
         // only when a type filter is open AND this list actually holds content rows. Those arrive once per
         // query, on the append that adds them -- every streaming paint before that was paying the copy to
         // filter a list that had nothing in it to filter.
-        _filterSource = IsTypeFilterSelected && _allResultsHoldContentRows
-            ? _allResults.Where(r => !r.IsFullSearchFileResult).ToList()
-            : _allResults;
+        _filterSource = _allResults;
+        if (IsTypeFilterSelected && _allResultsHoldContentRows)
+            activeFilters.Add(row => row is not AppSearchResult { IsFullSearchFileResult: true });
+        var sortColumn = _currentSortColumn;
+        var ascending = _isSortAscending;
 
         // Query-token providers (sort/filter/etc) have already been applied to _allResults by the
         // time this runs -- this only handles the column-header sort and dynamic sidebar filters.
-        _dynamicFilterCoordinator.Apply(
+        PendingFilter = _dynamicFilterCoordinator.Apply(
             _filterSource,
             activeFilters,
             // ToList only when the sort actually reordered something. With no column selected --
             // relevance order, the default -- Sort hands back the very list it was given, and
             // materializing that again is another full-size copy per paint for no change at all.
-            results =>
+            (results, token) =>
             {
-                var sorted = SearchResultSorter.Sort(results, _currentSortColumn, _isSortAscending);
-                return ReferenceEquals(sorted, results) && results is List<AppSearchResult> asList
+                var sorted = SearchResultSorter.Sort(results, sortColumn, ascending, token);
+                var list = ReferenceEquals(sorted, results) && results is List<AppSearchResult> asList
                     ? asList
                     : sorted.ToList();
+                token.ThrowIfCancellationRequested();
+                return Task.FromResult(list);
             },
             () => _filterSource!,
-            RenderFinal,
-            SetFiltering);
+            rows =>
+            {
+                _renderExtendsContent = extendsContent;
+                _renderUnchangedPrefix = unchangedPrefix;
+                RenderFinal(rows);
+            },
+            SetFiltering,
+            runInBackground: activeFilters.Count > 0 || sortColumn.Length > 0);
     }
 
     private void RenderFinal(List<AppSearchResult> finalResults) => _resultRenderer.Render(finalResults);
@@ -382,6 +392,8 @@ public class SearchViewModel : ViewModelBase, IDisposable
     {
         TranslationManager.Instance.PropertyChanged -= OnTranslationsChanged;
         _refreshWatcher.Dispose();
+        _dynamicFilterCoordinator.Cancel();
+        _sidebarCountHelper?.Dispose();
         _searchEngine.Dispose();
         _serviceStatus.Dispose();
         _searchService.Dispose();

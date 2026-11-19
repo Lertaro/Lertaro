@@ -20,7 +20,7 @@ public sealed class SearchPerformanceWorkloadTests(TestContext context)
     [TestCategory("SearchPerformance")]
     [DataRow(20_000)]
     [DataRow(100_000)]
-    public void SidebarAndCollection_RepeatedSnapshots_PreserveFinalResults(int count)
+    public async Task SidebarAndCollection_RepeatedSnapshots_PreserveFinalResults(int count)
     {
         var all = Enumerable.Range(0, count).Select(i => new AppSearchResult
         {
@@ -38,17 +38,16 @@ public sealed class SearchPerformanceWorkloadTests(TestContext context)
         var sorts = 0;
         var resets = 0;
         collection.CollectionChanged += (_, e) => { if (e.Action == NotifyCollectionChangedAction.Reset) resets++; };
-        List<Func<IReadOnlyList<ISearchResult>, Task<IReadOnlyList<ISearchResult>>>> filters =
-            [rows => Task.FromResult<IReadOnlyList<ISearchResult>>(rows.Cast<AppSearchResult>().Where(admitted.Contains).ToList())];
-        void Paint() => coordinator.Apply(all, filters,
-            rows => { sorts++; return SearchResultSorter.Sort(rows, "Name", true).ToList(); }, () => all,
-            rows => { renders++; collection.ReconcileTo(rows, SearchResultsReconciler.ItemsEqual); }, _ => { });
+        List<Func<ISearchResult, bool>> filters = [row => admitted.Contains((AppSearchResult)row)];
+        Task Paint() => coordinator.Apply(all, filters,
+            (rows, token) => { sorts++; return Task.FromResult(SearchResultSorter.Sort(rows, "Name", true, token).ToList()); }, () => all,
+            rows => { renders++; collection.ReconcileTo(rows, SearchResultsReconciler.ItemsEqual); }, _ => { }, runInBackground: false);
 
-        for (var i = 0; i < 3; i++) Paint();
+        for (var i = 0; i < 3; i++) await Paint();
         renders = sorts = resets = 0;
         var bytes = GC.GetTotalAllocatedBytes(true);
         var timer = Stopwatch.StartNew();
-        for (var i = 0; i < 20; i++) Paint();
+        for (var i = 0; i < 20; i++) await Paint();
         timer.Stop();
         bytes = GC.GetTotalAllocatedBytes(true) - bytes;
 

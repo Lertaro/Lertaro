@@ -1,62 +1,80 @@
+using Lertaro.Core;
 using Lertaro.PluginSdk.Abstractions;
 
 namespace Lertaro.App.ViewModels.Search.DynamicSidebar;
 
-// Applies the active sidebar filter predicates (the host adapts each item's synchronous matcher to
-// this batch shape) before sorting and rendering once. Keeps the previous display while an async
-// filter resolves, discarding a stale resolution if a
-// newer results set or filter selection has since taken over.
+// One projection owns publication. A new query, filter or sort cancels the previous computation.
 internal sealed class DynamicFilterCoordinator
 {
-    private List<Func<IReadOnlyList<ISearchResult>, Task<IReadOnlyList<ISearchResult>>>>? _pendingFilters;
+    private CancellationTokenSource? _pending;
 
-    public void Apply(
-        List<AppSearchResult> allResults,
-        List<Func<IReadOnlyList<ISearchResult>, Task<IReadOnlyList<ISearchResult>>>> activeFilters,
-        Func<IEnumerable<AppSearchResult>, List<AppSearchResult>> sort,
-        Func<List<AppSearchResult>> currentResults,
-        Action<List<AppSearchResult>> render,
-        Action<bool> setBusy)
+    public void Cancel()
     {
-        if (activeFilters.Count == 0)
-        {
-            _pendingFilters = null;
-            setBusy(false);
-            render(sort(allResults));
-            return;
-        }
-
-        _pendingFilters = activeFilters;
-        setBusy(true);
-        _ = ApplyAsync(allResults, activeFilters, sort, currentResults, render, setBusy);
+        _pending?.Cancel();
+        _pending = null;
     }
 
-    private async Task ApplyAsync(
-        List<AppSearchResult> resultsSnapshot,
-        List<Func<IReadOnlyList<ISearchResult>, Task<IReadOnlyList<ISearchResult>>>> filtersSnapshot,
-        Func<IEnumerable<AppSearchResult>, List<AppSearchResult>> sort,
+    public Task Apply(
+        List<AppSearchResult> allResults,
+        List<Func<ISearchResult, bool>> activeFilters,
+        Func<IEnumerable<AppSearchResult>, CancellationToken, Task<List<AppSearchResult>>> sort,
         Func<List<AppSearchResult>> currentResults,
         Action<List<AppSearchResult>> render,
-        Action<bool> setBusy)
+        Action<bool> setBusy,
+        bool runInBackground = true)
     {
-        try
+        Cancel();
+        var request = new CancellationTokenSource();
+        _pending = request;
+        setBusy(true);
+        return ApplyAsync();
+
+        async Task<List<AppSearchResult>> ComputeAsync()
         {
-            IReadOnlyList<ISearchResult> current = resultsSnapshot;
-            foreach (var filter in filtersSnapshot)
-                current = await filter(current);
-
-            if (!ReferenceEquals(currentResults(), resultsSnapshot) || !ReferenceEquals(_pendingFilters, filtersSnapshot))
-                return;
-
-            render(sort(current.Cast<AppSearchResult>()));
+            IEnumerable<AppSearchResult> rows = allResults;
+            if (activeFilters.Count > 0)
+            {
+                var kept = new List<AppSearchResult>();
+                foreach (var row in allResults)
+                {
+                    request.Token.ThrowIfCancellationRequested();
+                    var matches = true;
+                    foreach (var filter in activeFilters)
+                    {
+                        if (filter(row)) continue;
+                        matches = false;
+                        break;
+                    }
+                    if (matches) kept.Add(row);
+                }
+                rows = kept;
+            }
+            request.Token.ThrowIfCancellationRequested();
+            return await sort(rows, request.Token).ConfigureAwait(false);
         }
-        finally
+
+        async Task ApplyAsync()
         {
-            // A newer Apply() call already reassigned _pendingFilters to ITS OWN filter list -- that
-            // call owns the busy indicator now, so this (superseded) call must not clear it out from
-            // under it.
-            if (ReferenceEquals(_pendingFilters, filtersSnapshot))
-                setBusy(false);
+            try
+            {
+                var rows = runInBackground
+                    ? await Task.Run(ComputeAsync, request.Token)
+                    : await ComputeAsync();
+                if (!request.IsCancellationRequested && ReferenceEquals(_pending, request)
+                    && ReferenceEquals(currentResults(), allResults))
+                    render(rows);
+            }
+            catch (Exception) when (request.IsCancellationRequested) { }
+            catch (Exception ex) { Logger.Log($"[SearchFilters] Projection failed: {ex}", LogLevel.Error); }
+            finally
+            {
+                if (ReferenceEquals(_pending, request))
+                {
+                    _pending = null;
+                    setBusy(false);
+                }
+                request.Dispose();
+            }
         }
     }
 }
