@@ -15,6 +15,38 @@ namespace Lertaro.App.Tests.Search;
 public sealed class QuickSearchCategoryBarTests
 {
     [TestMethod]
+    public void BuildQuickResults_CategoryFiltersBothInstantAndIndexedRows()
+    {
+        var instant = new SearchResultMapper.InstantPassCache { Collected = true };
+        var audio = new AppSearchResult { Name = "song", FullPath = @"D:\song.mp3", ResultKind = "InstantResult" };
+        instant.Rows.Add(audio);
+        instant.Rows.Add(new AppSearchResult { Name = "document", FullPath = @"D:\document.txt", ResultKind = "InstantResult" });
+        var predicate = AudioRow().MatchPredicate;
+
+        var early = instant.GetRows(predicate);
+        var final = SearchResultMapper.BuildQuickResults(
+            [Record(@"D:\song-file.mp3"), Record(@"D:\song.txt")], "song",
+            null, null, false, instantPass: instant, categoryFilter: predicate);
+
+        Assert.AreSame(audio, Assert.ContainsSingle(early));
+        CollectionAssert.AreEqual(new[] { @"D:\song.mp3", @"D:\song-file.mp3" }, final.Select(row => row.FullPath).ToArray());
+        Assert.HasCount(2, instant.Rows, "Filtering must not destroy the original provider results.");
+    }
+
+    [TestMethod]
+    public void BuildQuickResults_CategoryRejectsEverything_DoesNotLeakInstantRows()
+    {
+        var instant = new SearchResultMapper.InstantPassCache { Collected = true };
+        instant.Rows.Add(new AppSearchResult { Name = "answer", FullPath = "__INSTANT_RESULT__:test", ResultKind = "InstantResult" });
+
+        var results = SearchResultMapper.BuildQuickResults([], "query", null, null, false,
+            instantPass: instant, categoryFilter: _ => false);
+
+        Assert.IsEmpty(results);
+        Assert.IsEmpty(instant.GetRows(_ => false));
+    }
+
+    [TestMethod]
     public void Categories_StartWithTheHostsOwnUnfilteredTab()
     {
         using var vm = new QuickSearchViewModel();

@@ -80,6 +80,9 @@ public static class SearchResultMapper
         public bool Collected;
         public readonly List<AppSearchResult> Rows = new();
         public bool HasPluginSearchActions;
+
+        internal List<AppSearchResult> GetRows(Func<PluginSdk.Abstractions.ISearchResult, bool>? categoryFilter) =>
+            categoryFilter == null ? Rows : Rows.FindAll(row => categoryFilter(row));
     }
 
     internal static List<AppSearchResult> CollectInstantPass(InstantPassCache pass, string rawQuery, string query, bool isInlineWindow, string? contextDirectory,
@@ -149,7 +152,7 @@ public static class SearchResultMapper
         instantPass ??= new InstantPassCache();
         CollectInstantPass(instantPass, rawQuery ?? query, query, isInlineWindow, contextDirectory);
         cancellationToken.ThrowIfCancellationRequested();
-        uiResults.AddRange(instantPass.Rows);
+        uiResults.AddRange(instantPass.GetRows(categoryFilter));
         var prefixCount = uiResults.Count(result =>
             !result.IsEmptyResult && !result.IsSearchSectionHeader &&
             !string.IsNullOrWhiteSpace(result.FullPath) && result.FullPath != "__SHOW_MORE__");
