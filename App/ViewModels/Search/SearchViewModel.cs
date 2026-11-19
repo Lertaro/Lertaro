@@ -379,6 +379,7 @@ public class SearchViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
+        _dispatcher.Dispose();
         TranslationManager.Instance.PropertyChanged -= OnTranslationsChanged;
         _refreshWatcher.Dispose();
         _dynamicFilterCoordinator.Cancel();

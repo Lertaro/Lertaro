@@ -18,6 +18,7 @@ internal sealed class SearchSidebarCountHelper : IDisposable
     private int _version;
     private DateTime _lastPublish = DateTime.MinValue;
     private bool _hasResults;
+    private bool _disposed;
     internal Task PendingUpdate => _work;
 
     public SearchSidebarCountHelper(IReadOnlyList<DynamicSidebarGroupViewModel> groups)
@@ -32,6 +33,7 @@ internal sealed class SearchSidebarCountHelper : IDisposable
 
     public void Reset()
     {
+        if (_disposed) return;
         _query.Cancel();
         _query.Dispose();
         _query = new CancellationTokenSource();
@@ -66,7 +68,7 @@ internal sealed class SearchSidebarCountHelper : IDisposable
 
     private void Queue(Action<SidebarFilterCountAccumulator> update, bool publish)
     {
-        if (_items.Count == 0) return;
+        if (_disposed || _items.Count == 0) return;
         var selected = _groups.Select(group =>
             (IReadOnlyList<Func<ISearchResult, bool>>)group.Items.Where(item => item.IsSelected)
                 .Select(item => item.MatchPredicate).ToArray()).ToArray();
@@ -99,6 +101,8 @@ internal sealed class SearchSidebarCountHelper : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _query.Cancel();
         _query.Dispose();
         Interlocked.Increment(ref _version);

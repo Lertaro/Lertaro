@@ -12,6 +12,26 @@ namespace Lertaro.App.Tests.ViewModels.Search;
 public sealed class SearchViewModelTests
 {
     [TestMethod]
+    public void Dispose_RejectsContentThatWasQueuedBeforeTheWindowClosed()
+    {
+        var vm = new SearchViewModel();
+        SearchQueryDispatchController dispatcher;
+        try
+        {
+            const BindingFlags fields = BindingFlags.Instance | BindingFlags.NonPublic;
+            dispatcher = (SearchQueryDispatchController)typeof(SearchViewModel).GetField("_dispatcher", fields)!.GetValue(vm)!;
+            typeof(SearchQueryDispatchController).GetField("_accumulator", fields)!.SetValue(dispatcher,
+                new StreamingResultAccumulator("report", resolveQueriedDirectory: _ => null));
+            typeof(SearchQueryDispatchController).GetField("_searchSettled", fields)!.SetValue(dispatcher, true);
+        }
+        finally { vm.Dispose(); }
+
+        dispatcher.ApplyContentRows([new AppSearchResult { FullPath = @"Z:\late.txt", IsFullSearchFileResult = true }], 0);
+
+        Assert.IsEmpty(vm.FilteredResults);
+    }
+
+    [TestMethod]
     public async Task ContentArrivesWithTypeSelected_ClearingTypeRestoresItWithoutAnotherQuery()
     {
         using var vm = new SearchViewModel();

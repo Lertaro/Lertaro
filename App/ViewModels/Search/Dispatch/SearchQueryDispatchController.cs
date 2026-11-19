@@ -14,7 +14,7 @@ namespace Lertaro.App.ViewModels.Search.Dispatch;
 // Owns query-token parsing and search dispatch for the full search window's SearchViewModel --
 // extracted into its own class (composition, not a partial class) purely to keep SearchViewModel.cs
 // under the repo's per-file line limit.
-internal sealed class SearchQueryDispatchController
+internal sealed class SearchQueryDispatchController : IDisposable
 {
     // The full window has no favorite-only rows, but an indexed favorite must still get the same
     // favorite band the quick window gives it. Paths are normalized the way the ladder compares them.
@@ -517,5 +517,13 @@ internal sealed class SearchQueryDispatchController
     {
         var prefix = UserSettings.Load().GlobalTokenPrefix;
         return !string.IsNullOrEmpty(prefix) ? prefix[0] : ':';
+    }
+
+    public void Dispose()
+    {
+        Interlocked.Increment(ref _contentAppendGeneration);
+        _tokenBatchCts?.Cancel();
+        _tokenBatchCts = null;
+        _accumulator = null;
     }
 }
