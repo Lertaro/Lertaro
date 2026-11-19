@@ -78,22 +78,18 @@ jobs:
           winget install JRSoftware.InnoSetup.7 --force --silent --no-upgrade --accept-source-agreements
 
       # 4. Hand the release key to make.bat, which signs the portable zips as part of packaging
-      - name: Configure Signing Key
+      - name: Verify Signing Key Matches Updater
         shell: pwsh
         env:
-          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          LERTARO_SIGNING_KEY: ${{ secrets.LERTARO_SIGNING_KEY }}
         run: |
-          if (-not $env:SIGNING_KEY) {
-              Write-Host "::error::SIGNING_KEY is not configured; make.bat refuses to build an unsigned release."
-              exit 1
-          }
-          # make.bat takes the key as one base64 line, the same contract the GitLab job uses. The secret holds
-          # the PEM text, so encoding its bytes is what makes the two release paths agree.
-          $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($env:SIGNING_KEY))
-          "LERTARO_SIGNING_KEY=$b64" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          # The same base64 PEM secret as GitLab. SIGNING_KEY is the retired key and must not be reused.
+          .\verify-release.ps1 -CheckSigningKey
 
       # 5. Execute the build and package batch script
       - name: Run Build and Package Script
+        env:
+          LERTARO_SIGNING_KEY: ${{ secrets.LERTARO_SIGNING_KEY }}
         run: |
           .\make.bat
 
@@ -117,7 +113,7 @@ jobs:
       - name: Add Verification Info
         shell: pwsh
         run: |
-          $files = @('Lertaro-Setup.exe', 'Lertaro-Portable.zip', 'Lertaro-Setup-arm64.exe', 'Lertaro-Portable-arm64.zip')
+          $files = @('Lertaro-Setup.exe', 'Lertaro-Portable.zip', 'Lertaro-Portable.zip.sig', 'Lertaro-Setup-arm64.exe', 'Lertaro-Portable-arm64.zip', 'Lertaro-Portable-arm64.zip.sig')
           $lines = [System.Collections.Generic.List[string]]::new()
           $lines.Add('')
           $lines.Add('## Security Verification')
