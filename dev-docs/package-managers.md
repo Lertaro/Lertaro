@@ -1,10 +1,12 @@
 # WinGet 与 Scoop 分发
 
-清单使用正式 GitHub Release 的固定版本地址，复用 x64/ARM64 官方安装器，不重新打包。首份清单对应 `v5.13.5`，两个 SHA-256 已通过下载公开附件重新计算核对。清单落库不等于上游已收录；WinGet 需要向 `microsoft/winget-pkgs` 提交并合并 PR，Scoop 自建 bucket 需要先将 `bucket/` 发布到本仓库默认分支。
+清单使用正式 GitHub Release 的固定版本地址，复用 x64/ARM64 官方安装器，不重新打包。首份清单对应 `v5.13.5`，两个 SHA-256 已通过下载公开附件重新计算核对。
+
+2026-11-20 发布状态：Scoop 自建 bucket 已发布到本仓库 `main`，可按下文添加并安装；WinGet 已提交 [收录 PR #484976](https://github.com/microsoft/winget-pkgs/pull/484976)，尚未进入公共源。提交时上游启动了自动验证并标记 `Needs-CLA`，贡献者需本人阅读并完成 PR 中微软机器人要求的 CLA 确认。后续审核与合并状态以该 PR 为准。
 
 ## WinGet
 
-提交目录是 [packaging/winget/manifests/l/Lertaro/Lertaro/5.13.5](../packaging/winget/manifests/l/Lertaro/Lertaro/5.13.5)。`InstallerType: inno` 使用 WinGet 的 Inno 静默参数，额外选择开始菜单与 `lff` PATH 任务。固定 AppId 让 WinGet 关联手工安装和后续升级，依赖声明使用 `.NET 10 Desktop Runtime`，安装器自身也能补装运行时。
+提交目录是 [packaging/winget/manifests/l/Lertaro/Lertaro/5.13.5](../packaging/winget/manifests/l/Lertaro/Lertaro/5.13.5)，采用上游当前的 `1.28.0` schema。`InstallerType: inno` 使用 WinGet 的 Inno 静默参数，额外选择开始菜单与 `lff` PATH 任务。固定 AppId 让 WinGet 关联手工安装和后续升级，依赖声明使用 `.NET 10 Desktop Runtime`，安装器自身也能补装运行时。
 
 本地校验：
 
