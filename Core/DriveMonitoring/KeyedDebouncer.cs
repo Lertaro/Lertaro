@@ -3,9 +3,8 @@ namespace Lertaro.Core.DriveMonitoring;
 // Coalesces repeated calls for the same key into a single delayed action, resetting the delay each time
 // a new call for that key arrives -- e.g. many rapid filesystem-watcher events for one drive collapsing
 // into a single expensive full-snapshot persist once that drive goes quiet for `delayMs`, instead of
-// paying that cost once per raw event. Shared by WatcherManager (network/WSL/folder-index drives) and
-// UsnIndexerExtensions.ApplyFolderChange (local drives without USN journal support), which both used to
-// persist on every single change with no throttling at all.
+// paying that cost once per raw event. Used by WatcherManager (network/WSL/folder-index drives), which
+// used to persist on every single change with no throttling at all.
 internal sealed class KeyedDebouncer<TKey> : IDisposable where TKey : notnull
 {
     // Each schedule carries a generation so a callback can tell whether the entry it is about to remove

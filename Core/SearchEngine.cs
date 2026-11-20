@@ -73,7 +73,7 @@ public class SearchEngine : IDisposable
         if (!_idleTrim.ShouldTrim(Environment.TickCount64))
             return;
 
-        // Persist each journal drive's accumulated delta first, so a restart replays from here instead of
+        // Persist each drive's accumulated delta first, so a restart replays from here instead of
         // from the last cold-start catch-up point. Deliberately before the memory hand-back below: the
         // merge this does is the biggest allocation of the two, and the trim that follows reclaims it.
         _indexer.CompactIdleDeltas(IndexCacheDir);

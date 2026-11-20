@@ -12,8 +12,13 @@ namespace Lertaro.Core.IndexV2.Delta;
 // id is enough.
 public static class DeltaPathApplier
 {
-    public static bool ApplyCreatedOrChanged(DeltaOverlay delta, UInt128 rootId, string root, string path, ExclusionRuleSet? exclusionRules = null)
-        => UpsertPath(delta, rootId, root, path, includeChildren: Directory.Exists(path), exclusionRules, parentAncestors: null, depth: 0);
+    // `includeChildren` is false for a watcher's Changed event: Windows raises one on a directory whenever
+    // its LastWrite moves, i.e. on every add/remove inside it, and each child already reports its own
+    // event. Re-reading the subtree there turned one new file under a top-level folder into a walk of
+    // everything beneath it (millions of entries on a large exFAT drive, #298). Created/Renamed still
+    // walk the subtree: a folder moved in from elsewhere arrives as that one event, children unreported.
+    public static bool ApplyCreatedOrChanged(DeltaOverlay delta, UInt128 rootId, string root, string path, ExclusionRuleSet? exclusionRules = null, bool includeChildren = true)
+        => UpsertPath(delta, rootId, root, path, includeChildren: includeChildren && Directory.Exists(path), exclusionRules, parentAncestors: null, depth: 0);
 
     public static bool ApplyDeleted(DeltaOverlay delta, string path)
     {

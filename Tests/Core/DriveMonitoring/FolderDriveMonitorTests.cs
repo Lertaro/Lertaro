@@ -2,11 +2,13 @@ using Lertaro.Core.DriveMonitoring;
 
 namespace Lertaro.Core.Tests.DriveMonitoring;
 
-// The watcher itself is never started here: Schedule is what its event handlers call, and the debounce
-// Timer it arms is the real one.
+// Schedule/FlushPending are driven directly; the watcher itself is never started, but the debounce
+// Timer Schedule arms is the real one.
 [TestClass]
 public sealed class FolderDriveMonitorTests
 {
+    private static readonly string DataDir = Path.TrimEndingDirectorySeparator(Logger.SharedDataDir);
+
     // An exception escaping a Timer callback terminates the process, so a failing change must turn into a
     // re-walk of the drive instead. If this regresses, the test host dies rather than the test failing.
     [TestMethod]
@@ -22,5 +24,108 @@ public sealed class FolderDriveMonitorTests
         monitor.Schedule(WatcherChangeTypes.Created, Path.Combine(Path.GetTempPath(), "new-folder"));
 
         Assert.IsTrue(reindexRequested.Wait(TimeSpan.FromSeconds(10)));
+    }
+
+    [TestMethod]
+    public void Schedule_RepeatedChangedOnOnePath_IsAppliedOnce()
+    {
+        var (monitor, applied) = Create();
+        using (monitor)
+        {
+            monitor.Schedule(WatcherChangeTypes.Changed, @"Z:\a.txt");
+            monitor.Schedule(WatcherChangeTypes.Changed, @"Z:\a.txt");
+            monitor.Schedule(WatcherChangeTypes.Changed, @"Z:\A.TXT");
+            monitor.FlushPending();
+        }
+
+        Assert.AreEqual(1, applied.Count);
+    }
+
+    // Apply reads the path's state at flush time, so dropping the Changed after a Deleted would leave a
+    // file that was recreated in between removed from the index.
+    [TestMethod]
+    public void Schedule_ChangedAfterDeleted_IsKept()
+    {
+        var (monitor, applied) = Create();
+        using (monitor)
+        {
+            monitor.Schedule(WatcherChangeTypes.Changed, @"Z:\a.txt");
+            monitor.Schedule(WatcherChangeTypes.Deleted, @"Z:\a.txt");
+            monitor.Schedule(WatcherChangeTypes.Changed, @"Z:\a.txt");
+            monitor.FlushPending();
+        }
+
+        CollectionAssert.AreEqual(
+            new[] { WatcherChangeTypes.Changed, WatcherChangeTypes.Deleted, WatcherChangeTypes.Changed },
+            applied.Select(c => c.Type).ToArray());
+    }
+
+    // A Created directory pulls in its subtree, so it must never be swallowed by an earlier Changed.
+    [TestMethod]
+    public void Schedule_CreatedAfterChanged_IsKept()
+    {
+        var (monitor, applied) = Create();
+        using (monitor)
+        {
+            monitor.Schedule(WatcherChangeTypes.Changed, @"Z:\folder");
+            monitor.Schedule(WatcherChangeTypes.Created, @"Z:\folder");
+            monitor.FlushPending();
+        }
+
+        Assert.AreEqual(2, applied.Count);
+    }
+
+    [TestMethod]
+    public void Schedule_ChangedAfterFlush_IsAppliedAgain()
+    {
+        var (monitor, applied) = Create();
+        using (monitor)
+        {
+            monitor.Schedule(WatcherChangeTypes.Changed, @"Z:\a.txt");
+            monitor.FlushPending();
+            monitor.Schedule(WatcherChangeTypes.Changed, @"Z:\a.txt");
+            monitor.FlushPending();
+        }
+
+        Assert.AreEqual(2, applied.Count);
+    }
+
+    // #298: a portable install on the watched drive saw its own index rewrite as a change, forever.
+    [TestMethod]
+    public void Schedule_UnderOwnDataDirectory_IsIgnored()
+    {
+        var (monitor, applied) = Create();
+        using (monitor)
+        {
+            monitor.Schedule(WatcherChangeTypes.Changed, Path.Combine(DataDir, "indexes", "Z.idx"));
+            monitor.Schedule(WatcherChangeTypes.Renamed, Path.Combine(DataDir, "indexes", "Z.idx"), Path.Combine(DataDir, "indexes", "Z.idx.tmp"));
+            monitor.Schedule(WatcherChangeTypes.Changed, DataDir + "Other" + Path.DirectorySeparatorChar + "x.txt");
+            monitor.FlushPending();
+        }
+
+        Assert.AreEqual(1, applied.Count);
+        Assert.AreEqual(DataDir + "Other" + Path.DirectorySeparatorChar + "x.txt", applied[0].Path);
+    }
+
+    // Moving a file into or out of the data directory still changes a path outside it.
+    [TestMethod]
+    public void Schedule_RenamedAcrossOwnDataDirectory_IsApplied()
+    {
+        var (monitor, applied) = Create();
+        using (monitor)
+        {
+            monitor.Schedule(WatcherChangeTypes.Renamed, Path.Combine(DataDir, "x.txt"), @"Z:\x.txt");
+            monitor.Schedule(WatcherChangeTypes.Renamed, @"Z:\x.txt", Path.Combine(DataDir, "x.txt"));
+            monitor.FlushPending();
+        }
+
+        Assert.AreEqual(2, applied.Count);
+    }
+
+    private static (FolderDriveMonitor Monitor, List<(WatcherChangeTypes Type, string Path)> Applied) Create()
+    {
+        var applied = new List<(WatcherChangeTypes, string)>();
+        var monitor = new FolderDriveMonitor("Z", (type, path, _) => applied.Add((type, path)), CancellationToken.None);
+        return (monitor, applied);
     }
 }

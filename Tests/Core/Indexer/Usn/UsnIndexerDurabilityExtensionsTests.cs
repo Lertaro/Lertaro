@@ -123,16 +123,49 @@ public sealed class UsnIndexerDurabilityExtensionsTests
         Assert.AreEqual(0, indexer.CompactIdleDeltas(tempDir.Path));
     }
 
+    // A FAT32/exFAT drive no longer persists on every watcher change (#298); this threshold is now its
+    // only in-session persist, so it must not be skipped.
     [TestMethod]
-    public void CompactIdleDeltas_NonJournalFileSystem_IsSkipped()
+    public void CompactIdleDeltas_NonJournalFileSystem_AboveThreshold_IsWritten()
     {
         using var tempDir = new TempDirectory();
         using var fixture = LiveIndexFixture.Build("C", new[] { LiveIndexFixture.Root() });
         var indexer = Loaded(fixture, "exFAT");
         AddChurn(fixture.Index, UsnIndexerDurabilityExtensions.IdleCompactPendingThreshold);
 
+        Assert.AreEqual(1, indexer.CompactIdleDeltas(tempDir.Path));
+        Assert.IsTrue(File.Exists(CachePath(tempDir.Path)));
+    }
+
+    // Mid-rebuild, the rebuild's own write owns the cache path and this LiveIndex is about to be replaced.
+    [TestMethod]
+    public void CompactIdleDeltas_NonJournalFileSystemWhileRebuilding_IsSkipped()
+    {
+        using var tempDir = new TempDirectory();
+        using var fixture = LiveIndexFixture.Build("C", new[] { LiveIndexFixture.Root() });
+        var indexer = Loaded(fixture, "exFAT");
+        indexer.Status.Drives.Add(new UsnIndexer.DriveIndexStatus { Drive = "C", State = "indexing" });
+        AddChurn(fixture.Index, UsnIndexerDurabilityExtensions.IdleCompactPendingThreshold);
+
         Assert.AreEqual(0, indexer.CompactIdleDeltas(tempDir.Path));
         Assert.IsFalse(File.Exists(CachePath(tempDir.Path)));
+    }
+
+    // This runs on SearchEngine's idle Timer, where an escaping exception ends the process. A LiveIndex a
+    // rebuild disposed must be skipped, not read.
+    [TestMethod]
+    [DataRow("NTFS")]
+    [DataRow("exFAT")]
+    public void CompactIdleDeltas_LiveIndexDisposed_SkipsItWithoutThrowing(string fileSystemType)
+    {
+        using var tempDir = new TempDirectory();
+        var fixture = LiveIndexFixture.Build("C", new[] { LiveIndexFixture.Root() });
+        var indexer = Loaded(fixture, fileSystemType);
+        fixture.Index.Dispose();
+
+        Assert.AreEqual(0, indexer.CompactIdleDeltas(tempDir.Path));
+        Assert.IsFalse(File.Exists(CachePath(tempDir.Path)));
+        try { fixture.Dispose(); } catch { }
     }
 
     private static UsnIndexer.DriveRuntimeMetadata Metadata(string fileSystemType) => new()

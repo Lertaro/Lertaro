@@ -288,7 +288,8 @@ internal class WatcherManager : IDisposable
                 if (exclusionRules.IsExcludedPath(logicalPath, isDirectory))
                     changed = index.ApplyDeleted(logicalPath);
                 else
-                    changed = index.ApplyCreatedOrChanged(PathHelpers.BuildSourceRoot(drive), logicalPath, exclusionRules);
+                    changed = index.ApplyCreatedOrChanged(PathHelpers.BuildSourceRoot(drive), logicalPath, exclusionRules,
+                        includeChildren: changeType != WatcherChangeTypes.Changed);
             }
 
             if (changed)

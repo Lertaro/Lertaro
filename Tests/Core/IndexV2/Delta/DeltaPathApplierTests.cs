@@ -32,6 +32,34 @@ public sealed class DeltaPathApplierTests
 
         var changed = index.ApplyCreatedOrChanged(@"\\server\share", subDir);
         Assert.IsTrue(changed);
+        Assert.IsTrue(index.ToStore().Records.Any(r => r.Name == "child.txt"));
+    }
+
+    // A watcher's Changed on a directory: its children report their own events (#298).
+    [TestMethod]
+    public void ApplyCreatedOrChanged_WithoutChildren_UpsertsOnlyTheDirectory()
+    {
+        using var tempDir = new TempDirectory();
+        var idxPath = Path.Combine(tempDir.Path, "test.idx");
+        var store = new FileRecordStore
+        {
+            SourceKey = @"\\server\share",
+            SourceKind = FileRecordSourceKind.NetworkMappedDrive,
+            IdKind = FileRecordIdKind.SourceLocalId64,
+            RootId = 1
+        };
+        store.Records.Add(new FileRecord(1, 1, string.Empty, FileRecordFlags.Directory | FileRecordFlags.SourceRoot));
+        SnapshotWriter.Write(store, idxPath);
+        using var index = NetworkIndex.FromSnapshotFile(@"\\server\share", idxPath);
+        var subDir = Path.Combine(tempDir.Path, "subfolder");
+        Directory.CreateDirectory(subDir);
+        File.WriteAllText(Path.Combine(subDir, "child.txt"), "test");
+
+        Assert.IsTrue(index.ApplyCreatedOrChanged(@"\\server\share", subDir, includeChildren: false));
+
+        var names = index.ToStore().Records.Select(r => r.Name).ToList();
+        CollectionAssert.Contains(names, "subfolder");
+        CollectionAssert.DoesNotContain(names, "child.txt");
     }
 
     [TestMethod]

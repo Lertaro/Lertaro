@@ -200,7 +200,7 @@ public static class UsnIndexerExtensions
             {
                 WatcherChangeTypes.Deleted => DeltaPathApplier.ApplyDeleted(delta, normalizedPath),
                 WatcherChangeTypes.Renamed when !string.IsNullOrWhiteSpace(oldPath) => DeltaPathApplier.ApplyRenamed(delta, (UInt128)1, root, oldPath, normalizedPath),
-                _ => DeltaPathApplier.ApplyCreatedOrChanged(delta, (UInt128)1, root, normalizedPath),
+                _ => DeltaPathApplier.ApplyCreatedOrChanged(delta, (UInt128)1, root, normalizedPath, includeChildren: changeType != WatcherChangeTypes.Changed),
             });
         }
         catch (ObjectDisposedException)
@@ -224,21 +224,27 @@ public static class UsnIndexerExtensions
         if (changeType == WatcherChangeTypes.Renamed && !string.IsNullOrWhiteSpace(oldPath))
             changedDirectories.AddRange(UsnIndexerChangedDirectories.ForPath(oldPath, isDirectory: false));
 
-        bool isRebuilding;
         lock (indexer.LockObj)
         {
             indexer.UpdateTotalsFromRuntime();
             indexer.UpdateDriveCounts(drive);
-            isRebuilding = MarkMissedIfRebuilding(indexer, drive);
+            // While this drive is being rebuilt its FolderDriveMonitor stays alive and keeps applying
+            // changes to THIS old LiveIndex (immediately searchable); the flag lets the rebuild's caller
+            // queue one follow-up refresh -- see ConsumeMissedFolderChangeDuringRebuild.
+            MarkMissedIfRebuilding(indexer, drive);
         }
         indexer.RaiseDirectoriesChanged(drive, changedDirectories);
         SearchCoordinator.ClearCaches();
-        // Keep FolderDriveMonitor updates searchable in the old LiveIndex during rebuild, but skip
-        // persistence to avoid racing the rebuild's SnapshotWriter. The missed-change flag schedules a
-        // follow-up refresh for the new index. Outside rebuilds, debounce full snapshot persistence per
-        // drive so a batch of file changes causes one rewrite.
-        if (!isRebuilding)
-            indexer._folderChangeSaveDebounce.Schedule(drive, () => indexer.SaveDriveSnapshot(drive, live));
+        // No persist here. It used to be a debounced full Compact(force: true) of the whole drive about a
+        // second after any change, which on a multi-million-entry exFAT drive meant a constant rewrite
+        // loop (#298). A non-journal drive is re-walked at every startup anyway (no journal to replay --
+        // see SearchEngineInitializer.CanUseCachedUsnCatchUp), so the cache file only seeds that walk's
+        // diff baseline; the idle compactor folds the delta in once it is big enough to be worth it
+        // (UsnIndexerDurabilityExtensions.CompactIdleDeltas).
+        // ponytail: that compactor only runs on the idle tick after a search (IdleTrimGate), so on a
+        // drive nobody searches the delta keeps growing in memory -- the same contract journal drives
+        // already have. Upgrade path if that bites: arm the gate from here once the delta passes the
+        // threshold.
         indexer.PublishStatusChanged();
     }
 
@@ -246,8 +252,7 @@ public static class UsnIndexerExtensions
     // current rebuild (if State == "indexing" right now) and returns whether it did -- shared by
     // ApplyFolderChange's three "nothing to apply this change to" cases (drive not tracked at all,
     // caught a concurrent LiveIndex disposal, or applied successfully but the drive turned out to be
-    // rebuilding) and by the normal in-progress path that still needs the bool to decide whether to skip
-    // the persist below.
+    // rebuilding) and by the normal in-progress path.
     private static bool MarkMissedIfRebuilding(UsnIndexer indexer, string drive)
     {
         var item = indexer.Status.Drives.FirstOrDefault(d => d.Drive.Equals(drive, StringComparison.OrdinalIgnoreCase));
@@ -266,29 +271,5 @@ public static class UsnIndexerExtensions
     {
         lock (indexer.LockObj)
             return indexer._missedFolderChangeDuringRebuild.Remove(drive);
-    }
-
-    public static void SaveDriveSnapshot(this UsnIndexer indexer, string drive, LiveIndex live)
-    {
-        UsnIndexer.DriveRuntimeMetadata? metadata;
-        lock (indexer.LockObj)
-        {
-            if (!indexer._driveMetadata.TryGetValue(drive, out metadata))
-                return;
-        }
-
-        var cacheDir = LocalDriveCacheLocator.DefaultCacheDir;
-        try
-        {
-            live.Compact(LocalDriveCacheLocator.GetCachePath(cacheDir, drive), new CompactionStamp(metadata.JournalId, metadata.NextUsn), force: true);
-        }
-        catch (ObjectDisposedException)
-        {
-            // This runs on a KeyedDebouncer Timer callback up to a second after ApplyFolderChange
-            // scheduled it -- DropDriveFromRuntime's own Cancel only stops a timer that hasn't fired yet;
-            // one already mid-flight (past the dictionary lookup above, about to call Compact) when a
-            // rebuild's Dispose() runs isn't stopped by it. Nothing to persist: a rebuild replacing this
-            // drive's LiveIndex already supersedes whatever this stale save would have written.
-        }
     }
 }

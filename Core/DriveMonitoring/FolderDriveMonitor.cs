@@ -13,6 +13,12 @@ internal sealed class FolderDriveMonitor : IDisposable
     private readonly object _gate = new();
     private readonly DriveWatcherHost _host;
     private readonly List<PendingChange> _pending = new();
+    // Paths already queued for an upsert since their last delete/rename, so a burst of Changed events on
+    // one file (every write raises several) is applied once. Guarded by _gate, cleared with _pending.
+    private readonly HashSet<string> _pendingUpserts = new(StringComparer.OrdinalIgnoreCase);
+    // Our own data directory (the .idx caches and logs). A portable install on this very drive would
+    // otherwise see each index rewrite as a change that schedules the next one, forever.
+    private readonly string _ignoredPrefix;
     private readonly WatcherLossRefreshGate _lossGate = new();
     private Timer? _debounce;
     private bool _disposed;
@@ -20,6 +26,7 @@ internal sealed class FolderDriveMonitor : IDisposable
     public FolderDriveMonitor(string drive, Action<WatcherChangeTypes, string, string?> onChange, CancellationToken token, Action? onReindexRequired = null)
     {
         _drive = drive;
+        _ignoredPrefix = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Logger.SharedDataDir)) + Path.DirectorySeparatorChar;
         _onChange = onChange;
         _onReindexRequired = onReindexRequired;
         _token = token;
@@ -41,7 +48,9 @@ internal sealed class FolderDriveMonitor : IDisposable
     private bool ConfigureWatcher(FileSystemWatcher watcher, string drive, Action restart, Action retry, Action<string> logError)
     {
         watcher.IncludeSubdirectories = true;
-        watcher.InternalBufferSize = 64 * 1024;
+        // An overflow costs a full re-walk of the drive (millions of entries on the large exFAT disks this
+        // serves), so buy headroom: 64 KB is only the ceiling for network watchers, not local ones.
+        watcher.InternalBufferSize = 256 * 1024;
         watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite |
                                NotifyFilters.Size | NotifyFilters.Attributes | NotifyFilters.CreationTime;
         FileSystemEventHandler changed = (_, e) => Schedule(e.ChangeType, e.FullPath, null);
@@ -80,13 +89,31 @@ internal sealed class FolderDriveMonitor : IDisposable
 
     internal void Schedule(WatcherChangeTypes changeType, string path, string? oldPath = null)
     {
-        if (_token.IsCancellationRequested)
+        if (_token.IsCancellationRequested || IsIgnored(path) && (oldPath == null || IsIgnored(oldPath)))
             return;
 
         lock (_gate)
         {
             if (_disposed)
                 return;
+
+            // Apply reads the path's CURRENT state at flush time, so a repeat upsert adds nothing -- unless a
+            // delete or rename of that path sits between the two, which is why those drop it from the set.
+            switch (changeType)
+            {
+                case WatcherChangeTypes.Changed when !_pendingUpserts.Add(path):
+                    return;
+                case WatcherChangeTypes.Created:
+                    _pendingUpserts.Add(path);
+                    break;
+                case WatcherChangeTypes.Deleted:
+                    _pendingUpserts.Remove(path);
+                    break;
+                case WatcherChangeTypes.Renamed:
+                    if (oldPath != null) _pendingUpserts.Remove(oldPath);
+                    _pendingUpserts.Add(path);
+                    break;
+            }
             _pending.Add(new PendingChange(changeType, path, oldPath));
 
             // One timer, re-armed, instead of disposing and rebuilding it per event: a raw
@@ -101,7 +128,9 @@ internal sealed class FolderDriveMonitor : IDisposable
         }
     }
 
-    private void FlushPending()
+    private bool IsIgnored(string path) => path.StartsWith(_ignoredPrefix, StringComparison.OrdinalIgnoreCase);
+
+    internal void FlushPending()
     {
         PendingChange[] batch;
         lock (_gate)
@@ -111,6 +140,7 @@ internal sealed class FolderDriveMonitor : IDisposable
 
             batch = _pending.ToArray();
             _pending.Clear();
+            _pendingUpserts.Clear();
         }
 
         // Last resort: this runs on a Timer callback, where an unhandled exception terminates the process,

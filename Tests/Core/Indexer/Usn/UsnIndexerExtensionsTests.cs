@@ -4,10 +4,8 @@ using Lertaro.Core.Tests.IndexV2;
 
 namespace Lertaro.Core.Tests.Indexer.Usn;
 
-// ApplyFolderChange's own persist path (SaveDriveSnapshot -> LiveIndex.Compact) writes a real file under
-// Logger.UserDataDir -- the same non-injectable-real-path hazard NetworkIndexerPublisherTests' own header
-// comment calls out -- so, mirroring that suite, only the in-memory routing/bookkeeping (does the change
-// land in the delta, does it flag or skip a persist) is covered here, not the actual disk write.
+// ApplyFolderChange never writes to disk (its delta is persisted by the idle compactor -- see
+// UsnIndexerDurabilityExtensionsTests), so only the in-memory routing/bookkeeping is covered here.
 [TestClass]
 public sealed class UsnIndexerExtensionsTests
 {
@@ -170,10 +168,10 @@ public sealed class UsnIndexerExtensionsTests
     // Regression coverage for the local-drive counterpart of the network-drive rescan race: a
     // non-journaled drive's FolderDriveMonitor now stays alive for the whole rebuild (see
     // ApplyFolderChange's own comment on why), so a change landing mid-rebuild must be recorded as
-    // missed instead of persisted against the doomed old LiveIndex -- ConsumeMissedFolderChangeDuringRebuild
-    // is how the rebuild's own caller finds out it needs to queue a follow-up refresh.
+    // missed -- ConsumeMissedFolderChangeDuringRebuild is how the rebuild's own caller finds out it needs
+    // to queue a follow-up refresh.
     [TestMethod]
-    public void ApplyFolderChange_DriveCurrentlyIndexing_AppliesChangeButFlagsItAsMissedInsteadOfPersisting()
+    public void ApplyFolderChange_DriveCurrentlyIndexing_AppliesChangeButFlagsItAsMissed()
     {
         using var tempDir = new TempDirectory();
         var filePath = Path.Combine(tempDir.Path, "new-file.txt");
@@ -189,6 +187,43 @@ public sealed class UsnIndexerExtensionsTests
         var (files, _) = fixture.Index.GetCounts();
         Assert.AreEqual(1, files);
         Assert.IsTrue(indexer.ConsumeMissedFolderChangeDuringRebuild("C"));
+    }
+
+    // #298: Windows raises Changed on a folder for every add/remove inside it, and each child reports its
+    // own event -- re-reading the folder's subtree there walked millions of entries per new file.
+    [TestMethod]
+    public void ApplyFolderChange_ChangedDirectory_DoesNotReadItsChildren()
+    {
+        using var tempDir = new TempDirectory();
+        var folder = Path.Combine(tempDir.Path, "folder");
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(Path.Combine(folder, "child.txt"), "x");
+
+        using var fixture = LiveIndexFixture.Build("C", new[] { LiveIndexFixture.Root() });
+        var indexer = new UsnIndexer();
+        indexer._recordIndexes["C"] = fixture.Index;
+
+        indexer.ApplyFolderChange("C", WatcherChangeTypes.Changed, folder);
+
+        Assert.AreEqual(0, fixture.Index.GetCounts().Files);
+    }
+
+    // A folder moved in from elsewhere arrives as one Created event with no events for its contents.
+    [TestMethod]
+    public void ApplyFolderChange_CreatedDirectory_ReadsItsChildren()
+    {
+        using var tempDir = new TempDirectory();
+        var folder = Path.Combine(tempDir.Path, "folder");
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(Path.Combine(folder, "child.txt"), "x");
+
+        using var fixture = LiveIndexFixture.Build("C", new[] { LiveIndexFixture.Root() });
+        var indexer = new UsnIndexer();
+        indexer._recordIndexes["C"] = fixture.Index;
+
+        indexer.ApplyFolderChange("C", WatcherChangeTypes.Created, folder);
+
+        Assert.AreEqual(1, fixture.Index.GetCounts().Files);
     }
 
     [TestMethod]
@@ -232,29 +267,6 @@ public sealed class UsnIndexerExtensionsTests
             indexer.ApplyFolderChange("C", WatcherChangeTypes.Changed, @"C:\somewhere\new-file.txt");
 
             Assert.IsTrue(indexer.ConsumeMissedFolderChangeDuringRebuild("C"));
-        }
-        finally
-        {
-            try { fixture.Dispose(); } catch { }
-        }
-    }
-
-    // Regression coverage for the debounced-persist counterpart of the same race: SaveDriveSnapshot runs
-    // on a background Timer callback up to a second after ApplyFolderChange scheduled it (KeyedDebouncer),
-    // and DropDriveFromRuntime's own Cancel only stops a timer that HASN'T fired yet -- one already
-    // mid-flight when a rebuild's Dispose() runs isn't stopped by it, so a rebuild finishing for this
-    // drive while an old debounced save is still executing hits the exact same disposed-LiveIndex race.
-    [TestMethod]
-    public void SaveDriveSnapshot_LiveIndexDisposedConcurrently_DoesNotThrow()
-    {
-        var fixture = LiveIndexFixture.Build("C", new[] { LiveIndexFixture.Root() });
-        try
-        {
-            var indexer = new UsnIndexer();
-            indexer._driveMetadata["C"] = new UsnIndexer.DriveRuntimeMetadata { JournalId = 1, NextUsn = 100 };
-            fixture.Index.Dispose();
-
-            indexer.SaveDriveSnapshot("C", fixture.Index);
         }
         finally
         {

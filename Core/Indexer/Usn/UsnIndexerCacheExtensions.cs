@@ -148,10 +148,6 @@ public static class UsnIndexerCacheExtensions
 
     public static void DropDriveFromRuntime(this UsnIndexer indexer, string drive)
     {
-        // Cancels (not fires) any pending debounced ApplyFolderChange save for this drive -- letting it
-        // fire after Dispose() below would call Compact() on an already-disposed LiveIndex.
-        indexer._folderChangeSaveDebounce.Cancel(drive);
-
         lock (indexer.LockObj)
         {
             indexer._driveMetadata.Remove(drive);

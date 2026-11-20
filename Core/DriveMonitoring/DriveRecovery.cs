@@ -15,7 +15,15 @@ internal static class DriveRecovery
         Action<string>? onReindexAfterRemoval = null)
     {
         Logger.Log($"[SearchEngine] Restoring newly available drive {drive} from cache if possible.");
-        var cached = indexer.TryLoadDriveFromCache(cacheDir, drive);
+        // A FAT32/exFAT drive whose index is still loaded -- a re-walk for a lost watcher, a follow-up, a
+        // manual rebuild -- keeps serving it while the walk runs, and the walk diffs against it. Reloading the
+        // cache here rolled search back to the last compaction (that drive's whole uncompacted delta, since
+        // changes are no longer persisted one by one) for as long as the walk took. A drive that returned
+        // after a removal has none loaded (DropDriveFromRuntime), so it still restores from its cache.
+        bool loaded;
+        lock (indexer.LockObj)
+            loaded = indexer._recordIndexes.ContainsKey(drive);
+        var cached = loaded && !VolumeHelper.SupportsUsnJournal(drive) ? null : indexer.TryLoadDriveFromCache(cacheDir, drive);
         // A cache from a scan interrupted before finishing (crash/restart mid-walk, not a graceful Stop)
         // must not be mistaken for "restored, nothing more to do" -- see UsnIndexer.IsDriveIndexComplete's
         // own comment. Skips straight past the catch-up/folder-restore short-circuits below to the rebuild
@@ -46,7 +54,7 @@ internal static class DriveRecovery
             }
         }
 
-        Logger.Log($"[SearchEngine] Cache restore unavailable for drive {drive}; rebuilding this drive only.");
+        Logger.Log($"[SearchEngine] Rebuilding drive {drive} only (its cache was not restored, or its loaded index is kept as the baseline).");
         // Stop only the live watcher before rebuilding. Keep the device notification registered so a
         // physical removal during this rebuild can cancel its scan and schedule recovery.
         if (VolumeHelper.SupportsUsnJournal(drive))

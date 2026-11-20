@@ -55,7 +55,8 @@ internal static class UsnIndexerDurabilityExtensions
             return indexer._driveMetadata.TryGetValue(drive, out var metadata) && metadata.JournalWatermarkPinned;
     }
 
-    // Folds each journal drive's accumulated delta into its cache file, stamped with the live watermark.
+    // Folds each drive's accumulated delta into its cache file, stamped with the live watermark (journal
+    // drives) or the metadata it was built with (FAT32/exFAT drives, whose only in-session persist this is).
     // Returns how many drives were written. Cheap to call often: drives below IdleCompactPendingThreshold
     // are skipped outright and Compact's own force:false path skips one whose delta emptied meanwhile.
     public static int CompactIdleDeltas(this UsnIndexer indexer, string cacheDir)
@@ -68,12 +69,26 @@ internal static class UsnIndexerDurabilityExtensions
                 if (!indexer._driveMetadata.TryGetValue(drive, out var metadata))
                     continue;
 
-                // Journal drives only. A folder/watcher drive already debounces its own persist from
-                // ApplyFolderChange, and its metadata carries no live journal position to stamp with.
-                if (!VolumeHelper.IsJournalCapableFileSystem(metadata.FileSystemType))
+                // A folder (FAT32/exFAT) drive mid-rebuild: this LiveIndex is about to be replaced
+                // wholesale and the rebuild's own SnapshotWriter.Write owns the cache path, so writing it
+                // here would only race that. Its stamp is just the metadata it was built with -- there
+                // is no live journal position to advance.
+                if (!VolumeHelper.IsJournalCapableFileSystem(metadata.FileSystemType) &&
+                    indexer.Status.Drives.Any(d => d.Drive.Equals(drive, StringComparison.OrdinalIgnoreCase) && d.State == "indexing"))
                     continue;
 
-                if (live.PendingChangeCount < IdleCompactPendingThreshold)
+                // Runs on SearchEngine's idle Timer, where an escaping exception ends the process: a LiveIndex
+                // a rebuild disposed (it swapped this one out) is skipped, not read.
+                int pending;
+                try
+                {
+                    pending = live.PendingChangeCount;
+                }
+                catch (ObjectDisposedException)
+                {
+                    continue;
+                }
+                if (pending < IdleCompactPendingThreshold)
                     continue;
 
                 // A replay owns its drive until it finishes: Compact holds the LiveIndex write lock
