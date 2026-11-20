@@ -179,8 +179,13 @@ public sealed class IndexBatchProcessor
             string? text;
             try
             {
-                text = await TextExtractorRegistry.Instance.ExtractTextAsync(
-                    filePath, config.MaxFileSizeBytes, hardTimeoutCts.Token).WaitAsync(hardTimeout, ct);
+                _database.Extractions.Begin(filePath);
+                var extraction = TextExtractorRegistry.Instance.ExtractTextAsync(filePath, config.MaxFileSizeBytes, hardTimeoutCts.Token);
+                // Released when the extraction really ends, not when the hard cap stops waiting for it:
+                // abandoned work keeps running, and a crash it causes later must still point at this file.
+                _ = extraction.ContinueWith(_ => _database.Extractions.End(filePath),
+                    CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                text = await extraction.WaitAsync(hardTimeout, ct);
             }
             catch (TimeoutException)
             {
@@ -261,6 +266,30 @@ public sealed class IndexBatchProcessor
 
     internal static bool IsFileTimeout(CancellationToken fileTimeoutToken, CancellationToken batchToken) =>
         fileTimeoutToken.IsCancellationRequested && !batchToken.IsCancellationRequested;
+
+    /// <summary>
+    /// Records every file a previous process was extracting when it died as a failed row (real mtime and
+    /// size, so it is retried once it changes) instead of letting the next scan feed it to the same
+    /// parser again. Run once per process, before the first scan -- see <see cref="ExtractionJournal"/>.
+    /// </summary>
+    public static void RecordInterruptedExtractions(ContentSearchDatabase database)
+    {
+        var items = new List<FileIndexBatchItem>();
+        foreach (var path in database.Extractions.TakeInterrupted())
+        {
+            var fileInfo = new FileInfo(path);
+            if (!fileInfo.Exists)
+                continue;
+
+            PluginSdk.Logger.Log(
+                $"[ContentSearch] The app stopped unexpectedly while extracting '{path}'; recorded as failed so it is not retried until it changes",
+                PluginSdk.LogLevel.Warn);
+            items.Add(MakeFailedItem(path, fileInfo));
+        }
+
+        if (items.Count > 0)
+            database.InsertOrUpdateBatch(items);
+    }
 
     private static FileIndexBatchItem MakeFailedItem(string filePath, FileInfo fileInfo) =>
         new(filePath, fileInfo.LastWriteTimeUtc, fileInfo.Length, string.Empty);

@@ -14,6 +14,10 @@ public sealed class ContentSearchDatabase : IDisposable
     private bool _initialized;
     private int _cachedTotalFiles;
     private int _cachedIndexedFiles;
+    // Set after every committed write, cleared by the recount it triggers on the next read. Recounting
+    // after every 25-file batch was a scan of the whole files table per batch at large-index scale, and
+    // nothing reads the counts mid-run except once the queue drains.
+    private volatile bool _statsStale;
     private volatile bool _initialIndexCompleted;
 
     internal bool InitialIndexCompleted
@@ -34,8 +38,11 @@ public sealed class ContentSearchDatabase : IDisposable
         }
     }
 
-    public int TotalFiles => _cachedTotalFiles;
-    public int TotalChunks => _cachedTotalFiles;
+    public int TotalFiles { get { EnsureStatsFresh(); return _cachedTotalFiles; } }
+    public int TotalChunks => TotalFiles;
+
+    /// <summary>Which files' extraction is running right now -- see <see cref="ExtractionJournal"/>.</summary>
+    internal ExtractionJournal Extractions { get; }
 
     public ContentSearchDatabase(string dbPath)
     {
@@ -52,6 +59,7 @@ public sealed class ContentSearchDatabase : IDisposable
             Mode = SqliteOpenMode.ReadWriteCreate
         };
         _connectionString = builder.ToString();
+        Extractions = new ExtractionJournal(dbPath + ".extracting");
     }
 
     internal SqliteConnection OpenConnection()
@@ -95,7 +103,7 @@ public sealed class ContentSearchDatabase : IDisposable
         {
             using var conn = OpenConnection();
             var result = DatabaseWriterHelper.InsertOrUpdateBatch(conn, items);
-            RefreshStatsInternal(conn);
+            _statsStale = true;
             return result;
         }
     }
@@ -115,7 +123,7 @@ public sealed class ContentSearchDatabase : IDisposable
         {
             using var conn = OpenConnection();
             DatabaseWriterHelper.DeleteFilesBatch(conn, pathList);
-            RefreshStatsInternal(conn);
+            _statsStale = true;
         }
     }
 
@@ -144,7 +152,11 @@ public sealed class ContentSearchDatabase : IDisposable
             {
                 using var conn = OpenConnection();
                 using var cmd = conn.CreateCommand();
-                cmd.CommandText = "INSERT INTO files_fts(files_fts) VALUES('optimize'); PRAGMA wal_checkpoint(TRUNCATE); PRAGMA shrink_memory;";
+                // No FTS5 'optimize' here: it merges every segment into one, i.e. rewrites the whole
+                // index, and this ran after every idle gap following any batch -- a constant full
+                // rewrite at the 200 GB scale #305 asks about. FTS5's own automerge (on by default)
+                // already keeps the segment count bounded as rows are written.
+                cmd.CommandText = "PRAGMA wal_checkpoint(TRUNCATE); PRAGMA shrink_memory;";
                 cmd.ExecuteNonQuery();
                 SqliteConnection.ClearAllPools();
             }
@@ -304,6 +316,7 @@ public sealed class ContentSearchDatabase : IDisposable
     {
         if (!File.Exists(_dbPath)) return (0, 0);
         Initialize();
+        EnsureStatsFresh();
         return (_cachedTotalFiles, _cachedTotalFiles);
     }
 
@@ -311,7 +324,20 @@ public sealed class ContentSearchDatabase : IDisposable
     {
         if (!File.Exists(_dbPath)) return 0;
         Initialize();
+        EnsureStatsFresh();
         return _cachedIndexedFiles;
+    }
+
+    // No write lock: WAL readers run beside the writer. The flag is cleared BEFORE counting, and a writer
+    // sets it only after its commit, so a write this count misses always leaves the flag set behind it.
+    private void EnsureStatsFresh()
+    {
+        if (!_statsStale || !File.Exists(_dbPath))
+            return;
+
+        _statsStale = false;
+        using var conn = OpenConnection();
+        RefreshStatsInternal(conn);
     }
 
     private void RefreshStatsInternal(SqliteConnection conn)
