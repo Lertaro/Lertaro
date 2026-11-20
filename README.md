@@ -36,6 +36,8 @@ Grab the latest release from the [homepage](https://lertaro.github.io/) or direc
   - [Installer (Lertaro-Setup-arm64.exe)](https://github.com/Lertaro/Lertaro/releases/latest/download/Lertaro-Setup-arm64.exe) — recommended for ARM devices.
   - [Portable (Lertaro-Portable-arm64.zip)](https://github.com/Lertaro/Lertaro/releases/latest/download/Lertaro-Portable-arm64.zip) — native portable build for ARM.
 
+Package manager manifests and their publication status are documented in the [WinGet and Scoop distribution guide](dev-docs/package-managers.md).
+
 ## Building from Source
 
 Requirements: Windows 10/11, .NET 10 SDK, Visual Studio 2022 or JetBrains Rider, and the [64-bit edition of Inno Setup 7](https://jrsoftware.org/isdl.php#v7) if you want to build the installer.

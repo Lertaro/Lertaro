@@ -1,0 +1,50 @@
+{
+    "version": "5.13.5",
+    "description": "File search and productivity launcher for Windows.",
+    "homepage": "https://github.com/Lertaro/Lertaro",
+    "license": "MIT",
+    "notes": [
+        "This package requires an administrator shell and 'scoop install --global lertaro/lertaro-np'.",
+        "The official installer manages the application, Windows service, and .NET 10 Desktop Runtime in Program Files; Scoop tracks the package separately.",
+        "Settings stay in LocalAppData and ProgramData. Open a new terminal to use the lff command.",
+        "This shares one installation with WinGet and manual installs. Use one package manager to maintain it."
+    ],
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/Lertaro/Lertaro/releases/download/v5.13.5/Lertaro-Setup.exe#/setup.exe",
+            "hash": "e126411c369ba76c1c928ca880d3c6f0ee10f8f521cf323c71023c3c5bf3e711"
+        },
+        "arm64": {
+            "url": "https://github.com/Lertaro/Lertaro/releases/download/v5.13.5/Lertaro-Setup-arm64.exe#/setup.exe",
+            "hash": "34e4b78eb9a7577c76a7ec8e2b18566c3e30ca3e32e5eaff01576749b15515da"
+        }
+    },
+    "pre_install": "if (!$global -or !(is_admin)) { throw 'Use an administrator shell and scoop install --global lertaro/lertaro-np.' }",
+    "installer": {
+        "script": "if (!(Invoke-ExternalCommand \"$dir\\$fname\" -ArgumentList @('/SP-', '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/TASKS=startmenuicon,addtopath') -RunAs)) { throw 'Lertaro installation failed.' }"
+    },
+    "uninstaller": {
+        "script": [
+            "# ponytail: use the stable installer directory; an upgrade must not uninstall the shared application or service.",
+            "if ($cmd -eq 'uninstall') {",
+            "    if (!$global -or !(is_admin)) { throw 'Use an administrator shell and scoop uninstall --global lertaro-np.' }",
+            "    $registration = Get-ItemProperty -LiteralPath 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{D37D0B75-B5E3-40D9-92EE-429C7D4D7F2A}_is1' -ErrorAction Stop",
+            "    $uninstaller = Join-Path $registration.InstallLocation 'unins000.exe'",
+            "    if (!(Invoke-ExternalCommand $uninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -RunAs)) { throw 'Lertaro uninstallation failed.' }",
+            "}"
+        ]
+    },
+    "checkver": {
+        "github": "https://github.com/Lertaro/Lertaro"
+    },
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/Lertaro/Lertaro/releases/download/v$version/Lertaro-Setup.exe#/setup.exe"
+            },
+            "arm64": {
+                "url": "https://github.com/Lertaro/Lertaro/releases/download/v$version/Lertaro-Setup-arm64.exe#/setup.exe"
+            }
+        }
+    }
+}
