@@ -6,21 +6,10 @@ namespace Lertaro.App.ViewModels.Search;
 
 public static class ExplorerSearchHelper
 {
-    // Fills `localMatches` with the window folder's own files whose names match the query.
-    //
-    // This is deliberately the ONLY thing the inline window does beyond the ordinary global search, and
-    // it is a filesystem listing rather than an engine search. It used to also run a directory-scoped
-    // engine search for the subtree, which was the inline window's dominant per-keystroke cost for no
-    // benefit: a scoped search walks the whole drive's unique-name table exactly like an unscoped one
-    // (the directory filter is applied to rows afterwards), so it cost as much as the global search and
-    // then had to be waited for. The subtree is now covered by the global results themselves, which the
-    // merge re-orders so this folder's descendants come first (see InlineListSearchHelper).
-    //
-    // What this listing still buys is a guarantee the global window cannot give: the files sitting
-    // directly in the folder the user is looking at are always present, even when other matches fill the
-    // global result budget. The listing is cached per window and prewarmed when the folder is first known
-    // -- see DirectChildrenListingCache -- so by the time a character is typed there is usually nothing
-    // left to read here.
+    // Adds direct children of the current folder through a cached filesystem listing. This ensures they
+    // remain candidates when the global budget fills. Global results already cover descendants and are
+    // reordered by InlineListSearchHelper; a second subtree engine search would repeat the drive scan.
+    // DirectChildrenListingCache prewarms the listing when the folder becomes known.
     internal static Task LoadDirectChildrenAsync(
         string query,
         int fileLimit,

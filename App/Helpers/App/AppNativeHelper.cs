@@ -5,8 +5,7 @@ using Lertaro.Core.Hook;
 namespace Lertaro.App.Helpers.App;
 
 /// <summary>
-/// Native window interop helpers for process and class name lookups.
-/// ponytail: Split out purely to keep App.xaml.cs under the repo's 300-line limit.
+/// Native window helpers for process and window-class lookups.
 /// </summary>
 public static class AppNativeHelper
 {

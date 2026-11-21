@@ -1,6 +1,6 @@
 namespace Lertaro.Core.IndexV2.Space;
 
-// Kept separate so the live tree traversal remains below the repository's per-file line limit.
+// Caches space-query results for live tree traversal.
 internal sealed class SpaceQueryCache
 {
     private readonly Dictionary<string, SpaceQueryResult> _entries = new(StringComparer.OrdinalIgnoreCase);

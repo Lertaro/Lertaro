@@ -1,7 +1,6 @@
 namespace Lertaro.App.Services;
 
-// Split out purely to keep ServiceInstallManager.cs under the repo's per-file line limit. It holds no state and
-// takes the state probe as a parameter, so the decision is testable without a registered service.
+// Checks service startup readiness using the supplied state probe.
 internal static class ServiceStartSettleHelper
 {
     /// <summary>

@@ -2,11 +2,8 @@ using System.Runtime.InteropServices;
 using System.Text;
 namespace Lertaro.Core.Hook.InlineSearch;
 
-// The raw key-code-to-inline-search-event translation logic lives in
-// KeyboardHookServiceInlineSearchExtensions.cs (extension methods, matching TreeBuilder's own
-// Checkpoint/Diff extension split) instead of a partial class, to keep this file under the project's
-// line limit. That extension needs access to this service's settings/tracker/context-menu-grace state,
-// so those fields are `internal` rather than `private`.
+// KeyboardHookServiceInlineSearchExtensions maps key codes to inline-search events. Its access to
+// settings, tracker, and context-menu grace state requires those members to be internal.
 public class KeyboardHookService : IDisposable
 {
     private IntPtr _hookId = IntPtr.Zero;
@@ -152,33 +149,14 @@ public class KeyboardHookService : IDisposable
                 MarkPendingContextMenuTrigger(time);
             }
 
-            // Alt+Space and Alt+F4 while the inline window is up, giving it the same two suppressions
-            // SystemMenuBlocker gives the quick window. It carries that blocker itself, but the block
-            // only takes when it holds the foreground: if a text input was already focused,
-            // InlineSearchManager shows it without stealing focus and puts the foreground back on the
-            // host dialog, so the keys go to Explorer (or whatever dialog it is attached to), which
-            // opens its own system menu over the search box or closes itself out from under it. The
-            // window's own hook never sees those messages, which is why they have to be caught here.
+            // Suppress Alt+Space and Alt+F4 while the inline card is on screen. The host dialog may retain
+            // foreground focus, so the card's own SystemMenuBlocker cannot intercept these keys.
             //
-            // Swallowing keys aimed at another process is worth it only for these two combinations and
-            // only while our own UI is on screen: with the search box showing and taking every other
-            // keystroke, both are a misfire rather than an intent.
+            // Allow Alt+Space through when configured as a summon hotkey; detection below consumes it and
+            // performs the focus handoff or opens the quick panel. Other Alt+Space presses remain blocked.
             //
-            // The one exception is a chord the user has configured as a summon hotkey (the toggle's or
-            // the quick panel's own). While the card is up, that chord is exactly what "the hotkey does
-            // not work" was complained about: swallowed here, it never reached the detection below, so
-            // the focus handoff -- and the panel, when the two share one combination -- stayed dead for
-            // as long as the card was on screen. Letting it through costs nothing in protection: the
-            // detection below consumes the key as a hotkey, so the host dialog never sees it. Every
-            // other Alt+Space still swallows, and Alt+F4 has no such form.
-            //
-            // Gated on IsInlineWindowOnScreen, not IsInlineSearchVisible: that one means "forward
-            // keystrokes to me" and is cleared the moment the window takes focus for itself, which is
-            // the very case this has to cover.
-            //
-            // Alt comes from the event's own flags, not GetKeyState: that reports the calling thread's
-            // key state, and this callback runs on the hook owner's thread rather than the one the
-            // keystroke was headed for, so it reports nothing useful here.
+            // IsInlineWindowOnScreen also covers a focused card, whereas IsInlineSearchVisible only requests
+            // key forwarding. Read Alt from this event's flags because GetKeyState reflects the hook thread.
             var isAltDown = (hookStruct.flags & KeyboardNativeMethods.LLKHF_ALTDOWN) != 0;
             if (IsInlineWindowOnScreen && isAltDown
                 && (vkCode == KeyboardNativeMethods.VK_SPACE || vkCode == KeyboardNativeMethods.VK_F4)

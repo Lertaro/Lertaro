@@ -4,8 +4,7 @@ using System.Runtime.CompilerServices;
 namespace Lertaro.App.Views.LocalSend;
 
 /// <summary>
-/// Item view model with per-file individual progress tracking for LocalSend receive window.
-/// ponytail: Split out purely to keep LocalSendReceiveWindow.xaml.cs under the repo's 300-line limit.
+/// Tracks one file's receive progress in LocalSendReceiveWindow.
 /// </summary>
 public sealed class LocalSendReceiveFileItem : INotifyPropertyChanged
 {

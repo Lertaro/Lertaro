@@ -6,9 +6,7 @@ using System.Windows.Media;
 namespace Lertaro.App.Helpers.Visuals;
 
 /// <summary>
-/// Helper providing drag-restore behavior for custom window chromes,
-/// allowing a maximized window to be restored and repositioned in the same drag.
-/// ponytail: Extracted to decouple window drag restoration logic across custom chrome windows and maintain line limits.
+/// Restores a maximized custom-chrome window and repositions it during the same drag.
 /// </summary>
 public static class WindowMaximizedDragHelper
 {

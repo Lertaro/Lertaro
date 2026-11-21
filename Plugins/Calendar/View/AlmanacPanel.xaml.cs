@@ -5,13 +5,8 @@ using Lertaro.Plugins.Calendar.Data;
 namespace Lertaro.Plugins.Calendar.View;
 
 /// <summary>
-/// The almanac reading of the selected day: 干支 pillars, 五行, 冲煞, 彭祖百忌, 值神吉凶, the three
-/// auspicious directions, and the 宜/忌 and 吉神/凶神 lists.
+/// Displays the selected day's almanac: 干支, 五行, 冲煞, 彭祖百忌, 值神吉凶, auspicious directions, 宜/忌, and 吉神/凶神.
 /// </summary>
-/// <remarks>
-/// Split out of <see cref="CalendarView"/> purely to keep that file inside the repo's per-line limit; the
-/// two together are one window and never vary independently.
-/// </remarks>
 internal partial class AlmanacPanel : UserControl
 {
     public AlmanacPanel()

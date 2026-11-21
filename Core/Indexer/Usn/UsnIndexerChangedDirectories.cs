@@ -2,10 +2,7 @@ using Lertaro.Core.IndexV2;
 
 namespace Lertaro.Core.Indexer.Usn;
 
-// Turning a batch of applied changes into the directories it touched, for
-// UsnIndexer.RecordDriveChange. Split out of UsnIndexerExtensions.cs to keep that file under the
-// repo's line limit; it is the one part of applying a batch that is about telling subscribers where
-// the change was rather than about the index itself.
+// Derives affected directories from an applied change batch for UsnIndexer.RecordDriveChange.
 internal static class UsnIndexerChangedDirectories
 {
     /// <summary>

@@ -137,27 +137,15 @@ public static class AppSearchPipeService
         }
     }
 
-    // Mirrors SearchQueryDispatchController.OnAdvancedQueryChanged's query preparation -- including the
-    // part an earlier version of this method skipped: a trailing " :a,b,c" suffix
-    // (SearchQuerySortParser.Strip) isn't part of the fuzzy search text at all -- it's dispatched, AFTER
-    // the file search completes, to whichever IQueryTokenProvider plugin (the built-in "::expr"/".ext"/etc.)
-    // claims each token, which can filter or reorder the already-ranked results. Passing the raw
-    // (unstripped) query straight into SearchStreamingAsync -- what this used to do -- searched for the
-    // literal ":xxx" substring instead of treating it as an operator, which is why that syntax silently
-    // did nothing here.
-    // One deliberate gap, so that "mirrors" is not read stronger than it is: there is no
-    // FileFilterScopeResolver.Resolve here, so a configured file-filter scope keyword searches its
-    // filter's folders in the GUI but is matched as literal text here ("lff tf report" finds nothing the
-    // window's "tf report" finds). Closing it is not a call away -- the directive rides all the way
-    // through SearchExecutionEngine into SearchResultMapper's row construction, which this wire path
-    // replaces with its own serialization.
-    // Every result used to be its own write straight onto the pipe. That is a syscall each, and a
-    // whole-drive query returns hundreds of thousands of them -- the same shape, on the GUI's own pipe,
-    // measured 30us a result against 2.1 once the bytes were batched. Buffered here with the flush
-    // policy SearchStreamPump already uses on the elevated service's pipe: the first ten results go out
-    // immediately so a client sees something at once, then every fiftieth, then whatever is left at the
-    // end. Without those flushes a short search would sit in the buffer until the End frame, which for a
-    // CLI reading progressively is the difference between streaming and not.
+    // Strip trailing query tokens before searching, as SearchQueryDispatchController does. After the
+    // search, IQueryTokenProvider plugins filter or reorder the ranked results.
+    //
+    // File-filter scope keywords are not resolved on this wire path: "lff tf report" searches the
+    // literal words, while the GUI can apply tf's configured folders. Supporting scopes here requires
+    // carrying the directive through search and serialization.
+    //
+    // Buffer pipe writes to reduce per-result syscalls. Flush each of the first ten results, every
+    // fiftieth result thereafter, and the final remainder, matching SearchStreamPump's latency policy.
     private const int WriteBufferSize = 8192;
     private const int FlushEveryResults = 50;
     private const int FlushEveryResultUntil = 10;
@@ -194,30 +182,14 @@ public static class AppSearchPipeService
         await buffered.FlushAsync(token);
     }
 
-    // The plain (no token) path: forwards each result to the pipe the instant SearchStreamingAsync
-    // produces it, unsorted -- NOT accumulate-then-sort-then-send. That accumulate-first approach used
-    // to mean the client saw nothing until BOTH the local (pipe) and network (in-process) sources had
-    // fully finished, which felt much slower than the GUI's own full window (which renders progressively
-    // as results stream in). Ranking is left to the client for the same reason: it needs to re-run
-    // repeatedly against a growing snapshot, which belongs wherever the incremental rendering is
-    // happening (SearchResultRankComparer is that client-side comparer). The tokenized path below is the
-    // opposite case -- it must hold the whole result set anyway, so it ranks server-side with the full
-    // window's own SearchResultRanking + RankedSearchResultComparer.
+    // Stream untokenized results as they arrive; the client ranks each growing snapshot with
+    // SearchResultRankComparer. Tokenized searches collect and rank server-side with SearchResultRanking
+    // and RankedSearchResultComparer before applying tokens.
     //
-    // Writes go through a bounded channel to one consumer task, which is what SearchStreamPump already
-    // does on the elevated service's pipe. The callback below fires from whichever of
-    // SearchStreamingAsync's local/network tasks produced a match, so it used to take a SemaphoreSlim and
-    // then block on the pipe write with GetAwaiter().GetResult() -- sync-over-async on a thread-pool
-    // thread, once per result, with nothing able to time it out. A client that stayed connected but
-    // stopped reading therefore parked a pool thread indefinitely, and because the only thing that ends
-    // that wait is the write completing, the finally in HandleClientAsync never ran and left
-    // IdleWorkingSetTrimmer's background-search counter permanently elevated (see
-    // IdleWorkingSetTrimGate.ShouldTrim).
-    //
-    // Now the callback only computes the highlight mask -- CPU work that has to happen here rather than on
-    // the client, because FuzzyMatcher.ComputeHighlightMask needs the alias plugins THIS process loaded --
-    // and hands the row to the channel. A slow client costs at most ResultQueueDepth rows of queue and one
-    // awaited write, both of which cancellation can reach.
+    // A bounded channel serializes writes from concurrent local/network callbacks. The callback computes
+    // highlights here, where alias plugins are loaded, then enqueues the result. A stalled client retains
+    // at most ResultQueueDepth queued rows and one pending write. Cancellation releases both, allowing
+    // HandleClientAsync to clear IdleWorkingSetTrimmer's active-search counter.
     private const int ResultQueueDepth = 1024;
 
     // A pipe write is the one step in this path that can block forever: a client that is connected but not

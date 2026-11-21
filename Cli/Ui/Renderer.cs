@@ -86,25 +86,13 @@ public sealed class Renderer
         _terminal.WriteConsole(sb.ToString());
     }
 
-    // `line` is the already width-padded/truncated PLAIN row text (" " + marker + " " + Path);
-    // `nameStartInLine` is where the filename (r.Name, the tail of r.Path) begins within it. `highlights`
-    // is the flat (start,length) pair sequence AppSearchPipeService computed server-side for this exact
-    // result (via FuzzyMatcher.ComputeHighlightMask, run where AliasProviderRegistry's plugins are
-    // actually loaded) and sent over the wire -- this function no longer computes anything itself, just
-    // paints what the server already decided matched, which is what makes a pinyin/alias hit highlight
-    // correctly here too.
+    // Colors server-provided (start,length) highlight pairs in an already padded/truncated row.
+    // nameStartInLine locates the filename within it. Server-side matching preserves alias/pinyin
+    // highlights.
     //
-    // A plain foreground-color toggle (SGR 33 on / a caller-supplied restore code off), not bold (SGR 1):
-    // bold used to be the toggle here, but on Windows' classic console (conhost, e.g. cmd.exe) SGR 1
-    // doesn't render as a heavier glyph -- it flips the foreground's "intensity" bit, and combined with
-    // the current row's own \x1b[7m reverse-video wrap (the highlighted row, above) that intensity bit
-    // ends up on the swapped-in BACKGROUND instead, painting a solid lighter block behind the matched
-    // characters rather than just tinting their text. A foreground color has no such interaction with
-    // reverse video or with a marked row's own cyan wrap -- it just recolors the glyph -- so
-    // `restoreColor` lets the caller say what color to return to (cyan for a marked row, default for
-    // everything else) instead of this function guessing. Works purely on the already-truncated plain
-    // string, never re-truncates -- avoids ever needing to count "visible" length through embedded escape
-    // codes.
+    // Use foreground color (SGR 33), not bold: classic conhost combines bold intensity with reverse video
+    // into a background block. Restore the caller's color for marked rows. Do not truncate again after
+    // adding ANSI escapes.
     private static string ApplyHighlight(string line, string name, int nameStartInLine, int[] highlights, string restoreColor)
     {
         if (highlights.Length == 0 || string.IsNullOrEmpty(name) || nameStartInLine < 0)

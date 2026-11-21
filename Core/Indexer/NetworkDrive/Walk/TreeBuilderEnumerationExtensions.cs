@@ -2,10 +2,8 @@ using System.ComponentModel;
 
 namespace Lertaro.Core.Indexer.NetworkDrive.Walk;
 
-// Directory enumeration for TreeBuilder, as extension methods (matching this folder's other
-// TreeBuilder*Extensions files) instead of a partial class, to keep TreeBuilder.cs under the repo's
-// per-file line limit. Every failure here is contained to ONE directory: no work item may take a worker
-// down with it, because TreeBuilder.Run's Task.WaitAll ends that drive's whole scan on a faulted worker.
+// Enumerates TreeBuilder directories and contains failures to the affected directory. A faulted worker
+// would otherwise end the whole drive scan through Task.WaitAll.
 internal static class TreeBuilderEnumerationExtensions
 {
     // Retry only transient native I/O failures when OPENING a directory. Missing paths and access

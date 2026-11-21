@@ -1,22 +1,15 @@
 namespace Lertaro.PluginSdk.Abstractions.Plugins;
 
 /// <summary>
-/// Optional capability of an <see cref="IAliasProvider"/>: decides a query term against a candidate
-/// text LIVE, one character at a time, from the provider's own reading table -- the index bakes
-/// nothing for this provider's readings at all (no alias strings, no payloads).
+/// Optionally matches terms against a provider's live reading table without stored reading aliases.
+/// Semantics follow WinShun: each character consumes at least one term character; ASCII matches
+/// case-insensitively, Han characters accept any non-empty reading prefix, and v (ü) also accepts u. Terms
+/// contain 2–63 ASCII letters/digits with at least one letter. Matched source spans are contiguous and
+/// terms are independent.
+///
+/// Return occurrence positions, per-character readings for prefilter masks, and single-reading spellings
+/// for mixed-alphabet matching. The host owns scoring, ranking, and highlighting.
 /// </summary>
-/// <remarks>
-/// The matching semantics come from WinShun's pinyin matcher, ported wholesale: every character of
-/// the text must consume at least one letter of the term -- an ASCII character matches itself (case
-/// folded), a Han character consumes any NON-EMPTY PREFIX of any of its readings (its initial, the
-/// whole syllable, or a half-typed run, anywhere in the term). A matched span is therefore contiguous
-/// (no character inside it is skipped), a term is 2..63 ASCII letters/digits with at least one letter
-/// (single letters are not this provider's words), 'v' (ü) also accepts 'u', and terms are matched
-/// independently of one another. The host owns scoring, ranking and highlighting; this interface only
-/// answers whether a term occurs and where, plus the two things the host cannot know: the
-/// per-position readings (for the bake-time prefilter mask) and the single-reading spellings the
-/// mixed-alphabet lane matches as text.
-/// </remarks>
 public interface IAliasLiveMatcherProvider : IAliasProvider
 {
     /// <summary>

@@ -7,8 +7,7 @@ using Lertaro.Core.Wire;
 namespace Lertaro.App.ViewModels.Settings.General;
 
 /// <summary>
-/// Split out purely to keep GeneralSettingsViewModel under the repo's per-file line limit.
-/// This helper encapsulates the staged application and side-effect dispatch for general settings.
+/// Applies staged general settings and dispatches their side effects.
 /// </summary>
 internal static class GeneralSettingsApplier
 {

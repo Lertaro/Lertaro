@@ -8,12 +8,9 @@ using Lertaro.Core.Services.Search;
 
 namespace Lertaro.App.ViewModels.Settings.NetworkDrive;
 
-// Folder-index half of NetworkDriveSettingsViewModel -- a third row category alongside NetworkDrives/
-// WslDrives, riding the same NetworkIndexer/Scheduler machinery with a full folder path as the opaque
-// key instead of a drive letter or WSL UNC path. Extracted (composition, not a partial class) to keep
-// the main file under the line limit. The cross-category per-refresh sync (UpdateRowsInPlace/RebuildRows,
-// which touch all three row categories together) lives in NetworkDriveRowSyncHelper instead -- this class
-// stays scoped to the folder-only add-dialog workflow and visibility list its name promises.
+// Manages folder-index addition and visibility alongside network and WSL drives. Folder paths identify
+// jobs in the shared NetworkIndexer/Scheduler. NetworkDriveRowSyncHelper synchronizes all three row
+// categories.
 internal static class NetworkDriveFolderHelper
 {
     public static void AddFolder(NetworkDriveSettingsViewModel vm, SearchService searchService, Action onTriggerFastRefresh, HashSet<string> pendingRowRebuilds, HashSet<string> observedRowRebuilds)

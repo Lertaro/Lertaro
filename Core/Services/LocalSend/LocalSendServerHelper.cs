@@ -7,8 +7,7 @@ using Lertaro.PluginSdk.Helpers;
 namespace Lertaro.Core.Services.LocalSend;
 
 /// <summary>
-/// Helper methods for LocalSendServer to keep the main server class under 300 lines.
-/// Split out purely to adhere to the repository's per-file line limit; has no internal state of its own.
+/// Shared LocalSend server request helpers.
 /// </summary>
 public static class LocalSendServerHelper
 {

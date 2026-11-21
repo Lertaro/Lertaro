@@ -3,8 +3,7 @@ using Lertaro.Core.Settings.Migration;
 
 namespace Lertaro.Core;
 
-// Split out purely to keep UserSettings.cs under the repository's per-file line limit; this class owns
-// persistence state and always operates on the UserSettings instance supplied by its caller.
+// Manages persistence for the supplied UserSettings instance.
 internal static class UserSettingsPersistence
 {
     private static readonly Lazy<string> UserDataDirectory = new(() =>

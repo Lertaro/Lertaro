@@ -4,25 +4,12 @@ using Lertaro.Core.SearchIndex;
 namespace Lertaro.App.ViewModels.Search.Mapping;
 
 /// <summary>
-/// Builds the full window's rows incrementally as a search streams: each call maps and ranks only the
-/// results that have arrived since the last one, then merges them into the order already established.
+/// Maps and ranks only newly arrived full-window results, then merges them into the existing order. Each
+/// row is constructed once per query, avoiding repeated whole-snapshot mapping during progressive
+/// rendering.
+///
+/// Absorb accepts a growing prefix-stable list; AbsorbBatch accepts only the next arrival-ordered batch.
 /// </summary>
-/// <remarks>
-/// The mapper this replaces re-did everything on every paint -- rank-sort the whole snapshot, then
-/// build a fresh AppSearchResult for every row of it. At roughly 2.4us per row that is affordable once
-/// and nothing like affordable repeatedly, so painting had to be rationed, and rationing it is what
-/// produced a list that climbed to a hundred thousand rows and then sat there while the rest of the
-/// search finished.
-///
-/// Incremental removes the reason to ration. Every result is mapped exactly once no matter how many
-/// paints it appears in, so the total cost of a fully progressive search is the cost of the single
-/// pass it used to do at the end -- what changes is when that work happens, not how much of it there
-/// is. Sorting gets cheaper too (k sorts of n/k beats one sort of n), and the merges that replace it
-/// are linear passes over references, cheap enough next to construction to disappear into the noise.
-///
-/// One accumulator serves one query. A caller may hand <see cref="Absorb"/> the same growing,
-/// prefix-stable list, or hand <see cref="AbsorbBatch"/> only the new arrival-ordered batch.
-/// </remarks>
 internal sealed class StreamingResultAccumulator
 {
     private readonly record struct Entry(SearchResult Raw, AppSearchResult Row);

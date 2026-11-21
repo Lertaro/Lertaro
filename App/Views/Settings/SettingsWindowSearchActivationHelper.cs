@@ -6,8 +6,7 @@ using Lertaro.App.ViewModels.Settings;
 
 namespace Lertaro.App;
 
-// Split out of SettingsWindowSearchExtensions.cs to keep that file under the repo's per-file line limit (300 lines).
-// Contains search activation, visual tree element resolution, and section page mapping helpers.
+// Activates settings search results by resolving their section and visual-tree target.
 internal static class SettingsWindowSearchActivationHelper
 {
     // Internal: called by SettingsWindowSearchExtensions.OnSettingsSearchKeyDown / OnSettingsSearchResultsMouseUp

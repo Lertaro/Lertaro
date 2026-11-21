@@ -3,13 +3,8 @@ using Lertaro.Core;
 
 namespace Lertaro.App.ViewModels.Settings.General;
 
-// Split out of GeneralSettingsViewModel to keep that file under the repo's per-file line limit; this owns
-// the one cohesive "route GitHub release downloads through the user's own mirrors" feature. The rows sit
-// with the two update switches on the System tab. GitLab has no mirror: it is the line a user reaches
-// precisely when GitHub is the one they cannot talk to, and it is asked with the user's own access token
-// instead, which is the other half of what this ViewModel owns.
-//
-// Save() commits _userSettings.GitHubUpdateMirrors and _userSettings.GitLabUpdateToken.
+// Stages GitHub download mirrors and the GitLab access token on the System tab. GitLab downloads bypass
+// mirrors. Save commits GitHubUpdateMirrors and GitLabUpdateToken.
 public class UpdateMirrorSettingsViewModel : ViewModelBase
 {
     private readonly UserSettings _userSettings;

@@ -3,8 +3,7 @@ using Lertaro.App.Services.PluginManagerCore;
 
 namespace Lertaro.App.ViewModels.Settings;
 
-// Split out of HotkeySettingsViewModel to keep that file under the repo's per-file line limit;
-// this class has no state of its own, it always builds from the given overrides.
+// Builds plugin-action hotkey groups from the supplied overrides.
 internal static class HotkeyPluginActionGroupBuilder
 {
     // Same groups (in the same PluginManager.Instance.AllActions order) for both the live

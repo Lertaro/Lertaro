@@ -4,9 +4,8 @@ namespace Lertaro.App.Views.SpaceAnalyzer;
 
 internal readonly record struct SpaceAnalyzerLocation(string? Path, string Name);
 
-// Split out to keep SpaceAnalyzerView under the repository's per-file line limit. Availability is
-// determined from the index hierarchy, not Directory.Exists: a disabled index is unavailable here even
-// when its files still exist on disk.
+// Resolves locations through the index hierarchy. A disabled index is unavailable even if its files still
+// exist on disk.
 internal static class SpaceAnalyzerLocationResolver
 {
     public static async Task<bool> TrimUnavailableAsync(

@@ -2,9 +2,7 @@ using Lertaro.App.Services;
 
 namespace Lertaro.App.Views.QuickPanel;
 
-// The panel's side of the QuickLook preview. Split out of QuickPanelWindow.xaml.cs purely to keep that
-// file under the repo's per-file line limit; the key that gets here is decided there, alongside the
-// panel's other keys, and read from the settings rather than spelled out (see SearchInputHelper).
+// Controls quick-panel previews using the configured shortcut resolved by SearchInputHelper.
 public partial class QuickPanelWindow
 {
     /// <summary>Opens the preview on the selected row, or closes it. Answers whether it did anything.</summary>

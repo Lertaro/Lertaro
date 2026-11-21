@@ -34,7 +34,7 @@ export LERTARO_SIGNING_KEY="$(openssl base64 -A -in /path/to/lertaro-release.key
 pwsh -NoProfile -File ./verify-release.ps1 -CheckSigningKey
 ```
 
-Linux 生成变量不意味着整个 WPF/Inno 打包链路可以在 Linux 运行。换行兼容性由 [ReleaseVerificationScriptTests](../Tests/Core/Services/Update/ReleaseVerificationScriptTests.cs) 覆盖：LF/CRLF × SEC1/PKCS8 × 单行/换行 base64，以及字面量反斜杠的拒绝场景；测试在 Windows PowerShell 7 上运行，未执行 Linux CI。
+Linux 命令只用于配置变量；WPF/Inno 打包仍在 Windows 上执行。换行兼容性由 [ReleaseVerificationScriptTests](../Tests/Core/Services/Update/ReleaseVerificationScriptTests.cs) 覆盖：LF/CRLF × SEC1/PKCS8 × 单行/换行 base64，以及字面量反斜杠的拒绝场景；测试在 Windows PowerShell 7 上运行，未执行 Linux CI。
 
 ## #548：GitHub 构建成功但发布包验签失败
 
@@ -91,7 +91,7 @@ pwsh -NoProfile -File ./generate-release-notes.ps1 -Tag v5.13.4
 
 仅统一 DLL 的难度较低；要保证当前两条独立流水线的 ZIP、安装器和签名逐字节一致，需要专门的环境固定、差异定位和持续验证，超出一次配置修复。RFC 6979 描述了确定性 ECDSA，但本项目未为复现字节更换签名实现。
 
-当前采用的发布建议是一次构建、一次签名，把同一组附件分发到 GitHub 和 GitLab。这样文件哈希与签名文件可以完全一致，无须承担独立重建的维护成本。本次没有实现完整的独立可复现构建。
+当前采用的发布建议是一次构建、一次签名，把同一组附件分发到 GitHub 和 GitLab。这样文件哈希与签名文件可以完全一致，无须承担独立重建的维护成本。独立构建的完整产物复现尚未实现。
 
 技术依据：Microsoft Learn 的 `C# Compiler Options that control code generation / Deterministic`（相同输入含编译器、参数、路径、引用和 Source Link 数据），以及 RFC 6979 `Deterministic Usage of DSA and ECDSA`。二者约束的是不同层次，不能用程序集确定性推导 ZIP 或随机化签名的确定性。
 

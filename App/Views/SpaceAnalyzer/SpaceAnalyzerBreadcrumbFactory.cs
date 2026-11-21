@@ -6,8 +6,7 @@ using Brush = System.Windows.Media.Brush;
 namespace Lertaro.App.Views.SpaceAnalyzer;
 
 /// <summary>
-/// Split out solely to keep the analyzer view under the repository's per-file line limit; it creates
-/// the stateless breadcrumb separator used between location buttons.
+/// Creates separators between the space analyzer's breadcrumb buttons.
 /// </summary>
 internal static class SpaceAnalyzerBreadcrumbFactory
 {

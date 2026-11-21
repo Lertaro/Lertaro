@@ -7,9 +7,7 @@ using Lertaro.App.Services.AppWindow;
 using Lertaro.App.Services.Plugin;
 namespace Lertaro.App.Services.ShellMenu.ActionFlyout;
 
-// Owns dispatching the currently-selected actions-list row to whichever handler owns it (a plugin's
-// direct delegate, a registered PluginManager action, a submenu, or a dynamic action provider) --
-// split out of ShellMenuPresenter purely to keep that file under the file-length limit.
+// Dispatches the selected action to its delegate, registered plugin action, submenu, or dynamic provider.
 internal sealed class ActionsMenuExecutor
 {
     private readonly ISearchWindow _view;

@@ -2,11 +2,8 @@ using Lertaro.Plugins.ContentSearch.Storage;
 
 namespace Lertaro.Plugins.ContentSearch.Tests.Storage;
 
-// Regression for the branch that picks between the trigram index and the content scan. The index
-// holds three-character sequences only, so a query mixing a short term with a long one
-// ("cs 报告单 ab") used to take the index branch, where the short term's half of the AND matched
-// nothing: the whole query came back empty although the document matched both terms. Split from
-// DatabaseSearchHelperTests to keep both files under the repository's per-file line limit.
+// Tests mixed-length queries such as "cs 报告单 ab". A trigram-only plan loses the short AND term, so these
+// queries must use a compatible content scan.
 [TestClass]
 public sealed class DatabaseSearchHelperTermMixTests
 {

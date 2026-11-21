@@ -73,22 +73,15 @@ internal static class WindowParking
         SetWindowPos(hwnd, IntPtr.Zero, physicalX, physicalY, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
     }
 
-    /// <summary>Shows a card one screen-height above where it belongs and runs <paramref name="place"/> once
-    /// WPF has had a render pass at that size.</summary>
-    /// <remarks>
-    /// The gap this closes is the summon itself. An opaque window has no pixels until its render thread presents
-    /// a frame, and the frame is not ready when Show returns: measured on a card-shaped tree, content reached
-    /// the screen 170-258ms after a Show at the place it belongs, against 30ms after this order
-    /// (scratch/blackprobe). What the parked interval buys is the window's cold layout and drawing data; the
-    /// present itself is gated on being on screen, so the gap does not go to zero by waiting longer -- holds of
-    /// 0, 30, 60, 100, 150, 200 and 260ms all landed 22-31ms before their first frame. This turns a visible
-    /// gap of about ten frames into one or two, which is the whole of what it does.
+    /// <summary>
+    /// Shows a card one screen-height above its target and places it after a render pass. Set its target X
+    /// first: parking only Y preserves the nearest monitor and DPI. Moving into place must not resize or
+    /// recreate the surface.
     ///
-    /// The y-only park is deliberate and depends on the caller having placed the card at its target x first:
-    /// a window that intersects no monitor takes the scale of the nearest one, and keeping the target's column
-    /// is what makes that the monitor the card is about to be shown on. The move down into place then changes
-    /// neither the size nor the DPI context, so it cannot recreate the surface while the user is looking at it.
-    /// </remarks>
+    /// Measured first-frame delay fell from 170–258 ms to about 30 ms. Parking prepares layout/drawing
+    /// data, but presentation still requires an on-screen window; longer waits did not remove the
+    /// remaining 22–31 ms.
+    /// </summary>
     internal static void ShowThenPlace(Window window, Action place)
     {
         window.Top = OffScreen;
@@ -131,23 +124,14 @@ internal static class WindowParking
             new Action(() => window.Dispatcher.BeginInvoke(action, DispatcherPriority.Loaded)),
             DispatcherPriority.Render);
 
-    /// <summary>Lifts a window WPF positions by itself into the parking row for the length of its first render
-    /// pass, and drops it back where it belongs once that pass is through. Call before Show or ShowDialog.</summary>
-    /// <remarks>
-    /// The other order is for the cards, which are placed by the app; a CenterOwner dialog has no caller-side
-    /// position to keep, and a dialog cannot be placed from its caller at all because ShowDialog does not return
-    /// until it is answered. So the parking is done from SourceInitialized, where WPF has already worked the
-    /// startup location out (measured: a CenterOwner dialog reports its centered 542x353 inside that handler,
-    /// while before Show it is NaN), and the restore is queued from here so the modal loop is what runs it.
+    /// <summary>
+    /// Parks a WPF-positioned window above the screen during its first render, then restores it. Call
+    /// before Show or ShowDialog. SourceInitialized captures WPF's resolved startup position; queue
+    /// restoration so the modal dispatcher can run it.
     ///
-    /// Only the vertical coordinate moves, for the same reason ShowThenPlace parks on y alone: the x keeps the
-    /// window in the monitor column whose scale it was placed for.
-    ///
-    /// <paramref name="place"/> is for the caller that does have a position in mind but cannot reach it before
-    /// Show, because the handle -- and so any placement that has to be in physical pixels -- does not exist yet:
-    /// SourceInitialized is the first moment it does, and nothing has been painted. Running it here, ahead of the
-    /// capture, means the rect restored below is the placed one rather than the one WPF chose.
-    /// </remarks>
+    /// Move only Y to retain the target monitor's DPI. If supplied, place runs after HWND creation but
+    /// before capturing the rectangle, allowing physical-pixel placement.
+    /// </summary>
     internal static void ParkUntilPainted(Window window, Action<Window>? place = null)
     {
         // A window that already has a handle has been shown once, will not raise SourceInitialized again, and

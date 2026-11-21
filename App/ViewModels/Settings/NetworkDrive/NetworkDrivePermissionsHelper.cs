@@ -2,8 +2,7 @@ using Lertaro.Core.Indexer.NetworkDrive;
 
 namespace Lertaro.App.ViewModels.Settings.NetworkDrive;
 
-// Per-row editability/action permissions for NetworkDriveSettingsViewModel -- extracted (composition,
-// not a partial class) purely to keep that file under the repo's per-file line limit.
+// Determines which edits and actions are available for a network-drive settings row.
 internal static class NetworkDrivePermissionsHelper
 {
     // Each category gets its own busy flag (see the driveBusy/wslBusy/folderBusy computation in

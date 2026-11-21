@@ -2,9 +2,8 @@ using Lertaro.PluginSdk;
 
 namespace Lertaro.Plugins.Xplorer2.Win32;
 
-// Runs blocking cross-process reads/writes on a throwaway STA thread with a bounded wait, so a hung
-// xplorer2 (it reads slow network folders in its own message loop) cannot stall the window tracker.
-// Kept as its own file to stay under the repo's per-file line limit.
+// Runs blocking xplorer2 reads/writes on a dedicated STA thread with a bounded wait so a stalled target
+// does not block window tracking.
 internal static class StaQueryHelper
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(2);

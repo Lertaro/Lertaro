@@ -1,7 +1,6 @@
 namespace Lertaro.Core;
 
-// Small settings-record types referenced from UserSettings, split out to keep that file under the
-// project's line limit.
+// Settings record types used by UserSettings.
 
 public class NetworkDriveSetting
 {

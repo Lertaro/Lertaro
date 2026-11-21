@@ -3,14 +3,8 @@ using Lertaro.Core.Wire;
 
 namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 
-// Owns "keep the host file manager's own selection in step with the inline result list": the IPC that
-// tells the active adapter which path is highlighted, the suppression/coalescing state that keeps a
-// streamed result refresh from firing that IPC once per keystroke, and the focus reclaim some adapters
-// need afterwards.
-//
-// Split out of InlineSearchWindowInputHandler (composition, not a partial class) to keep that file under
-// the repository's per-file line limit. It has no state of its own beyond this one concern and always
-// operates on the one window it is handed.
+// Synchronizes the host file manager's selection with inline results. Coalesces IPC during streamed
+// refreshes and reclaims focus when required by the adapter.
 internal sealed class InlineExplorerSelectionSync
 {
     private readonly Lertaro.App.InlineSearchWindow _window;

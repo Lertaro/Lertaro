@@ -5,10 +5,7 @@ using Microsoft.Data.Sqlite;
 namespace Lertaro.Plugins.ContentSearch.Storage;
 
 /// <summary>
-/// Read-only metadata queries over the files table (records, discovery caches, hash
-/// lookups). Split out purely to keep ContentSearchDatabase under the repository's
-/// per-file line limit; these helpers hold no state and always operate on the one
-/// connection passed in per call.
+/// Reads file metadata, discovery caches, and content-hash lookups from the database.
 /// </summary>
 public static class DatabaseMetadataReader
 {

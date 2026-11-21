@@ -4,9 +4,7 @@ using Lertaro.App.Services.AppWindow;
 
 namespace Lertaro.App.Services;
 
-// Where the preview window goes, and how that rectangle is worked out. Split out of QuickLookManager.cs
-// purely to keep that file nearer the repo's per-file line limit; this is the part of the manager that
-// is about geometry rather than about the preview's lifetime.
+// Calculates and applies the preview window's position and bounds.
 public partial class QuickLookManager
 {
     private void PositionWindow(bool animate = false)

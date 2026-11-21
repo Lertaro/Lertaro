@@ -2,11 +2,7 @@ using System.Windows.Input;
 
 namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 
-// Owns bringing the inline window to the foreground and putting the caret in its search box, including the
-// keyboard-layout adoption that goes with it.
-//
-// Split out purely to keep InlineSearchWindow under the repo's per-file line limit; it holds no state of
-// its own beyond the layout it must put back, and always operates on the one window it is given.
+// Focuses the inline window and search box, adopting and later restoring the host's keyboard layout.
 internal sealed class InlineSearchFocusSupport
 {
     private readonly Lertaro.App.InlineSearchWindow _window;

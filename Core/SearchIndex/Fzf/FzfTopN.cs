@@ -1,21 +1,9 @@
 namespace Lertaro.Core.SearchIndex.Fzf;
 
-// Keeps the `capacity` best (smallest sort key) of an unbounded stream of ranks.
-//
-// Buffered rather than kept exactly at capacity: the buffer grows with actual matches up to twice what
-// is retained, and is trimmed back down to the best half only when it fills. Between trims an incoming
-// rank is one compare against the threshold from the last trim, and a trim costs O(capacity) once per
-// capacity accepted ranks, so the amortised cost per rank is constant. Growing from a modest initial
-// buffer matters when an unbounded full-window query runs across several indexes concurrently: each
-// index used to reserve arrays for every row before knowing how many names actually matched.
-//
-// It used to hold exactly capacity entries and, whenever one was displaced, rescan all of them to find
-// the new worst -- O(capacity) per accepted rank rather than per capacity of them. A broad query
-// accepts a large fraction of what it scans, so this was the dominant cost of the whole search: a
-// single-character query over 400k rows spent more time here than in matching.
-//
-// Retention uses the same (SortKey, EntryIndex) order as Finish. A parallel worker's arrival order
-// must not decide which equal-key rows survive the budget before refinement.
+// Retains the capacity best ranks by (SortKey, EntryIndex). Grow the buffer with actual matches up to
+// twice capacity, then trim to the best half. Between trims, compare incoming ranks with the previous
+// threshold. Trimming costs O(capacity) per capacity accepted ranks, giving constant amortized work.
+// EntryIndex breaks equal-key ties independently of parallel arrival order.
 internal sealed class FzfTopN
 {
     private const int InitialBufferedCapacity = 4_096;

@@ -9,8 +9,7 @@ using ListBoxItem = System.Windows.Controls.ListBoxItem;
 using Lertaro.App.Services.Plugin;
 namespace Lertaro.App.Views.QuickSearchWindow.Helpers;
 
-// Executes a selected/clicked search result from the results list -- split out of QuickSearchWindow
-// itself to keep that file under the line-count limit.
+// Executes the selected or clicked search result.
 public class QuickSearchWindowResultExecutor
 {
     private readonly Lertaro.App.QuickSearchWindow _window;

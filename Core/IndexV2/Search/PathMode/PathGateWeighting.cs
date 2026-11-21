@@ -7,14 +7,9 @@ using Lertaro.Core.IndexV2.Delta;
 using Lertaro.Core.IndexV2.Persistence;
 namespace Lertaro.Core.IndexV2.Search.PathMode;
 
-// Ranking-only weight (percentage*consecutiveness, product across matched segments), computed
-// separately from PathGate.Verify/VerifyPath and ONLY for path-mode's bounded post-scan refinement
-// (PathSearchFuzzy) -- NOT memoized, NOT called during the hot scan, since it needs the same
-// relatively expensive HighlightMask computation name mode moved out of its own hot path for the
-// same reason (see FzfResultRank.ApplyWeight). Re-walks the same ancestor chain as PathGate.Verify;
-// safe to call only on the small headroom-bounded candidate set that survives the unweighted scan.
-// Extracted out of PathGate.cs (composition, not a partial class) purely to keep PathGate.cs under
-// the repo's per-file line limit.
+// Computes path-segment coverage × contiguity, multiplied across segments. Rewalks PathGate's ancestor
+// chain and uses HighlightMask, so call only on PathSearchFuzzy's bounded refinement candidates, outside
+// the hot scan. Results are not memoized.
 internal sealed class PathGateWeighting
 {
     private readonly Snapshot _snapshot;

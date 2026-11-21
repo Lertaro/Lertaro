@@ -1,10 +1,7 @@
 namespace Lertaro.Plugins.ContentSearch.Indexing;
 
 /// <summary>
-/// Decides whether the content index has reached its configured size cap and reports the
-/// resulting pause exactly once per episode.
-/// Split out to keep IndexBatchProcessor under the repository's per-file line limit; this class
-/// owns nothing but that one report flag.
+/// Detects the content-index size cap and reports each pause once.
 /// </summary>
 internal sealed class IndexCapPauseMonitor
 {

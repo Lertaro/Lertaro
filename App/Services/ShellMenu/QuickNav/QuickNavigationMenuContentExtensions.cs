@@ -18,11 +18,8 @@ using Lertaro.App.Services.ShellMenu.QuickNav.RightClickActions;
 using Lertaro.App.Converters;
 namespace Lertaro.App.Services.ShellMenu.QuickNav;
 
-// Menu-item construction for QuickNavigationMenu, split out (composition, not a partial class) to keep
-// QuickNavigationMenu.cs under the project's 300-line limit. QuickNavigationMenu itself keeps Show (the
-// top-level entry point) and FindVisualParent (referenced by name from outside this file, e.g.
-// RightClickActions/PluginContextMenuHelper.cs and its own tests) plus thin forwarders for CreateSeparator
-// and CreateMenuItem, since QuickNavigationSubMenuLoader calls those two directly by that name.
+// Builds QuickNavigationMenu items. The menu retains Show, FindVisualParent, and the construction entry
+// points used by other callers.
 internal static class QuickNavigationMenuContentExtensions
 {
     // Explicit SeparatorBrush reference (SetResourceReference, not a plain Style lookup) rather than a

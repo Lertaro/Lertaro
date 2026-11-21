@@ -11,21 +11,10 @@ using Lertaro.Core.Services.Plugin.DirectoryIndex;
 
 namespace Lertaro.Core.IndexV2.Search;
 
-// Order-free "a term may be satisfied by an ancestor folder instead of the file name" pass, run by
-// NameSearch to top up a page the names alone did not fill. That trigger is what keeps this cheap: a
-// query that already answers in full never reaches it. Everything found here is appended after the
-// name hits rather than merged with them, so the ranking can reuse the matched term's own sort key
-// untouched -- no sort-key surgery, and no risk of pushing a genuine name match down.
-//
-// Distinct from PathSearch, which models a POSITIONAL "dir\subdir\file" query: there the query's
-// segments must appear in ancestors in that same order. Here the terms carry no position at all, so
-// each ancestor is offered every still-unsatisfied term (fzf terms are already order-free against a
-// name; this extends the same property across the path).
-//
-// Deliberate v1 restriction: at least one term must match the FILE NAME. Without it the candidate set
-// becomes "every row under any folder matching any term", which one common folder name turns
-// into most of a drive -- and that set cannot be enumerated from phase A's per-term unique hits, which
-// is exactly what keeps the row walk here bounded to the same order of work as an ordinary search.
+// Fills remaining NameSearch capacity with order-independent ancestor-folder matches. Unlike positional
+// PathSearch, any ancestor may satisfy any remaining term. At least one term must match the filename so a
+// common folder term cannot expand the scan to every descendant. Results append after name hits and
+// retain their matched-term ranking key.
 internal static class PathTermFallback
 {
     /// <summary>What one unique name contributed: which terms its own name satisfied, and the best

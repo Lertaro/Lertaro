@@ -3,9 +3,8 @@ using Lertaro.PluginSdk.Helpers;
 
 namespace Lertaro.Plugins.CoreExtensions.InlineSearch;
 
-// Split out from ExplorerInlineSearchAdapter to keep that file under the repo's per-file line limit.
-// Owns the Shell.Application COM enumeration for the adapter's list-items feed and releases every RCW it
-// creates, including when the caller stops enumerating early.
+// Enumerates Explorer list items through Shell.Application COM. Releases all created RCWs, including when
+// enumeration stops early.
 internal static class ExplorerInlineSearchListItems
 {
     public static IEnumerable<string> GetListItems(IntPtr hwnd)

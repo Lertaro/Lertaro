@@ -2,17 +2,8 @@ using System.IO;
 
 namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 
-// Decides which inline-search row the window acts on, and what the host file manager should highlight.
-//
-// Both questions reduce to "does this row name a real file or folder", which is why they live together:
-// the inline list leads with rows that are NOT files -- shortcut commands (plugin actions), instant results
-// (a calculator answer, a URL) and section headers. Those are inserted ahead of every real result, so the
-// naively-chosen row is one of them, and acting on it (Enter) runs the command instead of opening the file
-// the user was actually looking for.
-//
-// Split out of InlineExplorerSelectionSync as pure functions (composition, not a partial class) so the
-// decisions can be exercised without constructing a window, and to keep that file under the repo's
-// per-file line limit.
+// Selects a file-backed inline row for execution and host highlighting. Skip plugin actions, instant
+// answers, and section headers, which may precede file results.
 internal static class InlineResultTargetResolver
 {
     /// <summary>

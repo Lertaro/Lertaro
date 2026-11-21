@@ -7,9 +7,8 @@ using Lertaro.Core;
 using Lertaro.App.Services.Plugin;
 namespace Lertaro.App.Views.Controls.Results;
 
-// Grid-mode (full/main window) dynamic column population and header-click sorting -- split out of
-// ResultsControl.xaml.cs to keep that file under the project's line limit. Unrelated to the shared
-// list-mode result list (quick/inline windows) the rest of that file deals with.
+// Builds full-window grid columns and handles header sorting. Quick and inline windows use the separate
+// list view.
 internal static class ResultsControlColumns
 {
     public static void PopulateDynamicColumns(System.Windows.Controls.ListView lstGridResults)

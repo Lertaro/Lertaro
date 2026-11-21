@@ -1,9 +1,7 @@
 namespace Lertaro.App.ViewModels.Settings.Plugins;
 
-// Split out purely to keep PluginConfigFieldViewModel under the repo's per-file line limit; this class
-// has no state of its own, it always operates on the one field that owns it. Owns what "commit this
-// field" means -- flattening an Object/Array field's rows back into its stored value, then writing the
-// value through to settings (or the schema's own SetValue hook).
+// Serializes Object/Array rows and writes the field value to settings or its schema-provided SetValue
+// callback.
 internal static class PluginConfigFieldCommitSupport
 {
     internal static void Commit(PluginConfigFieldViewModel field)

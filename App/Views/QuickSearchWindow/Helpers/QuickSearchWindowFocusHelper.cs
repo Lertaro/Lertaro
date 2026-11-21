@@ -2,8 +2,7 @@ using System.Windows.Threading;
 
 namespace Lertaro.App.Views.QuickSearchWindow.Helpers;
 
-// Split out to keep QuickSearchWindowController below the repository's per-file line limit; this
-// helper owns the delayed keyboard-focus handoff used by the one window it receives.
+// Completes delayed keyboard-focus handoff to the quick search window.
 internal sealed class QuickSearchWindowFocusHelper
 {
     private readonly Lertaro.App.QuickSearchWindow _window;

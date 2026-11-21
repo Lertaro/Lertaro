@@ -3,8 +3,7 @@ using System.Windows.Controls;
 
 namespace Lertaro.App.Helpers.Visuals;
 
-// Split out purely to keep DragReorder under the repository's per-file line limit. This helper has no
-// state of its own and only resolves the realized item container for the one control passed to it.
+// Resolves the realized item container for a control.
 internal static class DragReorderContainerHelper
 {
     // Virtualizing panels realize only the containers a live mouse event can reach, so walking from

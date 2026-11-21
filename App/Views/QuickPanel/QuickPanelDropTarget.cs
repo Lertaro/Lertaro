@@ -8,13 +8,8 @@ using DragEventArgs = System.Windows.DragEventArgs;
 
 namespace Lertaro.App.Views.QuickPanel;
 
-// Dropping files onto a group copies them into that group's folder. Split out of QuickPanelWindow so
-// the window file stays under the repo's per-file line limit; it has no state of its own and works
-// entirely off the group each handler's own DataContext names.
-//
-// The copy is Windows' own (IFileOperation, via ShellPasteHelper): one native progress dialog for the
-// whole batch, the real "this file already exists" prompt, and an undo entry -- all things a hand-rolled
-// File.Copy loop would have to reinvent badly.
+// Copies dropped files into the target group's folder through ShellPasteHelper/IFileOperation, preserving
+// Windows batch progress, conflict prompts, and undo.
 public partial class QuickPanelWindow
 {
     /// <summary>Whether a drag hovering over this group is one it should take.</summary>

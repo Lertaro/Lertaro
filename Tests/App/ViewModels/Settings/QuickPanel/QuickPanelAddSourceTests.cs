@@ -3,8 +3,7 @@ using Lertaro.Core;
 
 namespace Lertaro.App.Tests.ViewModels.Settings.QuickPanel;
 
-// What a folder looks like the moment it is added. Split from QuickPanelSettingsViewModelTests only to
-// keep that file under the repo's per-file line limit.
+// Tests the initial settings of a newly added folder source.
 [TestClass]
 public sealed class QuickPanelAddSourceTests
 {

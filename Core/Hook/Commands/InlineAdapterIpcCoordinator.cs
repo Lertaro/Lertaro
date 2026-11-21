@@ -17,26 +17,13 @@ public static class InlineAdapterIpcCoordinator
     private static int _pendingRequestId;
     private static int _nextRequestId;
 
-    // A live hook answers a same-machine named-pipe round trip in low single-digit milliseconds; 1s bounds
-    // the worst case (hook busy, or briefly unreachable during a cold start) without stalling the caller's
-    // UI thread for long -- ExecuteItem is on the "press Enter to navigate" hot path.
+    // Limit the UI-facing IPC wait to one second. A false return means success was not confirmed within
+    // that wait; the Hook operation may still finish. Callers considering a fallback launch should await
+    // lateResult off the UI thread first to avoid executing the same item twice.
     //
-    // isDir is the caller's own already-known answer (from search-result/menu-item metadata, e.g.
-    // AppSearchResult.IsDir or QuickNavigationMenu's item.HasSubMenu) for whether path is a directory.
-    // Adapters no longer call Directory.Exists/File.Exists themselves to figure this out -- the Hook
-    // process runs elevated for admin users, and UAC's split token puts an elevated process in a different
-    // logon session than the one that mapped any network drive letters, so a mapped-drive path that's
-    // perfectly valid in the caller's own (never-elevated) session would silently resolve to "doesn't
-    // exist" from inside the Hook. Baked into the path itself (a trailing separator marks a directory,
-    // matching Path.EndsInDirectorySeparator) rather than a new IpcMessage field, since every adapter reads
-    // path as a plain string already and this needs no protocol/interface change.
-    //
-    // A `false` return here means "no confirmed success within the 1s UI-facing wait", not "confirmed
-    // failure" -- some adapters make blocking calls with no timeout of their own (e.g. Total Commander's
-    // SendMessage, see InlineAdapterCommandHandler), so the Hook-side call can legitimately still be in
-    // flight when this gives up. <paramref name="lateResult"/> lets a caller that's about to treat a
-    // timeout as a real failure (e.g. falling back to Process.Start) wait a bit longer off the UI thread
-    // first, so a slow-but-eventually-successful call and that fallback can't both fire for the same item.
+    // Encode the caller's known isDir value as a trailing separator. An elevated Hook may not see network
+    // drive letters mapped in the caller's session, so adapters cannot reliably infer it with File.Exists
+    // or Directory.Exists. The separator carries this information without changing the IPC interface.
     public static bool ExecuteItem(IntPtr hwnd, string path, bool isDir, string searchInput, Action<IpcMessage> sendMsg, out Task<bool> lateResult)
         => SendItem(IpcMessageId.ExecuteInlineItem, hwnd, path, isDir, searchInput, sendMsg, out lateResult);
 

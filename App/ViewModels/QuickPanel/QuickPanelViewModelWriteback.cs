@@ -1,17 +1,9 @@
 namespace Lertaro.App.ViewModels.QuickPanel;
 
-// The two things the panel does TO the settings rather than with them: closing a tab and dragging one.
-// Split out purely to keep QuickPanelViewModel.cs under the repo's per-file line limit; it has no state
-// of its own and only ever operates on the one view model it is part of.
+// Persists tab closure and tab order. Group sorting, view mode, and collapsed state remain session-only.
 //
-// Everything else the panel offers is per-session -- a group's sort, its view, whether it is collapsed --
-// and is deliberately not written anywhere. These two are, because they change what the strip IS rather
-// than how one open of it looks: a closed tab that came back on the next summon, or an order that
-// forgot itself, would not read as a preference at all.
-//
-// The caveat that comes with writing from here: the Quick Panel settings page edits a staged copy and
-// puts it back on Save, so a page left open across one of these ends up overwriting it. Same rule as
-// anywhere else two surfaces write one setting -- whoever saves last wins.
+// The Settings page edits a staged copy, so saving it after a panel change can overwrite that change; the
+// last save wins.
 public partial class QuickPanelViewModel
 {
     /// <summary>Writes the strip's order down as the order it now is.</summary>

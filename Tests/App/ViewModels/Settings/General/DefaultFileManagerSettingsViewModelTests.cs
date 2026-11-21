@@ -3,8 +3,7 @@ using Lertaro.Core;
 
 namespace Lertaro.App.Tests.ViewModels.Settings.General;
 
-// Extracted out of GeneralSettingsViewModel (which had crossed the repo's per-file line limit) purely
-// as a structural move, so these pin that the staging/persist contract survived the move.
+// Tests staging and persistence of the default file-manager settings.
 [TestClass]
 public sealed class DefaultFileManagerSettingsViewModelTests
 {

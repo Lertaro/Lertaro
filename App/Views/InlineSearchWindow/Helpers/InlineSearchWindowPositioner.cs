@@ -480,25 +480,14 @@ public class InlineSearchWindowPositioner
     }
 
     /// <summary>
-    /// Where the card's window starts horizontally, in physical pixels.
-    /// </summary>
-    /// <remarks>
-    /// Below the window there is one answer for every host: centered under it, the taskbar allowed to be
-    /// covered. Over it the card's VISIBLE top-right corner meets one named edge -- the dialog's own file list
-    /// where it can see one, the field the card feeds where only that is known, the window's own right edge
-    /// where neither is -- and each of them pays the window's transparent margin back to get the window
-    /// position that puts the visible edge there. A plain window has no list to name because its dock rect
-    /// already IS its file list, so it takes the last rung and a card over Total Commander and a card over a
-    /// Save dialog behave alike. That is also why nothing here needs to know whether the window is a dialog.
+    /// Calculates the card's horizontal position in physical pixels. Below a host, center it and allow
+    /// taskbar overlap. Above a host, align the visible right edge to the file list, then the target input
+    /// field, then the host rectangle, subtracting transparent margins.
     ///
-    /// The last rung used to center the card on the dialog instead, and that was a different answer rather
-    /// than a weaker one: any dialog left unmeasured -- by an adapter that cannot see its file list, or by one
-    /// chosen in the instant before it could be -- then sat across the middle of the address bar, and snapped
-    /// to the corner whenever the measurement finally arrived. Measured on Rimage's 添加文件夹, the content
-    /// pane's right edge is 1204 against the dialog's own 1205, so the corner is where the weaker answer
-    /// belongs too. WPS is the case that earned the field rung and keeps it: its dialog is 960px wide with
-    /// the file-name box starting 300px in, so centering parked the card's left edge 143px off the box.
-    /// </remarks>
+    /// Using the right edge at every fallback level avoids a jump from centered to corner-aligned when
+    /// delayed measurements arrive. The input-field fallback matters for WPS, whose filename field starts
+    /// well inside its dialog.
+    /// </summary>
     internal static double CalculatePhysLeft(
         bool hangsBelow,
         Core.Hook.ExplorerTracker.RECT dock,

@@ -2,9 +2,7 @@ import { defineConfig } from 'vitepress'
 import { dictionary } from './i18n/dictionary.js'
 import { buildLocaleConfig } from './i18n/buildLocaleConfig.js'
 
-// config.mjs stays a thin shell: all nav/sidebar structure comes from navSchema.js, all text comes
-// from dictionary.js, and buildLocaleConfig.js glues the two together per locale. No literal
-// duplicated nav/sidebar text lives in this file.
+// Build each locale's navigation from navSchema.js and translated labels from dictionary.js.
 const en = buildLocaleConfig('/', dictionary['en-US'])
 const zh = buildLocaleConfig('/zh-CN/', dictionary['zh-CN'])
 const zhHK = buildLocaleConfig('/zh-HK/', dictionary['zh-HK'])

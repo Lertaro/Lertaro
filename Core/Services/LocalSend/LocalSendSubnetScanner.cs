@@ -8,8 +8,7 @@ using Lertaro.Core.Services.LocalSend.Models;
 namespace Lertaro.Core.Services.LocalSend;
 
 /// <summary>
-/// Split out purely to keep LocalSendDiscoveryService.cs under the repo's per-file 300 line limit;
-/// provides HTTP TCP subnet scanning fallback when UDP multicast is blocked by routers/firewalls.
+/// Scans subnets over HTTP when UDP discovery is blocked.
 /// </summary>
 internal static class LocalSendSubnetScanner
 {

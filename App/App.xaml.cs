@@ -247,24 +247,12 @@ public partial class App : Application
             };
             PluginSdk.Services.IconService.GetThumbnailFunc = (path, size) => ShellImageListInterop.TryGetPreviewThumbnail(path, size);
             PluginSdk.Services.FileMetadataService.BatchLookupFunc = FileMetadataBridge.GetMetadataBatchAsync;
-            // Cached across calls: this feed's own doc comment calls it "the host's static list of
-            // searchable settings entries", but the naive version (call BuildAllEntries fresh every
-            // time) silently broke that -- CoreExtensions' SearchSettingsInstantProvider calls
-            // GetEntries() on every debounced keystroke of a "set ..." query in the main search window,
-            // which was re-running BuildAllEntries(vm: null)'s PluginLoaderHelper.BuildPluginList
-            // reflection scan (AppDomain.GetAssemblies + two GetTypes() passes per plugin DLL) per
-            // keystroke -- independent of whether Settings was even open, and worse than the
-            // once-per-window-open cost issue #186 was about. Safe to cache: with vm: null, none of the
-            // built entries' Activate/Reveal delegates (which close over live PluginInfoViewModel/etc.
-            // instances) are ever invoked -- JumpToEntry always rebuilds fresh against the real live vm
-            // before activating anything, using the index purely as a positional lookup -- so only the
-            // translated Label/Breadcrumb/Index actually returned here need to stay current. Invalidated
-            // on language change (labels/breadcrumbs are translated at build time) and on
-            // PluginManager.ComponentsRefreshed: unlike the Plugins-section entries (which include every
-            // component regardless of IsEnabled, only ever toggling a flag PluginLoaderHelper doesn't
-            // even expose here), PluginManager.QuickPanelTabProviders -- which the QuickPanel-section
-            // entries are built from -- IS enabled-filtered, so disabling a quick-panel-tab-providing
-            // component genuinely changes this feed's membership, not just some unexposed flag on it.
+            // Cache searchable settings entries to avoid a plugin reflection scan on every "set ..." keystroke.
+            // The cache supplies labels, breadcrumbs, and positional indices. JumpToEntry rebuilds against the
+            // live view model before invoking Activate/Reveal, so cached delegates are never used.
+            //
+            // Invalidate on language changes and ComponentsRefreshed: translations change, and enabled-filtered
+            // QuickPanelTabProviders can change the list's membership.
             List<PluginSdk.Services.SettingsSearchEntryInfo>? cachedSettingsSearchEntries = null;
             TranslationManager.Instance.PropertyChanged += (_, _) => cachedSettingsSearchEntries = null;
             PluginManager.Instance.ComponentsRefreshed += () => cachedSettingsSearchEntries = null;

@@ -5,13 +5,8 @@ using Lertaro.Core.IndexV2.Persistence;
 
 namespace Lertaro.Core.IndexV2.Search;
 
-// Alias-fallback matching tiers for SearchMatcher.MatchOne, split out (composition, not a partial class)
-// to keep SearchMatcher.cs under the project's line limit. SearchMatcher itself keeps the primary
-// unique-name scan orchestration and dispatch (MatchOne); this file holds the two fallback tiers that
-// only run once a candidate's literal name has already failed to match: the general per-alias fallback
-// (TryMatchAliases -- also called directly by SearchMatcherPath, via the thin SearchMatcher.TryMatchAliases
-// forwarder that preserves that external call site) and the mixed-alphabet last resort (TryMatchMixed,
-// only ever reached from SearchMatcher.MatchOne).
+// Applies general alias matching and then mixed-alphabet fallback after the literal name fails.
+// SearchMatcherPath also calls TryMatchAliases through SearchMatcher's forwarding method.
 internal static class SearchMatcherAliasExtensions
 {
     // Last-resort tier for a query mixing an alias provider's own two alphabets: only

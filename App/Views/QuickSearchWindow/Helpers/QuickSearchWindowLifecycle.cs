@@ -7,8 +7,7 @@ using Lertaro.Core;
 
 namespace Lertaro.App.Views.QuickSearchWindow.Helpers;
 
-// Handles QuickSearchWindow's SourceInitialized/Loaded startup sequence -- split out of the window
-// itself to keep that file under the line-count limit.
+// Handles the quick window's SourceInitialized and Loaded startup sequence.
 public class QuickSearchWindowLifecycle
 {
     private readonly Lertaro.App.QuickSearchWindow _window;

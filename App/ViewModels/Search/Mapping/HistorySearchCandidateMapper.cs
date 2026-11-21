@@ -114,8 +114,8 @@ internal static class HistorySearchCandidateMapper
                     StringComparison.OrdinalIgnoreCase))
             .Select(entry => (Entry: entry, Matched: ExactHistoryMatch(entry)))
             .OrderBy(candidate => candidate.Matched.Rank.Start)
-            // Most recent pick first: choosing the 10th result for "atlas" makes it the top one next time,
-            // even over something opened more often before.
+            // Recall the most recent confirmed association first. Final ranking still places
+            // history-only candidates after direct matches.
             .ThenByDescending(candidate => candidate.Entry.Time)
             .ThenByDescending(candidate => candidate.Entry.Count)
             // Shape is gone; the shared quality ladder is the only textual order.

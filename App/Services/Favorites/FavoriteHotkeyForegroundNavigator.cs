@@ -127,24 +127,11 @@ internal sealed class FavoriteHotkeyForegroundNavigator
     }
 
     /// <summary>
-    /// Makes the foreground window's own file manager go to <paramref name="path"/>.
+    /// Navigates the foreground file manager through InlineAdapterIpcCoordinator. The Hook runs STA-bound
+    /// adapter operations on STA threads and can reach elevated hosts; this caller runs on an MTA worker
+    /// and the App does not elevate. Pass isDir=true so the coordinator encodes the known folder type
+    /// without rechecking it in another session.
     /// </summary>
-    /// <remarks>
-    /// Routed through <see cref="InlineAdapterIpcCoordinator"/> to the Hook process rather than calling
-    /// the adapter's own <c>ExecuteItem</c> here, exactly like Quick Navigation and inline search's
-    /// Enter-to-execute do. Two reasons, and the first is fatal to the direct call:
-    /// <list type="bullet">
-    /// <item>The adapters' navigation is STA-affine COM interop (Explorer's IShellWindows/Navigate2/
-    /// SelectItem, OneCommander's UI Automation). This method runs off a thread-pool thread because the
-    /// coordinator's wait would otherwise block the message pump, and a thread-pool thread is MTA -- so a
-    /// direct call would put the required Explorer case through a cross-apartment marshal it does not
-    /// support. The Hook runs each adapter call on its own freshly-spun STA thread.</item>
-    /// <item>Adapters for a manager that is running elevated need the Hook's elevation; the App never
-    /// elevates itself, so a direct call would have its window messages dropped by UIPI.</item>
-    /// </list>
-    /// <c>isDir: true</c> is the caller's already-known answer, so the coordinator marks the path as a
-    /// directory itself (the adapters' trailing-separator convention) and no adapter re-derives it.
-    /// </remarks>
     private static void NavigateExistingWindow(string path, FavoriteHotkeyTarget target)
     {
         var window = target.Window;

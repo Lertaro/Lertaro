@@ -15,22 +15,11 @@ public sealed class InlineSearchWindowLayoutManager
     {
         _window = window ?? throw new ArgumentNullException(nameof(window));
 
-        // Item-based scrolling ENABLES virtualization; pixel-based (CanContentScroll=false) disables it
-        // outright in WPF, realizing and rendering EVERY bound row even though the card shows at most ten
-        // of them. That was the whole cost: measured on a large folder, the UI-thread time of a
-        // paint tracked the number of bound rows rather than the number visible (0.6ms at 2 rows, 119.8ms
-        // at 103), which is why a result-rich folder felt heavy here while the quick window -- virtualizing
-        // all along -- stayed smooth. Verified that this really does virtualize: a 100-row list realizes 17
-        // containers, not 100.
+        // Enable CanContentScroll to retain WPF virtualization. In measurements, a 100-row list realized
+        // 17 containers; disabling it made paint time grow with all bound rows.
         //
-        // ScrollUnit is deliberately NOT set alongside this: it is an attached property on the ItemsControl,
-        // but its value does not reach the internal VirtualizingStackPanel that actually scrolls (measured:
-        // setting Pixel on the ListBox leaves the panel on Item), so it would look like a safeguard while
-        // doing nothing. Item-based scrolling is also what the inline list wants now -- the row area is a
-        // fixed whole number of rows (InlineCardMetrics.ComputeLayout) at a constant row height, so there is
-        // no partial row left for pixel scrolling to clip. That partial row is the reason this was pinned to
-        // pixel scrolling before; it was a real problem when the height was a sum over however many results
-        // had arrived, and it no longer exists.
+        // Do not set ScrollUnit here: the attached value on this ListBox does not reach its internal
+        // panel. Item scrolling fits the card's fixed-height whole-row layout.
         ScrollViewer.SetCanContentScroll(_window.LstResults, true);
     }
 

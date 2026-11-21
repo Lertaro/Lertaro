@@ -1,9 +1,9 @@
 namespace Lertaro.Core.SearchIndex;
 
 /// <summary>
-/// Full-window V3 ordering over pre-decorated <see cref="SearchResult"/> rows. Mirrors
-/// <see cref="RankKeyComparer"/> exactly (with <c>TypeRank = 0</c> and <c>IsHistoryOnly = false</c>) so the
-/// quick and full windows preserve pairwise order across shared candidates.
+/// Full-window V3 ordering over precomputed <see cref="SearchResult"/> fields. Uses the same
+/// section, grade, priority, and history order as <see cref="RankKeyComparer"/>. Unlike Quick Search,
+/// it has no type order or history-slot cap and compares packed match-quality values.
 /// </summary>
 public sealed class RankedSearchResultComparer : IComparer<SearchResult>
 {

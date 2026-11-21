@@ -4,8 +4,7 @@ using Lertaro.PluginSdk.Services;
 namespace Lertaro.Plugins.CoreExtensions.Providers.Indexing;
 
 /// <summary>
-/// Owns the Start Menu provider's directory watcher lifecycle so the provider remains below the
-/// repository per-file line limit. This support object always operates on one provider instance.
+/// Manages the Start Menu provider's directory watchers.
 /// </summary>
 internal sealed class StartMenuAppRuntimeSupport : IDisposable
 {

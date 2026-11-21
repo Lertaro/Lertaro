@@ -8,12 +8,8 @@ using Lertaro.Core.Services.Network;
 
 namespace Lertaro.App.ViewModels.Settings.NetworkDrive;
 
-// Split out of NetworkDriveSettingsViewModel to keep that file under the line-count limit. Data gathered
-// off the UI thread by GatherData, handed to ApplyGatheredData to update the ViewModel's
-// ObservableCollections on the UI thread -- see NetworkDriveSettingsViewModel.RefreshNetworkDrives for why
-// (issue #112: this used to run entirely synchronously on every indexer status push, and the blocking
-// syscalls inside it -- WNetGetConnection, the WSL \\wsl$\<distro> probe -- made Settings tab-switching
-// feel stuck while a drive was actively indexing).
+// Gathers network/WSL status off the UI thread, then applies it to observable rows on the UI thread.
+// WNetGetConnection and WSL path probes can block during indexing (#112).
 internal readonly record struct NetworkDriveGatheredData(
     Dictionary<string, ResolvedNetworkDrive> ResolvedByDrive,
     List<string> VisibleDrives,

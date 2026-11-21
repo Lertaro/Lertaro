@@ -4,25 +4,13 @@ using System.Windows.Interop;
 namespace Lertaro.App.Helpers.Visuals;
 
 /// <summary>
-/// Blocks two OS-level WM_SYSCOMMAND triggers: Alt+Space (SC_KEYMENU), which pops up the OS-drawn
-/// system menu (Restore/Move/Size/Minimize/Maximize/Close) as a jarring blank box clipped by the
-/// window's own borderless/rounded corners instead of a real title bar; and Alt+F4 (SC_CLOSE), which
-/// would let the OS close the window out from under the app's own show/hide lifecycle. Every other
-/// WM_SYSCOMMAND subcommand is left untouched.
-/// </summary>
-/// <remarks>
-/// Every custom-chrome window uses this, since none of them has a real title bar for the system menu
-/// to belong to. They differ only in whether Alt+F4 goes with it: the settings and full search windows
-/// pass blockClose: false, because they are ordinary windows the user opens and is done with and
-/// closing them is a perfectly good thing to want.
+/// Blocks the native Alt+Space system menu on custom-chrome windows and optionally blocks Alt+F4. Settings
+/// and Full Search allow close through blockClose=false.
 ///
-/// The quick window is the one that genuinely cannot do without this: it is the application's MainWindow,
-/// created once at startup and only ever hidden rather than closed, so a system-menu close destroys the
-/// launcher's own surface for the rest of the session. App.xaml sets ShutdownMode="OnExplicitShutdown",
-/// so the process survives it -- which is exactly why the loss is silent rather than obvious.
-/// Attaching it to the inline window has never reliably covered that one: unresolved, and
-/// left as it is rather than pursued here.
-/// </remarks>
+/// Quick Search is a persistent MainWindow that must hide rather than close. OnExplicitShutdown would
+/// otherwise leave the process running without its launcher window. Inline keys directed to the host are
+/// intercepted separately by the Hook.
+/// </summary>
 public static class SystemMenuBlocker
 {
     private const int WM_SYSCOMMAND = 0x0112;

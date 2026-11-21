@@ -4,13 +4,8 @@ using Lertaro.Core.Wire;
 
 namespace Lertaro.App.ViewModels.Settings.Plugins;
 
-// Split out purely to keep PluginManagementViewModel under the repo's per-file line limit; this class
-// has no state of its own, it always operates on the plugins handed to it. Owns writing staged plugin
-// config fields back to settings and telling everything that reads them to re-read.
-//
-// Reached from the Settings window's Apply/OK (through PluginManagementViewModel.Save). Edits are staged
-// per plugin and kept while the user switches around, so the commit walks EVERY plugin holding staged
-// edits, not just whichever one happens to be on screen when Apply is pressed.
+// Commits staged configuration and notifies consumers on Settings Apply/OK. Visit every plugin with
+// edits, including plugins whose tabs are no longer visible.
 internal static class PluginConfigCommitSupport
 {
     /// <summary>

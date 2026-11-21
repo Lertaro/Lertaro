@@ -1,12 +1,8 @@
 using Lertaro.Core.Indexer.NetworkDrive.Walk;
 namespace Lertaro.Core.Indexer.NetworkDrive;
 
-// Status/index publishing for NetworkIndexer -- extracted into its own class (composition, not a
-// partial class) to keep NetworkIndexer.cs under the project's line limit. Shares NetworkIndexer's own
-// _gate/_statuses/_indexes dictionaries by reference rather than owning copies, since both types need
-// to observe the same live state.
-// Partial: the change-tracking half (StoreStatus/RecordChange) lives in
-// NetworkIndexerPublisherChangeTracking.cs, to keep this file under the project's line limit.
+// Publishes NetworkIndexer status and indexes using its shared gate and dictionaries.
+// NetworkIndexerPublisherChangeTracking handles StoreStatus, RecordChange, and incremental notifications.
 internal sealed partial class NetworkIndexerPublisher
 {
     private readonly object _gate;

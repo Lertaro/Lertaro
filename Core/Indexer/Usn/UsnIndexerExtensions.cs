@@ -233,20 +233,10 @@ public static class UsnIndexerExtensions
         }
         indexer.RaiseDirectoriesChanged(drive, changedDirectories);
         SearchCoordinator.ClearCaches();
-        // While this drive is being rebuilt, its FolderDriveMonitor stays alive (mirroring
-        // NetworkIndexerPublisher/WatcherManager's own approach for network/WSL/folder-index drives)
-        // and keeps applying changes to THIS old LiveIndex's in-memory delta above -- immediately
-        // searchable -- but persisting here would race the rebuild's own SnapshotWriter.Write to the
-        // same cache path, and this LiveIndex is about to be disposed and replaced wholesale anyway
-        // (see UsnIndexerBuildExtensions.OnDriveCompleted). The missed flag set above lets the
-        // rebuild's own caller queue one follow-up refresh once it finishes, so the fresh walk gets a
-        // chance to observe whatever was missed on its own -- see ConsumeMissedFolderChangeDuringRebuild.
-        //
-        // Otherwise: SaveDriveSnapshot does a synchronous FULL Compact(force: true) -- calling it on
-        // every single debounced-batch item from FolderDriveMonitor meant one full-index rewrite per
-        // changed file, same unthrottled cost WatcherManager had for network/WSL/folder-index drives.
-        // Only the expensive disk persist is debounced per drive, so a burst of changes collapses into
-        // one rewrite once that drive goes quiet for a bit.
+        // Keep FolderDriveMonitor updates searchable in the old LiveIndex during rebuild, but skip
+        // persistence to avoid racing the rebuild's SnapshotWriter. The missed-change flag schedules a
+        // follow-up refresh for the new index. Outside rebuilds, debounce full snapshot persistence per
+        // drive so a batch of file changes causes one rewrite.
         if (!isRebuilding)
             indexer._folderChangeSaveDebounce.Schedule(drive, () => indexer.SaveDriveSnapshot(drive, live));
         indexer.PublishStatusChanged();

@@ -6,7 +6,7 @@ using Lertaro.Core.Wire;
 
 namespace Lertaro.App.Services.Pipe;
 
-// Split from AppSearchPipeService solely to keep it within the repository's per-file line limit.
+// Streams indexed space-analysis entries through the App search pipe.
 internal static class AppSearchPipeSpaceEntries
 {
     public static async Task WriteAsync(SearchService searchService, string? directory, Stream pipe,

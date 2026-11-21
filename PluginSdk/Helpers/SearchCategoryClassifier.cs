@@ -4,23 +4,12 @@ using Lertaro.PluginSdk.Abstractions;
 namespace Lertaro.PluginSdk.Helpers;
 
 /// <summary>
-/// Which kind of entry a search should return. <see cref="All"/> is the default and asks for everything.
+/// Defines requested result categories; All includes every category. Apply the category in the index walk
+/// before limiting results, so unrelated categories cannot consume its candidate budget.
+///
+/// Enum values are stable wire IDs: append new values instead of renumbering existing ones. The SDK shares
+/// these definitions across the engine, Quick Search tabs, and CoreExtensions category filters.
 /// </summary>
-/// <remarks>
-/// Carried on the request rather than applied by the caller, because the limit on a search is applied inside
-/// the index walk: the caller receives at most a small multiple of <c>Limit</c> rows, ranked across every
-/// kind. A broad query matching tens of thousands of entries fills that budget with whatever ranks highest
-/// overall, so a category whose rows rank further down arrives with a handful of results or none -- even
-/// though the engine matched plenty of them. Filtering at the source makes the budget apply inside the
-/// category, which is the set the caller actually asked for.
-///
-/// Values are explicit and stable: they travel over the pipe, so renumbering them would silently change what
-/// an older client asks a newer service for. <see cref="Archive"/> was appended for the same reason.
-///
-/// This lives in the plugin SDK rather than in Core because three surfaces answer the same question and must
-/// not drift: the engine's per-row filter, the quick window's filter tabs, and the Core Extensions plugin's
-/// user-editable 自定义过滤器 (:@keyword) rows plus its sidebar type filters.
-/// </remarks>
 public enum SearchCategoryFilter : byte
 {
     All = 0,

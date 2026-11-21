@@ -2,8 +2,7 @@ using Lertaro.PluginSdk;
 
 namespace Lertaro.Plugins.Xyplorer.Win32;
 
-// Runs blocking WM_COPYDATA queries on a throwaway STA thread with a bounded wait so a hung target
-// cannot stall the caller indefinitely. Kept as its own file to stay under the repo's per-file line limit.
+// Runs blocking WM_COPYDATA queries on a dedicated STA thread with a bounded caller wait.
 internal static class StaQueryHelper
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(2);

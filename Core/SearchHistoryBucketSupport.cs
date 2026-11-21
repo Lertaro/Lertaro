@@ -2,10 +2,7 @@ using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Core;
 
-// Pure shaping of SearchHistoryStore's buckets -- building them from a flat sequence, flattening them
-// back into display entries, and deriving the per-path priority cache. Split out purely to keep
-// SearchHistoryStore under the repo's per-file line limit; this class has no state of its own, it
-// always operates on the bucket dictionary handed to it.
+// Builds and flattens history buckets and derives per-path priority and score caches.
 internal static class SearchHistoryBucketSupport
 {
     internal const int MaxEntriesPerKeyword = 20;

@@ -1,10 +1,7 @@
 namespace Lertaro.Core.SearchIndex.Fzf;
 
-// Alias-fallback quality-gating (IsAcceptableAliasMatch/WeightAliasMatch and their private helpers)
-// lives in FzfPatternAliasMatchExtensions.cs (extension methods, matching TreeBuilder's Checkpoint/Diff
-// split and MenuBuilder's ContentExtensions split) instead of a partial class, to keep this file under
-// the project's line limit. Pattern parsing is delegated to FzfPatternParser for the same reason; this
-// file keeps the immutable pattern state and core text-matching algorithm.
+// Stores immutable pattern state and text matching. FzfPatternParser parses queries;
+// FzfPatternAliasMatchExtensions validates and weights alias hits.
 internal sealed class FzfPattern
 {
     internal FzfPattern(string? targetDrive, FzfTermSet[] termSets)

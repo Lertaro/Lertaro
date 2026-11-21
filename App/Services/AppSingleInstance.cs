@@ -1,8 +1,7 @@
 namespace Lertaro.App.Services;
 
 /// <summary>
-/// Owns the per-session named mutex that keeps the App single-instance.
-/// Split out of App.xaml.cs purely to keep that file under the repo's per-file line limit.
+/// Owns the per-session mutex that limits the App to one instance.
 /// </summary>
 public static class AppSingleInstance
 {

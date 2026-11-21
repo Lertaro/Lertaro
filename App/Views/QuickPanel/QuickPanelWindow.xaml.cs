@@ -72,25 +72,12 @@ public partial class QuickPanelWindow : Window,
         }
     }
 
-    /// <summary>Takes the foreground and puts keyboard focus in the filter box.</summary>
-    /// <remarks>
-    /// The quick window's own summon, step for step, rather than a second way of doing this: the
-    /// overlay dismissal has already run in QuickPanelManager.Toggle (it has to, before anything is
-    /// shown), and what is left is ForceForeground through the hook, then Activate, then the box.
-    ///
-    /// ForceForeground rather than a bare Activate: this window is ShowActivated="False", so it comes up
-    /// without focus, and Windows ignores a foreground grab from a thread that does not already own it.
-    /// The hook process does own real recent input, which is what makes the handover land -- the same
-    /// route and the same helper the quick window goes through.
-    ///
-    /// Queued at Input priority so it runs after the layout and render that Show just scheduled; asking
-    /// for focus before the box exists on screen is asking a control that is not there yet.
-    ///
-    /// The box rather than a list: the panel is summoned to reach something, and typing towards it is
-    /// the fastest way in when the workspace holds more than a screenful. What it costs is that a bare
-    /// key is now typing rather than running an action -- TryRunActionHotkey stands down while the box
-    /// has focus, by design, and a click on a row is what hands the keyboard back to the list.
-    /// </remarks>
+    /// <summary>
+    /// Requests foreground through the Hook, activates the panel, then focuses its filter box at
+    /// Dispatcher Input priority after layout/render. ShowActivated=false and Windows foreground
+    /// restrictions make Activate alone insufficient. Keep focus in the filter box so typing continues
+    /// after arrow-key selection; those handlers resolve selection through the view model.
+    /// </summary>
     public void ActivateAndFocus() => Dispatcher.BeginInvoke(new Action(() =>
     {
         var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;

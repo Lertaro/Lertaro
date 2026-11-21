@@ -11,26 +11,13 @@ namespace Lertaro.Core.SearchIndex;
 // operates on the text/highlight span its caller passes in.
 internal static class AliasHighlightMarker
 {
-    // Mirrors FuzzyMatcher.IsMatch's own alias fallback (same provider iteration, same alias/'|'
-    // segment structure), mapping the matched positions back onto `text` via
-    // MapAliasToSourceIndices -- so a CJK name matched only through pinyin still highlights (and
-    // scores) even though the query never appears verbatim in the original text. Uses a plain greedy
-    // earliest-position subsequence search per alias rather than the real FuzzyMatchV2 backtrace:
-    // a polyphonic CJK name can expand to dozens of alias candidates here (PinyinAliasProvider allows
-    // up to 32 combinations), and unlike a real file/folder name a synthetic pinyin string has no
-    // camelCase/word-boundary structure for the real algorithm's bonus scoring to add value from -- so
-    // paying its full DP cost per candidate measured slower overall than this simpler scan, for a mask
-    // that (per real name/text) comes out effectively identical either way.
+    // Map alias hits back to source text with the same provider/segment traversal as FuzzyMatcher.IsMatch.
+    // Use a greedy earliest-position subsequence scan: aliases can expand to 32 combinations, and their
+    // synthetic spellings gain little from FuzzyMatchV2's word-boundary bonuses.
     //
-    // The typed term plus a provider's own spellings of it. The rewritten forms are what actually
-    // appear in its aliases -- a term typed as one run of letters is not present verbatim in an alias
-    // that marks syllable boundaries -- so leaving them out means a pinyin search highlights nothing at
-    // all. They are only ever compared against THAT provider's aliases, and MapAliasToSourceIndices
-    // translates whatever matches (boundary characters included) back onto the original text.
-    //
-    // Cached because they depend on the term and the provider and nothing else, while this is reached
-    // once per CANDIDATE: ranking a CJK query re-segmented the same pinyin term for every one of the
-    // thousands of candidates in the refinement set, which was most of what that refinement cost.
+    // Try the typed term and that provider's query forms only against its own aliases. Forms may include
+    // syllable separators; MapAliasToSourceIndices maps those matches back to the original name.
+    // Cache forms by term and provider so ranking thousands of candidates does not repeat segmentation.
     [ThreadStatic]
     private static Dictionary<(IAliasProvider Provider, string Term, bool CaseSensitive), string[]>? _probeCache;
 
@@ -99,21 +86,10 @@ internal static class AliasHighlightMarker
                             continue;
 
                         var aliasLower = caseSensitive ? alias : alias.ToLowerInvariant();
-                        // Follow the same rule matching does -- which is this TERM's kind, not the
-                        // fuzzy setting. Reading the setting instead was right until a "'" was
-                        // involved, since that flips one term's exactness against it: with fuzzy off,
-                        // "'abc" searches as a subsequence but was highlighted as a contiguous run,
-                        // found nothing, and lit up nothing at all while the row itself was a hit.
-                        //
-                        // Matching now reads a term against an alias BOTH ways (a contiguous run if it can
-                        // be, a subsequence otherwise -- see FzfPatternAliasReading), so painting offers the
-                        // same two, in the same order; anything stricter paints nothing on a row that did
-                        // match, and an empty mask is not "no match" to every caller. The occurrence painted
-                        // is the term's TIGHTEST one, not its earliest: the gate accepts a match when each
-                        // term has a tight occurrence somewhere, so painting the greedy leftmost alignment
-                        // instead lit characters the gate had not accepted (a 7-letter query lit six
-                        // characters over 116 positions of a flattened initials alias).
-                        // AliasMatchRules owns that measure so matching and painting agree.
+                        // Highlight according to each term's matching mode; the apostrophe operator can
+                        // invert the global fuzzy setting. Try contiguous aliases before subsequences and
+                        // select a tight occurrence using AliasMatchRules, so the mask reflects the
+                        // occurrence accepted by matching.
                         int[]? positions = null;
                         foreach (var probe in probes)
                         {

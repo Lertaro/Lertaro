@@ -5,23 +5,15 @@ using Microsoft.Win32.SafeHandles;
 namespace Lertaro.Core.Services.Installation;
 
 /// <summary>
-/// Takes a directory tree that a privileged process writes or runs from and makes it writable by SYSTEM and
-/// Administrators only: owner Administrators, a protected DACL at the top, and every entry below reset to
-/// what it inherits from there.
-/// </summary>
-/// <remarks>
-/// The directories this is pointed at start out writable by ordinary users (%ProgramData% lets anyone create
-/// files in a subfolder; a portable copy sits wherever it was unzipped), so anything already inside may have
-/// been planted by one of them: a junction that sends a SYSTEM write somewhere else, a hard link to a file
-/// elsewhere, an entry whose owner can re-grant itself access after the reset.
+/// Restricts privileged installation trees to SYSTEM and Administrators. Set owner to Administrators,
+/// protect the root DACL, and reset child inheritance.
 ///
-/// So the walk never trusts a path twice. Each entry is opened once, without following reparse points, and
-/// everything after that goes through the handle: what the entry is, its new owner and DACL, or its removal.
-/// Links in privileged zones are removed without touching their targets. Personal data keeps legitimate
-/// links without traversing them. Enumeration uses the open directory handle, and each child is opened
-/// relative to that same handle, so even a pre-opened directory handle cannot redirect the walk by renaming
-/// a parent. SetKernelObjectSecurity avoids the automatic path-based child traversal of SetNamedSecurityInfo.
-/// </remarks>
+/// Treat existing content as untrusted. Open each entry once without following reparse points, then
+/// inspect, secure, or remove it through that handle. Enumerate directories by handle and open children
+/// relative to it to resist parent-rename races. Remove links in privileged zones without touching
+/// targets; preserve personal-data links without traversing them. Use SetKernelObjectSecurity to avoid
+/// path-based recursive ACL traversal.
+/// </summary>
 public static class InstallDirectoryLock
 {
     internal static readonly SecurityIdentifier LocalSystem = new(WellKnownSidType.LocalSystemSid, null);

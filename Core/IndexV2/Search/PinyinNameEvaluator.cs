@@ -5,32 +5,18 @@ using Lertaro.PluginSdk.Abstractions.Plugins;
 
 namespace Lertaro.Core.IndexV2.Search;
 
-// Decides one query against one candidate NAME with the WinShun-style live matcher: every plain
-// positive term is tried literally first (the user's own precision) and, when that fails, against a
-// live provider's reading NFA (each character consumes any non-empty prefix of one of its readings;
-// see IAliasLiveMatcherProvider). What matched literally keeps fzf's own score; only what had to be read
-// is scored by the reference's additive table (pinyin -12-if-rare + 26/16/4,
-// whole-name-spelled-out 40, coverage 25*n/len), so the
-// frequency signal reaches the number the scan ranks by while a search no reading was needed for is
-// ranked exactly as it was before matching went live. A term the readings CAN decide is matched literally
-// only as a run, even with fuzzy matching on: letting it scatter across the name's own letters is what
-// made one pinyin query answer differently in the two modes.
+// Matches each positive query term against the name literally, then against live providers' reading
+// NFAs. Each character accepts a non-empty prefix of one reading. Literal hits keep their fzf score;
+// reading hits use the reference table: -12 for rare pinyin, 26/16/4 placement bonuses, 40 for a whole
+// name, and 25*n/len for coverage. Reading-eligible terms require a literal run even in fuzzy mode.
 //
-// The old alias-fallback quality gate is not re-added here. Its span half is vacuous now -- every
-// character of a walk consumes at least one letter, so a matched run is never wider than the word -- and
-// its score half cannot be expressed in this table: a mid-name abbreviation is worth 4 points whether it
-// is 截图's own "jietu" or a coincidence, so any floor above 4 deletes genuine hits. Coincidental reads
-// are demoted instead, by the tier and position keys the windows already rank on.
+// The old alias span/score gate does not apply: reading spans already consume at least one letter per
+// character, and a score floor above 4 would reject valid mid-name abbreviations. Tier and position
+// provide the ranking penalty instead.
 //
-// This replaces FzfPattern.TryMatch as the name tier wherever a live provider is registered: the
-// result is still an FzfPatternResult, so FzfResultRank and every window consume it unchanged. The
-// term/set semantics are preserved exactly -- within a set the first satisfying alternative wins
-// (alias forms after the typed term), an inverse term vetoes by literal presence, an inverse-only
-// set is satisfied by absence, and an AND-first query needs any one of its OR groups.
-//
-// Without any live provider (or when nothing in the pattern is an eligible word) this declines --
-// HasProviders is false and TryScore returns false -- so callers keep their existing name tier and
-// nothing about pure-literal search changes.
+// The result remains FzfPatternResult. Term sets keep the first matching alternative, exclusions
+// veto literal presence, inverse-only sets match absence, and AND-first queries accept any OR group.
+// Without a live provider or eligible term, HasProviders/TryScore decline and callers use literal matching.
 internal sealed class PinyinNameEvaluator
 {
     private static readonly ConditionalWeakTable<FzfPattern, PinyinNameEvaluator> Cache = new();

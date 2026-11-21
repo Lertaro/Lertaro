@@ -3,9 +3,7 @@ using Lertaro.Core;
 
 namespace Lertaro.App.ViewModels.Search;
 
-// Split out solely to keep SearchViewModel under the repository's per-file line limit. This class
-// owns only the final collection reconciliation and its related notifications; query orchestration
-// remains in SearchViewModel.
+// Reconciles the full window's result collection and raises related notifications.
 internal sealed class SearchViewResultRenderer
 {
     private readonly ObservableRangeCollection<AppSearchResult> _filteredResults;

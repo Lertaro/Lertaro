@@ -23,12 +23,8 @@ internal interface INetworkRowItem
 
 internal static class NetworkDriveViewModelHelper
 {
-    // Split out of NetworkDriveSettingsViewModel to keep that file under the line-count limit.
-    // Each of these three category-scoped rebuilds acts only on rows that are already AppliedEnabled (i.e.
-    // actually saved in UserSettings already) -- never on whatever happens to be checked live in the UI.
-    // These used to persist all three categories' live checkbox state before scanning, which meant clicking
-    // "Rebuild" silently applied (and started indexing) a drive/distro/folder someone had just added or
-    // re-checked but never confirmed via the window's own Apply/OK.
+    // Rebuild only AppliedEnabled rows already saved in UserSettings. A rebuild must not commit unsaved
+    // checkbox changes or start indexing a newly staged drive, distro, or folder.
     public static void RebuildDrives(NetworkDriveSettingsViewModel vm, SearchService searchService, Action? onTriggerFastRefresh) =>
         RebuildCategory(vm.CanRebuildDrives, v => vm.CanRebuildDrives = v, v => vm.NetworkIndexSummary = v, searchService, vm.NetworkDrives, d => d.Drive, onTriggerFastRefresh);
 

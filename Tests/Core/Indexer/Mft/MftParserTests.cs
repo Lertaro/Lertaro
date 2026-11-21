@@ -42,8 +42,7 @@ public sealed class MftParserTests
         MftParser.ApplyFixup(buf, 512, 0, buf.Length);
     }
 
-    // The $DATA run-list parsing tests live in MftParserDataRunTests (split out to keep this file
-    // under the repo's per-file line limit).
+    // $DATA run-list parsing tests are in MftParserDataRunTests.
 
     [TestMethod]
     public void ParseAttributeListRecordIndexes_ResidentAttributeList_ExtractsTargetAttributeRecordIndexes()

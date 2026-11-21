@@ -201,24 +201,13 @@ public static class ShellPathHelper
     }
 
     /// <summary>
-    /// Resolves a Windows shell virtual path (e.g. ::{450d8fba-...} or shell:::{...}) as far as the shell
-    /// can: to the physical folder behind it, or to its canonical shell name when it has no physical folder.
-    /// Returns the path unchanged when the shell cannot parse it at all.
-    /// </summary>
-    /// <remarks>
-    /// Two outcomes that used to be one, and the difference is what makes a pathless virtual folder usable.
-    /// <c>shell:AppsFolder</c>, This PC and the Recycle Bin exist only inside the shell namespace: no
-    /// filesystem path describes them, so a caller cannot walk them however it spells the token. What the
-    /// shell CAN say is which item the token names, and <c>::{CLSID}</c> is that answer -- a stable,
-    /// locale-independent spelling every form of the same folder collapses onto (<c>shell:AppsFolder</c>,
-    /// <c>shell:::{4234d49b-...}</c> and <c>::{4234D49B-...}</c> are one string afterwards, which is what
-    /// lets a caller dedupe them or recognise a specific folder). It stays a virtual path, so a caller
-    /// testing <c>IsVirtualShellPath</c> on the result still gets "true" and behaves exactly as before.
+    /// Resolves a Shell path to its physical folder or, for virtual-only folders such as AppsFolder, its
+    /// canonical ::{CLSID} name. Return the original path if Shell parsing fails. Canonical names support
+    /// comparison and deduplication but remain virtual paths.
     ///
-    /// The physical lookup goes through SHGetNameFromIDList rather than SHGetPathFromIDListW: the latter
-    /// fills a caller-supplied buffer, so it was called with a fixed 260-character one and quietly failed
-    /// for anything longer, while this returns a shell-allocated string of the right size.
-    /// </remarks>
+    /// Use SHGetNameFromIDList's allocated string so long physical paths are not limited by a fixed
+    /// MAX_PATH buffer.
+    /// </summary>
     public static string TryResolveVirtualPath(string path)
     {
         if (!IsVirtualShellPath(path)) return path;

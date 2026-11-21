@@ -7,9 +7,7 @@ using Lertaro.PluginSdk.Helpers;
 
 namespace Lertaro.App.ViewModels.Search;
 
-// Split out from QuickSearchViewModel to keep the view model focused on search bindings and under the
-// repository's per-file line limit. This support owns only the transient source loading state for its
-// one QuickSearchViewModel owner.
+// Manages transient launch-source loading for QuickSearchViewModel.
 internal sealed class QuickSearchLaunchSourceSupport
 {
     private readonly Action<string> _notify;

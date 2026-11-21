@@ -9,8 +9,7 @@ using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 
 namespace Lertaro.App.Services.ShellMenu.QuickNav.RightClickActions;
 
-// Keyboard navigation for the quick-nav right-click popup (PluginContextMenuHelper), split out to
-// keep that file under the line-count limit.
+// Handles keyboard navigation in the quick-navigation context popup.
 internal static class PluginContextMenuKeyHandler
 {
     public static void Handle(

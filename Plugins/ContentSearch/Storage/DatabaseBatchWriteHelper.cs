@@ -3,13 +3,8 @@ using Microsoft.Data.Sqlite;
 namespace Lertaro.Plugins.ContentSearch.Storage;
 
 /// <summary>
-/// Writes a processed batch of file rows: resolves duplicates that share a content hash inside
-/// the batch, and isolates the items the database refuses so one unwritable file cannot discard
-/// the healthy files of its batch.
-/// The normal path is untouched: a batch that writes cleanly is still one atomic write. Only a
-/// failed write is retried in halves, until the item at fault stands alone.
-/// Split out of IndexBatchProcessor purely to keep that file under the repository's per-file
-/// line limit; this class has no state of its own, it always operates on the batch it is handed.
+/// Resolves duplicate content hashes and writes the batch atomically. If the write fails, retry halves
+/// until failing items are isolated so healthy rows can still be saved.
 /// </summary>
 public static class DatabaseBatchWriteHelper
 {

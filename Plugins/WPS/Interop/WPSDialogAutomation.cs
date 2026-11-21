@@ -126,23 +126,11 @@ internal static class WPSDialogAutomation
     }
 
     /// <summary>
-    /// Walks down to a widget by its class name without ever entering the file list.
+    /// Finds a widget by class name using a depth-bounded, breadth-first child walk that skips lists.
+    /// WPS's filename controls follow the file list in the automation tree, so a descendants search would
+    /// enumerate every visible file across processes. Class matching tolerates layout changes within the
+    /// depth bound.
     /// </summary>
-    /// <remarks>
-    /// This used to be a plain FindFirst(TreeScope.Descendants, KcfdFilterWidget), which was wrong in a
-    /// way that only shows up on a real dialog: a descendants search is a subtree walk, KcfdFilterWidget
-    /// sits AFTER KcfdContentWidget in the tree, and KcfdContentWidget holds KcfdFileListView -- one node
-    /// per file on screen. Reaching the file-name box therefore meant enumerating the entire directory
-    /// listing across the process boundary, on every attempt of a retry loop. Nothing wanted the file
-    /// list; it was simply in the way.
-    ///
-    /// So: breadth-first by children only, never descending into a List, and depth-capped. The widgets the
-    /// host asks for sit three levels down (dialog -> KcfdAreaSplitter -> KcfdFileDialogContentWidget ->
-    /// KcfdFilterWidget / KcfdContentWidget), and the cap leaves room for that to move without letting a
-    /// wrong turn become an unbounded walk. The class names are still matched rather than the path being
-    /// hard-coded, so a rearranged tree still resolves as long as the widget is somewhere in the first few
-    /// levels.
-    /// </remarks>
     private static AutomationElement? FindWidgetByClassName(AutomationElement dialog, string className, int maxDepth)
     {
         var walker = TreeWalker.RawViewWalker;

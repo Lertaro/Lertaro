@@ -7,8 +7,7 @@ using Lertaro.Core.Services.LocalSend.Models;
 namespace Lertaro.Core.Services.LocalSend;
 
 /// <summary>
-/// Sends the protocol's direct registration response and its multicast fallback.
-/// Split from LocalSendDiscoveryService to keep the discovery implementation under the repository line limit.
+/// Sends direct LocalSend registration responses with a multicast fallback.
 /// </summary>
 internal static class LocalSendAnnouncementResponder
 {

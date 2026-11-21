@@ -5,8 +5,7 @@ using System.Text.Json.Nodes;
 namespace Lertaro.Plugins.FlowLauncherBridge.Engine.SettingsTemplate;
 
 /// <summary>
-/// Helper managing JSON settings persistence and default values for SettingsTemplate panels.
-/// Split out from FlowConfigSchemaBuilder to stay under the line limit.
+/// Persists SettingsTemplate values as JSON and supplies defaults.
 /// </summary>
 public static class FlowSettingsTemplateStorage
 {

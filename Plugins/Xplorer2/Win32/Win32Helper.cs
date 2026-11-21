@@ -1,17 +1,8 @@
 namespace Lertaro.Plugins.Xplorer2.Win32;
 
 /// <summary>
-/// The xplorer2 address-bar protocol: read the active pane's folder, and move it.
-///
-/// xplorer2 publishes no remote-control interface. Its binary contains no WM_COPYDATA handler, no DDE topic
-/// and no IDispatch/OLE object, and its own help says so plainly ("xplorer² doesn't offer a fully scriptable
-/// programming model with file and user interface objects"). Its macro language (COMMAND/FINDWND/SETTEXT)
-/// only runs inside the process. So unlike the XYplorer adapter -- which sends a script over WM_COPYDATA and
-/// gets an answer back -- nothing here is a request/response conversation: it is window reading plus the
-/// command numbers xplorer2 documents for its own keyboard, which an outside process can post.
-///
-/// Split out of one file purely to keep that file under the repo's per-file line limit; the window-structure
-/// primitives it operates on live in WindowProbe, which holds no state of its own.
+/// Reads and navigates xplorer2's active pane through its address bar and documented command IDs. xplorer2
+/// exposes no remote scripting protocol; WindowProbe supplies the window-structure operations.
 /// </summary>
 public static class Win32Helper
 {

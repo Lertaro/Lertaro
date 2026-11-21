@@ -7,8 +7,7 @@ using Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
 namespace Lertaro.Plugins.FlowLauncherBridge.Engine;
 
 /// <summary>
-/// Helper for instantiating Flow.Launcher plugin runtime instances across languages.
-/// Split out from FlowPluginHost to stay strictly under the line limit.
+/// Creates Flow.Launcher plugin runtimes for supported languages.
 /// </summary>
 public static class FlowPluginLoaderHelper
 {

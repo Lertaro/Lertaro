@@ -13,7 +13,7 @@
 
 - [Lertaro.slnx](../Lertaro.slnx) 只包含产品工程；测试入口是 [Tests/Tests.slnx](../Tests/Tests.slnx)。产品构建不会更新测试 DLL，跳过构建前必须确认对应测试产物已更新。
 - 退出码 0 不等于执行了测试。查看发现数、实际用例名与 TRX；空测试工程和未匹配的筛选条件不能算通过。
-- STA 测试不天然共享同一线程，也不天然隔离静态状态。11 月 10 日复核发现 `ExplorerStaInvokerTests` 并行修改共享弃读计数，串行运行才通过；不能用扩大超时掩盖共享状态问题。
+- STA 测试仍需隔离静态状态。`ExplorerStaInvokerTests` 曾并行修改共享弃读计数，改为串行运行才通过；遇到此类失败应检查共享状态，不能只扩大超时。
 - 只需 HWND 的 WPF 验证使用 `EnsureHandle()`，避免可见测试窗口抢前台、影响其他用例。真正的焦点、DPI、宿主交互另做真机验证。
 - 发布流水线目前负责构建与发布，本地仍需完成受影响测试。不要把历史全绿计数当作当前状态，也不要把 NU1900 等审计请求失败写成漏洞检查通过。
 - 行尾由 [.gitattributes](../.gitattributes) 与 [.editorconfig](../.editorconfig) 统一为 LF。格式检查限定改动文件，避免无关重排。

@@ -4,9 +4,8 @@ using System.Security.Principal;
 
 namespace Lertaro.Core.Services.Pipe;
 
-// Split out of UsnServicePipeServer to keep that file under the line-count limit. Public (not internal)
-// so App\Services\Pipe\AppSearchPipeService.cs -- a different assembly -- can reuse CreateCurrentUserOnly
-// too, for the same elevation-crossing reason HookIpcServer needed it (see that method's own comment).
+// Builds pipe ACLs shared by Core and App. CreateCurrentUserOnly supports same-user connections across
+// elevation levels.
 public static class PipeSecurityFactory
 {
     // LertaroPipe's own pipe (UsnServicePipeServer): deliberately broad. That pipe is hosted by the
@@ -74,28 +73,12 @@ public static class PipeSecurityFactory
         }
     }
 
-    // For pipes that need to cross an elevation boundary for the SAME logged-in user -- originally the
-    // Hook process's two pipes (HookIpcServer: server runs elevated, client is the App at standard
-    // integrity), and also AppSearchPipeService's search pipe (server is the App at standard integrity,
-    // but a client run from an elevated/"Run as administrator" terminal needs to reach it too). Scopes
-    // the ACL to just the actual user's own SID, not every authenticated user on the machine.
+    // Allow this logged-in user's SID to cross elevation boundaries on Hook and App search pipes.
+    // Use WindowsIdentity.User for the ACL; elevation changes integrity and groups, not that SID.
     //
-    // NamedPipeServerStreamAcl.Create with THIS ACL -- not the simpler PipeOptions.CurrentUserOnly flag on
-    // both ends -- is required specifically because of a subtlety in what "current user" means for a
-    // Windows token: WindowsIdentity.GetCurrent().User (used below) always reflects the actual logged-in
-    // user's SID regardless of elevation -- UAC's split-token model changes a token's integrity level and
-    // group memberships, not the identity it represents. But .NET's own PipeOptions.CurrentUserOnly
-    // doesn't check that; it compares against WindowsIdentity.GetCurrent().Owner, and for a user who's a
-    // member of Administrators, Windows sets the TOKEN OWNER to BUILTIN\Administrators on BOTH the
-    // filtered and elevated tokens -- NOT the user's own SID. A non-elevated server created with
-    // PipeOptions.CurrentUserOnly is fine for a non-elevated client (same Owner), but an elevated client
-    // (e.g. `lff` run from an admin terminal) trips the CLIENT-side CurrentUserOnly check against a
-    // server whose owner doesn't match either, throwing UnauthorizedAccessException ("was not owned by
-    // the current user") even though the SID-based ACL below would happily have allowed it. This is why
-    // BOTH the server (this ACL) and the client (a plain NamedPipeClientStream with no
-    // PipeOptions.CurrentUserOnly of its own) need to avoid that flag entirely and let the ACL alone be
-    // the enforcement (the pipe NAME can still embed the user+session for obscurity, but that's not an
-    // OS-enforced boundary on its own).
+    // Do not use PipeOptions.CurrentUserOnly on either end: its owner check uses WindowsIdentity.Owner,
+    // which can be BUILTIN\Administrators rather than the user's SID and reject a permitted connection.
+    // The SID ACL enforces access. User/session components in the pipe name are not an access boundary.
     public static PipeSecurity? CreateCurrentUserOnly()
     {
         try

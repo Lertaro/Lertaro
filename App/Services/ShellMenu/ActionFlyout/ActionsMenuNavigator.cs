@@ -4,8 +4,7 @@ using Lertaro.App.Helpers;
 
 namespace Lertaro.App.Services.ShellMenu.ActionFlyout;
 
-// Owns the shell-menu navigation stack (drilling into/out of submenus) for ShellMenuPresenter --
-// split out purely to keep that file under the file-length limit.
+// Maintains ShellMenuPresenter's submenu navigation stack.
 internal sealed class ActionsMenuNavigator
 {
     private readonly ISearchWindow _view;

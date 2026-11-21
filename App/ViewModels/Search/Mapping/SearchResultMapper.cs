@@ -220,14 +220,9 @@ public static class SearchResultMapper
 
         var historyUsage = RecentUsage();
 
-        // Quick-window-only: the user-orderable result-type order (RankedCandidate.TypeRank) is a
-        // section-local group inside RankPolicy.BuildKey/RankKeyComparer, not a group above the sections
-        // or above the evidence grade. Pinned, Boosted and Low compare it after grade, priority, history
-        // band and match placement (contiguity, shape, start) have tied, but before coverage, and only
-        // between the four built-in buckets. Every file-backed row (index files,
-        // favorites, history, Windows' Recent) starts on FilesTypeRank; a directory then moves to the
-        // Folders rank and a shortcut borrows the better of the Files and application ranks (below). The
-        // inline window never consults the list at all.
+        // Quick Search uses type order after match placement and before coverage. Files, favorites,
+        // history, and Windows Recent share this mapping; directories use Folders and shortcuts
+        // borrow the better of Files and Applications. Inline Search has no configured type order.
         var typeOrder = isInlineWindow ? new List<string>() : UserSettings.Load().ResultTypeOrder;
         var typeRanks = SearchResultTypePriority.BuildRanks(typeOrder);
         var filesTypeRank = SearchResultTypePriority.Rank(SearchResultTypePriority.FilesTypeId, typeRanks);
@@ -271,10 +266,8 @@ public static class SearchResultMapper
             }
         }
 
-        // Favorites, history-matched files, searchable items (apps/settings), and remaining file
-        // results all compete on ONE list: section first, then that section's key chain (evidence grade,
-        // preference/type/favorite/priority/history band, quality, common tail). A better evidence grade
-        // never loses to a type order; history only tie-breaks inside the same section and grade.
+        // Merge all file-backed sources before ranking by section and effective evidence grade.
+        // History affects order within a grade; GradeForRanking applies the file/directory caps.
         var candidates = new List<RankedCandidate>();
         var shadowAliasCandidates = rankingTrace != null
             ? new List<RankedCandidate>()

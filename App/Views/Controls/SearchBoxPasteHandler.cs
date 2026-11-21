@@ -5,8 +5,7 @@ using TextBox = System.Windows.Controls.TextBox;
 
 namespace Lertaro.App.Views.Controls;
 
-// Split out to keep the shared SearchBoxControl under the repository's per-file line limit. This
-// handler owns only the WPF event plumbing; SearchTextPasteFormatter owns the shared text rules.
+// Handles SearchBoxControl paste events; SearchTextPasteFormatter supplies the text rules.
 internal static class SearchBoxPasteHandler
 {
     internal static void Handle(object sender, DataObjectPastingEventArgs e)

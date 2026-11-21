@@ -3,9 +3,7 @@ using Lertaro.Core;
 
 namespace Lertaro.App.ViewModels.QuickPanel;
 
-// What a refresh actually loads. Split out of QuickPanelViewModel.cs purely to keep that file under the
-// repo's per-file line limit; it has no state of its own and only ever operates on the one view model it
-// is part of.
+// Loads sources during a quick-panel refresh.
 public partial class QuickPanelViewModel
 {
     private static readonly TimeSpan PreferredTabExclusiveLoadWindow = TimeSpan.FromMilliseconds(200);

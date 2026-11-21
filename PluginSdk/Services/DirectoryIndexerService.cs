@@ -144,27 +144,17 @@ public static class DirectoryIndexerService
     }
 
     /// <summary>
-    /// Lists a directory's contents from the host's file index instead of the filesystem: for a local
-    /// drive the host indexes (the usual case) this costs no disk I/O at all, which is the whole point
-    /// of preferring it over <c>Directory.EnumerateFileSystemEntries</c>. There is deliberately NO
-    /// live filesystem fallback here: a directory no index covers (an unconfigured network share, a
-    /// folder on a drive indexing is disabled for) yields an empty sequence, so callers must keep
-    /// their directories index-covered. The search path -- not this enumeration -- is where live
-    /// scanning of uncovered locations exists.
+    /// Streams directory contents from the host index. Unindexed locations return no entries; there is
+    /// no filesystem fallback. Indexed local drives require no disk I/O for this enumeration.
     /// <para>
-    /// Results stream as they are produced. <paramref name="filterPattern"/> is a FILE pattern -- one
-    /// or more Win32 wildcards separated by ';' or ',' (e.g. <c>"*.exe;*.lnk"</c>, default <c>"*"</c>)
-    /// -- so directories are always returned whatever it says (drop them with
-    /// <see cref="Abstractions.ISearchResult.IsDir"/> if unwanted), and
-    /// <paramref name="recursive"/> descends regardless of what it selects. Hidden and system
-    /// entries are never returned (the same always-on filter the host applies to every search result),
-    /// though a hidden directory is still descended into -- only the entry's own attributes count. The
-    /// user's exclusion settings are not applied, since the caller named one exact directory to look at.
+    /// <paramref name="filterPattern"/> accepts Win32 file wildcards separated by ';' or ',' (default "*").
+    /// Directories are always included and <paramref name="recursive"/> descends regardless of the pattern.
+    /// Hidden/system entries are omitted, but hidden directories are still traversed. User exclusion rules
+    /// do not apply to this explicit directory request.
     /// </para>
     /// <para>
-    /// <paramref name="limit"/> caps how many entries are returned (0 = no cap). Worth setting for a
-    /// recursive listing of a large tree: <c>EnumerateDirectoryAsync(@"C:\", recursive: true)</c> is a
-    /// legitimate request for every single entry on the volume, and it will deliver exactly that.
+    /// <paramref name="limit"/> caps returned entries; 0 means unlimited. Set a limit when recursively
+    /// enumerating large trees.
     /// </para>
     /// </summary>
     public static IAsyncEnumerable<Abstractions.ISearchResult> EnumerateDirectoryAsync(string directoryPath, bool recursive = false, string filterPattern = "*", int limit = 0, CancellationToken token = default)

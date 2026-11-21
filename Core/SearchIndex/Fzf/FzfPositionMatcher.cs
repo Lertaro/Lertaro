@@ -1,10 +1,7 @@
 namespace Lertaro.Core.SearchIndex.Fzf;
 
-// Position-tracking twin of FzfFuzzyMatcher's FuzzyMatchV2/V1 -- split into its own file purely to
-// keep FzfFuzzyMatcher.cs under the repo's per-file line limit. Never called from the hot per-candidate
-// scan (SearchMatcher/PathGate use FzfFuzzyMatcher.FuzzyMatchV2 directly) -- only HighlightMask's
-// bounded weight refinement and on-screen highlighting call this, so this extra backtrace cost never
-// touches the scan itself.
+// Recovers fuzzy-match positions for bounded score refinement and visible highlights. Hot candidate scans
+// call FzfFuzzyMatcher directly and avoid traceback.
 internal static class FzfPositionMatcher
 {
     // Ranking/highlight-only twin of FuzzyMatchV2: same DP, but additionally recovers every matched

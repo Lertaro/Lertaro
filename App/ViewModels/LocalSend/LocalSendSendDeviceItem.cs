@@ -6,8 +6,7 @@ using Lertaro.Core.Services.LocalSend.Models;
 namespace Lertaro.App.ViewModels.LocalSend;
 
 /// <summary>
-/// Wrapper for discovered LocalSend device with per-device PIN input.
-/// ponytail: Split out to keep LocalSendSendViewModel.cs under 300 lines limit.
+/// A discovered LocalSend device with its PIN input state.
 /// </summary>
 public sealed class LocalSendSendDeviceItem : INotifyPropertyChanged
 {

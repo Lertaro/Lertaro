@@ -4,34 +4,16 @@ using Lertaro.Cli.Ui;
 using Lertaro.Core.Services.Installation;
 using System.Text;
 
-// An fzf-style CLI: instead of replicating the App's own search initialization (plugin loading,
-// UserNetworkDriveSearch.Configure()), this connects to a pipe the App itself hosts
-// (AppSearchPipeService, App\Services\Pipe\AppSearchPipeService.cs) and asks the already-running,
-// already-initialized App to do the search. Type to fuzzy-filter, Up/Down or PageUp/PageDown to scroll,
-// Tab to multi-select, Enter prints the selected path(s) to stdout and exits. No preview pane --
-// deliberately out of scope. Requires the real Lertaro App to be running.
+// Interactive file search through the running App's search pipe (AppSearchPipeService).
+// Type to search; use arrows or PageUp/PageDown to navigate, Tab to select multiple rows,
+// and Enter to print the selected paths to stdout and exit.
 //
-// The pieces are split out by concern (see their own file-header comments for the reasoning behind
-// each): Terminal (Cli\Terminal\Terminal.cs) owns the raw CONOUT$/CONIN$ console I/O, AppSearchPipeClient
-// (Cli\Search\AppSearchPipeClient.cs) owns the wire protocol to the App, SearchSession
-// (Cli\Search\SearchSession.cs) owns the query/results/selection state and debounced search triggering,
-// and Renderer (Cli\Ui\Renderer.cs) draws SearchSession's state onto a Terminal. This file just wires
-// them together and runs the key-handling loop.
+// Terminal handles console I/O, AppSearchPipeClient handles the protocol, SearchSession owns search
+// and selection state, and Renderer draws that state. This entry point runs the input loop.
 //
-// Two fzf-shaped entry points, both resolved before the interactive loop starts, and both doing the SAME
-// thing -- pre-filling the query box, nothing more:
-//  - args[0], if present, becomes the initial query (`lff report` opens already filtered to "report").
-//  - Otherwise, if stdin is redirected (`echo report | lff`), its first non-empty line becomes the
-//    initial query instead. This is NOT a candidate list to filter over locally -- it's still a normal
-//    App-pipe filesystem search, just with the keyword supplied a different way. args[0] wins if both
-//    are given.
-// Either way, this only ever pre-fills the query and fires the same search a keystroke would -- it never
-// auto-selects or auto-prints a result. The user still navigates and presses Enter/Tab themselves, exactly
-// as if they'd typed the query by hand.
-//
-// Getting onto PATH at all is the installer's job (Installer\installer.iss's "addtopath" task adds {app}
-// -- where this exe already sits alongside Lertaro.App.exe -- straight to the machine's PATH), not this
-// program's own -- there's no install/uninstall command here.
+// args[0] supplies the initial query. Otherwise, redirected stdin supplies its first non-empty line.
+// Stdin is query text, not a candidate list. Both inputs start an ordinary App search; selection and
+// printing still require user input. The installer adds the executable's directory to PATH.
 
 if (SpaceEntriesCommand.IsRequested(args))
 {

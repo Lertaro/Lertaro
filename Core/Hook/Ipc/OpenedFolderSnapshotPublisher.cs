@@ -17,28 +17,13 @@ internal sealed class OpenedFolderSnapshotPublisher
     });
 
     /// <summary>
-    /// The snapshot's paths, most recently activated window first.
+    /// Orders snapshot paths by desktop window Z order, retaining each window's collector order through a
+    /// stable sort. Unknown handles stay at the end in their original order.
+    ///
+    /// ponytail: Z order approximates activation history; topmost or recently minimized windows can be
+    /// misplaced. A tracker-maintained activation list would improve this but covers only windows seen
+    /// since Hook startup.
     /// </summary>
-    /// <remarks>
-    /// The order used to be the collectors' own: the registry concatenates them in DLL-name order, so a row's
-    /// position said which plugin produced it and nothing about the user's windows. Inline search numbers the
-    /// opened folders with Ctrl+1..9 (and the cascader lists them in this order), so with two file managers open
-    /// the numbering pointed at whichever one a plugin happened to answer first -- the complaint PR #352
-    /// brought -- while every collector but Explorer already enumerates its own windows in Z order.
-    ///
-    /// OrderBy is stable, deliberately: one window contributes several entries (Directory Opus lists its active
-    /// tab first, then the other panels) and they share a handle, so their relative order has to survive.
-    /// Sorting by NAME is what once dropped Opus's active tab into the middle of the list -- see
-    /// FolderCascader's MenuBuilderContentExtensions.
-    ///
-    /// Handles the desktop no longer has -- another virtual desktop, a window closed since the collector ran --
-    /// keep their relative order at the end rather than being dropped: those are still folders the user has open.
-    ///
-    /// ponytail: Z order is a proxy, not evidence. It is wrong for a topmost (always-on-top) file manager and
-    /// for one that was just minimised, which costs a position at the top of the list rather than a wrong
-    /// folder. The direct evidence -- the order windows were actually activated in -- is the tracker's provider
-    /// list, which only covers windows activated since this Hook started.
-    /// </remarks>
     internal static List<string> OrderByWindowRank(IEnumerable<OpenedFolder> folders, Func<IntPtr, int> rankOf) =>
         folders.Where(folder => !string.IsNullOrWhiteSpace(folder.Path))
             .OrderBy(folder => rankOf(folder.WindowHandle))

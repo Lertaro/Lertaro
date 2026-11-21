@@ -1,27 +1,13 @@
 namespace Lertaro.Core.Hook;
 
-/// <summary>
-/// Decides whether the poller may ask a host application for its current path right now: somebody has to
-/// be waiting for it, and the same window cannot be asked twice in quick succession.
-/// </summary>
+/// <summary>Allows current-path reads only on demand and at a bounded frequency per window.</summary>
 /// <remarks>
-/// Both halves exist because of one measured symptom: XYplorer's file info tip could not stay visible while
-/// the XYplorer plugin was enabled. Its tip is a plain tooltips_class32 of XYplorer's own process, and every
-/// attempt lived 171-235ms -- the poller's own settle period. The read is the cause, not the event: for a
-/// host whose path is read through a script API (XYplorer answers <c>&lt;curpath&gt;</c> over a WM_COPYDATA
-/// round trip ON ITS OWN UI THREAD), the read cancels the transient UI the read was asked about. Proof by
-/// subtraction: with no adapter or collector claiming the window -- so nothing reading it at all -- the tip
-/// behaves normally.
+/// XYplorer handles its WM_COPYDATA path query on its UI thread, cancelling transient tooltips.
+/// Observed tooltip lifetimes of 171–235 ms matched the poller's settle period. Throttling alone still
+/// interrupted tips, so pointer-driven name/focus events must not trigger reads.
 ///
-/// Frequency alone did not fix it: spacing reads to one per interval merely changed which tips died (the
-/// reported symptom became alternating, one short one long), because pointer movement inside the host keeps
-/// asking. So asking is now gated on demand. Pointer movement is never demand: a file manager's panes and
-/// status bar raise name-change and focus events continuously while the mouse moves, and those events are
-/// indistinguishable from the ones a real folder change raises -- that is how a folder change reports.
-///
-/// Demand has three sources: a real foreground change (the user moved between windows, and the inline card
-/// needs this window's folder the moment it opens), a keystroke that may summon the card, and the card being
-/// on screen (its scope and dock still have to follow the host while it is up).
+/// Read on a foreground change, a keystroke that may summon the card, or while the card is visible
+/// and needs to track its host's folder and docking position.
 /// </remarks>
 internal sealed class ExplorerHostReadFloor
 {

@@ -22,26 +22,14 @@ internal enum SnapshotSection
 internal static class SnapshotFormat
 {
     public const ulong Magic = 0x0000005844494C53; // "SLIDX\0\0\0" little-endian
-    // Bumped 9 -> 10: recursive logical sizes support instant, index-only space analysis.
-    // Bumped 10 -> 11: alias entries carry a kind column (alias string vs reading grid). A v10 file has
-    // no room to say which shape each payload is, and the two are not interchangeable -- one is text to
-    // match, the other was a per-name reading grid's encoding -- so the old files are rejected at open
-    // and rebuilt rather than guessed at.
-    // Bumped 11 -> 12: the AliasReadings section held one snapshot's reading vocabulary, which that
-    // version's grids referenced by id instead of spelling every reading out. A v11 file's payloads were
-    // self-describing text, so a table-backed decoder had nothing to resolve and vice versa.
-    // Bumped 12 -> 13: readings are decided per query by the provider itself, so nothing bakes a grid any
-    // more. Two columns existed only to interpret grid payloads -- AliasEntryKinds (which of the two
-    // shapes an entry was) and AliasReadings (the vocabulary they referenced by id) -- and they go with
-    // them, along with the header's AliasReadingsLength. Nothing reads or writes either, and a v12 file
-    // is not decoded by this build at all: a stale snapshot is caught at open, logged, and the drive is
-    // rebuilt from scratch (see UsnIndexerCacheExtensions), which is the cheaper of the two options --
-    // keeping a column whose only consumer was deleted means a layout bug stays invisible until it
-    // silently misreads a user's index.
-    // Bumped 13 -> 14: UniqueMasks now also carry the folded (full-width -> half-width, NFC) spelling of
-    // each name, so a half-width query can pass the prefilter for a full-width name. A v13 mask only
-    // admitted the raw characters; without a rebuild those names would be rejected before the folded
-    // matcher ran. Old snapshots are rejected at open and rebuilt by the existing stale-snapshot path.
+    // Snapshot changes requiring a rebuild:
+    // 10: recursive logical sizes for index-only space analysis.
+    // 11: alias kind distinguishes strings from reading grids.
+    // 12: grids reference a shared reading vocabulary by ID.
+    // 13: live provider matching replaces stored grids; remove AliasEntryKinds, AliasReadings,
+    //     and AliasReadingsLength.
+    // 14: UniqueMasks include width-folded, NFC-normalized names so the prefilter admits equivalent queries.
+    // Older formats are rejected at open and rebuilt through UsnIndexerCacheExtensions.
     public const int Version = 14;
     public const int SectionAlignment = 16;
 

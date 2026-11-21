@@ -1,8 +1,7 @@
 namespace Lertaro.Core.Services.LocalSend;
 
 /// <summary>
-/// Stream wrapper that limits reads to a specified length to prevent over-reading network streams.
-/// ponytail: Split out purely to keep LocalSendServerHandler.cs under the repo's 300-line limit.
+/// Limits stream reads to the declared length to prevent consuming the next network message.
 /// </summary>
 public sealed class LengthLimitedStream : Stream
 {

@@ -4,11 +4,8 @@ using System.Text;
 using Lertaro.PluginSdk.Abstractions;
 namespace Lertaro.Core.Wire;
 
-// The payload inside one result frame: how a SearchResult's fields are laid out and read back.
-// Split out of SearchResponseBinarySerializer purely to keep that file under the repo's per-file line
-// limit; it holds no state and owns none of the framing (magic, frame byte, length, stream loop),
-// which stays with the serializer. Field ORDER here is the wire contract -- changing it, or the size
-// of any field, is a SearchResponseBinarySerializer.Version bump.
+// Encodes one SearchResult payload; SearchResponseBinarySerializer owns framing. Field order and sizes
+// are part of the wire contract and require a serializer version bump when changed.
 internal static class SearchResultFrameCodec
 {
     // Upper bound for renting a buffer: the three strings plus fixed-width fields and their length

@@ -18,25 +18,17 @@ Turn this off under **Settings → General → System → Enable fuzzy matching*
 
 ### How results are ranked
 
-Results are ordered first by **how** your text sits in the name, and only then by where it starts:
+Results are ordered by pinned status, match strength, and then preferences within that strength:
 
-1. **Whole word**: `atlas` finds `atlas`, `code-atlas`, `atlas.png` and `CodeAtlas`. A word starts at the beginning of the name, after a space, `-`, `_`, `.` or a path separator, at a lowercase-to-capital step, and where letters meet digits.
-2. **Start of a word**: `atlasing`.
-3. **Inside a word**: `metatlas.txt`.
-4. **Scattered letters**: fuzzy matches such as `AutofillStates` (**A**u**t**ofil**l**St**a**te**s**) always come last.
+1. Rules marked **High + Always on Top** come first, followed by favorites with strong name matches.
+2. Ordinary results prefer complete names (ignoring a file extension), then strong name matches, scattered fuzzy matches, and secondary fields such as shortcut targets.
+3. Low-priority results follow ordinary results. Items recalled only through a learned query association come last.
 
-Within each group:
+Within an ordinary match grade, priority and eligible usage history are compared before match placement. Placement favors contiguous terms, whole words, word starts, and earlier positions. Quick Search then compares the configured type order, followed by name coverage and reading type. A whole-word match such as `code-atlas` therefore has better placement than `atlasing`, followed by `metatlas.txt` and scattered letters.
 
-- Something created or changed **recently** comes first, in bands: today, the past week, the past month, then older. The later of the created and modified dates counts, so a file you have just copied or downloaded counts as new.
-- Then the **shallower path**: `D:\dev\code-atlas` comes before the same word ten folders down inside a game or package folder.
-- Then a match starting further left, then a tighter, fuller match.
+Quick Search has one exception to complete-name priority: when Applications or System Settings precede Files or Folders, exact names in those lower buckets compete as strong matches. For example, repeated launches can move a long shortcut containing `ocr` ahead of `ocr.docx` under that configuration. With Files first, or in the Full Window, `ocr.docx` keeps its complete-name advantage. See [History](./settings/history) for usage thresholds.
 
-When everything else is equal, a file is listed before a folder (the Inline window's current-folder listing keeps folders first, like Explorer). With several terms, the weakest term decides the group.
-
-Across all search windows, explicit pins and monotonic match grades keep ordering predictable:
-
-1. **Explicit pins first**: rules marked **High + Always on Top** and clean matches in **Favorites** stay pinned at the top, while system/cache **Low** rules stay demoted below normal results.
-2. **Direct matches before aliases & history recall**: exact and clean direct title/filename matches always rank ahead of approximate fuzzy matches, clean secondary aliases (such as shortcut targets or product metadata, shown with an `Alias:` / `Target:` subtitle), and confirmed **Query Associations** (which refine within equal match grades or supplement after direct matches).
+The inline window groups current-folder results separately; their order is described below. Explicit column or query-token sorting applies the selected order.
 
 ### Case Insensitivity
 
@@ -48,7 +40,7 @@ There is no case-sensitive mode: typing a capital no longer narrows a term to ex
 
 Chinese names are searchable by pinyin, in two forms: the **initials** (one letter per character — `ex` for 恶性) and the **full reading** (every syllable spelled out — `zhengshu` for 证书).
 
-**Ranking:** a pinyin match counts as a *start of a word* match (see "How results are ranked" above), so it sits below an English whole-word match and above an English match from the middle of a word. Within the same group the order is recency > path depth > match position > coverage > English > initials > full pinyin, so English/initials/full pinyin only separate results that already agree on everything else. A partial last syllable still matches, so `zhengsh` keeps finding 证书 while you are still typing.
+Pinyin hits usually have word-start placement. A complete initials or full-pinyin spelling of the whole name can qualify as a complete-name match. Otherwise, literal text, initials, and full pinyin break ties after the other ranking fields. An incomplete last syllable is allowed: `zhengsh` can still find “证书”.
 
 **With fuzzy matching off**, pinyin matches must line up with word starts. `ex` finds 恶性 (initials of two characters) but not 学习 (which would have to splice the end of `xue` onto the start of `xi`). With fuzzy matching on, that loose reading is what you asked for and remains available.
 

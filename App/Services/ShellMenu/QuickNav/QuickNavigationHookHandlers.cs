@@ -7,9 +7,8 @@ using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
 
 namespace Lertaro.App.Services.ShellMenu.QuickNav;
 
-// Split out from App.xaml.cs to keep that file under the repo's per-file line limit. These handlers
-// move the Quick Navigation gate evaluation off the hook-event thread onto ShellThread (STA), then
-// marshal only the resulting "show menu" call back to the WPF Dispatcher.
+// Evaluates Quick Navigation eligibility on ShellThread (STA), then dispatches menu display to the WPF UI
+// thread.
 internal static class QuickNavigationHookHandlers
 {
     private static int _triggerGeneration;

@@ -6,12 +6,8 @@ using Lertaro.Core.Wire;
 
 namespace Lertaro.Core.Services;
 
-// Serves one SubscribeDirectoryChanges connection: holds that client's watch list, matches every
-// applied change batch against it here rather than sending the batches out to be sifted, and writes
-// only when one of the watched directories was actually touched.
-//
-// Its own file rather than another method on UsnServicePipeServer, to keep that one under the project's
-// line limit.
+// Serves one directory-change subscription, matching change batches against its watch list and writing
+// only when a watched directory is affected.
 internal static class DirectoryChangeSubscription
 {
     public static async Task ServeAsync(NamedPipeServerStream pipe, SearchEngine? engine, IReadOnlyList<string>? watched,

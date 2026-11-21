@@ -14,16 +14,9 @@ namespace Lertaro.Plugins.DirectoryOpus;
 internal readonly record struct DopusTab(IntPtr Lister, int Side, string Path, bool IsActive);
 
 /// <summary>
-/// The shape of the answer to <c>dopusrt.exe /info &lt;file&gt;,paths</c> -- the folder in each
-/// <c>&lt;path&gt;</c> element's own text, and the grouping in its attributes (<c>lister</c>,
-/// <c>side</c>, <c>active_tab</c>) -- turned into the tab list and the opened-folder order the rest of
-/// the plugin consumes.
+/// Parses dopusrt /info paths XML into tabs and opened-folder order. Path element text supplies the
+/// folder; lister, side, and active_tab attributes supply grouping.
 /// </summary>
-/// <remarks>
-/// Split out of <see cref="DopusRtPathQuery"/> purely to keep that file under the repo's per-file line
-/// limit; nothing here starts a process, reads a file or touches a window, which is also what lets the
-/// attribute handling and the ordering be pinned by tests instead of by a live Opus installation.
-/// </remarks>
 internal static class DopusPathsXml
 {
     /// <summary>

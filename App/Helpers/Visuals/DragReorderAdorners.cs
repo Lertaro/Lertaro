@@ -9,10 +9,7 @@ using Size = System.Windows.Size;
 
 namespace Lertaro.App.Helpers.Visuals;
 
-// The two adorners a DragReorder drag paints: the floating snapshot of the row being carried, and the
-// line showing where it would land. Split out of DragReorder.cs purely to keep that file under the
-// repo's per-file line limit; neither has any state beyond what the drag hands it, and nothing outside
-// that one drag ever constructs either.
+// Draws the dragged row snapshot and insertion marker for DragReorder.
 
 // A VisualBrush snapshot of the dragged row, hosted in a real Border child (not just painted in
 // OnRender) specifically so it can carry a genuine DropShadowEffect -- Adorner.OnRender's

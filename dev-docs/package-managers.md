@@ -6,7 +6,7 @@
 
 ## WinGet
 
-提交目录是 [packaging/winget/manifests/l/Lertaro/Lertaro/5.13.5](../packaging/winget/manifests/l/Lertaro/Lertaro/5.13.5)，采用上游当前的 `1.28.0` schema。`InstallerType: inno` 使用 WinGet 的 Inno 静默参数，额外选择开始菜单与 `lff` PATH 任务。固定 AppId 让 WinGet 关联手工安装和后续升级，依赖声明使用 `.NET 10 Desktop Runtime`，安装器自身也能补装运行时。
+提交目录是 [packaging/winget/manifests/l/Lertaro/Lertaro/5.13.5](../packaging/winget/manifests/l/Lertaro/Lertaro/5.13.5)，采用 `1.28.0` schema。`InstallerType: inno` 使用 WinGet 的 Inno 静默参数，额外选择开始菜单与 `lff` PATH 任务。固定 AppId 让 WinGet 关联手工安装和后续升级，依赖声明使用 `.NET 10 Desktop Runtime`，安装器自身也能补装运行时。
 
 本地校验：
 

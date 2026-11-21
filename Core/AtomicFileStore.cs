@@ -1,9 +1,8 @@
 namespace Lertaro.Core;
 
 /// <summary>
-/// Shared durable-write path for every store that keeps user data (one write discipline across the
-/// settings, backup, history, plugin-settings, migration and portable-lock call sites). Extracted for
-/// that reuse, not for any line limit; owns no state.
+/// Provides durable writes for settings, backups, history, plugin settings, migrations, and portable
+/// locks.
 /// </summary>
 public static class AtomicFileStore
 {

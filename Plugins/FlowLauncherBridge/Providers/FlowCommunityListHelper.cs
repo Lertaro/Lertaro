@@ -6,8 +6,7 @@ using Lertaro.Plugins.FlowLauncherBridge.Engine.Community;
 namespace Lertaro.Plugins.FlowLauncherBridge.Providers;
 
 /// <summary>
-/// Handles querying, filtering, and displaying community plugins from the online manifest.
-/// Split out from FlowInstantResultProvider to keep files modular and under line limits.
+/// Queries, filters, and displays community plugins from the online manifest.
 /// </summary>
 public static class FlowCommunityListHelper
 {

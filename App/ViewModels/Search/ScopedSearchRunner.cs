@@ -6,8 +6,7 @@ using Lertaro.PluginSdk.Helpers;
 
 namespace Lertaro.App.ViewModels.Search;
 
-// Keeps the per-folder search fan-out out of SearchStreamRenderer so each file stays below the
-// repository's line limit. The runner owns only orchestration; SearchService still owns all index work.
+// Coordinates searches across scoped folders. SearchService owns index operations.
 internal static class ScopedSearchRunner
 {
     public const string ShortcutSupplementFilter = "*.lnk;*.url";

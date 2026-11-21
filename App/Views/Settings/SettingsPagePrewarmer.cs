@@ -4,11 +4,8 @@ using System.Windows.Threading;
 
 namespace Lertaro.App.Views.Settings;
 
-// Prewarms the Settings window's not-yet-visited pages, one at a time, while the UI thread is idle.
-//
-// Split out purely to keep SettingsWindow under the repo's per-file line limit. It always operates on the
-// window it is handed (reading its sidebar and calling its GetSectionPage), so the window keeps ownership of
-// which page is which.
+// Prewarms unvisited Settings pages one at a time while the UI thread is idle. The owning window supplies
+// its sidebar and GetSectionPage mapping.
 internal sealed class SettingsPagePrewarmer
 {
     // By far the heaviest page: it reflects over every loaded plugin assembly. Built last so the cheap tabs

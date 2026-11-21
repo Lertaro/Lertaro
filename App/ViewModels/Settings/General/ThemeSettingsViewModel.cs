@@ -6,9 +6,10 @@ using Lertaro.Core;
 using Lertaro.App.Services.Theme;
 namespace Lertaro.App.ViewModels.Settings.General;
 
-/// <summary>Theme selection, including the optional "follow system light/dark" mode. Split out of
-/// GeneralSettingsViewModel to keep that file under the project's line limit. Every change here
-/// applies live (no Apply()/staging), matching how the manual theme pick has always worked.</summary>
+/// <summary>
+/// Applies theme selection live, including the optional system light/dark mode. Theme changes do not wait
+/// for Apply.
+/// </summary>
 public class ThemeSettingsViewModel : ViewModelBase
 {
     private readonly System.ComponentModel.PropertyChangedEventHandler _translationHandler;

@@ -1,35 +1,14 @@
 namespace Lertaro.Core.SearchIndex.Fzf;
 
-// How a query term is read against a TRANSLITERATION -- an alias provider's pinyin, or whatever a
-// non-pinyin provider emits -- as opposed to against the candidate's own text. Kept apart from
-// FzfPattern.cs (composition, not a partial class) for the same reason FzfPatternExclusionExtensions and
-// FzfPatternAliasMatchExtensions are: that file's per-file line budget.
+// Matches a term against a transliteration, trying a contiguous run before a subsequence.
+// For example, "jt" can occur as a run in an initials alias, while "gxiao" can combine 高's initial
+// with 效's full reading. Plain positive Exact/Fuzzy terms allow both readings in either fuzzy mode.
 //
-// A transliteration is a SPELLING of the candidate, not the text the user typed, and the two readings a
-// term can take there are not interchangeable:
+// Contiguous matching must run first: a scattered match may fail the quality gate even when a valid
+// tight run exists. Both readings must begin at a syllable boundary.
 //
-//   * contiguous -- "jt" inside 出版集团's initials alias "cbcbjt". Tight, and the only reading an
-//     operator (`^`, `$`, `=`, `'x'`) can mean.
-//   * subsequence -- "gxiao", 高's INITIAL followed by 效's WHOLE reading. No alias of that name can ever
-//     contain it as an unbroken run, so an abbreviation that straddles syllables needs the loose reading;
-//     taking it away with the fuzzy setting is what left such a query unable to reach its own file at all
-//     (measured: 0.3% of these reached their name in exact mode against 76% in fuzzy mode).
-//
-// So the alias tiers read every positive Exact/Fuzzy term of a transliteration BOTH ways, CONTIGUOUS FIRST: a term that is a
-// real run is still explained by that run (with its own score, span and tier), and the loose reading only
-// decides terms no run can. The order is load-bearing, not cosmetic -- the other way round, the loose
-// reading of "jt" matches wide across a 188-character alias, the quality gate rejects that match, and the
-// tight "jt" run is never examined at all.
-//
-// What deliberately does NOT get a second reading: an exclusion (`!term` is only ever compared against
-// the candidate's own name), an operator kind (it says exactly what it means), a provider's query form (it
-// is already a rewrite of the typed term, whose own second reading supplies the loose one), and an alias
-// that is the candidate's text rewritten rather than a spelling of it (see the overload of ReadingFor that
-// takes the alias).
-//
-// The syllable-alignment rule applies to this view like any other (FzfPattern.RequiresAlignedAliases is
-// unconditional now): a match may not BEGIN inside one of the candidate's readings, in either mode. The
-// readings above are about how much of a spelling a term may consume, not about where it may start.
+// Exclusions only check the original name. Explicit operators (^, $, =, 'x'), provider query forms,
+// and text-rewrite aliases keep their own matching rules and do not get a second reading here.
 internal static class FzfPatternAliasReading
 {
     /// <summary>

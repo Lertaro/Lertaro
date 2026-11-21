@@ -1,8 +1,6 @@
 namespace Lertaro.Core.SearchIndex.Fzf;
 
-// The exclusion (`!term`) rule for FzfPattern, split out (composition, as extension methods -- not a
-// partial class) purely to keep FzfPattern.cs under the repo's per-file line limit; these helpers hold
-// no state of their own and only read what FzfPattern already publishes.
+// Applies FzfPattern's !term exclusion rules.
 internal static class FzfPatternExclusionExtensions
 {
     // `!term` drops a candidate whose OWN NAME contains term, and an excluded term is deliberately never

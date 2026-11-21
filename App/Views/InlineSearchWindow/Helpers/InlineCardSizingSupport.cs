@@ -4,16 +4,8 @@ using Lertaro.Core;
 
 namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 
-// Owns the inline card's geometry: how many rows it shows and how tall the window shell has to be.
-//
-// The card is sized from settled content only. While a search is running, its current result area is
-// frozen and intermediate snapshots cannot expand or shrink the window. Once the search settles, the card
-// is trimmed to the rows it is actually showing. This covers completed searches, empty results, and the
-// empty-query startup panel without exposing a transient full-budget layout.
-//
-// Split out of InlineSearchWindow to keep that file under the repo's per-file line limit; it holds the
-// card's row budget and the height application that reads it, and always operates on the one window it
-// is given.
+// Sizes the inline card from settled content. Freeze the current result area during a search; after
+// completion, size to the displayed rows, including empty results and the empty-query launch panel.
 internal sealed class InlineCardSizingSupport
 {
     // The window's own margin around the card, which used to be the transparent room it reserved for a
@@ -253,25 +245,14 @@ internal sealed class InlineCardSizingSupport
         _window.InputHandler.QueueResultsLayoutUpdate();
     }
 
-    /// <summary>The card's height: the natural content (the rows the results area draws, the search bar, and
-    /// the path banner when it is actually shown) plus the shell's transparent margin.</summary>
-    /// <remarks>
-    /// Separated and taking the row count so the arithmetic is testable without a laid-out window. The
-    /// search bar and path banner are measured when WPF has not produced their arranged heights yet.
+    /// <summary>
+    /// Calculates card height from displayed area rows, the search bar, a visible path banner's natural
+    /// height, and transparent margins. Measure the bar/banner if WPF has not arranged them yet.
     ///
-    /// The banner is charged at its NATURAL height and only while it is visible: the shell used to also
-    /// pre-reserve a five-line estimate for it, which inflated the window (and the placement decision
-    /// derived from <see cref="FullCardHeight"/>) by ~97px of transparent space on every card, banner or
-    /// not. That reserve only ever protected a BOTTOM-anchored search bar, and the docked layout is now
-    /// always drop-down (search box pinned at the top, banner grown downward), so the search bar no longer
-    /// moves when the banner appears -- the reserve bought nothing and cost the correct corner.
-    ///
-    /// The rows are the layout's area rows, never the row budget: reserving budget-height rows while the
-    /// layout manager trims the list to the rows that actually arrived is what put a blank band under an
-    /// empty-state card (two headers and two folders, four of six rows drawn) until a real search filled the
-    /// budget. And only while the panel is drawn, so the first summon cannot reserve rows for a stale
-    /// Visibility (550->324->36->324 in three passes, with results=0,0,58).
-    /// </remarks>
+    /// Use displayed rows rather than the row budget, and count them only while the panel is drawn. The
+    /// top-anchored layout needs no reserved banner height; reserving it adds blank space and distorts
+    /// placement.
+    /// </summary>
     internal double CardHeight(int rows) =>
         InlineCardMetrics.CardHeight(
             rows,

@@ -2,8 +2,7 @@ using Lertaro.Core.DriveMonitoring;
 
 namespace Lertaro.Core.Indexer.Usn;
 
-// Split out to keep UsnIndexerExtensions.cs under the repository's per-file line limit; catch-up
-// policy and application are independent concerns from live USN record mutation.
+// Applies USN journal catch-up policy separately from live record updates.
 public static class UsnIndexerCatchUpExtensions
 {
     public static long CatchUpDrive(this UsnIndexer indexer, string drive, ulong journalId, long startUsn, CancellationToken token = default)

@@ -9,10 +9,7 @@ using Lertaro.App.Views.Controls.Dialogs;
 
 namespace Lertaro.App.Views.Settings.Plugins;
 
-// Code-behind for Templates.xaml's FilePathFieldTemplate/FolderPathFieldTemplate Click handler --
-// split out of PluginConfigSection.xaml.cs purely to let the templates themselves live in this
-// separate ResourceDictionary and keep PluginConfigSection.xaml under the file-length limit; this
-// doesn't depend on PluginConfigSection's own state.
+// Handles file and folder picker clicks for Templates.xaml.
 public partial class PluginConfigTemplates : ResourceDictionary
 {
     public static readonly DependencyProperty ApplyInitialSelectionProperty = DependencyProperty.RegisterAttached(

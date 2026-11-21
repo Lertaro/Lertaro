@@ -24,21 +24,11 @@ public static class WindowEnumerator
     [DllImport("user32.dll")]
     private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
 
-    // GetWindowTextLength/GetWindowText are documented as avoiding cross-process message-passing when
-    // the target has a normal cached caption -- but that's not universally true in practice (this is
-    // long-established lore among anyone who's written a window enumerator/task switcher), and this
-    // whole method runs synchronously on the UI thread: IInstantResultProvider.GetInstantResults is
-    // documented as "cheap and synchronous" throughout this codebase (see SearchExecutionEngine's own
-    // comment), because the host never offloads it to a background thread. One truly hung window
-    // anywhere on the user's desktop -- not even one of Lertaro's own -- must not be able to freeze
-    // the whole app while GetSwitchableWindows enumerates past it. SendMessageTimeout with
-    // SMTO_ABORTIFHUNG is the well-established defensive alternative; this codebase already relies on
-    // the exact same technique for the same reason in Core/Hook/InlineSearch/KeyboardUtils.cs.
-    // CharSet.Unicode is required here, not cosmetic: without it, this binds to SendMessageTimeoutA,
-    // which sends WM_GETTEXT/WM_GETTEXTLENGTH through the ANSI thunk. That returns an ANSI byte count
-    // for the length call and writes ANSI bytes for the text call, while SafeGetWindowText below
-    // allocates a UTF-16 buffer and decodes it with PtrToStringUni -- the encoding mismatch corrupts
-    // any title outside 7-bit ASCII into mojibake.
+    // Read captions with SendMessageTimeout and SMTO_ABORTIFHUNG because window enumeration runs
+    // synchronously on the UI thread. A hung external window must not block search.
+    //
+    // CharSet.Unicode must match the UTF-16 buffer decoded by PtrToStringUni; the ANSI entry point
+    // corrupts non-ASCII titles.
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, uint flags, uint timeoutMs, out IntPtr result);
 

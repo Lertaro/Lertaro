@@ -1,9 +1,7 @@
 namespace Lertaro.Core.SearchIndex.Fzf;
 
-// DP traceback stage shared by FuzzyMatchV2 (start only) and FuzzyMatchV2WithPositions (full position
-// recovery) in FzfFuzzyMatcher -- extracted into its own class (composition, not a partial class) purely
-// to keep FzfFuzzyMatcher.cs under the repo's per-file line limit. Operates on the slab arrays only,
-// never on the text, so it stays text-representation-agnostic and is also reused by FzfByteMatcher.
+// Recovers match starts or full positions from DP slab arrays for FzfFuzzyMatcher and FzfByteMatcher. It
+// does not depend on the text representation.
 internal static class FzfBacktrack
 {
     internal static int BacktrackStart(short[] scores, short[] consecutive, int[] first, int f0, int width, int patternLength, int maxScorePos)

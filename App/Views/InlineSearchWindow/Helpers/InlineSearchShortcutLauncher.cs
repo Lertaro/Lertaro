@@ -3,9 +3,7 @@ using Lertaro.App.Services;
 
 namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 
-// Keeps shortcut execution separate from the input event router so the router remains below the
-// repository's per-file line limit. This helper mirrors InlineSearchShortcutHelper's viewport-relative
-// slot accounting.
+// Executes inline result shortcuts using InlineSearchShortcutHelper's viewport-relative slots.
 internal static class InlineSearchShortcutLauncher
 {
     public static void Launch(Lertaro.App.InlineSearchWindow window, InlineSearchWindowLayoutManager layoutManager, int num)

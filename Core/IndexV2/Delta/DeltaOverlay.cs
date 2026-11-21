@@ -167,8 +167,7 @@ public sealed class DeltaOverlay
         return (Snapshot.Sizes[baseRow], Snapshot.CreationTimes[baseRow], Snapshot.LastWriteTimes[baseRow], Snapshot.LastAccessTimes[baseRow]);
     }
 
-    // Path building lives in DeltaPathBuilder (composition, purely to keep this file under the repo's
-    // per-file line limit); the builder has no state of its own and always operates on this overlay.
+    // Build paths through DeltaPathBuilder using this overlay's current state.
     public string GetFullPath(int baseRow) => DeltaPathBuilder.GetFullPath(this, baseRow);
     internal string GetFullPath(DeltaRecord record) => DeltaPathBuilder.GetFullPath(this, record);
     internal string GetParentPath(DeltaRecord record) => DeltaPathBuilder.GetParentPath(this, record);
@@ -292,7 +291,7 @@ public sealed class DeltaOverlay
         return TryFindBaseRow(parentId, out var row) ? row : -1;
     }
 
-    // Directory-delete cascades live in DeltaCascade (split to keep this file under the line limit).
+    // Apply recursive directory deletion through DeltaCascade.
     internal void TombstoneCascade(int baseRow) => DeltaCascade.Tombstone(this, baseRow);
     internal void RemoveAddedCascade(DeltaRecord record) => DeltaCascade.RemoveAdded(this, record);
 }

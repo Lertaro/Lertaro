@@ -66,22 +66,12 @@ public static class ShellEnumerator
         catch (Exception ex) { Logger.Log($"[ShellEnumerator] enumeration failed for {scanPath}: {ex.Message}", LogLevel.Error); }
     }
 
-    // One long-lived STA apartment serves every Shell.Application call in this plugin, and work reaches it
-    // by posting, so calls run one at a time. The shell hands the SAME agile folder object to whichever
-    // apartment asks for it, so two enumerations in flight (the popup's own keyboard-focus prefetch of the
-    // first row, plus the row the pointer actually reached) used to end with the one that finished first
-    // releasing the shared RCW while the other was still walking Items() -- InvalidComObjectException, zero
-    // children, and a submenu that renders as the empty-folder placeholder until the shell is warm enough
-    // that the two calls stop overlapping.
+    // Serialize Shell.Application calls on one long-lived OLE-initialized STA with a message pump.
+    // Concurrent apartments can receive the same RCW and release it while another enumeration still uses
+    // it. Keep this worker separate from file-operation and context-menu workers.
     //
-    // Same apartment shape as PluginSdk's ShellOperationStaWorker and CoreExtensions' ShellMenuStaWorker
-    // (see those for why: OLE-initialized so shell extensions load completely, a real message pump so a COM
-    // callback can re-enter this apartment while it would otherwise be idle, and a thread built once rather
-    // than started per action). Deliberately its own worker, not a shared one: a stalled cascader read must
-    // not take a file operation's or a context menu's apartment down with it.
-    // ponytail: one apartment serializes all cascader shell work, so a hung enumeration blocks the ones
-    // queued behind it. The old per-call thread blocked only its own caller. Upgrade path is a bounded wait
-    // plus a cancellation-aware enumeration loop, not more apartments.
+    // ponytail: a hung enumeration blocks later cascader requests. Improve with bounded waits and a
+    // cancellation-aware enumeration loop, not additional apartments.
     private static readonly object _startLock = new();
     private static Dispatcher? _dispatcher;
     private static bool _startupFailed;

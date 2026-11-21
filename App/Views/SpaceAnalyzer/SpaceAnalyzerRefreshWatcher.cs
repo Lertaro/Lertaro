@@ -6,8 +6,7 @@ using Lertaro.Core.Services.Search;
 namespace Lertaro.App.Views.SpaceAnalyzer;
 
 /// <summary>
-/// Coalesces live index notifications into bounded UI refreshes. Split out to keep the window below
-/// the repository's per-file line limit; it owns subscriptions only and leaves presentation to the window.
+/// Coalesces index notifications into bounded UI refreshes and owns the subscriptions.
 /// </summary>
 internal sealed class SpaceAnalyzerRefreshWatcher : IDisposable
 {

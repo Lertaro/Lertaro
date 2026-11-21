@@ -6,11 +6,9 @@ using Lertaro.Core.Services.Pipe;
 using Lertaro.Core.Wire;
 namespace Lertaro.Core.Services.HookLaunch;
 
-// Split out of UsnServicePipeServer to keep that file under the line-count limit (mirrors PipeSecurityFactory).
-// Handles SearchRequestId.LaunchHook: identifies the caller straight from the pipe's kernel handle (never
-// trusts anything the client claims in the request itself), confirms it's genuinely this install's
-// Lertaro.App.exe, then asks HookProcessBroker to spawn the hook into that caller's own session --
-// elevated only if requestElevation is set AND that session's user is genuinely an administrator.
+// Handles LaunchHook by deriving caller identity from the pipe handle and verifying this installation's
+// Lertaro.App.exe. HookProcessBroker starts the Hook in that session, elevated only when requested and
+// the session user is an administrator.
 internal static class HookLaunchRequestHandler
 {
     // The App-side HookIpcClient retries LaunchHook on a loop that backs off from 5 seconds to a minute, so

@@ -103,23 +103,12 @@ internal static class NameSearch
                 break;
         }
 
-        // The names alone did not fill the page: top it up with rows where a term is satisfied by an
-        // ancestor folder instead. Gated on there being room left, so a query that already answers in
-        // full never pays for it. Results still stream in phase order, but both paths receive the same
-        // whole-path RankSortKey above, so every consumer that merges streamed results compares them on
-        // relevance rather than on the order in which a phase happened to complete.
+        // Fill remaining result capacity with ancestor-folder matches, using the same ranking key as name
+        // matches. A single name hit must not suppress the path pass.
         //
-        // Gating on emitted == 0 instead was too strict to be useful: one incidental name hit
-        // suppressed the entire path pass, so a query whose initials matched both a file and a folder
-        // returned only the file and hid every result under the folder.
-        //
-        // ponytail: for the full window this gate never closes -- its limit is int.MaxValue by design
-        // (SearchViewModel.FullSearchFileLimit), so "room left" is always true and a multi-term query
-        // pays one extra whole-index scan of the unique-name table per term. Left as it is on purpose
-        // (decided 2026-09-22): whatever the full window finds is what it returns, so the only ways to
-        // close the gate are a first-page ceiling or narrowing what the window may answer -- both are
-        // product/relevance decisions, not a fix that belongs at this line. The quick window's 51 and
-        // the inline window's bounded limit do close it.
+        // ponytail: the unbounded Full Window always has capacity, so multi-term queries can scan the
+        // unique-name table again per term. Quick and inline limits close the gate. Reducing full-window
+        // work requires a candidate/page limit or a narrower search contract.
         if (emitted < limit)
         {
             var reportedUids = BuildReportedUids(pattern, hits);

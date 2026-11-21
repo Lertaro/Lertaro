@@ -4,8 +4,7 @@ using Lertaro.Core;
 
 namespace Lertaro.App.ViewModels.QuickPanel.Loading;
 
-// Split from QuickPanelViewModelLoading to keep the view-model files under the repository line limit.
-// It owns only one source's progressive load; the view model retains tab placement and visible state.
+// Loads one quick-panel source progressively. The view model owns tab placement and visible state.
 internal sealed class QuickPanelGroupLoader
 {
     private readonly Func<QuickPanelFolderSource, IProgress<IReadOnlyList<SearchResult>>, CancellationToken, Task<List<SearchResult>>> _load;

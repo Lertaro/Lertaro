@@ -3,14 +3,9 @@ using Lertaro.Core.IndexV2.Delta;
 using Lertaro.Core.IndexV2.Persistence;
 namespace Lertaro.Core.IndexV2.Search;
 
-// The overlay's rows grouped by the directory they currently live in -- the half of "list this
-// directory's children" that Snapshot.ChildrenOf's frozen CSR cannot answer (renamed/moved-in rows and
-// brand-new ones). Built once per enumeration and reused for every level, so a subtree walk never
-// rescans BaseOverrides/Added per directory. Split out of DirectoryEnumerator purely to keep each file
-// under the repo's per-file line limit; it holds no state beyond the two maps it hands back.
-//
-// Entry indices use ResultBuilder's convention: < Snapshot.Count addresses a base row (here always one
-// carrying an override record), >= Snapshot.Count addresses DeltaOverlay.Added[entry - Count].
+// Groups renamed, moved, and added overlay rows by current parent. Build once per enumeration and reuse
+// across subtree levels to avoid rescanning the delta per directory. Indices below Snapshot.Count refer
+// to overridden base rows; higher indices refer to Added[index - Count].
 internal sealed class DeltaChildLookup
 {
     private static readonly List<int> None = new();

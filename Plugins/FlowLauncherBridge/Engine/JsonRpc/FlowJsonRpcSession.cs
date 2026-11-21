@@ -7,8 +7,7 @@ using Flow.Launcher.Plugin.SharedModels;
 namespace Lertaro.Plugins.FlowLauncherBridge.Engine.JsonRpc;
 
 /// <summary>
-/// Executes external Flow.Launcher plugins via subprocess stdin/stdout bidirectional JSON-RPC communication.
-/// Split out from FlowProcessRunner to stay strictly under the per-file line limit.
+/// Exchanges JSON-RPC messages with external Flow plugins over process stdin/stdout.
 /// </summary>
 public static class FlowJsonRpcSession
 {

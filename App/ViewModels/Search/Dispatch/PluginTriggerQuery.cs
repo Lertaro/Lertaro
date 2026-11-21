@@ -8,39 +8,19 @@ using SearchWindowType = Lertaro.PluginSdk.Abstractions.SearchWindowType;
 namespace Lertaro.App.ViewModels.Search.Dispatch;
 
 /// <summary>
-/// Removes a leading trigger word from the text that gets searched against file and application names --
-/// so "cs report" looks for files called "report" rather than fuzzy-matching "cs" and highlighting the
-/// trigger inside every result row it dragged in.
+/// Removes a leading plugin trigger from file and application queries: "cs report" searches their
+/// names for "report". Providers still receive the original query so they can recognize their trigger.
 /// </summary>
 /// <remarks>
-/// Every word the search box can answer to is inventoried here from live plugin state, so the host keeps no
-/// copy of any of them: an instant provider's configured word
-/// (<see cref="IInstantResultProvider.QueryTriggerKeywords"/>, read per call so a Settings change takes
-/// effect on the next keystroke), a search action's own <em>Keywords</em> ("mkdir", "touch", "cmd"), a file
-/// filter's scope keyword, and a per-type trigger character. The last two are collected for the collision
-/// report only (<see cref="PluginTriggerCollisionReport"/>, which owns the "who else owns this word" rule
-/// and the Settings warning) -- their own resolvers strip them, so stripping them here would strip twice.
+/// Read configured instant-provider triggers and visible search-action keywords from live plugin state
+/// on every call. Strip a trigger only in windows where its owner is available and only when a term
+/// follows it. Thus a command word alone remains searchable as text.
 ///
-/// The inventory is <em>per window</em>. A word is only stripped where its owner can actually be offered:
-/// an action whose <c>IsVisibleInSearch</c> refuses this window contributes nothing (CoreExtensions'
-/// mkdir/touch/cmd are inline-only, so in the quick window they used to take "mkdir" out of a file search
-/// for a row that window never shows). <see cref="Collect()"/> is the window-agnostic inventory, which is
-/// what the Settings warning needs -- a collision is worth naming whether or not the current window offers
-/// both features.
+/// Filter-scope keywords and result-type characters are collected for collision reporting only;
+/// their own resolvers strip them. <see cref="Collect()"/> includes all windows for Settings warnings.
 ///
-/// The comparison itself is <see cref="TriggerWord"/>, shared with <see cref="KeywordMatcher"/> and
-/// <see cref="FileFilterScopeResolver"/> and with every provider that owns a word, because the host and the
-/// owner have to agree: a word the host strips but its owner does not recognise leaves the user with
-/// neither the feature nor their search text.
-///
-/// Same shape as <see cref="FileFilterScopeResolver"/>: a thin collector over PluginManager and a pure
-/// <see cref="Match"/> holding the activation rules, so the rules are testable without the registry.
-///
-/// Providers still receive the untouched box text (see SearchExecutionEngine's instantQuery, and the raw
-/// query the full window hands its content provider), because the owner of a word has to keep recognising
-/// it; what this changes is only what the OTHER results are matched and highlighted against. The price,
-/// paid deliberately: a first token that happens to be a command word stops being searchable as text --
-/// which is why nothing is stripped unless a term follows it.
+/// Use <see cref="TriggerWord"/> throughout the host and providers so activation and stripping agree.
+/// <see cref="Match"/> holds the rules separately from plugin discovery for testing.
 /// </remarks>
 internal static class PluginTriggerQuery
 {

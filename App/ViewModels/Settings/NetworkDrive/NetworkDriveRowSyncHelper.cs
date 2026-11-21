@@ -17,30 +17,11 @@ namespace Lertaro.App.ViewModels.Settings.NetworkDrive;
 // happens to be the thing that also syncs folder rows alongside drive/WSL rows.
 internal static class NetworkDriveRowSyncHelper
 {
-    /// <summary>
-    /// Refreshes the live rows without rebuilding them, for a refresh where the set of rows itself did
-    /// not change.
-    /// </summary>
+    /// <summary>Updates existing rows when the set of configured drives and folders has not changed.</summary>
     /// <remarks>
-    /// This deliberately does not write IsEnabled. It used to clear it for any row whose target was not
-    /// currently reachable, which took a transient probe and used it to overwrite a persisted user
-    /// decision. That was reported as a LAN folder losing its tick after a laptop came back home, and
-    /// the tick was the least of it -- the whole chain ran without the user ever touching a checkbox:
-    ///
-    /// IsEnabled is set through SetProperty, so clearing it raised PropertyChanged, which set
-    /// HasPendingEdits (see NetworkDriveSettingsViewModel.OnFolderItemChanged) -- an edit the user never
-    /// made. HasPendingEdits then pins NetworkDriveRefreshCoordinator to this method for the rest of the
-    /// session, locking out RebuildRows, which is the one path that recomputes the tick correctly from
-    /// the saved settings. And the next Apply of anything at all filters rows by IsEnabled
-    /// (SettingsViewModel) and replaces the settings list wholesale, so the entry was silently deleted
-    /// from the user's configuration. Coming back, the row read as never configured, and ticking it was
-    /// a fresh add: a full re-scan from zero rather than the re-enable it looked like.
-    ///
-    /// The enabled state is already persisted -- as whether a settings entry exists at all -- and
-    /// reachability already has its own two outlets, IsPresent and the state text, plus CanEditEnabled
-    /// to grey the box out. That is exactly what the Local Drives tab does
-    /// (LocalDriveSettingsViewModel: an existing row keeps its own IsEnabled, and isPresent only feeds
-    /// CanEditEnabled), and these three loops were the ones going around it.
+    /// Preserve IsEnabled: it reflects saved configuration, not current reachability. Clearing it for an
+    /// offline target raises PropertyChanged, marks a pending edit, and can remove the saved entry on Apply.
+    /// Use IsPresent, state text, and CanEditEnabled to report offline targets and disable their controls.
     /// </remarks>
     public static void UpdateRowsInPlace(
         NetworkDriveSettingsViewModel vm, SearchService searchService,

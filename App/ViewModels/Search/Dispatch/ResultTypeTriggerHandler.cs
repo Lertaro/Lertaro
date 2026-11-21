@@ -6,9 +6,7 @@ using Lertaro.App.ViewModels.Search.Mapping;
 using SearchWindowType = Lertaro.PluginSdk.Abstractions.SearchWindowType;
 namespace Lertaro.App.ViewModels.Search.Dispatch;
 
-// Handles the quick-window-only "per-type search trigger character" feature on behalf of
-// SearchDispatchController -- extracted into its own class (composition, not a partial class)
-// purely to keep SearchDispatchController.cs under the repo's per-file line limit.
+// Handles result-type trigger characters for the quick search window.
 internal sealed class ResultTypeTriggerHandler
 {
     private readonly Func<bool> _getIsInlineSearchContext;
@@ -31,22 +29,12 @@ internal sealed class ResultTypeTriggerHandler
         _replaceResults = replaceResults;
     }
 
-    // Quick-window-only (unlike "*"/exclusion-bypass and token syntax, which are general search
-    // syntax and apply everywhere): if `raw`'s first character matches a configured per-type trigger
-    // (UserSettings.ResultTypeTriggers), strip it from cleanQuery before it's sent to the file-index
-    // engine (RunEngineSearch's engineCall) and reaches BuildQuickResults -- so a "Files" trigger gets
-    // the same clean-text recall from the backend as every other type gets locally, instead of the
-    // backend matching against the trigger-polluted text. BuildQuickResults still independently
-    // resolves WHICH type was triggered from originalValue/rawQuery (see
-    // SearchResultTypePriority.ResolveTrigger) -- this only fixes what text gets searched with. The
-    // returned type-id (null when no trigger matched) lets the caller show a type-specific prompt
-    // instead of the generic "no results" row when stripping leaves nothing behind. The inline window
-    // shares this same DispatchSearch/PerformSearch code path (see _getIsInlineSearchContext elsewhere
-    // in this class), but has no concept of a per-type trigger at all -- BuildQuickResults' own
-    // detection already skips it for isInlineWindow, so this must too, or an inline query that
-    // happens to start with someone's configured trigger character would silently search the wrong
-    // (one-character-short) text. A configured trigger WORD outranks this whole mechanism when the typed
-    // first token is one -- see the ClaimsLeadingWord guard below, which is where that precedence lives.
+    // In Quick Search, strip a configured leading type character before sending the query to the engine.
+    // BuildQuickResults still reads the original query to choose the type. Return the type ID so an
+    // otherwise empty query can show its prompt.
+    //
+    // Skip this for inline searches, which have no type triggers. A configured plugin trigger word takes
+    // precedence over a type character.
     public (string CleanQuery, string? TriggeredTypeId) StripTrigger(string raw, string cleanQuery) =>
         Match(
             raw,

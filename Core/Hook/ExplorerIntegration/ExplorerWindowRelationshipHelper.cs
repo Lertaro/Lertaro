@@ -1,6 +1,6 @@
 namespace Lertaro.Core.Hook;
 
-// Split out to keep ExplorerWindowClassifier below the repository's per-file line limit.
+// Checks native window relationships for ExplorerWindowClassifier.
 internal static class ExplorerWindowRelationshipHelper
 {
     internal static bool IsDescendantOrOwned(IntPtr parent, IntPtr child)

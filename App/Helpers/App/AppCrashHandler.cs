@@ -7,8 +7,7 @@ using MessageBox = Lertaro.App.Views.Controls.Dialogs.CustomMessageBox;
 namespace Lertaro.App.Helpers.App;
 
 /// <summary>
-/// Handles critical crash logging and unhandled exception reporting.
-/// ponytail: Split out purely to keep App.xaml.cs under the repo's 300-line limit.
+/// Logs fatal errors and reports unhandled exceptions.
 /// </summary>
 public static class AppCrashHandler
 {

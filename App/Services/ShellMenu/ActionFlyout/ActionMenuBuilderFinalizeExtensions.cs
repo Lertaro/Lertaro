@@ -1,10 +1,6 @@
 namespace Lertaro.App.Services.ShellMenu.ActionFlyout;
 
-// Post-processing for the merged (static + dynamic) item list built by ActionMenuBuilder, split out
-// (composition, not a partial class) to keep ActionMenuBuilder.cs under the project's line limit.
-// ActionMenuBuilder itself keeps the public FinalizeItems entry point as a thin forwarder into this
-// class's implementation, so every external caller and test keeps calling ActionMenuBuilder.FinalizeItems
-// unchanged.
+// Post-processes merged static and dynamic action items for ActionMenuBuilder.FinalizeItems.
 internal static class ActionMenuBuilderFinalizeExtensions
 {
     // Dedupes by text and tidies separators. Runs on the merged (static + dynamic) list, on the UI thread:

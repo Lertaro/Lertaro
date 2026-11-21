@@ -92,29 +92,12 @@ public static class ScrollViewerHelper
         }
     }
 
-    // ── Overlay scrollbar reveal ────────────────────────────────────────────────────────────────
+    // Overlay scrollbar visibility includes the enclosing text control's IsMouseOver. In RichTextBox,
+    // pointer events over a Run follow the content tree and skip the ScrollViewer's visual ancestry.
     //
-    // Whether the pointer counts as "on" a ScrollViewer for the purpose of fading its overlay
-    // scrollbars in. Computed here rather than expressed as a trigger in the template, for two
-    // reasons that only showed up in practice:
-    //
-    //  - Inside a RichTextBox the ScrollViewer's own IsMouseOver is false over its own text. The text
-    //    is a FlowDocument, so the element under the pointer is a Run, and a Run is a ContentElement
-    //    rather than a Visual: its IsMouseOver travels up the CONTENT tree (Run, Paragraph,
-    //    FlowDocument, RichTextBox) and never touches the visual chain in between. The scrollbar then
-    //    revealed only within a few pixels of its own track, which is the behaviour auto-hide exists
-    //    to avoid. So the enclosing text control's IsMouseOver has to count too.
-    //
-    //  - Expressing that "either" as a DataTrigger did not work. RelativeSource TemplatedParent does
-    //    not resolve inside a MultiBinding in ControlTemplate.Triggers, which silently cost every
-    //    ordinary ScrollViewer in the app its scrollbar; and PriorityBinding cannot be used to fall
-    //    back from the ancestor lookup, because a FindAncestor that matches nothing reports no value
-    //    at all rather than a failed one, so it waits on that branch forever. (That is this viewer's own
-    //    template reading its TemplatedParent through a MultiBinding; the bar style asks an ancestor
-    //    ScrollViewer for one plain property, which is a different lookup and does resolve.)
-    //
-    // Read-only: it is set from the mouse events below and read by the ScrollBar style's reveal trigger,
-    // which sits on the bar rather than on this viewer's template, as that file explains.
+    // Set this read-only property from mouse events and let the ScrollBar style read it. A MultiBinding
+    // with TemplatedParent in ControlTemplate.Triggers does not resolve this lookup; PriorityBinding also
+    // cannot fall back when FindAncestor returns no value.
     private static readonly DependencyPropertyKey PointerNearPropertyKey =
         DependencyProperty.RegisterAttachedReadOnly("PointerNear", typeof(bool), typeof(ScrollViewerHelper),
             new PropertyMetadata(false));

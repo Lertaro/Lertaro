@@ -1,13 +1,6 @@
 namespace Lertaro.Core.SearchIndex.Fzf;
 
-// Alias-fallback quality-gating for FzfPattern, split out (composition, as extension methods -- not a
-// partial class) to keep FzfPattern.cs under the project's line limit. FzfPattern itself keeps pattern
-// parsing (Parse/ParseText/ParseTermSets) and the core text-matching algorithm (TryMatch/TryMatchSingle);
-// this file holds the separate concern of deciding whether an ALIAS match (as opposed to a direct match
-// against the candidate's own name) is good enough to accept, and how to weight it against other accepted
-// alias candidates. All methods here only touch FzfPattern's public surface (TermSets, GetTotalTermLength)
-// so extension-method access is sufficient -- no internal state needs exposing beyond what FzfPattern
-// already publishes.
+// Validates and weights alias matches through FzfPattern's public TermSets and GetTotalTermLength APIs.
 internal static class FzfPatternAliasMatchExtensions
 {
     // Shared quality bar every alias-fallback caller applies: reject a match whose span is
@@ -28,29 +21,14 @@ internal static class FzfPatternAliasMatchExtensions
         return AliasMatchRules.IsTightOccurrence(queryLen, span) && aliasMatch.Score >= queryLen * 5;
     }
 
-    // A long candidate name's alias (e.g. a whole filename's pinyin, concatenated into one string) can
-    // legitimately need each space-separated term to land far apart -- the combined-span check above
-    // then rejects a perfectly accurate match as "too scattered", since it can't tell "these fragments
-    // are unrelated to each other" apart from "this name is just long". See issue #143: "zg syd ebu"
-    // against "D_《中华人民共和国兽药典》2015年版二部" correctly lands "zg" near the start, "syd"
-    // mid-string, and "ebu" at the end, but the combined span (~50 chars) dwarfs the query length (8
-    // chars) even though nothing about the match is coincidental.
+    // If the combined-span gate fails, allow distant terms when each term set matches tightly and at
+    // least one term has AliasFallbackAnchorLength characters. Short fragments alone remain subject
+    // to the combined-span gate because they match long aliases too easily by chance.
     //
-    // This overload adds one narrow additional path for that case: if the combined-span check fails,
-    // accept anyway when EVERY term SET individually lands a tight, proportionate match somewhere in
-    // `text` -- regardless of how far apart the terms land from each other -- gated on the query having
-    // at least one term AliasFallbackAnchorLength+ characters. That gate matters: a bare crowd of
-    // 2-letter fragments (no term this long) is cheap to match by coincidence anywhere in a sufficiently
-    // long alias, so it's excluded from this fallback entirely and falls back to the combined-span
-    // check's existing (stricter) protection; a query anchored by at least one longer term is far less
-    // likely to land tightly by pure chance. Verified empirically (real production code, not just
-    // reasoning): across ~3600 cross-file adversarial query attempts built from real, unrelated
-    // filenames, this fallback's false-accept rate lands around 0.3-0.5%, versus the combined-span
-    // check's own already-nonzero ~5% baseline rate for the same adversarial set -- a real but small
-    // marginal increase, not a new class of problem. Deliberately reuses FzfAlgorithm.Match directly
-    // (not a nested FzfPattern.ParseText per term) to avoid allocating a whole new pattern per term;
-    // this only runs after the (cheap) combined-span check has already failed, an already-rare tail of
-    // the alias-fallback tier itself, so the extra per-term matching stays off the common path.
+    // For example, "zg syd ebu" matches separated parts of "D_《中华人民共和国兽药典》2015年版二部" (#143).
+    // About 3,600 adversarial cross-file queries measured 0.3–0.5% additional accepts, against the
+    // combined gate's roughly 5% baseline. Use FzfAlgorithm.Match directly to avoid reparsing per term;
+    // this fallback runs only after the combined gate fails.
     public static bool IsAcceptableAliasMatch(this FzfPattern pattern, FzfPatternResult aliasMatch, int queryLen, ReadOnlySpan<char> text, FzfScoringScheme scheme, FzfSlab? slab = null)
     {
         if (pattern.IsAcceptableAliasMatch(aliasMatch, queryLen))
@@ -189,19 +167,10 @@ internal static class FzfPatternAliasMatchExtensions
         return true;
     }
 
-    // Ranking-only refinement for choosing among several ACCEPTED alias candidates for the same name
-    // (never rejects -- IsAcceptableAliasMatch already gated that): fzf's raw score rewards total
-    // matched-character volume regardless of how loosely those characters are spread out, which
-    // structurally favors a longer query that happens to scatter across a wide span over a shorter
-    // query that lands as a clean, contiguous, zero-gap hit (e.g. a pinyin-initials query like "jtb"
-    // against its own dedicated initials alias, versus a coincidentally-matching longer subsequence of
-    // a different, longer alias for the same name -- see issue #89). Deliberately keyed off
-    // queryLen/span (span = MaxEnd-MinBegin, the same quantity IsAcceptableAliasMatch already uses)
-    // rather than queryLen/alias-length, so trailing alias content the query never reached (e.g. a name
-    // with more syllables than the user typed) is never penalized -- only genuine internal gaps between
-    // the query's own matched characters are. Pure arithmetic on already-computed fields, so unlike
-    // HighlightMask.ComputeWeight/FzfResultRank.ApplyWeight this is cheap enough to apply inline in the
-    // hot per-candidate scan rather than deferred to a bounded top-N refinement pass.
+    // Refines scores of accepted alias matches by queryLen / (MaxEnd - MinBegin). This penalizes gaps
+    // inside the matched span while ignoring unused trailing alias text, so a tight initials hit can beat
+    // a longer scattered hit (#89). It does not reject candidates and uses only precomputed fields,
+    // making it cheap enough for the scan.
     public static FzfPatternResult WeightAliasMatch(this FzfPattern pattern, FzfPatternResult aliasMatch, int queryLen)
     {
         if (!aliasMatch.ValidOffsetFound)

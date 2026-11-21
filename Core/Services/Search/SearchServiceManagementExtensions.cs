@@ -5,8 +5,7 @@ using Lertaro.Core.Services.Network;
 using Lertaro.Core.Wire;
 namespace Lertaro.Core.Services.Search;
 
-// Drive and settings admin pass-throughs for SearchService, as extension methods instead of a partial
-// class, to keep SearchService.cs under the repo's per-file line limit.
+// Forwards SearchService drive and settings management requests.
 public static class SearchServiceManagementExtensions
 {
     public static async Task<string> GetServiceLogAsync(this SearchService service, CancellationToken token = default)

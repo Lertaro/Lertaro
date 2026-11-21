@@ -1,8 +1,6 @@
 namespace Lertaro.Core.Indexer.Usn;
 
-// The status UsnIndexer publishes, and the snapshot it publishes it as. Split out of UsnIndexer.cs
-// purely to keep that file under the repo's line limit; these stay nested types of UsnIndexer so
-// every caller keeps saying UsnIndexer.IndexerStatus.
+// Defines UsnIndexer's published status and status snapshots.
 public partial class UsnIndexer
 {
     public class IndexerStatus

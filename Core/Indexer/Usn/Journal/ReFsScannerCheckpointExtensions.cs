@@ -3,13 +3,9 @@ using Lertaro.Core.Indexer.NetworkDrive.Walk;
 
 namespace Lertaro.Core.Indexer.Usn.Journal;
 
-// Mid-walk checkpoint publishing for ReFsScanner, split into its own file (matching
-// TreeBuilderCheckpointExtensions' own split off TreeBuilder) to keep ReFsScanner.cs under the project's
-// line limit. ReFsScanner has no long-lived instance the way TreeBuilder does, so CheckpointState bundles
-// what MaybeCheckpoint needs across every worker task's calls -- the constant identity fields a checkpoint
-// store needs (drive/rootFrn/nextUsn/journalId), the callback itself, and a DoublingCheckpointGate (the
-// same threshold/doubling mechanics TreeBuilder's own checkpointing uses, reusing its
-// CheckpointBatchSize/MaxCheckpointBatchSize constants for identical write-volume behavior).
+// Publishes ReFsScanner checkpoints during a walk. CheckpointState shares
+// drive/rootFrn/nextUsn/journalId, the callback, and a DoublingCheckpointGate across workers, using
+// TreeBuilder's checkpoint thresholds.
 internal sealed class ReFsCheckpointState
 {
     public readonly string Drive;

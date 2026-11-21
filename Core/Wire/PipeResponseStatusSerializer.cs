@@ -3,8 +3,7 @@ using Lertaro.Core.Indexer.Usn;
 
 namespace Lertaro.Core.Wire;
 
-// IndexerStatus-specific (de)serialization for PipeResponseBinarySerializer -- split out to keep
-// that file under the repo's line-count limit.
+// Serializes IndexerStatus values for PipeResponseBinarySerializer.
 internal static class PipeResponseStatusSerializer
 {
     public static int CalculateSize(UsnIndexer.IndexerStatus status)

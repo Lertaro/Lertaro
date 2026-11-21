@@ -3,8 +3,7 @@ using Lertaro.Plugins.ContentSearch.Storage;
 namespace Lertaro.Plugins.ContentSearch.Indexing;
 
 /// <summary>
-/// Runs serialized full scans for one scheduler. Split out to keep the scheduler below the
-/// repository per-file line limit; this class owns only scan lifecycle state for its scheduler.
+/// Serializes full scans and tracks scan lifecycle for one content scheduler.
 /// </summary>
 internal sealed class ContentIndexScanCoordinator : IDisposable
 {

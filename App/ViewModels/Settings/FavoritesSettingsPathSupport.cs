@@ -2,8 +2,7 @@ using Lertaro.App.Helpers;
 
 namespace Lertaro.App.ViewModels.Settings;
 
-// Split out purely to keep FavoritesSettingsViewModel under the repository's per-file line limit.
-// This support owns only the batch path-addition operation for that view model.
+// Adds batches of paths to FavoritesSettingsViewModel.
 internal static class FavoritesSettingsPathSupport
 {
     public static void AddPaths(FavoritesSettingsViewModel owner, IEnumerable<string> paths)

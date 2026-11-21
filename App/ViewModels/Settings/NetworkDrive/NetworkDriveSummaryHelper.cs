@@ -3,11 +3,8 @@ using Lertaro.App.Services;
 
 namespace Lertaro.App.ViewModels.Settings.NetworkDrive;
 
-// Per-category summary text (NetworkIndexSummary/WslIndexSummary/FolderIndexSummary) for
-// NetworkDriveSettingsViewModel -- extracted (composition, not a partial class) purely to keep that
-// file under the repo's per-file line limit. Each category computes its own enabled count, item total,
-// and busy state independently -- never a combined total across all three, which used to read as
-// nonsense on whichever tab wasn't the one actually busy/enabled.
+// Builds separate network, WSL, and folder summaries from each category's enabled count, item total, and
+// busy state.
 internal static class NetworkDriveSummaryHelper
 {
     public static void UpdateSummaries(NetworkDriveSettingsViewModel vm, IReadOnlyList<NetworkIndexStatus>? indexStatuses, bool driveBusy, bool wslBusy, bool folderBusy)

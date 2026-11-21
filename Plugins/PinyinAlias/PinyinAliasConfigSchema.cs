@@ -2,11 +2,8 @@ using Lertaro.PluginSdk.Abstractions;
 
 namespace Lertaro.Plugins.PinyinAlias;
 
-// This assembly's one configurable surface, split out of PinyinAliasProvider.cs (composition, not a
-// partial class) purely to keep that file under the repo's per-file line limit. The host resolves at
-// most one IConfigurable per assembly (see PluginLoaderHelper.ResolveConfigurable), and it persists the
-// fields under the id derived from the assembly's file name -- so declaring the schema here, with the
-// plugin id owned next to the key the provider actually reads, is what keeps the two from drifting.
+// Defines this assembly's IConfigurable schema and shared plugin ID. The host accepts at most one schema
+// per assembly and stores values under its assembly-derived ID.
 internal static class PinyinAliasConfigSchema
 {
     // The id the host derives from this assembly's file name, which is also what the Settings UI

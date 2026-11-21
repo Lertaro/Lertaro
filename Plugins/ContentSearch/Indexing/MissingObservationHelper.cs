@@ -3,9 +3,7 @@ using Lertaro.Plugins.ContentSearch.Storage;
 namespace Lertaro.Plugins.ContentSearch.Indexing;
 
 /// <summary>
-/// Applies the two-phase deletion policy for files that disappear from reachable monitored
-/// folders. Split out of ContentIndexScheduler purely to keep that file under the repository's
-/// per-file line limit; this helper holds no state and operates on the database passed in.
+/// Applies two-phase deletion for files missing from reachable monitored folders.
 /// </summary>
 public static class MissingObservationHelper
 {

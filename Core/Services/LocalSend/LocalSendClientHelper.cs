@@ -5,8 +5,7 @@ using Lertaro.Core.Services.LocalSend.Models;
 namespace Lertaro.Core.Services.LocalSend;
 
 /// <summary>
-/// Helper methods extracted from LocalSendClient to keep LocalSendClient.cs under the repo's 300-line limit.
-/// ponytail: purely helper operations on HttpContent and prepare-upload DTO serialization.
+/// Builds LocalSend HTTP content and serializes prepare-upload requests.
 /// </summary>
 internal static class LocalSendClientHelper
 {

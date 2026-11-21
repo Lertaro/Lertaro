@@ -3,14 +3,10 @@ using Lertaro.PluginSdk.Abstractions;
 namespace Lertaro.App.Services.Notifications;
 
 /// <summary>
-/// One accepted notification: the request, the decision about how it is being shown, and the task the
-/// caller waits on. This is what a plugin holds through <see cref="INotificationHandle"/>.
+/// Stores an accepted notification's request, presentation decision, and completion task.
+/// NotificationQueue writes its fields; INotificationHandle forwards dismissal through the queue's
+/// synchronization gate.
 /// </summary>
-/// <remarks>
-/// Split out purely to keep NotificationQueue.cs under the repo's per-file line limit. It is the item the
-/// queue decides about, not a second owner of anything: every field here is written by the queue, and the only
-/// thing the item does on its own is hand a dismissal back to the gate the queue was given.
-/// </remarks>
 internal sealed class NotificationItem(
     NotificationRequest request,
     string pluginKey,

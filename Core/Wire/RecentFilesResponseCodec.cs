@@ -3,8 +3,7 @@ using Lertaro.PluginSdk.Abstractions;
 
 namespace Lertaro.Core.Wire;
 
-// The RecentFiles PipeResponse kind's own codec -- kept as its own static class (not a partial split
-// of PipeResponseBinarySerializer) to stay under the repo's per-file line limit.
+// Encodes and decodes RecentFiles pipe responses.
 public static class RecentFilesResponseCodec
 {
     public static Task WriteRecentFilesAsync(Stream stream, List<SearchResult> recentFiles, CancellationToken token = default)

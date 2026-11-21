@@ -1,32 +1,27 @@
 # Historial
 
-La página de Historial gestiona la frecuencia de uso por ruta, las palabras clave escritas y las asociaciones confirmadas consulta-destino en tres pestañas independientes: **Historial de búsqueda**, **Historial de palabras clave** y **Asociaciones de consulta**.
+Las tres pestañas gestionan por separado los elementos abiertos, los términos de búsqueda y las asociaciones aprendidas.
 
 ## 1. Historial de búsqueda
 
-Registra la frecuencia y recencia con la que abres cada archivo, carpeta o aplicación para afinar el orden entre coincidencias directas equivalentes:
+Registra la frecuencia y la fecha de apertura de cada archivo, carpeta o aplicación desde los resultados.
 
-- **Desempate por frecuencia con decaimiento**: Los elementos habituales afinan el orden **dentro del mismo grado de coincidencia** con una semivida de 90 días, sin superar nunca a una coincidencia directa exacta de título o nombre.
-- **Agrupación en la Ventana incrustada**: En los diálogos de archivos, las coincidencias dentro de la carpeta activa se clasifican en "Carpeta actual" y las demás en "Búsqueda global".
-- **Filtrado de rutas inexistentes**: Si un archivo ha sido eliminado o movido externamente, se omite de forma automática, evitando enlaces rotos y resultados duplicados.
-- **Opciones de gestión**:
-  - **Habilitar historial**: Interruptor general; al desactivarlo se conservan los registros existentes.
-  - **Filtro de búsqueda**: Permite filtrar las entradas visibles.
-  - **Contadores y limpieza**: Elige un umbral y pulsa **Borrar con como máximo N usos**, elimina filas individuales o pulsa **Borrar todo el historial**.
-  - **Actualización en tiempo real**: La lista actualiza automáticamente los contadores tras cada apertura.
+- **Ordenación**: cada apertura suma 1 punto, hasta un máximo de 10. La puntuación se reduce a la mitad cada 90 días. Con 3 puntos efectivos se opta a H3 y con 5 a H5. La búsqueda rápida asigna hasta 3 plazas H5 y 10 H3; la integrada, 1 y 3. La ventana completa no limita las plazas.
+- **Alcance**: el uso permite adelantar resultados del mismo grado efectivo y prioridad. El orden de tipos de la búsqueda rápida puede reducir el grado de nombre exacto de archivos y carpetas; consulta [Sintaxis de búsqueda](../search-syntax).
+- **Grupos integrados**: los resultados de la carpeta actual y los globales se muestran por separado. Se omiten las rutas inexistentes.
+- **Gestión**: filtra por palabra, elimina entradas, borra las de N usos o menos, o borra todas. La lista se actualiza al abrir algo desde otra ventana. Desactivar el registro impide añadir entradas nuevas; las existentes siguen actualizando frecuencia y fecha.
 
 ## 2. Historial de palabras clave
 
-Memoriza las **cadenas de búsqueda originales** que se hayan usado realmente para ejecutar un resultado o una acción, o para abrir la Ventana principal. Escribir una consulta y cerrar o abandonar la Ventana rápida no la añade:
+Guarda la consulta original al ejecutar un resultado o una acción, o al abrir la ventana completa. Escribir y cerrar la búsqueda rápida no crea un registro.
 
-- **Navegación por atajos**: En la Ventana rápida, pulsa **`Alt+Up`** / **`Alt+Down`** para retroceder o avanzar entre consultas recientes. Pulsa **`Ctrl+Delete`** para borrar el término activo.
-- **Contadores y limpieza**: Cada palabra clave muestra cuántas veces se ha usado. Elige un umbral y pulsa **Borrar con como máximo N usos** para eliminar palabras clave poco utilizadas.
-- **Gestión independiente**: Dispone de su propio interruptor de activación, filtro, eliminación individual y botón de **Borrar todo el historial**.
+- Usa **Alt+Up / Alt+Down** para recorrer consultas anteriores y **Ctrl+Delete** para eliminar la actual.
+- Permite filtrar, eliminar entradas, borrar todo o limpiar por número de usos. Tiene su propio interruptor: al desactivarlo, no se añaden términos nuevos, pero los existentes siguen acumulando usos.
 
 ## 3. Asociaciones de consulta
 
-Almacena hábitos confirmados **consulta → ruta de destino** de forma independiente a la frecuencia general:
+Guarda asociaciones **consulta → ruta de destino** separadas de la puntuación general de uso.
 
-- **Umbral de 3 aperturas orgánicas**: Un elemento solo se recupera por asociación aprendida tras abrirlo de forma orgánica al menos **3 veces** con la misma consulta normalizada, evitando que clics accidentales contaminen búsquedas futuras.
-- **Sin bucles de retroalimentación**: Las aperturas desde sugerencias aprendidas no inflan contadores no confirmados y aparecen siempre detrás de las coincidencias directas.
-- **Limpieza independiente**: Filtra, elimina asociaciones individuales o bórralas todas sin reiniciar la frecuencia de uso por ruta.
+- Una asociación se activa después de abrir un resultado normal al menos **3 veces** con la misma consulta normalizada. Abrir un resultado recuperado solo por asociación no aumenta esa cuenta.
+- Se añade como máximo **una** asociación por consulta. Se excluyen los destinos de prioridad baja; los resultados recuperados solo por asociación van después de las coincidencias directas.
+- Filtra, elimina o borra asociaciones sin reiniciar las puntuaciones de uso de las rutas.

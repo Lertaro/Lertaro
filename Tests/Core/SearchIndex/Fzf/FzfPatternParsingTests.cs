@@ -2,8 +2,7 @@ using Lertaro.Core.SearchIndex.Fzf;
 
 namespace Lertaro.Core.Tests.SearchIndex.Fzf;
 
-// Split out from FzfPatternTests to keep the test files under the repository's 300-line limit. These
-// tests cover phrase parsing, fuzzy-mode switches, and term-length bookkeeping for FzfPattern.
+// Tests phrase parsing, fuzzy-mode switches, and query-term lengths.
 [TestClass]
 [DoNotParallelize]
 public sealed class FzfPatternParsingTests

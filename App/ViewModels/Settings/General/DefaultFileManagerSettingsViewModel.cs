@@ -5,11 +5,7 @@ using Lertaro.Core;
 
 namespace Lertaro.App.ViewModels.Settings.General;
 
-// Split out of GeneralSettingsViewModel to keep that file under the repo's per-file line limit; the
-// full-window geometry, log-level and language concerns stay there, while this owns the one cohesive
-// "redirect folder opening to a third-party file manager" feature (GitHub issue #180).
-//
-// Save() commits _userSettings.DefaultFileManager.
+// Stages the file-manager override used to open folders. Save commits UserSettings.DefaultFileManager.
 public class DefaultFileManagerSettingsViewModel : ViewModelBase
 {
     private readonly UserSettings _userSettings;

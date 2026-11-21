@@ -9,9 +9,7 @@ using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
 namespace Lertaro.App.Services.Plugin;
 
 /// <summary>
-/// Owns the ordered and filtered provider views exposed by <see cref="PluginManager"/>.
-/// Split out to keep PluginManager under the repository's per-file line limit; the provider
-/// collections still belong to the manager and this class only composes their public views.
+/// Builds ordered, filtered views of provider collections owned by PluginManager.
 /// </summary>
 internal sealed class PluginManagerOrderedProviders
 {

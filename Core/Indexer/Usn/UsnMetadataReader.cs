@@ -7,7 +7,7 @@ using Lertaro.Core.IndexV2.Delta;
 
 namespace Lertaro.Core.Indexer.Usn;
 
-// Keeps handle-bound metadata I/O separate from delta routing and below the per-file line limit.
+// Reads metadata through file handles for USN updates.
 internal static class UsnMetadataReader
 {
     private static readonly string[] NtfsRootMetadataNames =

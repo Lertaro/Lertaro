@@ -6,21 +6,12 @@ using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
 using Lertaro.Core.Hook.Ipc;
 namespace Lertaro.Core.Hook.Commands;
 
-// Split out of HookCommandHandler to keep that file under the line-count limit. Runs
-// IInlineSearchAdapter's write-side methods (ExecuteItem/OnSelectionChanged/OnSearchFinished) here in the
-// Hook process instead of the App process, so navigating a third-party file manager (Total Commander,
-// Directory Opus, ...) still works when that file manager is running elevated and the App -- which never
-// elevates itself -- would otherwise have its window messages silently dropped by UIPI. Mirrors the
-// resolve-then-dispatch shape HookCommandHandler already uses for NavigateDialog/RestoreDialogFocus.
+// Runs inline-adapter writes in the Hook process so an elevated Hook can navigate elevated file managers
+// across UIPI boundaries.
 //
-// Each call runs on its own freshly-spun-up STA thread (RunOnSta), not ThreadPool.QueueUserWorkItem and
-// NOT the tracker thread that owns ExplorerTracker: some adapters (Explorer's IShellWindows/Navigate2/
-// SelectItem, OneCommander's UI Automation) are STA-affine COM interop, so an MTA ThreadPool thread would
-// force COM to marshal across apartments. A dedicated thread per call, rather than routing through the
-// tracker thread, matters because at least one adapter (Total Commander) calls plain SendMessage with no
-// timeout (see TotalCommander/Win32/Win32Helper.cs) -- if that target hangs, only this one call's thread
-// leaks/blocks; ExplorerTracker's own WinEvent-based foreground/focus tracking (which runs on the tracker
-// thread) keeps working for every other window and adapter regardless.
+// Each call uses a separate STA thread for COM/UI Automation. A blocking adapter call, such as Total
+// Commander's unbounded SendMessage, can leave that thread blocked but cannot stop ExplorerTracker's
+// event thread.
 internal static class InlineAdapterCommandHandler
 {
     // Selection mirroring is coalesced rather than dropped. Each InlineSelectionChanged updates the

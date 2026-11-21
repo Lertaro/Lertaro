@@ -182,23 +182,10 @@ public class SearchEngine : IDisposable
         // per folder concurrently, and a single shared slot made those cancel each other.
         var searchCts = _searchCancellations.Begin(directoryFilter);
 
-        // Deliberately no "is the index ready" check. There used to be one, on the single GLOBAL status
-        // field, and it skipped the search outright for anything other than "ready" -- so rebuilding one
-        // drive stopped every OTHER drive from being searched too, along with network and WSL sources
-        // that have nothing to do with the local index at all. It reported success while doing it, so
-        // the caller could not tell "no matches" from "never looked".
-        //
-        // Nothing was unavailable. A per-drive rebuild passes clearExisting: false
-        // (SearchEngineDriveMaintenance.ForceRebuildDrive), and that flag is the only thing that clears
-        // _recordIndexes -- so every drive's existing LiveIndex, including the one being rebuilt, stays
-        // mapped and searchable for the whole scan, and the replacement is swapped in at the end. The
-        // complete previous index was sitting right there the entire time.
-        //
-        // So the search simply runs over whatever indexes are currently loaded. SearchCoordinator fans
-        // out across exactly those and no others, which degrades in the right direction on its own: a
-        // drive is missing from the results only while it genuinely has no index -- the brief window
-        // inside OnDriveCompleted where the old one is dropped before the new one is mapped, or a
-        // from-scratch first build (clearExisting: true), which really does have nothing to offer yet.
+        // Search all currently loaded indexes during rebuilds. A per-drive rebuild keeps its old
+        // LiveIndex until replacement, and unrelated local/network/WSL indexes remain usable. A global
+        // readiness check would hide those results. Only an initial build or the brief index-swap
+        // interval lacks that drive's index.
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(searchCts.Token, requestToken);
         var searchToken = linkedCts.Token;
 

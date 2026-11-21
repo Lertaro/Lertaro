@@ -1,8 +1,7 @@
 namespace Lertaro.Core;
 
 /// <summary>
-/// Split from <see cref="UserSettings"/> to keep that settings model under the repository line limit.
-/// Rotation must succeed before a save/import may overwrite the current settings.
+/// Rotates settings backups. Rotation must succeed before save or import overwrites current settings.
 /// </summary>
 internal static class UserSettingsBackupStore
 {

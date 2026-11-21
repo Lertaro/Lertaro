@@ -39,20 +39,13 @@ internal static class SearchCoordinator
             return;
         }
 
-        // A bounded limit cuts rows, so the cut has to be by rank across ALL drives: sharing the budget
-        // first-come let whichever drive answered first fill it, and the best row on a slower drive never
-        // arrived. Each drive returns its own best `limit`, and the global best `limit` is among their union.
+        // For bounded queries, collect each drive's best limit rows and rank their union so a fast drive
+        // cannot consume the whole budget. Preserve other drives' results if one fails; cancellation
+        // still ends the query.
         //
-        // ponytail: buffers up to drives * limit rows and gives up streaming for bounded queries (the quick
-        // and inline windows, a few hundred rows). The latency price is on a multi-drive machine: the first
-        // row reaches the window only after the slowest drive's search returns, where the streaming path
-        // below shows each drive's rows as they arrive. The unbounded full window keeps that streaming path,
-        // where nothing is cut and arrival order does not matter.
-        //
-        // One drive's search failing (a plugin alias provider throwing, an index whose compaction just
-        // failed) must not cost the other drives their rows -- here the whole fan-out's rows are still
-        // buffered when the exception surfaces, where the streaming path below has already handed its own
-        // rows over. Cancelling stays fatal: that is how the caller stops a search, not a drive failing.
+        // ponytail: buffering costs drives × limit rows and delays the first result until the slowest
+        // drive returns. Unbounded Full Window queries retain streaming. Incremental top-N merging could
+        // reduce bounded-query latency.
         if (limit < int.MaxValue)
         {
             var buffered = new List<SearchResult>[drives.Length];

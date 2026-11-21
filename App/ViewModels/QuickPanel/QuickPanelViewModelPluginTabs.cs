@@ -4,8 +4,7 @@ using Lertaro.App.Services.Plugin;
 
 namespace Lertaro.App.ViewModels.QuickPanel;
 
-// Loading a plugin's tab. Split out of QuickPanelViewModelLoading.cs purely to keep that file under the
-// repo's per-file line limit; it is the one part of the load that never goes near a folder.
+// Loads a plugin-provided quick-panel tab.
 public partial class QuickPanelViewModel
 {
     /// <summary>Asks a provider for its list and files it into groups.</summary>

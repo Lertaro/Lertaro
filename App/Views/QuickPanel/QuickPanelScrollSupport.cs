@@ -5,8 +5,7 @@ using Lertaro.App.ViewModels.QuickPanel;
 
 namespace Lertaro.App.Views.QuickPanel;
 
-// Split from the window to keep its input-handling file under the repository line limit. This helper
-// owns only the sticky-header presentation state; group preferences remain on their view models.
+// Maintains quick-panel sticky headers; group preferences remain on their view models.
 internal sealed class QuickPanelScrollSupport
 {
     private readonly ScrollViewer _scrollViewer;

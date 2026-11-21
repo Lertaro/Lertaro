@@ -5,22 +5,10 @@ using Lertaro.Core.Wire;
 
 namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 
-// Keeps the empty inline-search list synchronized with the Hook snapshot without making the Hook request
-// part of the search dispatcher. The snapshot callback may arrive off the UI thread.
-//
-// The snapshot is requested once per host the card is docked to, on that card's first visible pass over it.
-// Asking on every IsVisibleChanged looked harmless but was not: the Hook answers a request by querying
-// Directory Opus through a separate process (up to a multi-second wait on the hook thread) and re-scraping
-// the file-display windows, and the window is made visible repeatedly while the user works -- measured at
-// one request every ~5s, each of which froze the UI long enough that the user could not click. The opened
-// folders cannot meaningfully change within one showing, and one request per showing is what that cost
-// buys back.
-//
-// This used to key on the window instance, which stopped meaning "one showing" when the card became
-// reusable across summons (see InlineSearchWindowSummonSupport.Summon): one instance then served every
-// dialog for the whole run and asked the Hook once, so the list held whatever file managers happened to be
-// open at the first summon and never caught up with the rest. The host handle is the thing a summon
-// actually changes -- it is assigned before the window is shown -- so the request keys on that now.
+// Refreshes the empty inline list from Hook snapshots; callbacks may arrive off the UI thread. Request
+// once for each docked host's first visible pass. Key by host HWND, since the cached card is reused
+// across summons. Repeated visibility requests can trigger slow external-tool queries and block
+// interaction.
 internal static class InlineOpenedFoldersRefreshHelper
 {
     // Per card window instance, the host its last sent request was made for. The value is boxed because the

@@ -2,8 +2,7 @@ using Lertaro.Core.Indexer.Usn;
 
 namespace Lertaro.Core.DriveMonitoring;
 
-// Extracted to keep SearchEngineDriveMaintenance.cs under the project's line limit -- matches the
-// UsnIndexerMonitorExtensions.cs split pattern already used elsewhere for the same reason.
+// Cancels pending drive-maintenance operations.
 internal static class SearchEngineDriveMaintenanceCancellationExtensions
 {
     // Mirrors NetworkIndexer.CancelDrive for a local drive's own rebuild -- no-op (returns false) if

@@ -2,34 +2,16 @@ using System.Runtime.CompilerServices;
 
 namespace Lertaro.Core.SearchIndex;
 
-/// <summary>
-/// How large a reusable search buffer is allowed to get before it stops being worth keeping.
-/// </summary>
+/// <summary>Limits retained capacity in reusable search buffers.</summary>
 /// <remarks>
-/// The search path pools and reuses its working buffers because reallocating them on every keystroke was
-/// measurable. What none of them did was ever give anything back: each grew to fit the biggest search it
-/// had seen and stayed there, because Clear on a List or a Dictionary resets the count and not the
-/// capacity. That was invisible while the full window asked for a thousand results; now that it asks for
-/// every match on the drive, one search for a single letter sizes all of them for its own result count
-/// and the service holds that for the rest of its life. Nor can a collection help, since these are
-/// reachable from static pools and thread statics and so are not garbage.
+/// List.Clear and Dictionary.Clear retain capacity. Broad searches can therefore leave large arrays
+/// reachable from static pools and thread statics. Release buffers over the byte budget after use;
+/// ordinary searches continue to reuse their buffers.
 ///
-/// So a buffer that grew past the budget below is released instead of retained, and only a search big
-/// enough to have caused the problem pays for one reallocation next time.
-///
-/// The budget is in BYTES rather than entries, and is per buffer. Every one of these lives in a thread
-/// static or a per-worker pool, so whatever is allowed here is paid once per core: on a 16-core machine
-/// the matcher alone keeps seventeen of them. An entry count cannot express that, because the same count
-/// means very different amounts for a 16-byte rank and a 32-byte match -- which is exactly how the first
-/// attempt at this went wrong. Sixty-four thousand entries sounded modest and was 2MB per worker, so a
-/// single broad query still ended with 18MB parked across the pool, all of it at precisely the retention
-/// ceiling.
-///
-/// Measured to pick the number: an ordinary query returning 24k-41k results ends with its busiest worker
-/// holding 2,048 entries, and a whole-drive query pins every worker at the ceiling whatever the ceiling
-/// is. 128KB leaves ordinary use entirely untouched with room to spare -- 4,096 entries for the matcher's
-/// hit list, twice the largest ever observed -- while capping what a broad search can leave behind at
-/// about 2MB across all workers rather than 28MB.
+/// The limit is per buffer and measured in bytes because entry sizes differ. Workers each retain a
+/// buffer, so memory use scales with core count. In measurements, queries returning 24k–41k results
+/// needed at most 2,048 entries per worker. The 128 KB limit allows 4,096 matcher entries and caps
+/// retained worker storage at about 2 MB on the measured machine, down from about 28 MB.
 /// </remarks>
 internal static class SearchScratchPolicy
 {

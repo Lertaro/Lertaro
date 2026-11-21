@@ -1,25 +1,13 @@
 namespace Lertaro.PluginSdk.Services;
 
 /// <summary>
-/// The single rule for "the leading word the user typed to invoke something" -- <c>set 路径</c> is the
-/// word <c>set</c> carrying the argument <c>路径</c>. Both halves of a trigger word used to decide this
-/// separately: the host cut the word off the file-name search with one set of rules
-/// (<c>PluginTriggerQuery</c>), an action dispatched on another (<c>KeywordMatcher</c>), a scope keyword
-/// on a third, and every instant provider re-recognised its own word with a fourth copy of
-/// <c>StartsWith(word + " ")</c>. The copies drifted, so a word could be stripped by the host while its
-/// owner failed to recognise it -- the user then has neither the feature nor their search text.
-/// </summary>
-/// <remarks>
-/// Separators are any Unicode whitespace (<see cref="char.IsWhiteSpace(char)"/>), which covers the
-/// ideographic space U+3000 a Chinese IME emits in full-width mode and a pasted non-breaking space --
-/// neither of which any copy handled before. Consecutive separators count as one and the argument comes
-/// back trimmed, so <c>cs&#160;&#160;report</c> and <c>cs　report</c> both mean <c>cs report</c>.
+/// Parses leading trigger words consistently for host stripping, actions, scopes, and instant providers.
+/// For example, "set 路径" supplies trigger "set" and argument "路径".
 ///
-/// What is deliberately NOT decided here is whether a word with nothing after it activates. The host must
-/// not strip one (that word is all the user has asked to find so far); a window list or a command does
-/// activate bare; a provider whose bare form would flood the list with placeholder rows does not. Pick
-/// <see cref="TryMatch"/> or <see cref="TryMatchInvoked"/> accordingly.
-/// </remarks>
+/// Accept all Unicode whitespace, including U+3000 and non-breaking spaces. Collapse separators and trim
+/// the argument. Callers choose whether a bare trigger activates through TryMatch or TryMatchInvoked; the
+/// host preserves bare words for file search.
+/// </summary>
 public static class TriggerWord
 {
     /// <summary>

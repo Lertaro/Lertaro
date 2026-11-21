@@ -5,8 +5,7 @@ using Lertaro.Core;
 
 namespace Lertaro.App;
 
-// Split out purely to keep AppSearchResult under the repository's per-file line limit; this helper
-// has no state of its own and operates on the result row that owns the lazy display state.
+// Derives display values for an AppSearchResult using the row's lazy display state.
 internal static class AppSearchResultDisplaySupport
 {
     private static readonly SemaphoreSlim IconSemaphore = new(4);

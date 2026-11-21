@@ -5,16 +5,9 @@ using System.Windows.Media;
 namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 
 /// <summary>
-/// The screen side of the inline card: which monitor it is on, that monitor's DPI scale, the working area it
-/// has to stay inside, and how much vertical room it may take.
+/// Reads the inline card's monitor, DPI, work area, and available height for both sizing and positioning.
+/// InlineCardMetrics holds the geometry calculations separately from desktop queries.
 /// </summary>
-/// <remarks>
-/// Split out purely to keep the two consumers (InlineCardSizingSupport and InlineSearchWindowPositioner)
-/// under the repo's per-file line limit -- and so they cannot disagree about which screen they are talking
-/// about; the classes themselves have no state and always answer for the one window they are handed. The
-/// arithmetic lives in <see cref="InlineCardMetrics"/> so it stays testable; what needs a live desktop is only
-/// reading the screen, the DPI and the anchored window's rectangle.
-/// </remarks>
 internal static class InlineCardSpace
 {
     private const int MdtEffectiveDpi = 0;

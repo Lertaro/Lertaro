@@ -6,8 +6,7 @@ using System.Windows.Threading;
 
 namespace Lertaro.App.Views.Controls.Results;
 
-// Split out purely to keep ResultsControl under the repository's per-file line limit. This class has
-// no independent view state; it maintains collection-driven selection for the one control that owns it.
+// Maintains ResultsControl selection when its collection changes.
 internal sealed class ResultsCollectionSelectionSupport
 {
     private readonly ResultsControl _owner;

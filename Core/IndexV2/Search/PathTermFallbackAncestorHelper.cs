@@ -6,9 +6,8 @@ using Lertaro.Core.SearchIndex.Fzf;
 
 namespace Lertaro.Core.IndexV2.Search;
 
-// Split out to keep PathTermFallback under the repository's per-file line limit. This helper owns only
-// ancestor-chain traversal and segment matching; PathTermFallback remains responsible for candidate
-// collection, filtering, ranking, and branch orchestration.
+// Traverses and matches ancestor segments for PathTermFallback, which retains candidate collection,
+// filtering, and ranking.
 internal static class PathTermFallbackAncestorHelper
 {
     internal static int AncestorMask(Snapshot snapshot, DeltaOverlay delta, int parentRow,

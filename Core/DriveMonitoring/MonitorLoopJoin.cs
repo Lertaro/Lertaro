@@ -1,22 +1,11 @@
 namespace Lertaro.Core.DriveMonitoring;
 
-// Bounded wait for a drive monitor's own loop to finish before the per-drive index it writes into is
-// disposed.
+// Waits for a drive monitor's loop before disposing the LiveIndex it updates. Otherwise a pending
+// mutation can use a disposed ReaderWriterLockSlim and fail service shutdown.
 //
-// Why it exists: a USN monitor's loop runs as a fire-and-forget Task that applies record batches into its
-// drive's LiveIndex. UsnService.OnStop disposes that LiveIndex right after the monitors, and
-// LiveIndex.Dispose reached ReaderWriterLockSlim.Dispose while the loop still held or awaited the same
-// lock -- which throws SynchronizationLockException straight out of OnStop, terminates the whole service
-// process (Windows then logs "Failed to stop service"), and was seen ten times in one machine's
-// Application log between 2026-09-08 and 2026-09-19. Waiting for the loop here is what keeps that write
-// out of a disposed index; LiveIndex.Dispose no longer letting that exception escape is the second,
-// independent half of the same fix.
-//
-// Bounded on purpose: a service stop must never hang. The loops observe cancellation at their awaits
-// (200-2000 ms Task.Delay calls plus a per-iteration token check), so the normal case returns in
-// milliseconds; only a loop parked inside a synchronous FSCTL read can exceed the bound, and that case is
-// logged rather than waited on forever. Four drives at this bound still sit well inside Windows' own
-// service-stop timeout.
+// Bound the wait so shutdown cannot hang on a synchronous FSCTL call. Normal loops observe cancellation
+// during delays and iteration checks; log a timeout rather than waiting indefinitely. LiveIndex disposal
+// also contains shutdown exceptions.
 internal static class MonitorLoopJoin
 {
     internal static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(2);

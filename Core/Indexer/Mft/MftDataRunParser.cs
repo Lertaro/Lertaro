@@ -1,7 +1,6 @@
 namespace Lertaro.Core.Indexer.Mft;
 
-// Split out of MftParser purely to keep that file under the repo's per-file line limit; this helper
-// owns only non-resident $DATA run-list decoding and has no state of its own.
+// Decodes non-resident $DATA run lists for MftParser.
 internal static class MftDataRunParser
 {
     internal static List<(long lcn, long clusters)> ParseDataRuns(byte[] rec)

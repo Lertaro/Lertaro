@@ -4,10 +4,8 @@ using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.App.ViewModels.Settings.Plugins;
 
-// Owns the Object/Array-field behavior for a PluginConfigFieldViewModel -- loading child items from
-// settings, adding/removing array rows, and re-serializing children back into LocalValueStore. Split
-// out purely to keep PluginConfigFieldViewModel under the file-length limit; this class has no
-// state of its own, it always operates on the one field that owns it.
+// Loads Object/Array children, adds or removes array rows, and serializes them to the owning field's
+// LocalValueStore.
 internal sealed class PluginConfigArrayFieldSupport
 {
     private readonly PluginConfigFieldViewModel _field;

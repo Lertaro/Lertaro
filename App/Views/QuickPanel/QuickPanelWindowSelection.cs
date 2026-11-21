@@ -4,9 +4,7 @@ using Lertaro.App.Services;
 
 namespace Lertaro.App.Views.QuickPanel;
 
-// Which row the panel acts on, and how it is found. Split out of QuickPanelWindow.xaml.cs purely to keep
-// that file under the repo's per-file line limit; every one of these operates on _activeList, which the
-// input handlers there keep pointed at whichever list was last touched.
+// Resolves the active quick-panel row from _activeList, which input handlers update when a list is used.
 public partial class QuickPanelWindow
 {
     /// <summary>Opens whatever the active list has selected. What a double-click does, and Enter with it.</summary>

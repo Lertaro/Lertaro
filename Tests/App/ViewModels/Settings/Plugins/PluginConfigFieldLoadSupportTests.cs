@@ -4,11 +4,8 @@ using Lertaro.PluginSdk.Abstractions;
 
 namespace Lertaro.App.Tests.ViewModels.Settings.Plugins;
 
-// Child/array rows are built on first access rather than in the constructor. That is what lets the whole
-// plugin list be constructed without paying for every plugin's config tree -- the page only ever shows
-// one plugin's form, and building the rest was the bulk of its first-open cost. Lives in its own file
-// because PluginConfigFieldViewModelTests had crossed the repo's per-file line limit, matching how the
-// production side split its own load logic into PluginConfigFieldLoadSupport.
+// Tests lazy child/array-row creation. Building the plugin list must not load every configuration tree
+// before its tab is opened.
 [TestClass]
 public sealed class PluginConfigFieldLoadSupportTests
 {

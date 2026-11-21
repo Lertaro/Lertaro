@@ -1,8 +1,7 @@
 namespace Lertaro.App.ViewModels.LocalSend;
 
 /// <summary>
-/// Represents a collected file or directory item in Step 0 of LocalSendSendWindow.
-/// ponytail: Split out to keep LocalSendSendViewModel.cs under 300 lines limit.
+/// A file or directory collected in the first step of LocalSendSendWindow.
 /// </summary>
 public sealed class LocalSendCollectedItem
 {

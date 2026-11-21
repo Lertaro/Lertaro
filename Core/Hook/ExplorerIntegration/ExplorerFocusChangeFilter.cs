@@ -3,8 +3,7 @@ using Lertaro.PluginSdk.Registries;
 
 namespace Lertaro.Core.Hook;
 
-// Split out purely to keep ExplorerWindowClassifier under the repo's per-file line limit. This class
-// contains the focus-event filter and reads only the state of the one tracker passed to it.
+// Filters focus events using the supplied ExplorerTracker state.
 internal static class ExplorerFocusChangeFilter
 {
     public static bool IsIgnored(ExplorerTracker tracker, IntPtr hwnd)

@@ -3,8 +3,7 @@ using Lertaro.Core;
 
 namespace Lertaro.App.ViewModels.Search.Mapping;
 
-// Split out to keep SearchResultMapper under the repository's per-file line limit. This helper owns
-// only the repeated exact-directory-query checks used by buffered and streaming result paths.
+// Checks exact directory queries for buffered and streaming result paths.
 internal static class SearchResultDirectoryHelper
 {
     public static void RemoveQueriedDirectoryItself(List<SearchResult>? fileResults, string query)

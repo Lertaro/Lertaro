@@ -199,22 +199,11 @@ public static class QuickNavigationMenu
             if (generation == _sessionGeneration)
                 MenuHelperWindow.Release(helperWin);
 
-            // Every registered IQuickNavigationProvider/IDynamicActionProvider is a process-wide singleton
-            // (PluginManager holds one shared instance, reused by every Show() call) -- ClearSession wipes
-            // its handle->path lookup table, which the CURRENTLY OPEN menu's own submenu handles still
-            // point into. Rapid re-triggering (e.g. several quick middle-clicks) can open a NEWER menu
-            // before an OLDER one's Closed event has been delivered; when that stale event finally arrives
-            // here and this ran unconditionally, it cleared the newer menu's still-live session data out
-            // from under it, so hovering e.g. "This PC" resolved no path for its handle and rendered a
-            // visibly empty submenu even though the menu itself was still open and otherwise fine. Only
-            // clear when no NEWER Show() has started since this one did -- an older Closed event finding a
-            // mismatch just skips cleanup this time, which is harmless: the newer menu owns the shared
-            // provider session and will clear it when that menu eventually closes.
+            // Clear shared provider sessions only if no newer Show has started. A delayed Closed event
+            // from an older menu must not delete the newer menu's handle-to-path mappings.
             //
-            // Release everything the menu pulled in so memory falls back immediately on close: dispose the
-            // shell COM sessions (they own the native HMENU/HBITMAPs), drop the icon cache, then return
-            // the freed pages to the OS. Deferred + off the UI thread so WPF first tears down the menu
-            // visual tree (matching QuickSearch's hide path); otherwise the GC still sees it referenced.
+            // After WPF releases the menu tree, dispose Shell sessions and native handles, clear cached
+            // icons, and request memory maintenance off the UI thread.
             if (generation == _sessionGeneration)
             {
                 foreach (var provider in PluginManager.Instance.QuickNavigationProviders)
@@ -234,10 +223,7 @@ public static class QuickNavigationMenu
         contextMenu.IsOpen = true;
     }
 
-    // Thin forwarders to QuickNavigationMenuContentExtensions (split out to keep this file under the
-    // project's 300-line limit -- see that file's own header comment for what moved and why). Kept here,
-    // rather than having callers reach into the extensions class directly, because QuickNavigationSubMenuLoader
-    // already calls these two by this exact name (QuickNavigationMenu.CreateSeparator / .CreateMenuItem).
+    // Retains the menu-item construction entry points used by QuickNavigationSubMenuLoader.
     internal static Separator CreateSeparator()
     {
         var separator = QuickNavigationMenuContentExtensions.CreateSeparator();

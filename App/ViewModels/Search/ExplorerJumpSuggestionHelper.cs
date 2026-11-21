@@ -5,10 +5,7 @@ using Lertaro.App.Services.Plugin;
 
 namespace Lertaro.App.ViewModels.Search;
 
-// When the search box is empty in an inline-search context, and the currently active Explorer
-// window is sitting on a folder we haven't already scoped to, suggest jumping there instead of
-// showing nothing. Extracted out of SearchExecutionViewModel to keep that file under the repo's
-// line-count limit.
+// Suggests the active Explorer folder for an empty inline query when it differs from the current scope.
 internal static class ExplorerJumpSuggestionHelper
 {
     public static AppSearchResult? TryBuildSuggestion(bool isInlineSearchContext, string? searchScope)

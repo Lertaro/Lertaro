@@ -3,10 +3,8 @@ const path = require('path');
 
 const srcLogo = path.join(__dirname, '../logo.svg');
 
-// VitePress only ever serves static assets from <root>/public (config.srcDir + 'public'), not
-// .vitepress/public -- but that directory is entirely gitignored (it's a build-time copy target),
-// so tracked assets live under .vitepress/public/ and are mirrored into public/ here.
-// The root logo.svg is the sole source of website branding.
+// Copy tracked assets from .vitepress/public into VitePress's generated public directory.
+// The repository-root logo.svg is the source for both logo copies.
 const trackedPublicDir = path.join(__dirname, '.vitepress/public');
 const servedPublicDir = path.join(__dirname, 'public');
 

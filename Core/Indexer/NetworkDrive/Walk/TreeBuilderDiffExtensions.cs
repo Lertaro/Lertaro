@@ -1,10 +1,7 @@
 namespace Lertaro.Core.Indexer.NetworkDrive.Walk;
 
-// Diff-aware half of TreeBuilder, as extension methods instead of a partial class, to keep
-// TreeBuilder.cs under the project's line limit: re-committing a directory's cached records wholesale
-// once TreeDiffBaseline confirms nothing changed, rather than rebuilding every record from the listing,
-// and tracking which directories in THIS store have been fully enumerated (FileRecordFlags.Listed) so a
-// future resume can trust them the same way.
+// Reuses cached directory records when TreeDiffBaseline confirms no changes. Marks fully enumerated
+// directories with FileRecordFlags.Listed so later resumes can trust their contents.
 internal static class TreeBuilderDiffExtensions
 {
     // Must be called with builder._recordsGate already held (both call sites -- the constructor seeding

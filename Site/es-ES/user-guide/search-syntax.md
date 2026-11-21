@@ -18,25 +18,17 @@ Desactiva esta opción en **Configuración → General → Sistema → Habilitar
 
 ### Cómo se ordenan los resultados
 
-Los resultados se ordenan primero por **cómo** aparece el texto en el nombre y solo después por dónde empieza:
+Se compara primero la fijación, después el grado de coincidencia y, dentro de ese grado, las preferencias.
 
-1. **Palabra completa**: `atlas` encuentra `atlas`, `code-atlas`, `atlas.png` y `CodeAtlas`. Una palabra empieza al principio del nombre, después de un espacio, `-`, `_`, `.` o un separador de ruta, en un paso de minúscula a mayúscula y donde se juntan letras y dígitos.
-2. **Inicio de palabra**: `atlasing`.
-3. **Dentro de una palabra**: `metatlas.txt`.
-4. **Letras dispersas**: las coincidencias difusas como `AutofillStates` (**A**u**t**ofil**l**St**a**te**s**) siempre van al final.
+1. Primero aparecen las reglas **Alta + Siempre al principio**, seguidas de favoritos con coincidencias fuertes en el nombre.
+2. Los resultados normales prefieren el nombre completo (pueden ignorar la extensión), después las coincidencias fuertes, las difusas con letras separadas y los campos secundarios, como el destino de un acceso directo.
+3. Los resultados de prioridad baja van después de los normales. Los recuperados solo mediante una asociación aprendida van al final.
 
-Dentro de cada grupo:
+Dentro de un grado normal se comparan la prioridad y el historial efectivo antes de la posición de coincidencia: continuidad, palabra completa o inicio de palabra y posición inicial. La búsqueda rápida aplica después el orden de tipos, seguido de la proporción del nombre y el tipo de lectura. Así, `atlas` tiene mejor posición en `code-atlas` que en `atlasing`, `metatlas.txt` o letras dispersas.
 
-- Primero va lo creado o modificado **recientemente**, por tramos: hoy, la última semana, el último mes y lo anterior. Cuenta la más reciente de las fechas de creación y modificación, así que un archivo que acabas de copiar o descargar cuenta como nuevo.
-- Después, la **ruta menos profunda**: `D:\dev\code-atlas` va antes que la misma palabra diez carpetas más abajo dentro de la carpeta de un juego o de un paquete.
-- Después, la coincidencia que empieza más a la izquierda y, por último, la más compacta y completa.
+Hay una excepción en la búsqueda rápida: si Aplicaciones o Ajustes del sistema preceden a Archivos o Carpetas, los nombres exactos de estos últimos compiten como coincidencias fuertes. En ese caso, abrir repetidamente un acceso directo largo que contenga `ocr` puede situarlo antes de `ocr.docx`. Con Archivos primero o en la ventana completa, `ocr.docx` conserva su ventaja de nombre completo. Consulta los umbrales en [Historial](./settings/history).
 
-Si todo lo demás es igual, un archivo aparece antes que una carpeta (la lista de la carpeta actual en la ventana incrustada mantiene las carpetas primero, como el Explorador). Con varios términos, el término más débil decide el grupo.
-
-En todas las ventanas, los anclajes explícitos y los grados monotónicos mantienen un orden predecible:
-
-1. **Anclajes explícitos primero**: las reglas **Alto + Siempre arriba** y las coincidencias limpias de **Favoritos** se fijan arriba, mientras que las rutas de nivel **Bajo** permanecen por debajo de los resultados normales.
-2. **Coincidencias directas antes que alias e historial**: las coincidencias directas exactas y limpias van siempre delante de las difusas aproximadas, los alias secundarios limpios (destino de acceso directo o metadatos, mostrados en el subtítulo) y las **Asociaciones de consulta** confirmadas.
+La ventana integrada agrupa por separado los resultados de la carpeta actual; su orden se describe abajo. La ordenación explícita por columna o token usa el criterio elegido.
 
 ### Sin distinción entre mayúsculas y minúsculas (Case Insensitive)
 
@@ -48,7 +40,7 @@ No existe un modo sensible a mayúsculas: escribir una mayúscula ya no restring
 
 Los nombres en chino se pueden buscar por pinyin, en dos formas: las **iniciales** (una letra por carácter; `ex` para 恶性) y la **lectura completa** (cada sílaba deletreada; `zhengshu` para 证书).
 
-**Orden:** una coincidencia por pinyin cuenta como *inicio de palabra* (consulta «Cómo se ordenan los resultados» más arriba), así que queda por debajo de una palabra completa en inglés y por encima de una coincidencia en inglés dentro de una palabra. Dentro del mismo grupo, el orden es antigüedad > profundidad de la ruta > posición de la coincidencia > cobertura > inglés > iniciales > pinyin completo, así que inglés, iniciales y pinyin completo solo separan resultados que ya coinciden en todo lo demás. La última sílaba puede coincidir a medias, así que `zhengsh` sigue encontrando 证书 mientras terminas de escribir.
+Las coincidencias de pinyin suelen usar la posición de inicio de palabra. Si las iniciales o el pinyin completo cubren todo el nombre, pueden obtener el grado de nombre completo. En los demás casos, texto literal, iniciales y pinyin completo desempatan después de los otros criterios. Se permite una última sílaba incompleta: `zhengsh` encuentra «证书».
 
 **Con la coincidencia difusa desactivada**, las coincidencias por pinyin deben alinearse con el inicio de una sílaba. `ex` encuentra 恶性 (las iniciales de dos caracteres) pero no 学习 (que exigiría empalmar el final de `xue` con el principio de `xi`). Con la coincidencia difusa activada, esa lectura laxa es justo lo que pediste y sigue disponible.
 

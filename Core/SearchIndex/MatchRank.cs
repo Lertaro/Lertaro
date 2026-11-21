@@ -14,8 +14,9 @@ namespace Lertaro.Core.SearchIndex;
 // is the owner's 2026-10-19 choice; the earlier "left-contiguous first" rule survives only inside a
 // shape tie.
 //
-// The full window packs the same keys into SearchResultRelevance.HighKey; the quick window compares them
-// through CompareQuality. History/favorites are compared after these keys by both windows.
+// The full window packs these quality fields into SearchResultRelevance.HighKey. The quick window
+// inserts type order between placement and coverage. Both rankers compare section, grade, priority,
+// and eligible history before these quality fields.
 public readonly record struct MatchRank(
     int Tier,
     int Start,

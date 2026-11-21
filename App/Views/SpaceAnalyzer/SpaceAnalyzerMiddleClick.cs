@@ -8,8 +8,7 @@ using ListBoxItem = System.Windows.Controls.ListBoxItem;
 
 namespace Lertaro.App.Views.SpaceAnalyzer;
 
-// Split out to keep SpaceAnalyzerView below the repository's per-file line limit. This helper owns
-// only the shared middle-click behavior used by the list and treemap.
+// Handles middle-click actions shared by the space analyzer's list and treemap.
 internal static class SpaceAnalyzerMiddleClick
 {
     public static void Attach(ListBox list) => list.MouseDown += (_, e) => HandleListMouseDown(list, e);

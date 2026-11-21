@@ -1,6 +1,6 @@
 # 搜索语法的维护边界
 
-当前入口是 [SearchQuerySortParser](../Core/SearchIndex/Query/SearchQuerySortParser.cs)、[SearchQueryParser](../Core/SearchIndex/Query/SearchQueryParser.cs) 和 [FzfPatternParser](../Core/SearchIndex/Fzf/FzfPatternParser.cs)。旧 `feat-search-reimpl` 分支的 `:term` 排除、`?term` 反转和查询 `/regex/` 方案不属于当前实现。
+当前入口是 [SearchQuerySortParser](../Core/SearchIndex/Query/SearchQuerySortParser.cs)、[SearchQueryParser](../Core/SearchIndex/Query/SearchQueryParser.cs) 和 [FzfPatternParser](../Core/SearchIndex/Fzf/FzfPatternParser.cs)。本文描述 `main` 的现行语法；正则查询方案由独立功能分支维护。
 
 ## 当前语法
 

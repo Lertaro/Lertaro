@@ -1,8 +1,7 @@
 namespace Lertaro.Core.Services.LocalSend;
 
 /// <summary>
-/// Stream content with upload progress tracking for LocalSendClient.
-/// ponytail: Split out purely to keep LocalSendClient.cs under the repo's 300-line limit.
+/// Tracks LocalSend upload progress while streaming HTTP content.
 /// </summary>
 public sealed class ProgressiveStreamContent : HttpContent
 {

@@ -4,21 +4,12 @@ using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.CoreExtensions.Preview.Handlers;
 
-// Recovery layer for a native preview handler's own out-of-process window -- e.g. Excel, running as its
-// own prevhost surrogate rather than a thin preview-only handler -- stealing OS keyboard focus away from
-// the host app once its content finishes initializing. PreviewHandlerHost.WndProc handles prevention
-// (WM_MOUSEACTIVATE/WM_SETFOCUS on _hostHwnd itself); this class is the fallback for whatever slips past
-// that, e.g. an asynchronous, non-click-driven SetFocus a handler issues on its own schedule.
+// Recovers focus stolen asynchronously by an out-of-process native preview handler. PreviewHandlerHost
+// prevents focus on its host HWND; this bounded, PID-scoped EVENT_OBJECT_FOCUS watcher reports other
+// steals through PreviewActivationSignal.
 //
-// Tried and reverted here: severing the child's input-queue attachment via AttachThreadInput(..., false)
-// on WM_PARENTNOTIFY, hoping to stop the steal before it happens. It backfired -- the child's implicit
-// attachment to our queue is apparently what keeps its clicks from triggering a REAL OS-level foreground
-// switch to its own top-level window; detaching it made clicking into the preview activate that window
-// for real, which cascaded into QuickLookManager.Owner_Deactivated treating it as focus lost to another
-// app entirely and closing the whole search window.
-//
-// A bounded, PID-scoped EVENT_OBJECT_FOCUS watcher: reacts to the real focus-change event (not a guessed
-// delay) and reports back via PreviewActivationSignal so the host can reclaim focus.
+// Keep input queues attached: detaching the child can turn preview clicks into foreground switches and
+// cause the search window to close.
 internal sealed class PreviewFocusGuard
 {
     private delegate void WinEventDelegate(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime);

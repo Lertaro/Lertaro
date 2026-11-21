@@ -4,17 +4,8 @@ using Lertaro.PluginSdk.Abstractions.Plugins;
 namespace Lertaro.App.Services.ShellMenu.Presenter;
 
 /// <summary>
-/// The part of "may the actions menu open for this selection" that is about INSTANT results.
+/// Determines whether instant results support the actions menu using the supplied providers and selection.
 /// </summary>
-/// <remarks>
-/// Split out of <see cref="ShellMenuPresenter"/> purely to keep that file under the repo's per-file line
-/// limit; it has no state and always operates on the providers and selection it is handed.
-///
-/// Instant results (the window switcher's windows, a calculator's answer, ...) carry no file path, so the
-/// host keeps the actions menu closed for them unless a provider declares that it acts on them -- see
-/// <see cref="IDynamicActionProvider.CanProvideForInstantResults"/>. The providers arrive as a parameter
-/// rather than being read from <see cref="PluginManager"/> here so the rule can be pinned by a test.
-/// </remarks>
 internal static class ActionsMenuEligibility
 {
     /// <summary>

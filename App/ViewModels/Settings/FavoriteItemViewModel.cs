@@ -3,8 +3,7 @@ using Lertaro.App.Helpers;
 
 namespace Lertaro.App.ViewModels.Settings;
 
-// Split out purely to keep FavoritesSettingsViewModel under the repository's per-file line limit; this
-// class owns the state of one favorite row in the favorites list, including its global-hotkey field.
+// Stores one favorite row's state, including its global hotkey.
 public class FavoriteItemViewModel : ViewModelBase
 {
     private string _name = string.Empty;

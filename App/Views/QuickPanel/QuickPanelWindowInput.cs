@@ -4,10 +4,7 @@ using System.Windows.Media;
 
 namespace Lertaro.App.Views.QuickPanel;
 
-// The decisions the panel's input handlers make, as functions of what was pressed rather than of the
-// window's own state. Split out of QuickPanelWindow.xaml.cs purely to keep that file under the repo's
-// per-file line limit; every one of these is static, and they are here rather than there because they
-// are also the only parts of the panel's input worth testing without a mouse.
+// Evaluates quick-panel input gestures independently of window state.
 public partial class QuickPanelWindow
 {
     /// <summary>

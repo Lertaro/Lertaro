@@ -258,10 +258,7 @@ internal static class ActionMenuBuilder
         return uiItems;
     }
 
-    // Dedupes by text and tidies separators, then reorders sections per the user's saved preference.
-    // Implementation lives in ActionMenuBuilderFinalizeExtensions (composition split to stay under the
-    // file line limit); this stays a thin forwarder so every external caller and test keeps calling
-    // ActionMenuBuilder.FinalizeItems unchanged.
+    // Deduplicates item text, removes redundant separators, and applies the saved section order.
     public static List<ActionMenuItem> FinalizeItems(List<ActionMenuItem> uiItems) =>
         ActionMenuBuilderFinalizeExtensions.FinalizeItems(uiItems);
 

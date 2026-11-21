@@ -3,9 +3,8 @@ using Lertaro.Core.Services.Search;
 
 namespace Lertaro.App.Services;
 
-// Split out from ServiceConnectionHandler to keep that file under the repo's per-file line limit.
-// This class owns the process-wide shared status timer and auto-install state; ServiceConnectionHandler
-// instances subscribe/unsubscribe through the static members below.
+// Owns the shared service-status timer and auto-install state. ServiceConnectionHandler instances
+// subscribe through the static members below.
 internal static class ServiceConnectionMonitor
 {
     // Steady-state poll interval: once the service is reachable and no detailed status is needed, the

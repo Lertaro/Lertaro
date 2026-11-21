@@ -3,10 +3,7 @@ using Microsoft.Data.Sqlite;
 namespace Lertaro.Plugins.ContentSearch.Storage;
 
 /// <summary>
-/// Database space management: footprint reporting and free-page reclamation.
-/// Split out purely to keep ContentSearchDatabase under the repository's per-file
-/// line limit; these helpers hold no state and always operate on the one connection
-/// passed in per call.
+/// Reports database footprint and reclaims free pages on the supplied connection.
 /// </summary>
 public static class DatabaseMaintenanceHelper
 {

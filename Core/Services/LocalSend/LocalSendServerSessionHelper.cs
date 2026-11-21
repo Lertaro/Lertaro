@@ -3,9 +3,7 @@ using Lertaro.Core.Services.LocalSend.Models;
 namespace Lertaro.Core.Services.LocalSend;
 
 /// <summary>
-/// Session user acceptance helper for LocalSendServer.
-/// ponytail: Split out of LocalSendServer.cs for the same reason; LocalSendServer.cs is still above the
-/// repo's 300-line guideline, so the split relieved it without clearing it.
+/// Handles user acceptance of LocalSend sessions.
 /// </summary>
 public static class LocalSendServerSessionHelper
 {

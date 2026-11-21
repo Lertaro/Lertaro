@@ -1,8 +1,6 @@
 namespace Lertaro.Core.SearchIndex.Fzf;
 
-// Split out from FzfPattern to keep the pattern state/matching file under the repository's 300-line
-// limit. This class owns parsing only and constructs the immutable FzfPattern through its internal
-// constructor; matching remains on the pattern itself.
+// Parses queries into immutable FzfPattern instances.
 internal static class FzfPatternParser
 {
     public static FzfPattern Parse(string query)

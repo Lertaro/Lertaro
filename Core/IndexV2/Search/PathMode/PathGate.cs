@@ -268,8 +268,7 @@ internal sealed class PathGate
         return false;
     }
 
-    // Ranking-only weight computation lives in PathGateWeighting (composition, not a partial class,
-    // purely to keep this file under the repo's per-file line limit); these two just forward to it.
+    // Delegate post-scan path ranking to PathGateWeighting.
     public double ComputeWeight(int parentRow, SearchMatcher.Worker worker) => _weighting.ComputeWeight(parentRow, worker);
 
     public double ComputeWeightForPath(string path, SearchMatcher.Worker worker) => _weighting.ComputeWeightForPath(path, worker);

@@ -5,31 +5,13 @@ using Lertaro.Core;
 
 namespace Lertaro.App.Converters;
 
-/// <summary>How wide a quick panel tile is, and how big the picture inside it is, for a list this wide.</summary>
+/// <summary>Calculates tile and image sizes from the available panel width.</summary>
 /// <remarks>
-/// A fixed tile width left the panel's tiles the same size whatever it was docked to, so a wide window
-/// got a row of ten small thumbnails with nothing gained from the space. The width is divided among at
-/// most five instead, and every tile spends what it gets on the picture.
+/// Aim for five columns, reduce the count when tiles would be too narrow, and add columns when images
+/// reach their size limit. Divide the available width evenly so the row fills its right edge.
 ///
-/// Five is a floor on the count, not a promise of it. Both ends give way, and for the same reason -- a
-/// tile is only worth the width it can use:
-///
-///   - Narrow, where a fifth of the list would be smaller than the tiles used to be: the row wraps at
-///     four, or three, which is better than five unreadable ones.
-///   - Wide, where a fifth would be more than the picture can fill: the row takes a sixth, an eighth,
-///     however many that width now holds. The alternative is five tiles each padded with the space it
-///     could not use.
-///
-/// Whatever the count comes out at, the width is divided between them rather than handed out in fixed
-/// lumps, so a row is never short of its own right edge. Smaller tiles are the better trade: an empty
-/// strip at the end of every row is the one thing that reads as a mistake.
-///
-/// What the picture can fill is where the ceiling comes from: icons arrive at 256px from a thumbnail
-/// provider and 96 from the shell's own path (see ShellImageListInterop), so past a point a bigger tile
-/// is only stretching what it already has. How high that ceiling sits is the user's call, as
-/// <see cref="IconSize"/>: Small draws the picture at two fifths of ExtraLarge's width, Medium at a bit
-/// over half and Large at three quarters, with ExtraLarge -- the size the tiles were before any of this
-/// was adjustable -- unchanged in every number.
+/// Thumbnail providers supply 256 px images; the shell supplies 96 px icons. <see cref="IconSize"/>
+/// sets the image ceiling: Small is 40% of ExtraLarge, Medium slightly over half, and Large 75%.
 /// </remarks>
 public sealed class QuickPanelTileMetrics : IValueConverter
 {

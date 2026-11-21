@@ -5,12 +5,8 @@ using Lertaro.Plugins.ContentSearch.Storage;
 namespace Lertaro.Plugins.ContentSearch.Indexing;
 
 /// <summary>
-/// Extracts text for a batch of discovered files and routes each result to the database:
-/// successful text is FTS-indexed, failures are recorded as failed rows, and files that
-/// vanished or became excluded by configuration are deleted from the index.
-/// Split out of ContentIndexScheduler purely to keep that file under the repository's
-/// per-file line limit; this class holds no state beyond the database reference and the
-/// index-size pause monitor.
+/// Extracts and indexes batch text, records extraction failures, and removes files that disappeared or
+/// became excluded. Tracks the database and index-size pause monitor.
 /// </summary>
 public sealed class IndexBatchProcessor
 {

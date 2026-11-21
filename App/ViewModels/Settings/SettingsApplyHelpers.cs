@@ -6,8 +6,7 @@ namespace Lertaro.App.ViewModels.Settings;
 
 internal sealed record LocalDriveSnapshot(string Drive, string Id, bool IsEnabled);
 
-// Comparison/rebuild helpers used only by SettingsViewModel.Apply() -- split out to keep that file
-// under the line-count limit.
+// Comparison and rebuild helpers for SettingsViewModel.Apply.
 internal static class SettingsApplyHelpers
 {
     /// <summary>

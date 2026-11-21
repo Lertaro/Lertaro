@@ -1,8 +1,7 @@
 namespace Lertaro.Core.IndexV2.Persistence;
 
 /// <summary>
-/// Helper operations for SnapshotWriter to keep file line count strictly under 300 lines.
-/// Split out purely to comply with the repo's per-file line limit; these operations act on snapshot streams and ID arrays.
+/// Writes snapshot stream sections and ID arrays for SnapshotWriter.
 /// </summary>
 internal static class SnapshotWriterOps
 {

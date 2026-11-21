@@ -9,8 +9,7 @@ using ListViewItem = System.Windows.Controls.ListViewItem;
 
 namespace Lertaro.App.Views.SearchWindow;
 
-// Split out purely to keep SearchWindowInputHandler under the repo's per-file line limit; this class
-// owns only full-window column activation and always operates on the one SearchWindow passed to it.
+// Activates columns in the full search window.
 internal sealed class SearchWindowColumnActivation(Lertaro.App.SearchWindow window)
 {
     public bool TryHandle(MouseButtonEventArgs e, ListViewItem item, AppSearchResult result, bool isFileOrFolder)

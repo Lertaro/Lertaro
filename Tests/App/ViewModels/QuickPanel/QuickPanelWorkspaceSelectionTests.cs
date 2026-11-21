@@ -3,9 +3,7 @@ using Lertaro.Core;
 
 namespace Lertaro.App.Tests.ViewModels.QuickPanel;
 
-// Which workspace the panel comes up on, and what switching between them does. Split from
-// QuickPanelViewModelTests, which covers what one workspace turns into once chosen, both to keep either
-// file under the repo's per-file line limit and because the two ask genuinely different questions.
+// Tests initial quick-panel workspace selection and switching between workspaces.
 [TestClass]
 public sealed class QuickPanelWorkspaceSelectionTests
 {

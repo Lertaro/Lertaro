@@ -7,8 +7,7 @@ using WpfListBox = System.Windows.Controls.ListBox;
 namespace Lertaro.App.Views.LocalSend;
 
 /// <summary>
-/// UI helper methods for LocalSendSendWindow.xaml.cs.
-/// ponytail: Split out purely to keep LocalSendSendWindow.xaml.cs under the repo's 300-line limit.
+/// UI helpers for LocalSendSendWindow.
 /// </summary>
 public static class LocalSendSendWindowHelper
 {

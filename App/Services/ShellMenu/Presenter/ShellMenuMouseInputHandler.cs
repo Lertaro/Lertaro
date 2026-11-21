@@ -8,8 +8,7 @@ using Lertaro.App.Views.Controls.Results;
 namespace Lertaro.App.Services.ShellMenu.Presenter;
 
 /// <summary>
-/// Handles mouse input events for the actions list in shell menu mode.
-/// Extracted from ShellMenuPresenter to keep it under 300 lines.
+/// Handles mouse input for the shell-menu actions list.
 /// </summary>
 internal sealed class ShellMenuMouseInputHandler
 {

@@ -10,8 +10,7 @@ using System.Windows.Threading;
 namespace Lertaro.App.Helpers.LocalSend;
 
 /// <summary>
-/// Handles LocalSend background events (progress, upload requests, text messages, cancellation).
-/// ponytail: Split out purely to keep App.xaml.cs under the repo's 300-line limit.
+/// Handles LocalSend progress, upload requests, text messages, and cancellation.
 /// </summary>
 public static class LocalSendAppEventHandler
 {

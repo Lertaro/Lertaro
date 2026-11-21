@@ -3,16 +3,8 @@ using System.Collections.Specialized;
 
 namespace Lertaro.App.ViewModels.Settings.Plugins;
 
-// Split out purely to keep PluginConfigFieldViewModel under the repo's per-file line limit; this class
-// always operates on the one field that owns it. It owns that field's working-copy state: the child/array
-// rows AND the "has the user staged an edit" flag, since both describe the same thing -- what this field
-// currently holds in memory that is not yet written to settings.
-//
-// It owns WHEN a field's child rows and array rows get built: on first access, not in the constructor.
-// Only the one plugin whose config tab is open ever renders them, yet the plugin list used to build every
-// plugin's whole tree up front -- reading settings and deserializing array rows per field, recursing
-// through groups -- which was the bulk of the page's first-open cost. The collections are handed out as
-// the same instances throughout, so XAML bindings stay valid across the load.
+// Builds child and array rows on first access and tracks staged edits. Only the visible plugin needs its
+// configuration tree. Keep collection instances stable so XAML bindings survive loading.
 internal sealed class PluginConfigFieldLoadSupport
 {
     private readonly PluginConfigFieldViewModel _field;

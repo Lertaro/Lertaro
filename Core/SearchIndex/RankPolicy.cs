@@ -193,19 +193,10 @@ public static class RankPolicy
             s.TypeRankApplies);
     }
 
-    // Directories are containers, not identities: an exact folder name is a strong direct match but never
-    // an ExactIdentity -- as long as the user ranks the file bucket behind another type, so that the
-    // configured type order (Applications before Files) can put an app ahead of an unrelated folder with the
-    // same leading word. Once Files is the top of that order the cap has nothing left to protect, and
-    // demoting would instead strip the strongest evidence from the bucket the user ranked first: a settings
-    // row that only matched through a keyword would outrank every exact-named folder while the file bucket
-    // still led the order. Callers turn the cap off for exactly that case (RankContext.DemoteDirectoryIdentity).
-    //
-    // A file in that bucket is capped the same way (RankSignals.DemoteFileIdentity). Grade is compared before
-    // the type order, so an uncapped exact name skips it entirely: "nvidia" put every nvidia.ico and
-    // nvidia.bik on the machine ahead of the "NVIDIA app" the user ranked first. Capped, both are DirectStrong
-    // at the same placement and the type order decides; an app that matches later in its title still loses
-    // to the exact file on placement, so the cap does not hand the type order a match it would not earn.
+    // Quick Search caps exact file/folder names at DirectStrong when another non-file type leads
+    // that bucket. This lets the configured type order resolve equal placements (NVIDIA app versus
+    // nvidia.ico). A later match still loses on placement unless priority or history decides first.
+    // Callers control the two caps independently; shortcuts using the application rank keep identity.
     private static MatchEvidenceGrade GradeForRanking(in RankSignals s, in MatchEvidence evidence)
     {
         var strong = !s.IsHistoryOnly && s.Match.IsStrong;

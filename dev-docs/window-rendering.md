@@ -1,6 +1,6 @@
 # 窗口渲染与清晰度
 
-现行入口：[WindowParking](../App/Helpers/Visuals/WindowParking.cs)、[AppTypography](../App/Services/AppTypography.cs)、[DwmWindowCorners](../App/Helpers/Visuals/DwmWindowCorners.cs)。本页保留实现约束；硬件相关结论来自 2026 年 10 月的历史探针，本次未重新做屏幕测量。
+实现入口：[WindowParking](../App/Helpers/Visuals/WindowParking.cs)、[AppTypography](../App/Services/AppTypography.cs)、[DwmWindowCorners](../App/Helpers/Visuals/DwmWindowCorners.cs)。下文的硬件测量来自 2026 年 10 月，保留用于解释设计取舍。
 
 ## 文字与轮廓
 
@@ -25,7 +25,7 @@
 
 `AfterFrame` 经过 Render 和 Loaded 两次 dispatcher 调度。历史探针中，停在 -32000 等 `ContentRendered` 的 32 次尝试全部超时，因此它不能作为离屏放行条件。停靠可减少冷布局暴露，但多等 0–260 ms 并未消除落位后的约 22–31 ms 残差；不能写成“保证零黑帧”。
 
-现有快速、内联和通知卡片经 `CardRenderMode` 使用软件合成；该选择有本机测量依据，不等于所有 WPF 窗口都应改软件渲染。QuickLook 与 PreviewOverlay 已有先停靠再显示路径，不能再保留“尚未门控”的旧待办。
+现有快速、内联和通知卡片经 `CardRenderMode` 使用软件合成；该选择有本机测量依据，不等于所有 WPF 窗口都应改软件渲染。QuickLook 与 PreviewOverlay 同样使用先停靠再显示的路径。
 
 ## 复用和尺寸的教训
 

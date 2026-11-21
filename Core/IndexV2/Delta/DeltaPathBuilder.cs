@@ -1,8 +1,6 @@
 namespace Lertaro.Core.IndexV2.Delta;
 
-// Split out of DeltaOverlay purely to keep that file under the repo's per-file line limit; this
-// builder has no state of its own and always operates on the one DeltaOverlay passed per call.
-// DeltaChildLookup deliberately mirrors GetParentPath's resolution order below -- keep them in sync.
+// Builds paths from DeltaOverlay state. Keep parent resolution order aligned with DeltaChildLookup.
 internal static class DeltaPathBuilder
 {
     // Same Path.Combine chain as Snapshot.GetFullPath, with delta overrides patched in along the walk.

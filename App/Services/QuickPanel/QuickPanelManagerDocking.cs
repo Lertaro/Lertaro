@@ -2,9 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace Lertaro.App.Services.QuickPanel;
 
-// Where the panel puts itself, and the P/Invokes that answer that. Split out of QuickPanelManager.cs
-// purely to keep that file under the repo's per-file line limit; this is the one part of the manager
-// that is about geometry rather than lifetime.
+// Calculates quick-panel docking bounds through native window queries.
 public sealed partial class QuickPanelManager
 {
     private const double PanelSideFactor = 0.5;

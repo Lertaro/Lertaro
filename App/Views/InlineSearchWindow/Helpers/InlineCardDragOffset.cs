@@ -3,25 +3,11 @@ using Lertaro.Core;
 namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 
 /// <summary>
-/// A drag the user performed on the inline card, kept as a displacement from the position the card docks to,
-/// one displacement per host.
+/// Stores a per-host drag offset from the inline card's docking position. Relative offsets survive host
+/// movement, DPI changes, and card resizing. HostKeyFor distinguishes each process's regular windows from
+/// its dialogs. Offsets last for this run only, so reusing the card across hosts does not share their
+/// positions.
 /// </summary>
-/// <remarks>
-/// A displacement rather than an absolute position, because every later positioning pass re-docks the card --
-/// the dialog moved, the monitor's DPI changed, the card grew or shrank -- and a remembered absolute position
-/// would be thrown away by the next one of those. That is the trap the quick window's own card drag fell into
-/// (#255), where dragging the card appeared to do nothing at all.
-///
-/// Host-scoped because the card is ONE window reused across hosts: a dismissed card is parked, not destroyed
-/// (InlineSearchWindowSummonSupport), so that the next summon does not pay 170-258ms of composition for a
-/// window the user is already looking at. One global displacement therefore travelled with it -- moving the
-/// card inside Directory Opus moved the card inside Explorer. Each application now keeps its own, kept only
-/// for this run of the process, and a dialog shares that application's process name with its plain windows
-/// without sharing where the card docks, so <see cref="HostKeyFor"/> splits both of those out.
-///
-/// Split out purely to keep InlineSearchWindowPositioner under the repo's per-file line limit. Takes the
-/// window's position as a function rather than the window so the keying is testable without a WPF window.
-/// </remarks>
 internal sealed class InlineCardDragOffset
 {
     /// <summary>The bucket the desktop's displacement lives in, kept apart from explorer.exe's.</summary>

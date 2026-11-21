@@ -11,9 +11,7 @@ using Lertaro.PluginSdk.Abstractions.Plugins;
 using SearchWindowType = Lertaro.PluginSdk.Abstractions.SearchWindowType;
 namespace Lertaro.App.ViewModels.Search.Dispatch;
 
-// Owns query-token parsing and search dispatch for the full search window's SearchViewModel --
-// extracted into its own class (composition, not a partial class) purely to keep SearchViewModel.cs
-// under the repo's per-file line limit.
+// Parses query tokens and dispatches searches for the full window's SearchViewModel.
 internal sealed class SearchQueryDispatchController : IDisposable
 {
     // The full window has no favorite-only rows, but an indexed favorite must still get the same
@@ -170,22 +168,10 @@ internal sealed class SearchQueryDispatchController : IDisposable
         _accumulator = accumulator;
         _searchSettled = false;
 
-        // Content-style file providers (e.g. ContentSearch's "cs " hits) answer from their own database, and
-        // building the rows means one row per hit. Started alongside the file search rather than during the
-        // settled render so it overlaps it instead of extending it, and so the UI thread never waits on it:
-        // when it ran inside the final render, a large content index held the one thread every window's
-        // paint, status callback and cancellation runs on -- the app stopped answering input and could not
-        // even be cancelled out of it.
-        //
-        // Deferred to the search's own debounce tick, though NOT run here: this method fires for every
-        // keystroke, and the walk these providers do is the most expensive part of the query. Asking once
-        // per settled query is the difference between one scan and one per character typed.
-        //
-        // Not created for a file-filter scope: the scope says the folders it configures are the whole result
-        // domain, so its rows would be dropped again. Nor for a query carrying a :token -- that render path
-        // never merges them either. Whether a TYPE filter is active is deliberately NOT checked here: that is
-        // UI-thread state, and waiting to read it is exactly what blocked the render above. It is checked
-        // where the rows land instead.
+        // Start content-provider work on the debounced search tick alongside file search, off the UI
+        // thread. Render results as they arrive. Skip providers for file-filter scopes and tokenized
+        // queries, whose render paths do not merge these rows. Apply active type filters when results
+        // reach the UI instead of blocking the worker to read UI state.
         var wantsContentRows = scopeDirective == null && _queryTokens.Count == 0;
         var queryGeneration = Interlocked.Increment(ref _contentAppendGeneration);
         void StartContentRowAppend()

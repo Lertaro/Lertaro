@@ -1,32 +1,27 @@
 # History
 
-The History settings page manages usage frequency, typed search terms, and confirmed query-to-target associations across three independent tabs: **Search History**, **Keyword History**, and **Query Associations**.
+The three tabs manage opened items, search terms, and learned query associations separately.
 
 ## 1. Search History
 
-Search History tracks how often and recently you open each file, folder, or application so direct matches break ties intelligently:
+Records how often and recently each file, folder, or application was opened from search results.
 
-- **Decayed Frecency Tie-Breaking**: Frequently opened items refine order **within the same match grade** using a 90-day half-life decay, without letting stale opens leapfrog an exact direct title or filename match.
-- **Inline Window Grouping**: Inside file dialogs, matching items within the active folder appear under "Current Folder", while others appear under "Global Search".
-- **Dead Link Filtering**: If an indexed path is moved or deleted, Lertaro automatically skips missing entries, guaranteeing unique rows.
-- **Management Controls**:
-  - **Enable History**: Master toggle; existing entries are retained when disabled. New entries are not added, while reopening an existing entry refreshes its recency.
-  - **Search Filter**: Narrows the visible history list by keyword.
-  - **Usage Counts & Cleanup**: Each row shows how many times it has been opened. Choose a threshold and click **Clear with at most N uses** to remove low-use entries, or remove individual rows and click **Clear All History** to wipe everything.
-  - **Live Updates**: The list refreshes automatically when another search window records a new launch.
+- **Ranking:** each open adds 1 to a score capped at 10. Scores decay with a 90-day half-life. A score of 3 qualifies for H3 and 5 for H5. Quick Search has up to 3 H5 and 10 H3 slots; inline search has 1 and 3. The Full Window has no slot cap.
+- **Scope:** usage can move an item ahead of other results with the same effective match grade and priority. Quick Search's type settings can lower exact file/folder matches to the strong-match grade; see [Search Syntax](../search-syntax).
+- **Inline groups:** current-folder and global results are grouped separately. Missing paths are skipped.
+- **Management:** filter by keyword, delete individual entries, clear entries with at most N uses, or clear all. Lists refresh when another window records a launch. Disabling history prevents new entries; existing entries still update their counts and recency.
 
 ## 2. Keyword History
 
-Keyword History remembers the **raw query strings** that were actually used to execute a result or action, or to open the Full Window. Merely typing a query and dismissing or leaving the Quick Window does not add it:
+Stores the original query when you execute a result or action, or open the Full Window. Typing and dismissing Quick Search alone does not create a record.
 
-- **Hotkey Navigation**: Inside the Quick Window, press **`Alt+Up`** / **`Alt+Down`** to cycle backward and forward through recent queries. Press **`Ctrl+Delete`** to delete the currently active term.
-- **Usage Counts & Cleanup**: Each keyword shows how many times it has been used. Choose a threshold and click **Clear with at most N uses** to remove low-use keywords.
-- **Independent Maintenance**: Includes its own **Enable History** toggle, search filter, single-entry deletion, and **Clear All History** button. When disabled, existing keywords still accumulate usage counts, while new keywords are not added.
+- Press **Alt+Up / Alt+Down** to browse previous queries and **Ctrl+Delete** to remove the current entry.
+- Filter, delete, clear all, or remove keywords with at most N uses. This tab has its own recording switch. When disabled, existing keywords still accumulate uses, but new keywords are not added.
 
 ## 3. Query Associations
 
-Query Associations stores confirmed **query → target path** habits separately from general path frequency:
+Stores **query → target path** associations independently of general usage scores.
 
-- **3-Open Confirmation Threshold**: An item is recalled for a non-matching query only after you organically open it at least **3 times** for that normalized query, preventing one-off misclicks from polluting future searches.
-- **No Feedback Loops & Monotonic Placement**: Launching an item from learned recall alone never self-reinforces unconfirmed counts, excludes `Low`-priority cache paths, and always places learned recall after direct matches.
-- **Independent Cleanup**: Filter, delete individual associations, or clear all learned associations at any time without resetting your path usage counts.
+- An association becomes eligible after the same normalized query is used to open a normally found result at least **3 times**. An open from learned recall alone does not increase this count.
+- At most **one** association supplements a query. Low-priority targets are excluded, and association-only results follow direct matches.
+- Filter, delete, or clear associations without resetting path usage scores.

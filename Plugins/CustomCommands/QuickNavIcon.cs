@@ -10,21 +10,10 @@ using PixelFormats = System.Windows.Media.PixelFormats;
 
 namespace Lertaro.Plugins.CustomCommands;
 
-// Icons for the quick-navigation menu manifestation of custom commands, which only carries an HBITMAP
-// handle (DynamicMenuItem), not a live WPF element -- same "vector Geometry rasterized to HBITMAP"
-// technique Plugins/TotalCommander/DirMenu/DirMenuIcon.cs and Plugins/FolderCascader/Navigation/IconBitmapCache.cs
-// already use for their own synthetic (non-filesystem) entries. Custom command icons use the same
-// configured SVG path data as the search result surface, with the default terminal glyph as fallback.
-//
-// Caching rather than rendering a fresh handle per row matters here: this icon is requested once per
-// command/category row, and every row in a menu is built in the same pass before any of them are
-// actually rendered/materialized into a WPF Image. Deleting the previous handle on every call was
-// invalidating an earlier row's HBITMAP before WPF ever got around to
-// converting it, so only the last row built ended up with a surviving icon. Caching and reusing the same
-// handle for as long as the handle stays valid -- only re-rendering once per quick-nav session
-// (Invalidate, called from ClearSession) to still pick up a theme/accent-color change between popup
-// opens -- fixes that without needing every row to independently own a handle. DirMenuIcon arrived at
-// the same rule for the same reason.
+// Rasterizes custom-command SVG paths to HBITMAP for quick-navigation rows, falling back to the terminal
+// glyph. Cache handles for the menu session: deleting an earlier handle while building a later row can
+// invalidate it before WPF creates the image. ClearSession invalidates the cache so the next menu uses
+// the current theme.
 internal static class QuickNavIcon
 {
     // Same default "Command Terminal" glyph CustomCommandsInstantProvider falls back to when a command

@@ -2,9 +2,7 @@ using Lertaro.Core;
 
 namespace Lertaro.App.ViewModels.QuickPanel;
 
-// Which tabs the strip has, and in what order. Split out of QuickPanelViewModelLoading.cs purely to keep
-// that file under the repo's per-file line limit; this is the part of a refresh that decides what the
-// strip IS, before anything is loaded into it.
+// Determines quick-panel tab membership and order before loading their contents.
 public partial class QuickPanelViewModel
 {
     /// <summary>The strip's contents in order: the user's workspaces and the plugins' tabs, interleaved.</summary>

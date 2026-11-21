@@ -12,13 +12,8 @@ using MessageBoxResult = System.Windows.MessageBoxResult;
 namespace Lertaro.App.Services;
 
 /// <summary>
-/// Behind the About page's Config Management card: enumerating the .bak.N rotation of
-/// user-settings.json for the restore picker, packaging settings for export, and the
-/// interactive export/import/restore flows themselves. The flows live here rather than in
-/// AboutSettingsPage to keep that page under the repo's per-file line limit -- the same
-/// Services-class-shows-localized-message-boxes split ExplorerLocateHelper and FileExecutor already
-/// embody. Actual replacement of the settings (import/restore) goes through
-/// SettingsBackup in Core before plugin initialization; the background service is never stopped.
+/// Supports About-page configuration export, import, and restore, including file pickers and confirmation
+/// dialogs. Lists rotated user-settings.json backups for the restore picker.
 /// </summary>
 internal static class UserConfigBackups
 {

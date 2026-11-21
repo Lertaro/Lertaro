@@ -2,19 +2,9 @@ using Lertaro.PluginSdk.Abstractions;
 
 namespace Lertaro.App.ViewModels.Settings.Plugins;
 
-// Owns the staged-edit lifecycle of one plugin's config tab -- what to do when it is opened, left, or
-// rolled back. Split out purely to keep PluginInfoViewModel under the repo's per-file line limit; it
-// holds only the one lifecycle flag (never opened / open / left) and always operates on the one plugin
-// it is handed.
-//
-// Leaving the tab (or switching to another plugin) no longer discards staged edits: the Settings
-// window's Apply/OK is the only commit point, so a user who steps away and comes back must still see
-// what they typed. What leaving DOES do is drop the rows of fields with no staged edit -- nothing is
-// displaying them, and a clean field's tree carries nothing the lazy getters cannot rebuild identically.
-// A field that actually holds an edit keeps its tree, because that tree is where the edit lives.
-//
-// Staged edits are discarded by DiscardStagedEdits, reached only from Cancel (SettingsViewModel.Cleanup
-// -> RollbackConfig) -- not from switching tabs or plugins.
+// Tracks a plugin configuration tab's staged edits. Leaving a tab releases unedited field trees but
+// preserves edited trees. Apply/OK commits; Cancel calls DiscardStagedEdits through
+// Cleanup/RollbackConfig.
 internal sealed class PluginConfigTabState
 {
     private readonly PluginInfoViewModel _plugin;

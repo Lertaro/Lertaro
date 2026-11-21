@@ -9,9 +9,7 @@ using Lertaro.App.ViewModels.Search.Mapping;
 
 using SearchWindowType = Lertaro.PluginSdk.Abstractions.SearchWindowType;
 namespace Lertaro.App.ViewModels.Search.Dispatch;
-// Owns query-token parsing, dispatching a search (debounced/quick vs. blocking), and rendering the
-// resulting rows on behalf of SearchExecutionViewModel -- extracted into its own class (composition,
-// not a partial class) purely to keep SearchExecutionViewModel.cs under the repo's per-file line limit.
+// Parses query tokens, dispatches searches, and renders results for SearchExecutionViewModel.
 internal sealed class SearchDispatchController
 {
     private readonly SearchExecutionEngine _engine;
@@ -162,19 +160,10 @@ internal sealed class SearchDispatchController
         FileFilterScopeDirective? scopeDirective,
         string? triggeredTypeId)
     {
-        // A query token (e.g. "::bzsc") filters/reorders whatever candidate set it's handed in
-        // ComposeAndApplyAsync, AFTER this search already ran -- the usual 51/51 quick-window budget
-        // (and BuildQuickResults' own ~50-item display cap) exists to keep every ordinary keystroke
-        // cheap, but it means the token only ever sees a small, plain-filename-weighted slice of
-        // candidates. A common substring query (e.g. "1080") can fill that entire slice with matches
-        // that have nothing to do with the token's directory filter, so the real matches never even
-        // reach the token filter -- reported as "quick window returns nothing, main window finds 84".
-        // Widening the budget to match the main SearchWindow's own (already-proven-viable) limit, and
-        // skipping BuildQuickResults' display cap, only costs anything on the less-common token path.
-        // A file-filter scope needs the same widening: its FilterPattern (a name wildcard) is applied
-        // to the streamed candidates after each per-folder search, so the in-pattern matches must
-        // reach the accumulator in the first place. Apps are dropped from a scoped search entirely
-        // (a folder scope says nothing about applications), so no app budget is needed at all.
+        // Widen the candidate budget and skip the Quick Search display cap for tokenized or scoped
+        // searches. Tokens and scope wildcards filter after candidate generation, so an ordinary 51-row
+        // budget can discard all relevant rows before filtering. Scoped searches exclude applications and
+        // need no app budget.
         var hasTokens = _queryTokens.Count > 0;
         var hasScope = scopeDirective != null;
         // A filename-like query (contains a dot, e.g. "plan.md") is a request for a specific file, not a

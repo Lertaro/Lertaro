@@ -4,8 +4,7 @@ using Lertaro.App.Services.Plugin;
 
 namespace Lertaro.App.Services;
 
-// Split out of QuickLookManager.cs to keep that file under the repo's per-file line limit.
-// Handles owner window tracking, focus deactivation, and session cleanup.
+// Tracks preview owners, focus changes, and session cleanup.
 public partial class QuickLookManager
 {
     private void AttachOwnerLocationTracking(Window owner)

@@ -3,8 +3,7 @@ using System.Collections.Concurrent;
 namespace Lertaro.Core.Services.LocalSend;
 
 /// <summary>
-/// Helper class to validate incoming LocalSend PIN authentication.
-/// ponytail: Split out purely to keep LocalSendServerHelper.cs under the repo's 300-line limit.
+/// Validates incoming LocalSend PIN authentication.
 /// </summary>
 public static class LocalSendPinValidator
 {

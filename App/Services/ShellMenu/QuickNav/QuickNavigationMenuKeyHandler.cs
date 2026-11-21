@@ -10,9 +10,7 @@ using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 using Lertaro.App.Services.ShellMenu.QuickNav.RightClickActions;
 namespace Lertaro.App.Services.ShellMenu.QuickNav;
 
-// The keyboard-navigation half of QuickNavigationMenu.CreateMenuItem's PreviewKeyDown handler, split out
-// to keep that file under the project's 300-line limit. Takes the same captured locals CreateMenuItem
-// already has (itemPath, canNavigate, ...) as parameters rather than re-deriving anything.
+// Handles quick-navigation item keys using the path and navigation state captured by CreateMenuItem.
 internal static class QuickNavigationMenuKeyHandler
 {
     public static void HandlePreviewKeyDown(

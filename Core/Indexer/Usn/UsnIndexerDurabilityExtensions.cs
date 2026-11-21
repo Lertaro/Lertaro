@@ -2,16 +2,9 @@ using Lertaro.Core.IndexV2;
 
 namespace Lertaro.Core.Indexer.Usn;
 
-// What makes a journal drive's live progress survive a restart: the durable watermark (the position a
-// snapshot is stamped with, hence where the next cold start replays FROM) and the idle-time persist that
-// gives that watermark anything to be worth. Split out of UsnIndexerExtensions for the repo's per-file
-// line limit; everything here operates on state UsnIndexer owns and is called from UsnMonitor (advance)
-// and SearchEngine's idle trim (persist).
-//
-// Without the persist half, a USN drive's cache file and watermark sat frozen at the last cold-start
-// catch-up for the entire session: every restart replayed the whole journal range since then (bounded by
-// the volume's own journal window, 32 MB by default on a system drive that can wrap in hours), and any
-// batch that failed to land stayed invisible until one of those restarts.
+// Advances the durable USN watermark and persists snapshots during idle maintenance. UsnMonitor advances
+// progress; SearchEngine's idle trim saves it. Persisting live progress bounds replay work after restart
+// and reduces exposure to journal wrap.
 internal static class UsnIndexerDurabilityExtensions
 {
     // Pending delta changes required before an idle tick is worth rewriting the whole snapshot for.

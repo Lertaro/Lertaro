@@ -6,26 +6,14 @@ using Popup = System.Windows.Controls.Primitives.Popup;
 
 namespace Lertaro.App.Services.ShellMenu.QuickNav;
 
-// Keeps one cascading quick-nav branch open while the pointer is inside (or heading into) it.
+// Keeps a quick-navigation submenu open while the pointer enters or remains inside it.
 //
-// WPF's MenuItem tears its own branch down off a timer: the instant the pointer leaves a row while it is
-// still over the parent menu, MenuItem.MouseLeaveInMenuMode arms _closeHierarchyTimer for
-// MenuShowDelay ms (via SetTimerToCloseHierarchy); when it ticks the row is deselected and
-// OnIsSelectedChanged's IsSelected true->false branch sets IsSubmenuOpen = false. Cancelling that timer
-// only ever happens on the MenuItem the pointer ENTERS (MouseEnterInMenuMode ends with
-// StopTimer(ref _closeHierarchyTimer)) -- i.e. on a sibling row -- so nothing disarms it when the
-// pointer's next stop is this row's cascade instead. Native Windows menus cover exactly this case with
-// the diagonal-corridor rule (a child popup stays open while the pointer travels toward it); WPF has no
-// equivalent. Result: moving across the few pixels between a row and its submenu closes that submenu
-// under the cursor a beat later, whether or not the pointer made it inside -- #245, "cannot select a
-// second-level folder", and the same at every level down (second to third, and so on).
+// WPF starts a private MenuShowDelay timer when the pointer leaves a parent row. Entering that row's
+// submenu does not cancel it, so the submenu can close under the pointer (#245).
 //
-// The close itself cannot be intercepted (the timer is private), so this repairs it instead:
-// SubmenuClosed re-opens the branch when the pointer is demonstrably still inside it -- inside the rect
-// the branch's popup occupied at the last pointer move over it, plus a small tolerance. Every way of
-// genuinely dismissing a branch leaves the pointer somewhere else: picking a row closes the root menu
-// first (the guard below) before this runs, and moving to a sibling row or out of the menu entirely
-// leaves the pointer outside that rect.
+// On SubmenuClosed, reopen the branch if the pointer remains in its last popup rectangle, allowing
+// a small tolerance. Require the root menu to remain open so selecting a command still dismisses it.
+// Moving to a sibling or outside the popup leaves the rectangle and closes the branch normally.
 internal static class QuickNavigationSubmenuKeepAlive
 {
     // Menu.xaml's MenuItem template names the submenu host exactly this, matching every WPF theme.

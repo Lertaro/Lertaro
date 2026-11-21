@@ -2,25 +2,9 @@ using Lertaro.Core.SearchIndex.Fzf;
 
 namespace Lertaro.Core.SearchIndex;
 
-// Which positions of an alias a match is PAINTED on. Split out of AliasHighlightMarker (composition, not a
-// partial class) to keep that file under the repository's per-file line limit; everything here answers the
-// same one question, and matching never asks it -- matching decides WHETHER an alias matches, this decides
-// what the user sees when it does.
-//
-// Painting has to agree with matching, and matching reads a transliteration both ways (see
-// FzfPatternAliasReading), so painting offers the same two readings in the same order: the contiguous run
-// first, then the subsequence. Two things keep that honest rather than merely permissive:
-//
-//   * the alignment rule: a precise query may only be painted where matching would have accepted it, i.e. on
-//     a syllable boundary, which is why a loose occurrence that starts mid-syllable is looked past;
-//   * the same tightness bar the alias gate applies (AliasMatchRules.IsTightOccurrence), because the gate
-//     accepts a match when each term has a TIGHT occurrence somewhere -- painting the greedy leftmost
-//     alignment instead lit characters the gate had not accepted (a 7-letter query lit six characters over
-//     116 positions of a flattened initials alias).
-//
-// A provider that declares no separator gets only the reading its term kind implies: with no boundary to
-// align to, a loose reading here could paint a splice that matching refused, and an empty mask is not
-// "no match" to every caller.
+// Finds alias highlight positions using the same reading order as matching: contiguous first, then
+// subsequence. Require syllable alignment and AliasMatchRules.IsTightOccurrence so highlights reflect an
+// accepted occurrence. Providers without separators keep the term's original matching mode.
 internal static class AliasHighlightPositions
 {
     /// <summary>Positions to paint for a term matched against one alias STRING.</summary>

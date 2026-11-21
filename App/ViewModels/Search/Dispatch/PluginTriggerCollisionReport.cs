@@ -4,15 +4,9 @@ using Lertaro.PluginSdk.Services;
 namespace Lertaro.App.ViewModels.Search.Dispatch;
 
 /// <summary>
-/// Who else already answers to a trigger word: the rule behind the amber warning under a Settings field and
-/// the one-line log entry a collision produces.
+/// Reports trigger-word conflicts for Settings warnings and logs. Uses PluginTriggerQuery's inventory so
+/// warnings agree with query dispatch; retains only log-deduplication state.
 /// </summary>
-/// <remarks>
-/// Split out purely to keep PluginTriggerQuery under the repo's per-file line limit; this class has no state
-/// of its own beyond the log gate, and it always operates on the inventory PluginTriggerQuery collected --
-/// entries in, owner name out -- rather than collecting one of its own, because two collectors would drift
-/// and the warning would stop describing what the strip actually does.
-/// </remarks>
 internal static class PluginTriggerCollisionReport
 {
     // The host's own per-type trigger characters are one "component" as far as a clash is concerned.

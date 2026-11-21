@@ -1,7 +1,6 @@
 namespace Lertaro.App.Helpers.App;
 
-// Split out to keep App.xaml.cs below the repository's per-file line limit; this handler owns its
-// re-entrancy state and has no reason to be coupled to the rest of the application bootstrap.
+// Handles dispatcher exceptions with a re-entrancy guard.
 internal sealed class DispatcherExceptionHandler
 {
     internal const string FirstReportSource = "DispatcherUnhandledException";

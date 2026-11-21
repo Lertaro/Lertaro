@@ -314,10 +314,8 @@ internal static class SearchMatcher
         return false;
     }
 
-    // Zero-copy alias fallback, also called directly by SearchMatcherPath: forwards to
-    // SearchMatcherAliasExtensions, which holds this tier's implementation alongside the
-    // mixed-alphabet last-resort tier (TryMatchMixed, used only from MatchOne above) -- split out
-    // there (composition, not a partial class) to keep this file under the project's line limit.
+    // Forwards zero-copy alias matching to SearchMatcherAliasExtensions; SearchMatcherPath also uses this
+    // entry point.
     internal static bool TryMatchAliases(Snapshot snapshot, QueryContext ctx, int uid, Worker worker, out FzfPatternResult best)
         => SearchMatcherAliasExtensions.TryMatchAliases(snapshot, ctx, uid, worker, out best);
 }

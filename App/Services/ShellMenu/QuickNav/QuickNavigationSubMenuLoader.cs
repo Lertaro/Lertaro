@@ -11,8 +11,7 @@ using System.Windows.Controls;
 using System.Windows.Threading;
 namespace Lertaro.App.Services.ShellMenu.QuickNav;
 
-// Loads a quick-nav submenu's items in the background -- split out of QuickNavigationMenu purely to
-// keep that file under the file-length limit.
+// Loads quick-navigation submenu items in the background.
 internal static class QuickNavigationSubMenuLoader
 {
     // A cloud-sync placeholder folder (or just a very large one) can make provider.GetMenuItems take

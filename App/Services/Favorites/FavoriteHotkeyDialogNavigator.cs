@@ -6,20 +6,9 @@ using Lertaro.PluginSdk.Registries;
 namespace Lertaro.App.Services.Favorites;
 
 /// <summary>
-/// The file-dialog half of "navigate whatever is in front": recognizing an Open/Save dialog that belongs
-/// to another application rather than to a file manager, and asking the Hook to navigate it.
+/// Navigates another application's Open/Save dialog through the Hook's IFileDialogAdapter and
+/// NavigateDialog command. File-manager inline adapters cannot handle these application-owned dialogs.
 /// </summary>
-/// <remarks>
-/// Split out of <see cref="FavoriteHotkeyForegroundNavigator"/> purely to keep both files under the repo's
-/// per-file line limit; this class has no state of its own and always operates on the window it is handed.
-///
-/// Why a dialog needs its own route: a browser/Office/Notepad "Save As" dialog is a <c>#32770</c> common
-/// dialog owned by that application's process, so no inline-search adapter recognizes it -- they all match
-/// a file manager's own window class -- and the file-manager route has nothing it could drive. What can
-/// drive it is the app's existing <c>IFileDialogAdapter</c> set, the same adapters inline search uses to
-/// put a picked result into a dialog, reached through the same <c>IpcMessageId.NavigateDialog</c> command,
-/// whose Hook-side handler resolves the adapter and calls <c>NavigateTo</c> there.
-/// </remarks>
 internal static class FavoriteHotkeyDialogNavigator
 {
     /// <summary>

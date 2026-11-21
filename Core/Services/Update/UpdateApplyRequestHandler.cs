@@ -8,29 +8,17 @@ using Lertaro.Core.Wire;
 namespace Lertaro.Core.Services.Update;
 
 /// <summary>
-/// Handles SearchRequestId.ApplyUpdate: verifies a staged update package and hands it to an elevated
-/// process in the caller's own session, which is how an update reaches Program Files without the App ever
-/// owning a runas/UAC prompt of its own.
+/// Verifies a staged ApplyUpdate package and starts an elevated updater in the caller's session.
 /// </summary>
 /// <remarks>
-/// This is the privileged half of the update, so it takes its answers from the kernel and from its own
-/// location rather than from the request: who is asking comes from the pipe handle (same pattern as
-/// <see cref="HookLaunchRequestHandler"/>), and where the files land is this process's own directory. The
-/// one thing trusted from the payload is which staging directory to read, and everything read out of it has
-/// to carry a signature this code verifies before it is unpacked.
+/// Derive caller identity from the pipe handle and the installation path from this process's location.
+/// The request supplies only the staging directory. Verify the package signature before extraction.
 ///
-/// The unpacked payload deliberately lands in a subdirectory of the install directory instead of the temp
-/// directory it came from, and that is the load-bearing detail: the temp directory is writable by the
-/// (unprivileged) user whose update this is, so an elevated copier reading from it would hand that user's
-/// malware a way to write arbitrary files into Program Files. The install directory is not user-writable,
-/// and it is the directory the copier was going to be pointed at anyway.
+/// Extract into the protected installation directory so an unprivileged user cannot replace files
+/// between verification and the elevated copy. User-writable staging files must never be copied directly.
 ///
-/// There is no separate consent check because there is nothing to check against: this process is LocalSystem
-/// and the "auto silent update" preference lives in the interactive user's own settings file. Being this
-/// install's Lertaro.App.exe is the consent, and the App only sends the request when the user asked for it.
-/// Verifying before answering also earns its keep: a package that can't verify should fail while there is
-/// still a window on screen to say so in, not after the App quit to let an updater run that then refused to
-/// touch anything.
+/// The service checks that the caller is this installation's Lertaro.App.exe. The App owns user consent
+/// and the silent-update preference. Report verification failures before the App exits for installation.
 /// </remarks>
 internal static class UpdateApplyRequestHandler
 {

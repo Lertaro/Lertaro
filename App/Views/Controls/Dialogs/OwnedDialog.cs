@@ -59,30 +59,14 @@ internal static class OwnedDialog
         && IsAlive(window) && window.IsVisible && window.Opacity > 0
         && window.WindowState != WindowState.Minimized && window.Top != WindowParking.OffScreen;
 
-    /// <summary>
-    /// Shows <paramref name="dialog"/> modally, holding its owner open until the dialog is answered.
-    /// </summary>
+    /// <summary>Shows <paramref name="dialog"/> modally and defers closing its owner until it returns.</summary>
     /// <remarks>
-    /// An owned window is destroyed by Win32 along with its owner, and a modal dialog destroyed that way
-    /// never gets to finish closing: ShowDialog pumps a nested dispatcher frame until the WPF-level close
-    /// runs, and that close is also what re-enables every other window it disabled on the way in. Lose it
-    /// and the frame pumps forever with every window still disabled -- the whole app frozen, its windows
-    /// refusing even to close, with the dialog that was holding it all gone from the screen.
+    /// Destroying an owner also destroys its native owned windows. If that bypasses WPF's modal close,
+    /// ShowDialog's nested dispatcher frame and disabled windows can remain active, freezing the app.
     ///
-    /// So the owner is made to wait. Its Closing is cancelled while the dialog is up, and the close it
-    /// asked for is carried out the moment ShowDialog returns. The question stays on screen and gets
-    /// answered; the window it was asked from goes away a moment later than it meant to.
-    ///
-    /// Waiting rather than dismissing the dialog, which was the first thing tried: a question the user
-    /// is in the middle of reading should not vanish because the window behind it timed out, lost
-    /// focus, or was closed by something that never knew the question was being asked. Dismissing it
-    /// also silently answers it -- every caller reads a dialog that closed itself as a cancel.
-    ///
-    /// Detaching instead (Owner = null, so the dialog simply outlives its owner) is not available: WPF
-    /// refuses to reassign Owner while a window is being shown as a dialog.
-    ///
-    /// A close that ignores cancellation -- the application shutting down -- is not covered, and cannot
-    /// be: at that point the process is going away with the dialog and everything else.
+    /// Cancel the owner's Closing event while the dialog is open, then replay the close after ShowDialog
+    /// returns. Keep the user's pending question visible; WPF cannot reassign Owner during ShowDialog.
+    /// Application shutdown can bypass this cancellation.
     /// </remarks>
     public static void ShowModal(Window dialog)
     {

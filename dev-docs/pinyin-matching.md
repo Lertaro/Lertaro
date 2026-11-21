@@ -29,8 +29,8 @@
 - 不要枚举多音字组合再按长度或字节预算截断。预算可能同时消灭全拼与简拼，使整条名称静默失去召回；重建索引只会重复生成相同缺口。
 - 比较编码大小前先证明两份表示覆盖同一读音空间；较小的表示可能只是截断丢失了读音。
 - 质量改善先测误召回形状。重新加全局跨度或分数门，可能把名称中段真实缩写与巧合匹配一起删除。
-- 覆盖率按去扩展名的词干计算，避免同名文件仅因扩展名比文件夹吃亏。
-- provider 版本指纹变化会触发后台重新生成别名。说明这次压缩的成本，不轻易要求用户手动重建索引。
+- 区分覆盖率与完整名称等级：`HighlightMask.RankFromMarks` 按传入文本的完整长度计算覆盖率；`MatchEvidence` 判断文件的 `ExactIdentity` 时才去掉扩展名。不能把词干等级判定写成覆盖率公式。
+- provider 版本指纹变化会触发后台重新生成别名。修改别名表示时要说明重新生成的成本，先确认自动更新机制是否足够，再决定是否需要手动重建。
 - 旧网格架构的存储量、召回率和耗时不适用于当前 NFA。真实大盘延迟与误召回仍需当前实现测量，不能外推早期小语料或竞品机器数字。
 
 验证入口：[PinyinSyllableRuleTests](../Tests/Plugins/PinyinAlias/PinyinSyllableRuleTests.cs)、[PinyinExactModeTests](../Tests/Plugins/PinyinAlias/PinyinExactModeTests.cs)、[PinyinRobustnessTests](../Tests/Plugins/PinyinAlias/PinyinRobustnessTests.cs)。新增案例同时检查引擎、直接匹配接缝与高亮；长名、半截读音、同文种别名及反例都要保留。

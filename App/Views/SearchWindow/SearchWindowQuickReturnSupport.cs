@@ -2,10 +2,8 @@ using System.Windows;
 
 namespace Lertaro.App.Views.SearchWindow;
 
-// Split out purely to keep SearchWindow under the repo's per-file line limit. Owns the full window's
-// "hand the query back to the quick window, then close" move: it used to sit behind the back button
-// only, but the global summon hotkey means the same thing when this window already holds foreground,
-// and one implementation keeps the two routes from drifting apart.
+// Returns the full window's query to Quick Search and closes the full window. Shared by the back button
+// and the repeated summon hotkey.
 internal static class SearchWindowQuickReturnSupport
 {
     internal static void ReturnToQuickSearch(Lertaro.App.SearchWindow window)

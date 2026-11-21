@@ -6,37 +6,18 @@ using Lertaro.PluginSdk;
 namespace Lertaro.Plugins.DirectoryOpus;
 
 /// <summary>
-/// The file <c>dopusrt.exe</c> fills in with its answer: where it is allowed to live, and whether a path
-/// is one Opus will accept as that file.
+/// Selects and validates the output file that dopusrt fills with query results.
 /// </summary>
-/// <remarks>
-/// Split out of <see cref="DopusRtPathQuery"/> purely to keep that file under the repo's per-file line
-/// limit; this class has no state of its own, it always operates on the one output file a query needs.
-/// </remarks>
 internal static class DopusRtOutputFile
 {
     /// <summary>
-    /// A fresh output path for one query, already created empty, or null when this machine has none Opus
-    /// can use.
-    /// </summary>
-    /// <remarks>
-    /// Opus requires the file to be one it can actually write: an ASCII path with no double quote in it
-    /// (the argument quotes the path, so a quote could not be escaped), a file that already exists, and a
-    /// file nothing else holds. Hence: a NEW name every call (never a reused one a previous run could have
-    /// left behind or a concurrent query could be writing), created empty before dopusrt is asked to fill
-    /// it in, in a directory validated against those rules. A SPACE is allowed -- the path is quoted in the
-    /// argument -- which matters because %TEMP% is per-user and routinely contains one; its 8.3 short form
-    /// is the ASCII-only spelling of the same existing directory, which is what covers a non-ASCII user
-    /// name.
+    /// Creates a unique empty output file for one dopusrt query, or returns null if no usable location
+    /// exists. Opus requires an existing, unlocked file with an ASCII path containing no double quote;
+    /// spaces are allowed. Try an 8.3 path for non-ASCII temporary directories.
     ///
-    /// Passing those character rules is NOT enough, which is what a live log caught: %TEMP% can be
-    /// spelled perfectly and still refuse the file, and dopusrt then exits 0 having written nothing, so
-    /// every query silently fell through to the window scrape -- which can only see the tabs whose
-    /// container is visible, i.e. the focused one -- and paid the whole 2s wait for the privilege. A
-    /// directory is therefore used only after a real file has been created in it and removed again, so a
-    /// restricted ACL, a security product or a redirected/sandboxed %TEMP% is rejected up front instead
-    /// of being discovered once per query.
-    /// </remarks>
+    /// Probe create/delete access before accepting a directory: syntactically valid paths may still be
+    /// blocked by ACLs or security software, and dopusrt can exit successfully without writing a result.
+    /// </summary>
     internal static string? Create()
     {
         foreach (var directory in CandidateDirectories())
@@ -59,21 +40,11 @@ internal static class DopusRtOutputFile
     }
 
     /// <summary>
-    /// The directories to consider, most preferred first: %TEMP% (short form first, since the long form
-    /// may be non-ASCII), a subdirectory of it, then our own directory under the local app data.
+    /// Returns candidate output directories in preference order: the temporary directory (8.3 form first),
+    /// a temporary subdirectory, then local App data. Resolve final paths and deduplicate after trimming
+    /// trailing separators. A subdirectory may be writable when the temp root is blocked. Build eagerly so
+    /// all candidate directories are prepared.
     /// </summary>
-    /// <remarks>
-    /// Every entry is a full path that already exists or can be created here -- dopusrt does not expand
-    /// environment variables or 8.3 aliases for us, so what it is handed has to be the final spelling.
-    /// The %TEMP% entries are deduplicated because when a directory's own name is already 8.3-compatible
-    /// its short form IS its long form; the trailing separator is dropped before comparing so that holds
-    /// for the long form too, which <see cref="Path.GetTempPath"/> always spells with one.
-    /// The subdirectory matters: a sandbox or a security product can deny writes to the %TEMP% root while
-    /// allowing them one level down, which is exactly the shape of the failure that was measured, and it
-    /// keeps the file on the temp volume instead of putting it beside the user's real app data.
-    /// Built eagerly rather than yielded: these are alternatives to be tried in order, and a lazy list
-    /// would not even create the later ones once an earlier candidate was accepted.
-    /// </remarks>
     private static IReadOnlyList<string> CandidateDirectories()
     {
         var candidates = new List<string>();

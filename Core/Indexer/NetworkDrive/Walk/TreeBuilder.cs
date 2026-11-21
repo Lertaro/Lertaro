@@ -4,11 +4,8 @@ using System.Threading.Channels;
 using Lertaro.Core.Indexer.NetworkDrive.Scheduling;
 namespace Lertaro.Core.Indexer.NetworkDrive.Walk;
 
-// Checkpoint/snapshot logic lives in TreeBuilderCheckpointExtensions.cs and diff-reuse logic in
-// TreeBuilderDiffExtensions.cs (extension methods) instead of partial classes, to keep this file under
-// the project's line limit.
-// Both need broad access to this walker's shared mutable state, so the fields/methods they touch are
-// `internal` rather than `private`.
+// TreeBuilderCheckpointExtensions publishes snapshots; TreeBuilderDiffExtensions reuses unchanged
+// records. Their access to shared walk state requires the relevant members to be internal.
 internal sealed class TreeBuilder
 {
     internal const int RecordBatchSize = 256;

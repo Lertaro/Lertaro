@@ -175,24 +175,11 @@ public class CustomFilterQueryTokenProvider : IQueryTokenProvider
     public static List<CustomFilterItem> GetConfiguredRows() => GetConfiguredFilters().Where(f => f.ShowAsRow).ToList();
 
     /// <summary>
-    /// Folds the legacy <c>SidebarCustomFilters</c> list into this one and removes it, once per process.
+    /// Migrates SidebarCustomFilters into the shared category list once per process, then removes the
+    /// legacy key. If a legacy row's keyword already identifies a category, enable its display row.
+    /// Otherwise append it with its rule, icon, and keyword as display name. Run migration in the accessor
+    /// shared by both consumers before either reads the list.
     /// </summary>
-    /// <remarks>
-    /// The two lists had the same shape and the same rule language, and the split cost three things: a
-    /// category could be defined twice with two different rules (and the row silently won for the click while
-    /// the keyword silently won for the typing), a row's trigger keyword doubled as its untranslated display
-    /// name, and adding a category meant knowing which of the two lists "row" and "keyword" lived in.
-    ///
-    /// A row whose keyword already names a category switches that category on rather than being appended, so
-    /// the usual case -- a row that was only ever a mirror of <c>@doc</c> -- merges into one entry instead of
-    /// two. Any other row is appended whole, keeping its own rule, its icon, and its keyword as the display
-    /// name it was already showing.
-    ///
-    /// The read path writes, which is what <c>PluginManager</c> already does to normalize a stored value: this
-    /// is the only accessor both consumers call, so it is the only place the merge can be guaranteed to have
-    /// happened before either reads. The legacy key is gone after the first pass, so the second pass is one
-    /// dictionary lookup.
-    /// </remarks>
     internal static void MergeSidebarRowsIntoFiltersOnce()
     {
         // No latch: the whole check is one dictionary miss once the legacy key is gone, and a latch would make

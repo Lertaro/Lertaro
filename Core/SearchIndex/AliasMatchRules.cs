@@ -10,27 +10,14 @@ using Lertaro.Core.SearchIndex.Fzf;
 internal static class AliasMatchRules
 {
     /// <summary>
-    /// Whether a match that begins at <paramref name="matchStart"/> inside <paramref name="alias"/> sits
-    /// on a syllable boundary.
+    /// Checks whether matchStart is a syllable boundary in a structured alias. An alias with no declared
+    /// separator or no separator in its text is flat and permits every start. Structured aliases allow
+    /// starts after a separator, a reading delimiter, or a non-ASCII-letter character. Only the start is
+    /// constrained, so a partial final syllable can match.
+    ///
+    /// ponytail: this method checks the supplied occurrence only. A caller needing later aligned
+    /// occurrences must enumerate them; initials aliases cover ordinary abbreviations.
     /// </summary>
-    /// <remarks>
-    /// Enforced only for PRECISE aliases (a provider that declares a separator, matched by a term that is
-    /// not fuzzy). This is what closes the cross-syllable hole described on
-    /// <c>IAliasProvider.SyllableSeparator</c>: with the query "ex" split into "e" + "x", "e" matched the
-    /// tail of "xue" and "x" the head of "xi", so 学习 and 人行道 came back for letters that never belong
-    /// to the same sound.
-    ///
-    /// An alias containing no separator at all is treated as flat, where every position is a boundary:
-    /// that is the shape of the per-character initials alias (one letter per source character, so "x"
-    /// legitimately matches the second character of "ex"), and also the shape a full reading takes when
-    /// none of its adjacencies is a syllable boundary. Only the START is constrained, so a match may still
-    /// stop part-way through its last syllable -- which is what keeps "zhengsh" reaching 证书 mid-typing.
-    ///
-    /// ponytail: the caller checks the start of the first occurrence it found. Rejecting a misaligned first
-    /// occurrence while a later aligned one exists needs the same fragment to appear both mid-syllable and
-    /// at a syllable start in one alias; the flat initials alias still covers any query the user actually
-    /// abbreviated to.
-    /// </remarks>
     public static bool IsBoundaryAligned(char separator, ReadOnlySpan<char> alias, int matchStart)
     {
         // No declared structure: nothing to align to, so the provider opts out entirely.

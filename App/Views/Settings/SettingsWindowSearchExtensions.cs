@@ -10,8 +10,8 @@ using Lertaro.Core.SearchIndex;
 
 namespace Lertaro.App;
 
-// Title-bar search box + results popup for SettingsWindow.
-// Activation logic lives in SettingsWindowSearchActivationHelper.cs to stay under the 300-line per-file limit.
+// Provides the Settings title-bar search box and result popup. SettingsWindowSearchActivationHelper
+// activates results.
 internal static class SettingsWindowSearchExtensions
 {
     public static void CloseSearchPopup(this SettingsWindow window) => window.SearchResultsPopup.IsOpen = false;

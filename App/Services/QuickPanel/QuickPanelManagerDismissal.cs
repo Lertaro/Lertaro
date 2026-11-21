@@ -1,7 +1,6 @@
 namespace Lertaro.App.Services.QuickPanel;
 
-// When losing the foreground means the panel goes, and when it does not. Split out of
-// QuickPanelManager.cs purely to keep that file under the repo's per-file line limit.
+// Decides whether a foreground change should dismiss the quick panel.
 public sealed partial class QuickPanelManager
 {
     /// <summary>Closes the panel a moment from now, unless by then it should not be closed.</summary>

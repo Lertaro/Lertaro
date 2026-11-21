@@ -4,8 +4,7 @@ using Lertaro.App.Services;
 namespace Lertaro.App.Views.Settings;
 
 /// <summary>
-/// Resolves optional component versions for the About page. Kept separate so the view remains under the
-/// repository's per-file line limit without changing how missing or unreadable components are displayed.
+/// Resolves optional component versions for the About page, including missing or unreadable components.
 /// </summary>
 internal static class AboutComponentVersionSupport
 {

@@ -1,7 +1,6 @@
 namespace Lertaro.App.ViewModels.QuickPanel;
 
-// The box at the top of the panel. Split out of QuickPanelViewModel.cs purely to keep that file under
-// the repo's per-file line limit; it has no state of its own beyond the query.
+// Applies the quick panel's search-box filter.
 public partial class QuickPanelViewModel
 {
     private string _searchQuery = string.Empty;

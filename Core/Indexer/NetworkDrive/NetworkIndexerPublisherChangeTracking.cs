@@ -1,7 +1,6 @@
 namespace Lertaro.Core.Indexer.NetworkDrive;
 
-// Telling subscribers where a network, WSL or folder index just changed and handling watcher-driven
-// incremental updates. Split from NetworkIndexerPublisher.cs to keep that file under the project's line limit.
+// Publishes changed paths and applies watcher-driven updates for network, WSL, and folder indexes.
 internal sealed partial class NetworkIndexerPublisher
 {
     // Mirrors UsnIndexerExtensions.MarkMissedIfRebuilding for local drives: decides -- synchronously, at

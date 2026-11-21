@@ -1,26 +1,10 @@
 namespace Lertaro.Core;
 
 /// <summary>
-/// Decides when the process has actually been idle long enough to be worth reclaiming memory.
+/// Allows one trim after each burst of activity has finished and the idle delay has elapsed. Running
+/// searches remain active regardless of their start time; consuming the trim request mid-search would
+/// leave no trim scheduled when the query ends.
 /// </summary>
-/// <remarks>
-/// Separated from <see cref="SearchEngine"/> because getting it wrong is invisible: nothing errors, the
-/// process simply keeps its peak forever, and it took three attempts at the symptom before the cause
-/// turned out to be here.
-///
-/// The two things it exists to get right, both of which were wrong when this was a pair of fields:
-///
-/// A search that is still running is not idle, however long ago it started. Activity used to be stamped
-/// only when a search BEGAN, and a search blocks until it finishes, so a ten-second query looked idle
-/// three seconds in. The trimmer fired into the middle of it, tried to collect what that search was
-/// actively using, got nothing, and consumed the one-shot arming on the way past -- so once the search
-/// really did finish there was nothing left to ask again, and the process sat on its peak. A short query
-/// finished inside those three seconds and trimmed correctly, which is why this presented as "short
-/// searches give the memory back and long ones never do".
-///
-/// And the trim is one-shot per burst of activity: there is no point stopping the world again when
-/// nothing has happened since the last time.
-/// </remarks>
 internal sealed class IdleTrimGate
 {
     private readonly long _idleMs;

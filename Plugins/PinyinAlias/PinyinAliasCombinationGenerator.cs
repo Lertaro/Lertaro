@@ -1,10 +1,7 @@
 namespace Lertaro.Plugins.PinyinAlias;
 
-// The reading-spelling helpers behind PinyinAliasProvider: the per-position syllable lists (which the
-// host reads for its bake-time prefilter mask and for MapAliasToSourceIndices) and the single-reading
-// spellings the mixed-alphabet lane matches as text. Extracted into its own class purely to keep
-// PinyinAliasProvider.cs under the repo's per-file line limit; GetSyllableLists therefore stays
-// internal-visible here rather than private.
+// Provides per-position syllables for index prefilters and highlight mapping, plus single-reading
+// spellings for mixed-alphabet matching. GetSyllableLists is internal for host-facing helpers.
 internal static class PinyinAliasCombinationGenerator
 {
     private static readonly string[][] AsciiSyllableCache;

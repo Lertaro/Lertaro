@@ -3,9 +3,8 @@ using Lertaro.PluginSdk.Services;
 namespace Lertaro.Plugins.ContentSearch.Indexing;
 
 /// <summary>
-/// Discovers modified files through the SDK host index. The host owns the index-vs-filesystem routing;
-/// this plugin must not walk monitored directories itself.
-/// Split out purely to keep ContentIndexScheduler under the repository per-file line limit.
+/// Discovers changed files through the SDK host index. The host controls index/filesystem routing; the
+/// plugin does not walk monitored folders itself.
 /// </summary>
 public static class FolderScanDiscoveryHelper
 {

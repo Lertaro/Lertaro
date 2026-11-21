@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace Lertaro.Plugins.WindowSwitcher;
 
-// Kept separate so the window geometry and its native calls do not push WindowMenuOperations over 300 lines.
+// Calculates window geometry and applies native positioning operations.
 internal static class WindowPositioning
 {
     internal static bool Apply(IntPtr hwnd, bool fitToScreen)

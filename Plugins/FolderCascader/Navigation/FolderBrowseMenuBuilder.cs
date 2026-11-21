@@ -6,8 +6,7 @@ using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.FolderCascader.Navigation;
 
-// Split out from MenuBuilderContentExtensions to keep the paging, snapshot, and menu rendering for a
-// physical folder together without taking the shared content-builder file over the line limit.
+// Builds paged folder menus from directory snapshots.
 internal static class FolderBrowseMenuBuilder
 {
     internal static List<DynamicMenuItem> Build(string path, int offset, Provider provider)

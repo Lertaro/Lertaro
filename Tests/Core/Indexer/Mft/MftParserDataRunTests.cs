@@ -2,8 +2,7 @@ using Lertaro.Core.Indexer.Mft;
 
 namespace Lertaro.Core.Tests.Indexer.Mft;
 
-// Split out of MftParserTests purely to keep that file under the repo's per-file line limit; holds
-// the $DATA run-list parsing half of MftParser's coverage, including the bounds-check regressions.
+// Tests $DATA run-list parsing and bounds-check regressions.
 [TestClass]
 public sealed class MftParserDataRunTests
 {

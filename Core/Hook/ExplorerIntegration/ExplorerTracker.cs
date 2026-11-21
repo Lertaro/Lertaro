@@ -214,39 +214,19 @@ public class ExplorerTracker : IDisposable
             (IFileDialogAdapter?)null, budget);
 
     /// <summary>
-    /// Asks this process's adapters about the tracked dialog again, and adopts their answer if it has since
-    /// become a different one.
+    /// Rechecks the tracked dialog's adapter after activation and adopts a changed registry result.
     /// </summary>
     /// <remarks>
-    /// The single read in <see cref="RefreshActiveWindowAdapters"/> happens in the instant an activation is
-    /// mirrored, which is the instant a dialog is least able to answer for itself. For the common dialogs that
-    /// is not merely a wrong answer, it is a DIFFERENT adapter, because two of them divide the field on a
-    /// child window that has not been created yet: StandardFileDialogAdapter requires a "Breadcrumb Parent"
-    /// and ClassicFileDialogAdapter -- registered ahead of it -- requires its ABSENCE, plus a file-name edit
-    /// and a combo box. Both of those come from the dialog template and so exist from the first frame, while
-    /// the breadcrumb is built later, so a modern dialog is claimed by the classic adapter until it settles.
-    /// ClassicFileDialogAdapter has no file list to report, so the card was left with nothing to hang from
-    /// and the folder-only scope that reads ActiveAdapter.TargetIsFolderOnly had nothing to read -- and
-    /// because ActiveAdapter was not null, an absence check would have called this healthy.
+    /// A modern dialog may initially match ClassicFileDialogAdapter: its filename controls exist before
+    /// the "Breadcrumb Parent" required by StandardFileDialogAdapter. A non-null adapter can therefore
+    /// still be wrong, leaving the card without a file list or the correct TargetIsFolderOnly value.
     ///
-    /// So the repair asks whether the registry's CURRENT answer differs from the one held, which is also what
-    /// covers a read that simply timed out or matched nothing. Keyed on that state rather than on the path
-    /// event that first reveals it, because more than one route reaches it and only one announces itself:
-    /// measured on live Rimage dialogs, the tracker held an adapter it should not have for the whole life of
-    /// the card without ever taking the claim branch, and only a focus change -- the next activation, hence
-    /// the next RefreshActiveWindowAdapters -- ended it.
+    /// Retry off the calling thread to avoid blocking IPC mirroring and geometry measurement. Use the
+    /// Hook process's retry count and read budget. Recheck adapter identity even if no path event arrived.
     ///
-    /// Off the calling thread and speculative-tight on the read: callers include the IPC mirror thread and
-    /// the geometry measurement, and parking the former is what commit 2acff94 was written to stop. The ask
-    /// count and read budget are the hook process's own retry values, so both processes give the same dialog
-    /// the same chance; the App mirrors state instead of polling for it, so its retry has to live here.
-    ///
-    /// ponytail: one bounded chain per dialog rather than a watcher, so a dialog that genuinely has no file
-    /// list to report -- AutoCAD, Bandizip, WinRAR -- spends twelve cheap re-reads on it and then goes quiet.
-    /// The ceiling is a dialog that finishes building only after that budget is spent; the next activation
-    /// still catches it, and a card no longer visibly jumps when it does. Lifting the ceiling properly means
-    /// the App polling for itself the way <see cref="ExplorerActivePathPoller"/> does, which it cannot do
-    /// today because it mirrors the hook's state rather than reading events of its own.
+    /// ponytail: one bounded chain per dialog makes at most twelve reads. A dialog that finishes later
+    /// is picked up on the next activation. Continuous recovery would require App-side polling, as in
+    /// <see cref="ExplorerActivePathPoller"/>, instead of relying solely on mirrored Hook state.
     /// </remarks>
     public void RederiveActiveDialogAdapterIfStale()
     {

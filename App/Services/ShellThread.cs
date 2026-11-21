@@ -4,29 +4,14 @@ using Lertaro.Core;
 
 namespace Lertaro.App.Services;
 
-/// <summary>
-/// Runs shell work on a small pool of dedicated single-threaded-apartment threads, off whatever thread
-/// asked for it.
-/// </summary>
+/// <summary>Runs shell operations on a small pool of dedicated STA threads.</summary>
 /// <remarks>
-/// Every shell entry point this app uses can block without a deadline. Directory.Exists and File.Exists
-/// wait out the SMB timeout on a mapped drive whose server is gone; SHParseDisplayName contacts the
-/// server behind a UNC path; SHOpenFolderAndSelectItems routes through Explorer, which does not return
-/// while Explorer is busy; and ShellExecuteEx (what Process.Start with UseShellExecute does) hands off to
-/// whatever shell extension is registered for the target. Called inline from a key press or a menu click,
-/// any of those takes the window down with no way back but Task Manager.
+/// Shell calls and network-path existence checks can block without a deadline. Keep them off the UI
+/// thread. Use STA threads because ShellExecuteEx may invoke COM extensions that require that apartment.
 ///
-/// STA specifically, rather than the thread pool: ShellExecuteEx delegates to shell extensions that use
-/// COM, and some of them require a single-threaded apartment. The pool is MTA, so work scheduled there is
-/// running against that documented requirement even when it happens to work.
-///
-/// The threads are created once and work is posted to them, rather than one thread started per action.
-/// Thread.Start does not return until the new thread has finished its loader initialisation, so starting
-/// one on the UI thread puts the UI thread in line behind whatever the loader is doing -- and this process
-/// hosts third-party shell extensions (see CoreExtensions' ShellMenuSession), one of which was observed
-/// holding that up indefinitely. A click on "open containing folder" then froze the window as "not
-/// responding" without ever reaching the shell call. Building the pool at startup, before any shell menu
-/// has put a foreign extension in the process, means no user action ever asks the loader for a thread.
+/// Create the pool at startup, before loading third-party shell extensions. Thread.Start waits for
+/// loader initialization; creating threads from a click handler can freeze the UI if an extension
+/// holds the loader lock.
 /// </remarks>
 internal static class ShellThread
 {

@@ -1,8 +1,6 @@
 namespace Lertaro.App.ViewModels.QuickPanel;
 
-// How the panel notices that a folder it is showing has changed. Split out of
-// QuickPanelViewModelLoading.cs purely to keep that file under the repo's per-file line limit; it has no
-// state beyond the registrations it holds while the panel is open.
+// Tracks folder changes while the quick panel is open.
 public partial class QuickPanelViewModel
 {
     // The registration keys currently held, one per group on screen. Empty means nothing is subscribed.

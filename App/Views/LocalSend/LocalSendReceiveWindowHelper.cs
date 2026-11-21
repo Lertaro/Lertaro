@@ -6,8 +6,7 @@ using Lertaro.Core.Services.LocalSend;
 namespace Lertaro.App.Views.LocalSend;
 
 /// <summary>
-/// UI helper methods for LocalSendReceiveWindow.xaml.cs.
-/// ponytail: Split out purely to keep LocalSendReceiveWindow.xaml.cs under the repo's 300-line limit.
+/// UI helpers for LocalSendReceiveWindow.
 /// </summary>
 public static class LocalSendReceiveWindowHelper
 {

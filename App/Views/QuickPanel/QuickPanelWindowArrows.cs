@@ -6,26 +6,15 @@ using ListBox = System.Windows.Controls.ListBox;
 
 namespace Lertaro.App.Views.QuickPanel;
 
-// Moving the selection with the arrow keys, across groups. Split out of QuickPanelWindow.xaml.cs purely
-// to keep that file under the repo's per-file line limit.
+// Moves quick-panel selection between groups with the arrow keys.
 public partial class QuickPanelWindow
 {
-    /// <summary>Up and Down move the selection, across groups as well as within one.</summary>
-    /// <remarks>
-    /// Each group renders its own list, and a ListBox contains its own arrow keys by design: Down on the
-    /// last row of a group did nothing at all, so the keyboard could only ever reach one group's worth of
-    /// what was on screen. Here the groups are one sequence, top to bottom as they are drawn.
-    ///
-    /// A list that has the keyboard is left to move within itself first, and only what it refuses is
-    /// taken over. That matters in tile view: WPF moves a grid selection to the tile BELOW, which knows
-    /// about the row width, and stepping one item at a time instead would be wrong in a way no amount of
-    /// arithmetic here would fix. So the boundary is not calculated, it is observed -- if the list did
-    /// not move, it had nowhere to go, and the next group is where the key was meant to land.
-    ///
-    /// The filter box keeps the keyboard after a summon and never gives it up on its own, so from there
-    /// the movement is this method's entirely -- and the selection moves without the box losing focus,
-    /// exactly as the search windows behave, so typing can carry on after it.
-    /// </remarks>
+    /// <summary>
+    /// Moves selection across quick-panel groups. Let a focused ListBox handle arrows first so tile
+    /// navigation respects its column layout; move to another group only if selection did not change. When
+    /// the filter box owns focus, update selection here without moving keyboard focus, allowing typing to
+    /// continue.
+    /// </summary>
     private bool HandleSelectionKeys(System.Windows.Input.KeyEventArgs e)
     {
         // Not while the action flyout is up. It moves its own highlight with these very keys and hangs

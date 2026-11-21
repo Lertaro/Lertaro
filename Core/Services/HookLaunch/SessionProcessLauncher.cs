@@ -6,24 +6,13 @@ using static Lertaro.Core.Services.HookLaunch.HookLaunchNativeMethods;
 namespace Lertaro.Core.Services.HookLaunch;
 
 /// <summary>
-/// Starts a process inside someone else's logon session, as that session's own user.
-/// </summary>
-/// <remarks>
-/// Only the LocalSystem <c>--service</c> process can do this: <c>WTSQueryUserToken</c> needs
-/// SeTcbPrivilege, and handing the child the session's token rather than the service's own is what keeps
-/// a launched process from being an artifact of the service's privileges. <paramref name="requestElevation"/>
-/// swaps in the UAC-linked admin token, which is how an elevated child is obtained without ever showing a
-/// consent prompt -- the session user is genuinely an administrator, so there is no one to ask. A request
-/// can only ever downgrade, never escalate: when the session's user is not an administrator the launch is
-/// refused rather than quietly started unelevated, because the callers that ask for elevation cannot work
-/// without it and would otherwise fail silently after the caller has already been told to exit. The hook is
-/// not one of those callers -- it works unelevated, and its App-side caller retries at the normal level
-/// when this refuses (see HookLaunchBroker).
+/// Starts a process in another logon session using that session's user token. Only the LocalSystem service
+/// can call WTSQueryUserToken with SeTcbPrivilege. Requested elevation uses the user's linked
+/// administrator token; refuse if the user is not an administrator. HookLaunchBroker may retry unelevated.
 ///
-/// Lifted out of <see cref="HookProcessBroker"/>, which layers "one live hook per session" on top of this.
-/// The update applier needs the same launch with different bookkeeping -- a detached applier must never be
-/// deduped away because a hook happens to be running.
-/// </remarks>
+/// HookProcessBroker adds per-session Hook deduplication. Update-applier launches use this primitive
+/// directly and must not be suppressed by an existing Hook.
+/// </summary>
 public static class SessionProcessLauncher
 {
     /// <param name="detachFromConsole">

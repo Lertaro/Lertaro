@@ -4,11 +4,8 @@ using Lertaro.Plugins.ContentSearch.Storage;
 namespace Lertaro.Plugins.ContentSearch.Indexing;
 
 /// <summary>
-/// Detects duplicate large files by content hash so the same document found under
-/// several paths is parsed once and its text stored once: duplicate rows point at the
-/// source row (content_ref) instead of holding their own text and FTS entry.
-/// Split out of ContentIndexScheduler to keep that file under the repo's per-file
-/// line limit; this class holds no state of its own beyond the database reference.
+/// Deduplicates large files by content hash. Parse and store text once; duplicate rows use content_ref to
+/// share the source text and FTS entry.
 /// </summary>
 public sealed class DuplicateContentResolver
 {

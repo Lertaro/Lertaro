@@ -3,10 +3,8 @@ using System.Text;
 
 namespace Lertaro.Core.Hook.InlineSearch;
 
-// Raw key-code-to-inline-search-event translation, split out of KeyboardHookService.cs (extension
-// methods, matching TreeBuilder's own Checkpoint/Diff extension split) to keep that file under the
-// project's line limit. Needs broad access to the hook service's settings/tracker/context-menu-grace
-// state, which is why those fields are `internal` on KeyboardHookService rather than `private`.
+// Maps raw key codes to inline-search events using KeyboardHookService's internal settings, tracker, and
+// context-menu grace state.
 internal static class KeyboardHookServiceInlineSearchExtensions
 {
     internal static bool HandleInlineSearchKeys(this KeyboardHookService service, int vkCode, KeyboardNativeMethods.KBDLLHOOKSTRUCT hookStruct, IntPtr fgHwnd)

@@ -6,9 +6,8 @@ using Lertaro.PluginSdk.Abstractions.Plugins.WindowAdapters;
 using Lertaro.Core.Hook.Ipc;
 namespace Lertaro.Core.Hook.Commands;
 
-// Split out of HookCommandHandler to keep that file under the line-count limit. Handles
-// NavigateDialog/RestoreDialogFocus, dispatching to IFileDialogAdapter in the Hook process. Also
-// deduplicates the resolve-adapter-from-hwnd fallback the two commands previously each had their own copy of.
+// Dispatches NavigateDialog and RestoreDialogFocus through IFileDialogAdapter in the Hook process,
+// sharing the HWND-to-adapter lookup.
 internal static class FileDialogCommandHandler
 {
     public static void HandleNavigateDialog(HookProcess process, IpcMessage msg)

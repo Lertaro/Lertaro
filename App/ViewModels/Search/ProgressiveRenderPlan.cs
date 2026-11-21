@@ -1,23 +1,11 @@
 namespace Lertaro.App.ViewModels.Search;
 
 /// <summary>
-/// Decides which ticks of a still-arriving result stream are worth repainting on.
+/// Schedules progressive paints when new results arrive and the elapsed time meets a budget based on the
+/// previous paint's measured cost. Cheap incremental paints can run each tick; expensive paints leave time
+/// for UI input. Do not require proportional result-count growth, which can stall updates near the end of
+/// a large search.
 /// </summary>
-/// <remarks>
-/// The rule is a duty cycle and nothing else: paint whenever anything new has arrived, unless the
-/// previous paint was expensive enough that painting again this soon would take more than a small
-/// share of the UI thread. Because the budget is a multiple of what the last paint ACTUALLY cost, it
-/// needs no notion of how big the list is or how far into a search it is -- cheap paints run on every
-/// tick, expensive ones space themselves out, and the thread stays free either way.
-///
-/// Earlier versions instead required the list to grow by a factor before repainting, on the assumption
-/// that a paint necessarily costs what the whole list costs. That was true when every paint rebuilt
-/// and re-reconciled everything, and it made the displayed count freeze for minutes near the end of a
-/// long search -- the list could no longer double, so nothing painted at all. It stopped being true
-/// once a paint could be told which rows actually changed (see StreamingResultAccumulator's
-/// FirstChangedIndex), which makes a late-search paint cost a handful of rows rather than six hundred
-/// thousand, and cheap enough that this rule lets it through on essentially every tick.
-/// </remarks>
 internal sealed class ProgressiveRenderPlan
 {
     // Below this the list is too short to be worth an intermediate paint at all -- the search is about

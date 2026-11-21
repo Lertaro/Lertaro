@@ -3,11 +3,8 @@ using Lertaro.Core.Services.Search;
 
 namespace Lertaro.Core.Hook.Ipc;
 
-// Split out of HookIpcClient to keep that file under the line-count limit. The App never spawns the hook
-// process itself anymore -- every launch (elevated or not) is asked of the already-running --service
-// instance over IPC (see HookProcessBroker on the Service side), so there's no App-side "runas" UAC
-// fallback left to trigger. If the Service is unreachable (not installed, still starting up after
-// login/boot, etc.) this just returns null; HookIpcClient's own RunLoop retries with a backoff.
+// Requests Hook startup from the running service over IPC. If the service is unavailable, return null and
+// let HookIpcClient.RunLoop retry with backoff. The App does not launch or elevate the Hook directly.
 internal sealed class HookLaunchBroker : IDisposable
 {
     private readonly SearchService _searchService = new();

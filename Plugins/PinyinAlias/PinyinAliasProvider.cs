@@ -10,24 +10,12 @@ public class PinyinAliasProvider : IAliasLiveMatcherProvider, ITranslationProvid
 
     public string Description => TranslationService.Get("Plugin_Comp_Desc_PinyinAliasProvider");
 
-    // 4: the alias set gained the Simplified spelling of a Traditional name. Bumping it is what makes
-    // every already-built index regenerate its baked aliases -- see AliasProvidersReconciler -- which a
-    // snapshot baked before this ran has none of. (Turning the setting off again does not re-bake on its
-    // own: the fingerprint only tracks provider versions, so that change lands on the next rebuild.)
-    // 5: a name whose full pinyin overran the combination path's per-variant cap baked NO alias at all,
-    // leaving it unreachable by every pinyin query; it now falls back to the single-reading spelling, so
-    // snapshots baked before this are missing aliases for exactly those names.
-    // 6: at that bump the host began storing this provider's readings as a per-position grid rather than as
-    // spelled-out aliases, so a name's own reading stayed reachable even where the enumeration had been cut
-    // off (市 is "fu" alphabetically first and "shi" in 创意市集, and only the grid offered both). Snapshots
-    // baked before it held the capped enumeration, which is why this exists rather than being a pure
-    // query-side change.
-    // 7: matching left the index entirely. The provider decides a query term LIVE against the
-    // candidate's readings (IAliasLiveMatcherProvider; see PinyinTermMatcher), so no reading-derived
-    // aliases are baked at all any more -- the only alias this provider still emits is the Simplified
-    // spelling of a Traditional name, and the grid form the previous bump wrote is gone with it. A snapshot
-    // stamped with an older version holds spelled-out pinyin aliases that no query consults, and the
-    // readings those baked aliases described now reach matching through the live matcher instead.
+    // Alias format versions trigger regeneration through AliasProvidersReconciler:
+    // 4: add Simplified spellings of Traditional names. Disabling the setting takes effect on rebuild.
+    // 5: fall back to a single reading when a full-pinyin variant exceeds the length cap.
+    // 6: replace capped reading combinations with per-position grids.
+    // 7: match readings live through IAliasLiveMatcherProvider/PinyinTermMatcher. Only Simplified
+    //    spellings remain stored aliases; rebuild older snapshots to remove obsolete reading payloads.
     public int Version => 7;
 
     public IReadOnlyList<string> SupportedCultures => TranslationService.GetSupportedCultures(System.Reflection.Assembly.GetExecutingAssembly());

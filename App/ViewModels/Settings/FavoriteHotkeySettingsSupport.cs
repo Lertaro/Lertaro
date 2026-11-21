@@ -2,11 +2,8 @@ using Lertaro.App.Services.Favorites;
 
 namespace Lertaro.App.ViewModels.Settings;
 
-// Split out purely to keep FavoritesSettingsViewModel under the repository's per-file line limit. This
-// class has no state of its own; it always operates on the one view model that owns the rows.
-//
-// It is also where the per-row hotkey hint is decided, because whether a combination can be registered
-// is not knowable from the row itself: only the OS can answer that, and only after the attempt.
+// Updates favorite hotkey settings and row hints. Registration availability comes from the OS response,
+// so hints are resolved after the registration attempt.
 internal static class FavoriteHotkeySettingsSupport
 {
     /// <summary>

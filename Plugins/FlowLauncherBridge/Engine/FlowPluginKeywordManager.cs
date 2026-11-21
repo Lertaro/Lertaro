@@ -4,8 +4,7 @@ using Flow.Launcher.Plugin;
 namespace Lertaro.Plugins.FlowLauncherBridge.Engine;
 
 /// <summary>
-/// Manages action keywords mapping and global plugin registrations for Flow.Launcher plugins.
-/// Split out from FlowPluginHost to keep files modular and strictly under the line limit.
+/// Maps Flow.Launcher action keywords and registers plugins.
 /// </summary>
 public sealed class FlowPluginKeywordManager
 {

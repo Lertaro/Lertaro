@@ -7,10 +7,7 @@ using Lertaro.PluginSdk.Services;
 
 namespace Lertaro.Plugins.FolderCascader.Navigation;
 
-// Per-menu-context content builders for MenuBuilder.GetMenuItems, split out (composition, not a partial
-// class) to keep MenuBuilder.cs under the project's line limit. MenuBuilder itself keeps GetMenuItems (the
-// dispatch entry point), the publicly-tested category-path helpers, and small shared utilities -- this
-// file has no surface any test calls directly, only what GetMenuItems' own dispatch delegates into.
+// Builds menu contents for each MenuBuilder.GetMenuItems context.
 internal static class MenuBuilderContentExtensions
 {
     internal static List<DynamicMenuItem> BuildRootMenu(Provider provider)

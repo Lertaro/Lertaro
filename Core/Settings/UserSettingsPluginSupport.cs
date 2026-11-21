@@ -1,8 +1,7 @@
 namespace Lertaro.Core;
 
 /// <summary>
-/// Helper methods managing plugin setting lookups and updates on UserSettings instances.
-/// Split out from UserSettings.cs to keep file size strictly under the repo line limit.
+/// Reads and updates plugin settings in UserSettings.
 /// </summary>
 public static class UserSettingsPluginSupport
 {

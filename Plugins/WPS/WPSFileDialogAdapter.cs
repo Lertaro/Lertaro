@@ -164,22 +164,12 @@ public class WPSFileDialogAdapter : IFileDialogAdapter
     private readonly MeasuredRect _targetField = new(), _fileList = new();
 
     /// <summary>
-    /// One of the dialog's inner rects, measured through UI Automation at most once per dialog size.
-    /// </summary>
-    /// <remarks>
-    /// Only the first answer per dialog size costs anything: WPS lays its widgets out relative to the dialog's
-    /// own edges, so a dialog that has merely been dragged somewhere keeps its offsets inside itself, and those
-    /// are translated rather than re-measured. A dialog that changed size is a different matter -- there the
-    /// layout really did change -- and gets exactly one fresh, non-retrying UI Automation attempt. Failing that
-    /// attempt returns false, which is the honest answer and costs the user nothing but the placement the
-    /// dialog always had.
+    /// Measures a dialog's inner rectangle through UI Automation once per size. Reuse relative offsets
+    /// when the dialog moves; on resize, make one new attempt and return false if it fails.
     ///
-    /// That attempt is still a synchronous call into WPS's UI thread, and a WPS that is busy or tearing the
-    /// dialog down does not answer it: UI Automation's own timeout does not bound reaching the element in the
-    /// first place, so this can wait indefinitely rather than the 500ms the retry budget suggests. Callers
-    /// that cannot afford to block -- the card's placement path, which runs on a WPF thread and froze once
-    /// this was asked of it directly -- have to call from their own worker thread.
-    /// </remarks>
+    /// Call from a worker: locating WPS automation elements can block indefinitely on its UI thread,
+    /// beyond the retry budget.
+    /// </summary>
     private static bool TryGetAnchored(IntPtr hwnd, MeasuredRect cache, Func<IntPtr, System.Windows.Rect?> measure, out AdapterRect bounds)
     {
         bounds = default;

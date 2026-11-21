@@ -4,7 +4,7 @@ using Lertaro.App.ViewModels.Search.Mapping;
 
 namespace Lertaro.App.Tests.ViewModels.Search.Mapping;
 
-// Split out from SearchResultMapperTests to keep the test files under the repository's 300-line limit.
+// Tests exclusion of the queried directory itself from mapped results.
 [TestClass]
 public sealed class DirectorySelfExclusionTests
 {

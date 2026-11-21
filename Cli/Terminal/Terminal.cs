@@ -2,23 +2,10 @@ using System.Runtime.InteropServices;
 
 namespace Lertaro.Cli.Terminal;
 
-// Talks to the console device directly through CONOUT$/CONIN$ handles, never through Console.Out/
-// Console.In/Console.ReadKey. Two independent reasons:
-//
-// Output: stdout is reserved entirely for the one thing meant to leave this process -- the selected
-// path(s) printed on Enter -- so `lff | xargs code` or `$path = & lff.exe` works the same way piping
-// fzf's own output does. If the UI painted to stdout instead, every repaint's raw ANSI bytes would land
-// in that pipe/capture right alongside the real result. It also sidesteps a correctness issue, not just
-// a cosmetic one: once stdout is redirected to a file/pipe, .NET's Console.WindowWidth/CursorTop/
-// SetCursorPosition/CursorVisible all throw (they resolve through the STD_OUTPUT_HANDLE, which a
-// redirected process no longer has pointed at an actual console) -- this CLI would crash immediately
-// under `| something`, not just misbehave visually.
-//
-// Input: stdin can likewise be redirected to supply the CLI's initial query (`echo report | lff`), which
-// makes Console.ReadKey throw ("console input has been redirected from a file") the moment the
-// interactive loop tries to read a keystroke -- so key events are read off a directly-opened CONIN$
-// handle too, via the raw ReadConsoleInputW API, completely independent of whatever the process's own
-// stdin is doing.
+// Uses CONOUT$ and CONIN$ directly for the interactive console. Reserve stdout for selected paths so
+// piping/capture receives no UI escapes. Console cursor APIs depend on stdout and can fail when it is
+// redirected. ReadConsoleInputW on CONIN$ also keeps keyboard input available when stdin supplies an
+// initial query.
 public sealed class Terminal
 {
     private const uint GENERIC_READ = 0x80000000;

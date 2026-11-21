@@ -5,8 +5,7 @@ using ListBoxItem = System.Windows.Controls.ListBoxItem;
 
 namespace Lertaro.App.Views.InlineSearchWindow.Helpers;
 
-// Wires up the results/actions list's scroll, selection, and mouse-click event handlers -- split out
-// of InlineSearchWindow's constructor to keep that file under the line-count limit.
+// Connects scrolling, selection, and mouse handlers for inline result and action lists.
 internal static class InlineSearchWindowResultsWiring
 {
     public static void Attach(Lertaro.App.InlineSearchWindow window)

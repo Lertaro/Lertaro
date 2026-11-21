@@ -6,13 +6,8 @@ using System.Windows.Input;
 namespace Lertaro.Plugins.Calendar.View;
 
 /// <summary>
-/// The reminder's two time fields and every gesture they answer to: the wheel, the arrow keys, typing two
-/// digits, and reading the pair back as a time of day.
+/// Handles reminder time fields: wheel and arrow input, two-digit entry, and conversion to a time of day.
 /// </summary>
-/// <remarks>
-/// Split out purely to keep <see cref="CalendarView"/> under the repository's per-file line limit; this class
-/// has no state of its own beyond the two boxes it was handed, and always operates on those.
-/// </remarks>
 internal sealed class ReminderTimeFieldSupport
 {
     private readonly TextBox _hour;

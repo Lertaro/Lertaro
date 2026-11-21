@@ -3,9 +3,7 @@ using System.Diagnostics;
 using Lertaro.Core.Indexer.NetworkDrive.Walk;
 namespace Lertaro.Core.Indexer.NetworkDrive.Scheduling;
 
-// The actual per-drive scan pass, extracted out of Scheduler (composition, not a partial class) to keep
-// that type's files under the project's line limit. Takes Scheduler's own status/checkpoint/completion
-// callbacks as explicit parameters rather than reaching into Scheduler's private fields.
+// Runs one drive scan using Scheduler's supplied status, checkpoint, and completion callbacks.
 internal static class DriveRefreshRunner
 {
     public static void RefreshDrive(

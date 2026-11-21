@@ -7,13 +7,9 @@ using Lertaro.Core.Hook.InlineSearch;
 
 namespace Lertaro.App.Services;
 
-// Split out purely to keep InlineSearchManager under the repo's per-file line limit. This class owns getting
-// the card onto the screen and delegates the resulting state back to its one InlineSearchManager owner.
-//
-// It used to own making the card too, and made a new one for every summon. That is what the summon's own
-// latency was spent on: a fresh window brings its view model, its visual tree and its first composition with
-// it, measured at 170-258ms during which the window is already on screen with nothing painted in it
-// (scratch/blackprobe). The window is now built once and kept; a summon is a re-docking and a Show.
+// Shows and re-docks the cached inline card, reporting state to InlineSearchManager. Reuse avoids
+// rebuilding its view model, visual tree, and first composition on every summon; measurements put that
+// cost at 170–258 ms.
 internal sealed class InlineSearchWindowSummonSupport
 {
     private readonly InlineSearchManager _manager;

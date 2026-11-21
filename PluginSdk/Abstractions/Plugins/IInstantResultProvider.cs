@@ -26,26 +26,14 @@ public interface IInstantResultProvider : IPluginComponent
     bool[]? GetHighlightMask(string text, string query) => null;
 
     /// <summary>
-    /// The leading word(s) the user types to invoke this provider ("cs", "ps", ...), exactly as the
-    /// user has configured them -- never a hardcoded copy, and read fresh per call so a Settings change
-    /// takes effect without reloading the plugin. Empty (the default) means "this provider has no
-    /// trigger word", which is the case for every provider that matches on content rather than a prefix.
-    /// </summary>
-    /// <remarks>
-    /// The host strips a claimed word before searching file/application names and before computing
-    /// highlights, so typing "cs report" looks for files called "report" instead of fuzzy-matching the
-    /// trigger itself and highlighting it in the result rows. <see cref="GetInstantResults"/> still
-    /// receives the untouched box text: the provider that owns a word has to keep recognising it, so
-    /// declaring the word here is what removes it from OTHER results, not from the provider's own.
+    /// Returns this provider's configured leading trigger words, read fresh on each call. Empty means the
+    /// provider matches query content without a trigger.
     ///
-    /// Where a word counts as typed is <see cref="Services.TriggerWord"/>'s rule
-    /// -- the same one the host
-    /// applies, which is the point: a provider that recognised its word by some other rule could be
-    /// silently out of sync with the strip. The one difference is deliberate and is each side's policy, not
-    /// a drift: an <see cref="ISearchResultAction"/> keyword also activates BARE ("mkdir" with no argument)
-    /// and completes a word still being typed ("mk"), because there the row IS what the user asked for,
-    /// while a file search for the text "mkdir" is worth keeping until a term follows the word.
-    /// </remarks>
+    /// The host strips a trigger from file/application queries and highlights, while GetInstantResults
+    /// receives the original text. Use Services.TriggerWord so both agree on recognition. The host strips
+    /// only when an argument follows; ISearchResultAction may also activate a bare keyword or complete a
+    /// partial keyword.
+    /// </summary>
     IReadOnlyList<string> QueryTriggerKeywords => [];
 }
 

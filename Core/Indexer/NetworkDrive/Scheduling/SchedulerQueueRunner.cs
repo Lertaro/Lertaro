@@ -2,13 +2,8 @@ using Lertaro.Core.Indexer.NetworkDrive.Walk;
 
 namespace Lertaro.Core.Indexer.NetworkDrive.Scheduling;
 
-// Debounce-and-run queueing for refreshes -- extracted out of Scheduler (composition, not a partial
-// class) to keep that type's files under the project's line limit. QueueRefreshDrive debounces bursts
-// of requests for the same drive (e.g. several watcher events in a row); StartRefreshDriveIfIdle/
-// RefreshDriveLoop make sure only one refresh runs per drive at a time, re-running immediately if
-// changes arrived while it was busy. Shares Scheduler's own _gate/_debounceCts/_activeCts/
-// _pendingRefreshDrives/_lifetimeCts by reference rather than owning copies, since both types need to
-// observe and mutate the same live bookkeeping under the same lock.
+// Debounces refresh requests and runs one refresh per drive, repeating when changes arrive during a scan.
+// Shares Scheduler's gate, cancellation sources, and pending-drive bookkeeping.
 internal sealed class SchedulerQueueRunner
 {
     private readonly object _gate;

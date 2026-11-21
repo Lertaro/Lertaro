@@ -3,20 +3,10 @@ using Lertaro.App.ViewModels.Settings;
 
 namespace Lertaro.App.Helpers;
 
-// One entry per (translated label -> where it lives). Activate optionally selects the tab/sub-tab
-// that label belongs to before SettingsWindow switches sections. TargetElementName is the x:Name of
-// the specific row control -- or, for a nested control inside another named control's own XAML (e.g.
-// a HistoryListControl instance), an "outer/inner" path resolved by SettingsWindow.xaml.cs one FindName
-// hop at a time. TabLabelKey/SubTabLabelKey are the ANCESTOR tab/group chain shown as the result's
-// breadcrumb, e.g. "Index > Network Drives" -- left null when the entry itself names that tab/group
-// (no point breadcrumbing a result to itself), set otherwise so same-named results in different tabs
-// (e.g. "Rebuild Index" under both Local and Network Drives) stay distinguishable. IsVisible is for
-// the rare entry whose own tab/row is conditionally hidden in the XAML (e.g. the WSL tab, only shown
-// once a distribution is detected) -- left null for the overwhelming majority of entries that are
-// always reachable, so a search result never points at a control the user can't actually see right
-// now. Hand-curated -- there's no data-driven model of "every settings control" to generate this
-// from (each page is hand-written XAML), so a newly added setting needs its own line here (and its
-// own x:Name in the page's XAML) to become searchable.
+// Maps translated settings labels to activation targets. Activate selects required tabs;
+// TargetElementName supports nested "outer/inner" FindName paths. Breadcrumb keys name ancestor tabs and
+// are omitted when the entry itself names that tab. IsVisible hides targets whose controls are
+// unavailable. Add each new setting here and give its XAML row a matching x:Name.
 public sealed record SettingsSearchEntry(
     string LabelKey,
     string Section,

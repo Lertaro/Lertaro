@@ -3,8 +3,7 @@ using System.Windows;
 
 namespace Lertaro.App.Views.Controls.Results;
 
-// Split out purely to keep ResultsDragDropHelper under the repo's per-file line limit; this class owns
-// only the native cursor/window check and the search-window cleanup performed when an OLE drag ends.
+// Checks the native cursor/window target and hides search windows after an OLE drag completes.
 internal static class ResultsDragDropWindowHelper
 {
     [DllImport("user32.dll")]

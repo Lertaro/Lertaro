@@ -62,23 +62,13 @@ public interface IAliasProvider : IPluginComponent
     int Version => 1;
 
     /// <summary>
-    /// Alternative spellings of one query term, in whatever shape this provider's own aliases use.
-    /// The host adds them as alternatives to the term the user actually typed, so a candidate matches
-    /// if any of them does.
-    /// </summary>
-    /// <remarks>
-    /// This is the query-side counterpart of <see cref="GetAliases"/>, and it exists so that a
-    /// provider whose aliases carry internal structure can keep that structure without making the
-    /// host understand it. Pinyin aliases mark syllable boundaries, which is what stops a query
-    /// matching across two unrelated syllables; a query typed as one run of letters therefore has to
-    /// be offered in the same delimited shape, and only the provider knows where the boundaries fall.
+    /// Returns query spellings in the same format as this provider's aliases. The host tries them as
+    /// alternatives to the original term. Structured aliases may need rewritten forms with syllable
+    /// separators.
     ///
-    /// Return nothing (the default) when the term needs no rewriting, which also means "this term is
-    /// not in my alphabet at all" -- that is what keeps a query the provider cannot express from
-    /// reaching aliases it was never meant to match. Called once per term per query, never per
-    /// candidate, so a provider may do real work here; returning many forms is what costs, since each
-    /// one becomes another alternative every candidate is tested against.
-    /// </remarks>
+    /// Return none when no rewrite is needed or the term is outside the provider's alphabet. Called once
+    /// per term per query; keep the number of forms small because each adds work for every candidate.
+    /// </summary>
     IEnumerable<string> GetQueryForms(string term) => Array.Empty<string>();
 
     /// <summary>

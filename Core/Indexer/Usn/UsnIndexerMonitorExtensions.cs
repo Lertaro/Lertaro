@@ -2,9 +2,7 @@ using Lertaro.Core.DriveMonitoring;
 
 namespace Lertaro.Core.Indexer.Usn;
 
-// Drive-monitor lifecycle for UsnIndexer, as extension methods (matching UsnIndexerExtensions/
-// UsnIndexerCacheExtensions/UsnIndexerBuildExtensions' own split) to keep UsnIndexer.cs under the
-// project's line limit.
+// Manages UsnIndexer drive monitors.
 internal static class UsnIndexerMonitorExtensions
 {
     // Stops and replaces whatever monitor was previously registered for this drive, if any -- called
@@ -23,19 +21,10 @@ internal static class UsnIndexerMonitorExtensions
         old?.Dispose();
     }
 
-    // Stops (without replacing) whatever monitor is currently registered for this one drive, if any --
-    // called right before a single-drive rebuild starts, but ONLY for a journal-backed (NTFS/ReFS) drive.
-    // Its UsnMonitor has no missed-change tracking of its own (see ApplyUsnRecords, which only pins the
-    // drive's durable watermark rather than queueing a replay of its own) because it doesn't need one --
-    // JournalReader.IndexDrive captures the USN watermark before the walk starts, so the next
-    // monitor (started fresh once the rebuild finishes) always replays from there regardless of what a
-    // stale old monitor did or didn't apply meanwhile. Leaving it running through its own rebuild instead
-    // would only add risk for no benefit: it's still the SAME UsnIndexer instance and drive key, so a
-    // record arriving in the exact narrow window OnDriveCompleted spends between removing the old
-    // LiveIndex and swapping in the fresh one would hit ApplyUsnRecords' own LiveIndex.Mutate call on an
-    // already-disposed instance. (A non-journal FolderDriveMonitor drive deliberately does NOT call this
-    // -- see ApplyFolderChange's own comment on why keeping ITS monitor alive throughout is what closes a
-    // real gap for that case instead.)
+    // Stops the current monitor before rebuilding a journal-backed drive. JournalReader records a
+    // starting USN watermark, and the replacement monitor replays from it. Keeping the old monitor active
+    // risks mutation during the index swap. Non-journal FolderDriveMonitor instances stay active to
+    // capture changes that have no journal replay.
     internal static bool RemoveDriveMonitor(this UsnIndexer indexer, string drive, IDisposable? expected = null)
     {
         IDisposable? old;

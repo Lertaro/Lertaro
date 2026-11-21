@@ -6,24 +6,17 @@ using static Lertaro.Core.Services.Installation.InstallDirectoryLock;
 namespace Lertaro.Core.Services.Installation;
 
 /// <summary>
-/// Locks a portable copy's folder before the LocalSystem service is pointed at it. It was unzipped wherever
-/// its user chose, usually somewhere every user can write, and the service would otherwise load whatever
-/// executable or plugin DLL anyone put there.
-/// </summary>
-/// <remarks>
-/// Split out of <see cref="InstallDirectoryLock"/>, which holds the walk itself; this is only the layout of a
-/// portable copy. Everything becomes read-only for Users except the portable per-user data. <c>Data\Machine</c>
-/// is the service's own. Under <c>Data\Users</c> each existing <c>&lt;SID hash&gt;</c> folder is handed back to
-/// the account whose SID it hashes (found through ProfileList) and closed to everyone else; a folder whose
-/// account is not on this machine goes to Administrators. A folder is also created now for every account that
-/// has a profile, so another user cannot create it first and own that account's settings and plugins.
-/// ponytail: an account whose profile appears after this ran is still open to that; the upgrade is the App
-/// refusing a data folder it does not own.
+/// Protects a portable installation before the LocalSystem service loads its executables and plugins.
+/// InstallDirectoryLock applies the ACLs: ordinary users get read-only access except to their own portable
+/// data. Data/Machine belongs to the service.
 ///
-/// The per-user part only applies when the copy keeps its data beside itself (a Data folder exists, which
-/// resolving the service's own data directory has created by now if that is where it lives). A copy that fell
-/// back to %ProgramData% and %LocalAppData% is left to keep doing so.
-/// </remarks>
+/// For Data/Users, map SID-hash folders to ProfileList accounts; unknown accounts fall back to
+/// Administrators. Precreate folders for existing profiles to prevent another user claiming them first.
+///
+/// ponytail: profiles created later are not covered; improve by having the App reject data folders it does
+/// not own. Apply this layout only when a local Data folder exists; installations using
+/// ProgramData/LocalAppData keep that layout.
+/// </summary>
 public static class PortableDirectoryLock
 {
     // Bump only when a release requires a full walk, including protected descendants whose root

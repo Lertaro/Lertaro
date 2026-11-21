@@ -5,27 +5,15 @@ using System.Windows.Automation;
 namespace Lertaro.Plugins.Files.Automation;
 
 /// <summary>
-/// Reads/writes Files' current-folder path via UI Automation. Files (files-community/Files, formerly Files
-/// UWP) has no window-message protocol, but ships a hidden pair of zero-size TextBoxes purpose-built for
-/// this exact scenario -- labeled "Listary Integration" in its own source
-/// (UserControls/NavigationToolbar.xaml): AutomationId "CurrentPathGet" (read-only, bound to the active
-/// pane's working directory) and "CurrentPathSet" (writing to it raises a query-submitted navigation, same
-/// as typing into the address bar and pressing Enter). Note the write path is wired through a handler
-/// marked [Obsolete("Superseded by Omnibar.")] in Files' own source as of this writing -- still functional,
-/// but Files' newer Omnibar address control may eventually drop it; watch for SetCurrentPath silently
-/// stopping to work on a future Files version.
+/// Reads and writes Files' current folder through its hidden UI Automation text boxes:
+/// CurrentPathGet exposes the active pane's path; CurrentPathSet submits navigation.
+/// These controls are defined under "Listary Integration" in Files' NavigationToolbar.xaml.
 ///
-/// Files supports multiple tabs and a dual-pane layout, and (per the same pattern OneCommander's own plugin
-/// already had to solve) each pane/tab exposes its own "CurrentPathGet"/"CurrentPathSet" pair -- searching
-/// the whole window blindly always finds the same (first) one regardless of which is actually active.
+/// Each tab/pane has its own pair. Capture FocusedElement while Files has focus, cache it by HWND,
+/// then search successive ancestor subtrees for the nearest control. This preserves the target pane
+/// after focus moves to Lertaro. Without an anchor, fall back to searching the whole window.
 ///
-/// To target the right pane: every time Files plausibly still holds OS focus (from FilesPathCollector and
-/// FilesInlineSearchAdapter.GetSearchScope, both called before the inline search window steals focus away),
-/// we snapshot AutomationElement.FocusedElement and cache it per window handle. Later calls (notably
-/// ExecuteItem, which only runs after focus has already moved to our own window) walk UP from that cached
-/// anchor, searching each ancestor's subtree for the target automation ID, so the *nearest* pane's controls
-/// win over some other, inactive pane's. If no anchor was ever captured, this falls back to a whole-window
-/// search (the original behavior).
+/// The write handler is marked "Superseded by Omnibar" upstream; check this integration when updating Files.
 /// </summary>
 internal static class UiaPathAccessor
 {
