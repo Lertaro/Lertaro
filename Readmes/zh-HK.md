@@ -45,12 +45,6 @@ Lertaro 是 **Listary** 和 **Everything** 的開源替代：一款基於 **.NET
 
 完整架構設計與外掛 SDK 詳見[開發手冊](https://lertaro.github.io/zh-HK/dev-guide/)。
 
-## 🎁 捐贈與支援
-
-如果 Lertaro 對你有幫助，非常感謝你考慮捐贈支援！
-
-- **USDT (TRC20)**：`TNDh3husX1trDW2ZPm4ZZYdoCoCRCZQXn5`
-
 ## 授權條款
 
 本專案基於 MIT License 開源。

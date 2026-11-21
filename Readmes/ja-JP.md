@@ -45,12 +45,6 @@ Lertaro は **Listary** や **Everything** に代わるオープンソースの�
 
 詳細なアーキテクチャ設計とプラグイン SDK については[開発者マニュアル](https://lertaro.github.io/ja-JP/dev-guide/)をご参照ください。
 
-## 🎁 寄付とサポート
-
-Lertaro がお役に立ちましたら、開発継続へのご支援をご検討いただけますと幸いです！
-
-- **USDT (TRC20)**：`TNDh3husX1trDW2ZPm4ZZYdoCoCRCZQXn5`
-
 ## ライセンス
 
 MIT License のもとで公開されています。

@@ -45,12 +45,6 @@ Requisitos: Windows 10/11, .NET 10 SDK, Visual Studio 2022 o JetBrains Rider, y 
 
 Consulta el **[Manual de Desarrollador](https://lertaro.github.io/es-ES/dev-guide/)** para la arquitectura completa y el SDK de plugins.
 
-## 🎁 Donaciones y Soporte
-
-Si Lertaro te resulta útil, ¡agradecemos mucho tu apoyo al proyecto!
-
-- **USDT (TRC20)**: `TNDh3husX1trDW2ZPm4ZZYdoCoCRCZQXn5`
-
 ## Licencia
 
 Licencia MIT.

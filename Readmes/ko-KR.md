@@ -45,12 +45,6 @@ Lertaro는 **Listary**와 **Everything**을 대신할 수 있는 오픈소스 �
 
 자세한 아키텍처 설계와 플러그인 SDK는 [개발자 가이드](https://lertaro.github.io/ko-KR/dev-guide/)를 참조하세요.
 
-## 🎁 후원 및 기부
-
-Lertaro가 유용하셨다면 개발 지속을 위한 후원을 부탁드립니다!
-
-- **USDT (TRC20)**: `TNDh3husX1trDW2ZPm4ZZYdoCoCRCZQXn5`
-
 ## 라이선스
 
 MIT License에 따라 배포됩니다.
