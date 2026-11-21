@@ -21,16 +21,31 @@
     },
     "pre_install": "if (!$global -or !(is_admin)) { throw 'Use an administrator shell and scoop install --global lertaro/lertaro-np.' }",
     "installer": {
-        "script": "if (!(Invoke-ExternalCommand \"$dir\\$fname\" -ArgumentList @('/SP-', '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/TASKS=startmenuicon,addtopath') -RunAs)) { throw 'Lertaro installation failed.' }"
+        "script": "if (!(Invoke-ExternalCommand \"$dir\\setup.exe\" -ArgumentList @('/SP-', '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/TASKS=startmenuicon,addtopath', \"/LOG=$dir\\install.log\") -RunAs)) { throw \"Lertaro installation failed. See $dir\\install.log.\" }"
     },
+    "post_install": [
+        "$registration = Get-ItemProperty -LiteralPath 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{D37D0B75-B5E3-40D9-92EE-429C7D4D7F2A}_is1' -ErrorAction Stop",
+        "if ([string]::IsNullOrWhiteSpace($registration.InstallLocation)) { throw \"Lertaro InstallLocation is missing. See $dir\\install.log.\" }",
+        "$required = @('Lertaro.Core.dll', 'Lertaro.PluginSdk.dll', 'Lertaro.Service.deps.json', 'System.ServiceProcess.ServiceController.dll')",
+        "foreach ($name in @('Lertaro.App', 'Lertaro.Service', 'lff')) { $required += \"$name.exe\", \"$name.dll\", \"$name.runtimeconfig.json\" }",
+        "foreach ($name in $required) {",
+        "    $file = Join-Path $registration.InstallLocation $name",
+        "    if (!(Test-Path -LiteralPath $file -PathType Leaf)) { throw \"Lertaro installation is incomplete: $file is missing. See $dir\\install.log.\" }",
+        "}",
+        "Write-Host \"Lertaro installed in $($registration.InstallLocation). Launch Lertaro.App.exe or use the Start menu.\""
+    ],
     "uninstaller": {
         "script": [
             "# ponytail: use the stable installer directory; an upgrade must not uninstall the shared application or service.",
             "if ($cmd -eq 'uninstall') {",
             "    if (!$global -or !(is_admin)) { throw 'Use an administrator shell and scoop uninstall --global lertaro-np.' }",
-            "    $registration = Get-ItemProperty -LiteralPath 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{D37D0B75-B5E3-40D9-92EE-429C7D4D7F2A}_is1' -ErrorAction Stop",
-            "    $uninstaller = Join-Path $registration.InstallLocation 'unins000.exe'",
-            "    if (!(Invoke-ExternalCommand $uninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -RunAs)) { throw 'Lertaro uninstallation failed.' }",
+            "    $registration = $null",
+            "    try { $registration = Get-ItemProperty -LiteralPath 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{D37D0B75-B5E3-40D9-92EE-429C7D4D7F2A}_is1' -ErrorAction Stop } catch [System.Management.Automation.ItemNotFoundException] { }",
+            "    if ($registration) {",
+            "        if ([string]::IsNullOrWhiteSpace($registration.InstallLocation)) { throw 'Lertaro InstallLocation is missing.' }",
+            "        $uninstaller = Join-Path $registration.InstallLocation 'unins000.exe'",
+            "        if (!(Invoke-ExternalCommand $uninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -RunAs)) { throw 'Lertaro uninstallation failed.' }",
+            "    }",
             "}"
         ]
     },

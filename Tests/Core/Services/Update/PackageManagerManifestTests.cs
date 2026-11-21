@@ -31,14 +31,81 @@ public sealed class PackageManagerManifestTests : IDisposable
         var result = await RunHookAsync("install", succeeds: succeeds);
 
         Assert.AreEqual(succeeds ? 0 : 1, result.ExitCode, result.Output);
-        var call = Assert.ContainsSingle(result.Calls);
+        Assert.HasCount(succeeds ? 2 : 1, result.Calls);
+        var call = result.Calls[0];
         Assert.AreEqual("C:\\Scoop metadata\\setup.exe", call.GetProperty("Path").GetString());
         Assert.IsTrue(call.GetProperty("RunAs").GetBoolean());
         var arguments = call.GetProperty("Arguments").EnumerateArray().Select(value => value.GetString()).ToArray();
         Assert.Contains("/VERYSILENT", arguments);
         Assert.Contains("/NORESTART", arguments);
         Assert.Contains("/TASKS=startmenuicon,addtopath", arguments);
+        Assert.Contains(@"/LOG=C:\Scoop metadata\install.log", arguments);
         if (!succeeds) Assert.Contains("Lertaro installation failed.", result.Output);
+    }
+
+    [TestMethod]
+    [DataRow("Lertaro.App.exe")]
+    [DataRow("Lertaro.App.dll")]
+    [DataRow("Lertaro.App.runtimeconfig.json")]
+    [DataRow("Lertaro.Service.exe")]
+    [DataRow("Lertaro.Service.dll")]
+    [DataRow("Lertaro.Service.runtimeconfig.json")]
+    [DataRow("Lertaro.Service.deps.json")]
+    [DataRow("lff.exe")]
+    [DataRow("lff.dll")]
+    [DataRow("lff.runtimeconfig.json")]
+    [DataRow("Lertaro.Core.dll")]
+    [DataRow("Lertaro.PluginSdk.dll")]
+    [DataRow("System.ServiceProcess.ServiceController.dll")]
+    public async Task Install_SuccessfulExitWithMissingPayload_FailsWithTheMissingPath(string missingFile)
+    {
+        var result = await RunHookAsync("install", missingFile: missingFile);
+
+        Assert.AreNotEqual(0, result.ExitCode, result.Output);
+        Assert.Contains(Path.Combine(_root, "Installed 中文 app", missingFile), result.Output);
+        Assert.Contains("install.log", result.Output);
+    }
+
+    [TestMethod]
+    public async Task Install_SuccessfulExitWithoutRegistration_IsRejected()
+    {
+        var result = await RunHookAsync("install", missingRegistration: true);
+
+        Assert.AreNotEqual(0, result.ExitCode, result.Output);
+        Assert.Contains("Registration missing", result.Output);
+    }
+
+    [TestMethod]
+    public async Task Install_DirectoryNamedLikeApplication_IsRejected()
+    {
+        var result = await RunHookAsync("install", missingFile: "Lertaro.App.exe", directoryInsteadOfFile: true);
+
+        Assert.AreNotEqual(0, result.ExitCode, result.Output);
+        Assert.Contains("Lertaro.App.exe is missing", result.Output);
+    }
+
+    [TestMethod]
+    [DataRow("install")]
+    [DataRow("uninstall")]
+    public async Task Hook_RegistrationAccessDenied_PropagatesError(string operation)
+    {
+        var result = await RunHookAsync(operation, registrationAccessDenied: true);
+
+        Assert.AreNotEqual(0, result.ExitCode, result.Output);
+        Assert.Contains("Registration access denied", result.Output);
+        if (operation == "uninstall") Assert.HasCount(1, result.Calls);
+    }
+
+    [TestMethod]
+    [DataRow("install")]
+    [DataRow("uninstall")]
+    public async Task Hook_EmptyInstallLocation_FailsWithoutUsingTheWorkingDirectory(string operation)
+    {
+        var result = await RunHookAsync(operation, emptyLocation: true);
+
+        Assert.AreNotEqual(0, result.ExitCode, result.Output);
+        Assert.Contains("InstallLocation", result.Output);
+        if (operation == "uninstall") Assert.HasCount(1, result.Calls);
     }
 
     [TestMethod]
@@ -76,30 +143,39 @@ public sealed class PackageManagerManifestTests : IDisposable
         Assert.AreEqual(@"HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{D37D0B75-B5E3-40D9-92EE-429C7D4D7F2A}_is1",
             result.Calls[0].GetProperty("Registry").GetString());
         var call = result.Calls[1];
-        Assert.AreEqual("C:\\Program Files\\Lertaro custom\\unins000.exe", call.GetProperty("Path").GetString());
+        Assert.AreEqual(Path.Combine(_root, "Installed 中文 app", "unins000.exe"), call.GetProperty("Path").GetString());
         Assert.IsTrue(call.GetProperty("RunAs").GetBoolean());
         Assert.Contains("/VERYSILENT", call.GetProperty("Arguments").EnumerateArray().Select(value => value.GetString()).ToArray());
         if (!succeeds) Assert.Contains("Lertaro uninstallation failed.", result.Output);
     }
 
     [TestMethod]
-    public async Task Uninstall_MissingRegistration_FailsWithoutGuessingAnExecutablePath()
+    public async Task Uninstall_MissingRegistration_AllowsCleanupOfFailedInstallation()
     {
         var result = await RunHookAsync("uninstall", missingRegistration: true);
 
-        Assert.AreNotEqual(0, result.ExitCode, result.Output);
-        Assert.Contains("Registration missing", result.Output);
+        Assert.AreEqual(0, result.ExitCode, result.Output);
         var call = Assert.ContainsSingle(result.Calls);
         Assert.IsTrue(call.TryGetProperty("Registry", out _));
     }
 
     private async Task<(int ExitCode, string Output, JsonElement[] Calls)> RunHookAsync(string operation,
-        string command = "uninstall", bool global = true, bool admin = true, bool succeeds = true, bool missingRegistration = false)
+        string command = "uninstall", bool global = true, bool admin = true, bool succeeds = true, bool missingRegistration = false,
+        string? missingFile = null, bool emptyLocation = false, bool directoryInsteadOfFile = false,
+        bool registrationAccessDenied = false)
     {
+        var installPath = Directory.CreateDirectory(Path.Combine(_root, "Installed 中文 app")).FullName;
+        string[] payload = ["Lertaro.App.exe", "Lertaro.App.dll", "Lertaro.App.runtimeconfig.json",
+            "Lertaro.Service.exe", "Lertaro.Service.dll", "Lertaro.Service.runtimeconfig.json", "Lertaro.Service.deps.json",
+            "lff.exe", "lff.dll", "lff.runtimeconfig.json", "Lertaro.Core.dll", "Lertaro.PluginSdk.dll",
+            "System.ServiceProcess.ServiceController.dll"];
+        foreach (var file in payload)
+            if (file != missingFile) File.WriteAllText(Path.Combine(installPath, file), "fixture");
+        if (directoryInsteadOfFile) Directory.CreateDirectory(Path.Combine(installPath, missingFile!));
         var script = Path.Combine(_root, "run-hook.ps1");
         var trace = Path.Combine(_root, "calls.json");
         File.WriteAllText(script, """
-            param($ManifestPath, $TracePath, $Operation, $Command, $GlobalInstall, $Admin, $Succeeds, $MissingRegistration)
+            param($ManifestPath, $TracePath, $Operation, $Command, $GlobalInstall, $Admin, $Succeeds, $MissingRegistration, $InstallPath, $EmptyLocation, $RegistrationAccessDenied)
             $ErrorActionPreference = 'Stop'
             $global = $GlobalInstall -eq 'true'
             $cmd = $Command
@@ -116,8 +192,9 @@ public sealed class PackageManagerManifestTests : IDisposable
                 [CmdletBinding()]
                 param($LiteralPath)
                 $calls.Add(@{ Registry = $LiteralPath })
-                if ($MissingRegistration -eq 'true') { throw 'Registration missing' }
-                return [pscustomobject]@{ InstallLocation = 'C:\Program Files\Lertaro custom' }
+                if ($RegistrationAccessDenied -eq 'true') { throw [UnauthorizedAccessException]::new('Registration access denied') }
+                if ($MissingRegistration -eq 'true') { throw [System.Management.Automation.ItemNotFoundException]::new('Registration missing') }
+                return [pscustomobject]@{ InstallLocation = $(if ($EmptyLocation -eq 'true') { '' } else { $InstallPath }) }
             }
             $code = 0
             try {
@@ -125,6 +202,7 @@ public sealed class PackageManagerManifestTests : IDisposable
                 if ($Operation -eq 'install') {
                     Invoke-Command ([scriptblock]::Create($manifest.pre_install -join "`n"))
                     Invoke-Command ([scriptblock]::Create($manifest.installer.script -join "`n"))
+                    Invoke-Command ([scriptblock]::Create($manifest.post_install -join "`n"))
                 } else {
                     Invoke-Command ([scriptblock]::Create($manifest.uninstaller.script -join "`n"))
                 }
@@ -144,7 +222,9 @@ public sealed class PackageManagerManifestTests : IDisposable
         string[] arguments = ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", script,
             "-ManifestPath", FindManifest(), "-TracePath", trace, "-Operation", operation, "-Command", command,
             "-GlobalInstall", global.ToString().ToLowerInvariant(), "-Admin", admin.ToString().ToLowerInvariant(),
-            "-Succeeds", succeeds.ToString().ToLowerInvariant(), "-MissingRegistration", missingRegistration.ToString().ToLowerInvariant()];
+            "-Succeeds", succeeds.ToString().ToLowerInvariant(), "-MissingRegistration", missingRegistration.ToString().ToLowerInvariant(),
+            "-InstallPath", installPath, "-EmptyLocation", emptyLocation.ToString().ToLowerInvariant(),
+            "-RegistrationAccessDenied", registrationAccessDenied.ToString().ToLowerInvariant()];
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
         using var process = Process.Start(start)!;
         var output = process.StandardOutput.ReadToEndAsync();
