@@ -326,7 +326,7 @@ Plugin tokens are provided by plugins, and the plugin decides what each one mean
 
 Rename the categories, change which extensions each one covers, or add your own under **Settings → Plugins → CoreExtensions**. The keyword itself is matched longest-first, so a `\a` rule and an `\audio` rule can coexist and `\audio` still wins.
 
-Configure the prefix under **Settings → General → System → Plugin Query Token Prefix**; the default is `\`. New values cannot claim search syntax characters, `#`, `$`, `%`, or configured triggers; whitespace and double quotes are also unavailable. Result-type and instant-answer fields validate against the current or pending plugin prefix. Existing conflicts show a warning and await manual correction. A prefix must be a character a file name cannot contain -- a word starting with it can then never be a real name -- and the search syntax owns every such character except `\`, so `\` is the only value the field accepts.
+The plugin token prefix is configured in Settings > General > System. Only `\` is currently supported. Newly entered invalid values block saving; unchanged legacy values show a warning. Blank or unusable saved values use `\` at runtime.
 
 The full search window's sidebar filters and the quick window's type filter bar are the same rows, configured in the same plugin's **Search Filters** group -- there is no separate setting for either. Sidebar filter names are display-only; prefix references are parsed only inside a sidebar filter rule and refer to keywords from the **Custom Filters** list, including disabled custom filters.
 
