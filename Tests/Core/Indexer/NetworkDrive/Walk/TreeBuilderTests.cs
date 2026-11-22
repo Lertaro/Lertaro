@@ -152,13 +152,17 @@ public sealed class TreeBuilderTests
         Assert.AreEqual(2L, builder._store.Records.Single(r => r.Name == "captured.txt").Size, "The live entry wins over the cached one.");
     }
 
+    // 67 is what a share deleted mid-walk answers for every directory under it -- the real-hardware case a
+    // transient-only check let through, saving 12,544 of 6,021,472 records over the good index.
     [TestMethod]
-    [DataRow(64, true)]
-    [DataRow(5, false)]
-    public void WalkDirectory_FailureBelowAnUnreachableRoot_AbandonsTheWalkOnlyWhenTransient(int error, bool abandons)
+    [DataRow(64, false, true)]
+    [DataRow(67, false, true)]
+    [DataRow(5, false, true)]
+    [DataRow(5, true, false)]
+    public void WalkDirectory_FailureBelowTheRoot_AbandonsTheWalkOnlyWhenTheRootIsGone(int error, bool rootExists, bool abandons)
     {
         var (builder, _) = CreateWalk();
-        builder._rootExists = _ => false;
+        builder._rootExists = _ => rootExists;
         var child = new WorkItem(@"C:\unused\sub", @"C:\unused\sub", 2, 1, NetworkIgnoreRuleSet.Empty);
 
         void Walk() => builder.WalkDirectory(child, _ => throw new Win32Exception(error), _ => false);

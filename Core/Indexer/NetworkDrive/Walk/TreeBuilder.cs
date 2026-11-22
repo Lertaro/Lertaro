@@ -160,7 +160,7 @@ internal sealed class TreeBuilder
         if (!this.TryEnumerateChildren(current.Path, out var children, out var failure, enumerate, waitForCancellation))
         {
             this.CountEnumerationFailure(current.Path, failure!);
-            AbandonIfRootLost(current, failure!);
+            AbandonIfRootLost(current);
             this.CarryForwardPreviousSubtree(current, current.IgnoreRules, failure!, alreadyCommitted: null);
             return;
         }
@@ -198,7 +198,7 @@ internal sealed class TreeBuilder
         // directory the baseline knows is the upgrade, at the cost of holding each listing in memory.
         if (enumerationFailure != null)
         {
-            AbandonIfRootLost(current, enumerationFailure);
+            AbandonIfRootLost(current);
             this.CarryForwardPreviousSubtree(current, ignoreRules, enumerationFailure,
                 liveEntries!.Select(e => e.Name).ToHashSet(StringComparer.OrdinalIgnoreCase));
         }
@@ -207,12 +207,14 @@ internal sealed class TreeBuilder
             Interlocked.Increment(ref _slowDirectories);
     }
 
-    // A transient failure below the root while the root itself is gone means the share (or the removable
-    // drive) dropped mid-walk: every directory still queued would burn its own retry budget only to fail
-    // the same way. End the walk instead -- the caller's cancellation path keeps the index it already has.
-    private void AbandonIfRootLost(WorkItem current, Exception failure)
+    // A failure below the root while the root itself is gone means the share (or the removable drive)
+    // dropped mid-walk: every directory still queued would fail the same way. End the walk instead -- the
+    // caller's cancellation path keeps the index it already has. Whatever the error code: a deleted share
+    // answers 67 for everything under it, and a walk that took that as "gone" saved 12,544 of 6,021,472
+    // records over the good index. Only a failed directory pays for the probe.
+    private void AbandonIfRootLost(WorkItem current)
     {
-        if (current.Depth == 0 || !TreeBuilderEnumerationExtensions.IsTransientEnumerationFailure(failure) || _rootExists(_physicalRoot))
+        if (current.Depth == 0 || _rootExists(_physicalRoot))
             return;
 
         Logger.Log($"[NetworkIndexer] {_physicalRoot} became unreachable mid-walk; abandoning this pass and keeping the existing index.", LogLevel.Warn);
