@@ -75,14 +75,22 @@ internal sealed class ExtractionJournal
     }
 
     // Best effort: only crash recovery reads this file, and failing to write it must never stop indexing.
+    // Written beside and swapped in: WriteAllLines truncates first, and with several lanes rewriting the list
+    // many times a second, a crash in that window left an empty sidecar and the culprit was re-extracted.
     private void Save()
     {
         try
         {
             if (_active.Count == 0)
+            {
                 File.Delete(_path);
+            }
             else
-                File.WriteAllLines(_path, _active);
+            {
+                var temp = _path + ".tmp";
+                File.WriteAllLines(temp, _active);
+                File.Move(temp, _path, overwrite: true);
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

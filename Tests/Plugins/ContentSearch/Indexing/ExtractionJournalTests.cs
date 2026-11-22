@@ -51,6 +51,23 @@ public sealed class ExtractionJournalTests
         Assert.IsEmpty(journal.TakeInterrupted());
     }
 
+    // A crash between writing the temp file and swapping it in leaves the previous list intact plus a stale
+    // temp file: recovery must read the intact list, and the next write must not trip over the stale one.
+    [TestMethod]
+    public void CrashMidWrite_LeavesThePreviousListReadable_AndTheNextWriteReplacesTheStaleTemp()
+    {
+        var sidecar = Path.Combine(_tempDir, "index.db.extracting");
+        File.WriteAllLines(sidecar, [@"C:\crashed.pdf"]);
+        File.WriteAllText(sidecar + ".tmp", @"C:\half-wri");
+        var journal = new ExtractionJournal(sidecar);
+
+        CollectionAssert.AreEqual(new[] { @"C:\crashed.pdf" }, journal.TakeInterrupted());
+
+        journal.Begin(@"C:\next.pdf");
+        CollectionAssert.AreEqual(new[] { @"C:\next.pdf" }, File.ReadAllLines(sidecar));
+        Assert.IsFalse(File.Exists(sidecar + ".tmp"));
+    }
+
     // The crash loop this exists for: the file that took the process down must not be extracted again
     // until it changes, and the row recording that must look exactly like any other failed extraction.
     [TestMethod]
