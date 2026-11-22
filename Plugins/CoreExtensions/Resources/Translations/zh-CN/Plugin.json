@@ -218,7 +218,7 @@
   "CoreExtensions_Config_CustomFilters_LabelLabel": "显示名称",
   "CoreExtensions_Config_CustomFilters_LabelDesc": "该行显示的名称。留空时直接使用触发关键字，现有条目都是这样。",
   "CoreExtensions_Config_CustomFilters_ShowAsRowLabel": "显示为筛选行",
-  "CoreExtensions_Config_CustomFilters_ShowAsRowDesc": "同时把它作为可点击的行提供：完整搜索窗口的侧边栏筛选，以及快速窗口的类型筛选栏。无论是否开启，:@关键字 都照常可用。",
+  "CoreExtensions_Config_CustomFilters_ShowAsRowDesc": "在完整窗口侧边栏和快速搜索类型栏中显示此分类。关闭后仍可用 \\关键词 过滤。",
   "CoreExtensions_Config_CustomFilters_IconLabel": "图标（SVG Path 数据）",
   "CoreExtensions_Config_CustomFilters_IconDesc": "可选的 WPF Path Data，用于该行。留空时使用默认图标。",
   "Plugin_Comp_Desc_CustomFilterQueryTokenProvider": "解析自定义过滤器标记（标记前导字符 + 关键字），按设定的通配符与扩展名规则筛选搜索结果。",

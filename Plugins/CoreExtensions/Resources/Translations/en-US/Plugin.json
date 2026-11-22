@@ -218,7 +218,7 @@
   "CoreExtensions_Config_CustomFilters_LabelLabel": "Display Name",
   "CoreExtensions_Config_CustomFilters_LabelDesc": "The name shown on the row. Leave empty to use the trigger keyword itself, which is what every existing entry does.",
   "CoreExtensions_Config_CustomFilters_ShowAsRowLabel": "Show as a filter row",
-  "CoreExtensions_Config_CustomFilters_ShowAsRowDesc": "Also offer this rule as a clickable row: the type-filter sidebar of the full search window and the type filter bar of the quick window. The typed keyword keeps working either way.",
+  "CoreExtensions_Config_CustomFilters_ShowAsRowDesc": "Show this category in the Full Window sidebar and Quick Search type bar. Its \\keyword token remains available when this option is off.",
   "CoreExtensions_Config_CustomFilters_IconLabel": "Icon (SVG Path Data)",
   "CoreExtensions_Config_CustomFilters_IconDesc": "Optional WPF Path Data for the row. Leave empty to use the default icon.",
   "Plugin_Comp_Desc_CustomFilterQueryTokenProvider": "Parses custom filter tokens (the app-wide token prefix followed by a keyword) and filters search results by their wildcard or extension rules.",

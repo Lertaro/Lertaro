@@ -218,7 +218,7 @@
   "CoreExtensions_Config_CustomFilters_LabelLabel": "表示名",
   "CoreExtensions_Config_CustomFilters_LabelDesc": "行に表示する名前です。空欄の場合はトリガーキーワードそのものを使い、既存の項目はすべてそうです。",
   "CoreExtensions_Config_CustomFilters_ShowAsRowLabel": "フィルター行として表示",
-  "CoreExtensions_Config_CustomFilters_ShowAsRowDesc": "クリックできる行としても提供します：全文検索ウィンドウのサイドバーフィルターと、クイックウィンドウの種類フィルターバーです。設定の有無にかかわらず :@キーワード はそのまま使えます。",
+  "CoreExtensions_Config_CustomFilters_ShowAsRowDesc": "フルウィンドウのサイドバーとクイック検索の種類バーに表示します。無効にしても \\キーワード で絞り込めます。",
   "CoreExtensions_Config_CustomFilters_IconLabel": "アイコン（SVG Path データ）",
   "CoreExtensions_Config_CustomFilters_IconDesc": "この行用の任意の WPF Path Data です。空欄の場合は既定のアイコンを使用します。",
   "Plugin_Comp_Desc_CustomFilterQueryTokenProvider": "カスタムフィルターのトークン（トークンの接頭辞 + キーワード）を解析し、ワイルドカードと拡張子ルールで結果を絞り込みます。",

@@ -218,7 +218,7 @@
   "CoreExtensions_Config_CustomFilters_LabelLabel": "표시 이름",
   "CoreExtensions_Config_CustomFilters_LabelDesc": "행에 표시되는 이름입니다. 비워 두면 트리거 키워드를 그대로 쓰며, 기존 항목이 다 그렇습니다.",
   "CoreExtensions_Config_CustomFilters_ShowAsRowLabel": "필터 행으로 표시",
-  "CoreExtensions_Config_CustomFilters_ShowAsRowDesc": "클릭할 수 있는 행으로도 함께 제공합니다: 전체 검색 창의 사이드바 필터와 빠른 창의 유형 필터 바입니다. 설정 여부와 관계없이 :@키워드는 그대로 동작합니다.",
+  "CoreExtensions_Config_CustomFilters_ShowAsRowDesc": "전체 창 사이드바와 빠른 검색 유형 표시줄에 이 분류를 표시합니다. 꺼도 \\키워드 토큰은 사용할 수 있습니다.",
   "CoreExtensions_Config_CustomFilters_IconLabel": "아이콘(SVG Path 데이터)",
   "CoreExtensions_Config_CustomFilters_IconDesc": "이 행용 선택 사항인 WPF Path Data입니다. 비워 두면 기본 아이콘을 사용합니다.",
   "Plugin_Comp_Desc_CustomFilterQueryTokenProvider": "사용자 지정 필터 토큰(토큰 접두사 + 키워드)을 해석하고 와일드카드 및 확장자 규칙으로 결과를 필터링합니다.",

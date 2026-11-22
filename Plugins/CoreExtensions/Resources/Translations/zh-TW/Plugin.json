@@ -218,7 +218,7 @@
   "CoreExtensions_Config_CustomFilters_LabelLabel": "名稱",
   "CoreExtensions_Config_CustomFilters_LabelDesc": "該列顯示的名稱。留空時直接使用觸發關鍵字，既有項目都是如此。",
   "CoreExtensions_Config_CustomFilters_ShowAsRowLabel": "顯示為篩選列",
-  "CoreExtensions_Config_CustomFilters_ShowAsRowDesc": "同時把它作為可點擊的列提供：完整搜尋視窗的側邊欄篩選，以及快速視窗的類型篩選欄。無論是否開啟，:@關鍵字 都照常可用。",
+  "CoreExtensions_Config_CustomFilters_ShowAsRowDesc": "在完整視窗側邊欄和快速搜尋類型列中顯示此分類。關閉後仍可用 \\關鍵字 篩選。",
   "CoreExtensions_Config_CustomFilters_IconLabel": "圖示（SVG Path 資料）",
   "CoreExtensions_Config_CustomFilters_IconDesc": "可選的 WPF Path Data，用於該列。留空時使用預設圖示。",
   "Plugin_Comp_Desc_CustomFilterQueryTokenProvider": "解析自訂篩選器標記（標記前導字元 + 關鍵字），按設定的萬用字元與副檔名規則篩選搜尋結果。",
