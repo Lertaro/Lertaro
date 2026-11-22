@@ -16,7 +16,7 @@ General Settings covers core application behaviors, search window dimensions and
 - **Inline Window Width (%)**: Accepts `20`–`100`. Values other than the default `60` specify a percentage of the host window width. `60` selects automatic sizing: the larger of 40% of the host width or one fifth of the screen. The final width is bounded below by the larger of 20% of the host or one sixth of the screen, and above by the smaller of the host width or 90% of the screen.
 - **Inline Window Rows (Ordinary Window)**: Show 4–10 results when docked to a regular window (default: 10). Section headers do not count. Ctrl+1–9 selects results 1–9; Ctrl+0 selects result 10. Scroll to see rows that do not fit on screen.
 - **Inline Window Rows (File Dialog)**: Shows `4`–`10` results in Open, Save, or Browse dialogs; default `4`. Section headers, navigation shortcuts, and screen-height limits work as above.
-- **Plugin Query Token Prefix**: Single-character text box (default `\`). Sets the leading character of a plugin query token (e.g. `\audio`, `\doc`). It cannot be empty, and cannot be a character the search syntax already reads (`<` `>` `:` `*` `/` `?`) — the field reports that rather than letting one meaning silently win (see [**Search Syntax**](../search-syntax)).
+- **Plugin Query Token Prefix**: The plugin token prefix is configured in Settings > General > System. Only `\` is currently supported. Newly entered invalid values block saving; unchanged legacy values show a warning. Blank or unusable saved values use `\` at runtime.
 - **Log Level**: Dropdown selecting Error / Warning / Info (default) / Debug, controlling log verbosity across all processes.
 - **UI Language**: Selects the active display language across the entire application.
 
