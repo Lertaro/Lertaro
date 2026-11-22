@@ -1,36 +1,36 @@
 # 拼音匹配
 
-现行实现由 [PinyinTermMatcher](../Plugins/PinyinAlias/PinyinTermMatcher.cs) 在查询时运行位并行读音 NFA，[PinyinNameEvaluator](../Core/IndexV2/Search/PinyinNameEvaluator.cs) 负责名称证据。索引不烘焙读音组合；字符预筛掩码包含可能读音的字母，字符串别名保留繁简转换等表示。
+[PinyinTermMatcher](../Plugins/PinyinAlias/PinyinTermMatcher.cs) 在查询时运行位并行读音 NFA，[PinyinNameEvaluator](../Core/IndexV2/Search/PinyinNameEvaluator.cs) 生成名称证据。索引的字符预筛掩码包含可能读音的字母，繁简转换等表示使用字符串别名。
 
-## 规则与边界
+## 读音规则
 
-- 拼音词为 2–63 个 ASCII 字母或数字，且至少有一个字母；名称最多处理 512 个码点。单个字母不进入拼音匹配。
-- 一个词对应名称中的连续位置，每个位置至少消耗一个字母。汉字可用读音的非空前缀，ASCII 按字面；不能跳过中间字符。
-- `pj / pjia / piji / pingji` 可以匹配“评价”；`glzs` 不能跳过“管理用户证书”中间的字符。不同块需要用空格分词。
-- 常用读音分支接受字表前两个高频读音，第三个及以后属于稀有读音。它不查词表，不能把逐字频率顺序解释成词义消歧。
-- 同一个可由拼音解释的词，在精确和模糊模式下保持读音规则一致；普通字面、字符串别名与混合字母回退仍有自己的边界，不能推广成“所有查询两模式同答”。
+- 拼音词为 2–63 个 ASCII 字母或数字，至少含一个字母；名称最多处理 512 个码点。
+- 一个词对应名称中的连续位置，每个位置至少消耗一个字母。汉字接受读音的非空前缀，ASCII 按字面匹配。
+- `pj / pjia / piji / pingji` 可匹配“评价”；`glzs` 无法跳过“管理用户证书”的中间字符。不同块用空格分词。
+- 字表前两个读音视为常用，其余为稀有；这是逐字频率规则，不做词义消歧。
+- 可由拼音解释的同一词在精确和模糊模式下遵循同一读音规则；普通字面、字符串别名与混合字母回退分别按自己的精度判断。
 
-## 别名不能绕过精度
+## 名称条件与别名精度
 
-繁转简等同文种别名不是音译，不应获得精确模式下的第二种散点读法。反例是 `zbl` 对“著作zsbsls.txt”：别名中 z/b/l 的跨度很短，紧凑度门仍会放行，但名称层已经拒绝该词。正确判断在 `AliasMatchRules.IsTransliteration` 与带 alias 的 `ReadingFor`，不是继续调跨度阈值。
+繁简转换等同文种别名使用严格读法。反例 `zbl` 对“著作zsbsls.txt”：别名的紧凑跨度会放行散点，但名称层已经拒绝该词。判定由 `AliasMatchRules.IsTransliteration` 与带 alias 的 `ReadingFor` 决定。
 
-排除词只否决候选自己的名称，不从读音或别名获得另一种解释。名字包含真实 `|` 时分段判定，不能跨标题分隔符匹配；别名编码也要区分真实竖线与内部读音分隔符。
+排除词检查名称字面子串，正则检查原始名称，读音与别名只提供正向词证据。标题含真实 `|` 时逐段匹配，别名编码区分标题竖线与内部读音分隔符。名称条件和 OR 关系见 [search-grammar.md](search-grammar.md)。
 
-## 同一份匹配证据
+## 复用胜出证据
 
-至少两个合格 ASCII 正词可同时评估逐词分支和同 provider 的去空格拼接分支；OR、排除、显式操作符、跨 provider 或超长形态不应强行拼接。保留逐词语义，由实际匹配质量选出胜者。
+至少两个纯 ASCII 字母正词可同时评估逐词分支和同 provider 的去空格拼接分支，拼接总长最多 63。OR、排除词、精度反转或盘符作用域会关闭拼接；独立正则仍在原始名称上验证。实际匹配质量决定胜者，保留逐词分支。
 
-排序与高亮复用胜出分支的 provider/tier/span，避免重新匹配时选到另一段。文件匹配缓存还要按查询、精度、优先级、禁用别名集合和 provider revision 失效；完整窗口缺少胜出分支信息的限制见 [search-ranking.md](search-ranking.md)。
+排序和高亮复用胜出 provider/tier/span，文件匹配缓存按查询、精度、AND/OR、优先级、禁用别名集合和 provider revision 失效。完整窗口携带证据的差异见 [search-ranking.md](search-ranking.md)。
 
-[IAliasLiveMatcherProvider](../PluginSdk/Abstractions/Plugins/IAliasLiveMatcherProvider.cs) 的 `GetReadingSets` 返回可复用线程缓冲区，可能长于文本，且下次同线程调用后失效；跨调用保留前必须复制有效部分。
+[IAliasLiveMatcherProvider.GetReadingSets](../PluginSdk/Abstractions/Plugins/IAliasLiveMatcherProvider.cs) 返回可复用线程缓冲区，可能长于文本；下次同线程调用后失效，跨调用保留须复制有效部分。
 
-## 留下的教训
+## 经验与验证
 
-- 不要枚举多音字组合再按长度或字节预算截断。预算可能同时消灭全拼与简拼，使整条名称静默失去召回；重建索引只会重复生成相同缺口。
-- 比较编码大小前先证明两份表示覆盖同一读音空间；较小的表示可能只是截断丢失了读音。
-- 质量改善先测误召回形状。重新加全局跨度或分数门，可能把名称中段真实缩写与巧合匹配一起删除。
-- 区分覆盖率与完整名称等级：`HighlightMask.RankFromMarks` 按传入文本的完整长度计算覆盖率；`MatchEvidence` 判断文件的 `ExactIdentity` 时才去掉扩展名。不能把词干等级判定写成覆盖率公式。
-- provider 版本指纹变化会触发后台重新生成别名。修改别名表示时要说明重新生成的成本，先确认自动更新机制是否足够，再决定是否需要手动重建。
-- 旧网格架构的存储量、召回率和耗时不适用于当前 NFA。真实大盘延迟与误召回仍需当前实现测量，不能外推早期小语料或竞品机器数字。
+- 旧组合算法若按长度或字节预算截断，可能同时丢掉全拼和简拼。保持算法不变时，重建索引会重现缺口。
+- 比较编码大小前核对两份表示是否覆盖相同读音；较小体积可能来自漏读音。
+- 新增跨度或分数门前，同时检查真实中段缩写与巧合匹配，避免一起剔除。
+- `HighlightMask.RankFromMarks` 按传入文本全长计算覆盖率；`MatchEvidence` 判定文件 ExactIdentity 时才去扩展名。这两个分母分别维护。
+- provider 版本指纹变化触发后台重新生成别名。修改表示时先确认自动更新与重建成本。
+- 当前 NFA 的大盘延迟和误召回使用当前产物测量；旧网格的存储量与耗时保留在 Git 历史。
 
-验证入口：[PinyinSyllableRuleTests](../Tests/Plugins/PinyinAlias/PinyinSyllableRuleTests.cs)、[PinyinExactModeTests](../Tests/Plugins/PinyinAlias/PinyinExactModeTests.cs)、[PinyinRobustnessTests](../Tests/Plugins/PinyinAlias/PinyinRobustnessTests.cs)。新增案例同时检查引擎、直接匹配接缝与高亮；长名、半截读音、同文种别名及反例都要保留。
+回归入口：[PinyinSyllableRuleTests](../Tests/Plugins/PinyinAlias/PinyinSyllableRuleTests.cs)、[PinyinExactModeTests](../Tests/Plugins/PinyinAlias/PinyinExactModeTests.cs)、[PinyinRobustnessTests](../Tests/Plugins/PinyinAlias/PinyinRobustnessTests.cs)。新增案例同时检查引擎、直接匹配与高亮，覆盖长名、半截读音和同文种别名反例。

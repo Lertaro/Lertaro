@@ -1,24 +1,24 @@
 # 索引规则
 
-规则模型与归一化在 [IndexRuleSetting.cs](../Core/Settings/IndexRuleSetting.cs)，匹配和继承在 [ExclusionRuleSet.cs](../Core/ExclusionRuleSet.cs)。持久化 `Pattern / Effect / AlwaysTop`，Path、Glob、Regex 类型从 Pattern 推导，避免保存两份互相矛盾的状态。
+规则模型与归一化在 [IndexRuleSetting](../Core/Settings/IndexRuleSetting.cs)，匹配和继承在 [ExclusionRuleSet](../Core/ExclusionRuleSet.cs)。持久化 `Pattern / Effect / AlwaysTop`，Path、Glob 和 Regex 类型从 Pattern 推导。
 
 ## 作用范围
 
-- 本地卷全量索引，搜索期套排除；网络遍历在建索引时跳过排除项。优先级不参与建索引。
-- 排除子集变化会刷新网络索引，并触发适用的非 NTFS 扫描式本地盘重建；低/正常/高变化只影响后续查询。
-- 快速窗口自行构造的历史、Recent、收藏和可搜索项不过同一套索引排除，只检查隐藏/系统与不可达等条件；它们仍参与优先级排序。不要把“排除优先”误写成所有来源绝不出现。
-- 即时插件/动作前缀、完整窗口内容前缀以及内联近邻分组另有外层顺序，见 [search-ranking.md](search-ranking.md)。
+- 本地卷全量索引，搜索期应用排除；网络遍历在建索引时跳过排除项。优先级只影响搜索。
+- 排除子集变化刷新网络索引，并重建适用的非 NTFS 扫描式本地盘；Low/Normal/High 变化用于后续查询。
+- 快速窗口自行构造的历史、Recent、收藏与可搜索项只检查隐藏/系统和不可达等条件，未套用同一份索引排除，但仍参与优先级排序。
+- 即时插件与动作、完整窗口内容前缀及内嵌近邻分组有外层顺序，见 [search-ranking.md](search-ranking.md)。
 
-## 判型顺序不能交换
+## 判型与匹配
 
-1. 清理空白和成对外引号；**先识别 `/.../` 正则，再转换路径分隔符**。否则正则里的斜杠会被破坏。
-2. 非正则把 `/` 转为 `\`、去尾分隔符并保留盘根。含 `*` 或 `?` 的写法优先判 Glob；设备路径 `\\?\` 前缀里的问号不算通配符。
-3. 完整路径按写法识别，不要求当前存在；随后展开环境变量和 Shell 虚拟路径。未定义变量与没有文件系统落点的虚拟路径不能假装解析成功。
-4. 规则正则保留原 body，不展开环境变量；当前使用忽略大小写、文化无关选项及 50 ms 匹配超时。与查询语法分开维护。
+1. 清理空白和成对外引号，先识别 `/.../` 正则，再转换路径分隔符，保留正则正文。
+2. 非正则把 `/` 转为 `\`、去尾分隔符并保留盘根。含 `*` 或 `?` 时优先判 Glob，设备路径 `\\?` 前缀的问号除外。
+3. 完整路径按写法识别，随后展开环境变量和 Shell 虚拟路径；存在性不参与判型，未定义变量或无文件系统落点的虚拟路径解析失败。
+4. 规则正则保留原正文，不展开变量，使用忽略大小写、文化无关选项及 50 ms 超时。查询正则有独立契约，见 [search-grammar.md](search-grammar.md)。
 
-Glob 的 `*` 不跨目录，`**` 可跨目录；无分隔符的模式匹配叶名，并通过祖先判定影响子树。优先级 regex 检查叶名与相对路径，排除 regex 还检查绝对路径；复用这两条路径时不能丢掉范围差异。
+Glob 的 `*` 不跨目录，`**` 可跨目录；无分隔符的模式匹配叶名，并通过祖先判定影响子树。优先级 Regex 检查叶名与相对路径，排除 Regex 还检查绝对路径。
 
-## 路径与模式分别继承
+## 继承与合并
 
 | 规则来源 | 合并规则 |
 | --- | --- |
@@ -26,23 +26,20 @@ Glob 的 `*` 不跨目录，`**` 可跨目录；无分隔符的模式匹配叶�
 | 自身及祖先的 Glob/Regex | 取最强档位 High > Low > Normal；同档 pin 取或 |
 | 路径分量与模式分量相遇 | 取更强档；同档由路径规则决定 pin |
 
-显式 Normal 路径可覆盖祖先的 Low 路径，作用于该路径自身及其子项；另外命中的 Low/High 模式规则仍然生效。
+显式 Normal 路径覆盖祖先 Low 路径，另外命中的 Low/High 模式仍生效。`AlwaysTop` 只对 High 有效，候选仍须命中查询。子目录未置顶的 High 可关闭祖先 pin，同档路径规则也可覆盖全局置顶模式。
 
-`AlwaysTop` 只对 High 有效，候选仍须命中查询。子目录的未置顶 High 可以关掉祖先 pin；同档路径规则还可覆盖全局置顶模式。Start Menu 边界会清掉继承的 Low 路径分量，但保留对 Start Menu 自身及其子树的显式规则。
+Start Menu 边界清掉继承的 Low 路径分量，保留对自身及其子树的显式规则。规则合并强度为 High > Low > Normal，最终排序的优先级为 High > Normal > Low，另受 V3 分段与证据等级约束。
 
-规则合并强度为 High > Low > Normal；最终排序中的优先级顺序为 High > Normal > Low，并受 V3 分段和证据等级约束，见 [search-ranking.md](search-ranking.md)。
+祖先缓存分别保存路径和模式分量，并限制上溯深度。过早合并会使近处 Normal 无法恢复、pin 无法关闭；缓存随设置失效，带搜索根的实例按根隔离。
 
-祖先缓存必须分别保存路径与模式分量，并有有界上溯。把它们过早合成一个档位，会使近处 Normal 无法恢复，也无法正确关闭 pin。规则缓存随设置失效；带搜索根的实例不能跨根复用。
-
-## 配置迁移经验
+## 配置迁移
 
 [IndexRuleMigration](../Core/Settings/IndexRuleMigration.cs) 在内存中迁移，下一次正常保存才落盘，避免启动依赖写权限。
 
-- `IndexRules == null` 表示旧版本，需要迁移；空列表表示用户主动清空，不能补回默认值。
-- 用户改过的旧排除项全部保留为 Exclude，再添加默认降权；保存时仅把排除子集镜像回旧字段，保证降级可读。
-- `/^[^.]+$/` 已退休：它会命中无扩展名祖先目录，将整个子树降权。现有迁移会从保存列表中删除这个模式。
-- 非空旧列表缺少系统设置降权模式时补入；合成路径使用稳定的 provider 类型名，避免换语言后失效。
-- Program Files（含 x86）和用户 AppData 的默认规则为 Normal。`IndexRuleDefaultsVersion` 为 0 的设置只迁移这三个原有 Low 项，并记录版本 1；已有 Exclude、High/置顶、自定义路径和升级后的再次修改保留。Windows、ProgramData、node_modules 及其他规则维持原行为。
-- 冲突提示仅对能证明的“排除覆盖优先级”给出警告，不阻止保存，也不声称能判定任意正则/Glob 的交集。
+- `IndexRules == null` 表示旧版本，空列表表示用户主动清空。
+- 用户改过的旧排除项保留为 Exclude，再添加默认降权；保存时把排除子集镜像回旧字段，供降级读取。
+- `/^[^.]+$/` 会命中无扩展名祖先目录并降权整个子树，现有迁移已删除该模式。
+- 非空旧列表缺少系统设置降权模式时补入；合成路径使用稳定 provider 类型名，换语言后仍有效。
+- 冲突提示只报告可证明的“排除覆盖优先级”，允许保存。
 
-验证入口：[IndexRuleSyntaxTests](../Tests/Core/Settings/IndexRuleSyntaxTests.cs)、[IndexRulePriorityTests](../Tests/Core/Settings/IndexRulePriorityTests.cs)、[IndexRuleMigrationTests](../Tests/Core/Settings/IndexRuleMigrationTests.cs)。测试要同时覆盖目录自身、子文件、近处 Normal、模式叠加和 pin，不能只用一个子文件代表整条继承语义。
+回归入口：[IndexRuleSyntaxTests](../Tests/Core/Settings/IndexRuleSyntaxTests.cs)、[IndexRulePriorityTests](../Tests/Core/Settings/IndexRulePriorityTests.cs)、[IndexRuleMigrationTests](../Tests/Core/Settings/IndexRuleMigrationTests.cs)。覆盖目录自身、子文件、近处 Normal、模式叠加与 pin。

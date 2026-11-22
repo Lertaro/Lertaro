@@ -1,42 +1,59 @@
-# 窗口渲染与清晰度
+# 窗口渲染、位置与会话
 
-实现入口：[WindowParking](../App/Helpers/Visuals/WindowParking.cs)、[AppTypography](../App/Services/AppTypography.cs)、[DwmWindowCorners](../App/Helpers/Visuals/DwmWindowCorners.cs)。下文的硬件测量来自 2026 年 10 月，保留用于解释设计取舍。
+实现入口：[WindowParking](../App/Helpers/Visuals/WindowParking.cs)、[AppTypography](../App/Services/AppTypography.cs)、[DwmWindowCorners](../App/Helpers/Visuals/DwmWindowCorners.cs)。硬件测量来自 2026 年 10 月，用于解释现有取舍；通知会话按正则分支的当前实现核对。
 
 ## 文字与轮廓
 
-- 有内容的窗口采用不透明表面，避免分层透明窗口带来的文字渲染代价；不透明只是提供渲染条件，不能承诺所有硬件都使用 ClearType。
-- 不再全局强制 `TextFormattingMode=Display`。文本测量与实际排版必须一致；只改渲染模式、不改 `FormattedText` 的测量方式，会造成宽度偏差。
-- 根节点通过 `AppTypography` 开启 `UseLayoutRounding / SnapsToDevicePixels`。计算字号使用 `SnapFontSize` 向上取档或取整；这首先是尺寸约定，不应再解释成 Ideal 模式下清晰度的充分条件。
-- 顶层轮廓用 `CornerRadiusWindow=8`、内层带区 7 的资源约定。最大化后还原也读资源，不写第二份常量。DWM 请求需要 HWND，构造期调用应延后到 `SourceInitialized`。
-- 不透明 Popup 必须覆盖整个客户区；圆角留下的空角可能变黑。弹出层使用方角，不把顶层窗口的 DWM 圆角方案照搬过去。
-- 整窗或内容根淡出不能用于掩盖首帧；内部高亮动画与整窗透明度是不同层。文字模糊还要检查容器缩放、位图缓存和分数滚动偏移。
+- 有内容的窗口采用不透明表面，减少分层透明窗口的文字渲染代价。具体文字渲染方式仍由硬件和 WPF 决定。
+- 不再全局强制 `TextFormattingMode=Display`。文本测量与排版使用同一模式，避免 `FormattedText` 宽度与实际显示不一致。
+- 根节点通过 `AppTypography` 开启 `UseLayoutRounding / SnapsToDevicePixels`；计算字号使用 `SnapFontSize` 向上取档或取整。文字模糊时还需检查容器缩放、位图缓存与分数滚动偏移。
+- 顶层轮廓使用 `CornerRadiusWindow=8`、内层带区 7 的资源。最大化后还原也读取资源；DWM 调用在 HWND 建立后的 `SourceInitialized` 执行。
+- 不透明 Popup 覆盖整个客户区并使用方角，避免圆角空区变黑。
+- 首帧处理使用停靠；动画限于窗口内元素与位置，避免整窗淡出改变合成方式。
 
 ## 首帧与位置
 
-`Show()` 返回只说明窗口已显示，`UpdateLayout()` 只完成布局，都不表示像素已提交。新增不透明窗口必须检查第一次 Show、重建 HWND、改变尺寸和 DPI 这几条路径。
+`Show()` 完成显示调用，`UpdateLayout()` 完成布局；像素提交仍须等待绘制。新增不透明窗口需检查首次显示、重建 HWND、改变尺寸和 DPI。
 
-| 场景 | 现行做法与前提 |
+| 场景 | 当前做法 |
 | --- | --- |
-| 尚无目标位置的窗口 | `Park` 同时设置 Left/Top；只写 Top 而 Left 为 NaN，会落入系统默认级联位置 |
-| 调用方定位的卡片 | 先定目标横坐标，再 `ShowThenPlace`；保留目标列，只抬起纵坐标 |
+| 尚无目标位置 | `Park` 同时设置 Left/Top；Left 为 NaN 时只写 Top 会触发系统级联位置 |
+| 调用方定位的卡片 | 先定横坐标，再 `ShowThenPlace`；保留目标列，只抬起纵坐标 |
 | WPF 定位的大窗或模态窗 | Show/ShowDialog 前安装 `ParkUntilPainted`，在 `SourceInitialized` 捕获位置，再延后恢复 |
-| 跨 DPI 落位 | 同步 WPF 的 DIP 状态，并用 HWND 的物理坐标落位；不能把旧缩放下捕获的 DIP 直接写回 |
-| 隐藏的菜单锚点 | 无内容、全透明并复用；“尺寸设为零”不等于没有屏幕像素 |
+| 跨 DPI 落位 | 同步 WPF 的 DIP 状态，用 HWND 物理坐标落位；旧 DPI 的坐标先换算 |
+| 隐藏的菜单锚点 | 复用无内容、全透明窗口；零尺寸仍可能占有屏幕像素 |
 
-`AfterFrame` 经过 Render 和 Loaded 两次 dispatcher 调度。历史探针中，停在 -32000 等 `ContentRendered` 的 32 次尝试全部超时，因此它不能作为离屏放行条件。停靠可减少冷布局暴露，但多等 0–260 ms 并未消除落位后的约 22–31 ms 残差；不能写成“保证零黑帧”。
+`AfterFrame` 经过 Render 和 Loaded 两次 dispatcher 调度。离屏等待 `ContentRendered` 的历史探针共 32 次，全部超时。停靠减少冷布局暴露，但多等 0–260 ms 后仍测得约 22–31 ms 的落位残差。
 
-现有快速、内联和通知卡片经 `CardRenderMode` 使用软件合成；该选择有本机测量依据，不等于所有 WPF 窗口都应改软件渲染。QuickLook 与 PreviewOverlay 同样使用先停靠再显示的路径。
+快速、内嵌和通知卡片经 `CardRenderMode` 使用软件合成，依据来自本机对照。QuickLook 与 PreviewOverlay 也先停靠再显示。
 
-## 复用和尺寸的教训
+## 通知会话与窗口复用
 
-- 内联窗口 dismiss 是 Hide + Park，Dispose 才 Close。复用时重置 owner、会话、键盘布局、菜单和宿主相关状态；不能只保存 HWND 而保留上一宿主的尺寸和缓存。
-- 停靠和全透明窗口仍可能报告 `IsVisible=true`，不能据此选为对话框 owner。托盘与菜单锚点都要声明 `ITransientHostWindow`；延迟居中前也要重新检查 owner，否则弹窗会被搬到屏幕外，看起来像刚出现就关闭。
-- 上屏前先定宽度再量高度。`IsSearching` 等异步早退条件不能否掉同步召唤阶段唯一一次尺寸计算；空结果区域不能被冻结为整个查询的高度。
-- 首次特别明显的问题先比较状态初始化，持续黑边先检查布局。`SizeToContent` 被窗口最大尺寸夹住时，内容可能没有同步夹住；应量完后固定实际尺寸，再让内容行分配剩余空间。
-- 预热、DPIChanged、位置更新不能把仍在停靠的窗口提前搬上屏。守卫放在实际定位入口，不能只靠某一个调用方自觉。
+[NotificationService](../App/Services/Notifications/NotificationService.cs) 在插件产生通知前订阅会话事件，再读取当前锁屏状态。[NotificationSessionState](../App/Services/Notifications/NotificationSessionState.cs) 读取 WTS 状态；WTS 不可用时通过输入桌面判断，暂停期间定期复查。锁屏隐藏窗口并冻结倒计时，解锁重置计时基点，从剩余时间继续。
 
-## 如何复核
+| 场景 | 当前处理与回归要点 |
+| --- | --- |
+| 同 ID 的可见卡片替换 | 保留 Sequence 和窗口，旧 handle 以 Replaced 结束；取消尚未呈现的替换项时，也能找到并关闭原槽位 |
+| 卡片高度超出工作区 | 回到待显示队列，保留测量高度与剩余时间；有容量后再呈现，handle 保持待完成 |
+| Alt+F4 等外部关闭 | `Closed` 移除 runner 并通知队列；批量主动关闭只报告一次批次 |
+| 插件的全部组件被禁用 | 先关闭通知接纳入口，再结束已显示和排队请求；重启生产者前重新开放。卸载中的迟到提交会被拒绝 |
+| 显示器变化或开始拖动 | 变化时清除拖动锚点并重新排列，保持剩余时间；拖动开始先停止原位置动画 |
 
-先读 `[WindowPark]` 的停靠是否守住、落位与首帧间隔，再与内容到达和高度变化日志对齐。区分未绘制帧、尺寸空条、第二个顶层窗口与长期黑边；不要统一归因于“渲染慢”。
+[NotificationWindowManager](../App/Services/Notifications/NotificationWindowManager.cs) 将新窗放到离屏位置，完成布局并等待绘制调度后排列。位置动画完成时核对仍是当前动画，避免旧回调覆盖新位置。
 
-现有 [WindowParkingTests](../Tests/App/Helpers/Visuals/WindowParkingTests.cs)、[AppTypographyTests](../Tests/App/Helpers/Visuals/AppTypographyTests.cs) 和 [DwmWindowCornersTests](../Tests/App/Helpers/Visuals/DwmWindowCornersTests.cs) 验证机制。混合 DPI、混合显卡、真实焦点和拖拽仍需真机验证；不要用单元测试或离屏截图声称已经排除这些问题。
+回归入口：[NotificationSessionStateTests](../Tests/App/Services/Notifications/NotificationSessionStateTests.cs)、[NotificationQueueTests](../Tests/App/Services/Notifications/NotificationQueueTests.cs)、[NotificationWindowManagerTests](../Tests/App/Services/Notifications/NotificationWindowManagerTests.cs)。
+
+## 复用和尺寸的经验
+
+- 内嵌窗口 dismiss 使用 Hide + Park，Dispose 才 Close。复用时重置 owner、会话、键盘布局、菜单与宿主尺寸缓存。
+- 停靠或全透明窗口仍可能为 `IsVisible=true`。托盘与菜单锚点声明 `ITransientHostWindow`，对话框延迟居中前重新检查 owner，避免落到屏幕外。
+- 上屏前先定宽度再量高度。同步召唤阶段的尺寸计算须允许执行，避免 `IsSearching` 等异步早退条件冻结空结果高度。
+- 首次显示问题先查初始化，持续黑边先查布局。`SizeToContent` 被最大尺寸夹住时，量完固定实际尺寸，再让内容行分配剩余空间。
+- 停靠状态的守卫放在实际定位入口，覆盖预热、DPIChanged 和位置更新。
+- 设置页跳转先选择目标再显示或还原窗口，滚动与高亮待布局后执行，避免先闪现上一页面。
+
+## 复核入口
+
+将 `[WindowPark]` 的停靠、落位与首帧日志对齐内容到达和高度变化，分别判断未绘制帧、尺寸空条、额外顶层窗口与长期黑边。
+
+[WindowParkingTests](../Tests/App/Helpers/Visuals/WindowParkingTests.cs)、[AppTypographyTests](../Tests/App/Helpers/Visuals/AppTypographyTests.cs) 和 [DwmWindowCornersTests](../Tests/App/Helpers/Visuals/DwmWindowCornersTests.cs) 验证机制；混合 DPI、混合显卡、焦点与拖拽使用真机复核。

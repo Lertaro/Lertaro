@@ -1,37 +1,47 @@
-# 权限与数据目录
+# 设置保存、权限与数据目录
 
-现行判断入口是 [UserDataAccess.Verify](../Core/Services/Installation/UserDataAccess.cs) 的实际写探针；安装与便携目录加固分别在 [InstallDirectoryLock](../Core/Services/Installation/InstallDirectoryLock.cs)、[PortableDirectoryLock](../Core/Services/Installation/PortableDirectoryLock.cs)。不要根据令牌名称直接推断某目录能否写入。
+字段校验由 [SettingsValidationGate](../App/ViewModels/Settings/SettingsValidationGate.cs) 汇总，数据目录写权限由 [UserDataAccess.Verify](../Core/Services/Installation/UserDataAccess.cs) 的实际写探针判断。安装与便携目录加固分别在 [InstallDirectoryLock](../Core/Services/Installation/InstallDirectoryLock.cs)、[PortableDirectoryLock](../Core/Services/Installation/PortableDirectoryLock.cs)。
 
-## 诊断顺序
+## 搜索配置的保存与迁移
 
-1. 分开确认目标进程令牌、目录 DACL、完整性标签和实际访问路径。构建目录的继承标签、沙箱权限和用户会话都是环境条件，不能写成“本仓库产物永远 Low”。
-2. 对实际数据根验证读、创建、替换和备份路径；设置文件 mtime 不变不是失败的充分证据，可能根本没有触发保存。
-3. 文件读写通过后，分别验证服务双向管道、注册表、证书私钥库和临时目录。一个入口正常不能代表其他信任边界可用。
-4. 测试宿主的权限不代表产品进程权限。受限令牌问题需要同令牌的真实路径验证，普通测试全绿不能替代。
-
-## 不用降标签掩盖故障
-
-旧数据目录降 Low 标签机制已经删除。那条修复在受限进程中无法通过双向服务管道到达，在提权进程中执行又会降低真实用户配置与证书的完整性保护。实际目录不可写时报告真实路径和原因，不新增静默降权。
-
-ACL 与重解析点操作可能留下持久后果。当前 profile 修复仍拒绝相关链接，并有 owner 回读等后置检查；若放宽，须在可抛弃环境验证真实目标、属主及失败恢复。不要因为代码显得复杂而删掉这些校验。
-
-测试创建 junction 后，清理时先确认并只移除链接，再处理测试根；不能把递归删除安全性建立在未经当前运行时验证的假设上。安装形态判定也要考虑路径别名：把字符串比较改成解析真实路径，会改变既有用户读取的数据目录，须验证迁移可见性。
-
-## 已验证过的失败方式
-
-| 问题 | 保留的经验与现行实现 |
+| 情况 | 当前处理 |
 | --- | --- |
-| LocalSend 证书加载失败 | 当前 `LocalSendCertificate.LoadFlags` 为 Exportable。2026-10-13 的本机对照中，EphemeralKeySet 虽避开加载故障，却破坏后续 TLS；不能把“载入成功”当修复，也不推广为所有运行时均不支持 |
-| 窗口已出现但启动未完成 | `DispatcherExceptionHandler.StartupCompleted` 之前的未处理异常报告后退出；不能吞异常留下看似运行、实际未初始化的进程 |
-| Hook 启动持续失败 | `HookIpcClient` 从 5 秒倍增退避到 60 秒，成功后复位；保留失败原因，避免固定频率无休止重试 |
-| SQLite 主库能开，全扫却报错 | `ContentSearchDatabase.OpenConnection` 每个连接设置 `PRAGMA temp_store = MEMORY`，避免临时表依赖不可写的临时目录；放在建表阶段只影响那一个连接 |
+| 新输入的非法非空前缀或触发词 | 拒绝保存，字段显示原因，状态栏显示阻塞错误数 |
+| 未改动的非法旧值 | 字段提示问题，允许保存其他设置 |
+| 空插件标记前缀 | 保存为默认前缀；运行时不可用的旧前缀也回退为默认值 |
+| 标记 `RequireNonEmpty` 的插件字段被清空 | 删除保存的覆盖值，恢复 schema 默认值 |
+| 不可用的结果类型触发符 | 启动时移除并保存，回到无触发符的默认行为 |
+| 废弃的 CoreExtensions `CustomFilterPrefix` | 启动通知流程清理该键；与宿主前缀不同则提示，插件统一读取宿主值 |
+| 旧插件触发词或冲突的宿主前缀 | 保留保存值并给出一次启动提示；插件触发词按 schema 标记识别 |
 
-`temp_store = MEMORY` 的代价是临时候选列表占内存；若规模成为问题，先评估主库中的有键表，不能把这条设置写成无成本优化。
+保存门禁只读取已创建页面和已加载子字段。页面自行计算的错误要主动汇总；这些错误不会自动触发 WPF 的 `Validation.Error`。门禁的绑定属性公开并发出 `PropertyChanged`，确保拒绝保存的状态可见。语法保留字符及 SDK 兼容见 [search-grammar.md](search-grammar.md)。
 
-## 仍需区分的边界
+回归入口：[QueryTokenPrefixRulesTests](../Tests/App/Helpers/QueryTokenPrefixRulesTests.cs)、[SettingsValidationGateTests](../Tests/App/ViewModels/Settings/SettingsValidationGateTests.cs)、[LegacySettingsAdvisorTests](../Tests/Core/Settings/LegacySettingsAdvisorTests.cs)、[PluginTriggerKeywordMigrationTests](../Tests/App/Helpers/PluginTriggerKeywordMigrationTests.cs)。
 
-当前 LocalSend 初始化没有受限令牌专用降级分支。是降级该功能还是启动失败属于产品决策，本页不把旧实验表述成“Low 下永远无解”。
+## 访问失败的诊断顺序
 
-日志初始化失败可能使诊断本身缺席；排查时同时检查日志目录是否可写，不能把无日志当成没有异常。任何回退日志位置都必须考虑路径和凭据的暴露范围。
+1. 确认目标进程令牌、目录 DACL 与完整性标签，并核对实际访问路径。构建目录标签、沙箱权限和用户会话按本次环境记录。
+2. 对实际数据根验证读、创建、替换和备份路径。设置文件 mtime 未变时，先确认保存是否触发。
+3. 分别验证服务双向管道、注册表、证书私钥库和临时目录，见 [windows-integration.md](windows-integration.md)。
+4. 受限令牌问题使用同令牌的产品进程验证。
 
-目录修复、设置传输和安装判断的完整验证必须包含 installed/portable、链接目标、普通/提权/受限进程；不能把开发机某次 ACL、TEMP 或 `.git` 权限快照当作所有环境事实。
+## 目录修复的取舍
+
+旧数据目录降 Low 标签机制已删除：受限进程无法通过双向服务管道完成该操作，提权执行又会降低用户配置与证书的完整性保护。当前写探针报告不可写的路径与原因。
+
+profile 修复仍拒绝相关链接，并保留 owner 回读等后置检查。ACL 与重解析点操作有持久影响；修改时在可抛弃环境验证实际目标、属主与失败恢复。测试 junction 清理先移除链接，再处理测试根。
+
+安装形态影响数据根选择。将字符串路径比较改为真实路径解析会改变路径别名对应的数据目录，须验证用户能否继续读取原设置。
+
+## 已验证的失败方式
+
+| 问题 | 经验与现行实现 |
+| --- | --- |
+| LocalSend 证书加载失败 | `LocalSendCertificate.LoadFlags` 为 Exportable。2026-10-13 的本机实验中，EphemeralKeySet 避开加载故障却破坏后续 TLS；证书修改须验证握手 |
+| 窗口出现但启动未完成 | `DispatcherExceptionHandler.StartupCompleted` 之前的未处理异常报告后退出，避免留下未初始化的进程 |
+| Hook 启动持续失败 | `HookIpcClient` 从 5 秒倍增退避到 60 秒，成功后复位，并保留失败原因 |
+| SQLite 主库能打开，全扫报错 | `ContentSearchDatabase.OpenConnection` 每个连接设置 `PRAGMA temp_store = MEMORY`，避免临时表依赖不可写的临时目录；仅在建表连接设置无法覆盖后续连接 |
+
+`temp_store = MEMORY` 让临时候选列表占用内存；规模过大时再评估主库中的有键表。LocalSend 当前没有受限令牌专用降级分支。
+
+日志缺席时先检查日志目录的写权限。目录修复、设置传输和安装判断需覆盖 installed/portable、链接目标及普通/提权/受限进程；回退日志位置还须控制路径与凭据的暴露。
