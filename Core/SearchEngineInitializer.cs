@@ -132,10 +132,11 @@ internal class SearchEngineInitializer
             DriveIndexRemovalScope.Register(drive, parentToken,
                 () => _indexer.SetDriveState(drive, "unavailable"), RequestRebuild);
 
+        var supportedDrives = new List<string>();
         try
         {
             var detectedDrives = VolumeHelper.DetectIndexableLocalDrives();
-            var supportedDrives = detectedDrives
+            supportedDrives = detectedDrives
                 .Where(d => machineSettings.IsLocalDriveEnabled(VolumeHelper.GetVolumeId(d)))
                 .ToList();
 
@@ -273,6 +274,9 @@ internal class SearchEngineInitializer
         catch (Exception ex)
         {
             Logger.Log($"[SearchEngineInitializer] Index initialization failed: {ex}", LogLevel.Error);
+            // A walk recorder kept for a drive whose monitor never started has nobody left to hand over to.
+            foreach (var drive in supportedDrives)
+                FolderWalkRecorder.Discard(_indexer, drive);
             var settled = ResolveStateAfterFailure(_indexer.Status.State);
             lock (_indexer.LockObj)
             {

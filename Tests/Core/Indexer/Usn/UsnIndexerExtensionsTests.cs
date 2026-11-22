@@ -226,6 +226,32 @@ public sealed class UsnIndexerExtensionsTests
         Assert.AreEqual(1, fixture.Index.GetCounts().Files);
     }
 
+    // Only searches armed the idle compactor, so a FAT32/exFAT drive nobody searched grew its delta without
+    // bound. Armed past the threshold only: every idle tick also forces a full GC and a working-set trim.
+    [TestMethod]
+    [DataRow(UsnIndexerDurabilityExtensions.IdleCompactPendingThreshold, 1)]
+    [DataRow(0, 0)]
+    public void ApplyFolderChange_SignalsCompactionDueOnlyPastTheThreshold(int pendingBefore, int expectedSignals)
+    {
+        using var tempDir = new TempDirectory();
+        var filePath = Path.Combine(tempDir.Path, "new-file.txt");
+        File.WriteAllText(filePath, "x");
+        using var fixture = LiveIndexFixture.Build("C", new[] { LiveIndexFixture.Root() });
+        fixture.Index.Mutate((_, delta) =>
+        {
+            for (var i = 0; i < pendingBefore; i++)
+                delta.Upsert((UInt128)(1_000_000 + i), 1, $"f{i}", FileRecordFlags.None, 0, 0, 0, 0);
+        });
+        var indexer = new UsnIndexer();
+        indexer._recordIndexes["C"] = fixture.Index;
+        var signals = 0;
+        indexer.DeltaCompactionDue = () => signals++;
+
+        indexer.ApplyFolderChange("C", WatcherChangeTypes.Created, filePath);
+
+        Assert.AreEqual(expectedSignals, signals);
+    }
+
     [TestMethod]
     public void ApplyFolderChange_DriveNotIndexing_DoesNotFlagAMissedChange()
     {

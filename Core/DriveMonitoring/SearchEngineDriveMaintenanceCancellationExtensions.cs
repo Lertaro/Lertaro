@@ -20,7 +20,8 @@ internal static class SearchEngineDriveMaintenanceCancellationExtensions
             // Cancelled inside the lock it was read under: RebuildDrive's finally removes and disposes
             // that same instance while holding it, so a Stop landing exactly as the rebuild completed used
             // to call Cancel() on a disposed source and throw ObjectDisposedException at the caller. The
-            // only thing registered on this token is handle.Dispose, which does not come back here.
+            // only things registered on this token are handle.Dispose and a FolderWalkRecorder's Abandon,
+            // neither of which comes back here.
             cts.Cancel();
             return true;
         }

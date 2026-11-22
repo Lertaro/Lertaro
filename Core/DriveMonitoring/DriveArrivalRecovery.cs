@@ -42,6 +42,9 @@ internal static class DriveArrivalRecovery
     internal static void SettleFailedBuild(
         UsnIndexer indexer, string drive, bool wasCancelled, CancellationToken parentToken, Action<string>? onReindexRequired)
     {
+        // The build can fail after its walk kept a recorder (writing the snapshot, say); no monitor will
+        // take that recorder over now.
+        FolderWalkRecorder.Discard(indexer, drive);
         if (IsMounted(drive))
         {
             // A Stop request reverts to "cached" (mirrors NetworkIndexer's own CancelDrive), not "failed"

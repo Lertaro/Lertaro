@@ -25,6 +25,12 @@ public partial class UsnIndexer : IDisposable
     // drive -- see UsnIndexerExtensions.ApplyFolderChange (sets it) and ConsumeMissedFolderChangeDuringRebuild
     // (consumes it to queue one follow-up refresh once the rebuild finishes).
     internal readonly HashSet<string> _missedFolderChangeDuringRebuild = new(StringComparer.OrdinalIgnoreCase);
+    // A non-journal drive's changes seen while it was being walked, waiting for its live monitor to start --
+    // see FolderWalkRecorder. Guarded by _lockObj.
+    internal readonly Dictionary<string, FolderWalkRecorder> _walkRecorders = new(StringComparer.OrdinalIgnoreCase);
+    // Called when a folder change leaves a drive's delta big enough for CompactIdleDeltas to fold in --
+    // SearchEngine arms its idle tick with it. See UsnIndexerExtensions.PublishFolderChange.
+    internal Action? DeltaCompactionDue;
     // Drives currently replaying a journal catch-up -- see UsnIndexerCatchUpExtensions (sets/clears it)
     // and UsnIndexerDurabilityExtensions.CompactIdleDeltas (stays out of a replay's way).
     internal readonly HashSet<string> _replayingDrives = new(StringComparer.OrdinalIgnoreCase);
@@ -236,10 +242,24 @@ public partial class UsnIndexer : IDisposable
     public void Dispose()
     {
         this.DisposeAllDriveMonitors();
+        DiscardWalkRecorders();
         _driveMetadata.Clear();
         foreach (var live in _recordIndexes.Values)
             live.Dispose();
         _recordIndexes.Clear();
+    }
+
+    // Outside the lock, like every monitor's Dispose: it waits for a flush already in flight.
+    internal void DiscardWalkRecorders()
+    {
+        List<FolderWalkRecorder> recorders;
+        lock (_lockObj)
+        {
+            recorders = _walkRecorders.Values.ToList();
+            _walkRecorders.Clear();
+        }
+        foreach (var recorder in recorders)
+            recorder.Dispose();
     }
 
     internal void PublishStatusChanged()

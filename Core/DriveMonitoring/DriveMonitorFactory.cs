@@ -27,6 +27,9 @@ internal static class DriveMonitorFactory
         var fs = VolumeHelper.GetFileSystemType(drive);
         if (VolumeHelper.IsJournalCapableFileSystem(fs))
         {
+            // A walk recorder kept for this drive has no hand-over here (the build saw a folder drive; an
+            // unreadable volume reports NTFS by default), and its watcher would otherwise run on unowned.
+            FolderWalkRecorder.Discard(indexer, drive);
             // Keep a linked source per monitor so disposal stops only THIS instance. UsnMonitor.Dispose
             // closes the volume handle immediately; cancellation then lets its loop unwind cleanly.
             var cts = CancellationTokenSource.CreateLinkedTokenSource(parentToken);
@@ -58,6 +61,8 @@ internal static class DriveMonitorFactory
         AttachRemovalMonitor(indexer, drive, folderRegistration, parentToken, onReindexRequired,
             onRemovalRequested, onReindexAfterRemoval);
         folderMonitor.Start();
+        // After Start, so a change made during the hand-over is seen by one watcher or the other.
+        FolderWalkRecorder.Replay(indexer, drive, onReindexRequired);
     }
 
     // Every monitor start funnels through here -- cold start, per-drive rebuild, hot-plug recovery -- so

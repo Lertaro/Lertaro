@@ -122,6 +122,39 @@ public sealed class FolderDriveMonitorTests
         Assert.AreEqual(2, applied.Count);
     }
 
+    // The hand-over disposes the old monitor and then reconciles. A flush of the old monitor still running
+    // after Dispose returned could apply its Deleted(x) on top of the hand-over that restored x, so Dispose
+    // waits for the callback in flight and the rest of that batch is never delivered.
+    [TestMethod]
+    public void Dispose_WhileAFlushIsDelivering_WaitsForItAndDeliversNothingMore()
+    {
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        var applied = new List<string>();
+        var monitor = new FolderDriveMonitor("Z", (_, path, _) =>
+        {
+            if (path == @"Z:\first")
+            {
+                entered.Set();
+                release.Wait();
+            }
+            lock (applied)
+                applied.Add(path);
+        }, CancellationToken.None);
+        monitor.Schedule(WatcherChangeTypes.Changed, @"Z:\first");
+        monitor.Schedule(WatcherChangeTypes.Deleted, @"Z:\x.txt");
+        var flush = Task.Run(monitor.FlushPending);
+        Assert.IsTrue(entered.Wait(TimeSpan.FromSeconds(30)), "flush never started");
+
+        var dispose = Task.Run(monitor.Dispose);
+        var returnedWhileBlocked = dispose.Wait(TimeSpan.FromSeconds(1));
+        release.Set();
+
+        Assert.IsTrue(flush.Wait(TimeSpan.FromSeconds(30)) && dispose.Wait(TimeSpan.FromSeconds(30)), "did not finish");
+        Assert.IsFalse(returnedWhileBlocked, "Dispose returned while a flush was still delivering");
+        CollectionAssert.AreEqual(new[] { @"Z:\first" }, applied);
+    }
+
     private static (FolderDriveMonitor Monitor, List<(WatcherChangeTypes Type, string Path)> Applied) Create()
     {
         var applied = new List<(WatcherChangeTypes, string)>();

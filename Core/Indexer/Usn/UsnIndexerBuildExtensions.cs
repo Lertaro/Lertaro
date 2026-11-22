@@ -83,9 +83,12 @@ public static class UsnIndexerBuildExtensions
             (drive, onProgress, token) =>
             {
                 var previousStore = GetPreviousStore(drive);
-                return LocalDriveWalkBuilder.Build(drive, $"{drive}:\\", previousStore, onProgress ?? ((_, _) => { }), token,
-                    forceFullScan,
-                    onCheckpoint: (checkpointStore, _) => indexer.PublishLocalDriveCheckpoint(cacheDir, drive, checkpointStore, token));
+                // Watching from before the walk so nothing changed behind the walker is lost -- see
+                // FolderWalkRecorder; EnsureMonitor replays it once the live monitor is up.
+                return FolderWalkRecorder.Record(indexer, drive, token, () =>
+                    LocalDriveWalkBuilder.Build(drive, $"{drive}:\\", previousStore, onProgress ?? ((_, _) => { }), token,
+                        forceFullScan,
+                        onCheckpoint: (checkpointStore, _) => indexer.PublishLocalDriveCheckpoint(cacheDir, drive, checkpointStore, token)));
             },
             (drive, result, progress, index) => OnDriveCompleted(indexer, cacheDir, drive, result, progress),
             (drive, result, progress, index) => OnDriveCompleted(indexer, cacheDir, drive, result.Store, progress),

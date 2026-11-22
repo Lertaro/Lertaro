@@ -44,6 +44,9 @@ public class SearchEngine : IDisposable
         // the same refresh the periodic status poll performs, just immediately.
         VolumeArrivalMonitor.EnsureStarted();
         VolumeArrivalMonitor.Arrived += OnVolumeArrived;
+        // A FAT32/exFAT drive's delta reaching the compaction threshold with nobody searching -- see
+        // UsnIndexerExtensions.PublishFolderChange.
+        _indexer.DeltaCompactionDue = () => _idleTrim.RecordActivity(Environment.TickCount64);
         _idleTimer = new Timer(OnIdleTimerTick, null, IdleTrimAfterMs, IdleTrimAfterMs);
     }
 
