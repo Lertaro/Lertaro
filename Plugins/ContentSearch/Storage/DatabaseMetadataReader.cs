@@ -41,7 +41,7 @@ public static class DatabaseMetadataReader
     public static IndexedFileRecord? GetFileRecord(SqliteConnection conn, string path)
     {
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT id, path, last_modified, file_size, indexed_at, failed_at, content_hash, content_ref, missing_count FROM files WHERE path = @path LIMIT 1;";
+        cmd.CommandText = "SELECT id, path, last_modified, file_size, indexed_at, failed_at, content_hash, content_ref, missing_count FROM files WHERE path = @path COLLATE NOCASE LIMIT 1;";
         cmd.Parameters.AddWithValue("@path", path);
         using var reader = cmd.ExecuteReader();
         if (reader.Read())
@@ -78,7 +78,7 @@ public static class DatabaseMetadataReader
         using var cmd = conn.CreateCommand();
         cmd.CommandText = """
             SELECT id FROM files
-            WHERE content_hash = @hash AND content_ref IS NULL AND failed_at IS NULL AND path <> @self
+            WHERE content_hash = @hash AND content_ref IS NULL AND failed_at IS NULL AND path <> @self COLLATE NOCASE
             LIMIT 1;
             """;
         cmd.Parameters.AddWithValue("@hash", contentHash);

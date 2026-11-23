@@ -282,6 +282,46 @@ public sealed class ContentIndexSchedulerTests
         }
     }
 
+    // End to end: a case-only folder rename, then an edit. Discovery reports the file in the new
+    // casing, and the scan must leave one row, not a second one beside the stale one.
+    [TestMethod]
+    public async Task Scan_FileEditedAfterCaseOnlyFolderRename_KeepsOneRowInTheNewCasing()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "TestIndexScheduler_" + Guid.NewGuid().ToString("N"));
+        var oldPath = Path.Combine(tempDir, "Docs", "a.txt");
+        var newPath = Path.Combine(tempDir, "docs", "a.txt");
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(tempDir, "Docs"));
+            await File.WriteAllTextAsync(oldPath, "obsolete wording");
+            var writeTime = DateTime.UtcNow.AddMinutes(-5);
+            File.SetLastWriteTimeUtc(oldPath, writeTime);
+            _database.InsertOrUpdateFile(oldPath, writeTime, new FileInfo(oldPath).Length, "obsolete wording");
+
+            Directory.Move(Path.Combine(tempDir, "Docs"), Path.Combine(tempDir, "renaming"));
+            Directory.Move(Path.Combine(tempDir, "renaming"), Path.Combine(tempDir, "docs"));
+            await File.WriteAllTextAsync(newPath, "current wording, edited");
+
+            _scheduler = new ContentIndexScheduler(_database);
+            _scheduler.Start(new ContentIndexConfig
+            {
+                MonitoredFolders = new List<string> { tempDir },
+                AllowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".txt" }
+            });
+            await WaitUntilAsync(() => _database.SearchFts("current", 10).Count == 1);
+
+            Assert.AreEqual(1, _database.GetStats().TotalFiles, "one file, one row");
+            Assert.AreEqual(newPath, _database.GetFileRecord(newPath)!.Path);
+            Assert.IsEmpty(_database.SearchFts("obsolete", 10));
+        }
+        finally
+        {
+            _scheduler?.Dispose();
+            _scheduler = null;
+            try { Directory.Delete(tempDir, recursive: true); } catch { }
+        }
+    }
+
     private ContentIndexScheduler? _scheduler;
 
     private int CountLogLines(string fragment) =>

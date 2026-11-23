@@ -42,7 +42,8 @@ public static class DatabaseSchemaHelper
                     missing_count INTEGER NOT NULL DEFAULT 0
                 );
 
-                CREATE INDEX IF NOT EXISTS idx_files_path ON files(path);
+                DROP INDEX IF EXISTS idx_files_path;
+                CREATE INDEX IF NOT EXISTS idx_files_path_nocase ON files(path COLLATE NOCASE);
 
                 CREATE VIRTUAL TABLE IF NOT EXISTS files_fts USING fts5(
                     content,
@@ -67,6 +68,39 @@ public static class DatabaseSchemaHelper
         using var contentRefIndexCmd = conn.CreateCommand();
         contentRefIndexCmd.CommandText = "CREATE INDEX IF NOT EXISTS idx_files_content_ref ON files(content_ref);";
         contentRefIndexCmd.ExecuteNonQuery();
+
+        DeleteCaseDuplicatesOnce(conn);
+    }
+
+    /// <summary>
+    /// Before path lookups matched NOCASE (see DatabaseWriterHelper.FindIdsByPathSql), a file
+    /// edited after a case-only folder rename gained a second row. Every row of such a group is
+    /// deleted through the normal delete, which also takes their FTS text and the rows reusing
+    /// their content, and the next scan re-indexes the file in its current casing. Runs once
+    /// (user_version 0 -> 1): it is a full index scan (~0.2 s at 1M rows), and the writer no
+    /// longer creates such groups.
+    /// </summary>
+    private static void DeleteCaseDuplicatesOnce(SqliteConnection conn)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "PRAGMA user_version;";
+        if (Convert.ToInt64(cmd.ExecuteScalar()) >= 1) return;
+
+        var duplicated = new List<string>();
+        cmd.CommandText = "SELECT path FROM files GROUP BY path COLLATE NOCASE HAVING COUNT(*) > 1;";
+        using (var reader = cmd.ExecuteReader())
+            while (reader.Read()) duplicated.Add(reader.GetString(0));
+
+        if (duplicated.Count > 0)
+        {
+            DatabaseWriterHelper.DeleteFilesBatch(conn, duplicated);
+            PluginSdk.Logger.Log(
+                $"[ContentSearch] Removed {duplicated.Count} file(s) indexed under more than one path casing, re-indexed on the next full scan",
+                PluginSdk.LogLevel.Info);
+        }
+
+        cmd.CommandText = "PRAGMA user_version = 1;";
+        cmd.ExecuteNonQuery();
     }
 
     /// <summary>

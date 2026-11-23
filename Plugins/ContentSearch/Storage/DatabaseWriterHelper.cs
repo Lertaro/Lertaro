@@ -23,6 +23,18 @@ public readonly record struct FileIndexBatchItem(
 /// </summary>
 public static class DatabaseWriterHelper
 {
+    // Windows paths are case-insensitive, and the host index reports a file in its current casing:
+    // after a case-only folder rename (Docs -> docs) an edited file must replace its row, not gain a
+    // second one. Every path lookup in this plugin therefore matches NOCASE, served by
+    // idx_files_path_nocase. All matches are taken, not LIMIT 1, so a stray second row cannot make
+    // the insert below fail its UNIQUE constraint.
+    // ponytail: NOCASE folds ASCII only, so a case-only rename of a non-ASCII letter (Ä -> ä) still
+    // leaves a second row, which GetAllFileMetadata's OrdinalIgnoreCase dictionary then hides from
+    // pruning, as before this fix. Upgrade path: a path_key column holding ToUpperInvariant(path),
+    // indexed, and matched instead of path. Same ceiling the other way: two files that differ only in
+    // case inside a case-sensitive directory (fsutil setCaseSensitiveInfo) share one row.
+    internal const string FindIdsByPathSql = "SELECT id FROM files WHERE path = @path COLLATE NOCASE;";
+
     /// <summary>
     /// Writes a batch of file rows. Returns the mapping from path to the row id assigned to each
     /// item, which callers need to wire duplicate rows (content_ref) to their source written in
@@ -38,7 +50,7 @@ public static class DatabaseWriterHelper
 
         using var findCmd = conn.CreateCommand();
         findCmd.Transaction = tx;
-        findCmd.CommandText = "SELECT id FROM files WHERE path = @path LIMIT 1;";
+        findCmd.CommandText = FindIdsByPathSql;
         var pFindPath = findCmd.Parameters.Add("@path", SqliteType.Text);
         findCmd.Prepare();
 
@@ -90,14 +102,17 @@ public static class DatabaseWriterHelper
         insertFtsCmd.Prepare();
 
         long cascadeDeleted = 0;
+        var oldIds = new List<long>();
 
         foreach (var item in items)
         {
             pFindPath.Value = item.Path;
-            var res = findCmd.ExecuteScalar();
-            if (res != null && res != DBNull.Value)
+            oldIds.Clear();
+            using (var reader = findCmd.ExecuteReader())
+                while (reader.Read()) oldIds.Add(reader.GetInt64(0));
+
+            foreach (var fileId in oldIds)
             {
-                var fileId = (long)res;
                 pDelFtsFileId.Value = fileId;
                 delFtsCmd.ExecuteNonQuery();
 
@@ -158,7 +173,7 @@ public static class DatabaseWriterHelper
         using var tx = conn.BeginTransaction();
         using var updateCmd = conn.CreateCommand();
         updateCmd.Transaction = tx;
-        updateCmd.CommandText = "UPDATE files SET missing_count = @missing_count WHERE path = @path;";
+        updateCmd.CommandText = "UPDATE files SET missing_count = @missing_count WHERE path = @path COLLATE NOCASE;";
         var pPath = updateCmd.Parameters.Add("@path", SqliteType.Text);
         var pMissingCount = updateCmd.Parameters.Add("@missing_count", SqliteType.Integer);
         updateCmd.Prepare();
@@ -215,7 +230,7 @@ public static class DatabaseWriterHelper
         using (var delRefCmd = conn.CreateCommand())
         {
             delRefCmd.Transaction = tx;
-            delRefCmd.CommandText = "DELETE FROM files WHERE content_ref IN (SELECT id FROM files WHERE path IN (SELECT path FROM to_delete));";
+            delRefCmd.CommandText = "DELETE FROM files WHERE content_ref IN (SELECT id FROM files WHERE path COLLATE NOCASE IN (SELECT path FROM to_delete));";
             cascadedDuplicates = delRefCmd.ExecuteNonQuery();
         }
 
@@ -223,8 +238,8 @@ public static class DatabaseWriterHelper
         {
             delCmd.Transaction = tx;
             delCmd.CommandText = """
-                DELETE FROM files_fts WHERE rowid IN (SELECT id FROM files WHERE path IN (SELECT path FROM to_delete));
-                DELETE FROM files WHERE path IN (SELECT path FROM to_delete);
+                DELETE FROM files_fts WHERE rowid IN (SELECT id FROM files WHERE path COLLATE NOCASE IN (SELECT path FROM to_delete));
+                DELETE FROM files WHERE path COLLATE NOCASE IN (SELECT path FROM to_delete);
                 DROP TABLE to_delete;
                 """;
             delCmd.ExecuteNonQuery();
