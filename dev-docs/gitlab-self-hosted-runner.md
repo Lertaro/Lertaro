@@ -20,6 +20,8 @@ GitLab job 使用 `windows` 标签，shell 为 PowerShell。runner 的服务端�
 
 `make.bat` 在构建前调用 `verify-release.ps1 -CheckSigningKey`，将私钥导出的 SubjectPublicKeyInfo 字节与 `Core/Services/Update/UpdatePackage.cs` 的公钥比较，并签名一个固定挑战验证私钥确实可用。它不比较 PEM 或 base64 文本，因此相同密钥的换行差异不会误判。打包后，无论使用 OpenSSL 还是 PowerShell 签名，都用更新器公钥验签两个 ZIP，失败就中止。
 
+预检分别报告 `Base64 decoding failed` 和 `ECDSA private-key PEM import failed`，并附底层异常类型及 HRESULT。前者发生在外层 Base64 解码，后者表示解码后无法导入密钥；两者都在公钥匹配之前。日志只记录异常元数据，避免异常消息包含私钥输入。
+
 在 Windows 上读取文件并设置当前进程变量：
 
 ```powershell

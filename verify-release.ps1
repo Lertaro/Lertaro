@@ -30,9 +30,18 @@ try {
         try {
             try {
                 $keyBytes = [Convert]::FromBase64String(($env:LERTARO_SIGNING_KEY -replace '\s', ''))
+            } catch {
+                $cause = $_.Exception.GetBaseException()
+                throw ('LERTARO_SIGNING_KEY Base64 decoding failed ({0}; HRESULT=0x{1:X8}). Expected Base64 of the entire private-key PEM file.' -f
+                    $cause.GetType().FullName, $cause.HResult)
+            }
+            try {
                 $signer.ImportFromPem([Text.Encoding]::UTF8.GetString($keyBytes))
             } catch {
-                throw 'LERTARO_SIGNING_KEY must contain a base64-encoded ECDSA private-key PEM.'
+                $cause = $_.Exception.GetBaseException()
+                # Report only metadata: exception messages can contain secret input.
+                throw ('LERTARO_SIGNING_KEY ECDSA private-key PEM import failed ({0}; HRESULT=0x{1:X8}).' -f
+                    $cause.GetType().FullName, $cause.HResult)
             }
             # Compare public-key bytes, not PEM/base64 text: LF and CRLF encode differently
             # but ImportFromPem loads the same key from either newline convention.

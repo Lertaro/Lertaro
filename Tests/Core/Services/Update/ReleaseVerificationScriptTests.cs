@@ -50,6 +50,21 @@ public sealed class ReleaseVerificationScriptTests : IDisposable
     }
 
     [TestMethod]
+    public async Task CheckSigningKey_InvalidBase64ReportsDecodingFailureWithoutSecret()
+    {
+        const string secret = "invalid-base64-private-key-sentinel!";
+
+        var result = await RunAsync(_trusted, checkKey: true, secretOverride: secret);
+
+        Assert.AreNotEqual(0, result.ExitCode);
+        Assert.Contains("Base64 decoding failed", result.Output);
+        Assert.Contains("System.FormatException", result.Output);
+        Assert.Contains("HRESULT=0x80131537", result.Output);
+        Assert.DoesNotContain("PEM import failed", result.Output);
+        Assert.DoesNotContain(secret, result.Output);
+    }
+
+    [TestMethod]
     [DataRow("\\n")]
     [DataRow("\\r\\n")]
     public async Task CheckSigningKey_LiteralBackslashEscapesAreNotPemNewlines(string escapedNewline)
@@ -59,7 +74,12 @@ public sealed class ReleaseVerificationScriptTests : IDisposable
         var result = await RunAsync(_trusted, checkKey: true, pemOverride: pem);
 
         Assert.AreNotEqual(0, result.ExitCode);
-        Assert.Contains("base64-encoded ECDSA private-key PEM", result.Output);
+        Assert.Contains("ECDSA private-key PEM import failed", result.Output);
+        Assert.Contains("System.ArgumentException", result.Output);
+        Assert.Contains("HRESULT=0x80070057", result.Output);
+        Assert.DoesNotContain("Base64 decoding failed", result.Output);
+        Assert.DoesNotContain(pem, result.Output);
+        Assert.DoesNotContain(Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(pem)), result.Output);
     }
 
     [TestMethod]
@@ -112,7 +132,7 @@ public sealed class ReleaseVerificationScriptTests : IDisposable
 
     private async Task<(int ExitCode, string Output)> RunAsync(ECDsa signer, bool checkKey = false,
         bool tamper = false, bool omitSignature = false, bool publicOnly = false,
-        string? pemOverride = null, bool wrappedBase64 = false)
+        string? pemOverride = null, bool wrappedBase64 = false, string? secretOverride = null)
     {
         var trustSource = Path.Combine(_directory, "UpdatePackage.cs");
         var lines = _trusted.ExportSubjectPublicKeyInfoPem().Split('\n', StringSplitOptions.RemoveEmptyEntries);
@@ -129,7 +149,7 @@ public sealed class ReleaseVerificationScriptTests : IDisposable
         if (checkKey)
         {
             var pem = pemOverride ?? (publicOnly ? signer.ExportSubjectPublicKeyInfoPem() : signer.ExportECPrivateKeyPem());
-            start.Environment["LERTARO_SIGNING_KEY"] = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(pem),
+            start.Environment["LERTARO_SIGNING_KEY"] = secretOverride ?? Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(pem),
                 wrappedBase64 ? Base64FormattingOptions.InsertLineBreaks : Base64FormattingOptions.None);
             start.ArgumentList.Add("-CheckSigningKey");
         }
