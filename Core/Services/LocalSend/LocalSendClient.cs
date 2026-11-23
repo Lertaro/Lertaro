@@ -245,7 +245,7 @@ public sealed class LocalSendClient : IDisposable
             var url = BuildCancellationUrl(cleanIp, targetPort, https, sessionId, targetVersion);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
             timeout.CancelAfter(TimeSpan.FromSeconds(2));
-            await _httpClient.PostAsync(url, content: null, timeout.Token).ConfigureAwait(false);
+            using var response = await _httpClient.PostAsync(url, content: null, timeout.Token).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

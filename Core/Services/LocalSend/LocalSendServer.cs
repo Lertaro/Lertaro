@@ -96,7 +96,13 @@ public sealed class LocalSendServer : IDisposable
             {
                 var client = await _listener!.AcceptTcpClientAsync(token).ConfigureAwait(false);
                 client.NoDelay = true;
-                _ = Task.Run(() => HandleClientAsync(client, token), token);
+                // Reserve before dispatching: queued accepted sockets also consume descriptors and memory.
+                if (!_connectionGate.Wait(0))
+                {
+                    client.Dispose();
+                    continue;
+                }
+                _ = HandleClientAsync(client, token);
             }
             catch (OperationCanceledException) { break; }
             catch { await Task.Delay(200, token).ConfigureAwait(false); }
@@ -108,26 +114,13 @@ public sealed class LocalSendServer : IDisposable
     // bounded at all: one stalled peer was enough to accumulate them. Sixteen concurrent connections is
     // generous against what LocalSend actually does (a handful of peers, two parallel file workers).
     private static readonly TimeSpan HandshakeTimeout = TimeSpan.FromSeconds(10);
-    private static readonly TimeSpan ConnectionWaitTimeout = TimeSpan.FromSeconds(5);
-    private readonly SemaphoreSlim _connectionGate = new(16);
+    internal const int MaxConnections = 16;
+    private readonly SemaphoreSlim _connectionGate = new(MaxConnections);
 
     private async Task HandleClientAsync(TcpClient client, CancellationToken token)
     {
         using (client)
         {
-            try
-            {
-                if (!await _connectionGate.WaitAsync(ConnectionWaitTimeout, token).ConfigureAwait(false))
-                {
-                    Logger.Log("[LocalSendServer] At the connection limit; dropping client.", LogLevel.Debug);
-                    return;
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-
             try
             {
                 // Framing reads carry their own deadline (see LocalSendServerHandler); the handshake was

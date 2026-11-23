@@ -7,6 +7,32 @@ namespace Lertaro.Core.Tests.Services.LocalSend;
 public sealed class ProgressiveStreamContentTests
 {
     [TestMethod]
+    public async Task CopyToAsync_CancellationInterruptsPendingSourceRead()
+    {
+        using var source = new WaitingStream();
+        using var content = new ProgressiveStreamContent(source, (_, _) => Assert.Fail("No bytes were read."));
+        using var cancellation = new CancellationTokenSource();
+        var copying = content.CopyToAsync(Stream.Null, cancellation.Token);
+        await source.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        cancellation.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => copying.WaitAsync(TimeSpan.FromSeconds(2)));
+    }
+
+    private sealed class WaitingStream : MemoryStream
+    {
+        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return 0;
+        }
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
+            ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+    }
+
+    [TestMethod]
     public async Task ReadAsStreamAsync_ReportsProgress()
     {
         var testData = Encoding.UTF8.GetBytes("Hello Progressive Stream Content");

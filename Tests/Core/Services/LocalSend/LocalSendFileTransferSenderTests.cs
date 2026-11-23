@@ -89,8 +89,8 @@ public sealed class LocalSendFileTransferSenderTests
                 Files =
                 [
                     new LocalSendPendingFile("file",
-                        new LocalSendFileDto { Id = "file", FileName = "note.txt", Size = 4 },
-                        () => new MemoryStream("data"u8.ToArray()))
+                        new LocalSendFileDto { Id = "file", FileName = "note.txt", Size = 8 * 1024 * 1024 },
+                        () => new MemoryStream(new byte[8 * 1024 * 1024]))
                 ],
                 Tokens = new Dictionary<string, string> { ["file"] = "token" }
             };
@@ -109,6 +109,36 @@ public sealed class LocalSendFileTransferSenderTests
             listening.Cancel();
             listener.Stop();
             lock (heldOpen) foreach (var client in heldOpen) client.Dispose();
+        }
+    }
+    [TestMethod]
+    public async Task UploadAsync_CompletedBodyWaitsForReceiverVerification()
+    {
+        using var handler = new VerifyingReceiver();
+        using var http = new HttpClient(handler);
+        var transfer = new LocalSendPendingFileTransfer
+        {
+            TargetIp = "127.0.0.1", TargetPort = 53317, Https = false, SessionId = "session", TargetVersion = "2.2",
+            Files = [new("file", new LocalSendFileDto { Id = "file", FileName = "note.txt", Size = 4 },
+                () => new MemoryStream("data"u8.ToArray()))],
+            Tokens = new Dictionary<string, string> { ["file"] = "token" }
+        };
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var result = await LocalSendFileTransferSender.UploadAsync(http, null, transfer, null, null,
+            deadline.Token, TimeSpan.FromMilliseconds(100));
+
+        Assert.AreEqual(LocalSendSendResult.Success, result.Result, result.Error);
+    }
+
+    private sealed class VerifyingReceiver : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            await request.Content!.CopyToAsync(Stream.Null, cancellationToken);
+            // The upload has finished, but receiver-side verification legitimately exceeds the stall interval.
+            await Task.Delay(300, cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK);
         }
     }
 }

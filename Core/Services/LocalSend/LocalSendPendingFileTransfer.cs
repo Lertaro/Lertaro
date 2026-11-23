@@ -137,8 +137,7 @@ internal static class LocalSendFileTransferSender
                     // Bytes left the sender, so the peer is keeping up: re-arm. The last chunk is not
                     // re-armed, because what follows is the receiver's own checksum pass over a file it
                     // may have just taken minutes to write, and that wait is meant to be unbounded.
-                    if (sent < total)
-                        stalled.CancelAfter(stallTimeout);
+                    stalled.CancelAfter(sent < total ? stallTimeout : Timeout.InfiniteTimeSpan);
                     onProgress?.Invoke(new LocalSendSendProgressArgs(pendingFile.File.FileName, sent, total, fileIndex, totalFiles));
                 });
                 content.Headers.ContentType = new MediaTypeHeaderValue(LocalSendClientHelper.GetMimeTypeForFileName(pendingFile.File.FileName));

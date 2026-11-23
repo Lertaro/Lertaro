@@ -26,6 +26,31 @@ public sealed class LocalSendServerTests
     }
 
     [TestMethod]
+    public async Task Start_ConnectionLimitRejectsExtraSocketWithoutQueueing()
+    {
+        using var server = new LocalSendServer();
+        server.Start();
+        var clients = new List<System.Net.Sockets.TcpClient>();
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        try
+        {
+            for (var i = 0; i <= LocalSendServer.MaxConnections; i++)
+            {
+                var client = new System.Net.Sockets.TcpClient();
+                clients.Add(client);
+                await client.ConnectAsync(System.Net.IPAddress.Loopback, server.ActualPort, deadline.Token);
+            }
+
+            var read = await clients[^1].GetStream().ReadAsync(new byte[1], deadline.Token);
+            Assert.AreEqual(0, read, "The extra socket must close immediately, without waiting for an active slot.");
+        }
+        finally
+        {
+            foreach (var client in clients) client.Dispose();
+        }
+    }
+
+    [TestMethod]
     public void TryRegisterActiveSession_ConcurrentClaimsAllowOnlyOneSession()
     {
         var server = new LocalSendServer();
