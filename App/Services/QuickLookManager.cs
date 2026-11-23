@@ -209,7 +209,8 @@ public partial class QuickLookManager
         var isPluginCustomPreview = path.StartsWith("flow-preview:", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("__FLOW_PREVIEW__:", StringComparison.OrdinalIgnoreCase);
 
-        if (_userWantsPreview || isPluginCustomPreview)
+        if (_userWantsPreview || isPluginCustomPreview &&
+            (PluginPreviewCache.GetEntry(path)?.ShowOnSelection ?? true))
         {
             ShowOrUpdate(owner, path);
         }

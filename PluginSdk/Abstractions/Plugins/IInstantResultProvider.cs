@@ -81,4 +81,10 @@ public class InstantResultItem
     /// Optional execution callback returning whether the search window should hide (true) or stay open (false).
     /// </summary>
     public Func<bool>? OnExecuteFunc { get; set; }
+
+    /// <summary>Asynchronous execution returning whether to hide the search window; takes precedence over synchronous callbacks.</summary>
+    public Func<ValueTask<bool>>? OnExecuteAsync { get; set; }
+
+    /// <summary>Suppresses file and custom previews for this result.</summary>
+    public bool SuppressPreview { get; set; }
 }

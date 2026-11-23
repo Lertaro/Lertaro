@@ -58,6 +58,12 @@ public sealed class JsonRpcResultItem
 
     [JsonPropertyName("Score")]
     public int Score { get; set; }
+
+    [JsonPropertyName("Preview")]
+    public Flow.Launcher.Plugin.Result.PreviewInfo? Preview { get; set; }
+
+    [JsonPropertyName("PreviewVisibility"), JsonConverter(typeof(JsonStringEnumConverter<Flow.Launcher.Plugin.PreviewVisibility>))]
+    public Flow.Launcher.Plugin.PreviewVisibility PreviewVisibility { get; set; }
 }
 
 /// <summary>

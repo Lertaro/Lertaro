@@ -140,7 +140,7 @@ public sealed class FlowResultMapperTests
     }
 
     [TestMethod]
-    public void MapToInstantResult_AsyncActionReturningFalse_ReturnsFalse()
+    public async Task MapToInstantResult_AsyncActionReturningFalse_ReturnsFalse()
     {
         var result = new Result
         {
@@ -149,8 +149,45 @@ public sealed class FlowResultMapperTests
         };
 
         var mapped = FlowResultMapper.MapToInstantResult(result);
-        var shouldHide = mapped.OnExecuteFunc?.Invoke();
+        Assert.IsNotNull(mapped.OnExecuteAsync);
+        var shouldHide = await mapped.OnExecuteAsync();
 
         Assert.IsFalse(shouldHide);
+    }
+
+    [TestMethod]
+    public async Task MapToInstantResult_SuspendedAsyncActionWinsOverSynchronousAction()
+    {
+        var finish = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var result = new Result { Action = _ => throw new AssertFailedException("Sync action must not run."),
+            AsyncAction = async _ => await finish.Task };
+        var mapped = FlowResultMapper.MapToInstantResult(result);
+        Assert.IsNull(mapped.OnExecuteFunc);
+        Assert.IsNotNull(mapped.OnExecuteAsync);
+        var executing = mapped.OnExecuteAsync().AsTask();
+        Assert.IsFalse(executing.IsCompleted);
+        finish.SetResult(false);
+        Assert.IsFalse(await executing.WaitAsync(TimeSpan.FromSeconds(2)));
+    }
+
+    [StaTestMethod]
+    public void MapToInstantResult_PreviewVisibilityNever_DoesNotRegisterPreview()
+    {
+        var result = new Result { Title = "Hidden preview", PreviewVisibility = PreviewVisibility.Never,
+            PreviewPanel = new Lazy<UserControl>(() => throw new AssertFailedException("Must stay lazy.")) };
+        var mapped = FlowResultMapper.MapToInstantResult(result);
+        Assert.IsFalse(mapped.ActionArgument.StartsWith("flow-preview:", StringComparison.Ordinal));
+        Assert.IsTrue(mapped.SuppressPreview);
+    }
+
+    [StaTestMethod]
+    [DataRow(PreviewVisibility.Optional, false)]
+    [DataRow(PreviewVisibility.Always, true)]
+    public void MapToInstantResult_MetadataPreview_IsAvailableWithoutCustomPanel(PreviewVisibility visibility, bool showOnSelection)
+    {
+        var result = new Result { Title = "Metadata preview", PreviewVisibility = visibility, Preview = new() { Description = "Description" } };
+        var mapped = FlowResultMapper.MapToInstantResult(result);
+        Assert.IsNotNull(PluginPreviewCache.GetPreview(mapped.ActionArgument));
+        Assert.AreEqual(showOnSelection, PluginPreviewCache.GetEntry(mapped.ActionArgument)!.ShowOnSelection);
     }
 }

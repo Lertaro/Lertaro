@@ -10,6 +10,41 @@ namespace Lertaro.App.Tests.Services.Plugin;
 public sealed class PluginActionExecutorTests
 {
     [TestMethod]
+    [DataRow("InstantResult")]
+    [DataRow("File")]
+    public async Task TryExecute_AsyncCallbackWinsAndCompletesLater(string kind)
+    {
+        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var result = new AppSearchResult { Name = "Async", ResultKind = kind,
+            InstantResultOnExecuteFunc = () => throw new AssertFailedException("Sync callback must not run."),
+            InstantResultOnExecuteAsync = () => new ValueTask<bool>(completion.Task) };
+        var view = new FakePluginSearchWindow();
+
+        Assert.IsTrue(PluginActionExecutor.TryExecute(result, view));
+        Assert.IsFalse(view.HideWindowCalled);
+        completion.SetResult(true);
+        await view.Hidden.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.IsTrue(view.HideWindowCalled);
+    }
+
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task ExecuteAsync_WaitsWithoutBlockingAndHonorsHideResult(bool hide)
+    {
+        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var result = new AppSearchResult { Name = "Async", ResultKind = "InstantResult",
+            InstantResultOnExecuteAsync = () => new ValueTask<bool>(completion.Task) };
+        var view = new FakePluginSearchWindow();
+        var executing = PluginActionExecutor.ExecuteAsync(result, view);
+        Assert.IsFalse(executing.IsCompleted);
+        Assert.IsFalse(view.HideWindowCalled);
+        completion.SetResult(hide);
+        await executing.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.AreEqual(hide, view.HideWindowCalled);
+    }
+
+    [TestMethod]
     public void TryExecute_PluginSearchAction_HidesWindowAndExecutesAction()
     {
         var fakeAction = new FakeSearchAction();
@@ -107,8 +142,9 @@ public sealed class PluginActionExecutorTests
     private sealed class FakePluginSearchWindow : IPluginSearchWindow
     {
         public bool HideWindowCalled { get; private set; }
+        public TaskCompletionSource Hidden { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public void HideWindow() => HideWindowCalled = true;
+        public void HideWindow() { HideWindowCalled = true; Hidden.TrySetResult(); }
         public void ShowWindow() { }
         public void SetSearchText(string text) { }
         public void SelectSearchText() { }

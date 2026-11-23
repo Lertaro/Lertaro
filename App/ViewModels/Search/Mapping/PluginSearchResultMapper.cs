@@ -206,6 +206,8 @@ public static class PluginSearchResultMapper
             InstantResultActionArgument = targetPath,
             InstantResultOnExecute = item.OnExecute,
             InstantResultOnExecuteFunc = item.OnExecuteFunc,
+            InstantResultOnExecuteAsync = item.OnExecuteAsync,
+            SuppressPreview = item.SuppressPreview,
             TabCompletion = SanitizeSingleLine(item.TabCompletion),
             SourceProvider = provider
         });

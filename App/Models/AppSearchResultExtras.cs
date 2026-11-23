@@ -31,6 +31,8 @@ internal sealed class AppSearchResultExtras
     public string InstantResultActionArgument = string.Empty;
     public Action? InstantResultOnExecute;
     public Func<bool>? InstantResultOnExecuteFunc;
+    public Func<ValueTask<bool>>? InstantResultOnExecuteAsync;
+    public bool SuppressPreview;
     public string? TabCompletion;
     public object? SourceProvider;
 

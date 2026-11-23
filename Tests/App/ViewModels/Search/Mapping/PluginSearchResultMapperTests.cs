@@ -8,6 +8,20 @@ namespace Lertaro.App.Tests.ViewModels.Search.Mapping;
 public sealed class PluginSearchResultMapperTests
 {
     [TestMethod]
+    public void AddInstantResultItems_PreservesAsyncExecutionAndSuppressedPreview()
+    {
+        Func<ValueTask<bool>> execute = () => ValueTask.FromResult(false);
+        var item = new InstantResultItem { Title = "Flow", ActionArgument = "flow-preview:test", OnExecuteAsync = execute, SuppressPreview = true };
+        var rows = new List<AppSearchResult>();
+
+        PluginSearchResultMapper.AddInstantResultItems(rows, [item], "query", new FakeComponent());
+
+        var row = Assert.ContainsSingle(rows);
+        Assert.AreSame(execute, row.InstantResultOnExecuteAsync);
+        Assert.IsFalse(row.CanPreview);
+    }
+
+    [TestMethod]
     public void AddInstantResultItems_RealFile_MapsAsFileResult()
     {
         var tempFile = Path.Combine(Path.GetTempPath(), $"mapper_test_{Guid.NewGuid():N}.txt");

@@ -90,6 +90,8 @@ internal static class SearchResultsReconciler
             live[i].InstantResultActionArgument = target[i].InstantResultActionArgument;
             live[i].InstantResultOnExecute = target[i].InstantResultOnExecute;
             live[i].InstantResultOnExecuteFunc = target[i].InstantResultOnExecuteFunc;
+            live[i].InstantResultOnExecuteAsync = target[i].InstantResultOnExecuteAsync;
+            live[i].SuppressPreview = target[i].SuppressPreview;
             live[i].TabCompletion = target[i].TabCompletion;
             // Retained rows must carry the explanation rebuilt for this page.
             live[i].RankingExplanation = target[i].RankingExplanation;

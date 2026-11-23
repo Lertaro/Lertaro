@@ -10,6 +10,19 @@ namespace Lertaro.Plugins.FlowLauncherBridge.Tests.Engine.JsonRpc;
 public sealed class FlowProcessRunnerTests
 {
     [TestMethod]
+    public void ParseResults_PreservesNewPreviewMetadata()
+    {
+        var runner = new FlowProcessRunner(new PluginMetadata { ID = "preview", Name = "Preview" }, "dummy.exe");
+        var parse = typeof(FlowProcessRunner).GetMethod("ParseResults", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        const string json = """{"result":[{"Title":"Preview","PreviewVisibility":"always","Preview":{"Description":"# Title","ContentType":"markdown"}}]}""";
+        var results = Assert.IsInstanceOfType<List<Result>>(parse.Invoke(runner, [json, new FakePublicApi((_, _) => { })]));
+        var result = Assert.ContainsSingle(results);
+        Assert.AreEqual(PreviewVisibility.Always, result.PreviewVisibility);
+        Assert.AreEqual(PreviewContentType.Markdown, result.Preview.ContentType);
+        Assert.AreEqual("# Title", result.Preview.Description);
+    }
+
+    [TestMethod]
     public void JsonRpcResponse_Deserialization_Works()
     {
         const string json = "{\"result\":[{\"Title\":\"Hello\",\"SubTitle\":\"World\",\"IcoPath\":\"Images/app.png\",\"JsonRPCAction\":{\"method\":\"flow_open_url\",\"parameters\":[\"https://google.com\"]}}]}";

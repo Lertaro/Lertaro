@@ -246,6 +246,8 @@ public class FlowProcessRunner : IAsyncDisposable
             SubTitle = item.SubTitle ?? string.Empty,
             IcoPath = icoPath ?? string.Empty,
             Score = item.Score,
+            Preview = item.Preview ?? new(),
+            PreviewVisibility = item.PreviewVisibility,
             AutoCompleteText = autoText,
             Action = _context =>
             {

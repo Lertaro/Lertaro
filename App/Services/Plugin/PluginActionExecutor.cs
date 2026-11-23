@@ -11,10 +11,15 @@ public static class PluginActionExecutor
         // Apps (Start Menu shortcuts, packaged apps) launch through the same OnExecute delegate as an
         // instant result -- they just carry ResultKind "Application" instead so they get a real FullPath
         // and can be acted on (copy, locate in explorer, ...) like a normal file result.
-        if (result.IsInstantResult || result.IsApplication)
+        if (result.IsInstantResult || result.IsApplication || result.InstantResultOnExecuteAsync != null)
         {
             try
             {
+                if (result.InstantResultOnExecuteAsync != null)
+                {
+                    _ = ExecuteAsync(result, view);
+                    return true;
+                }
                 if (result.InstantResultOnExecuteFunc != null)
                 {
                     var shouldHide = result.InstantResultOnExecuteFunc();
@@ -178,6 +183,24 @@ public static class PluginActionExecutor
             Logger.Log($"[PluginActionExecutor] Shortcut command '{registration.Action.GetType().Name}' threw: {ex.Message}", LogLevel.Error);
         }
         return true;
+    }
+
+    internal static async Task ExecuteAsync(AppSearchResult result, PluginSdk.Abstractions.IPluginSearchWindow view)
+    {
+        try
+        {
+            // Keep the UI context: plugin actions may await and then manipulate their WPF controls.
+            if (await result.InstantResultOnExecuteAsync!())
+            {
+                (view as QuickSearchWindow)?.SuppressNextForegroundRestore();
+                view?.HideWindowAfterExecution();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[PluginActionExecutor] Failed to execute asynchronous result action: {ex.Message}", LogLevel.Error);
+            PluginSdk.Services.PluginNotificationService.Show(result.Name, ex.Message);
+        }
     }
 
     internal static System.Diagnostics.ProcessStartInfo BuildCustomCommandStartInfo(System.Text.Json.JsonElement root,

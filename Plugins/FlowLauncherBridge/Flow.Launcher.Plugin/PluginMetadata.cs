@@ -12,6 +12,7 @@ public class PluginMetadata : BaseModel
     public string Name { get; set; } = string.Empty;
     public string Author { get; set; } = string.Empty;
     public string Version { get; set; } = "1.0.0";
+    public string MinimumAppVersion { get; set; } = string.Empty;
     public string Language { get; set; } = AllowedLanguage.CSharp;
     public string Description { get; set; } = string.Empty;
     public string Website { get; set; } = string.Empty;

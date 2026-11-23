@@ -10,6 +10,8 @@ namespace Lertaro.PluginSdk.Services;
 /// </summary>
 public record PluginPreviewEntry(string Title, string PluginName, Lazy<UserControl> Factory, Func<object?>? IconProvider = null)
 {
+    /// <summary>Whether selecting this result opens its preview without a manual preview toggle.</summary>
+    public bool ShowOnSelection { get; init; } = true;
     private UIElement? _materialized;
     private object? _cachedIcon;
     private bool _iconLoaded;

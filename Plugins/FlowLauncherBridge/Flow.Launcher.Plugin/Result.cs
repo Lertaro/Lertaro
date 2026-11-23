@@ -83,7 +83,9 @@ public class Result
     [JsonIgnore]
     public IconDelegate? BadgeIcon;
 
-    public GlyphInfo? Glyph { get; init; }
+    private GlyphInfo? _glyph;
+    public GlyphInfo? Glyph { get => _glyph; init => _glyph = value; }
+    public void SetGlyph(GlyphInfo glyph) => _glyph = glyph;
 
     [JsonIgnore]
     public Func<ActionContext, bool>? Action { get; set; }
@@ -108,7 +110,9 @@ public class Result
     public int? ProgressBar { get; set; }
     public string ProgressBarColor { get; set; } = "#26a0da";
 
-    public PreviewInfo Preview { get; set; } = PreviewInfo.Default;
+    public PreviewInfo Preview { get; set; } = new();
+    [JsonConverter(typeof(JsonStringEnumConverter<PreviewVisibility>))]
+    public PreviewVisibility PreviewVisibility { get; set; } = PreviewVisibility.Optional;
     public bool AddSelectedCount { get; set; } = true;
     public string? RecordKey { get; set; }
     public bool ShowBadge { get; set; }
@@ -150,6 +154,7 @@ public class Result
         AsyncAction = AsyncAction,
         Score = Score,
         TitleHighlightData = TitleHighlightData,
+        SubTitleHighlightData = SubTitleHighlightData,
         OriginQuery = OriginQuery,
         PluginDirectory = PluginDirectory,
         ContextData = ContextData,
@@ -159,7 +164,8 @@ public class Result
         PreviewPanel = PreviewPanel,
         ProgressBar = ProgressBar,
         ProgressBarColor = ProgressBarColor,
-        Preview = Preview,
+        Preview = Preview is null ? null! : Preview with { },
+        PreviewVisibility = PreviewVisibility,
         AddSelectedCount = AddSelectedCount,
         RecordKey = RecordKey,
         ShowBadge = ShowBadge,
@@ -178,6 +184,8 @@ public class Result
         public IconDelegate? PreviewDelegate { get; set; }
 
         public string? FilePath { get; set; }
+        [JsonConverter(typeof(JsonStringEnumConverter<PreviewContentType>))]
+        public PreviewContentType ContentType { get; set; } = PreviewContentType.ImageWithText;
 
         public static PreviewInfo Default { get; } = new()
         {
@@ -188,4 +196,17 @@ public class Result
             FilePath = null
         };
     }
+}
+
+public enum PreviewContentType
+{
+    [JsonStringEnumMemberName("imageWithText")] ImageWithText,
+    [JsonStringEnumMemberName("markdown")] Markdown
+}
+
+public enum PreviewVisibility
+{
+    [JsonStringEnumMemberName("optional")] Optional,
+    [JsonStringEnumMemberName("never")] Never,
+    [JsonStringEnumMemberName("always")] Always
 }

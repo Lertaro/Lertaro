@@ -67,12 +67,14 @@ public static class FlowResultMapper
         }
 
         var actionArg = !string.IsNullOrEmpty(flowResult.CopyText) ? flowResult.CopyText : title;
-        if (flowResult.PreviewPanel != null)
+        var previewFactory = flowResult.PreviewPanel ?? (FlowPreviewContent.HasContent(flowResult) || flowResult.PreviewVisibility == PreviewVisibility.Always
+            ? new Lazy<System.Windows.Controls.UserControl>(() => FlowPreviewContent.Create(flowResult)) : null);
+        if (previewFactory != null && flowResult.PreviewVisibility != PreviewVisibility.Never)
         {
             var pluginName = host?.GetAllPlugins().FirstOrDefault(p => p.Metadata.ID == flowResult.PluginID)?.Metadata.Name ?? "Flow Launcher Plugin";
-            var previewFactory = flowResult.PreviewPanel;
             var entry = Previews.GetValue(flowResult, _ => new PluginPreviewEntry(title, pluginName,
-                new Lazy<System.Windows.Controls.UserControl>(() => FlowPreviewEnvironment.CreatePreview(previewFactory)), iconProvider));
+                new Lazy<System.Windows.Controls.UserControl>(() => FlowPreviewEnvironment.CreatePreview(previewFactory)), iconProvider)
+            { ShowOnSelection = flowResult.PreviewVisibility == PreviewVisibility.Always });
             actionArg = PluginPreviewCache.Register(entry);
         }
 
@@ -81,6 +83,7 @@ public static class FlowResultMapper
             Title = title,
             Description = description,
             TabCompletion = !string.IsNullOrEmpty(flowResult.AutoCompleteText) ? flowResult.AutoCompleteText : title,
+            SuppressPreview = flowResult.PreviewVisibility == PreviewVisibility.Never,
             ActionArgument = actionArg,
             ActionType = "Execute"
         };
@@ -126,11 +129,6 @@ public static class FlowResultMapper
                 {
                     return flowResult.Action(context);
                 }
-                if (flowResult.AsyncAction != null)
-                {
-                    var vt = flowResult.AsyncAction(context);
-                    return vt.IsCompletedSuccessfully ? vt.Result : vt.AsTask().GetAwaiter().GetResult();
-                }
                 if (!string.IsNullOrEmpty(flowResult.AutoCompleteText))
                 {
                     SearchQueryService.ChangeQuery(flowResult.AutoCompleteText, requery: true);
@@ -149,6 +147,12 @@ public static class FlowResultMapper
             return true;
         };
         item.OnExecute = () => item.OnExecuteFunc?.Invoke();
+        if (flowResult.AsyncAction != null)
+        {
+            item.OnExecuteAsync = () => flowResult.ExecuteAsync(new ActionContext());
+            item.OnExecuteFunc = null;
+            item.OnExecute = null;
+        }
 
         return item;
     }

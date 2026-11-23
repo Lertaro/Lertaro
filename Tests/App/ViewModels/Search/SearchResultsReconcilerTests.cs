@@ -8,12 +8,29 @@ namespace Lertaro.App.Tests.ViewModels.Search;
 public sealed class SearchResultsReconcilerTests
 {
     [TestMethod]
+    public void Replace_RetainedRowRefreshesAsyncActionAndPreviewPolicy()
+    {
+        var original = Result("flow-preview:entry");
+        var updated = Result("flow-preview:entry");
+        Func<ValueTask<bool>> execute = () => ValueTask.FromResult(false);
+        updated.InstantResultOnExecuteAsync = execute;
+        updated.SuppressPreview = true;
+        var rows = new ObservableRangeCollection<AppSearchResult> { original };
+
+        SearchResultsReconciler.Replace(rows, [updated], original, _ => { });
+
+        Assert.AreSame(original, rows[0]);
+        Assert.AreSame(execute, rows[0].InstantResultOnExecuteAsync);
+        Assert.IsFalse(rows[0].CanPreview);
+    }
+
+    [TestMethod]
     public void Replace_SelectedRowRemoved_SelectsTheRetainedLiveInstance()
     {
         var retained = Result(@"Z:\a", query: "r");
         var removed = Result(@"Z:\b", query: "r");
         var results = new ObservableRangeCollection<AppSearchResult> { retained, removed };
-        AppSearchResult? selected = removed;
+        var selected = removed;
 
         SearchResultsReconciler.Replace(results, [Result(@"Z:\a", query: "ra")], removed, row => selected = row);
 

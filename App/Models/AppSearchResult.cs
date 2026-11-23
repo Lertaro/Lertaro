@@ -153,9 +153,10 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
     // Genuine on-disk file/folder and application results get the preview window — excludes
     // calculator/URL/env instant results, plugin actions, jump-to-path, list items, headers, empties,
     // and the "show more" row.
-    public bool CanPreview => ((ResultKind == "File" || ResultKind == "Application") && FullPath != "__SHOW_MORE__")
+    public bool CanPreview => !SuppressPreview && (((ResultKind == "File" || ResultKind == "Application") && FullPath != "__SHOW_MORE__")
         || FullPath.StartsWith("flow-preview:", StringComparison.OrdinalIgnoreCase)
-        || FullPath.StartsWith("__FLOW_PREVIEW__:", StringComparison.OrdinalIgnoreCase);
+        || FullPath.StartsWith("__FLOW_PREVIEW__:", StringComparison.OrdinalIgnoreCase));
+    public bool SuppressPreview { get => _extras?.SuppressPreview ?? false; set => Extras.SuppressPreview = value; }
     // Mirrors the exact conditions DataTemplates.xaml's path-subtitle row collapses under (applications,
     // a blank ParentDir, or the "no results" placeholder) -- single source of truth for both that
     // visibility and the name-line font size below, so they can never drift out of sync with each other.
@@ -208,6 +209,7 @@ public class AppSearchResult : System.ComponentModel.INotifyPropertyChanged, Plu
 
     public Action? InstantResultOnExecute { get => _extras?.InstantResultOnExecute; set => Extras.InstantResultOnExecute = value; }
     public Func<bool>? InstantResultOnExecuteFunc { get => _extras?.InstantResultOnExecuteFunc; set => Extras.InstantResultOnExecuteFunc = value; }
+    public Func<ValueTask<bool>>? InstantResultOnExecuteAsync { get => _extras?.InstantResultOnExecuteAsync; set => Extras.InstantResultOnExecuteAsync = value; }
     public string? TabCompletion { get => _extras?.TabCompletion; set => Extras.TabCompletion = value; }
     public object? SourceProvider { get => _extras?.SourceProvider; set => Extras.SourceProvider = value; }
 
