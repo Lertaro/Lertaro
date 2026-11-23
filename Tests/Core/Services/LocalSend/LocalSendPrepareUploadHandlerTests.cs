@@ -94,6 +94,25 @@ public sealed class LocalSendPrepareUploadHandlerTests
     private static Task HandleAsync(LocalSendServer server, Stream stream, string body = RequestBody) => LocalSendPrepareUploadHandler.HandleAsync(
         server, stream, [], body, new IPEndPoint(IPAddress.Loopback, 12345), null, v2: true, CancellationToken.None);
 
+    [TestMethod]
+    public async Task HandleAsync_LargeLegacyPreview_RequiresConsentAndNormalUpload()
+    {
+        using var server = new LocalSendServer { QuickSave = true };
+        await using var stream = new PendingDisconnectStream();
+        var requestShown = new TaskCompletionSource<LocalSendUploadRequestArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
+        server.UploadRequested += (_, args) => requestShown.TrySetResult(args);
+        var body = TextRequestBody.Replace("\"size\":5", "\"size\":20000");
+        var handling = HandleAsync(server, stream, body);
+        var request = await requestShown.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.IsFalse(request.IsAutoAccepted);
+        Assert.IsFalse(handling.IsCompleted);
+        request.Respond(true);
+        await handling.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Contains("HTTP/1.1 200 OK", stream.GetWrittenText());
+        Assert.DoesNotContain("204", stream.GetWrittenText());
+    }
+
     private sealed class PendingDisconnectStream : Stream
     {
         private readonly MemoryStream _output = new();

@@ -72,7 +72,7 @@ public sealed class LocalSendClient : IDisposable
                     Size = textBytes.Length,
                     FileType = legacy ? "text" : "text/plain",
                     Sha256 = legacy || !_createChecksums ? null : LocalSendChecksum.Compute(textBytes),
-                    Preview = text
+                    Preview = textBytes.Length <= LocalSendTextMessageHelper.MaxPreviewBytes ? text : null
                 }
             }
         };
@@ -120,29 +120,39 @@ public sealed class LocalSendClient : IDisposable
         if (filePaths.Count == 0) return LocalSendSendResult.Error;
 
         var expandedItems = new List<(string absolutePath, string relativePath)>();
-        foreach (var p in filePaths)
+        try
         {
-            if (File.Exists(p))
+            foreach (var p in filePaths)
             {
-                expandedItems.Add((p, Path.GetFileName(p)));
-            }
-            else if (Directory.Exists(p))
-            {
-                var fullPath = Path.GetFullPath(p);
-                var parentDir = Path.GetDirectoryName(fullPath);
-                var baseDir = string.IsNullOrEmpty(parentDir) ? fullPath : parentDir;
-
-                try
+                token.ThrowIfCancellationRequested();
+                if (File.Exists(p))
                 {
-                    var files = Directory.GetFiles(fullPath, "*", SearchOption.AllDirectories);
-                    foreach (var f in files)
+                    expandedItems.Add((p, Path.GetFileName(p)));
+                }
+                else if (Directory.Exists(p))
+                {
+                    var fullPath = Path.GetFullPath(p);
+                    var parentDir = Path.GetDirectoryName(fullPath);
+                    var baseDir = string.IsNullOrEmpty(parentDir) ? fullPath : parentDir;
+                    foreach (var f in Directory.EnumerateFiles(fullPath, "*", SearchOption.AllDirectories))
                     {
+                        token.ThrowIfCancellationRequested();
                         var relPath = Path.GetRelativePath(baseDir, f).Replace('\\', '/');
                         expandedItems.Add((f, relPath));
                     }
                 }
-                catch { }
+                else
+                    throw new FileNotFoundException("Selected file or directory is unavailable.", p);
             }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            return LocalSendSendResult.Canceled;
+        }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            return LocalSendSendResult.Error;
         }
 
         if (expandedItems.Count == 0) return LocalSendSendResult.Error;

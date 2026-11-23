@@ -7,6 +7,20 @@ namespace Lertaro.Core.Tests.Services.LocalSend;
 public sealed class LocalSendTextMessageHelperTests
 {
     [TestMethod]
+    [DataRow(16384, "a", 16384, true)]
+    [DataRow(16385, "a", 16385, false)]
+    [DataRow(6000, "汉", 18000, false)]
+    [DataRow(1, "a", 16385, false)]
+    public void TryGetMessage_BoundsPreviewByUtf8BytesAndAdvertisedSize(int count, string character, long size, bool expected)
+    {
+        var request = CreateTextRequest("text/plain", new string(character[0], count));
+        request.Files["text"].Size = size;
+
+        Assert.IsTrue(LocalSendTextMessageHelper.IsMessageRequest(request));
+        Assert.AreEqual(expected, LocalSendTextMessageHelper.TryGetMessage(request, out _));
+    }
+
+    [TestMethod]
     public void TryGetMessage_RecognizesLegacyAndMimeTextWithPreview()
     {
         var legacy = CreateTextRequest("text", "hello");

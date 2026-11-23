@@ -9,6 +9,23 @@ namespace Lertaro.Core.Tests.Services.LocalSend;
 public class LocalSendClientTests
 {
     [TestMethod]
+    public async Task SendFilesAsync_MissingSelectedItem_DoesNotSilentlySendTheRest()
+    {
+        var directory = Directory.CreateTempSubdirectory("localsend-selection-");
+        try
+        {
+            var valid = Path.Combine(directory.FullName, "present.txt");
+            var missing = Path.Combine(directory.FullName, "missing.txt");
+            File.WriteAllText(valid, "data");
+            using var client = new LocalSendClient(createChecksums: false);
+            var result = await client.SendFilesAsync("127.0.0.1", 1, false, new LocalSendDeviceInfo(), [valid, missing]);
+            Assert.AreEqual(LocalSendSendResult.Error, result);
+            Assert.Contains("unavailable", client.LastError!);
+        }
+        finally { directory.Delete(true); }
+    }
+
+    [TestMethod]
     public async Task SendFilesAsync_EmptyFiles_ReturnsError()
     {
         using var client = new LocalSendClient();
@@ -17,6 +34,31 @@ public class LocalSendClientTests
         var result = await client.SendFilesAsync("127.0.0.1", 53317, false, senderInfo, Array.Empty<string>());
 
         Assert.AreEqual(LocalSendSendResult.Error, result);
+    }
+
+    [TestMethod]
+    public async Task SendTextAsync_LargeUnicodeMessage_TransfersFileWithoutInlinePreview()
+    {
+        var directory = Directory.CreateTempSubdirectory("localsend-large-text-");
+        using var receiver = new LocalSendServer { DownloadDirectory = directory.FullName, QuickSave = true };
+        using var sender = new LocalSendServer { IdentityCertificate = LocalSendCertificate.CreateEphemeral() };
+        var preview = "not requested";
+        receiver.UploadRequested += (_, args) => { preview = args.Dto.Files.Values.Single().Preview; args.Respond(true); };
+        receiver.Start(GetFreePort());
+        try
+        {
+            using var client = new LocalSendClient(sender);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var text = new string('汉', 6000);
+            var result = await client.SendTextAsync("127.0.0.1", receiver.ActualPort, false,
+                new LocalSendDeviceInfo { Alias = "Sender" }, text, token: deadline.Token, targetVersion: "2.2");
+
+            Assert.AreEqual(LocalSendSendResult.Success, result, client.LastError);
+            Assert.IsNull(preview);
+            var file = Assert.ContainsSingle(Directory.GetFiles(directory.FullName));
+            Assert.AreEqual(text, await File.ReadAllTextAsync(file, deadline.Token));
+        }
+        finally { receiver.Stop(); directory.Delete(true); }
     }
 
     [TestMethod]

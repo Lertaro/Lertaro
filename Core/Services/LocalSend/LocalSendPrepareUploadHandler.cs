@@ -49,7 +49,8 @@ internal static class LocalSendPrepareUploadHandler
         using var monitorCancellation = new CancellationTokenSource();
         using var serverStopRegistration = token.Register(() => server.CancelSession(sessionId, notifySender: false));
         // Message previews remain pending until the receiver reads and closes them, even in quick-save mode.
-        var acceptance = server.RequestUserAcceptanceAsync(sessionId, dto, server.QuickSave && !isTextMessage);
+        var acceptance = server.RequestUserAcceptanceAsync(sessionId, dto,
+            server.QuickSave && !LocalSendTextMessageHelper.IsMessageRequest(dto));
         if (!acceptance.IsCompleted)
         {
             var disconnected = LocalSendPeerDisconnectMonitor.WaitAsync(stream, monitorCancellation.Token);

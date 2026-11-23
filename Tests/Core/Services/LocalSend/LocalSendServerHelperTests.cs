@@ -10,6 +10,22 @@ namespace Lertaro.Core.Tests.Services.LocalSend;
 public class LocalSendServerHelperTests
 {
     [TestMethod]
+    public void ResolveTargetPath_AllCollisionSuffixesTaken_RejectsWithoutOverwriting()
+    {
+        var directory = Directory.CreateTempSubdirectory("localsend-collisions-");
+        try
+        {
+            File.WriteAllText(Path.Combine(directory.FullName, "report.txt"), "original");
+            for (var i = 1; i <= 1001; i++)
+                File.WriteAllText(Path.Combine(directory.FullName, $"report ({i}).txt"), "original");
+
+            Assert.IsNull(LocalSendServerHelper.ResolveTargetPath(directory.FullName, "report.txt"));
+            Assert.AreEqual("original", File.ReadAllText(Path.Combine(directory.FullName, "report (1001).txt")));
+        }
+        finally { directory.Delete(true); }
+    }
+
+    [TestMethod]
     public void FormatIpAddress_IPv4MappedIPv6_UnmapsToStandardIPv4()
     {
         var mappedIp = IPAddress.Parse("::ffff:192.168.1.100");

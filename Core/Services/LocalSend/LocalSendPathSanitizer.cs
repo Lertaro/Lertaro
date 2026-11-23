@@ -59,7 +59,7 @@ internal static class LocalSendPathSanitizer
     /// could land at the chosen path -- the user's own activity in the download folder, or this session's
     /// second parallel upload worker -- and be truncated without a word.
     /// </summary>
-    private static string FindAvailableName(string candidate)
+    private static string? FindAvailableName(string candidate)
     {
         // A directory sitting at the target name stays as-is: that transfer has always failed in the
         // writer, and the receive UI reports the failure. Suffixing around it would quietly land a file
@@ -80,10 +80,8 @@ internal static class LocalSendPathSanitizer
                 return available;
         }
 
-        // Every suffix up to the cap was taken or unreservable. Hand back a name one past the cap, which
-        // nothing has claimed: the writer either creates it or fails on its own, rather than overwriting
-        // something the loop could not reserve.
-        return Path.Combine(directory, $"{name} ({MaxNameAttempts + 1}){extension}");
+        // Never hand the writer an unreserved path: the next suffix may already contain user data too.
+        return null;
     }
 
     /// <summary>

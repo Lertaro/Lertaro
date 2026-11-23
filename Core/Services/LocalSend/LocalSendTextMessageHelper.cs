@@ -5,13 +5,19 @@ namespace Lertaro.Core.Services.LocalSend;
 /// <summary>Recognizes the single-file text-message form defined by LocalSend.</summary>
 public static class LocalSendTextMessageHelper
 {
+    public const int MaxPreviewBytes = 16 * 1024;
+
+    internal static bool IsMessageRequest(PrepareUploadRequestDto dto) => dto.Files.Count == 1
+        && dto.Files.Values.Single() is { Preview: not null } file && IsTextType(file.FileType);
+
     public static bool TryGetMessage(PrepareUploadRequestDto dto, out string message)
     {
         message = string.Empty;
-        if (dto.Files.Count != 1) return false;
+        if (!IsMessageRequest(dto)) return false;
 
         var file = dto.Files.Values.Single();
-        if (file.Preview == null || !IsTextType(file.FileType)) return false;
+        if (file.Size > MaxPreviewBytes || file.Preview!.Length > MaxPreviewBytes
+            || System.Text.Encoding.UTF8.GetByteCount(file.Preview) > MaxPreviewBytes) return false;
 
         message = file.Preview;
         return true;
