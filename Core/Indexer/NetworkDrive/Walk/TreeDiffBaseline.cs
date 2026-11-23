@@ -71,6 +71,10 @@ internal sealed class TreeDiffBaseline
         return TryGetUnchangedChildren(directoryId, liveMtime, out children);
     }
 
+    // Whatever the previous walk recorded under this directory, Listed or not -- for carrying a subtree
+    // forward when it can't be listed now, where partial knowledge still beats none.
+    public IEnumerable<FileRecord> GetChildren(UInt128 directoryId) => EnumerateChildren(directoryId);
+
     public bool TryGetListedChildren(UInt128 directoryId, out IReadOnlyList<FileRecord> children)
     {
         children = Array.Empty<FileRecord>();

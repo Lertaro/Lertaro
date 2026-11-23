@@ -43,7 +43,7 @@ internal static class TreeBuilderDiffExtensions
         if (!builder._diffBaseline!.TryGetListedChildren(current.LocalId, out var previousChildren))
             return false;
 
-        var ignoreRules = builder._filter.LoadIgnoreRules(current.Path, current.LogicalPath, current.IgnoreRules);
+        var ignoreRules = builder._filter.LoadIgnoreRules(current.Path, current.LogicalPath, current.IgnoreRules, liveEntries);
         var previousByName = new Dictionary<string, FileRecord>(StringComparer.OrdinalIgnoreCase);
         foreach (var child in previousChildren)
         {
@@ -192,6 +192,64 @@ internal static class TreeBuilderDiffExtensions
 
             builder.MaybeCheckpoint(indexedItems);
         }
+    }
+
+    // #258: a directory that failed to list on a transient (network-class) error used to vanish with its
+    // whole subtree, and the walk's result then replaced the good index -- files "disappeared" until some
+    // later pass happened to succeed, and ContentSearch pruned their content rows meanwhile. Re-commit what
+    // the previous walk had beneath it instead, without touching the share again. The directory itself
+    // stays un-Listed and the enumerate error is already counted, so the caller still schedules a retry.
+    // Permanent failures (not found, access denied) carry nothing: that content is really gone or hidden.
+    // `alreadyCommitted` holds the names a listing that failed midway did capture; those were committed
+    // (and, for directories, queued) from the live listing already.
+    public static void CarryForwardPreviousSubtree(this TreeBuilder builder, WorkItem current, NetworkIgnoreRuleSet ignoreRules,
+        Exception failure, IReadOnlySet<string>? alreadyCommitted)
+    {
+        if (builder._diffBaseline == null || !TreeBuilderEnumerationExtensions.IsTransientEnumerationFailure(failure))
+            return;
+
+        var batch = new List<FileRecord>(TreeBuilder.RecordBatchSize);
+        var pending = new Stack<(UInt128 Id, string LogicalPath, int Depth)>();
+        pending.Push((current.LocalId, current.LogicalPath, current.Depth));
+        while (pending.TryPop(out var directory))
+        {
+            foreach (var child in builder._diffBaseline.GetChildren(directory.Id))
+            {
+                builder._token.ThrowIfCancellationRequested();
+                if (directory.Id == current.LocalId && alreadyCommitted?.Contains(child.Name) == true)
+                    continue;
+
+                var isDirectory = child.IsDirectory;
+                var attributes = FileRecordFlagsHelper.ToAttributes(child.Flags);
+                var logicalFullPath = PathHelpers.NormalizePath(Path.Combine(directory.LogicalPath, child.Name), isDirectory);
+                if (!builder._filter.ShouldIndex(logicalFullPath, child.Name, isDirectory, attributes, ignoreRules))
+                {
+                    Interlocked.Increment(ref builder._skippedItems);
+                    continue;
+                }
+
+                batch.Add(child);
+                if (batch.Count >= TreeBuilder.RecordBatchSize)
+                    builder.FlushRecords(batch);
+
+                var indexedItems = Interlocked.Increment(ref builder._indexedItems);
+                if (isDirectory) Interlocked.Increment(ref builder._indexedDirs); else Interlocked.Increment(ref builder._indexedFiles);
+
+                // Same depth ceiling EnqueueDirectory applies; the baseline is a tree by id, so no cycles.
+                if (isDirectory && directory.Depth < 128 && builder._filter.ShouldDescend(logicalFullPath, attributes, directory.Depth + 1, ignoreRules))
+                    pending.Push((child.Id, logicalFullPath, directory.Depth + 1));
+
+                if (Interlocked.Increment(ref builder._countSinceProgress) >= TreeBuilder.ProgressBatchSize)
+                {
+                    Interlocked.Exchange(ref builder._countSinceProgress, 0);
+                    builder._onProgress(Volatile.Read(ref builder._indexedFiles), Volatile.Read(ref builder._indexedDirs));
+                }
+
+                builder.MaybeCheckpoint(indexedItems);
+            }
+        }
+
+        builder.FlushRecords(batch);
     }
 
     private static bool MatchesMetadata(NativeFileEntry live, FileRecord previous)

@@ -134,6 +134,34 @@ public sealed class WalkFilterTests
         Assert.IsFalse(result.IsIgnored(Path.Combine(dir.Path, "anything.txt"), "anything.txt", false));
     }
 
+    // On a network share each File.Exists is a round trip; a caller holding the complete listing already
+    // knows which ignore files exist, so one missing from it must not be read even if it's on disk.
+    [TestMethod]
+    public void LoadIgnoreRules_ListingWithoutIgnoreFile_DoesNotReadIt()
+    {
+        using var dir = new TempDirectory();
+        File.WriteAllText(Path.Combine(dir.Path, ".gitignore"), "*.log");
+        var filter = WalkFilter.Create(dir.Path, Options(useIgnoreFiles: true));
+
+        var rules = filter.LoadIgnoreRules(dir.Path, dir.Path, NetworkIgnoreRuleSet.Empty,
+            [new NativeFileEntry("app.log", FileAttributes.Normal, 1, 0, 0, 0)]);
+
+        Assert.IsFalse(rules.IsIgnored(Path.Combine(dir.Path, "app.log"), "app.log", false));
+    }
+
+    [TestMethod]
+    public void LoadIgnoreRules_ListingWithIgnoreFile_ReadsIt()
+    {
+        using var dir = new TempDirectory();
+        File.WriteAllText(Path.Combine(dir.Path, ".gitignore"), "*.log");
+        var filter = WalkFilter.Create(dir.Path, Options(useIgnoreFiles: true));
+
+        var rules = filter.LoadIgnoreRules(dir.Path, dir.Path, NetworkIgnoreRuleSet.Empty,
+            [new NativeFileEntry(".GITIGNORE", FileAttributes.Normal, 5, 0, 0, 0)]);
+
+        Assert.IsTrue(rules.IsIgnored(Path.Combine(dir.Path, "app.log"), "app.log", false));
+    }
+
     private sealed class TempDirectory : IDisposable
     {
         public string Path { get; } = Directory.CreateTempSubdirectory("lertaro-tests-").FullName;

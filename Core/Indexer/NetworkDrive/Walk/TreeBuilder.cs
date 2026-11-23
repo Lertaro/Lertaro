@@ -19,6 +19,11 @@ internal sealed class TreeBuilder
     private readonly string _physicalRoot;
     internal readonly WalkFilter _filter;
     internal readonly CancellationToken _token;
+    // Linked to the caller's token so the walk can also end itself once its root is gone (see
+    // AbandonIfRootLost). ponytail: never disposed -- a straggling worker may still touch _token's
+    // WaitHandle after Run returns; the registration on the caller's token goes when that source does.
+    private readonly CancellationTokenSource _abort;
+    internal Func<string, bool> _rootExists = Directory.Exists;
     internal readonly Action<int, int> _onProgress;
     internal readonly Action<FileRecordStore, NetworkDriveWalkStats>? _onCheckpoint;
     private readonly Channel<WorkItem> _pending;
@@ -67,7 +72,8 @@ internal sealed class TreeBuilder
         _root = PathHelpers.NormalizePath(root, true);
         _physicalRoot = PathHelpers.NormalizePath(physicalRoot, true);
         _filter = WalkFilter.Create(_root, options);
-        _token = token;
+        _abort = CancellationTokenSource.CreateLinkedTokenSource(token);
+        _token = _abort.Token;
         _onProgress = onProgress;
         _onCheckpoint = onCheckpoint;
         _diffBaseline = diffBaseline;
@@ -154,13 +160,16 @@ internal sealed class TreeBuilder
         if (!this.TryEnumerateChildren(current.Path, out var children, out var failure, enumerate, waitForCancellation))
         {
             this.CountEnumerationFailure(current.Path, failure!);
+            AbandonIfRootLost(current, failure!);
+            this.CarryForwardPreviousSubtree(current, current.IgnoreRules, failure!, alreadyCommitted: null);
             return;
         }
 
         Exception? enumerationFailure = null;
+        List<NativeFileEntry>? liveEntries = null;
         if (_diffBaseline?.TryGetListedChildren(current.LocalId, out _) == true)
         {
-            var liveEntries = new List<NativeFileEntry>();
+            liveEntries = new List<NativeFileEntry>();
             try
             {
                 foreach (var child in children)
@@ -179,11 +188,36 @@ internal sealed class TreeBuilder
                 return;
         }
 
-        var ignoreRules = _filter.LoadIgnoreRules(current.Path, current.LogicalPath, current.IgnoreRules);
+        // A listing cut short can't vouch that no ignore file exists, so only a complete one replaces the probes.
+        var ignoreRules = _filter.LoadIgnoreRules(current.Path, current.LogicalPath, current.IgnoreRules,
+            enumerationFailure == null ? liveEntries : null);
         this.ConsumeChildren(current, ignoreRules, children, enumerationFailure);
+        // A buffered listing that failed midway knows which names it captured, so the rest can come from
+        // the previous walk. ponytail: an un-Listed directory streams its listing (ConsumeChildren catches
+        // that failure itself), so a mid-listing drop there still loses the unread part -- buffering every
+        // directory the baseline knows is the upgrade, at the cost of holding each listing in memory.
+        if (enumerationFailure != null)
+        {
+            AbandonIfRootLost(current, enumerationFailure);
+            this.CarryForwardPreviousSubtree(current, ignoreRules, enumerationFailure,
+                liveEntries!.Select(e => e.Name).ToHashSet(StringComparer.OrdinalIgnoreCase));
+        }
 
         if (stopwatch.ElapsedMilliseconds >= 2_000)
             Interlocked.Increment(ref _slowDirectories);
+    }
+
+    // A transient failure below the root while the root itself is gone means the share (or the removable
+    // drive) dropped mid-walk: every directory still queued would burn its own retry budget only to fail
+    // the same way. End the walk instead -- the caller's cancellation path keeps the index it already has.
+    private void AbandonIfRootLost(WorkItem current, Exception failure)
+    {
+        if (current.Depth == 0 || !TreeBuilderEnumerationExtensions.IsTransientEnumerationFailure(failure) || _rootExists(_physicalRoot))
+            return;
+
+        Logger.Log($"[NetworkIndexer] {_physicalRoot} became unreachable mid-walk; abandoning this pass and keeping the existing index.", LogLevel.Warn);
+        _abort.Cancel();
+        _token.ThrowIfCancellationRequested();
     }
 
     internal void FlushRecords(List<FileRecord> batch)

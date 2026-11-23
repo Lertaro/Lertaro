@@ -31,15 +31,22 @@ internal sealed class WalkFilter
             options.WorkerCount,
             options.UseIgnoreFiles);
 
-    public NetworkIgnoreRuleSet LoadIgnoreRules(string physicalDir, string logicalDir, NetworkIgnoreRuleSet inherited)
+    private static readonly string[] IgnoreFileNames = [".ignore", ".fdignore", ".gitignore"];
+
+    // `listing`, when the caller already holds this directory's complete listing, answers "is there an
+    // ignore file here" without a File.Exists probe per name -- three extra round trips per directory on
+    // a network share, millions of them across a large NAS walk (#305).
+    public NetworkIgnoreRuleSet LoadIgnoreRules(string physicalDir, string logicalDir, NetworkIgnoreRuleSet inherited, IReadOnlyList<NativeFileEntry>? listing = null)
     {
         if (!_useIgnoreFiles)
             return inherited;
 
         var current = inherited;
-        current = LoadIgnoreFile(Path.Combine(physicalDir, ".ignore"), logicalDir, current);
-        current = LoadIgnoreFile(Path.Combine(physicalDir, ".fdignore"), logicalDir, current);
-        current = LoadIgnoreFile(Path.Combine(physicalDir, ".gitignore"), logicalDir, current);
+        foreach (var name in IgnoreFileNames)
+        {
+            if (listing == null || listing.Any(e => !e.IsDirectory && e.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                current = LoadIgnoreFile(Path.Combine(physicalDir, name), logicalDir, current);
+        }
         return current;
     }
 

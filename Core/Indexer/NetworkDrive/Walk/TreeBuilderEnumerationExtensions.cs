@@ -48,7 +48,7 @@ internal static class TreeBuilderEnumerationExtensions
         return false;
     }
 
-    private static bool IsTransientEnumerationFailure(Exception ex)
+    internal static bool IsTransientEnumerationFailure(Exception ex)
     {
         var code = ex switch
         {

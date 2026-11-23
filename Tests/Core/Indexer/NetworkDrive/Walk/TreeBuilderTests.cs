@@ -88,6 +88,8 @@ public sealed class TreeBuilderTests
         Assert.AreEqual(1, builder._skippedItems);
     }
 
+    // 5 (access denied) is permanent and carries nothing forward; 64 (network name gone) is transient, so
+    // the previous walk's captured.txt is carried forward instead of dropped (#258).
     [TestMethod]
     [DataRow(5, 1)]
     [DataRow(64, 4)]
@@ -106,8 +108,71 @@ public sealed class TreeBuilderTests
         Assert.AreEqual(1, builder._enumerateErrors);
         Assert.AreEqual(1, builder._errors);
         Assert.AreEqual(0, builder._reusedDirectories);
-        Assert.HasCount(1, builder._store.Records);
+        Assert.HasCount(expectedAttempts == 1 ? 1 : 2, builder._store.Records);
         Assert.IsFalse(builder._store.Records[0].Flags.HasFlag(FileRecordFlags.Listed));
+    }
+
+    // #258: one share hiccup used to drop a directory's whole subtree from the new index, which then
+    // replaced the good one. Everything the previous walk had below it must come back, untouched.
+    [TestMethod]
+    public void WalkDirectory_TransientOpenFailure_CarriesThePreviousSubtreeForward()
+    {
+        var (builder, current) = CreateWalkWith(
+            new FileRecord(2, 1, "sub", FileRecordFlags.Directory | FileRecordFlags.Listed),
+            new FileRecord(3, 2, "deep.txt", FileRecordFlags.None, 7, 0, 0, 0),
+            new FileRecord(4, 1, "top.txt", FileRecordFlags.None, 1, 0, 0, 0));
+        var enumerated = new List<string>();
+
+        builder.WalkDirectory(current, path => { enumerated.Add(path); throw new Win32Exception(64); }, _ => false);
+
+        CollectionAssert.AreEquivalent(new[] { "sub", "deep.txt", "top.txt" }, builder._store.Records.Skip(1).Select(r => r.Name).ToArray());
+        Assert.IsTrue(enumerated.All(p => p == current.Path), "The carried subtree must not be listed again.");
+        Assert.AreEqual(2, builder._indexedFiles);
+        Assert.AreEqual(1, builder._indexedDirs);
+        Assert.AreEqual(1, builder._enumerateErrors);
+        Assert.IsFalse(builder._store.Records[0].Flags.HasFlag(FileRecordFlags.Listed), "The failed directory stays un-Listed so it is retried.");
+        Assert.IsTrue(builder._store.Records.Single(r => r.Name == "sub").Flags.HasFlag(FileRecordFlags.Listed));
+    }
+
+    [TestMethod]
+    public void WalkDirectory_TransientMidListingFailure_CarriesForwardOnlyTheUnreadNames()
+    {
+        var (builder, current) = CreateWalkWith(
+            new FileRecord(2, 1, "captured.txt", FileRecordFlags.None, 1, 0, 0, 0),
+            new FileRecord(3, 1, "unread.txt", FileRecordFlags.None, 1, 0, 0, 0));
+        IEnumerable<NativeFileEntry> Entries()
+        {
+            yield return new NativeFileEntry("captured.txt", FileAttributes.Normal, 2, 0, 0, 0);
+            throw new Win32Exception(59);
+        }
+
+        builder.WalkDirectory(current, _ => Entries(), _ => false);
+
+        CollectionAssert.AreEquivalent(new[] { "captured.txt", "unread.txt" }, builder._store.Records.Skip(1).Select(r => r.Name).ToArray());
+        Assert.AreEqual(2L, builder._store.Records.Single(r => r.Name == "captured.txt").Size, "The live entry wins over the cached one.");
+    }
+
+    [TestMethod]
+    [DataRow(64, true)]
+    [DataRow(5, false)]
+    public void WalkDirectory_FailureBelowAnUnreachableRoot_AbandonsTheWalkOnlyWhenTransient(int error, bool abandons)
+    {
+        var (builder, _) = CreateWalk();
+        builder._rootExists = _ => false;
+        var child = new WorkItem(@"C:\unused\sub", @"C:\unused\sub", 2, 1, NetworkIgnoreRuleSet.Empty);
+
+        void Walk() => builder.WalkDirectory(child, _ => throw new Win32Exception(error), _ => false);
+
+        if (abandons)
+        {
+            Assert.ThrowsExactly<OperationCanceledException>(Walk);
+            Assert.IsTrue(builder._token.IsCancellationRequested);
+        }
+        else
+        {
+            Walk();
+            Assert.IsFalse(builder._token.IsCancellationRequested);
+        }
     }
 
     [TestMethod]
@@ -181,7 +246,9 @@ public sealed class TreeBuilderTests
             _ => { attempts++; return Entries(); },
             delay => { waits.Add(delay); return false; }));
 
-        Assert.AreEqual(cancellation.Token, failure.CancellationToken);
+        // The walker observes a token linked to the caller's (so it can also abandon itself), so the
+        // exception may carry either one -- what matters is that it reports a real cancellation.
+        Assert.IsTrue(failure.CancellationToken.IsCancellationRequested);
         Assert.AreEqual(1, attempts);
         Assert.IsEmpty(waits);
         Assert.IsTrue(disposed);
@@ -266,6 +333,20 @@ public sealed class TreeBuilderTests
         Assert.AreEqual(0, builder._enumerateErrors);
         Assert.HasCount(1, builder._store.Records);
         Assert.IsFalse(builder._store.Records[0].Flags.HasFlag(FileRecordFlags.Listed));
+    }
+
+    private static (TreeBuilder Builder, WorkItem Current) CreateWalkWith(params FileRecord[] previousChildren)
+    {
+        const string path = @"C:\unused";
+        var previousStore = new FileRecordStore();
+        previousStore.Records.Add(new FileRecord(1, 1, string.Empty, FileRecordFlags.Directory | FileRecordFlags.SourceRoot | FileRecordFlags.Listed));
+        previousStore.Records.AddRange(previousChildren);
+        var store = new FileRecordStore();
+        store.Records.Add(new FileRecord(1, 1, string.Empty, FileRecordFlags.Directory | FileRecordFlags.SourceRoot));
+        var builder = new TreeBuilder(store, path, path,
+            new WalkOptions([], [], [], MaxDepth: 0, WorkerCount: 1, UseIgnoreFiles: false), default, (_, _) => { },
+            diffBaseline: TreeDiffBaseline.From(previousStore));
+        return (builder, new WorkItem(path, path, 1, 0, NetworkIgnoreRuleSet.Empty));
     }
 
     private static (TreeBuilder Builder, WorkItem Current) CreateWalk(bool? listed = true, CancellationToken token = default)
