@@ -8,6 +8,26 @@ namespace Lertaro.Core.Tests.Hook.InlineSearch;
 [DoNotParallelize]
 public sealed class KeyboardHookServiceTests
 {
+    [TestMethod]
+    [DataRow(0u, 1)]
+    [DataRow(0x10u, 0)]
+    public void HookCallbackCore_PhysicalAndInjectedDoubleCtrl_HaveDifferentPolicies(uint flags, int expectedSummons)
+    {
+        using var service = CreateService("Ctrl");
+        service.IsQuickSearchWindowVisible = true;
+        service._settings.Hotkeys.AllowHotkeysInFullscreen = true;
+        service._settings.BlacklistedProcesses.Clear();
+        var summons = 0;
+        service.OnDoubleCtrl += () => summons++;
+
+        Inject(service, 0xA2, 0x100, 1000, flags);
+        Inject(service, 0xA2, 0x101, 1010, flags);
+        Inject(service, 0xA2, 0x100, 1150, flags);
+        Inject(service, 0xA2, 0x101, 1160, flags);
+
+        Assert.AreEqual(expectedSummons, summons);
+    }
+
     [TestInitialize]
     public void Initialize() => UserSettings.ForceReload();
 
