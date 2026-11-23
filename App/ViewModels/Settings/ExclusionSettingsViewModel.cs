@@ -500,8 +500,8 @@ public class ExclusionSettingsViewModel : ViewModelBase
         }
 
         // Only strip the escape when it actually escapes a prefix character, so UNC paths such as
-        // `\\server\share` keep both leading separators.
-        if (text.Length >= 2 && text[0] == '\\' && text[1] is '!' or '-' or '+' or '\\')
+        // `\\server\share` keep both leading separators (#258: a typed `!\\NAS\...` rule lost one).
+        if (text.Length >= 2 && text[0] == '\\' && NeedsEscape(text[1..]))
             text = text[1..];
 
         return (text.Trim(), effect);
@@ -517,13 +517,12 @@ public class ExclusionSettingsViewModel : ViewModelBase
             _ => string.Empty,
         };
 
-        var text = rule.Value.StartsWith('!') || rule.Value.StartsWith('-')
-            || rule.Value.StartsWith('+') || rule.Value.StartsWith('\\')
-            ? "\\" + rule.Value
-            : rule.Value;
-
-        return prefix + text;
+        return prefix + (NeedsEscape(rule.Value) ? "\\" + rule.Value : rule.Value);
     }
+
+    // A value whose leading backslashes (if any) end in a prefix character: `!x`, `\-x`, ... The escape
+    // `\` goes in front of exactly these, so a UNC path like `\\server\share` is never touched.
+    private static bool NeedsEscape(string value) => value.TrimStart('\\') is ['!' or '-' or '+', ..];
 
     private static IndexRuleEffect ParseEffect(string? value) => Enum.TryParse<IndexRuleEffect>(value, ignoreCase: true, out var effect)
         ? effect

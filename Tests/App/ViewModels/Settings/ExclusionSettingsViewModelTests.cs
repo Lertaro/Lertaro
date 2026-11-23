@@ -263,6 +263,35 @@ public sealed class ExclusionSettingsViewModelTests
         StringAssert.Contains(text, "-low");
     }
 
+    // #258: a UNC rule typed straight into the bulk box lost one of its leading separators.
+    [TestMethod]
+    public void BulkText_Apply_KeepsTypedUncPath()
+    {
+        var vm = new ExclusionSettingsViewModel(EmptySettings()) { BulkText = @"!\\NAS\share\backup" };
+
+        vm.ApplyBulkTextCommand.Execute(null);
+
+        Assert.AreEqual(@"\\NAS\share\backup", vm.Rules.Single().Value);
+        Assert.AreEqual(IndexRuleEffect.Exclude, vm.Rules.Single().Effect);
+    }
+
+    [TestMethod]
+    [DataRow(@"\\NAS\share")]
+    [DataRow(@"\!odd")]
+    [DataRow("!keep")]
+    public void BulkText_RoundTripsLeadingBackslashes(string pattern)
+    {
+        var vm = new ExclusionSettingsViewModel(SettingsWith(new IndexRuleSetting { Pattern = pattern, Effect = IndexRuleEffect.Exclude }));
+
+        var before = vm.Rules.Select(r => r.Value).ToList();
+        var text = vm.BulkText;
+        vm.BulkText = text;
+        vm.ApplyBulkTextCommand.Execute(null);
+
+        CollectionAssert.Contains(before, pattern);
+        CollectionAssert.AreEquivalent(before, vm.Rules.Select(r => r.Value).ToList());
+    }
+
     [TestMethod]
     public void BulkText_InvalidLineRejectsWholeBatch()
     {
