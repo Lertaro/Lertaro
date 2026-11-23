@@ -1,5 +1,5 @@
 {
-    "version": "5.13.5",
+    "version": "5.13.6",
     "description": "File search and productivity launcher for Windows.",
     "homepage": "https://github.com/Lertaro/Lertaro",
     "license": "MIT",
@@ -11,12 +11,12 @@
     ],
     "architecture": {
         "64bit": {
-            "url": "https://github.com/Lertaro/Lertaro/releases/download/v5.13.5/Lertaro-Setup.exe#/setup.exe",
-            "hash": "e126411c369ba76c1c928ca880d3c6f0ee10f8f521cf323c71023c3c5bf3e711"
+            "url": "https://github.com/Lertaro/Lertaro/releases/download/v5.13.6/Lertaro-Setup.exe#/setup.exe",
+            "hash": "99f3b24883d211dab7a9d46553de7fe9d766368c76d9a0fa4e57ecfafcc4ef54"
         },
         "arm64": {
-            "url": "https://github.com/Lertaro/Lertaro/releases/download/v5.13.5/Lertaro-Setup-arm64.exe#/setup.exe",
-            "hash": "34e4b78eb9a7577c76a7ec8e2b18566c3e30ca3e32e5eaff01576749b15515da"
+            "url": "https://github.com/Lertaro/Lertaro/releases/download/v5.13.6/Lertaro-Setup-arm64.exe#/setup.exe",
+            "hash": "d331b374f5e9879ac344fddb70554e68e8d6afee9c67f2e7ecdffeaf037295ad"
         }
     },
     "pre_install": "if (!$global -or !(is_admin)) { throw 'Use an administrator shell and scoop install --global lertaro/lertaro-np.' }",
