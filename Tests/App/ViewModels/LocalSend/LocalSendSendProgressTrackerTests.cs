@@ -9,6 +9,21 @@ namespace Lertaro.App.Tests.ViewModels.LocalSend;
 public sealed class LocalSendSendProgressTrackerTests
 {
     [TestMethod]
+    public void UpdateProgress_WaitingForInitialAcceptance_LabelsPendingFilesWithoutConfirmingThem()
+    {
+        var tracker = new LocalSendSendProgressTracker();
+        tracker.PrepareText("hello", "Text");
+
+        tracker.UpdateProgress(new LocalSendSendProgressArgs(string.Empty, 0, 0, 0, 1,
+            LocalSendTransferStage.WaitingForConfirmation), "Waiting for acceptance");
+
+        Assert.AreEqual("Waiting for acceptance", tracker.Items[0].StatusText);
+        Assert.IsTrue(tracker.Items[0].ShowProgress);
+        Assert.AreEqual(0d, tracker.Items[0].ProgressPercentage);
+        Assert.AreEqual(0, tracker.ConfirmedCount);
+    }
+
+    [TestMethod]
     public void MarkConfirmed_OnlyCountsTheReceiverConfirmedFile()
     {
         var tracker = new LocalSendSendProgressTracker();

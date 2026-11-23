@@ -36,6 +36,7 @@ public class LocalSendClientTests
         var downloadDirectory = Path.Combine(Path.GetTempPath(), $"lertaro-text-{Guid.NewGuid():N}");
         Directory.CreateDirectory(downloadDirectory);
         using var receiver = new LocalSendServer { DownloadDirectory = downloadDirectory, QuickSave = true };
+        receiver.UploadRequested += (_, args) => args.Respond(true);
         using var sender = new LocalSendServer { IdentityCertificate = LocalSendCertificate.CreateEphemeral() };
         var port = GetFreePort();
         receiver.Start(port);

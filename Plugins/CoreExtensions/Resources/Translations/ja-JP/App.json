@@ -90,6 +90,8 @@
   "Settings_LocalSend_SendTitle": "ファイル / テキストの送信",
   "Settings_LocalSend_SendWindowTitle": "他のデバイスへ送信...",
   "Settings_LocalSend_Send": "送信",
+  "Settings_LocalSend_BackToSend": "送信画面に戻る",
+  "Settings_LocalSend_TooManyAttempts": "PIN の試行回数が多すぎます。しばらくしてから再試行してください。",
   "Settings_LocalSend_TargetPin": "送信先 PIN (任意)",
   "Settings_LocalSend_Description": "LocalSendプロトコルに対応し、LAN内のデバイスと相互検出してファイルを転送できます。",
   "Settings_LocalSend_Enable": "LAN転送サービスを有効化",

@@ -139,6 +139,7 @@ public partial class LocalSendReceiveWindow : Window
         // for a response that can no longer come. Respond is a TrySetResult, so declining on a window
         // that already answered is a no-op.
         if (!_isCompleted && !string.IsNullOrEmpty(_currentSessionId)) _requestArgs.Respond(false);
+        if (_isTextMessage) _requestArgs.Respond(true);
         if (!string.IsNullOrEmpty(_currentSessionId)) LocalSendServiceManager.Instance.UnregisterSession(_currentSessionId);
     }
     private void BtnDecline_Click(object sender, RoutedEventArgs e) { _requestArgs.Respond(false); Close(); }

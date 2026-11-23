@@ -77,7 +77,11 @@ public partial class LocalSendSendWindow : Window
 
     private void UpdateStep2UiState()
     {
-        if (_vm.CurrentStep != 2) return;
+        if (_vm.CurrentStep != 2)
+        {
+            TxtWindowTitle.Text = TranslationManager.Instance["Settings_LocalSend_SendWindowTitle"];
+            return;
+        }
         ProgressPanel.ActionText = _vm.IsSending
             ? TranslationManager.Instance["Common_Cancel"]
             : TranslationManager.Instance["Common_Close"];
@@ -116,6 +120,7 @@ public partial class LocalSendSendWindow : Window
     private async void DevicePanel_SendRequested(object? sender, LocalSendDeviceSelectionEventArgs e)
     {
         if (e.Devices.Count == 0) return;
+        _cancelSource = CancelSource.None;
         _vm.CurrentStep = 2;
         TxtWindowTitle.Text = TranslationManager.Instance["Settings_LocalSend_Waiting"];
 
@@ -130,6 +135,13 @@ public partial class LocalSendSendWindow : Window
             _vm.SendingStarted -= sendingStarted;
         }
         UpdateStep2UiState();
+    }
+
+    private void ProgressPanel_BackRequested(object? sender, EventArgs e)
+    {
+        if (_vm.IsSending) return;
+        _cancelSource = CancelSource.None;
+        _vm.ReturnToStep0();
     }
 
     private void ProgressPanel_ActionRequested(object? sender, EventArgs e)

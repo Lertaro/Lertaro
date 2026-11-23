@@ -90,6 +90,8 @@
   "Settings_LocalSend_SendTitle": "파일 / 텍스트 전송",
   "Settings_LocalSend_SendWindowTitle": "다른 기기로 전송...",
   "Settings_LocalSend_Send": "전송",
+  "Settings_LocalSend_BackToSend": "보내기로 돌아가기",
+  "Settings_LocalSend_TooManyAttempts": "PIN 시도 횟수가 너무 많습니다. 나중에 다시 시도하세요.",
   "Settings_LocalSend_TargetPin": "대상 PIN (선택 사항)",
   "Settings_LocalSend_Description": "LocalSend 프로토콜과 호환되며 로컬 네트워크의 기기를 검색해 파일을 주고받습니다.",
   "Settings_LocalSend_Enable": "로컬 네트워크 전송 서비스 활성화",

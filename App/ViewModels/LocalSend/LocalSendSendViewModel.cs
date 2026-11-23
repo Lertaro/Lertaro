@@ -131,7 +131,18 @@ public sealed class LocalSendSendViewModel : ViewModelBase, IDisposable
         }
         CurrentStep = 1;
     }
-    public void ReturnToStep0() => CurrentStep = 0;
+    public void ReturnToStep0()
+    {
+        if (IsSending) return;
+        _pendingProgress = null;
+        _progressTracker.Items.Clear();
+        _isFromAction = false;
+        OnPropertyChanged(nameof(IsFromAction));
+        SpeedText = string.Empty;
+        LastSendResult = LocalSendSendResult.Success;
+        CurrentStep = 0;
+        NotifyTransferListChanged();
+    }
     public bool IsSending { get => _isSending; private set => SetProperty(ref _isSending, value); }
     private LocalSendTransferStage _transferStage = LocalSendTransferStage.Transferring;
     public LocalSendTransferStage TransferStage { get => _transferStage; private set => SetProperty(ref _transferStage, value); }
@@ -139,9 +150,9 @@ public sealed class LocalSendSendViewModel : ViewModelBase, IDisposable
     public string SpeedText { get => _speedText; private set => SetProperty(ref _speedText, value); }
     public async Task StartSendBatchAsync(List<LocalSendSendDeviceItem> selectedDevices)
     {
-        if (selectedDevices == null || selectedDevices.Count == 0) return;
+        if (IsSending || selectedDevices == null || selectedDevices.Count == 0) return;
         IsSending = true;
-        TransferStage = LocalSendTransferStage.Transferring;
+        TransferStage = LocalSendTransferStage.WaitingForConfirmation;
         // The window stays open after a transfer, so without this every batch in the session leaked its
         // source (and the kernel event it allocates lazily) until the view-model was disposed.
         _cts?.Dispose();

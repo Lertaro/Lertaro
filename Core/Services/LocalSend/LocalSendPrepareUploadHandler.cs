@@ -48,7 +48,8 @@ internal static class LocalSendPrepareUploadHandler
 
         using var monitorCancellation = new CancellationTokenSource();
         using var serverStopRegistration = token.Register(() => server.CancelSession(sessionId, notifySender: false));
-        var acceptance = server.RequestUserAcceptanceAsync(sessionId, dto, server.QuickSave || isTextMessage);
+        // Message previews remain pending until the receiver reads and closes them, even in quick-save mode.
+        var acceptance = server.RequestUserAcceptanceAsync(sessionId, dto, server.QuickSave && !isTextMessage);
         if (!acceptance.IsCompleted)
         {
             var disconnected = LocalSendPeerDisconnectMonitor.WaitAsync(stream, monitorCancellation.Token);
@@ -64,7 +65,7 @@ internal static class LocalSendPrepareUploadHandler
         }
 
         var response = await acceptance.ConfigureAwait(false);
-        if (!server.QuickSave && !response.Accepted || server.IsSessionCanceled(sessionId))
+        if (!response.Accepted || server.IsSessionCanceled(sessionId))
         {
             server.UnregisterSession(sessionId);
             await LocalSendServerHelper.WriteResponseAsync(stream, 403, "{\"message\":\"File request declined by recipient\"}").ConfigureAwait(false);

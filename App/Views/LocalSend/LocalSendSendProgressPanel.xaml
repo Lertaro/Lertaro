@@ -20,7 +20,22 @@
             </Border>
         </Grid>
         <Border Grid.Row="1" Background="{DynamicResource FooterBg}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0" Padding="16,0">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"><Button Content="{Binding ActionText, RelativeSource={RelativeSource AncestorType={x:Type local:LocalSendSendProgressPanel}}}" Click="Action_Click" Style="{StaticResource SettingsButton}" Height="30"/></StackPanel>
+            <Grid VerticalAlignment="Center">
+                <Button Content="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[Settings_LocalSend_BackToSend]}"
+                        Click="Back_Click" HorizontalAlignment="Left" Height="30">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource SettingsButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSending}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Button Content="{Binding ActionText, RelativeSource={RelativeSource AncestorType={x:Type local:LocalSendSendProgressPanel}}}"
+                        Click="Action_Click" Style="{StaticResource SettingsButton}" HorizontalAlignment="Right" Height="30"/>
+            </Grid>
         </Border>
     </Grid>
 </UserControl>

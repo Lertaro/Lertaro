@@ -53,15 +53,41 @@ public sealed class LocalSendPrepareUploadHandlerTests
     }
 
     [TestMethod]
-    public async Task HandleAsync_TextMessageAutomaticallyReturnsNoContent()
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task HandleAsync_TextMessageWaitsForReadAndCloseEvenWithQuickSave(bool quickSave)
     {
-        using var server = new LocalSendServer();
+        using var server = new LocalSendServer { QuickSave = quickSave };
         await using var stream = new PendingDisconnectStream();
-        server.UploadRequested += (_, _) => { };
+        var requestShown = new TaskCompletionSource<LocalSendUploadRequestArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
+        server.UploadRequested += (_, args) => requestShown.TrySetResult(args);
 
-        await HandleAsync(server, stream, TextRequestBody);
+        var handling = HandleAsync(server, stream, TextRequestBody);
+        var request = await requestShown.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.IsFalse(request.IsAutoAccepted);
+        Assert.IsFalse(handling.IsCompleted);
+        Assert.AreEqual(0, stream.WrittenLength);
+        request.Respond(true);
+        await handling.WaitAsync(TimeSpan.FromSeconds(2));
 
         StringAssert.Contains(stream.GetWrittenText(), "HTTP/1.1 204 No Content");
+        Assert.IsFalse(server.HasActiveSessions);
+    }
+
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task HandleAsync_DeclinedTextMessageNeverReturnsReadConfirmation(bool quickSave)
+    {
+        using var server = new LocalSendServer { QuickSave = quickSave };
+        await using var stream = new PendingDisconnectStream();
+        server.UploadRequested += (_, args) => args.Respond(false);
+
+        await HandleAsync(server, stream, TextRequestBody).WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Contains("HTTP/1.1 403 Forbidden", stream.GetWrittenText());
+        Assert.DoesNotContain("204", stream.GetWrittenText());
         Assert.IsFalse(server.HasActiveSessions);
     }
 

@@ -90,6 +90,8 @@
   "Settings_LocalSend_SendTitle": "Enviar archivos / texto",
   "Settings_LocalSend_SendWindowTitle": "Enviar a otros dispositivos...",
   "Settings_LocalSend_Send": "Enviar",
+  "Settings_LocalSend_BackToSend": "Volver a enviar",
+  "Settings_LocalSend_TooManyAttempts": "Demasiados intentos de PIN. Inténtalo de nuevo más tarde.",
   "Settings_LocalSend_TargetPin": "PIN de destino (opcional)",
   "Settings_LocalSend_Description": "Compatible con el protocolo LocalSend: descubre dispositivos de la red local y transfiere archivos entre ellos.",
   "Settings_LocalSend_Enable": "Habilitar servicio de transferencia LAN",

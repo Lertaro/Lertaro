@@ -90,6 +90,8 @@
   "Settings_LocalSend_SendTitle": "发送文件 / 文本",
   "Settings_LocalSend_SendWindowTitle": "发送到其他设备...",
   "Settings_LocalSend_Send": "发送",
+  "Settings_LocalSend_BackToSend": "返回发送页",
+  "Settings_LocalSend_TooManyAttempts": "PIN 尝试次数过多，请稍后重试。",
   "Settings_LocalSend_TargetPin": "目标 PIN 码 (如有)",
   "Settings_LocalSend_Description": "基于 LocalSend 协议，与局域网内运行 LocalSend 的设备互相发现并传输文件。",
   "Settings_LocalSend_Enable": "启用局域网传输服务",

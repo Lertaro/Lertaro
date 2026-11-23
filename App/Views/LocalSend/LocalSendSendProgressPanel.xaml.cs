@@ -8,8 +8,10 @@ public partial class LocalSendSendProgressPanel : WpfUserControl
 {
     public static readonly DependencyProperty ActionTextProperty = DependencyProperty.Register(nameof(ActionText), typeof(string), typeof(LocalSendSendProgressPanel));
     public event EventHandler? ActionRequested;
+    public event EventHandler? BackRequested;
 
     public LocalSendSendProgressPanel() => InitializeComponent();
     public string ActionText { get => (string)GetValue(ActionTextProperty); set => SetValue(ActionTextProperty, value); }
     private void Action_Click(object sender, RoutedEventArgs e) => ActionRequested?.Invoke(this, EventArgs.Empty);
+    private void Back_Click(object sender, RoutedEventArgs e) => BackRequested?.Invoke(this, EventArgs.Empty);
 }

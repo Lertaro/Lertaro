@@ -90,6 +90,8 @@
   "Settings_LocalSend_SendTitle": "傳送檔案 / 文字",
   "Settings_LocalSend_SendWindowTitle": "傳送至其他裝置...",
   "Settings_LocalSend_Send": "傳送",
+  "Settings_LocalSend_BackToSend": "返回傳送頁",
+  "Settings_LocalSend_TooManyAttempts": "PIN 嘗試次數過多，請稍後重試。",
   "Settings_LocalSend_TargetPin": "目標 PIN 碼 (如有)",
   "Settings_LocalSend_Description": "基於 LocalSend 協定，與區域網路內執行 LocalSend 的裝置互相發現並傳輸檔案。",
   "Settings_LocalSend_Enable": "啟用區域網路傳輸服務",

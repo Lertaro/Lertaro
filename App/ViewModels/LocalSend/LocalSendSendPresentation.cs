@@ -12,6 +12,7 @@ internal static class LocalSendSendPresentation
         LocalSendSendResult.Declined => prefix + TranslationManager.Instance["Settings_LocalSend_Declined"],
         LocalSendSendResult.Busy => prefix + TranslationManager.Instance["Settings_LocalSend_Busy"],
         LocalSendSendResult.InvalidPin => prefix + TranslationManager.Instance["Settings_LocalSend_InvalidPin"],
+        LocalSendSendResult.TooManyAttempts => prefix + TranslationManager.Instance["Settings_LocalSend_TooManyAttempts"],
         LocalSendSendResult.Canceled => prefix + TranslationManager.Instance["Settings_LocalSend_Canceled"],
         LocalSendSendResult.ReceiverCanceled => prefix + TranslationManager.Instance["Settings_LocalSend_ReceiverCanceled"],
         LocalSendSendResult.RemoteError => prefix + TranslationManager.Instance["Settings_LocalSend_RemoteError"],
