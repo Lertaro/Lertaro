@@ -10,6 +10,66 @@ namespace Lertaro.App.Tests.ViewModels.Search.Mapping;
 [TestClass]
 public sealed class RankedCandidateOrderingTests
 {
+    [TestMethod]
+    [DoNotParallelize]
+    public void Order_DefaultIndexRulesDemoteMarvisUnderSystemAndApplicationDirectories()
+    {
+        var rules = ExclusionRuleSet.From(new UserSettings());
+        string[] paths =
+        [
+            @"D:\software\maven\repository\maven-scm-provider-cvs-commons",
+            @"D:\software\maven\repository\maven-scm-provider-git-commons",
+            @"D:\software\maven\repository\maven-scm-provider-svn-commons",
+            @"D:\software\maven\repository\smallrye-health-provided-checks",
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Tencent", "Marvis.7z"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Tencent", "Marvis.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Tencent", "Marvis.log"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Temp", "Tencent", "Marvis")
+        ];
+        var candidates = paths.Select((path, index) =>
+        {
+            var name = Path.GetFileName(path);
+            var isDir = index < 4 || index == 7;
+            var rank = FuzzyMatcher.ComputeMatchRank(name, "marvis");
+            return new SearchResultMapper.RankedCandidate(
+                new AppSearchResult { Name = name, FullPath = path, IsDir = isDir }, false, 0,
+                isDir ? 1 : 0, rank, path,
+                Evidence: MatchEvidence.Accepted("marvis", name, MatchEvidenceField.FileName, rank, isDirectory: isDir));
+        }).ToList();
+
+        var ordered = RankedCandidateOrdering.Order(candidates, new RankContext(rules.GetPriorityVerdict));
+
+        Assert.IsTrue(candidates.Take(4).All(row => rules.GetPriority(row.NormalizedPath, true) == IndexRuleEffect.Normal));
+        Assert.IsTrue(candidates.Skip(4).All(row => rules.GetPriority(row.NormalizedPath, row.Result.IsDir) == IndexRuleEffect.Low));
+        CollectionAssert.AreEqual(paths.Take(4).ToArray(), ordered.Take(4).Select(row => row.NormalizedPath).ToArray());
+    }
+
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public void Order_MarvisNameMatchesOutrankScatteredDirectoryNames(bool foldersFirst)
+    {
+        const string query = "marvis";
+        string[] directories = ["maven-scm-provider-cvs-commons", "maven-scm-provider-git-commons",
+            "maven-scm-provider-svn-commons", "smallrye-health-provided-checks"];
+        var candidates = new List<SearchResultMapper.RankedCandidate>();
+        foreach (var name in directories.Concat(["Marvis.7z", "Marvis.exe", "Marvis.log", "Marvis"]))
+        {
+            var isDirectory = directories.Contains(name) || name == "Marvis";
+            var path = (isDirectory ? @"D:\software\maven\" : @"C:\Programs\") + name;
+            var rank = FuzzyMatcher.ComputeMatchRank(name, query);
+            Assert.IsTrue(rank.IsMatch, name);
+            var row = new AppSearchResult { Name = name, FullPath = path, IsDir = isDirectory };
+            candidates.Add(new(row, false, 0, isDirectory == foldersFirst ? 0 : 1, rank, path,
+                Evidence: MatchEvidence.Accepted(query, name, MatchEvidenceField.FileName, rank, isDirectory: isDirectory)));
+        }
+
+        var ordered = RankedCandidateOrdering.Order(candidates);
+
+        Assert.IsTrue(ordered.Take(4).All(row => row.Result.Name.StartsWith("Marvis", StringComparison.Ordinal)),
+            string.Join(", ", ordered.Select(row => $"{row.Result.Name}: {row.Evidence.Grade}, {row.Match}")));
+    }
+
     private static SearchResultMapper.RankedCandidate Candidate(string path, int typeRank = 0, int start = 0, double coverage = 1.0) =>
         new(
             new AppSearchResult { FullPath = path, Name = Path.GetFileName(path), ResultKind = string.Empty },
