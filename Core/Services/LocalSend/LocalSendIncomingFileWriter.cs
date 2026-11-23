@@ -1,3 +1,6 @@
+using System.Buffers;
+using System.Security.Cryptography;
+
 namespace Lertaro.Core.Services.LocalSend;
 
 internal enum LocalSendFileSaveStatus
@@ -26,37 +29,47 @@ internal static class LocalSendIncomingFileWriter
         if (expectedSize < 0)
             return new(LocalSendFileSaveStatus.SizeMismatch, 0, "Negative advertised size");
 
+        byte[]? buffer = null;
+        Task<int>? pendingRead = null;
+        long written = 0;
         try
         {
-            long written = 0;
+            using var hash = string.IsNullOrWhiteSpace(expectedSha256) ? null : IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
             await using (var destination = new FileStream(targetPath, FileMode.Create, FileAccess.Write,
-                FileShare.None, BufferSize, useAsync: true))
+                FileShare.None, bufferSize: 1, FileOptions.Asynchronous | FileOptions.SequentialScan))
             {
-                var buffer = new byte[BufferSize];
-                int read;
-                while ((read = await source.ReadAsync(buffer, cancellationToken).AsTask()
-                    .KeepObserved()
-                    .WaitAsync(IdleTimeout, cancellationToken).ConfigureAwait(false)) > 0)
+                buffer = ArrayPool<byte>.Shared.Rent(BufferSize);
+                while (true)
                 {
+                    pendingRead = source.ReadAsync(buffer.AsMemory(0, BufferSize), cancellationToken).AsTask();
+                    var read = await pendingRead.KeepObserved().WaitAsync(IdleTimeout, cancellationToken).ConfigureAwait(false);
+                    if (read == 0) break;
                     if (isCanceled() || cancellationToken.IsCancellationRequested)
                         return new(LocalSendFileSaveStatus.Canceled, written);
-                    if (written + read > expectedSize)
+                    if (read > expectedSize - written)
                         return new(LocalSendFileSaveStatus.SizeMismatch, written + read,
                             $"Expected {expectedSize} bytes, received at least {written + read}");
 
-                    await destination.WriteAsync(buffer.AsMemory(0, read)).ConfigureAwait(false);
+                    await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                    hash?.AppendData(buffer.AsSpan(0, read));
                     written += read;
                     onProgress?.Invoke(written);
                 }
-                await destination.FlushAsync().ConfigureAwait(false);
+                await destination.FlushAsync(cancellationToken).ConfigureAwait(false);
             }
+            if (isCanceled() || cancellationToken.IsCancellationRequested)
+                return new(LocalSendFileSaveStatus.Canceled, written);
             if (written != expectedSize)
                 return new(LocalSendFileSaveStatus.SizeMismatch, written,
                     $"Expected {expectedSize} bytes, received {written}");
 
-            if (!string.IsNullOrWhiteSpace(expectedSha256))
+            if (hash != null)
             {
-                var actual = await LocalSendChecksum.ComputeFileAsync(targetPath, isCanceled, onChecksumProgress).ConfigureAwait(false);
+                // Hash the received bytes while writing; verification needs no second full read from disk.
+                onChecksumProgress?.Invoke(written);
+                if (isCanceled() || cancellationToken.IsCancellationRequested)
+                    return new(LocalSendFileSaveStatus.Canceled, written);
+                var actual = Convert.ToHexStringLower(hash.GetHashAndReset());
                 if (!LocalSendChecksum.Matches(actual, expectedSha256!))
                     return new(LocalSendFileSaveStatus.ChecksumMismatch, written,
                         $"Checksum mismatch: expected {expectedSha256}, got {actual}");
@@ -66,15 +79,27 @@ internal static class LocalSendIncomingFileWriter
         }
         catch (OperationCanceledException) when (isCanceled() || cancellationToken.IsCancellationRequested)
         {
-            return new(LocalSendFileSaveStatus.Canceled, 0);
+            return new(LocalSendFileSaveStatus.Canceled, written);
         }
         catch (TimeoutException)
         {
-            return new(LocalSendFileSaveStatus.Error, 0, "Idle timeout while receiving data");
+            return new(LocalSendFileSaveStatus.Error, written, "Idle timeout while receiving data");
         }
         catch (Exception ex)
         {
-            return new(LocalSendFileSaveStatus.Error, 0, ex.Message);
+            return new(LocalSendFileSaveStatus.Error, written, ex.Message);
+        }
+        finally
+        {
+            if (buffer != null)
+            {
+                // A stream may ignore cancellation. Do not pool memory until its outstanding read ends.
+                if (pendingRead is { IsCompleted: false })
+                    _ = pendingRead.ContinueWith((_, state) => ArrayPool<byte>.Shared.Return((byte[])state!), buffer,
+                        CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                else
+                    ArrayPool<byte>.Shared.Return(buffer);
+            }
         }
     }
 }

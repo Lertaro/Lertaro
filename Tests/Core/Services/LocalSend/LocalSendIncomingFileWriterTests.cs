@@ -6,6 +6,25 @@ namespace Lertaro.Core.Tests.Services.LocalSend;
 public sealed class LocalSendIncomingFileWriterTests
 {
     [TestMethod]
+    public async Task SaveAsync_MultipleBuffers_HashesWrittenBytesWithoutReopeningDestination()
+    {
+        var data = new byte[2 * 1024 * 1024 + 7];
+        new Random(42).NextBytes(data);
+        var path = Path.GetTempFileName();
+        FileStream? lockAfterWriting = null;
+        try
+        {
+            using var source = new MemoryStream(data);
+            var result = await LocalSendIncomingFileWriter.SaveAsync(source, path, data.Length,
+                LocalSendChecksum.Compute(data), () => false,
+                onChecksumProgress: _ => lockAfterWriting = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None));
+            Assert.AreEqual(LocalSendFileSaveStatus.Success, result.Status, result.Error);
+            Assert.AreEqual(data.Length, result.BytesWritten);
+        }
+        finally { lockAfterWriting?.Dispose(); File.Delete(path); }
+    }
+
+    [TestMethod]
     public async Task SaveAsync_ExactSizeAndChecksum_Succeeds()
     {
         var data = "payload"u8.ToArray();

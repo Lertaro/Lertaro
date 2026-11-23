@@ -16,6 +16,7 @@ internal sealed class LocalSendReceiveSessionStore
     private readonly ConcurrentDictionary<string, string> _customDirectories = new();
     private readonly ConcurrentDictionary<string, HashSet<string>> _selectedFileIds = new();
     private readonly object _lock = new();
+    private readonly Dictionary<string, LocalSendReceiveProgress> _progress = new(StringComparer.Ordinal);
 
     internal bool HasSessions => !_sessions.IsEmpty;
     internal bool HasAuthorization(string sessionId) => _authorizations.ContainsKey(sessionId);
@@ -43,6 +44,7 @@ internal sealed class LocalSendReceiveSessionStore
             if (!_sessions.ContainsKey(sessionId) || IsCanceled(sessionId))
                 return false;
             _authorizations[sessionId] = new LocalSendUploadAuthorization(senderIp, fileTokens);
+            _progress[sessionId] = new LocalSendReceiveProgress(_sessions[sessionId].Files, selectedFileIds);
             if (!string.IsNullOrEmpty(customDirectory))
                 _customDirectories[sessionId] = customDirectory;
             if (selectedFileIds != null)
@@ -92,7 +94,7 @@ internal sealed class LocalSendReceiveSessionStore
             var directory = _customDirectories.TryGetValue(resolvedSessionId, out var customDirectory) &&
                 !string.IsNullOrEmpty(customDirectory) ? customDirectory : defaultDownloadDirectory;
             _selectedFileIds.TryGetValue(resolvedSessionId, out var selectedIds);
-            context = new LocalSendUploadContext(resolvedSessionId, request, file, selectedIds, directory, cancellation.Token);
+            context = new LocalSendUploadContext(resolvedSessionId, request, file, selectedIds, directory, cancellation.Token, _progress[resolvedSessionId]);
             return true;
         }
     }
@@ -100,8 +102,14 @@ internal sealed class LocalSendReceiveSessionStore
     internal bool CompleteUpload(string sessionId, string fileId, LocalSendFileSaveStatus result) =>
         _authorizations.TryGetValue(sessionId, out var authorization) && authorization.CompleteUpload(fileId, result);
 
-    internal void RegisterAuthorization(string sessionId, string senderIp, IReadOnlyDictionary<string, string> fileTokens) =>
-        _authorizations[sessionId] = new LocalSendUploadAuthorization(senderIp, fileTokens);
+    internal void RegisterAuthorization(string sessionId, string senderIp, IReadOnlyDictionary<string, string> fileTokens)
+    {
+        lock (_lock)
+        {
+            _authorizations[sessionId] = new LocalSendUploadAuthorization(senderIp, fileTokens);
+            _progress[sessionId] = new LocalSendReceiveProgress(_sessions[sessionId].Files, null);
+        }
+    }
 
     private void UnregisterCore(string sessionId)
     {
@@ -109,6 +117,7 @@ internal sealed class LocalSendReceiveSessionStore
         _authorizations.TryRemove(sessionId, out _);
         _customDirectories.TryRemove(sessionId, out _);
         _selectedFileIds.TryRemove(sessionId, out _);
+        _progress.Remove(sessionId);
         _canceledSessions.TryRemove(sessionId, out _);
         if (_cancellations.TryRemove(sessionId, out var cancellation))
             cancellation.Dispose();

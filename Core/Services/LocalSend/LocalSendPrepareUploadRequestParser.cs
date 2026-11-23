@@ -19,6 +19,7 @@ internal static class LocalSendPrepareUploadRequestParser
                 !TryGetObject(root, "files", out var files))
                 return false;
 
+            long totalSize = 0;
             foreach (var entry in files.EnumerateObject())
             {
                 if (entry.Value.ValueKind != JsonValueKind.Object ||
@@ -27,6 +28,9 @@ internal static class LocalSendPrepareUploadRequestParser
                     !HasNonNegativeInt64(entry.Value, "size") ||
                     !HasString(entry.Value, "fileType"))
                     return false;
+                var size = entry.Value.GetProperty("size").GetInt64();
+                if (size > long.MaxValue - totalSize) return false;
+                totalSize += size;
             }
 
             request = JsonSerializer.Deserialize<LocalSendPrepareUploadRequestDto>(body);

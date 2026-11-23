@@ -9,12 +9,14 @@ internal sealed class LocalSendUploadAuthorization
     private readonly IReadOnlyDictionary<string, string> _fileTokens;
     private readonly Dictionary<string, UploadState> _uploadStates;
     private readonly object _stateLock = new();
+    private int _remaining;
 
     public LocalSendUploadAuthorization(string senderIp, IReadOnlyDictionary<string, string> fileTokens)
     {
         _senderIp = LocalSendServerHelper.CleanIpAddress(senderIp);
         _fileTokens = fileTokens;
         _uploadStates = fileTokens.Keys.ToDictionary(fileId => fileId, _ => new UploadState());
+        _remaining = _uploadStates.Count;
     }
 
     public bool Allows(string senderIp, string fileId, string token) =>
@@ -50,7 +52,9 @@ internal sealed class LocalSendUploadAuthorization
                 LocalSendFileSaveStatus.ChecksumMismatch when state.Attempts < 3 => UploadStatus.Pending,
                 _ => UploadStatus.Failed
             };
-            return _uploadStates.Values.All(item => item.Status is UploadStatus.Finished or UploadStatus.Failed);
+            if (state.Status is UploadStatus.Finished or UploadStatus.Failed)
+                _remaining--;
+            return _remaining == 0;
         }
     }
 

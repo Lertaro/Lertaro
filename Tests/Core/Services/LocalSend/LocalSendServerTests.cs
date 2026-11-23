@@ -7,6 +7,42 @@ namespace Lertaro.Core.Tests.Services.LocalSend;
 [DoNotParallelize]
 public sealed class LocalSendServerTests
 {
+    [TestMethod]
+    public async Task HandleUploadAsync_SelectedParallelFiles_ReportSelectedTotalAndCompleteOnce()
+    {
+        var directory = Directory.CreateTempSubdirectory("localsend-progress-");
+        using var server = new LocalSendServer { DownloadDirectory = directory.FullName };
+        var files = new Dictionary<string, LocalSendFileDto>
+        {
+            ["ignored"] = new() { Id = "ignored", FileName = "ignored", Size = 1000 },
+            ["a"] = new() { Id = "a", FileName = "a", Size = 4 },
+            ["b"] = new() { Id = "b", FileName = "b", Size = 4 }
+        };
+        var events = new System.Collections.Concurrent.ConcurrentBag<LocalSendProgressArgs>();
+        server.ProgressChanged += (_, args) => events.Add(args);
+        try
+        {
+            Assert.IsTrue(server.TryRegisterActiveSession("session", new PrepareUploadRequestDto { Files = files }));
+            Assert.IsTrue(server.TryActivateSession("session", "127.0.0.1",
+                new Dictionary<string, string> { ["a"] = "token", ["b"] = "token" }, null, new HashSet<string> { "a", "b" }));
+
+            await Task.WhenAll(new[] { "a", "b" }.Select(async id =>
+            {
+                using var body = new MemoryStream("data"u8.ToArray());
+                using var response = new MemoryStream();
+                await server.HandleUploadAsync(response, body, "session", id, "token", "127.0.0.1", true);
+            }));
+
+            var finished = events.Where(item => item.IsFinished).ToArray();
+            Assert.HasCount(2, finished);
+            Assert.IsTrue(finished.All(item => item.TotalFiles == 2 && item.SessionTotalBytes == 8));
+            var completed = Assert.ContainsSingle(finished.Where(item => item.IsAllDone));
+            Assert.AreEqual(8L, completed.SessionBytesTransferred);
+            Assert.IsFalse(server.HasActiveSessions);
+        }
+        finally { directory.Delete(true); }
+    }
+
     [TestInitialize]
     public void Initialize() => LocalSendServiceManager.Instance.WindowOpenCheck = null;
 

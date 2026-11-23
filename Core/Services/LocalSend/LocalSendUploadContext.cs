@@ -9,4 +9,5 @@ internal sealed record LocalSendUploadContext(
     LocalSendFileDto File,
     HashSet<string>? SelectedFileIds,
     string DownloadDirectory,
-    CancellationToken SessionCancellation);
+    CancellationToken SessionCancellation,
+    LocalSendReceiveProgress Progress);

@@ -6,6 +6,17 @@ namespace Lertaro.Core.Tests.Services.LocalSend;
 public sealed class LocalSendPrepareUploadRequestParserTests
 {
     [TestMethod]
+    public void TryParse_TotalFileSizesOverflow_ReturnsFalse()
+    {
+        const string body = """
+        {"info":{"alias":"Sender"},"files":{
+          "a":{"id":"a","fileName":"a","size":9223372036854775807,"fileType":"text"},
+          "b":{"id":"b","fileName":"b","size":1,"fileType":"text"}}}
+        """;
+        Assert.IsFalse(LocalSendPrepareUploadRequestParser.TryParse(body, out var request));
+        Assert.IsNull(request);
+    }
+    [TestMethod]
     public void TryParse_MissingRequiredFileField_ReturnsFalse()
     {
         const string body = """

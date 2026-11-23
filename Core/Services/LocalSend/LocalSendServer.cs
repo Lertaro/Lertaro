@@ -150,9 +150,6 @@ public sealed class LocalSendServer : IDisposable
     public event EventHandler<LocalSendProgressArgs>? ProgressChanged;
     public event EventHandler<string>? SessionCanceled;
 
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentDictionary<string, byte>> _sessionCompletedFiles = new();
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentDictionary<string, long>> _sessionTransferredBytes = new();
-
     public void CancelSession(string sessionId, bool notifySender = false)
     {
         if (string.IsNullOrEmpty(sessionId)) return;
@@ -184,8 +181,6 @@ public sealed class LocalSendServer : IDisposable
     {
         if (string.IsNullOrEmpty(sessionId)) return;
         _receiveSessions.Unregister(sessionId);
-        _sessionCompletedFiles.TryRemove(sessionId, out _);
-        _sessionTransferredBytes.TryRemove(sessionId, out _);
     }
 
     public bool IsSessionCanceled(string sessionId) =>
@@ -218,11 +213,10 @@ public sealed class LocalSendServer : IDisposable
         var metadata = context.File.Metadata;
         var expectedSha256 = VerifyChecksums ? context.File.Sha256 ?? context.File.Hash : null;
         var totalBytes = context.File.Size;
-        var keys = prepareDto.Files.Keys.ToList();
-        var fileIndex = Math.Max(1, keys.IndexOf(fileId) + 1);
-        var totalFiles = prepareDto.Files.Count;
-        var selectedIds = context.SelectedFileIds;
-        var expectedTotalFiles = selectedIds?.Count ?? totalFiles;
+        var progress = context.Progress;
+        var fileIndex = progress.FileIndex(fileId);
+        var expectedTotalFiles = progress.TotalFiles;
+        progress.Update(fileId, 0);
         var targetPath = LocalSendServerHelper.ResolveTargetPath(context.DownloadDirectory, fileName);
         if (targetPath == null)
         {
@@ -246,11 +240,8 @@ public sealed class LocalSendServer : IDisposable
                 {
                     lastProgressTimeMs = progressStopwatch.ElapsedMilliseconds;
                     lastFlushedBytes = bytesReadTotal;
-                    var sessionTransferred = _sessionTransferredBytes.GetOrAdd(sessionId, _ => new System.Collections.Concurrent.ConcurrentDictionary<string, long>());
-                    sessionTransferred[fileId] = bytesReadTotal;
-                    var currentSessionTransferred = sessionTransferred.Values.Sum();
-                    var currentSessionTotal = prepareDto != null ? prepareDto.Files.Where(kv => selectedIds == null || selectedIds.Contains(kv.Key)).Sum(kv => kv.Value.Size) : totalBytes;
-                    ProgressChanged?.Invoke(this, new LocalSendProgressArgs(sessionId, senderAlias, fileId, fileName, bytesReadTotal, totalBytes, fileIndex, totalFiles, isFinished: false, savedPath: targetPath, sessionBytesTransferred: currentSessionTransferred, sessionTotalBytes: currentSessionTotal));
+                    var currentSessionTransferred = progress.Update(fileId, bytesReadTotal);
+                    ProgressChanged?.Invoke(this, new LocalSendProgressArgs(sessionId, senderAlias, fileId, fileName, bytesReadTotal, totalBytes, fileIndex, expectedTotalFiles, isFinished: false, savedPath: targetPath, sessionBytesTransferred: currentSessionTransferred, sessionTotalBytes: progress.TotalBytes));
                 }
             }, checksumBytes =>
             {
@@ -286,10 +277,10 @@ public sealed class LocalSendServer : IDisposable
             return;
         }
 
-        var completedSet = _sessionCompletedFiles.GetOrAdd(sessionId, _ => new System.Collections.Concurrent.ConcurrentDictionary<string, byte>());
-        completedSet[fileId] = 0;
-
-        var isAllDone = v2 ? CompleteUploadAttempt(sessionId, fileId, LocalSendFileSaveStatus.Success) : completedSet.Count >= expectedTotalFiles;
+        // Publish each final byte count before marking the file complete so the last finisher sees all bytes.
+        progress.Update(fileId, bytesReadTotal);
+        var completedCount = progress.Complete(fileId);
+        var isAllDone = v2 ? CompleteUploadAttempt(sessionId, fileId, LocalSendFileSaveStatus.Success) : completedCount >= expectedTotalFiles;
         if (context.SessionCancellation.IsCancellationRequested)
         {
             LocalSendFileMetadataApplier.Apply(targetPath, metadata);
@@ -298,18 +289,15 @@ public sealed class LocalSendServer : IDisposable
             await LocalSendServerHelper.WriteResponseAsync(stream, 200).ConfigureAwait(false);
             return;
         }
-        var displayIndex = isAllDone ? expectedTotalFiles : Math.Max(fileIndex, completedSet.Count);
+        var displayIndex = isAllDone ? expectedTotalFiles : Math.Max(fileIndex, completedCount);
         var relPath = fileName.Replace('\\', '/').TrimStart('/');
         // The session's own directory, not the server default: a *Save To…* receive wrote the file
         // somewhere else entirely, so the default-derived path either did not exist (hiding the
         // reveal-in-Explorer button) or, worse, named an unrelated same-named folder.
         var rootSavedPath = Path.Combine(context.DownloadDirectory, relPath.Split('/')[0]);
-        var finalDict = _sessionTransferredBytes.GetOrAdd(sessionId, _ => new System.Collections.Concurrent.ConcurrentDictionary<string, long>());
-        finalDict[fileId] = bytesReadTotal;
-        var finalSessionTransferred = finalDict.Values.Sum();
-        var finalSessionTotal = prepareDto != null ? prepareDto.Files.Where(kv => selectedIds == null || selectedIds.Contains(kv.Key)).Sum(kv => kv.Value.Size) : totalBytes;
+        var finalSessionTransferred = progress.Update(fileId, bytesReadTotal);
         Logger.Log($"[LocalSendServer] Received: {fileName} -> {targetPath}");
-        ProgressChanged?.Invoke(this, new LocalSendProgressArgs(sessionId, senderAlias, fileId, fileName, bytesReadTotal, totalBytes, displayIndex, expectedTotalFiles, isFinished: true, isAllDone: isAllDone, savedPath: targetPath, rootSavedPath: rootSavedPath, sessionBytesTransferred: finalSessionTransferred, sessionTotalBytes: finalSessionTotal));
+        ProgressChanged?.Invoke(this, new LocalSendProgressArgs(sessionId, senderAlias, fileId, fileName, bytesReadTotal, totalBytes, displayIndex, expectedTotalFiles, isFinished: true, isAllDone: isAllDone, savedPath: targetPath, rootSavedPath: rootSavedPath, sessionBytesTransferred: finalSessionTransferred, sessionTotalBytes: progress.TotalBytes));
         LocalSendFileMetadataApplier.Apply(targetPath, metadata);
         FileReceived?.Invoke(this, (fileId, targetPath));
         if (isAllDone)
