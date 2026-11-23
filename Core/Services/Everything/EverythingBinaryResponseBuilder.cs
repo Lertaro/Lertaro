@@ -115,14 +115,16 @@ public static class EverythingBinaryResponseBuilder
             WriteLengthPrefixedString(writer, fullPath, encoding);
         }
 
-        if ((requestFlags & EverythingIpcConstants.RequestSize) != 0)
-            writer.Write(item.Size);
-
+        // Everything.c (_Everything_GetRequestData) reads EXTENSION before SIZE. The ITEM2 header
+        // comment lists these two fields in the opposite order and is not the decoder's wire format.
         if ((requestFlags & EverythingIpcConstants.RequestExtension) != 0)
         {
             var ext = item.IsDirectory ? string.Empty : Path.GetExtension(item.FileName).TrimStart('.');
             WriteLengthPrefixedString(writer, ext, encoding);
         }
+
+        if ((requestFlags & EverythingIpcConstants.RequestSize) != 0)
+            writer.Write(item.Size);
 
         if ((requestFlags & EverythingIpcConstants.RequestDateCreated) != 0)
             writer.Write(item.DateCreated?.ToFileTimeUtc() ?? 0L);

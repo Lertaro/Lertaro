@@ -4,7 +4,7 @@ using Lertaro.Core.Services.Everything;
 namespace Lertaro.Core.Tests.Services.Everything;
 
 [TestClass]
-public class EverythingBinaryResponseBuilderTests
+public sealed class EverythingBinaryResponseBuilderTests
 {
     [TestMethod]
     public void BuildListV1_Unicode_ProducesValidHeaderAndOffsets()
@@ -132,17 +132,29 @@ public class EverythingBinaryResponseBuilderTests
     }
 
     [TestMethod]
-    public void BuildListV2_WithSizeAndExtension_OrdersChunksPerSdk()
+    [DataRow(true, false)]
+    [DataRow(false, false)]
+    [DataRow(true, true)]
+    [DataRow(false, true)]
+    public void BuildListV2_AllRequestedFields_FollowsTheOfficialDecoderOrder(bool isUnicode, bool isDirectory)
     {
+        const long size = 0x0102030405060708L;
+        var created = new DateTime(2025, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+        var modified = created.AddDays(1);
+        var accessed = created.AddDays(2);
+        var dateRun = created.AddDays(3);
+        var recentlyChanged = created.AddDays(4);
+        var name = isDirectory ? "Folder" : "archive.zip";
+        var attributes = isDirectory ? 0x10u : 0x20u;
         var items = new List<EverythingResultItem>
         {
-            new(@"D:\Data", "archive.zip", 10485760L, false)
+            new(@"D:\Data", name, size, isDirectory, DateCreated: created, DateModified: modified,
+                DateAccessed: accessed, Attributes: attributes, RunCount: 7, DateRun: dateRun,
+                DateRecentlyChanged: recentlyChanged)
         };
 
-        var requestFlags = EverythingIpcConstants.RequestFileName |
-                           EverythingIpcConstants.RequestPath |
-                           EverythingIpcConstants.RequestSize |
-                           EverythingIpcConstants.RequestExtension;
+        // Every supported request bit, in the order walked by _Everything_GetRequestData in Everything.c.
+        const uint requestFlags = 0xFFFF;
 
         var bytes = EverythingBinaryResponseBuilder.BuildListV2(
             items,
@@ -150,7 +162,7 @@ public class EverythingBinaryResponseBuilderTests
             offset: 0,
             requestFlags: requestFlags,
             sortType: EverythingIpcConstants.SortNameAscending,
-            isUnicode: true);
+            isUnicode: isUnicode);
 
         using var stream = new MemoryStream(bytes);
         using var reader = new BinaryReader(stream);
@@ -159,29 +171,42 @@ public class EverythingBinaryResponseBuilderTests
         stream.Position = 20;
         var itemFlag = reader.ReadUInt32();
         var dataOffset = reader.ReadUInt32();
-        Assert.AreEqual(0u, itemFlag);
+        Assert.AreEqual(isDirectory ? EverythingIpcConstants.ItemFlagFolder : 0u, itemFlag);
 
         stream.Position = dataOffset;
 
-        // 1. FileName: DWORD len + wchar null-term
-        var nameLen = reader.ReadUInt32();
-        var name = ReadUnicodeNullTerminated(stream);
-        Assert.AreEqual("archive.zip", name);
+        Assert.AreEqual(name, ReadLengthPrefixedString(reader, isUnicode));
+        Assert.AreEqual(@"D:\Data", ReadLengthPrefixedString(reader, isUnicode));
+        Assert.AreEqual(@"D:\Data\" + name, ReadLengthPrefixedString(reader, isUnicode));
+        Assert.AreEqual(isDirectory ? string.Empty : "zip", ReadLengthPrefixedString(reader, isUnicode));
+        Assert.AreEqual(size, reader.ReadInt64());
+        Assert.AreEqual(created.ToFileTimeUtc(), reader.ReadInt64());
+        Assert.AreEqual(modified.ToFileTimeUtc(), reader.ReadInt64());
+        Assert.AreEqual(accessed.ToFileTimeUtc(), reader.ReadInt64());
+        Assert.AreEqual(attributes, reader.ReadUInt32());
+        Assert.AreEqual(string.Empty, ReadLengthPrefixedString(reader, isUnicode));
+        Assert.AreEqual(7u, reader.ReadUInt32());
+        Assert.AreEqual(dateRun.ToFileTimeUtc(), reader.ReadInt64());
+        Assert.AreEqual(recentlyChanged.ToFileTimeUtc(), reader.ReadInt64());
+        Assert.AreEqual(name, ReadLengthPrefixedString(reader, isUnicode));
+        Assert.AreEqual(@"D:\Data", ReadLengthPrefixedString(reader, isUnicode));
+        Assert.AreEqual(@"D:\Data\" + name, ReadLengthPrefixedString(reader, isUnicode));
+        Assert.AreEqual(stream.Length, stream.Position);
+    }
 
-        // 2. Path: DWORD len + wchar null-term
-        var pathLen = reader.ReadUInt32();
-        var path = ReadUnicodeNullTerminated(stream);
-        Assert.AreEqual(@"D:\Data", path);
-
-        // 3. Size: Int64 (SDK order: SIZE before EXTENSION)
-        var size = reader.ReadInt64();
-        Assert.AreEqual(10485760L, size);
-
-        // 4. Extension: DWORD len + wchar null-term
-        var extLen = reader.ReadUInt32();
-        Assert.AreEqual((uint)"zip".Length, extLen);
-        var ext = ReadUnicodeNullTerminated(stream);
-        Assert.AreEqual("zip", ext);
+    private static string ReadLengthPrefixedString(BinaryReader reader, bool isUnicode)
+    {
+        var encoding = isUnicode ? Encoding.Unicode : EverythingAnsiEncoding.Instance;
+        var length = reader.ReadUInt32();
+        var terminatorSize = isUnicode ? 2 : 1;
+        var byteCount = checked(((long)length + 1) * terminatorSize);
+        // Bound the test decoder so a regressed field order fails without allocating an enormous buffer.
+        Assert.IsLessThanOrEqualTo(reader.BaseStream.Length - reader.BaseStream.Position, byteCount);
+        var bytes = reader.ReadBytes(checked((int)byteCount));
+        Assert.HasCount((int)byteCount, bytes);
+        Assert.AreEqual((byte)0, bytes[^1]);
+        if (isUnicode) Assert.AreEqual((byte)0, bytes[^2]);
+        return encoding.GetString(bytes, 0, bytes.Length - terminatorSize);
     }
 
     private static string ReadUnicodeNullTerminated(Stream stream)
