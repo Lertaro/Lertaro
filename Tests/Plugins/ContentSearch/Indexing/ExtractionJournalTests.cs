@@ -51,6 +51,21 @@ public sealed class ExtractionJournalTests
         Assert.IsEmpty(journal.TakeInterrupted());
     }
 
+    [TestMethod]
+    public void Begin_OverlappingExtractionOfSameFile_RemainsUntilBothEnd()
+    {
+        var sidecar = Path.Combine(_tempDir, "index.db.extracting");
+        var journal = new ExtractionJournal(sidecar);
+        journal.Begin(@"C:\document.pdf");
+        journal.Begin(@"C:\DOCUMENT.pdf");
+        journal.End(@"C:\document.pdf");
+
+        Assert.HasCount(1, File.ReadAllLines(sidecar));
+
+        journal.End(@"C:\DOCUMENT.pdf");
+        Assert.IsFalse(File.Exists(sidecar));
+    }
+
     // A crash between writing the temp file and swapping it in leaves the previous list intact plus a stale
     // temp file: recovery must read the intact list, and the next write must not trip over the stale one.
     [TestMethod]

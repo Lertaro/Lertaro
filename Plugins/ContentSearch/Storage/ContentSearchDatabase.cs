@@ -328,19 +328,24 @@ public sealed class ContentSearchDatabase : IDisposable
         return _cachedIndexedFiles;
     }
 
-    // No write lock: WAL readers run beside the writer. The flag is cleared BEFORE counting, and a writer
-    // sets it only after its commit, so a write this count misses always leaves the flag set behind it.
+    // Serialize recounts with writes so an older reader cannot overwrite a newer count or ClearAll.
+    // Keep the stale flag after a failed query so the next reader retries.
     private void EnsureStatsFresh()
     {
-        if (!_statsStale || !File.Exists(_dbPath))
+        if (!_statsStale)
             return;
 
-        _statsStale = false;
-        using var conn = OpenConnection();
-        RefreshStatsInternal(conn);
+        lock (_writeLock)
+        {
+            if (!_statsStale || !File.Exists(_dbPath))
+                return;
+            using var conn = OpenConnection();
+            if (RefreshStatsInternal(conn))
+                _statsStale = false;
+        }
     }
 
-    private void RefreshStatsInternal(SqliteConnection conn)
+    private bool RefreshStatsInternal(SqliteConnection conn)
     {
         try
         {
@@ -360,8 +365,9 @@ public sealed class ContentSearchDatabase : IDisposable
                 _cachedTotalFiles = 0;
                 _cachedIndexedFiles = 0;
             }
+            return true;
         }
-        catch { }
+        catch { return false; }
     }
 
     public void ClearAll()

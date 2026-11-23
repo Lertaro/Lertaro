@@ -15,7 +15,7 @@ namespace Lertaro.Plugins.ContentSearch.Indexing;
 internal sealed class ExtractionJournal
 {
     private readonly string _path;
-    private readonly HashSet<string> _active = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> _active = new(StringComparer.OrdinalIgnoreCase);
 
     public ExtractionJournal(string path)
     {
@@ -36,7 +36,10 @@ internal sealed class ExtractionJournal
     {
         lock (_active)
         {
-            if (_active.Add(file))
+            // A timed-out parser can still run when a later batch starts the same file again.
+            _active.TryGetValue(file, out var count);
+            _active[file] = count + 1;
+            if (count == 0)
                 Save();
         }
     }
@@ -45,7 +48,11 @@ internal sealed class ExtractionJournal
     {
         lock (_active)
         {
-            if (_active.Remove(file))
+            if (!_active.TryGetValue(file, out var count))
+                return;
+            if (count > 1)
+                _active[file] = count - 1;
+            else if (_active.Remove(file))
                 Save();
         }
     }
@@ -88,7 +95,7 @@ internal sealed class ExtractionJournal
             else
             {
                 var temp = _path + ".tmp";
-                File.WriteAllLines(temp, _active);
+                File.WriteAllLines(temp, _active.Keys);
                 File.Move(temp, _path, overwrite: true);
             }
         }
