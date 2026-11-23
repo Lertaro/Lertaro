@@ -119,16 +119,20 @@ public class KeyboardHookService : IDisposable
         }
     }
 
-    private IntPtr HookCallbackCore(int nCode, IntPtr wParam, IntPtr lParam)
+    internal IntPtr HookCallbackCore(int nCode, IntPtr wParam, IntPtr lParam)
     {
+        var hookStruct = nCode >= 0 ? Marshal.PtrToStructure<KeyboardNativeMethods.KBDLLHOOKSTRUCT>(lParam) : default;
+        // Injected events must bypass key-up tracking and every hotkey handler. AHK's menu-mask Ctrl
+        // followed by its paste chord otherwise becomes a double tap before the inline-input filter runs.
+        if (nCode >= 0 && (hookStruct.flags & KeyboardNativeMethods.LLKHF_INJECTED) != 0)
+            return KeyboardNativeMethods.CallNextHookEx(_hookId, nCode, wParam, lParam);
+
         if (nCode >= 0 && (wParam == (IntPtr)KeyboardNativeMethods.WM_KEYUP || wParam == (IntPtr)KeyboardNativeMethods.WM_SYSKEYUP))
         {
-            var hookStruct = Marshal.PtrToStructure<KeyboardNativeMethods.KBDLLHOOKSTRUCT>(lParam);
             _hotkeyDetector.OnKeyUp((int)hookStruct.vkCode);
         }
         if (nCode >= 0 && (wParam == (IntPtr)KeyboardNativeMethods.WM_KEYDOWN || wParam == (IntPtr)KeyboardNativeMethods.WM_SYSKEYDOWN))
         {
-            var hookStruct = Marshal.PtrToStructure<KeyboardNativeMethods.KBDLLHOOKSTRUCT>(lParam);
             var vkCode = (int)hookStruct.vkCode;
             var time = hookStruct.time;
             _hotkeyDetector.OnKeyDown(vkCode);

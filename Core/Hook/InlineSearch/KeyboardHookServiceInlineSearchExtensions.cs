@@ -9,16 +9,6 @@ internal static class KeyboardHookServiceInlineSearchExtensions
 {
     internal static bool HandleInlineSearchKeys(this KeyboardHookService service, int vkCode, KeyboardNativeMethods.KBDLLHOOKSTRUCT hookStruct, IntPtr fgHwnd)
     {
-        // A synthesized key event (SendInput/keybd_event) from some other process -- e.g. a
-        // third-party automation tool's own virtual-key hotkey scheme (reported: Quicker's Right-Ctrl
-        // + number combo) -- was otherwise indistinguishable from the user's own typing, so it got
-        // swallowed as inline-search input (or as a "jump to result N" shortcut, if it happened to
-        // match SelectJumpModifier) instead of reaching whatever it was actually meant for.
-        if ((hookStruct.flags & KeyboardNativeMethods.LLKHF_INJECTED) != 0)
-        {
-            return false;
-        }
-
         var targetFocus = fgHwnd;
         var threadId = KeyboardNativeMethods.GetWindowThreadProcessId(fgHwnd, out var fgPid);
         var guiInfo = new KeyboardNativeMethods.GUITHREADINFO
