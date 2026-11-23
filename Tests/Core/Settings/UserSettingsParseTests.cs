@@ -51,6 +51,67 @@ public sealed class UserSettingsParseTests
     }
 
     [TestMethod]
+    public void TryParse_LegacySharedDisplay_SeedsBothWindowsAndRetiresOnlyTheLegacyField()
+    {
+        var json = JsonSerializer.Serialize(new { DefaultSearchDisplay = @"\\.\DISPLAY2", FuturePreference = "keep" });
+
+        var settings = UserSettings.TryParse(json);
+
+        Assert.IsNotNull(settings);
+        Assert.AreEqual(@"\\.\DISPLAY2", settings.SearchWindow.DefaultDisplay);
+        Assert.AreEqual(@"\\.\DISPLAY2", settings.MainWindow.DefaultDisplay);
+        using var saved = JsonDocument.Parse(JsonSerializer.Serialize(settings));
+        Assert.IsFalse(saved.RootElement.TryGetProperty("DefaultSearchDisplay", out _));
+        Assert.AreEqual("keep", saved.RootElement.GetProperty("FuturePreference").GetString());
+    }
+
+    [TestMethod]
+    [DataRow("", null, "", @"\\.\DISPLAY2")]
+    [DataRow(@"\\.\DISPLAY1", null, @"\\.\DISPLAY1", @"\\.\DISPLAY2")]
+    [DataRow(null, "", @"\\.\DISPLAY2", "")]
+    [DataRow(null, @"\\.\DISPLAY1", @"\\.\DISPLAY2", @"\\.\DISPLAY1")]
+    public void TryParse_PerWindowDisplay_OverridesTheLegacyValueIncludingFollowingTheMouse(
+        string? quickDisplay, string? fullDisplay, string expectedQuick, string expectedFull)
+    {
+        var json = JsonSerializer.Serialize(new
+        {
+            DefaultSearchDisplay = @"\\.\DISPLAY2",
+            SearchWindow = new { DefaultDisplay = quickDisplay },
+            MainWindow = new { DefaultDisplay = fullDisplay }
+        });
+
+        var settings = UserSettings.TryParse(json);
+
+        Assert.IsNotNull(settings);
+        Assert.AreEqual(expectedQuick, settings.SearchWindow.DefaultDisplay);
+        Assert.AreEqual(expectedFull, settings.MainWindow.DefaultDisplay);
+    }
+
+    [TestMethod]
+    public void SettingsRoundTrip_PreservesIndependentWindowDisplays()
+    {
+        var settings = new UserSettings();
+        settings.SearchWindow.DefaultDisplay = @"\\.\DISPLAY1";
+        settings.MainWindow.DefaultDisplay = @"\\.\DISPLAY2";
+
+        var restored = UserSettings.TryParse(JsonSerializer.Serialize(settings));
+
+        Assert.IsNotNull(restored);
+        Assert.AreEqual(@"\\.\DISPLAY1", restored.SearchWindow.DefaultDisplay);
+        Assert.AreEqual(@"\\.\DISPLAY2", restored.MainWindow.DefaultDisplay);
+    }
+
+    [TestMethod]
+    public void TryParse_NoDisplayPreference_BothWindowsFollowTheMouse()
+    {
+        var settings = UserSettings.TryParse("{}");
+
+        Assert.IsNotNull(settings);
+        Assert.AreEqual(string.Empty, settings.SearchWindow.DefaultDisplay);
+        Assert.AreEqual(string.Empty, settings.MainWindow.DefaultDisplay);
+    }
+
+    [TestMethod]
     public void SettingsRoundTrip_PreservesWholePluginAndComponentStatesIndependently()
     {
         var settings = new UserSettings

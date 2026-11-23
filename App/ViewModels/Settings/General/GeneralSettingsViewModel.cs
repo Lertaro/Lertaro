@@ -95,6 +95,8 @@ public class GeneralSettingsViewModel : ViewModelBase
 
             OnPropertyChanged(nameof(LogLevelOptions));
             OnPropertyChanged(nameof(LanguageOptions));
+            Layout.Display.NotifyLanguageChanged();
+            MainWindow.Display.NotifyLanguageChanged();
 
             // Let WPF bind the new ItemsSource first, then restore selections
             System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>

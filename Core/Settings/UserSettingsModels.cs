@@ -170,6 +170,8 @@ public class SearchWindowSettings
 {
     public double SearchBarWidth { get; set; } = 570;
     public double SearchBarHeight { get; set; } = 60;
+    // Null inherits the legacy shared display on load; empty follows the cursor.
+    public string? DefaultDisplay { get; set; }
     // Fraction of whichever monitor's work area the window was last dragged to (e.g. 0.5/0.22 = centered
     // horizontally, 22% down from the top of THAT monitor) rather than absolute screen pixels -- letting
     // QuickSearchWindowPositioner re-derive the equivalent spot on whatever monitor the mouse/foreground
@@ -221,6 +223,7 @@ public class MainWindowSettings
 {
     public double Width { get; set; } = 854;
     public double Height { get; set; } = 480;
+    public string? DefaultDisplay { get; set; }
     public bool SingleInstance { get; set; } = false;
 
     /// <summary>

@@ -191,6 +191,21 @@
                     <TextBox Grid.Column="1" Style="{StaticResource SettingsTextBox}" Text="{Binding General.MainWindow.Height, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, NotifyOnValidationError=True, ValidatesOnExceptions=True}"/>
                 </Grid>
 
+                <Grid x:Name="RowSearchWindowDefaultDisplay" Margin="0,8,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="GeneralLabel"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_SearchWindowDefaultDisplay]}"
+                               Margin="0,0,16,0" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Column="1" Style="{StaticResource SettingsComboBox}" MinWidth="220" MaxWidth="350" HorizontalAlignment="Left"
+                              ItemsSource="{Binding General.MainWindow.Display.Options}" DisplayMemberPath="Value" SelectedValuePath="Key"
+                              SelectedValue="{Binding General.MainWindow.Display.DeviceName, Mode=TwoWay}"
+                              AutomationProperties.Name="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_SearchWindowDefaultDisplay]}"/>
+                </Grid>
+                <TextBlock Text="{Binding Source={x:Static services:TranslationManager.Instance}, Path=[General_DefaultSearchDisplayHint]}"
+                           Style="{StaticResource SettingsHintText}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+
                 <Grid x:Name="RowSearchWindowReset" Margin="0,16,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" SharedSizeGroup="GeneralLabel"/>

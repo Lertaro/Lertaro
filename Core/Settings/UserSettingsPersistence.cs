@@ -80,6 +80,12 @@ internal static class UserSettingsPersistence
         {
             var settings = JsonSerializer.Deserialize<UserSettings>(json);
             if (settings?.DisabledPluginAssemblies is null) return null;
+            var legacyDisplay = string.Empty;
+            if (settings.AdditionalSettings is { } additional && additional.Remove("DefaultSearchDisplay", out var display))
+                legacyDisplay = display.GetString() ?? string.Empty;
+            // Explicit per-window values, including following the cursor, take precedence over the old shared preference.
+            settings.SearchWindow.DefaultDisplay ??= legacyDisplay;
+            settings.MainWindow.DefaultDisplay ??= legacyDisplay;
             LegacyPluginSettingsMigration.ReadLegacy(json, settings);
             NormalizeHotkeys(settings);
             settings.UiFontFamilies = UiFontSettings.Normalize(settings.UiFontFamilies);

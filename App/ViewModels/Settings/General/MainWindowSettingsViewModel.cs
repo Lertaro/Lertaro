@@ -18,11 +18,14 @@ public class MainWindowSettingsViewModel : ViewModelBase
     public MainWindowSettingsViewModel(UserSettings userSettings)
     {
         _userSettings = userSettings;
+        Display = new SearchDisplaySettingsViewModel(userSettings, isQuickWindow: false);
         _width = UiMetrics.RoundWindowSize(userSettings.MainWindow.Width);
         _height = UiMetrics.RoundWindowSize(userSettings.MainWindow.Height);
         _singleInstance = userSettings.MainWindow.SingleInstance;
         _closeOnRepeatHotkey = userSettings.MainWindow.CloseOnRepeatHotkey;
     }
+
+    public SearchDisplaySettingsViewModel Display { get; }
 
     public double Width
     {
@@ -74,10 +77,12 @@ public class MainWindowSettingsViewModel : ViewModelBase
     {
         Width = UiMetrics.DefaultMainWindowWidth;
         Height = UiMetrics.DefaultMainWindowHeight;
+        Display.DeviceName = string.Empty;
     }
 
     public void Save()
     {
+        Display.Save();
         _userSettings.MainWindow.Width = _width;
         _userSettings.MainWindow.Height = _height;
         _userSettings.MainWindow.SingleInstance = _singleInstance;

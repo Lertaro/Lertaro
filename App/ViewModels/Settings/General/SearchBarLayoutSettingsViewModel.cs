@@ -23,6 +23,7 @@ public class SearchBarLayoutSettingsViewModel : ViewModelBase
     public SearchBarLayoutSettingsViewModel(UserSettings userSettings)
     {
         _userSettings = userSettings;
+        Display = new SearchDisplaySettingsViewModel(userSettings, isQuickWindow: true);
         _searchBarWidth = userSettings.SearchWindow.SearchBarWidth;
         _searchBarHeight = userSettings.SearchWindow.SearchBarHeight;
         _showClock = userSettings.SearchWindow.ShowClock;
@@ -31,6 +32,8 @@ public class SearchBarLayoutSettingsViewModel : ViewModelBase
         _rememberCategoryFilter = userSettings.SearchWindow.RememberCategoryFilter;
         _showCategoryFilter = userSettings.SearchWindow.ShowCategoryFilter;
     }
+
+    public SearchDisplaySettingsViewModel Display { get; }
 
     public double SearchBarWidth
     {
@@ -101,11 +104,13 @@ public class SearchBarLayoutSettingsViewModel : ViewModelBase
         LockPosition = false;
         RememberCategoryFilter = false;
         ShowCategoryFilter = true;
+        Display.DeviceName = string.Empty;
         _resetPosition = true;
     }
 
     public void Save()
     {
+        Display.Save();
         _userSettings.SearchWindow.SearchBarWidth = _searchBarWidth;
         _userSettings.SearchWindow.SearchBarHeight = _searchBarHeight;
         _userSettings.SearchWindow.ShowClock = _showClock;

@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Windows.Interop;
+using Lertaro.App.Helpers.Visuals;
 using Lertaro.Core;
 
 namespace Lertaro.App.Views.QuickSearchWindow.Helpers;
@@ -36,7 +37,7 @@ public class QuickSearchWindowPositioner
     /// <param name="keepCurrentMonitor">
     /// True for the callers that ask where THIS WINDOW already is -- DpiChanged, and the status icon's reset: the
     /// window is on screen and belongs to its own monitor. False is the summon, and a summon belongs to the
-    /// monitor under the mouse on BOTH of its passes. The second pass runs after Show(), so the gate this replaces
+    /// configured display (the cursor's by default) on BOTH of its passes. The second pass runs after Show(), so the gate this replaces
     /// (the window's visibility) retargeted it to whichever screen the window had been created on, instead of
     /// keeping the screen the summon asked for. Whether the two ever disagree is not measured -- the line below
     /// logs it wherever it happens, which is what a single-screen development machine cannot tell us.
@@ -44,6 +45,7 @@ public class QuickSearchWindowPositioner
     public void PositionWindow(bool keepCurrentMonitor = false)
     {
         var hwnd = new WindowInteropHelper(_window).Handle;
+        var settings = UserSettings.Load();
         Screen screen;
         IntPtr targetMonitor;
 
@@ -55,20 +57,23 @@ public class QuickSearchWindowPositioner
         else
         {
             var mousePos = Control.MousePosition;
-            screen = Screen.FromPoint(mousePos);
-            targetMonitor = MonitorFromPoint(new POINT { X = mousePos.X, Y = mousePos.Y }, MONITOR_DEFAULTTONEAREST);
+            screen = SearchWindowDisplay.Resolve(settings.SearchWindow.DefaultDisplay);
+            targetMonitor = MonitorFromPoint(new POINT
+            {
+                X = screen.Bounds.Left + screen.Bounds.Width / 2,
+                Y = screen.Bounds.Top + screen.Bounds.Height / 2
+            }, MONITOR_DEFAULTTONEAREST);
             if (_window.IsVisible && hwnd != IntPtr.Zero && MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) != targetMonitor)
             {
                 // Info, not Debug: this only fires when the two screens disagree, and the disagreement is the
                 // thing a reporter's log has to show without being asked to raise the level first.
-                Logger.Log($"[QuickPosition] summon keeps the cursor's monitor {screen.DeviceName}, the window was on "
+                Logger.Log($"[QuickPosition] summon targets {screen.DeviceName}, the window was on "
                     + $"{Screen.FromHandle(hwnd).DeviceName} with the cursor at ({mousePos.X},{mousePos.Y})", LogLevel.Info);
             }
         }
 
         var (targetDpiScaleX, targetDpiScaleY) = GetMonitorDpiScale(targetMonitor);
         var wa = screen.WorkingArea;
-        var settings = UserSettings.Load();
         // The window is the card plus whatever the surface reserves around it: A's transparent halo (see
         // QuickSearchWindow.VisibleContentInset) and the card's own 1 DIP border per side. Reading the
         // inset instead of keeping the hardcoded 48 is what keeps the CARD horizontally centered in both

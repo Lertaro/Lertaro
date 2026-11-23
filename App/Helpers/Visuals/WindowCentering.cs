@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using Lertaro.App.Views.InlineSearchWindow.Helpers;
+using Lertaro.Core;
 
 namespace Lertaro.App.Helpers.Visuals;
 
@@ -56,11 +57,15 @@ internal static class WindowCentering
     /// a handle, so the caller can run it once from <see cref="WindowParking.ParkUntilPainted"/>, where the window
     /// has had a handle for the first time and nothing has been painted yet.
     /// </summary>
-    internal static void CenterOnCursorScreen(Window window)
+    internal static void CenterOnCursorScreen(Window window) => CenterOnScreen(window, Screen.FromPoint(Control.MousePosition));
+
+    internal static void CenterOnSearchDisplay(Window window) => CenterOnScreen(window, SearchWindowDisplay.Resolve(UserSettings.Load().MainWindow.DefaultDisplay));
+
+    private static void CenterOnScreen(Window window, Screen screen)
     {
-        var mouse = Control.MousePosition;
-        var work = Screen.FromPoint(mouse).WorkingArea;
-        var (scaleX, scaleY) = InlineCardSpace.DpiScaleFor(InlineCardSpace.MonitorForPoint(mouse));
+        var work = screen.WorkingArea;
+        var monitorPoint = new System.Drawing.Point(screen.Bounds.Left + screen.Bounds.Width / 2, screen.Bounds.Top + screen.Bounds.Height / 2);
+        var (scaleX, scaleY) = InlineCardSpace.DpiScaleFor(InlineCardSpace.MonitorForPoint(monitorPoint));
 
         // Manual: whatever the markup said, this is the placement now, and a CenterScreen/CenterOwner startup
         // location would re-assert itself over it at Show.

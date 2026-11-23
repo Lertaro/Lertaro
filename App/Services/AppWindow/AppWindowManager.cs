@@ -283,7 +283,7 @@ public static class AppWindowManager
             // Placed inside the park rather than by the caller: the handle -- and so any placement that has to be
             // in physical pixels -- does not exist until WPF creates it (see WindowCentering for what the DIP alone
             // measures as on a mixed-DPI desktop), and SourceInitialized is before anything has been painted.
-            WindowParking.ParkUntilPainted(window, WindowCentering.CenterOnCursorScreen);
+            WindowParking.ParkUntilPainted(window, WindowCentering.CenterOnSearchDisplay);
             window.Show();
         }
         if (window.WindowState == WindowState.Minimized)
