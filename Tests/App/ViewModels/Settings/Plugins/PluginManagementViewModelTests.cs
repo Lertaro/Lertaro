@@ -1,11 +1,49 @@
 using Lertaro.App.ViewModels.Settings.Plugins;
+using Lertaro.App.Services;
 using Lertaro.Core;
 
 namespace Lertaro.App.Tests.ViewModels.Settings.Plugins;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class PluginManagementViewModelTests
 {
+    private string _previousCulture = string.Empty;
+
+    [TestInitialize]
+    public void Initialize() => _previousCulture = TranslationManager.Instance.CurrentCulture;
+
+    [TestCleanup]
+    public void Cleanup() => TranslationManager.Instance.CurrentCulture = _previousCulture;
+
+    [TestMethod]
+    public void LanguageRefresh_NotifiesAndTranslatesBothSortLabels()
+    {
+        var translations = TranslationManager.Instance;
+        translations.CurrentCulture = "zh-CN";
+        translations.ReloadTranslations();
+        var viewModel = new PluginManagementViewModel(new UserSettings());
+        var labelsChanged = 0;
+        viewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(viewModel.PluginSortLabel)) labelsChanged++;
+        };
+        try
+        {
+            translations.CurrentCulture = "en-US";
+
+            Assert.IsGreaterThan(0, labelsChanged);
+            Assert.AreEqual("Enabled", viewModel.PluginSortLabel);
+            viewModel.TogglePluginSort();
+            Assert.AreEqual("Name", viewModel.PluginSortLabel);
+            labelsChanged = 0;
+            translations.CurrentCulture = "zh-CN";
+            Assert.IsGreaterThan(0, labelsChanged);
+            Assert.AreEqual("名称", viewModel.PluginSortLabel);
+        }
+        finally { viewModel.Cleanup(); }
+    }
+
     [TestMethod]
     public void LanguageRefresh_PreservesIndividualFeatureChoices()
     {

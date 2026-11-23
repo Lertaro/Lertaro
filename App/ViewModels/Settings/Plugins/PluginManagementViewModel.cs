@@ -48,6 +48,7 @@ public class PluginManagementViewModel : ViewModelBase
             SelectedPlugin = Plugins.FirstOrDefault(p => p.DllFileName == selectedDll) ?? Plugins.FirstOrDefault();
             OnPropertyChanged(nameof(IsEmpty));
             OnPropertyChanged(nameof(DevGuideUri));
+            OnPropertyChanged(nameof(PluginSortLabel));
         };
         TranslationManager.Instance.PropertyChanged += _translationHandler;
     }
