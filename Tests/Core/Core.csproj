@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Core\Core.csproj" />
     <None Include="..\..\portable-updater.ps1" Link="portable-updater.ps1" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\portable-updater.bat" Link="portable-updater.bat" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

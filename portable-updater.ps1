@@ -1,4 +1,5 @@
-param([string]$Source, [string]$Destination, [switch]$Manual)
+param([string]$Source = $env:LERTARO_MANUAL_UPDATE_SOURCE,
+      [string]$Destination = $env:LERTARO_MANUAL_UPDATE_DESTINATION, [switch]$Manual)
 
 # Called from the verified service. Also dot-sourced by file/lock regression tests.
 function Invoke-LertaroUpdateCopy([string]$Source, [string]$Destination, [string]$Backup) {
@@ -10,6 +11,7 @@ function Invoke-LertaroUpdateCopy([string]$Source, [string]$Destination, [string
         $backupRoot.StartsWith($sourceRoot, [StringComparison]::OrdinalIgnoreCase) -or
         $sourceRoot.StartsWith($backupRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Update directories overlap.' }
     $changed = [Collections.Generic.List[object]]::new()
+    $target = $sourceRoot
     try {
         $entries = @(Get-ChildItem -LiteralPath $sourceRoot -Recurse -Force -ErrorAction Stop)
         if ($entries | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint }) { throw 'Update payload contains a link.' }
@@ -135,6 +137,8 @@ function Start-LertaroService {
 
 function Complete-LertaroUpdate {
     param([hashtable]$Result, [bool]$RestartSafe, [string]$Sc, [string]$TargetRoot, [IDisposable]$Lease)
+    # Only the lock owner may publish a verdict or restart the service another updater has stopped.
+    if (!$Lease) { return }
     $write = {
         $Result | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $TargetRoot 'update-result.json') -Encoding UTF8
     }
@@ -185,6 +189,17 @@ function Clear-LertaroStalePayload([string]$PayloadRoot, [string]$Keep, [int]$Ke
     }
 }
 
+function Start-LertaroManualUpdater([string]$ScriptPath, [string]$Source, [string]$Destination) {
+    $powershell = Join-Path ([Environment]::GetFolderPath('System')) 'WindowsPowerShell\v1.0\powershell.exe'
+    # Start-Process joins ArgumentList into one command line. Quote each path after normalization has
+    # removed trailing separators; user paths remain data even when they contain apostrophes or '&'.
+    $arguments = @('-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+        '-File', ('"' + $ScriptPath + '"'), '-Source', ('"' + $Source + '"'),
+        '-Destination', ('"' + $Destination + '"'), '-Manual')
+    $process = Start-Process -FilePath $powershell -ArgumentList $arguments -Verb RunAs -WindowStyle Hidden -Wait -PassThru -ErrorAction Stop
+    return $process.ExitCode
+}
+
 if ($MyInvocation.InvocationName -eq '.') { return }
 $ErrorActionPreference = 'Stop'
 # An elevated PowerShell must not discover modules from a user's custom module search path.
@@ -194,21 +209,19 @@ $targetRoot = [IO.Path]::GetFullPath($Destination).TrimEnd('\')
 $payloadRoot = Join-Path $targetRoot 'update-payload'
 if ($sourceRoot -eq [IO.Path]::GetPathRoot($sourceRoot) -or $targetRoot -eq [IO.Path]::GetPathRoot($targetRoot)) { throw 'Invalid update root.' }
 $principal = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
-if (!$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'The updater requires elevation.' }
+if (!$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    if (!$Manual) { throw 'The updater requires elevation.' }
+    exit (Start-LertaroManualUpdater $PSCommandPath $sourceRoot $targetRoot)
+}
 $sc = Join-Path ([Environment]::GetFolderPath('System')) 'sc.exe'
 $backup = Join-Path $payloadRoot ('rollback-' + [Guid]::NewGuid().ToString('N'))
 $lease = $null
 $restartSafe = $true
-# Every failure below has to land here: the App has already been told to exit, so this file is the only
-# place the reason survives. The two checks above stay outside because a caller that is not an
-# administrator cannot write to the installation folder in the first place.
+# After lock acquisition, every failure must be published: the App may already have exited, so this
+# file is where the reason survives. Rejected contenders leave the owner's result untouched.
 $result = @{ Status = 'failed'; Time = [DateTime]::UtcNow.ToString('O'); Message = ''; RecoveryDirectory = $backup }
 try {
-    # Before the trust check below, and after the elevation check above: staging is itself a privileged write.
-    if ($Manual -and !$sourceRoot.StartsWith($payloadRoot + '\', [StringComparison]::OrdinalIgnoreCase)) {
-        $sourceRoot = Copy-LertaroManualPayload $sourceRoot $targetRoot
-    }
-    if (!$sourceRoot.StartsWith($payloadRoot + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Untrusted update source.' }
+    if (!$Manual -and !$sourceRoot.StartsWith($payloadRoot + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Untrusted update source.' }
     $lockFile = Join-Path $targetRoot 'update.lock'
     $deadline = [DateTime]::UtcNow.AddSeconds(15)
     while (!$lease) {
@@ -217,6 +230,10 @@ try {
             if ([DateTime]::UtcNow -ge $deadline) { throw 'Another update is running.' }
             Start-Sleep -Milliseconds 100
         }
+    }
+    # Staging writes belong to the lock owner too, so a rejected concurrent manual update changes nothing.
+    if ($Manual -and !$sourceRoot.StartsWith($payloadRoot + '\', [StringComparison]::OrdinalIgnoreCase)) {
+        $sourceRoot = Copy-LertaroManualPayload $sourceRoot $targetRoot
     }
     Clear-LertaroStalePayload $payloadRoot $sourceRoot
     Stop-LertaroService $sc

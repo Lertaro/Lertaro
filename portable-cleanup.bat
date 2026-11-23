@@ -1,5 +1,7 @@
 @echo off
-setlocal
+setlocal DisableDelayedExpansion
+set "LERTARO_CLEANUP_SCRIPT=%~f0"
+set "LERTARO_CLEANUP_DIRECTORY=%~dp0"
 
 :: SYS: System32, taken from SystemRoot rather than from PATH or PATHEXT. Every tool below is called by full
 ::     path from here: the elevated copy of this script runs in an environment built from the user's own
@@ -36,10 +38,11 @@ if /I not "%~1"=="--elevated" (
 :: fltmc and not the usual `net session`: the latter only succeeds when the LanmanServer service is
 :: running, so on a machine where that has been turned off it reported "not admin" inside an already
 :: elevated process -- which sent this branch around again, asking for UAC over and over with no
-:: elevation ever reached. portable-updater.bat stopped using it for the same reason.
+:: elevation ever reached.
 "%SYS%\fltmc.exe" >nul 2>&1
 if errorlevel 1 (
-    "%SYS%\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Command "Start-Process -FilePath '%~f0' -ArgumentList '--elevated' -Verb RunAs -WorkingDirectory '%~dp0'"
+    :: This batch is interactive: the user needs its console to read the result and answer pause.
+    "%SYS%\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Command "Start-Process -FilePath $env:LERTARO_CLEANUP_SCRIPT -ArgumentList '--elevated' -Verb RunAs -WorkingDirectory $env:LERTARO_CLEANUP_DIRECTORY"
     exit /b 0
 )
 
