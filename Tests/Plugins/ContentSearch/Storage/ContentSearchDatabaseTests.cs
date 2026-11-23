@@ -82,6 +82,30 @@ public sealed class ContentSearchDatabaseTests
     }
 
     [TestMethod]
+    public void GetStats_FailedRecount_RetriesAfterDatabaseRecovers() => WithOneDocument("recoverable statistics", db =>
+                                                                              {
+                                                                                  using var connection = db.OpenConnection();
+                                                                                  using var command = connection.CreateCommand();
+                                                                                  command.CommandText = "ALTER TABLE files RENAME TO saved_files;";
+                                                                                  command.ExecuteNonQuery();
+                                                                                  try
+                                                                                  {
+                                                                                      Assert.AreEqual(0, db.GetStats().TotalFiles);
+                                                                                  }
+                                                                                  finally
+                                                                                  {
+                                                                                      command.CommandText = "ALTER TABLE saved_files RENAME TO files;";
+                                                                                      command.ExecuteNonQuery();
+                                                                                  }
+
+                                                                                  Assert.AreEqual(1, db.GetStats().TotalFiles);
+                                                                                  Assert.AreEqual(1, db.CountIndexedFiles());
+                                                                                  db.ClearAll();
+                                                                                  Assert.AreEqual(0, db.TotalFiles);
+                                                                                  return true;
+                                                                              });
+
+    [TestMethod]
     public void Database_CjkAndShortQueries_MatchesSuccessfully()
     {
         var tempDb = Path.Combine(Path.GetTempPath(), $"test_db_cjk_{Guid.NewGuid():N}.db");

@@ -56,6 +56,7 @@ public sealed class ContentSearchPlugin : IPlugin, IConfigurable
                         : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Lertaro", "ContentIndex");
                     var database = new ContentSearchDatabase(Path.Combine(dataFolder, "content_index.db"));
                     database.Initialize();
+                    IndexBatchProcessor.RecordInterruptedExtractions(database);
                     Database = database;
                 }
 
