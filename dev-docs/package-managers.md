@@ -1,23 +1,23 @@
 # WinGet 与 Scoop 分发
 
-清单使用正式 GitHub Release 的固定版本地址，复用 x64/ARM64 官方安装器。当前清单对应 `v5.13.6`，两个 SHA-256 已通过下载公开附件重新计算核对；`5.13.5` 目录保留为历史清单。
+清单使用正式 GitHub Release 的固定版本地址，复用 x64/ARM64 官方安装器。当前清单对应 `v5.13.7`，两个 SHA-256 已与 GitHub release 附件 API 的 `digest` 及发布说明核对一致；`5.13.5`、`5.13.6` 目录保留为历史清单。
 
-2026-11-23 发布状态：Scoop 自建 bucket 已更新至 `5.13.6`；WinGet [收录 PR #484976](https://github.com/microsoft/winget-pkgs/pull/484976) 已更新为同一版本，提交为 `1c49d86ef556f072a93f35b9024fe51c4fb5ae5e`。新清单本地验证通过，上游正在重新运行验证；审核与合并状态以该 PR 为准。`5.13.6` 安装器已包含静默安装不启动应用的修复。
+2026-11-23 更新：Scoop 自建 bucket 清单已更新至 `5.13.7`；WinGet [收录 PR #484976](https://github.com/microsoft/winget-pkgs/pull/484976) 已更新为同一版本，提交为 `7aa80dab15915d882db885513674271fa260a1e7`。WinGet 本地验证及 Scoop schema 校验通过；审核与合并状态以该 PR 为准。安装器沿用静默安装不启动应用的行为。
 
 ## WinGet
 
-提交目录是 [packaging/winget/manifests/l/Lertaro/Lertaro/5.13.6](../packaging/winget/manifests/l/Lertaro/Lertaro/5.13.6)，采用 `1.28.0` schema。`InstallerType: inno` 使用 WinGet 的 Inno 静默参数，额外选择开始菜单与 `lff` PATH 任务。固定 AppId 让 WinGet 关联手工安装和后续升级，依赖声明使用 `.NET 10 Desktop Runtime`，安装器自身也能补装运行时。
+提交目录是 [packaging/winget/manifests/l/Lertaro/Lertaro/5.13.7](../packaging/winget/manifests/l/Lertaro/Lertaro/5.13.7)，采用 `1.28.0` schema。`InstallerType: inno` 使用 WinGet 的 Inno 静默参数，额外选择开始菜单与 `lff` PATH 任务。固定 AppId 让 WinGet 关联手工安装和后续升级，依赖声明使用 `.NET 10 Desktop Runtime`，安装器自身也能补装运行时。
 
 本地校验：
 
 ```powershell
-winget validate --manifest ./packaging/winget/manifests/l/Lertaro/Lertaro/5.13.6
+winget validate --manifest ./packaging/winget/manifests/l/Lertaro/Lertaro/5.13.7
 ```
 
 首次提交可使用 Microsoft 的 WinGetCreate 工具：
 
 ```powershell
-wingetcreate submit ./packaging/winget/manifests/l/Lertaro/Lertaro/5.13.6
+wingetcreate submit ./packaging/winget/manifests/l/Lertaro/Lertaro/5.13.7
 ```
 
 提交需要有效 GitHub 登录和向个人 fork 推送分支的权限。审核合并、源索引更新后，用户才可运行：
