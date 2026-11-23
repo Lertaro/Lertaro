@@ -12,7 +12,7 @@ public sealed class RankedCandidateOrderingTests
 {
     [TestMethod]
     [DoNotParallelize]
-    public void Order_DefaultIndexRulesDemoteMarvisUnderSystemAndApplicationDirectories()
+    public void Order_DefaultIndexRulesKeepApplicationMatchesAheadOfScatteredDirectories()
     {
         var rules = ExclusionRuleSet.From(new UserSettings());
         string[] paths =
@@ -40,8 +40,10 @@ public sealed class RankedCandidateOrderingTests
         var ordered = RankedCandidateOrdering.Order(candidates, new RankContext(rules.GetPriorityVerdict));
 
         Assert.IsTrue(candidates.Take(4).All(row => rules.GetPriority(row.NormalizedPath, true) == IndexRuleEffect.Normal));
-        Assert.IsTrue(candidates.Skip(4).All(row => rules.GetPriority(row.NormalizedPath, row.Result.IsDir) == IndexRuleEffect.Low));
-        CollectionAssert.AreEqual(paths.Take(4).ToArray(), ordered.Take(4).Select(row => row.NormalizedPath).ToArray());
+        Assert.IsTrue(candidates.Skip(4).Take(3).All(row => rules.GetPriority(row.NormalizedPath, false) == IndexRuleEffect.Normal));
+        Assert.AreEqual(IndexRuleEffect.Low, rules.GetPriority(paths[7], true));
+        CollectionAssert.AreEqual(paths.Skip(4).Take(3).ToArray(), ordered.Take(3).Select(row => row.NormalizedPath).ToArray());
+        Assert.AreEqual(paths[7], ordered[^1].NormalizedPath);
     }
 
     [TestMethod]

@@ -13,7 +13,8 @@ public sealed class IndexRuleMigrationTests
         Assert.HasCount(16, rules);
         Assert.AreEqual(1, rules.Count(r => r.Effect == IndexRuleEffect.Exclude));
         Assert.AreEqual("node_modules", rules.Single(r => r.Effect == IndexRuleEffect.Exclude).Pattern);
-        Assert.AreEqual(15, rules.Count(r => r.Effect == IndexRuleEffect.Low));
+        Assert.AreEqual(12, rules.Count(r => r.Effect == IndexRuleEffect.Low));
+        Assert.AreEqual(3, rules.Count(r => r.Effect == IndexRuleEffect.Normal));
         Assert.IsTrue(rules.Any(r => r.Pattern == IndexRuleDefaults.SystemSettingsLowPattern));
         // Retired: it demoted everything under an extensionless directory, e.g. D:\tools\**.
         Assert.IsFalse(rules.Any(r => r.Pattern == IndexRuleDefaults.RetiredExtensionlessRegex));
@@ -125,7 +126,7 @@ public sealed class IndexRuleMigrationTests
 
         var rules = IndexRuleMigration.Ensure(settings);
 
-        Assert.HasCount(3 + 15, rules);
+        Assert.HasCount(3 + 12, rules);
         Assert.AreEqual(3, rules.Count(r => r.Effect == IndexRuleEffect.Exclude));
         Assert.IsTrue(rules.Any(r => r.Pattern == @"D:\cache" && r.Effect == IndexRuleEffect.Exclude));
         Assert.IsTrue(rules.Any(r => r.Pattern == "*.bak" && r.Effect == IndexRuleEffect.Exclude));
@@ -193,5 +194,46 @@ public sealed class IndexRuleMigrationTests
         IndexRuleMigration.MirrorLegacy(settings);
 
         CollectionAssert.AreEqual(new[] { "keep" }, settings.ExcludedPaths);
+    }
+
+    [TestMethod]
+    public void Ensure_FormerApplicationDefaultsBecomeNormalOnlyOnce()
+    {
+        var settings = new UserSettings { IndexRules = IndexRuleDefaults.Create() };
+        foreach (var rule in settings.IndexRules.Where(rule => rule.Effect == IndexRuleEffect.Normal))
+            rule.Effect = IndexRuleEffect.Low;
+
+        var rules = IndexRuleMigration.Ensure(settings);
+
+        Assert.AreEqual(3, rules.Count(rule => rule.Effect == IndexRuleEffect.Normal));
+        Assert.AreEqual(IndexRuleEffect.Low, rules.Single(rule => rule.Pattern == @"%SystemRoot%").Effect);
+        Assert.AreEqual(IndexRuleEffect.Low, rules.Single(rule => rule.Pattern == @"%ProgramData%").Effect);
+        Assert.AreEqual(IndexRuleEffect.Exclude, rules.Single(rule => rule.Pattern == "node_modules").Effect);
+        rules.Single(rule => rule.Pattern == @"%ProgramW6432%").Effect = IndexRuleEffect.Low;
+        var reloaded = System.Text.Json.JsonSerializer.Deserialize<UserSettings>(System.Text.Json.JsonSerializer.Serialize(settings))!;
+        var afterReload = IndexRuleMigration.Ensure(reloaded);
+
+        Assert.AreEqual(IndexRuleEffect.Low, afterReload.Single(rule => rule.Pattern == @"%ProgramW6432%").Effect);
+    }
+
+    [TestMethod]
+    public void Ensure_ApplicationDirectoryUserExclusionAndPinArePreserved()
+    {
+        var settings = new UserSettings
+        {
+            IndexRules =
+            [
+                new() { Pattern = @"%USERPROFILE%\AppData", Effect = IndexRuleEffect.Exclude },
+                new() { Pattern = @"%ProgramW6432%", Effect = IndexRuleEffect.High, AlwaysTop = true },
+                new() { Pattern = @"D:\custom", Effect = IndexRuleEffect.Low }
+            ]
+        };
+
+        var rules = IndexRuleMigration.Ensure(settings);
+
+        Assert.AreEqual(IndexRuleEffect.Exclude, rules[0].Effect);
+        Assert.AreEqual(IndexRuleEffect.High, rules[1].Effect);
+        Assert.IsTrue(rules[1].AlwaysTop);
+        Assert.AreEqual(IndexRuleEffect.Low, rules[2].Effect);
     }
 }

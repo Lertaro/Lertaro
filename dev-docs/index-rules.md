@@ -42,6 +42,7 @@ Glob 的 `*` 不跨目录，`**` 可跨目录；无分隔符的模式匹配叶�
 - 用户改过的旧排除项全部保留为 Exclude，再添加默认降权；保存时仅把排除子集镜像回旧字段，保证降级可读。
 - `/^[^.]+$/` 已退休：它会命中无扩展名祖先目录，将整个子树降权。现有迁移会从保存列表中删除这个模式。
 - 非空旧列表缺少系统设置降权模式时补入；合成路径使用稳定的 provider 类型名，避免换语言后失效。
+- Program Files（含 x86）和用户 AppData 的默认规则为 Normal。`IndexRuleDefaultsVersion` 为 0 的设置只迁移这三个原有 Low 项，并记录版本 1；已有 Exclude、High/置顶、自定义路径和升级后的再次修改保留。Windows、ProgramData、node_modules 及其他规则维持原行为。
 - 冲突提示仅对能证明的“排除覆盖优先级”给出警告，不阻止保存，也不声称能判定任意正则/Glob 的交集。
 
 验证入口：[IndexRuleSyntaxTests](../Tests/Core/Settings/IndexRuleSyntaxTests.cs)、[IndexRulePriorityTests](../Tests/Core/Settings/IndexRulePriorityTests.cs)、[IndexRuleMigrationTests](../Tests/Core/Settings/IndexRuleMigrationTests.cs)。测试要同时覆盖目录自身、子文件、近处 Normal、模式叠加和 pin，不能只用一个子文件代表整条继承语义。

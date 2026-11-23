@@ -21,7 +21,7 @@ public static class IndexRuleDefaults
         "node_modules",
     };
 
-    /// <summary>1 exclusion plus the 15 low-priority defaults; the app directories are demoted, not hidden.</summary>
+    /// <summary>Application directories use normal priority; the other shipped rules retain their effects.</summary>
     public static List<IndexRuleSetting> Create()
     {
         var rules = new List<IndexRuleSetting>
@@ -29,8 +29,12 @@ public static class IndexRuleDefaults
             new() { Pattern = "node_modules", Effect = IndexRuleEffect.Exclude },
         };
         rules.AddRange(CreateLow());
+        rules.AddRange(NormalApplicationDirectories.Select(pattern => new IndexRuleSetting { Pattern = pattern }));
         return rules;
     }
+
+    internal static readonly string[] NormalApplicationDirectories =
+        [@"%USERPROFILE%\AppData", @"%ProgramW6432%", @"%ProgramFiles(x86)%"];
 
     /// <summary>
     /// Retired from <see cref="CreateLow"/>, and removed unconditionally from every saved list (see
@@ -59,9 +63,6 @@ public static class IndexRuleDefaults
         Low(@"%SystemDrive%\$Windows.~WS"),
         Low(@"%ProgramData%"),
         Low(@"%SystemRoot%"),
-        Low(@"%USERPROFILE%\AppData"),
-        Low(@"%ProgramW6432%"),
-        Low(@"%ProgramFiles(x86)%"),
         Low(@"build\"),
         Low(@"debug\"),
         Low(@"target\"),

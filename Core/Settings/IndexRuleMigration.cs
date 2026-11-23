@@ -16,6 +16,15 @@ public static class IndexRuleMigration
     {
         if (settings.IndexRules != null)
         {
+            if (settings.IndexRuleDefaultsVersion < 1)
+            {
+                // Migrate only the former stock Low entries. A later user edit must remain editable.
+                foreach (var rule in settings.IndexRules)
+                    if (rule.Effect == IndexRuleEffect.Low && !rule.AlwaysTop &&
+                        IndexRuleDefaults.NormalApplicationDirectories.Contains(IndexRuleSyntax.Clean(rule.Pattern), StringComparer.OrdinalIgnoreCase))
+                        rule.Effect = IndexRuleEffect.Normal;
+                settings.IndexRuleDefaultsVersion = 1;
+            }
             NormalizeStockRules(settings.IndexRules);
             return settings.IndexRules;
         }
@@ -23,6 +32,7 @@ public static class IndexRuleMigration
         settings.IndexRules = IsLegacyDefault(settings)
             ? IndexRuleDefaults.Create()
             : BuildFromCustomLegacy(settings);
+        settings.IndexRuleDefaultsVersion = 1;
         return settings.IndexRules;
     }
 

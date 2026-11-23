@@ -34,6 +34,7 @@ public class UserSettings
     /// The legacy fields are kept and rewritten on save so an older build still excludes what it can.
     /// </summary>
     public List<IndexRuleSetting>? IndexRules { get; set; }
+    public int IndexRuleDefaultsVersion { get; set; }
     public List<string> BlacklistedProcesses { get; set; } = new();
     public bool EnableHistory { get; set; } = true;
 
