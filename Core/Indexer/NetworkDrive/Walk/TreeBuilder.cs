@@ -198,14 +198,16 @@ internal sealed class TreeBuilder
         // A listing cut short can't vouch that no ignore file exists, so only a complete one replaces the probes.
         var ignoreRules = _filter.LoadIgnoreRules(current.Path, current.LogicalPath, current.IgnoreRules,
             enumerationFailure == null ? liveEntries : null);
-        this.ConsumeChildren(current, ignoreRules, children, enumerationFailure);
-        // A buffered listing that failed midway knows which names it captured, so the rest can come from
-        // the previous walk.
+        // Failed midway, buffered or streamed: the root may have gone with it. Only a buffered listing knows
+        // which names it captured, so only it carries the rest forward from the previous walk; a streamed one
+        // has nothing in the baseline to carry.
+        enumerationFailure = this.ConsumeChildren(current, ignoreRules, children, enumerationFailure);
         if (enumerationFailure != null)
         {
             AbandonIfRootLost(current);
-            this.CarryForwardPreviousSubtree(current, ignoreRules, enumerationFailure,
-                liveEntries!.Select(e => e.Name).ToHashSet(StringComparer.OrdinalIgnoreCase));
+            if (liveEntries != null)
+                this.CarryForwardPreviousSubtree(current, ignoreRules, enumerationFailure,
+                    liveEntries.Select(e => e.Name).ToHashSet(StringComparer.OrdinalIgnoreCase));
         }
 
         if (stopwatch.ElapsedMilliseconds >= 2_000)

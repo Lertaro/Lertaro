@@ -122,12 +122,7 @@ internal static class TreeBuilderDiffExtensions
                     (attributes & FileAttributes.ReparsePoint) != 0);
             }
 
-            if (Interlocked.Increment(ref builder._countSinceProgress) >= TreeBuilder.ProgressBatchSize)
-            {
-                Interlocked.Exchange(ref builder._countSinceProgress, 0);
-                builder._onProgress(Volatile.Read(ref builder._indexedFiles), Volatile.Read(ref builder._indexedDirs));
-            }
-
+            builder.MaybeReportProgress();
             builder.MaybeCheckpoint(indexedItems);
         }
 
@@ -184,12 +179,7 @@ internal static class TreeBuilderDiffExtensions
                     (record.Attributes & FileAttributes.ReparsePoint) != 0);
             }
 
-            if (Interlocked.Increment(ref builder._countSinceProgress) >= TreeBuilder.ProgressBatchSize)
-            {
-                Interlocked.Exchange(ref builder._countSinceProgress, 0);
-                builder._onProgress(Volatile.Read(ref builder._indexedFiles), Volatile.Read(ref builder._indexedDirs));
-            }
-
+            builder.MaybeReportProgress();
             builder.MaybeCheckpoint(indexedItems);
         }
     }
@@ -239,12 +229,7 @@ internal static class TreeBuilderDiffExtensions
                 if (isDirectory && directory.Depth < 128 && builder._filter.ShouldDescend(logicalFullPath, attributes, directory.Depth + 1, ignoreRules))
                     pending.Push((child.Id, logicalFullPath, directory.Depth + 1));
 
-                if (Interlocked.Increment(ref builder._countSinceProgress) >= TreeBuilder.ProgressBatchSize)
-                {
-                    Interlocked.Exchange(ref builder._countSinceProgress, 0);
-                    builder._onProgress(Volatile.Read(ref builder._indexedFiles), Volatile.Read(ref builder._indexedDirs));
-                }
-
+                builder.MaybeReportProgress();
                 builder.MaybeCheckpoint(indexedItems);
             }
         }

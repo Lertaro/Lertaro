@@ -192,6 +192,99 @@ public sealed class TreeBuilderTests
         Assert.IsTrue(builder._token.IsCancellationRequested);
     }
 
+    // Review on #562: a STREAMED listing (nothing in the baseline under it: first scan, forced full scan)
+    // failing midway was swallowed inside ConsumeChildren, so the root-lost check never ran and the walk
+    // finished truncated. `buffered` = true is the control: the buffered path always probed the root.
+    [TestMethod]
+    [DataRow(false, 64)]
+    [DataRow(false, 67)]
+    [DataRow(true, 64)]
+    public void WalkDirectory_ListingFailsMidwayWhileTheRootIsGone_AbandonsTheWalk(bool buffered, int error)
+    {
+        var (builder, current) = CreateWalk(listed: buffered ? true : null);
+        builder._rootExists = _ => false;
+        IEnumerable<NativeFileEntry> Entries()
+        {
+            yield return new NativeFileEntry("read-before-the-drop.txt", FileAttributes.Normal, 1, 0, 0, 0);
+            throw new Win32Exception(error);
+        }
+
+        Assert.ThrowsExactly<OperationCanceledException>(() => builder.WalkDirectory(current, _ => Entries(), _ => false));
+        Assert.IsTrue(builder._token.IsCancellationRequested);
+    }
+
+    // Review on #562: a worker still mid-directory when another one abandons the walk published a checkpoint
+    // afterwards -- MaybeCheckpoint never looked at the walk's own token.
+    [TestMethod]
+    public void WalkDirectory_StragglerAfterTheWalkAbandonsItself_PublishesNoCheckpoint()
+    {
+        Assert.AreEqual(0, RunStragglerAfterAbandon().CheckpointsAfterAbort, "A checkpoint was published after the walk abandoned itself.");
+    }
+
+    // Review on #562: the same straggler reported progress, and DriveRefreshRunner's progress guard checks the
+    // caller's token (never cancelled by the abandon), so the drive flipped back to "indexing" after "cached".
+    [TestMethod]
+    public void WalkDirectory_StragglerAfterTheWalkAbandonsItself_ReportsNoProgress()
+    {
+        Assert.AreEqual(0, RunStragglerAfterAbandon().ProgressAfterAbort, "Progress was reported after the walk abandoned itself.");
+    }
+
+    // One worker is on the 256th entry of a streamed listing: past that entry's token check, blocked in
+    // FlushRecords on _recordsGate (held here). Meanwhile another directory's failure abandons the walk (root
+    // gone), then the worker is released. The progress counter and checkpoint gate are primed so that very
+    // entry crosses both thresholds.
+    private static (int ProgressAfterAbort, int CheckpointsAfterAbort) RunStragglerAfterAbandon()
+    {
+        const string path = @"C:\unused";
+        var progressAfterAbort = 0;
+        var checkpointsAfterAbort = 0;
+        TreeBuilder builder = null!;
+        var store = new FileRecordStore();
+        store.Records.Add(new FileRecord(1, 1, string.Empty, FileRecordFlags.Directory | FileRecordFlags.SourceRoot));
+        builder = new TreeBuilder(store, path, path,
+            new WalkOptions([], [], [], MaxDepth: 0, WorkerCount: 1, UseIgnoreFiles: false), default,
+            (_, _) => { if (builder._token.IsCancellationRequested) Interlocked.Increment(ref progressAfterAbort); },
+            (_, _) => { if (builder._token.IsCancellationRequested) Interlocked.Increment(ref checkpointsAfterAbort); });
+        builder._rootExists = _ => false;
+        builder._countSinceProgress = TreeBuilder.ProgressBatchSize - TreeBuilder.RecordBatchSize;
+        for (var i = 0; i < TreeBuilder.CheckpointBatchSize - TreeBuilder.RecordBatchSize; i++)
+            builder._checkpointGate.TryEnter();
+
+        var lastEntryRead = false;
+        var entries = Enumerable.Range(0, TreeBuilder.RecordBatchSize).Select(i =>
+        {
+            if (i == TreeBuilder.RecordBatchSize - 1)
+                Volatile.Write(ref lastEntryRead, true);
+            return new NativeFileEntry($"f{i}.txt", FileAttributes.Normal, 1, 0, 0, 0);
+        });
+        Exception? workerFailure = null;
+        var worker = new Thread(() =>
+        {
+            try { builder.WalkDirectory(new WorkItem(path, path, 1, 0, NetworkIgnoreRuleSet.Empty), _ => entries, _ => false); }
+            catch (Exception ex) { workerFailure = ex; }
+        }) { IsBackground = true };
+
+        lock (builder._recordsGate)
+        {
+            worker.Start();
+            var deadline = DateTime.UtcNow.AddSeconds(30);
+            while (!Volatile.Read(ref lastEntryRead) || (worker.ThreadState & System.Threading.ThreadState.WaitSleepJoin) == 0)
+            {
+                if (DateTime.UtcNow > deadline)
+                    Assert.Fail("The worker never blocked on _recordsGate.");
+                Thread.Yield();
+            }
+
+            Assert.ThrowsExactly<OperationCanceledException>(() => builder.WalkDirectory(
+                new WorkItem(path + @"\other", path + @"\other", 99, 1, NetworkIgnoreRuleSet.Empty), _ => throw new Win32Exception(67), _ => false));
+            Assert.IsTrue(builder._token.IsCancellationRequested, "precondition: the walk abandoned itself");
+        }
+
+        Assert.IsTrue(worker.Join(TimeSpan.FromSeconds(30)), "The worker did not finish.");
+        Assert.IsNull(workerFailure);
+        return (progressAfterAbort, checkpointsAfterAbort);
+    }
+
     // Review on #562: a directory a previous transient failure left un-Listed used to stream its listing, so
     // a second drop midway lost the entries the previous walk still had for it.
     [TestMethod]
