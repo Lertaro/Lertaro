@@ -118,8 +118,9 @@ internal sealed class FolderDriveMonitor : IDisposable
         // WatcherManager's handlers on the network side: log it and re-walk the drive, which also covers
         // the rest of this batch.
         // ponytail: not gated like WatcherLossRefreshGate, so a change that fails every time asks for a
-        // re-walk on every flush (QueueDriveRebuild drops duplicates while one is pending). Gate it per
-        // drive if that ever shows up in the logs.
+        // re-walk on every flush. SearchEngineDriveMaintenance folds the asks that arrive while a walk runs,
+        // or while its retry waits, into one follow-up, and that follow-up's delay backs off to 10 min. Gate
+        // it per drive if that ever shows up in the logs.
         try
         {
             foreach (var item in batch)

@@ -7,10 +7,22 @@ internal class SearchEngineInitializer
 {
     private readonly UsnIndexer _indexer;
     private readonly string _indexCacheDir;
-    private readonly Action<string>? _onReindexRequired;
     private readonly Action<string>? _onRemovalRequested;
-    private readonly Action<string>? _onReindexAfterRemoval;
 
+    // What this initialization hands every waiter, monitor and removal scope it starts. Each holds its request
+    // until Run has called onComplete(false): the engine refuses every rebuild request while its full rebuild
+    // runs (see SearchEngineDriveMaintenance.TryBeginRebuild), and that lasts until then. After that, each
+    // passes its request straight through.
+    internal Action<string> RequestRebuild { get; }
+    // A removal recovery (query-remove-failed, or a re-attach after remove-complete) is a forced rebuild, so it
+    // keeps that meaning when it is flushed.
+    internal Action<string> RequestRebuildAfterRemoval { get; }
+    // Marks initialization complete and flushes what was held.
+    private readonly Action _completeInitialization;
+
+    // The engine's own callbacks are captured by the deferral below and kept in no field. So nothing in this
+    // class can hand a monitor or waiter a callback that skips the deferral: StartMonitor and
+    // EnsureDriveStatuses can only reach the two Request* entry points.
     public SearchEngineInitializer(
         UsnIndexer indexer,
         string indexCacheDir,
@@ -20,9 +32,46 @@ internal class SearchEngineInitializer
     {
         _indexer = indexer;
         _indexCacheDir = indexCacheDir;
-        _onReindexRequired = onReindexRequired;
         _onRemovalRequested = onRemovalRequested;
-        _onReindexAfterRemoval = onReindexAfterRemoval;
+        // The same fallback DriveMonitorFactory.CreateRemovalMonitor applies.
+        onReindexAfterRemoval ??= onReindexRequired;
+
+        var gate = new object();
+        var complete = false;
+        var plain = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var forced = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        Action<string> Defer(HashSet<string> deferred, Action<string>? request) => drive =>
+        {
+            lock (gate)
+            {
+                if (!complete)
+                {
+                    deferred.Add(drive);
+                    return;
+                }
+            }
+            request?.Invoke(drive);
+        };
+        RequestRebuild = Defer(plain, onReindexRequired);
+        RequestRebuildAfterRemoval = Defer(forced, onReindexAfterRemoval);
+        _completeInitialization = () =>
+        {
+            List<string> forcedDrives, plainDrives;
+            lock (gate)
+            {
+                complete = true;
+                forcedDrives = forced.ToList();
+                // A forced rebuild also answers a plain request for the same drive. Sent as well, the plain
+                // one would only become a follow-up walk of that rebuild.
+                plainDrives = plain.Except(forced, StringComparer.OrdinalIgnoreCase).ToList();
+                forced.Clear();
+                plain.Clear();
+            }
+            foreach (var drive in forcedDrives)
+                onReindexAfterRemoval?.Invoke(drive);
+            foreach (var drive in plainDrives)
+                onReindexRequired?.Invoke(drive);
+        };
     }
 
     internal static bool CanUseCachedUsnCatchUp(bool isComplete, bool supportsUsnJournal) => isComplete && supportsUsnJournal;
@@ -69,37 +118,22 @@ internal class SearchEngineInitializer
                 State = "unavailable",
                 CachePath = cached.Path
             });
-            DriveArrivalRecovery.ArmForReinsertion(_indexer, cached.Drive, parentToken, _onReindexRequired);
+            DriveArrivalRecovery.ArmForReinsertion(_indexer, cached.Drive, parentToken, RequestRebuild);
         }
 
         _indexer.SetDriveStatuses(statuses);
     }
 
-    public void Run(bool forceRebuild, CancellationTokenSource cts, Action<bool> onComplete)
+    // `machineSettings` is the engine's current selection, the same object SearchEngineDriveMaintenance reads,
+    // so the drives built here are the drives its status refresh then keeps.
+    public void Run(bool forceRebuild, CancellationTokenSource cts, Action<bool> onComplete, MachineSettings machineSettings)
     {
-        var deferredRebuilds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var deferredGate = new object();
-        var initializationComplete = false;
-        void RequestRebuild(string drive)
-        {
-            lock (deferredGate)
-            {
-                if (!initializationComplete)
-                {
-                    deferredRebuilds.Add(drive);
-                    return;
-                }
-            }
-            _onReindexRequired?.Invoke(drive);
-        }
-
         DriveIndexRemovalScope CreateRemovalScope(string drive, CancellationToken parentToken) =>
             DriveIndexRemovalScope.Register(drive, parentToken,
                 () => _indexer.SetDriveState(drive, "unavailable"), RequestRebuild);
 
         try
         {
-            var machineSettings = MachineSettings.Load();
             var detectedDrives = VolumeHelper.DetectIndexableLocalDrives();
             var supportedDrives = detectedDrives
                 .Where(d => machineSettings.IsLocalDriveEnabled(VolumeHelper.GetVolumeId(d)))
@@ -226,7 +260,7 @@ internal class SearchEngineInitializer
                 // rest of the session. Ask for the drive's own recovery instead -- that path ends in "failed"
                 // too if the rebuild cannot work, and parks the drive if the volume has since left.
                 Logger.Log($"[SearchEngineInitializer] Drive {drive} ended initialization with no monitor; requesting its own recovery.", LogLevel.Error);
-                _onReindexRequired?.Invoke(drive);
+                RequestRebuild(drive);
             }
 
             foreach (var (drive, journalId, nextUsn) in monitorsToStart)
@@ -249,15 +283,7 @@ internal class SearchEngineInitializer
         finally
         {
             onComplete(false);
-            List<string> pending;
-            lock (deferredGate)
-            {
-                initializationComplete = true;
-                pending = deferredRebuilds.ToList();
-                deferredRebuilds.Clear();
-            }
-            foreach (var drive in pending)
-                _onReindexRequired?.Invoke(drive);
+            _completeInitialization();
         }
     }
 
@@ -276,6 +302,6 @@ internal class SearchEngineInitializer
     }
 
     private void StartMonitor(string drive, ulong journalId, long nextUsn, CancellationToken token) =>
-        DriveMonitorFactory.EnsureMonitor(_indexer, drive, journalId, nextUsn, token, _onReindexRequired,
-            _onRemovalRequested, _onReindexAfterRemoval);
+        DriveMonitorFactory.EnsureMonitor(_indexer, drive, journalId, nextUsn, token, RequestRebuild,
+            _onRemovalRequested, RequestRebuildAfterRemoval);
 }

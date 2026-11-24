@@ -35,7 +35,9 @@ public class SearchEngine : IDisposable
             () => _machineSettings,
             () => _cts?.Token ?? CancellationToken.None,
             () => _isRebuilding,
-            TryReleaseRuntimeAfterActivity);
+            TryReleaseRuntimeAfterActivity,
+            TimeProvider.System,
+            work => Task.Run(work));
         // The device-removal path arms per-drive waiters, but that path needs a removal event at all: a
         // surprise unplug or a monitor that gave up earlier leaves no waiter behind. A volume arrival is
         // the one signal that reaches the engine regardless, so refresh the drive table on it as well --
@@ -265,7 +267,7 @@ public class SearchEngine : IDisposable
                     _initializationReady.Set();
                     TryReleaseRuntimeAfterActivity();
                 }
-            });
+            }, _machineSettings);
         });
     }
 

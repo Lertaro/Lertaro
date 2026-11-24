@@ -24,4 +24,11 @@
     <None Include="..\..\portable-updater.bat" Link="portable-updater.bat" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- An empty Data folder beside the test assembly makes testhost a portable copy (DataDirectoryResolver), so
+       Logger.SharedDataDir and the index cache directory resolve under bin rather than %ProgramData%\Lertaro.
+       That directory belongs to an installed service, and a non-elevated test run may not read it. -->
+  <Target Name="CreatePortableDataDirectory" AfterTargets="Build">
+    <MakeDir Directories="$(OutDir)Data" />
+  </Target>
+
 </Project>

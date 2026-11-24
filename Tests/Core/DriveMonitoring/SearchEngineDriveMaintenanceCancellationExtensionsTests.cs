@@ -11,7 +11,9 @@ public sealed class SearchEngineDriveMaintenanceCancellationExtensionsTests
         () => new MachineSettings(),
         () => CancellationToken.None,
         () => false,
-        () => { });
+        () => { },
+        TimeProvider.System,
+        _ => { });
 
     [TestMethod]
     [DataRow(false)]
@@ -23,14 +25,14 @@ public sealed class SearchEngineDriveMaintenanceCancellationExtensionsTests
         var completed = 0;
         var queued = new List<Action>();
         var maintenance = new SearchEngineDriveMaintenance(indexer, () => new MachineSettings(),
-            () => lifetime.Token, () => false, () => completed++);
+            () => lifetime.Token, () => false, () => completed++, TimeProvider.System, queued.Add);
         const string drive = "QODER-TEST-REBUILD";
 
-        Assert.IsTrue(maintenance.QueueDriveRebuild(drive, forceRebuild, queued.Add));
+        Assert.IsTrue(maintenance.QueueDriveRebuild(drive, forceRebuild));
         Assert.IsTrue(maintenance._activeRebuildCts.TryGetValue(drive, out var cts));
         Assert.IsTrue(maintenance.CancelDriveRebuild(drive));
         Assert.IsTrue(cts.IsCancellationRequested);
-        Assert.IsFalse(maintenance.QueueDriveRebuild(drive, forceRebuild, queued.Add));
+        Assert.IsFalse(maintenance.QueueDriveRebuild(drive, forceRebuild));
         lifetime.Cancel();
 
         Assert.ContainsSingle(queued)();
