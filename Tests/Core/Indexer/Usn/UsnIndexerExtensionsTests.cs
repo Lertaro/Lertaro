@@ -262,6 +262,27 @@ public sealed class UsnIndexerExtensionsTests
         }
     }
 
+    // This runs on FolderDriveMonitor's debounce Timer, where an escaping exception ends the process. The
+    // "foo " file beside a "foo" folder is how DeltaPathApplierTests makes a directory read fail
+    // mid-enumeration (see the comment there).
+    [TestMethod]
+    public void ApplyFolderChange_CreatedFolderWithAChildThatFailsWhileBeingRead_DoesNotThrow()
+    {
+        using var tempDir = new TempDirectory();
+        var drop = Path.Combine(tempDir.Path, "drop");
+        Directory.CreateDirectory(Path.Combine(drop, "foo"));
+        File.WriteAllText(@"\\?\" + Path.Combine(drop, "foo "), "x");
+        File.WriteAllText(Path.Combine(drop, "zzz.txt"), "x");
+        using var fixture = LiveIndexFixture.Build("C", new[] { LiveIndexFixture.Root() });
+        var indexer = new UsnIndexer();
+        indexer._recordIndexes["C"] = fixture.Index;
+        indexer.Status.Drives.Add(new UsnIndexer.DriveIndexStatus { Drive = "C", State = "indexing" });
+
+        indexer.ApplyFolderChange("C", WatcherChangeTypes.Created, drop);
+
+        Assert.IsTrue(fixture.Index.ToStore().Records.Any(r => r.Name == "zzz.txt"));
+    }
+
     [TestMethod]
     public void ApplyFolderChange_UnknownDrive_DoesNotThrowOrFlagAMissedChange()
     {
