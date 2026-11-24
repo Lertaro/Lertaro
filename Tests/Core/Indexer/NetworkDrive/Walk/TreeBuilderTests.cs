@@ -179,6 +179,37 @@ public sealed class TreeBuilderTests
         }
     }
 
+    // Review on #562: the share can drop between the refresh's reachability check and the root's own
+    // listing. That failure used to be skipped by the root-lost check, so the walk finished near-empty.
+    [TestMethod]
+    public void WalkDirectory_RootListingFailsWhileTheRootIsGone_AbandonsTheWalk()
+    {
+        var (builder, current) = CreateWalk();
+        builder._rootExists = _ => false;
+
+        Assert.ThrowsExactly<OperationCanceledException>(
+            () => builder.WalkDirectory(current, _ => throw new Win32Exception(67), _ => false));
+        Assert.IsTrue(builder._token.IsCancellationRequested);
+    }
+
+    // Review on #562: a directory a previous transient failure left un-Listed used to stream its listing, so
+    // a second drop midway lost the entries the previous walk still had for it.
+    [TestMethod]
+    public void WalkDirectory_UnlistedDirectoryFailingMidListing_KeepsItsUnreadEntries()
+    {
+        var (builder, current) = CreateWalk(listed: false); // baseline: un-Listed root holding captured.txt
+        IEnumerable<NativeFileEntry> Entries()
+        {
+            yield return new NativeFileEntry("new.txt", FileAttributes.Normal, 1, 0, 0, 0);
+            throw new Win32Exception(59);
+        }
+
+        builder.WalkDirectory(current, _ => Entries(), _ => false);
+
+        CollectionAssert.AreEquivalent(new[] { "new.txt", "captured.txt" }, builder._store.Records.Skip(1).Select(r => r.Name).ToArray());
+        Assert.IsFalse(builder._store.Records[0].Flags.HasFlag(FileRecordFlags.Listed), "Still un-Listed, so it is retried.");
+    }
+
     [TestMethod]
     [DataRow(0)]
     [DataRow(1)]
@@ -292,12 +323,15 @@ public sealed class TreeBuilderTests
         Assert.IsTrue(builder._store.Records[0].Flags.HasFlag(FileRecordFlags.Listed));
     }
 
+    // Nothing to carry forward, so nothing to buffer: with no baseline, or a baseline holding nothing under
+    // this directory, the listing streams. (An un-Listed directory WITH baseline children is buffered -- see
+    // WalkDirectory_UnlistedDirectoryFailingMidListing_KeepsItsUnreadEntries.)
     [TestMethod]
     [DataRow(false)]
     [DataRow(true)]
-    public void WalkDirectory_NoListedBaseline_ConsumesEntriesAsTheyArrive(bool hasBaseline)
+    public void WalkDirectory_NothingInTheBaselineUnderIt_ConsumesEntriesAsTheyArrive(bool hasBaseline)
     {
-        var (builder, current) = CreateWalk(listed: hasBaseline ? false : null);
+        var (builder, current) = CreateWalk(listed: hasBaseline ? false : null, baselineChild: false);
         var attempts = 0;
         IEnumerable<NativeFileEntry> Entries()
         {
@@ -350,21 +384,24 @@ public sealed class TreeBuilderTests
         var builder = new TreeBuilder(store, path, path,
             new WalkOptions([], [], [], MaxDepth: 0, WorkerCount: 1, UseIgnoreFiles: false), default, (_, _) => { },
             diffBaseline: TreeDiffBaseline.From(previousStore));
+        builder._rootExists = _ => true; // the fake root is "reachable" unless a test says otherwise
         return (builder, new WorkItem(path, path, 1, 0, NetworkIgnoreRuleSet.Empty));
     }
 
-    private static (TreeBuilder Builder, WorkItem Current) CreateWalk(bool? listed = true, CancellationToken token = default)
+    private static (TreeBuilder Builder, WorkItem Current) CreateWalk(bool? listed = true, CancellationToken token = default, bool baselineChild = true)
     {
         const string path = @"C:\unused";
         var previousStore = new FileRecordStore();
         previousStore.Records.Add(new FileRecord(1, 1, string.Empty,
             FileRecordFlags.Directory | FileRecordFlags.SourceRoot | (listed == true ? FileRecordFlags.Listed : FileRecordFlags.None)));
-        previousStore.Records.Add(new FileRecord(2, 1, "captured.txt", FileRecordFlags.None, 1, 0, 0, 0));
+        if (baselineChild)
+            previousStore.Records.Add(new FileRecord(2, 1, "captured.txt", FileRecordFlags.None, 1, 0, 0, 0));
         var store = new FileRecordStore();
         store.Records.Add(new FileRecord(1, 1, string.Empty, FileRecordFlags.Directory | FileRecordFlags.SourceRoot));
         var builder = new TreeBuilder(store, path, path,
             new WalkOptions([], [], [], MaxDepth: 0, WorkerCount: 1, UseIgnoreFiles: false), token, (_, _) => { },
             diffBaseline: listed.HasValue ? TreeDiffBaseline.From(previousStore) : null);
+        builder._rootExists = _ => true; // the fake root is "reachable" unless a test says otherwise
         return (builder, new WorkItem(path, path, 1, 0, NetworkIgnoreRuleSet.Empty));
     }
 

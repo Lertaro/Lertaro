@@ -165,9 +165,16 @@ internal sealed class TreeBuilder
             return;
         }
 
+        // Buffered whenever the previous walk knows something under this directory, Listed or not: a listing
+        // that fails midway must say which names it captured so the rest can be carried forward, and an
+        // un-Listed directory is exactly what a previous transient failure leaves behind. A directory the
+        // baseline has nothing for streams, since there is nothing to carry. ponytail: one buffered listing
+        // per worker is held in memory at a time, so a single directory with millions of entries costs
+        // that listing's size; the upgrade is a streaming name set instead of the entry list.
         Exception? enumerationFailure = null;
         List<NativeFileEntry>? liveEntries = null;
-        if (_diffBaseline?.TryGetListedChildren(current.LocalId, out _) == true)
+        if (_diffBaseline != null
+            && (_diffBaseline.HasChildren(current.LocalId) || _diffBaseline.TryGetListedChildren(current.LocalId, out _)))
         {
             liveEntries = new List<NativeFileEntry>();
             try
@@ -193,9 +200,7 @@ internal sealed class TreeBuilder
             enumerationFailure == null ? liveEntries : null);
         this.ConsumeChildren(current, ignoreRules, children, enumerationFailure);
         // A buffered listing that failed midway knows which names it captured, so the rest can come from
-        // the previous walk. ponytail: an un-Listed directory streams its listing (ConsumeChildren catches
-        // that failure itself), so a mid-listing drop there still loses the unread part -- buffering every
-        // directory the baseline knows is the upgrade, at the cost of holding each listing in memory.
+        // the previous walk.
         if (enumerationFailure != null)
         {
             AbandonIfRootLost(current);
@@ -207,14 +212,15 @@ internal sealed class TreeBuilder
             Interlocked.Increment(ref _slowDirectories);
     }
 
-    // A failure below the root while the root itself is gone means the share (or the removable drive)
-    // dropped mid-walk: every directory still queued would fail the same way. End the walk instead -- the
-    // caller's cancellation path keeps the index it already has. Whatever the error code: a deleted share
-    // answers 67 for everything under it, and a walk that took that as "gone" saved 12,544 of 6,021,472
-    // records over the good index. Only a failed directory pays for the probe.
+    // A failure while the root itself is gone means the share (or the removable drive) dropped mid-walk:
+    // every directory still queued would fail the same way. End the walk instead -- the caller's
+    // cancellation path keeps the index it already has. Whatever the error code: a deleted share answers
+    // 67 for everything under it, and a walk that took that as "gone" saved 12,544 of 6,021,472 records
+    // over the good index. The root's own listing counts too: the share can drop between the caller's
+    // reachability check and the first enumeration. Only a failed directory pays for the probe.
     private void AbandonIfRootLost(WorkItem current)
     {
-        if (current.Depth == 0 || _rootExists(_physicalRoot))
+        if (_rootExists(_physicalRoot))
             return;
 
         Logger.Log($"[NetworkIndexer] {_physicalRoot} became unreachable mid-walk; abandoning this pass and keeping the existing index.", LogLevel.Warn);

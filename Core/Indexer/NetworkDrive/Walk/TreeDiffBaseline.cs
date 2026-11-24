@@ -75,6 +75,8 @@ internal sealed class TreeDiffBaseline
     // forward when it can't be listed now, where partial knowledge still beats none.
     public IEnumerable<FileRecord> GetChildren(UInt128 directoryId) => EnumerateChildren(directoryId);
 
+    public bool HasChildren(UInt128 directoryId) => _childIndicesByParent.ContainsKey(directoryId);
+
     public bool TryGetListedChildren(UInt128 directoryId, out IReadOnlyList<FileRecord> children)
     {
         children = Array.Empty<FileRecord>();
