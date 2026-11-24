@@ -81,9 +81,10 @@ internal static class DriveArrivalRecovery
     // converge instead of staying stale for the rest of the session.
     //
     // ponytail: one waiter per call, polling every 2 s until the process ends, so repeated requests for the
-    // same absent drive arm repeated waiters; the duplicate rebuild each of them asks for is refused by
-    // SearchEngineDriveMaintenance's own per-drive dedupe. If that polling ever shows up in a profile, the
-    // upgrade path is a per-drive set that dedupes the waiters themselves.
+    // same absent drive arm repeated waiters; the duplicate rebuilds they ask for while the first one runs
+    // collapse, in SearchEngineDriveMaintenance's own per-drive dedupe, into at most one follow-up. If that
+    // polling or that follow-up ever shows up in a profile, the upgrade path is a per-drive set that dedupes
+    // the waiters themselves.
     internal static void ArmForReinsertion(
         UsnIndexer indexer, string drive, CancellationToken parentToken, Action<string>? onReindexRequired)
     {

@@ -39,7 +39,8 @@ internal class SearchEngineInitializer
     internal static string ResolveStateAfterFailure(string stateAtFailure) =>
         stateAtFailure is "ready" or "cached" or "idle" ? stateAtFailure : "error";
 
-    private void EnsureDriveStatuses(IReadOnlyList<string> detectedDrives, IReadOnlyList<string> enabledDrives, CancellationToken parentToken)
+    private void EnsureDriveStatuses(IReadOnlyList<string> detectedDrives, IReadOnlyList<string> enabledDrives, CancellationToken parentToken,
+        Action<string> requestRebuild)
     {
         var enabled = new HashSet<string>(enabledDrives, StringComparer.OrdinalIgnoreCase);
         var statuses = detectedDrives.Select(d => new UsnIndexer.DriveIndexStatus
@@ -69,17 +70,21 @@ internal class SearchEngineInitializer
                 State = "unavailable",
                 CachePath = cached.Path
             });
-            DriveArrivalRecovery.ArmForReinsertion(_indexer, cached.Drive, parentToken, _onReindexRequired);
+            DriveArrivalRecovery.ArmForReinsertion(_indexer, cached.Drive, parentToken, requestRebuild);
         }
 
         _indexer.SetDriveStatuses(statuses);
     }
 
-    public void Run(bool forceRebuild, CancellationTokenSource cts, Action<bool> onComplete)
+    // `machineSettings` is for tests only: production reads the machine's own file.
+    public void Run(bool forceRebuild, CancellationTokenSource cts, Action<bool> onComplete, MachineSettings? machineSettings = null)
     {
         var deferredRebuilds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var deferredGate = new object();
         var initializationComplete = false;
+        // Every rebuild request this initialization makes goes through here, not straight to
+        // _onReindexRequired: the engine refuses them all while its full rebuild runs (see
+        // SearchEngineDriveMaintenance.QueueDriveRebuild), and that lasts until onComplete(false) below.
         void RequestRebuild(string drive)
         {
             lock (deferredGate)
@@ -99,13 +104,13 @@ internal class SearchEngineInitializer
 
         try
         {
-            var machineSettings = MachineSettings.Load();
+            machineSettings ??= MachineSettings.Load();
             var detectedDrives = VolumeHelper.DetectIndexableLocalDrives();
             var supportedDrives = detectedDrives
                 .Where(d => machineSettings.IsLocalDriveEnabled(VolumeHelper.GetVolumeId(d)))
                 .ToList();
 
-            EnsureDriveStatuses(detectedDrives, supportedDrives, cts.Token);
+            EnsureDriveStatuses(detectedDrives, supportedDrives, cts.Token, RequestRebuild);
 
             var loadedFromCache = false;
             List<(string Drive, ulong JournalId, long NextUsn)> cachedMetadata = new();
@@ -226,12 +231,12 @@ internal class SearchEngineInitializer
                 // rest of the session. Ask for the drive's own recovery instead -- that path ends in "failed"
                 // too if the rebuild cannot work, and parks the drive if the volume has since left.
                 Logger.Log($"[SearchEngineInitializer] Drive {drive} ended initialization with no monitor; requesting its own recovery.", LogLevel.Error);
-                _onReindexRequired?.Invoke(drive);
+                RequestRebuild(drive);
             }
 
             foreach (var (drive, journalId, nextUsn) in monitorsToStart)
             {
-                StartMonitor(drive, journalId, nextUsn, cts.Token);
+                StartMonitor(drive, journalId, nextUsn, cts.Token, RequestRebuild);
             }
 
             Logger.Log($"[SearchEngineInitializer] Started real-time USN monitors for {monitorsToStart.Count(m => VolumeHelper.SupportsUsnJournal(m.Drive))} drives.");
@@ -275,7 +280,7 @@ internal class SearchEngineInitializer
         }
     }
 
-    private void StartMonitor(string drive, ulong journalId, long nextUsn, CancellationToken token) =>
-        DriveMonitorFactory.EnsureMonitor(_indexer, drive, journalId, nextUsn, token, _onReindexRequired,
+    private void StartMonitor(string drive, ulong journalId, long nextUsn, CancellationToken token, Action<string> requestRebuild) =>
+        DriveMonitorFactory.EnsureMonitor(_indexer, drive, journalId, nextUsn, token, requestRebuild,
             _onRemovalRequested, _onReindexAfterRemoval);
 }

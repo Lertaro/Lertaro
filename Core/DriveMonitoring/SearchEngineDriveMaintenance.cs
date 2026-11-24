@@ -18,6 +18,8 @@ internal sealed class SearchEngineDriveMaintenance
     // monitor also derives from. internal rather than private so that extension method can reach it.
     internal readonly Dictionary<string, CancellationTokenSource> _activeRebuildCts = new(StringComparer.OrdinalIgnoreCase);
     internal readonly HashSet<string> _rebuildAfterRemoval = new(StringComparer.OrdinalIgnoreCase);
+    // Drives asked to re-index while their own rebuild was still running -- see QueueDriveRebuild(string).
+    internal readonly HashSet<string> _rebuildAgain = new(StringComparer.OrdinalIgnoreCase);
     public bool HasPendingRebuilds { get { lock (_pendingDriveRebuilds) return _pendingDriveRebuilds.Count > 0; } }
 
     public SearchEngineDriveMaintenance(
@@ -138,9 +140,24 @@ internal sealed class SearchEngineDriveMaintenance
         _indexer.RaiseDirectoriesChanged(drive, null);
         return true;
     }
-    public void QueueDriveRebuild(string drive) => QueueDriveRebuild(drive, forceRebuild: false);
+    // The re-index callback every monitor and recovery path is handed. A request for a drive whose own
+    // rebuild is still running -- the missed-folder-change follow-up that rebuild raises at its end, or its
+    // old monitor giving up mid-walk -- used to be refused below as a duplicate and lost; it now runs once
+    // after that rebuild instead (see RebuildDrive), like QueueDriveRebuildAfterRemoval.
+    public void QueueDriveRebuild(string drive)
+    {
+        lock (_pendingDriveRebuilds)
+        {
+            if (_pendingDriveRebuilds.Contains(drive))
+            {
+                _rebuildAgain.Add(drive);
+                return;
+            }
+        }
+        QueueDriveRebuild(drive, forceRebuild: false);
+    }
 
-    internal bool QueueDriveRebuild(string drive, bool forceRebuild, Action<Action>? queueWork = null)
+    internal bool QueueDriveRebuild(string drive, bool forceRebuild, Action<Action>? queueWork = null, bool isRerun = false)
     {
         CancellationTokenSource cts;
         lock (_pendingDriveRebuilds)
@@ -165,7 +182,7 @@ internal sealed class SearchEngineDriveMaintenance
         }
         UpdateMaintenanceBusyState();
         _indexer.SetDriveState(drive, "indexing", resetCounts: true);
-        Action work = () => RebuildDrive(drive, forceRebuild, cts);
+        Action work = () => RebuildDrive(drive, forceRebuild, cts, queueWork, isRerun);
         if (queueWork == null)
             Task.Run(work);
         else
@@ -173,9 +190,10 @@ internal sealed class SearchEngineDriveMaintenance
         return true;
     }
 
-    private void RebuildDrive(string drive, bool forceRebuild, CancellationTokenSource cts)
+    private void RebuildDrive(string drive, bool forceRebuild, CancellationTokenSource cts, Action<Action>? queueWork, bool isRerun)
     {
         var retryAfterRemoval = false;
+        var rebuildAgain = false;
         try
         {
             cts.Token.ThrowIfCancellationRequested();
@@ -203,6 +221,8 @@ internal sealed class SearchEngineDriveMaintenance
         {
             lock (_pendingDriveRebuilds)
             {
+                // Not after a Stop: the user asked for this drive to stop, not to start over.
+                rebuildAgain = _rebuildAgain.Remove(drive) && !cts.IsCancellationRequested;
                 _pendingDriveRebuilds.Remove(drive);
                 if (_activeRebuildCts.Remove(drive, out var current) && ReferenceEquals(current, cts))
                     cts.Dispose();
@@ -213,6 +233,16 @@ internal sealed class SearchEngineDriveMaintenance
         }
         if (retryAfterRemoval)
             QueueDriveRebuild(drive, forceRebuild: true);
+        // ponytail: at most one rerun per queued rebuild, and a request raised during that rerun is dropped
+        // the way every such request used to be. Without the cap a busy FAT32/exFAT drive loops forever: its
+        // old folder watcher stays up through each walk, flags a missed change every time, and each follow-up
+        // walk flags another. The ceiling is two whole-volume walks per trigger on such a drive, and a real
+        // change landing during the rerun waits for the next trigger. Upgrade path: record the changes the
+        // watcher saw during the walk and replay them, so the follow-up is never a whole-volume walk.
+        else if (rebuildAgain && !isRerun)
+            QueueDriveRebuild(drive, forceRebuild: false, queueWork, isRerun: true);
+        else if (rebuildAgain)
+            Logger.Log($"[SearchEngine] Dropped another rebuild request for drive {drive}: it arrived during that drive's follow-up rebuild.", LogLevel.Warn);
     }
 
     private void ForceRebuildDrive(string drive, CancellationToken token)
