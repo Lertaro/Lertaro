@@ -47,9 +47,11 @@ internal sealed class LiveIndexFixture : IDisposable
     // LocalDriveWalkBuilder.Build / IndexCacheManager.CreateEmptyStore for the same convention elsewhere).
     public static FileRecord Root() => new(1, 1, "", FileRecordFlags.Directory | FileRecordFlags.SourceRoot);
 
+    // Tolerates an index a test already disposed (LiveIndex.Dispose is not safe to call twice), so the
+    // temp directory is still deleted.
     public void Dispose()
     {
-        Index.Dispose();
+        try { Index.Dispose(); } catch (ObjectDisposedException) { }
         try { System.IO.Directory.Delete(_tempDir, recursive: true); } catch { }
     }
 }

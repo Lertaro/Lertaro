@@ -1,5 +1,6 @@
 using Lertaro.Core.Indexer.NetworkDrive;
 using Lertaro.Core.Indexer.NetworkDrive.Scheduling;
+using Lertaro.Core.IndexV2.Persistence;
 
 namespace Lertaro.Core.Tests.Indexer.NetworkDrive.Scheduling;
 
@@ -112,6 +113,109 @@ public sealed class WatcherManagerTests
         {
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    // The debounced publish persists the index on a Timer, where an escaping exception ends the process (if
+    // this regresses the test host dies). A failed persist has also dropped the unsaved changes from memory
+    // (LiveIndex.Compact reopens the snapshot still on disk), so the share is owed a refresh.
+    [TestMethod]
+    public async Task PublishThatFailsToPersist_QueuesARefresh()
+    {
+        var (root, staging) = CreateRootOutsideAppData();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var refreshed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        try
+        {
+            using var index = NetworkIndex.FromSnapshotFile(root, WriteRootOnlySnapshot(root, staging));
+            using var manager = new WatcherManager(
+                (_, reason) => refreshed.TrySetResult(reason),
+                _ => { started.TrySetResult(); return index; },
+                (_, _, _) => throw new IOException("There is not enough space on the disk."), _ => false);
+
+            manager.EnsureWatcher(root);
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            File.WriteAllText(Path.Combine(root, "new.txt"), "x");
+
+            Assert.AreEqual("incremental persist failed", await refreshed.Task.WaitAsync(TimeSpan.FromSeconds(10)));
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch { }
+            try { Directory.Delete(staging, recursive: true); } catch { }
+        }
+    }
+
+    // A persist that fails because a refresh has already swapped this index out owes nothing: the refresh
+    // that replaced it has walked the share. Only the index the drive is still served by is owed one.
+    [TestMethod]
+    public async Task PublishThatFailsToPersistAnIndexAlreadyReplaced_QueuesNoRefresh()
+    {
+        var (root, staging) = CreateRootOutsideAppData();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var checkedAfterFailure = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var refreshes = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        var replaced = 0;
+        try
+        {
+            using var index = NetworkIndex.FromSnapshotFile(root, WriteRootOnlySnapshot(root, staging));
+            using var replacement = new NetworkIndex(root);
+            using var manager = new WatcherManager(
+                (_, reason) => refreshes.Enqueue(reason),
+                _ =>
+                {
+                    started.TrySetResult();
+                    if (Volatile.Read(ref replaced) == 0)
+                        return index;
+                    checkedAfterFailure.TrySetResult();
+                    return replacement;
+                },
+                (_, _, _) =>
+                {
+                    // A refresh finished while this publish waited, then the old index's persist fails.
+                    Volatile.Write(ref replaced, 1);
+                    throw new ObjectDisposedException(nameof(NetworkIndex));
+                },
+                _ => false);
+
+            manager.EnsureWatcher(root);
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            File.WriteAllText(Path.Combine(root, "new.txt"), "x");
+
+            await checkedAfterFailure.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            // The refresh would be queued on the same thread right after that check.
+            await Task.Delay(200);
+            Assert.AreEqual(0, refreshes.Count, $"Refreshes queued: {string.Join(", ", refreshes)}");
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch { }
+            try { Directory.Delete(staging, recursive: true); } catch { }
+        }
+    }
+
+    // Outside %USERPROFILE%\AppData: the handler applies the user's real exclusion rules, and the stock rules
+    // exclude AppData, where the temp directory lives. The staging directory holds what is moved in and the
+    // snapshot.
+    private static (string Root, string Staging) CreateRootOutsideAppData()
+    {
+        var root = Path.Combine(Path.GetPathRoot(Path.GetTempPath())!, "lertaro-watcher-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        return (root, Directory.CreateTempSubdirectory("lertaro-watcher-staging-").FullName);
+    }
+
+    private static string WriteRootOnlySnapshot(string root, string staging)
+    {
+        var idxPath = Path.Combine(staging, "test.idx");
+        var store = new FileRecordStore
+        {
+            SourceKey = root,
+            SourceKind = FileRecordSourceKind.NetworkMappedDrive,
+            IdKind = FileRecordIdKind.SourceLocalId64,
+            RootId = 1,
+        };
+        store.Records.Add(new FileRecord(1, 1, string.Empty, FileRecordFlags.Directory | FileRecordFlags.SourceRoot));
+        SnapshotWriter.Write(store, idxPath);
+        return idxPath;
     }
 
     [TestMethod]

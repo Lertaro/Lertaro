@@ -172,7 +172,9 @@ public static class UsnIndexerExtensions
         return true;
     }
 
-    public static void ApplyFolderChange(this UsnIndexer indexer, string drive, WatcherChangeTypes changeType, string path, string? oldPath = null)
+    // `onReindexRequired` re-walks the drive (FolderDriveMonitor's own callback), for the debounced save,
+    // which fails later on its own Timer.
+    public static void ApplyFolderChange(this UsnIndexer indexer, string drive, WatcherChangeTypes changeType, string path, string? oldPath, Action onReindexRequired)
     {
         LiveIndex? live;
         lock (indexer.LockObj)
@@ -238,7 +240,7 @@ public static class UsnIndexerExtensions
         // follow-up refresh for the new index. Outside rebuilds, debounce full snapshot persistence per
         // drive so a batch of file changes causes one rewrite.
         if (!isRebuilding)
-            indexer._folderChangeSaveDebounce.Schedule(drive, () => indexer.SaveDriveSnapshot(drive, live));
+            indexer._folderChangeSaveDebounce.Schedule(drive, () => indexer.SaveDriveSnapshot(drive, live, onReindexRequired));
         indexer.PublishStatusChanged();
     }
 
@@ -268,7 +270,9 @@ public static class UsnIndexerExtensions
             return indexer._missedFolderChangeDuringRebuild.Remove(drive);
     }
 
-    public static void SaveDriveSnapshot(this UsnIndexer indexer, string drive, LiveIndex live)
+    // Runs on a KeyedDebouncer Timer callback, up to a second after ApplyFolderChange scheduled it, where an
+    // escaping exception ends the process.
+    public static void SaveDriveSnapshot(this UsnIndexer indexer, string drive, LiveIndex live, Action onReindexRequired)
     {
         UsnIndexer.DriveRuntimeMetadata? metadata;
         lock (indexer.LockObj)
@@ -277,18 +281,39 @@ public static class UsnIndexerExtensions
                 return;
         }
 
-        var cacheDir = LocalDriveCacheLocator.DefaultCacheDir;
+        string path;
         try
         {
-            live.Compact(LocalDriveCacheLocator.GetCachePath(cacheDir, drive), new CompactionStamp(metadata.JournalId, metadata.NextUsn), force: true);
+            path = LocalDriveCacheLocator.GetCachePath(LocalDriveCacheLocator.DefaultCacheDir, drive);
         }
-        catch (ObjectDisposedException)
+        catch (InvalidOperationException ex)
         {
-            // This runs on a KeyedDebouncer Timer callback up to a second after ApplyFolderChange
-            // scheduled it -- DropDriveFromRuntime's own Cancel only stops a timer that hasn't fired yet;
-            // one already mid-flight (past the dictionary lookup above, about to call Compact) when a
-            // rebuild's Dispose() runs isn't stopped by it. Nothing to persist: a rebuild replacing this
-            // drive's LiveIndex already supersedes whatever this stale save would have written.
+            // No volume identity: the drive was pulled inside the debounce window. Nothing is lost, since the
+            // index in memory is untouched, and a folder drive is re-walked whenever it comes back
+            // (DriveRecovery) and at every cold start, having no journal to catch up from.
+            Logger.Log($"[UsnIndexer] {drive}: not saving its index: {ex.Message}", LogLevel.Warn);
+            return;
+        }
+
+        try
+        {
+            live.Compact(path, new CompactionStamp(metadata.JournalId, metadata.NextUsn), force: true);
+        }
+        catch (Exception ex)
+        {
+            // A rebuild or removal that replaced or dropped this LiveIndex supersedes the save (that is the
+            // ObjectDisposedException of a save already in flight when it ran: DropDriveFromRuntime's Cancel
+            // only stops a timer that has not fired). Otherwise Compact's failure path reopened the snapshot
+            // still on disk, or left the index unusable, so the changes since the last save are gone from
+            // memory as well, and only a re-walk brings them back. Whether a rebuild is already pending or
+            // running is SearchEngineDriveMaintenance's to decide.
+            bool serving;
+            lock (indexer.LockObj)
+                serving = indexer._recordIndexes.TryGetValue(drive, out var current) && ReferenceEquals(current, live);
+            if (!serving)
+                return;
+            Logger.Log($"[UsnIndexer] {drive}: saving its index failed, re-walking the drive: {ex.Message}", LogLevel.Error);
+            onReindexRequired();
         }
     }
 }

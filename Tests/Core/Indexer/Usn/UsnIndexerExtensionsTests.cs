@@ -184,7 +184,7 @@ public sealed class UsnIndexerExtensionsTests
         indexer._recordIndexes["C"] = fixture.Index;
         indexer.Status.Drives.Add(new UsnIndexer.DriveIndexStatus { Drive = "C", State = "indexing" });
 
-        indexer.ApplyFolderChange("C", WatcherChangeTypes.Changed, filePath);
+        indexer.ApplyFolderChange("C", WatcherChangeTypes.Changed, filePath, null, () => { });
 
         var (files, _) = fixture.Index.GetCounts();
         Assert.AreEqual(1, files);
@@ -203,7 +203,7 @@ public sealed class UsnIndexerExtensionsTests
         indexer._recordIndexes["C"] = fixture.Index;
         indexer.Status.Drives.Add(new UsnIndexer.DriveIndexStatus { Drive = "C", State = "ready" });
 
-        indexer.ApplyFolderChange("C", WatcherChangeTypes.Changed, filePath);
+        indexer.ApplyFolderChange("C", WatcherChangeTypes.Changed, filePath, null, () => { });
 
         Assert.IsFalse(indexer.ConsumeMissedFolderChangeDuringRebuild("C"));
     }
@@ -229,7 +229,7 @@ public sealed class UsnIndexerExtensionsTests
             indexer.Status.Drives.Add(new UsnIndexer.DriveIndexStatus { Drive = "C", State = "indexing" });
             fixture.Index.Dispose();
 
-            indexer.ApplyFolderChange("C", WatcherChangeTypes.Changed, @"C:\somewhere\new-file.txt");
+            indexer.ApplyFolderChange("C", WatcherChangeTypes.Changed, @"C:\somewhere\new-file.txt", null, () => { });
 
             Assert.IsTrue(indexer.ConsumeMissedFolderChangeDuringRebuild("C"));
         }
@@ -253,13 +253,60 @@ public sealed class UsnIndexerExtensionsTests
             var indexer = new UsnIndexer();
             indexer._driveMetadata["C"] = new UsnIndexer.DriveRuntimeMetadata { JournalId = 1, NextUsn = 100 };
             fixture.Index.Dispose();
+            var rewalks = 0;
 
-            indexer.SaveDriveSnapshot("C", fixture.Index);
+            indexer.SaveDriveSnapshot("C", fixture.Index, () => rewalks++);
+
+            // The rebuild that replaced the index supersedes the save.
+            Assert.AreEqual(0, rewalks);
         }
         finally
         {
             try { fixture.Dispose(); } catch { }
         }
+    }
+
+    // When Compact itself fails, its recovery reopens the snapshot still on disk or, failing that, leaves the
+    // index unusable. Either way the changes since the last save are gone from memory, so a drive that index
+    // still serves is owed a re-walk. Staged with an index disposed beforehand, so Compact throws at
+    // EnterWriteLock, before anything is written: the same catch, without touching the real cache directory.
+    // The re-walk starts by reading the drive's index as its baseline, and an unusable one must give it none
+    // (a full walk) rather than fail it.
+    [TestMethod]
+    public void SaveDriveSnapshot_IndexStillServingTheDriveFailsToSave_AsksForARewalk()
+    {
+        var fixture = LiveIndexFixture.Build("C", new[] { LiveIndexFixture.Root() });
+        fixture.Dispose();
+        var indexer = new UsnIndexer();
+        indexer._recordIndexes["C"] = fixture.Index;
+        indexer._driveMetadata["C"] = new UsnIndexer.DriveRuntimeMetadata { JournalId = 1, NextUsn = 100 };
+        indexer.Status.Drives.Add(new UsnIndexer.DriveIndexStatus { Drive = "C", State = "ready" });
+        var rewalks = 0;
+
+        indexer.SaveDriveSnapshot("C", fixture.Index, () => rewalks++);
+
+        Assert.AreEqual(1, rewalks);
+        Assert.IsNull(indexer.GetWalkBaseline("C"));
+    }
+
+    // Every applied folder change schedules this save on a KeyedDebouncer Timer one second later, where an
+    // escaping exception ends the process. A FAT/exFAT drive pulled inside that second has no volume identity
+    // any more, so the cache-path lookup throws. Nothing is lost by not saving: the index in memory is
+    // untouched, and the drive is re-walked when it comes back.
+    [TestMethod]
+    public void SaveDriveSnapshot_DriveNoLongerMounted_DoesNotThrow()
+    {
+        var drive = Enumerable.Range('D', 23).Select(c => ((char)c).ToString())
+            .First(letter => !Directory.Exists(letter + @":\"));
+        using var fixture = LiveIndexFixture.Build(drive, new[] { LiveIndexFixture.Root() });
+        var indexer = new UsnIndexer();
+        indexer._recordIndexes[drive] = fixture.Index;
+        indexer._driveMetadata[drive] = new UsnIndexer.DriveRuntimeMetadata { JournalId = 1, NextUsn = 100 };
+        var rewalks = 0;
+
+        indexer.SaveDriveSnapshot(drive, fixture.Index, () => rewalks++);
+
+        Assert.AreEqual(0, rewalks);
     }
 
     // This runs on FolderDriveMonitor's debounce Timer, where an escaping exception ends the process. The
@@ -278,7 +325,7 @@ public sealed class UsnIndexerExtensionsTests
         indexer._recordIndexes["C"] = fixture.Index;
         indexer.Status.Drives.Add(new UsnIndexer.DriveIndexStatus { Drive = "C", State = "indexing" });
 
-        indexer.ApplyFolderChange("C", WatcherChangeTypes.Created, drop);
+        indexer.ApplyFolderChange("C", WatcherChangeTypes.Created, drop, null, () => { });
 
         Assert.IsTrue(fixture.Index.ToStore().Records.Any(r => r.Name == "zzz.txt"));
     }
@@ -288,7 +335,7 @@ public sealed class UsnIndexerExtensionsTests
     {
         var indexer = new UsnIndexer();
 
-        indexer.ApplyFolderChange("Z", WatcherChangeTypes.Changed, @"Z:\file.txt");
+        indexer.ApplyFolderChange("Z", WatcherChangeTypes.Changed, @"Z:\file.txt", null, () => { });
 
         Assert.IsFalse(indexer.ConsumeMissedFolderChangeDuringRebuild("Z"));
     }
@@ -308,7 +355,7 @@ public sealed class UsnIndexerExtensionsTests
         var indexer = new UsnIndexer();
         indexer._recordIndexes["C"] = fixture.Index;
         indexer.Status.Drives.Add(new UsnIndexer.DriveIndexStatus { Drive = "C", State = "indexing" });
-        indexer.ApplyFolderChange("C", WatcherChangeTypes.Changed, filePath);
+        indexer.ApplyFolderChange("C", WatcherChangeTypes.Changed, filePath, null, () => { });
 
         Assert.IsTrue(indexer.ConsumeMissedFolderChangeDuringRebuild("C"));
         // Must not carry over to whatever the drive's next rebuild checks -- a stale true here would

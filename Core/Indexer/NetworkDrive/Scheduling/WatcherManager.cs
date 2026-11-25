@@ -206,7 +206,23 @@ internal class WatcherManager : IDisposable
             }
         }
 
-        _publishDebounce.Schedule(drive, () => _onIncrementalUpdate(drive, index, TakePendingDirectories(drive)));
+        _publishDebounce.Schedule(drive, () =>
+        {
+            try
+            {
+                _onIncrementalUpdate(drive, index, TakePendingDirectories(drive));
+            }
+            catch (Exception ex)
+            {
+                // This runs on the debounce Timer, where an escaping exception ends the process. The publish
+                // persists through LiveIndex.Compact, whose failure path reopens the snapshot still on disk:
+                // the changes applied since the last save are gone from memory too, and only a re-walk brings
+                // them back. An index a refresh already swapped out (ObjectDisposedException) owes nothing.
+                Logger.Log($"[WatcherManager] Persisting incremental changes on {drive} failed: {ex.Message}", LogLevel.Error);
+                if (!_disposed && ReferenceEquals(_getIndex(drive), index))
+                    _queueRefresh(drive, "incremental persist failed");
+            }
+        });
     }
 
     // Past this a burst is bulk activity across the share rather than something a subscriber could be

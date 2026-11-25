@@ -66,14 +66,7 @@ public static class UsnIndexerBuildExtensions
             return new List<(string, ulong, long)>();
         }
 
-        FileRecordStore? GetPreviousStore(string drive)
-        {
-            if (forceFullScan)
-                return null;
-
-            lock (indexer.LockObj)
-                return indexer._recordIndexes.TryGetValue(drive, out var live) ? live.ToStore() : null;
-        }
+        FileRecordStore? GetPreviousStore(string drive) => forceFullScan ? null : indexer.GetWalkBaseline(drive);
 
         return IndexBuilder.BuildDrives(
             indexer._reader,
@@ -113,6 +106,24 @@ public static class UsnIndexerBuildExtensions
             (drive, checkpointStore, _, token) => indexer.PublishLocalDriveCheckpoint(cacheDir, drive, checkpointStore, token),
             createDriveRemovalScope
         );
+    }
+
+    // The drive's current index as the walk's diff baseline, or null for a full walk. An index a failed
+    // save left unusable (LiveIndex.Compact could not reopen any snapshot) is no baseline: the re-walk asked
+    // for to recover it walks in full instead of failing on it.
+    internal static FileRecordStore? GetWalkBaseline(this UsnIndexer indexer, string drive)
+    {
+        lock (indexer.LockObj)
+        {
+            try
+            {
+                return indexer._recordIndexes.TryGetValue(drive, out var live) ? live.ToStore() : null;
+            }
+            catch (ObjectDisposedException)
+            {
+                return null;
+            }
+        }
     }
 
     // Writes the just-scanned store straight to its V2 cache file, THEN frees the in-memory

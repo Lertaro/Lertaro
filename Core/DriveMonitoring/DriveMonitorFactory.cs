@@ -47,7 +47,7 @@ internal static class DriveMonitorFactory
 
         var folderMonitor = new FolderDriveMonitor(
             drive,
-            (changeType, path, oldPath) => indexer.ApplyFolderChange(drive, changeType, path, oldPath),
+            (changeType, path, oldPath) => indexer.ApplyFolderChange(drive, changeType, path, oldPath, () => onReindexRequired?.Invoke(drive)),
             parentToken,
             // A FAT32/exFAT watcher that dies silently loses every change made while it was down; a
             // per-drive re-walk is the only way to reconcile, the same callback a removed-and-reattached

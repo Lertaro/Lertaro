@@ -54,11 +54,22 @@ internal sealed partial class NetworkIndexerPublisher
     }
 
     // Whatever's currently loaded for this drive (a completed index, or an interrupted checkpoint) becomes
-    // TreeBuilder's diff baseline for the refresh about to run -- see TreeDiffBaseline.
+    // TreeBuilder's diff baseline for the refresh about to run -- see TreeDiffBaseline. An index a failed
+    // persist left unusable (LiveIndex.Compact could not reopen any snapshot) is no baseline: the refresh
+    // queued to recover it walks in full instead of failing on it.
     public FileRecordStore? GetPreviousStore(string drive)
     {
         lock (_gate)
-            return _indexes.TryGetValue(drive, out var index) ? index.ToStore() : null;
+        {
+            try
+            {
+                return _indexes.TryGetValue(drive, out var index) ? index.ToStore() : null;
+            }
+            catch (ObjectDisposedException)
+            {
+                return null;
+            }
+        }
     }
 
     public void OnRefreshFinished(string drive, NetworkIndex index)
