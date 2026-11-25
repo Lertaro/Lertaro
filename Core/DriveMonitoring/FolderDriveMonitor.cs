@@ -78,7 +78,7 @@ internal sealed class FolderDriveMonitor : IDisposable
         }
     }
 
-    private void Schedule(WatcherChangeTypes changeType, string path, string? oldPath = null)
+    internal void Schedule(WatcherChangeTypes changeType, string path, string? oldPath = null)
     {
         if (_token.IsCancellationRequested)
             return;
@@ -113,11 +113,27 @@ internal sealed class FolderDriveMonitor : IDisposable
             _pending.Clear();
         }
 
-        foreach (var item in batch)
+        // Last resort: this runs on a Timer callback, where an unhandled exception terminates the process,
+        // and _onChange reaches the index, its subscribers and the persist debouncer. Same answer as
+        // WatcherManager's handlers on the network side: log it and re-walk the drive, which also covers
+        // the rest of this batch.
+        // ponytail: not gated like WatcherLossRefreshGate, so a change that fails every time asks for a
+        // re-walk on every flush (QueueDriveRebuild drops duplicates while one is pending). Gate it per
+        // drive if that ever shows up in the logs.
+        try
         {
-            if (_token.IsCancellationRequested)
-                return;
-            _onChange(item.ChangeType, item.Path, item.OldPath);
+            foreach (var item in batch)
+            {
+                if (_token.IsCancellationRequested)
+                    return;
+                _onChange(item.ChangeType, item.Path, item.OldPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[{nameof(FolderDriveMonitor)}] Applying a change on {_drive} failed, re-walking the drive: {ex}", LogLevel.Error);
+            if (!_disposed && !_token.IsCancellationRequested)
+                _onReindexRequired?.Invoke();
         }
     }
 

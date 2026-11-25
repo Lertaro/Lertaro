@@ -138,18 +138,23 @@ public static class DeltaPathApplier
         AncestorNode ancestors,
         int depth)
     {
-        IEnumerable<string> children;
+        // The loop is guarded, not just the call: the enumerator opens the directory up front but reads it
+        // lazily, so a folder that vanishes or a drive that is pulled mid-read throws from MoveNext. That
+        // runs on FolderDriveMonitor's Timer callback, where an escaping exception ends the process. Every
+        // failure the enumeration maps a Win32 error to is an IOException (DirectoryNotFound, PathTooLong,
+        // a device gone) or an UnauthorizedAccessException; anything else is a bug and should surface.
+        // ponytail: the unread rest of this directory just stays out of the index (the same gap an
+        // unreadable directory has always had), since nothing here can ask for a re-walk. Usually a Deleted
+        // event or the drive's removal follows anyway; if not, return an "incomplete" flag to the callers
+        // so ApplyFolderChange/WatcherManager can queue a refresh.
         try
         {
-            children = Directory.EnumerateFileSystemEntries(directory);
+            foreach (var child in Directory.EnumerateFileSystemEntries(directory))
+                UpsertPath(delta, rootId, root, child, includeChildren: true, exclusionRules, ancestors, depth);
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return;
         }
-
-        foreach (var child in children)
-            UpsertPath(delta, rootId, root, child, includeChildren: true, exclusionRules, ancestors, depth);
     }
 
     private static void EnsureParentChain(DeltaOverlay delta, UInt128 rootId, string normalizedRoot, string normalizedPath)
