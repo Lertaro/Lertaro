@@ -469,9 +469,11 @@ public sealed class SearchEngineDriveMaintenanceTests
     }
 
     // #569's last-resort catch in FolderDriveMonitor.FlushPending asks for a re-walk when applying a change
-    // throws. Raised during the drive's own rebuild, that request used to be refused as a duplicate.
+    // throws. Raised while the drive's rebuild is queued but its walk recording not yet registered, that
+    // request used to be refused as a duplicate. (Once the recording is registered, the request is left to it:
+    // see FolderWalkRecorderTests.)
     [TestMethod]
-    public void FolderMonitorFailsToApplyAChangeDuringItsDrivesRebuild_RerunsAfterIt()
+    public void FolderMonitorFailsToApplyAChangeBeforeItsDrivesWalkRecordingRegisters_RerunsAfterIt()
     {
         using var rig = new Rig();
         var drive = FreeDriveLetter();
@@ -479,8 +481,9 @@ public sealed class SearchEngineDriveMaintenanceTests
 
         Assert.IsTrue(rig.Maintenance.QueueDriveRebuild(drive, forceRebuild: false));
         // Bound to the drive the way DriveMonitorFactory.EnsureMonitor binds it; the watcher itself never starts.
+        // No walk recorder is registered for the drive, so RequestFolderReindex passes the request straight on.
         using (var monitor = new FolderDriveMonitor(Path.GetTempPath(), (_, _, _) => throw new IOException("The device is not ready."),
-                   rig.Lifetime.Token, () => { rig.Maintenance.QueueDriveRebuild(drive); asked.Set(); }))
+                   rig.Lifetime.Token, () => { rig.Indexer.RequestFolderReindex(drive, rig.Maintenance.QueueDriveRebuild); asked.Set(); }))
         {
             monitor.Schedule(WatcherChangeTypes.Created, Path.Combine(Path.GetTempPath(), "new-folder"));
             Assert.IsTrue(asked.Wait(TimeSpan.FromSeconds(10)), "precondition: the monitor asked for a re-walk");
@@ -579,18 +582,48 @@ public sealed class SearchEngineDriveMaintenanceTests
         Assert.IsTrue(IsWaiting(rig, drive), "the request was dropped with the stopped walk");
     }
 
+    // A per-drive rebuild hands its walk recording over inside RebuildDrive, while the drive is still pending.
+    // A recording that lost events asks for one re-walk there, which used to be refused as a duplicate of the
+    // very rebuild running it.
     [TestMethod]
-    public void QueueDriveRebuild_RequestedBeforeAStop_DoesNotRerun()
+    public void PerDriveHandOver_LostRecorder_ReWalkBecomesTheFollowUp()
     {
         using var rig = new Rig();
         var drive = FreeDriveLetter();
+        using var build = new CancellationTokenSource();
+        Assert.IsTrue(rig.Maintenance.QueueDriveRebuild(drive, forceRebuild: false));
+        var recorder = new FolderWalkRecorder(drive, build.Token);
+        recorder.MarkLost();
+        FolderWalkRecorder.Keep(rig.Indexer, drive, recorder);
 
-        Assert.IsTrue(rig.Maintenance.QueueDriveRebuild(drive, forceRebuild: true));
-        rig.Maintenance.QueueDriveRebuild(drive);
+        FolderWalkRecorder.Replay(rig.Indexer, drive, build.Token, rig.Maintenance.QueueDriveRebuild); // EnsureMonitor
+        rig.Work.Run(0);
+
+        Assert.AreEqual(2, rig.Work.Count, "the hand-over's re-walk was refused as a duplicate of the rebuild running it");
+    }
+
+    // SettleFailedBuild raises the re-walk a live folder monitor left to the build from inside RebuildDrive, so
+    // the drive is still pending then too. The drive has to be mounted for SettleFailedBuild to raise it, and a
+    // mounted drive's rebuild cannot run here (it would read the volume), so that rebuild is stopped before it
+    // runs: the follow-up it was asked for survives the Stop as a waiting retry.
+    [TestMethod]
+    public void SettleFailedBuild_DeferredReWalkRaisedInsideTheFailingRebuild_BecomesTheFollowUp()
+    {
+        var drive = MountedDrive();
+        using var rig = new Rig(() => Selecting(drive));
+        rig.Indexer.Status.Drives.Add(new UsnIndexer.DriveIndexStatus { Drive = drive, State = "ready", Enabled = true });
+        using var build = new CancellationTokenSource();
+        Assert.IsTrue(rig.Maintenance.QueueDriveRebuild(drive, forceRebuild: false));
+        FolderWalkRecorder.Keep(rig.Indexer, drive, new FolderWalkRecorder(drive, build.Token));
+        rig.Indexer.RequestFolderReindex(drive, _ => Assert.Fail("precondition: the request was left to the rebuild"));
+
+        DriveArrivalRecovery.SettleFailedBuild(rig.Indexer, drive, wasCancelled: false, build.Token, rig.Lifetime.Token,
+            null, rig.Maintenance.QueueDriveRebuild);
         Assert.IsTrue(rig.Maintenance.CancelDriveRebuild(drive));
         rig.Work.Run(0);
 
         Assert.AreEqual(1, rig.Work.Count);
-        Assert.IsFalse(rig.Maintenance.HasPendingRebuilds);
+        Assert.IsTrue(IsWaiting(rig, drive), "the deferred re-walk was raised into its own pending rebuild and refused");
     }
+
 }

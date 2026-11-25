@@ -52,7 +52,7 @@ public sealed class DriveArrivalRecoveryTests
         var drive = MountedDriveLetter();
         var indexer = IndexerWith(drive, "indexing", null);
 
-        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: true, CancellationToken.None, GoneToken(), null);
+        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: true, CancellationToken.None, GoneToken(), null, null);
 
         Assert.AreEqual("cached", indexer.Status.Drives.Single(d => d.Drive == drive).State);
     }
@@ -63,7 +63,7 @@ public sealed class DriveArrivalRecoveryTests
         var drive = MountedDriveLetter();
         var indexer = IndexerWith(drive, "indexing", null);
 
-        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: false, CancellationToken.None, GoneToken(), null);
+        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: false, CancellationToken.None, GoneToken(), null, null);
 
         Assert.AreEqual("failed", indexer.Status.Drives.Single(d => d.Drive == drive).State);
     }
@@ -75,7 +75,7 @@ public sealed class DriveArrivalRecoveryTests
         var live = LiveIndexFixture.Build(drive, new[] { LiveIndexFixture.Root() });
         var indexer = IndexerWith(drive, "indexing", live);
 
-        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: false, CancellationToken.None, GoneToken(), null);
+        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: false, CancellationToken.None, GoneToken(), null, null);
 
         try
         {
@@ -99,11 +99,87 @@ public sealed class DriveArrivalRecoveryTests
         var indexer = IndexerWith(drive, "indexing", null);
         var reindexRequests = new List<string>();
 
-        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: false, CancellationToken.None, GoneToken(), d => reindexRequests.Add(d));
+        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: false, CancellationToken.None, GoneToken(), d => reindexRequests.Add(d), null);
 
         Assert.AreEqual("unavailable", indexer.Status.Drives.Single(d => d.Drive == drive).State);
         Assert.IsFalse(indexer._recordIndexes.ContainsKey(drive));
         Assert.IsEmpty(reindexRequests);
+    }
+
+    // The drive's live folder monitor asked for a re-walk while the rebuild's recorder covered it, so the
+    // request was left to that rebuild (RequestFolderReindex) -- and the rebuild failed. The monitor's loss is
+    // still unrecovered: exactly one plain request is owed, never the forced rebuild the waiter would use.
+    [TestMethod]
+    public void SettleFailedBuild_RebuildThatHadADeferredReWalkFailed_RaisesItOnceAsAPlainRequest()
+    {
+        var drive = MountedDriveLetter();
+        var indexer = IndexerWith(drive, "indexing", null);
+        using var rebuild = new CancellationTokenSource();
+        FolderWalkRecorder.Keep(indexer, drive, new FolderWalkRecorder(drive, rebuild.Token));
+        indexer.RequestFolderReindex(drive, _ => Assert.Fail("precondition: the request was left to the rebuild"));
+        var forced = new List<string>();
+        var plain = new List<string>();
+
+        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: false, rebuild.Token, GoneToken(), forced.Add, plain.Add);
+        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: false, rebuild.Token, GoneToken(), forced.Add, plain.Add);
+
+        CollectionAssert.AreEqual(new[] { drive }, plain);
+        Assert.IsEmpty(forced);
+    }
+
+    // A FAT32/exFAT drive's old live monitor overflows while the drive's own rebuild walks it, and the loss is
+    // left to that rebuild's recording. The user then stops the rebuild. The drive keeps serving its OLD index,
+    // which misses what the monitor lost, so the owed re-walk is still raised: cancelling a walk recovers
+    // nothing. It is the plain request, so it waits out its backoff rather than restarting the stopped walk.
+    [TestMethod]
+    public void SettleFailedBuild_LiveMonitorLossLeftToARebuildTheUserStopped_IsStillRecovered()
+    {
+        var drive = MountedDriveLetter();
+        var indexer = IndexerWith(drive, "indexing", null);
+        using var rebuild = new CancellationTokenSource();
+        FolderWalkRecorder.Keep(indexer, drive, new FolderWalkRecorder(drive, rebuild.Token));
+        indexer.RequestFolderReindex(drive, _ => Assert.Fail("precondition: the overflow's request was left to the rebuild"));
+        rebuild.Cancel(); // Stop
+        var plain = new List<string>();
+
+        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: true, rebuild.Token, GoneToken(), null, plain.Add);
+
+        CollectionAssert.AreEqual(new[] { drive }, plain);
+    }
+
+    // The same for a request the monitor makes after the Stop, while the stopped build is still unwinding:
+    // it is left to that build like any other, and raised once by its settle.
+    [TestMethod]
+    public void RequestFolderReindex_AfterTheRebuildWasStopped_IsRaisedOnceByItsSettle()
+    {
+        var drive = MountedDriveLetter();
+        var indexer = IndexerWith(drive, "indexing", null);
+        using var rebuild = new CancellationTokenSource();
+        FolderWalkRecorder.Keep(indexer, drive, new FolderWalkRecorder(drive, rebuild.Token));
+        rebuild.Cancel(); // Stop
+        var direct = new List<string>();
+        var plain = new List<string>();
+
+        indexer.RequestFolderReindex(drive, direct.Add);
+        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: true, rebuild.Token, GoneToken(), null, plain.Add);
+
+        Assert.IsEmpty(direct);
+        CollectionAssert.AreEqual(new[] { drive }, plain);
+    }
+
+    // A change ApplyFolderChange already applied to the kept index is not a loss: a failed rebuild owes
+    // nothing for it, as before.
+    [TestMethod]
+    public void SettleFailedBuild_OnlyAnOrdinaryMissedChange_RequestsNothing()
+    {
+        var drive = MountedDriveLetter();
+        var indexer = IndexerWith(drive, "indexing", null);
+        indexer._missedFolderChangeDuringRebuild.Add(drive);
+        var plain = new List<string>();
+
+        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: false, CancellationToken.None, GoneToken(), null, plain.Add);
+
+        Assert.IsEmpty(plain);
     }
 
     // A FAT32/exFAT drive whose watcher died with the volume (an Error, no PnP notification) keeps a live
@@ -117,7 +193,7 @@ public sealed class DriveArrivalRecoveryTests
         var monitor = new CountingDisposable();
         indexer.RegisterDriveMonitor(drive, new DriveMonitorRegistration(monitor, null));
 
-        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: false, CancellationToken.None, GoneToken(), null);
+        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: false, CancellationToken.None, GoneToken(), null, null);
 
         Assert.AreEqual(1, monitor.Disposals);
     }

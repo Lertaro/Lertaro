@@ -161,13 +161,14 @@ internal sealed class FolderDriveMonitor : IDisposable
             }
 
             // Last resort: this runs on a Timer callback, where an unhandled exception terminates the process,
-            // and _onChange reaches the index, its subscribers and the persist debouncer. Same answer as
-            // WatcherManager's handlers on the network side: log it and re-walk the drive, which also covers
-            // the rest of this batch.
+            // and _onChange reaches the index and its subscribers (for a walk recorder, only its own list).
+            // Same answer as WatcherManager's handlers on the network side: log it and re-walk the drive,
+            // which also covers the rest of this batch (a walk recorder marks itself lost instead).
             // ponytail: not gated like WatcherLossRefreshGate, so a change that fails every time asks for a
-            // re-walk on every flush. SearchEngineDriveMaintenance folds the asks that arrive while a walk runs,
-            // or while its retry waits, into one follow-up, and that follow-up's delay backs off to 10 min. Gate
-            // it per drive if that ever shows up in the logs.
+            // re-walk on every flush. While the drive's own rebuild walks it, the ask is left to that walk's
+            // recording (UsnIndexerExtensions.RequestFolderReindex); otherwise SearchEngineDriveMaintenance
+            // folds repeated asks into one waiting retry whose delay backs off to 10 min. Gate it per drive if
+            // that ever shows up in the logs.
             try
             {
                 foreach (var item in batch)

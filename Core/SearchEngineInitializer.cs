@@ -261,6 +261,9 @@ internal class SearchEngineInitializer
                 // rest of the session. Ask for the drive's own recovery instead -- that path ends in "failed"
                 // too if the rebuild cannot work, and parks the drive if the volume has since left.
                 Logger.Log($"[SearchEngineInitializer] Drive {drive} ended initialization with no monitor; requesting its own recovery.", LogLevel.Error);
+                // A folder walk that built nothing leaves its recorder registered for its build to settle.
+                // Nothing was left to it: no live monitor runs during initialization.
+                FolderWalkRecorder.Discard(_indexer, drive, cts.Token);
                 RequestRebuild(drive);
             }
 

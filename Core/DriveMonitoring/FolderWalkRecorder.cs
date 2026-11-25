@@ -13,6 +13,9 @@ internal sealed class FolderWalkRecorder : IDisposable
 {
     private readonly List<(WatcherChangeTypes Type, string Path, string? OldPath)> _changes = new();
     private volatile bool _lost;
+    // The drive's live monitor asked for a re-walk while this recording covered it (see
+    // UsnIndexerExtensions.RequestFolderReindex). Guarded by UsnIndexer.LockObj.
+    private bool _reindexDeferred;
     // The owning build's token registration (see the constructor). Released with the recorder, so a token
     // that outlives it does not keep it, and every change it holds, reachable.
     private IDisposable? _abandonOnCancel;
@@ -86,26 +89,29 @@ internal sealed class FolderWalkRecorder : IDisposable
             return (_changes.ToList(), _lost);
     }
 
-    // Records `drive` while `walk` runs, and keeps the recording for EnsureMonitor if the walk built a store.
-    // `token` is the build's own (see the constructor); `walk` uses whatever token it needs.
+    // Caller holds UsnIndexer.LockObj.
+    internal void DeferReindex() => _reindexDeferred = true;
+
+    // Records `drive` while `walk` runs, for EnsureMonitor's hand-over. `token` is the build's own (see the
+    // constructor); `walk` uses whatever token it needs. Registered for the drive before the walk starts,
+    // not after it: while it is, the drive's live monitor leaves its re-walk requests to this recording
+    // (UsnIndexerExtensions.RequestFolderReindex). A walk that builds nothing stops watching but stays
+    // registered, so the build's settle (SettleFailedBuild, or the startup's own) finds what was left to it.
     public static FileRecordStore? Record(UsnIndexer indexer, string drive, CancellationToken token, Func<FileRecordStore?> walk)
     {
         var recorder = new FolderWalkRecorder(drive, token);
+        Keep(indexer, drive, recorder);
         recorder.Start();
-        var kept = false;
+        var built = false;
         try
         {
             var store = walk();
-            if (store != null)
-            {
-                Keep(indexer, drive, recorder);
-                kept = true;
-            }
+            built = store != null;
             return store;
         }
         finally
         {
-            if (!kept)
+            if (!built)
                 recorder.Dispose();
         }
     }
@@ -129,10 +135,22 @@ internal sealed class FolderWalkRecorder : IDisposable
         previous?.Abandon();
     }
 
-    // For a drive whose build (identified by `owner`, its token) failed after Keep, or that turned out to have
-    // a journal after all.
-    public static void Discard(UsnIndexer indexer, string drive, CancellationToken owner) =>
-        Take(indexer, drive, owner)?.Dispose();
+    // For a drive whose build (identified by `owner`, its token) failed, or that turned out to have a journal
+    // after all. Returns whether the drive's live monitor left a re-walk to the discarded recording, which the
+    // caller now owes. Taken under the lock RequestFolderReindex decides under, so nothing is left to the
+    // recording after this.
+    public static bool Discard(UsnIndexer indexer, string drive, CancellationToken owner)
+    {
+        FolderWalkRecorder? recorder;
+        bool owed;
+        lock (indexer.LockObj)
+        {
+            recorder = Take(indexer, drive, owner);
+            owed = recorder?._reindexDeferred == true;
+        }
+        recorder?.Dispose();
+        return owed;
+    }
 
     // Only the recorder `owner`'s own build kept: a newer build's, still walking, is not this build's to stop.
     private static FolderWalkRecorder? Take(UsnIndexer indexer, string drive, CancellationToken owner)
@@ -189,10 +207,11 @@ internal sealed class FolderWalkRecorder : IDisposable
             lost = true;
         }
         // The recorder saw every change since the walk began, so a change the old monitor flagged as missed
-        // during this rebuild is already reconciled above: without this, the caller's follow-up rebuild
-        // (ConsumeMissedFolderChangeDuringRebuild) re-walked the whole drive, and on a drive written to all
-        // the time that walk saw a change too and asked for the next one. A recorder that lost events still
-        // asks for exactly one walk, below.
+        // during this rebuild is already reconciled above, and so is whatever made it ask for a re-walk
+        // meanwhile (RequestFolderReindex left that to this recording). Without this, the caller's follow-up
+        // rebuild (ConsumeMissedFolderChangeDuringRebuild) re-walked the whole drive, and on a drive written
+        // to all the time that walk saw a change too and asked for the next one. A recorder that lost events
+        // still asks for exactly one walk, below.
         indexer.ConsumeMissedFolderChangeDuringRebuild(drive);
         if (lost)
             onReindexRequired?.Invoke(drive);

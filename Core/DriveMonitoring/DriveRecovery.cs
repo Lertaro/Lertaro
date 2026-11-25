@@ -67,7 +67,7 @@ internal static class DriveRecovery
             // Settles as "cached" (a Stop, not an error), "failed", or -- when the volume is simply not
             // mounted any more -- a drive parked for re-insertion. See DriveArrivalRecovery for why the
             // last one must not end here.
-            DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled, rebuildToken, token, onReindexRequired);
+            DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled, rebuildToken, token, onReindexRequired, onReindexRequired);
             return;
         }
 

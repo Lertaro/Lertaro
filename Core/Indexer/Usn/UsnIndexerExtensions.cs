@@ -341,6 +341,27 @@ public static class UsnIndexerExtensions
         return isRebuilding;
     }
 
+    // A re-walk request from a FAT32/exFAT drive's live FolderDriveMonitor: a watcher that errored or came
+    // back after an outage, or a change it could not apply. While the drive's own rebuild has a
+    // FolderWalkRecorder registered -- from before its walk until its hand-over -- the walk sees whatever
+    // happened before it began and the recorder whatever happened since, so queuing another rebuild only
+    // re-walked the whole drive again. The request is left to that recording instead, and it stays owed
+    // whatever happens to the build: the hand-over covers it (a recording cut short by a cancel, a removal or
+    // an overflow asks for its own one re-walk), and a build that never hands over raises it as the plain
+    // request (FolderWalkRecorder.Discard, SettleFailedBuild). Otherwise the request goes through unchanged.
+    internal static void RequestFolderReindex(this UsnIndexer indexer, string drive, Action<string>? onReindexRequired)
+    {
+        lock (indexer.LockObj)
+        {
+            if (indexer._walkRecorders.TryGetValue(drive, out var recorder))
+            {
+                recorder.DeferReindex();
+                return;
+            }
+        }
+        onReindexRequired?.Invoke(drive);
+    }
+
     // Consumes (clears) the "a change was detected while this drive was being rebuilt" flag set by
     // ApplyFolderChange above. Called once by the rebuild's own caller (SearchEngineDriveMaintenance/
     // DriveRecovery) right after BuildDrives returns and the fresh LiveIndex is already swapped in and

@@ -93,6 +93,36 @@ public sealed class SearchEngineInitializerTests
     // guaranteed by construction instead. The initializer keeps the engine's callbacks in no field, so a
     // monitor or waiter can only be handed RequestRebuild or RequestRebuildAfterRemoval. Reverting either call
     // site to the raw callback does not compile.
+    // A FAT32/exFAT drive's walk recorder that lost events asks, at its hand-over in StartMonitor's
+    // EnsureMonitor, for one re-walk. That runs inside Run, while the engine still refuses every rebuild
+    // request, so it has to wait for initialization like the rest. As above, the hand-over runs before Run,
+    // which is the same state: nothing is flushed until Run's finally.
+    [TestMethod]
+    public void ColdStartHandOver_LostRecorder_ReWalkIsFlushedAfterInitialization()
+    {
+        var cacheDir = Directory.CreateTempSubdirectory("lertaro-tests-").FullName;
+        try
+        {
+            using var indexer = new UsnIndexer();
+            using var startup = new CancellationTokenSource();
+            var rebuilding = true;
+            var accepted = new List<string>();
+            var initializer = new SearchEngineInitializer(indexer, cacheDir, d => { if (!rebuilding) accepted.Add(d); });
+            var recorder = new FolderWalkRecorder("Q", startup.Token);
+            recorder.MarkLost(); // overflowed, could not start, or released for a vetoed removal
+            FolderWalkRecorder.Keep(indexer, "Q", recorder);
+
+            FolderWalkRecorder.Replay(indexer, "Q", startup.Token, initializer.RequestRebuild);
+            RunWithNoDrives(initializer, isRebuilding => rebuilding = isRebuilding);
+
+            CollectionAssert.AreEqual(new[] { "Q" }, accepted);
+        }
+        finally
+        {
+            Directory.Delete(cacheDir, recursive: true);
+        }
+    }
+
     [TestMethod]
     public void Run_RemovalFailedDuringInitialization_ForcedRebuildRunsAfterIt()
     {

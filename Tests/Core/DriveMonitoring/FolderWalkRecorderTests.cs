@@ -339,7 +339,7 @@ public sealed class FolderWalkRecorderTests
         var recorder = new FolderWalkRecorder("C");
         FolderWalkRecorder.Keep(indexer, "C", recorder);
 
-        DriveArrivalRecovery.SettleFailedBuild(indexer, "C", wasCancelled: false, CancellationToken.None, CancellationToken.None, null);
+        DriveArrivalRecovery.SettleFailedBuild(indexer, "C", wasCancelled: false, CancellationToken.None, CancellationToken.None, null, null);
 
         recorder.Monitor.Schedule(WatcherChangeTypes.Created, @"C:\after-failure.txt");
         bool stillKept;
@@ -370,22 +370,28 @@ public sealed class FolderWalkRecorderTests
     }
 
     // A removal request only cancels the walk's token, and the recorder's watcher holds the volume open:
-    // cancelling must dispose it there and then, or "Safely remove" is vetoed. What it missed needs a re-walk,
-    // which the build's hand-over asks for (the walk still returned a store, so the build hands over).
+    // cancelling must dispose it there and then, or "Safely remove" is vetoed. What it missed needs a re-walk.
     [TestMethod]
-    public void Record_WalkTokenCancelled_ItsHandOverAsksForAReWalk()
+    public void Record_WalkTokenCancelled_ReleasesTheWatcherAndMarksItLost()
     {
         using var indexer = new UsnIndexer();
         using var cts = new CancellationTokenSource();
 
+        // The walk still returns a store, so the recorder is kept and its state can be inspected.
         FolderWalkRecorder.Record(indexer, "Q", cts.Token, () =>
         {
             cts.Cancel();
             return new FileRecordStore();
         });
+        FolderWalkRecorder recorder;
+        lock (indexer.LockObj)
+            recorder = indexer._walkRecorders["Q"];
+        recorder.Monitor.Schedule(WatcherChangeTypes.Created, @"Q:\after-cancel.txt");
         var requested = new List<string>();
+        var (changes, _) = recorder.Stop();
         FolderWalkRecorder.Replay(indexer, "Q", cts.Token, requested.Add);
 
+        Assert.HasCount(0, changes, "still recording after the cancel");
         CollectionAssert.AreEqual(new[] { "Q" }, requested);
     }
 
@@ -537,6 +543,77 @@ public sealed class FolderWalkRecorderTests
         Assert.IsEmpty(newerRequests);
     }
 
+    // The same, with the newer build still walking: its recorder is registered from before its walk, so an
+    // older build's hand-over landing mid-walk must not take and stop it.
+    [TestMethod]
+    public void Replay_OfAnOlderBuild_DoesNotStopTheRecorderOfAWalkStillRunning()
+    {
+        using var tempDir = new TempDirectory();
+        var drive = tempDir.Path; // a real root, so each recorder's watcher starts and loses nothing
+        using var indexer = new UsnIndexer();
+        using var older = new CancellationTokenSource();
+        using var newer = new CancellationTokenSource();
+        var olderRequests = new List<string>();
+        var newerRequests = new List<string>();
+        FolderWalkRecorder.Record(indexer, drive, older.Token, () => new FileRecordStore()); // walk done
+        var stillRecording = false;
+        FolderWalkRecorder.Record(indexer, drive, newer.Token, () =>
+        {
+            FolderWalkRecorder.Replay(indexer, drive, older.Token, olderRequests.Add); // the older build's EnsureMonitor
+            lock (indexer.LockObj)
+                stillRecording = indexer._walkRecorders.TryGetValue(drive, out var current) && current.Owner == newer.Token;
+            return new FileRecordStore();
+        });
+        FolderWalkRecorder.Replay(indexer, drive, newer.Token, newerRequests.Add);
+
+        Assert.IsTrue(stillRecording, "another build's hand-over stopped the recorder of a walk still running");
+        CollectionAssert.AreEqual(new[] { drive }, olderRequests, "the older build's own recording was cut short");
+        Assert.IsEmpty(newerRequests);
+    }
+
+    // A buffer overflow on the drive's live monitor asks for a re-walk at the loss (watcher Error) and again
+    // when the watcher comes back 10 s later (onStarted -> Recovered); #569's FlushPending catch asks too.
+    // The first queues the drive's rebuild. Those landing while that rebuild's recorder is registered -- mid
+    // walk ("indexing", set by BuildDrives) and between the walk and the hand-over (OnDriveCompleted has
+    // marked the drive ready) -- must not queue another: the walk and its recorder already cover the loss.
+    // The real maintenance would turn each forwarded one into a follow-up walk of that rebuild.
+    [TestMethod]
+    public void RequestFolderReindex_DuringTheDrivesOwnRebuild_QueuesNothingAndTheHandOverCoversIt()
+    {
+        using var tempDir = new TempDirectory();
+        var drive = tempDir.Path; // a real root, so the recorder's watcher starts and loses nothing
+        using var lifetime = new CancellationTokenSource();
+        using var indexer = new UsnIndexer();
+        indexer.Status.Drives.Add(new UsnIndexer.DriveIndexStatus { Drive = drive, State = "ready", Enabled = true });
+        var heldWork = new List<Action>();
+        var maintenance = new SearchEngineDriveMaintenance(indexer, () => new MachineSettings(),
+            () => lifetime.Token, () => false, () => { }, TimeProvider.System, heldWork.Add);
+        var forwarded = 0;
+        void Forward(string d)
+        {
+            forwarded++;
+            maintenance.QueueDriveRebuild(d);
+        }
+        using var rebuild = new CancellationTokenSource();
+
+        Assert.IsTrue(maintenance.QueueDriveRebuild(drive, forceRebuild: false), "the overflow's own request");
+        FolderWalkRecorder.Record(indexer, drive, rebuild.Token, () =>
+        {
+            indexer.RequestFolderReindex(drive, Forward); // mid-walk: the restarted watcher
+            return new FileRecordStore();
+        });
+        indexer.SetDriveState(drive, "ready"); // OnDriveCompleted
+        indexer.RequestFolderReindex(drive, Forward); // walk done, hand-over pending
+        var followUps = new List<string>();
+        FolderWalkRecorder.Replay(indexer, drive, rebuild.Token, followUps.Add);
+        indexer.RequestFolderReindex(drive, Forward); // after the hand-over: the live monitor's own again
+        lifetime.Cancel();
+
+        Assert.AreEqual(1, forwarded, "only the request after the hand-over is the monitor's own");
+        Assert.HasCount(1, heldWork);
+        Assert.IsEmpty(followUps, "the recorder lost nothing, so the hand-over owes no walk");
+    }
+
     // A build whose token is already cancelled -- a stale per-drive rebuild a full rebuild cancelled while it
     // was still on its way to its walk -- registers nothing. If it still hands over, nothing recorded its walk,
     // so it asks for the re-walk.
@@ -556,6 +633,77 @@ public sealed class FolderWalkRecorderTests
 
         Assert.IsFalse(registered);
         CollectionAssert.AreEqual(new[] { "Q" }, requested);
+    }
+
+    // The final review's stale-build case: a full rebuild's walk of the drive is running (its recorder
+    // registered) when a per-drive rebuild the full rebuild already cancelled reaches Record for the same
+    // drive. That stale build must not displace the live recording: its walk throws, its build settles
+    // (Discard takes only its own recorder, so nothing), and the full rebuild's hand-over still finds its
+    // recording intact, with the change made during the walk.
+    [TestMethod]
+    public void Record_StaleCancelledBuild_DoesNotDisplaceTheRunningWalksRecording()
+    {
+        using var tempDir = new TempDirectory();
+        var drive = tempDir.Path; // a real root, so the full rebuild's own watcher starts and loses nothing by itself
+        using var indexer = new UsnIndexer();
+        using var fullRebuild = new CancellationTokenSource();
+        using var stalePerDrive = new CancellationTokenSource();
+        stalePerDrive.Cancel(); // the lifetime cancel the full rebuild issued reached the per-drive rebuild
+        var requests = new List<string>();
+        FolderWalkRecorder? fullRebuildsRecorder = null;
+
+        FolderWalkRecorder.Record(indexer, drive, fullRebuild.Token, () =>
+        {
+            lock (indexer.LockObj)
+                fullRebuildsRecorder = indexer._walkRecorders[drive];
+            try
+            {
+                FolderWalkRecorder.Record(indexer, drive, stalePerDrive.Token, () =>
+                {
+                    stalePerDrive.Token.ThrowIfCancellationRequested();
+                    return new FileRecordStore();
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                // IndexBuilder files the drive as cancelled.
+            }
+            FolderWalkRecorder.Discard(indexer, drive, stalePerDrive.Token); // the stale build's SettleFailedBuild
+            fullRebuildsRecorder!.Monitor.Schedule(WatcherChangeTypes.Created, Path.Combine(drive, "made-during-walk.txt"));
+            return new FileRecordStore();
+        });
+        FolderWalkRecorder.Replay(indexer, drive, fullRebuild.Token, requests.Add); // the full rebuild's EnsureMonitor
+
+        Assert.HasCount(1, fullRebuildsRecorder!.Stop().Changes, "the stale build cut the running walk's recording short");
+        Assert.IsEmpty(requests);
+    }
+
+    // And if another build did displace this build's recording (it was not cancelled yet when it registered),
+    // this build's hand-over finds no recording of its own -- even after the other build has settled and taken
+    // its own away -- and asks for the re-walk instead of returning silently.
+    [TestMethod]
+    public void Replay_RecordingDisplacedByAnotherBuildThatThenSettled_AsksForAReWalk()
+    {
+        using var tempDir = new TempDirectory();
+        var drive = tempDir.Path;
+        using var indexer = new UsnIndexer();
+        using var running = new CancellationTokenSource();
+        using var other = new CancellationTokenSource();
+        var requests = new List<string>();
+
+        FolderWalkRecorder.Record(indexer, drive, running.Token, () =>
+        {
+            FolderWalkRecorder.Record(indexer, drive, other.Token, () =>
+            {
+                other.Cancel();
+                return null;
+            });
+            FolderWalkRecorder.Discard(indexer, drive, other.Token); // the other build's SettleFailedBuild
+            return new FileRecordStore();
+        });
+        FolderWalkRecorder.Replay(indexer, drive, running.Token, requests.Add);
+
+        CollectionAssert.AreEqual(new[] { drive }, requests);
     }
 
     // A Stop that lands after the walk, once the build has swapped the walked index in (typically while

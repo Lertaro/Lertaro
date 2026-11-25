@@ -31,8 +31,10 @@ internal static class DriveMonitorFactory
         if (VolumeHelper.IsJournalCapableFileSystem(fs))
         {
             // A walk recorder kept for this drive has no hand-over here (the build saw a folder drive; an
-            // unreadable volume reports NTFS by default), and its watcher would otherwise run on unowned.
-            FolderWalkRecorder.Discard(indexer, drive, buildToken);
+            // unreadable volume reports NTFS by default), and its watcher would otherwise run on unowned. A
+            // re-walk the old folder monitor left to it is still owed.
+            if (FolderWalkRecorder.Discard(indexer, drive, buildToken))
+                onReindexRequired?.Invoke(drive);
             // Keep a linked source per monitor so disposal stops only THIS instance. UsnMonitor.Dispose
             // closes the volume handle immediately; cancellation then lets its loop unwind cleanly.
             var cts = CancellationTokenSource.CreateLinkedTokenSource(parentToken);
@@ -57,8 +59,8 @@ internal static class DriveMonitorFactory
             parentToken,
             // A FAT32/exFAT watcher that dies silently loses every change made while it was down; a
             // per-drive re-walk is the only way to reconcile, the same callback a removed-and-reattached
-            // drive uses.
-            () => onReindexRequired?.Invoke(drive));
+            // drive uses -- unless the drive's own rebuild already covers it (see RequestFolderReindex).
+            () => indexer.RequestFolderReindex(drive, onReindexRequired));
         var folderRegistration = new DriveMonitorRegistration(folderMonitor, null);
         indexer.RegisterDriveMonitor(drive, folderRegistration);
         AttachRemovalMonitor(indexer, drive, folderRegistration, parentToken, onReindexRequired,

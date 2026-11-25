@@ -346,12 +346,12 @@ internal sealed class SearchEngineDriveMaintenance
         catch (Exception ex) when (ex is OperationCanceledException
                                    || (ex is ObjectDisposedException && cts.Token.IsCancellationRequested))
         {
-            DriveArrivalRecovery.SettleFailedBuild(_indexer, drive, wasCancelled: true, cts.Token, _token(), QueueDriveRebuild);
+            DriveArrivalRecovery.SettleFailedBuild(_indexer, drive, wasCancelled: true, cts.Token, _token(), QueueDriveRebuild, QueueDriveRebuild);
         }
         catch (Exception ex)
         {
             Logger.Log($"[SearchEngine] Failed to build drive {drive}: {ex.Message}", LogLevel.Error);
-            DriveArrivalRecovery.SettleFailedBuild(_indexer, drive, wasCancelled: false, cts.Token, _token(), QueueDriveRebuild);
+            DriveArrivalRecovery.SettleFailedBuild(_indexer, drive, wasCancelled: false, cts.Token, _token(), QueueDriveRebuild, QueueDriveRebuild);
         }
         finally
         {
@@ -432,7 +432,7 @@ internal sealed class SearchEngineDriveMaintenance
             // forced rebuild queued for the moment it is back, since this is the request the user made
             // against this one drive. See DriveRecovery.RestoreOrRebuild for the same three-way settle.
             DriveArrivalRecovery.SettleFailedBuild(_indexer, drive, wasCancelled, token, _token(),
-                name => RebuildDriveIndex(name, followUpIfBusy: true));
+                name => RebuildDriveIndex(name, followUpIfBusy: true), QueueDriveRebuild);
             return;
         }
 

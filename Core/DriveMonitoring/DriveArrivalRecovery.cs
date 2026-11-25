@@ -40,21 +40,32 @@ internal static class DriveArrivalRecovery
     // Where a build ended with nothing to show for it: stopped by the user, or failed because the volume was
     // never there (no scan can run on an unmounted drive).
     // `buildToken` is the failed build's own, which identifies the walk recorder it may have kept.
+    // `onReindexRequired` is what the re-insertion waiter asks for; `onFolderReindex` is the plain per-drive
+    // re-walk request (never the forced rebuild) for what the drive's live monitor left to this build.
     internal static void SettleFailedBuild(
         UsnIndexer indexer, string drive, bool wasCancelled, CancellationToken buildToken, CancellationToken parentToken,
-        Action<string>? onReindexRequired)
+        Action<string>? onReindexRequired, Action<string>? onFolderReindex)
     {
-        // The build can fail after its walk kept a recorder (writing the snapshot, say); no monitor will
-        // take that recorder over now.
-        FolderWalkRecorder.Discard(indexer, drive, buildToken);
+        // The build's walk registered a recorder, which may still be there (the build failed or was stopped
+        // before its index was swapped in, or the walk itself failed); no monitor will take it over now. A
+        // re-walk the drive's live folder monitor left to it (UsnIndexerExtensions.RequestFolderReindex) is
+        // still unrecovered: it is raised once below, as the plain request the monitor would have made.
+        // Requests the monitor makes from here on go through on their own: the recorder is gone.
+        var reindexOwed = FolderWalkRecorder.Discard(indexer, drive, buildToken);
         if (IsMounted(drive))
         {
             // A Stop request reverts to "cached" (mirrors NetworkIndexer's own CancelDrive), not "failed"
             // -- the user asked for this, it isn't an error.
             indexer.SetDriveState(drive, wasCancelled ? "cached" : "failed");
+            // Raised after a Stop too: the drive keeps serving its old index, which still misses what that
+            // monitor lost, and cancelling a walk does not recover a loss. The request is plain, so it waits
+            // out its backoff instead of restarting the walk the user just stopped.
+            if (reindexOwed)
+                onFolderReindex?.Invoke(drive);
             return;
         }
 
+        // Gone: the re-insertion waiter's rebuild re-walks it anyway, so a deferred request is dropped too.
         ArmForReinsertion(indexer, drive, parentToken, onReindexRequired);
     }
 
