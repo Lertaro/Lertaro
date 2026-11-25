@@ -16,7 +16,7 @@ internal sealed class FolderDriveMonitor : IDisposable
     private readonly List<PendingChange> _pending = new();
     private readonly WatcherLossRefreshGate _lossGate = new();
     private Timer? _debounce;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     public FolderDriveMonitor(string drive, Func<WatcherChangeTypes, string, string?, bool> onChange, CancellationToken token, Action? onReindexRequired = null)
     {
