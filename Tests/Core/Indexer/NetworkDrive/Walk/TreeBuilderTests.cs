@@ -134,6 +134,110 @@ public sealed class TreeBuilderTests
         Assert.IsTrue(builder._store.Records.Single(r => r.Name == "sub").Flags.HasFlag(FileRecordFlags.Listed));
     }
 
+    // Review on #562: whether a subtree survived hung on the RETRY list, so a failure that list never named
+    // dropped the subtree while the root was still there, and the pass was saved over the good index.
+    [TestMethod]
+    [DataRow(1130)] // ERROR_NOT_ENOUGH_SERVER_MEMORY: an overloaded SMB server
+    [DataRow(240)]  // ERROR_VC_DISCONNECTED: the SMB session was torn down
+    [DataRow(21)]   // ERROR_NOT_READY: removable drive not ready (LocalDriveWalkBuilder shares this walk)
+    [DataRow(70)]   // ERROR_SHARING_PAUSED
+    [DataRow(1167)] // ERROR_DEVICE_NOT_CONNECTED
+    [DataRow(1222)] // ERROR_NO_NETWORK
+    [DataRow(1255)] // ERROR_SERVER_SHUTDOWN_IN_PROGRESS
+    [DataRow(1256)] // ERROR_HOST_DOWN
+    [DataRow(1450)] // ERROR_NO_SYSTEM_RESOURCES
+    [DataRow(51)]   // ERROR_REM_NOT_LIST: the destination computer busy or turned off
+    [DataRow(1225)] // ERROR_CONNECTION_REFUSED: smbd restarting
+    [DataRow(1229)] // ERROR_CONNECTION_INVALID
+    [DataRow(1234)] // ERROR_PORT_UNREACHABLE
+    [DataRow(1006)] // ERROR_FILE_INVALID: a handle an SMB reconnect invalidated
+    public void WalkDirectory_OpenFailureOutsideTheRetryList_CarriesThePreviousSubtreeForward(int error)
+    {
+        var (builder, current) = CreateWalkWith(
+            new FileRecord(2, 1, "sub", FileRecordFlags.Directory | FileRecordFlags.Listed),
+            new FileRecord(3, 2, "deep.txt", FileRecordFlags.None, 7, 0, 0, 0));
+
+        builder.WalkDirectory(current, _ => throw new Win32Exception(error), _ => false);
+
+        Assert.IsFalse(builder._token.IsCancellationRequested, "precondition: the root is reachable, so the walk goes on");
+        CollectionAssert.AreEquivalent(new[] { "sub", "deep.txt" }, builder._store.Records.Skip(1).Select(r => r.Name).ToArray(),
+            $"Win32 {error} dropped the previous subtree.");
+        Assert.AreEqual(1, builder._enumerateErrors, "Counted, so the drive is marked uncaptured.");
+    }
+
+    // A failure that describes the folder itself, or one nobody listed, drops what it held: gone (2, 3, also as
+    // the managed DirectoryNotFoundException), not a folder (267), not readable (5, 65), damaged (23, 1392),
+    // unlisted (87), or an IOException carrying no Win32 code at all.
+    [TestMethod]
+    [DataRow(2, false)]
+    [DataRow(3, false)]
+    [DataRow(3, true)]
+    [DataRow(267, false)]
+    [DataRow(5, false)]
+    [DataRow(65, false)]
+    [DataRow(23, false)]
+    [DataRow(1392, false)]
+    [DataRow(87, false)]
+    [DataRow(0, true)]
+    public void WalkDirectory_FailureDescribingTheFolder_DropsItsPreviousSubtree(int error, bool managed)
+    {
+        var (builder, current) = CreateWalkWith(
+            new FileRecord(2, 1, "sub", FileRecordFlags.Directory | FileRecordFlags.Listed),
+            new FileRecord(3, 2, "deep.txt", FileRecordFlags.None, 7, 0, 0, 0));
+        Exception failure = !managed ? new Win32Exception(error)
+            : error == 0 ? new IOException("no Win32 code") : new DirectoryNotFoundException();
+
+        builder.WalkDirectory(current, _ => throw failure, _ => false);
+
+        Assert.IsFalse(builder._token.IsCancellationRequested, "precondition: the root is reachable, so the walk goes on");
+        Assert.HasCount(1, builder._store.Records, "Only the root row is left.");
+    }
+
+    // Such a failure usually lasts: a folder this user may no longer read over SMB (65), or a damaged directory
+    // on a removable exFAT drive (23, 1392), where LocalDriveWalkBuilder writes no uncaptured marker. Carried,
+    // its old contents would outlive every pass for as long as the folder keeps failing.
+    [TestMethod]
+    [DataRow(65)]   // ERROR_NETWORK_ACCESS_DENIED
+    [DataRow(1392)] // ERROR_FILE_CORRUPT
+    [DataRow(23)]   // ERROR_CRC
+    public void WalkDirectory_FolderPermanentlyUnreadable_DoesNotCarryItsSubtreeForever(int error)
+    {
+        var previous = new[]
+        {
+            new FileRecord(2, 1, "sub", FileRecordFlags.Directory | FileRecordFlags.Listed),
+            new FileRecord(3, 2, "deep.txt", FileRecordFlags.None, 7, 0, 0, 0)
+        };
+
+        for (var pass = 1; pass <= 2; pass++)
+        {
+            var (builder, root) = CreateWalkWith(previous);
+            builder.WalkDirectory(root, _ => new[] { new NativeFileEntry("sub", FileAttributes.Directory, 0, 0, 0, 0) }, _ => false);
+            var sub = new WorkItem(root.Path + @"\sub", root.Path + @"\sub", 2, 1, NetworkIgnoreRuleSet.Empty);
+            builder.WalkDirectory(sub, _ => throw new Win32Exception(error), _ => false);
+            Assert.IsFalse(builder._token.IsCancellationRequested, "precondition: the root is reachable");
+            previous = builder._store.Records.Skip(1).ToArray();
+        }
+
+        CollectionAssert.DoesNotContain(previous.Select(r => r.Name).ToList(), "deep.txt",
+            $"Win32 {error} describes the folder itself, yet its old contents are still carried after two passes.");
+    }
+
+    // A folder deleted since the previous walk is simply missing from its parent's listing: it is never
+    // queued, so nothing is carried for it.
+    [TestMethod]
+    public void WalkDirectory_FolderMissingFromItsParentsListing_IsDroppedWithItsSubtree()
+    {
+        var (builder, current) = CreateWalkWith(
+            new FileRecord(2, 1, "sub", FileRecordFlags.Directory | FileRecordFlags.Listed),
+            new FileRecord(3, 2, "deep.txt", FileRecordFlags.None, 7, 0, 0, 0),
+            new FileRecord(4, 1, "top.txt", FileRecordFlags.None, 1, 0, 0, 0));
+
+        builder.WalkDirectory(current, _ => new[] { new NativeFileEntry("top.txt", FileAttributes.Normal, 1, 0, 0, 0) }, _ => false);
+
+        CollectionAssert.AreEqual(new[] { "top.txt" }, builder._store.Records.Skip(1).Select(r => r.Name).ToArray());
+        Assert.AreEqual(0, builder._enumerateErrors);
+    }
+
     [TestMethod]
     public void WalkDirectory_TransientMidListingFailure_CarriesForwardOnlyTheUnreadNames()
     {
