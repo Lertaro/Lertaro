@@ -84,10 +84,13 @@ internal static class TreeBuilderEnumerationExtensions
     };
 
     // Shared failure tail for a directory whose enumeration failed -- whether it failed to open or failed
-    // midway through being iterated (FindNextFile mid-listing, e.g. the share dropping). The directory is
-    // left un-Listed: its contents were never fully captured, so a later diff-aware pass must re-list it
-    // rather than trust the partial rows already recorded for it (TreeDiffBaseline only ever trusts
-    // FileRecordFlags.Listed directories).
+    // midway through being iterated (FindNextFile mid-listing, e.g. the share dropping). Counting it is
+    // what gets the directory captured later: a network refresh that ends with enumerate errors marks the
+    // drive uncaptured, so the next startup scans it again. The row's Listed flag is not touched here: a
+    // row built from this pass's listing never had it, while a row committed from the previous walk (by a
+    // reused parent, or carried under a failed one) keeps the baseline's. Both are safe, because every pass
+    // lists every directory again and TryReuseUnchangedDirectory only reuses a Listed directory's rows once
+    // that live listing matches them.
     public static void CountEnumerationFailure(this TreeBuilder builder, string directoryPath, Exception failure)
     {
         builder.CountError(ref builder._enumerateErrors);
@@ -169,7 +172,7 @@ internal static class TreeBuilderEnumerationExtensions
     // The exceptions a directory enumeration really raises: the native enumerator's own failures
     // (FindFirstFileEx/FindNextFile, both surfaced as Win32Exception by NativeFileEnumerator) plus the
     // file system ones a listing can hit on the way. Deliberately narrow: anything else is a bug in this
-    // walker, and hiding it behind "un-captured directory" would leave the directory permanently un-Listed
+    // walker, and hiding it behind "un-captured directory" would count the directory as failed on every pass
     // instead of surfacing the bug. Cancellation is not in this set either -- it must keep propagating.
     internal static bool IsEnumerationFailure(Exception ex) =>
         ex is Win32Exception or IOException or UnauthorizedAccessException;

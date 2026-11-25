@@ -106,8 +106,8 @@ public sealed class TreeBuilderEnumerationExtensionsTests
     }
 
     // Regression coverage: a directory that fails WHILE being iterated (FindNextFile mid-listing, e.g. a
-    // share that dropped) must cost exactly that one directory -- counted as an enumeration error, left
-    // un-Listed so a later pass re-lists it, and never thrown out of the walker. Letting it escape faults
+    // share that dropped) must cost exactly that one directory -- counted as an enumeration error, not
+    // marked Listed (so its partial rows are never reused as a complete listing), and never thrown out of the walker. Letting it escape faults
     // the worker, which used to end the drive's whole scan (TreeBuilderTests covers the channel half).
     [TestMethod]
     public void ConsumeChildren_MidIterationFailure_LeavesDirectoryUnlistedAndKeepsWalking()
@@ -127,9 +127,9 @@ public sealed class TreeBuilderEnumerationExtensionsTests
 
         Assert.AreEqual(1, builder._enumerateErrors);
         Assert.AreEqual(1, builder._errors);
-        Assert.IsFalse(IsListed(builder, 3), "a directory whose listing failed must stay un-Listed so a future pass re-lists it");
+        Assert.IsFalse(IsListed(builder, 3), "a directory whose listing failed this pass must not be marked Listed by it");
         // The children captured before the failure are real and were already counted as indexed, so they
-        // are kept -- the un-Listed directory above is what stops any later pass trusting them wholesale.
+        // are kept -- the un-Listed directory above keeps a later pass from reusing them wholesale.
         CollectionAssert.Contains(builder._store.Records.Select(r => r.Name).ToList(), "captured.txt");
 
         // And the walk continues: the next work item is processed and marked Listed as usual.

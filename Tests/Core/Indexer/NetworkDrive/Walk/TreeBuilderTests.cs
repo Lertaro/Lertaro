@@ -130,7 +130,7 @@ public sealed class TreeBuilderTests
         Assert.AreEqual(2, builder._indexedFiles);
         Assert.AreEqual(1, builder._indexedDirs);
         Assert.AreEqual(1, builder._enumerateErrors);
-        Assert.IsFalse(builder._store.Records[0].Flags.HasFlag(FileRecordFlags.Listed), "The failed directory stays un-Listed so it is retried.");
+        Assert.IsFalse(builder._store.Records[0].Flags.HasFlag(FileRecordFlags.Listed), "This pass did not list the directory, so it does not mark it Listed.");
         Assert.IsTrue(builder._store.Records.Single(r => r.Name == "sub").Flags.HasFlag(FileRecordFlags.Listed));
     }
 
@@ -236,6 +236,30 @@ public sealed class TreeBuilderTests
 
         CollectionAssert.AreEqual(new[] { "top.txt" }, builder._store.Records.Skip(1).Select(r => r.Name).ToArray());
         Assert.AreEqual(0, builder._enumerateErrors);
+    }
+
+    // Review on #562: a folder committed by a reused parent keeps the baseline row's Listed flag when its own
+    // listing then fails. That flag never stands in for a listing: the failure is counted (the drive is marked
+    // uncaptured), and the next pass lists the folder again and takes what it finds over the carried rows.
+    [TestMethod]
+    public void WalkDirectory_ReusedChildFailsToList_IsCountedAndListedAgainNextPass()
+    {
+        var sub = new FileRecord(2, 1, "sub", FileRecordFlags.Directory | FileRecordFlags.Listed);
+        var subEntry = new NativeFileEntry("sub", FileAttributes.Directory, 0, 0, 0, 0);
+        var (firstPass, root) = CreateWalkWith(sub, new FileRecord(3, 2, "deep.txt", FileRecordFlags.None, 7, 0, 0, 0));
+        var subItem = new WorkItem(root.Path + @"\sub", root.Path + @"\sub", 2, 1, NetworkIgnoreRuleSet.Empty);
+        firstPass.WalkDirectory(root, _ => new[] { subEntry }, _ => false);
+        firstPass.WalkDirectory(subItem, _ => throw new Win32Exception(64), _ => false);
+        Assert.AreEqual(1, firstPass._reusedDirectories, "precondition: the root was reused");
+        Assert.AreEqual(1, firstPass._enumerateErrors, "The failure is counted, so the drive is marked uncaptured.");
+
+        var (secondPass, _) = CreateWalkWith(firstPass._store.Records.Skip(1).ToArray());
+        secondPass.WalkDirectory(root, _ => new[] { subEntry }, _ => false);
+        secondPass.WalkDirectory(subItem, _ => new[] { new NativeFileEntry("fresh.txt", FileAttributes.Normal, 1, 0, 0, 0) }, _ => false);
+
+        CollectionAssert.AreEquivalent(new[] { "sub", "fresh.txt" }, secondPass._store.Records.Skip(1).Select(r => r.Name).ToArray(),
+            "The next pass must list the folder again rather than trust the rows carried for it.");
+        Assert.AreEqual(0, secondPass._enumerateErrors);
     }
 
     [TestMethod]
@@ -453,7 +477,7 @@ public sealed class TreeBuilderTests
         builder.WalkDirectory(current, _ => Entries(), _ => false);
 
         CollectionAssert.AreEquivalent(new[] { "new.txt", "captured.txt" }, builder._store.Records.Skip(1).Select(r => r.Name).ToArray());
-        Assert.IsFalse(builder._store.Records[0].Flags.HasFlag(FileRecordFlags.Listed), "Still un-Listed, so it is retried.");
+        Assert.IsFalse(builder._store.Records[0].Flags.HasFlag(FileRecordFlags.Listed), "Still un-Listed: the listing failed again.");
     }
 
     [TestMethod]

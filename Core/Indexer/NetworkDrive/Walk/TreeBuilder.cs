@@ -172,7 +172,7 @@ internal sealed class TreeBuilder
 
         // Buffered whenever the previous walk knows something under this directory, Listed or not: a listing
         // that fails midway must say which names it captured so the rest can be carried forward, and an
-        // un-Listed directory is exactly what a previous transient failure leaves behind. A directory the
+        // un-Listed directory is typically what a previous failure leaves behind. A directory the
         // baseline has nothing for streams, since there is nothing to carry. ponytail: one buffered listing
         // per worker is held in memory at a time, so a single directory with millions of entries costs
         // that listing's size; the upgrade is a streaming name set instead of the entry list.
