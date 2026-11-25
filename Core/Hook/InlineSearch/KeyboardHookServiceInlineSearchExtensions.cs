@@ -9,6 +9,9 @@ internal static class KeyboardHookServiceInlineSearchExtensions
 {
     internal static bool HandleInlineSearchKeys(this KeyboardHookService service, int vkCode, KeyboardNativeMethods.KBDLLHOOKSTRUCT hookStruct, IntPtr fgHwnd)
     {
+        // Keep automation text out of inline search while allowing injected global shortcuts.
+        if ((hookStruct.flags & KeyboardNativeMethods.LLKHF_INJECTED) != 0) return false;
+
         var targetFocus = fgHwnd;
         var threadId = KeyboardNativeMethods.GetWindowThreadProcessId(fgHwnd, out var fgPid);
         var guiInfo = new KeyboardNativeMethods.GUITHREADINFO

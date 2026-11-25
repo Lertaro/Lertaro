@@ -1,56 +1,74 @@
 namespace Lertaro.Core.Hook.InlineSearch;
 
-// Detects a double-tap of a single modifier key within a (100ms, 300ms) window. Reused by
-// GlobalHotkeyDetector for both the toggle-window and quick-switch hotkeys, which previously each
-// carried their own copy of this exact state machine.
+// Confirm both taps on release: the second Ctrl down may still become Ctrl+V (#555).
 internal sealed class ModifierDoubleTapDetector
 {
-    private const int DoubleTapClickCount = 2;
+    private int _pressedKey;
+    private uint _downTime;
+    private int _firstTapKey;
+    private uint _firstDownTime;
+    private bool _secondTap;
+    private bool _cancelled;
 
-    private uint _lastDownTime;
-    private int _lastVkCode;
-    private int _clickCount;
-    private bool _wasReleased = true;
-
-    /// <summary>Call on WM_KEYUP / WM_SYSKEYUP for the tracked modifier to reset the "was released" flag.</summary>
-    public void OnModifierKeyUp() => _wasReleased = true;
-
-    /// <summary>
-    /// Feed a WM_KEYDOWN for the tracked modifier's vkCode. Returns true once the double-tap completes.
-    /// </summary>
-    public bool OnModifierKeyDown(int vkCode, uint time)
+    public void OnModifierKeyDown(int vkCode, uint time)
     {
-        // Key-repeat: the key was never released since last press — ignore
-        if (!_wasReleased)
-            return false;
-        _wasReleased = false;
-
-        var elapsed = time - _lastDownTime;
-        if (vkCode == _lastVkCode && elapsed > 100 && elapsed < 300)
+        if (_pressedKey != 0)
         {
-            _clickCount++;
-            if (_clickCount >= DoubleTapClickCount)
-            {
-                _clickCount = 0;
-                _lastDownTime = 0;
-                _lastVkCode = 0;
-                return true;
-            }
-            _lastDownTime = time;
+            if (_pressedKey != vkCode) ResetOnOtherKey();
+            return; // Auto-repeat is still the same press, including after cancellation.
+        }
+
+        var elapsed = unchecked(time - _firstDownTime);
+        _secondTap = vkCode == _firstTapKey && elapsed > 100 && elapsed < 300;
+        _firstTapKey = 0;
+        _pressedKey = vkCode;
+        _downTime = time;
+        _cancelled = false;
+    }
+
+    public bool OnModifierKeyUp(int vkCode, uint time)
+    {
+        if (vkCode != _pressedKey)
+        {
+            ResetOnOtherKey();
             return false;
         }
 
-        _clickCount = 1;
-        _lastDownTime = time;
-        _lastVkCode = vkCode;
+        _pressedKey = 0;
+        // Keep the existing down-to-down window, and reject a hold on either tap.
+        if (_cancelled || unchecked(time - _downTime) >= 300)
+        {
+            ResetOnOtherKey();
+            return false;
+        }
+
+        if (_secondTap)
+        {
+            ResetOnOtherKey();
+            return true;
+        }
+
+        _firstTapKey = vkCode;
+        _firstDownTime = _downTime;
         return false;
     }
 
-    /// <summary>Call when a WM_KEYDOWN for something other than the tracked modifier arrives.</summary>
     public void ResetOnOtherKey()
     {
-        _clickCount = 0;
-        _lastDownTime = 0;
-        _lastVkCode = 0;
+        _firstTapKey = 0;
+        _secondTap = false;
+        _cancelled = true;
+    }
+
+    public void Reset()
+    {
+        _pressedKey = 0;
+        ResetOnOtherKey();
+    }
+
+    // A secure-desktop transition can hide a release. Do not keep ignoring fresh presses forever.
+    internal void Synchronize(Func<int, bool> isKeyDown)
+    {
+        if (_pressedKey != 0 && !isKeyDown(_pressedKey)) Reset();
     }
 }

@@ -67,6 +67,8 @@ public class MouseHookService : IDisposable
     // measure real elapsed time against a keystroke's own timestamp, not our processing latency.
     public event Action<uint>? OnRightButtonDown;
 
+    public event Action? OnMouseButtonOrWheel;
+
     public void Start()
     {
         if (_hookId != IntPtr.Zero) return;
@@ -98,6 +100,7 @@ public class MouseHookService : IDisposable
         {
             if (nCode >= 0)
             {
+                NotifyButtonOrWheel((int)wParam);
                 if (wParam == (IntPtr)WM_LBUTTONDOWN)
                 {
                     var hookStruct = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
@@ -135,4 +138,10 @@ public class MouseHookService : IDisposable
     }
 
     public void Dispose() => Stop();
+
+    internal void NotifyButtonOrWheel(int message)
+    {
+        // Button down/up (including X buttons), vertical wheel, and horizontal wheel. Motion is harmless.
+        if (message is >= 0x0201 and <= 0x020E) OnMouseButtonOrWheel?.Invoke();
+    }
 }

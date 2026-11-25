@@ -76,4 +76,33 @@ public sealed class ModifierKeyStateTests
         Assert.IsFalse(state.IsWindowsDown);
         Assert.IsTrue(state.IsAltDown);
     }
+
+    [TestMethod]
+    [DataRow(0x41)]
+    [DataRow(0xA3)]
+    [DataRow(0xA4)]
+    [DataRow(0x01)]
+    public void Synchronize_AllKeys_DetectsAnAlreadyHeldKeyOrMouseButton(int heldKey)
+    {
+        var state = new ModifierKeyState();
+        state.Synchronize(key => key == heldKey, includeAllKeys: true);
+        state.OnKeyDown(0xA2);
+        Assert.IsTrue(state.HasOtherKeyDown(0xA2));
+
+        state.Synchronize(_ => false, includeAllKeys: true);
+        state.OnKeyDown(0xA2);
+        Assert.IsFalse(state.HasOtherKeyDown(0xA2));
+        Assert.IsTrue(state.IsControlDown, "Apply the current event after the async snapshot.");
+    }
+
+    [TestMethod]
+    public void Synchronize_GenericControlAlias_DoesNotCancelPureLeftControl()
+    {
+        var state = new ModifierKeyState();
+        state.Synchronize(key => key is 0x11 or 0xA2, includeAllKeys: true);
+        Assert.IsFalse(state.HasOtherKeyDown(0xA2));
+
+        state.OnKeyUp(0xA2);
+        Assert.IsFalse(state.IsControlDown);
+    }
 }

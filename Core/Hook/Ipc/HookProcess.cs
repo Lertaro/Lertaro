@@ -421,6 +421,7 @@ public sealed class HookProcess : IDisposable
 
             _mouseHook = new MouseHookService { DoubleClickEnabled = () => _keyboardHook?._settings.Hotkeys.QuickNavTriggerOnDoubleClick == true };
             _mouseHook.OnRightButtonDown += time => _keyboardHook.NotifyRightButtonDown(time);
+            _mouseHook.OnMouseButtonOrWheel += () => _keyboardHook.NotifyMouseButtonOrWheel();
             _mouseHook.OnMouseClick += (x, y) => _ipcServer.SendMessage(new IpcMessage { Id = IpcMessageId.MouseClick, MouseX = x, MouseY = y });
             _mouseHook.OnMouseDoubleClick += (x, y, view) =>
             {

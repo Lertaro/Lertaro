@@ -26,12 +26,45 @@ public sealed class GlobalHotkeyDetector
             ?? (hwnd => QuickSwitchNavigator.Execute(_explorerTracker, hwnd));
     }
 
-    public void OnKeyDown(int vkCode) => _modifierKeyState.OnKeyDown(vkCode);
+    public void OnKeyDown(int vkCode)
+    {
+        _modifierKeyState.OnKeyDown(vkCode);
+        CancelTapsForOtherKey(vkCode);
+    }
 
-    // Secure-desktop transitions can hide a modifier key-up from the low-level hook; refresh the
-    // hook-owned snapshot before processing the next key event.
-    internal void SynchronizeModifierState() => _modifierKeyState.Synchronize(vkCode =>
-        (KeyboardNativeMethods.GetAsyncKeyState(vkCode) & 0x8000) != 0);
+    // Call before applying the incoming event: async key state still describes the previous event.
+    internal void SynchronizeModifierState(int vkCode)
+    {
+        static bool IsDown(int key) => (KeyboardNativeMethods.GetAsyncKeyState(key) & 0x8000) != 0;
+        _modifierKeyState.Synchronize(IsDown, IsDoubleTapKey(vkCode));
+        _toggleWindowTapDetector.Synchronize(IsDown);
+        _quickSwitchTapDetector.Synchronize(IsDown);
+    }
+
+    private static bool IsTapKey(int vkCode, string hotkey) =>
+        HotkeyStringFormat.IsBareModifier(hotkey, out var modifier) && KeyboardUtils.IsModifierKey(vkCode, modifier);
+
+    internal bool IsDoubleTapKey(int vkCode) => IsTapKey(vkCode, _settings.Hotkeys.ToggleWindowHotkey)
+        || IsTapKey(vkCode, _settings.Hotkeys.QuickSwitchHotkey);
+
+    private void CancelTapsForOtherKey(int vkCode)
+    {
+        // Observe every event before a different shortcut can consume it.
+        if (!IsTapKey(vkCode, _settings.Hotkeys.ToggleWindowHotkey)) _toggleWindowTapDetector.ResetOnOtherKey();
+        if (!IsTapKey(vkCode, _settings.Hotkeys.QuickSwitchHotkey)) _quickSwitchTapDetector.ResetOnOtherKey();
+    }
+
+    internal void CancelDoubleTaps()
+    {
+        _toggleWindowTapDetector.ResetOnOtherKey();
+        _quickSwitchTapDetector.ResetOnOtherKey();
+    }
+
+    internal void ResetDoubleTaps()
+    {
+        _toggleWindowTapDetector.Reset();
+        _quickSwitchTapDetector.Reset();
+    }
 
     internal bool HasControlAltOrWindowsDown => _modifierKeyState.HasControlAltOrWindowsDown;
 
@@ -41,24 +74,14 @@ public sealed class GlobalHotkeyDetector
     internal bool CheckModifiersMatchOnly(string expectedModifier) =>
         KeyboardUtils.CheckModifiersMatch(expectedModifier, _modifierKeyState, "CONTROL");
 
-    /// <summary>Call on WM_KEYUP / WM_SYSKEYUP to reset the "was released" flags.</summary>
+    /// <summary>Update state before checking release-triggered hotkeys.</summary>
     public void OnKeyUp(int vkCode)
     {
         _modifierKeyState.OnKeyUp(vkCode);
-        if (HotkeyStringFormat.IsBareModifier(_settings.Hotkeys.ToggleWindowHotkey, out var toggleModifier) &&
-            KeyboardUtils.IsModifierKey(vkCode, toggleModifier))
-        {
-            _toggleWindowTapDetector.OnModifierKeyUp();
-        }
-
-        if (HotkeyStringFormat.IsBareModifier(_settings.Hotkeys.QuickSwitchHotkey, out var quickSwitchModifier) &&
-            KeyboardUtils.IsModifierKey(vkCode, quickSwitchModifier))
-        {
-            _quickSwitchTapDetector.OnModifierKeyUp();
-        }
+        CancelTapsForOtherKey(vkCode);
     }
 
-    public bool CheckToggleWindowHotkey(int vkCode, uint time, out bool consumeKey, Action? onDoubleCtrl)
+    public bool CheckToggleWindowHotkey(int vkCode, uint time, out bool consumeKey, Action? onDoubleCtrl, bool isKeyUp = false)
     {
         consumeKey = false;
         var triggered = false;
@@ -66,14 +89,14 @@ public sealed class GlobalHotkeyDetector
         {
             if (KeyboardUtils.IsModifierKey(vkCode, clickModifier))
             {
-                triggered = _toggleWindowTapDetector.OnModifierKeyDown(vkCode, time);
+                triggered = CheckModifierTap(_toggleWindowTapDetector, vkCode, time, isKeyUp);
             }
             else
             {
                 _toggleWindowTapDetector.ResetOnOtherKey();
             }
         }
-        else
+        else if (!isKeyUp)
         {
             HotkeyStringFormat.ParseCombo(_settings.Hotkeys.ToggleWindowHotkey, out var modifier, out var key);
             var targetVk = KeyboardUtils.GetKeyVirtualCode(key);
@@ -148,22 +171,23 @@ public sealed class GlobalHotkeyDetector
         return true;
     }
 
-    public bool CheckAndHandleQuickSwitch(int vkCode, uint time, out bool consumeKey)
+    public bool CheckAndHandleQuickSwitch(int vkCode, uint time, out bool consumeKey, bool isKeyUp = false)
     {
         consumeKey = false;
         var triggered = false;
-        if (HotkeyStringFormat.IsBareModifier(_settings.Hotkeys.QuickSwitchHotkey, out var clickModifier))
+        var isBareModifier = HotkeyStringFormat.IsBareModifier(_settings.Hotkeys.QuickSwitchHotkey, out var clickModifier);
+        if (isBareModifier)
         {
             if (KeyboardUtils.IsModifierKey(vkCode, clickModifier))
             {
-                triggered = _quickSwitchTapDetector.OnModifierKeyDown(vkCode, time);
+                triggered = CheckModifierTap(_quickSwitchTapDetector, vkCode, time, isKeyUp);
             }
             else
             {
                 _quickSwitchTapDetector.ResetOnOtherKey();
             }
         }
-        else
+        else if (!isKeyUp)
         {
             HotkeyStringFormat.ParseCombo(_settings.Hotkeys.QuickSwitchHotkey, out var modifier, out var key);
             var targetVk = KeyboardUtils.GetKeyVirtualCode(key);
@@ -176,7 +200,17 @@ public sealed class GlobalHotkeyDetector
             }
         }
 
-        return TryHandleQuickSwitchNavigation(triggered, out consumeKey);
+        var handled = TryHandleQuickSwitchNavigation(triggered, out consumeKey);
+        if (isBareModifier) consumeKey = false;
+        return handled;
+    }
+
+    private bool CheckModifierTap(ModifierDoubleTapDetector detector, int vkCode, uint time, bool isKeyUp)
+    {
+        if (isKeyUp) return detector.OnModifierKeyUp(vkCode, time);
+        detector.OnModifierKeyDown(vkCode, time);
+        if (_modifierKeyState.HasOtherKeyDown(vkCode)) detector.ResetOnOtherKey();
+        return false;
     }
 
     // Quick Switch's trigger doesn't just toggle a window like the other hotkey does -- it re-navigates

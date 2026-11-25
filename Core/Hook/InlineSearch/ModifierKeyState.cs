@@ -1,7 +1,6 @@
 namespace Lertaro.Core.Hook.InlineSearch;
 
-// Tracks modifier transitions from the low-level hook itself. GetKeyState is thread-relative and can
-// still report the state before the current hook event, so it cannot be used for chord detection here.
+// Tracks hook transitions for chords and for keys held before a bare-modifier tap begins.
 internal sealed class ModifierKeyState
 {
     private static readonly int[] TrackedModifierKeys =
@@ -22,25 +21,42 @@ internal sealed class ModifierKeyState
 
     public bool HasControlAltOrWindowsDown => IsControlDown || IsAltDown || IsWindowsDown;
 
-    public void OnKeyDown(int vkCode) => SetModifier(vkCode, true);
+    public void OnKeyDown(int vkCode) => _pressedKeys.Add(vkCode);
 
-    public void OnKeyUp(int vkCode) => SetModifier(vkCode, false);
-
-    internal void Synchronize(Func<int, bool> isKeyDown)
+    public void OnKeyUp(int vkCode)
     {
-        foreach (var vkCode in TrackedModifierKeys)
-            SetModifier(vkCode, isKeyDown(vkCode));
+        _pressedKeys.Remove(vkCode);
+        // Async snapshots include both a side-specific key and its generic modifier alias.
+        if (IsControlKey(vkCode) && !_pressedKeys.Contains(0xA2) && !_pressedKeys.Contains(0xA3)) _pressedKeys.Remove(0x11);
+        if (IsAltKey(vkCode) && !_pressedKeys.Contains(0xA4) && !_pressedKeys.Contains(0xA5)) _pressedKeys.Remove(0x12);
+        if (IsShiftKey(vkCode) && !_pressedKeys.Contains(0xA0) && !_pressedKeys.Contains(0xA1)) _pressedKeys.Remove(0x10);
     }
 
-    private void SetModifier(int vkCode, bool isDown)
+    internal bool HasOtherKeyDown(int vkCode) => _pressedKeys.Any(key => key != vkCode
+        && !(key == 0x11 && IsControlKey(vkCode))
+        && !(key == 0x12 && IsAltKey(vkCode))
+        && !(key == 0x10 && IsShiftKey(vkCode)));
+
+    internal void Synchronize(Func<int, bool> isKeyDown, bool includeAllKeys = false)
     {
-        if (!IsModifierKey(vkCode)) return;
+        if (includeAllKeys)
+        {
+            // Only a potential modifier tap needs a complete snapshot, including mouse buttons.
+            for (var vkCode = 1; vkCode < 255; vkCode++)
+                SetKey(vkCode, isKeyDown(vkCode));
+        }
+        else
+        {
+            foreach (var vkCode in TrackedModifierKeys)
+                SetKey(vkCode, isKeyDown(vkCode));
+        }
+    }
+
+    private void SetKey(int vkCode, bool isDown)
+    {
         if (isDown) _pressedKeys.Add(vkCode);
         else _pressedKeys.Remove(vkCode);
     }
-
-    private static bool IsModifierKey(int vkCode) => IsControlKey(vkCode) || IsAltKey(vkCode)
-        || IsShiftKey(vkCode) || vkCode is KeyboardNativeMethods.VK_LWIN or KeyboardNativeMethods.VK_RWIN;
 
     private static bool IsControlKey(int vkCode) => vkCode is 0x11 or 0xA2 or 0xA3;
 

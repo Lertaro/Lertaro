@@ -5,124 +5,147 @@ namespace Lertaro.Core.Tests.Hook.InlineSearch;
 [TestClass]
 public sealed class ModifierDoubleTapDetectorTests
 {
-    private const int VkCtrl = 0x11;
+    private const int VkCtrl = 0xA2;
 
     [TestMethod]
-    public void OnModifierKeyDown_SingleTap_DoesNotTrigger()
+    [DataRow(50u, false)]
+    [DataRow(100u, false)]
+    [DataRow(101u, true)]
+    [DataRow(200u, true)]
+    [DataRow(299u, true)]
+    [DataRow(300u, false)]
+    [DataRow(400u, false)]
+    public void OnModifierKeyUp_DownToDownInterval_UsesExistingWindow(uint interval, bool expected)
     {
         var detector = new ModifierDoubleTapDetector();
+        Assert.IsFalse(Tap(detector, 1000));
+        detector.OnModifierKeyDown(VkCtrl, 1000 + interval);
 
-        var triggered = detector.OnModifierKeyDown(VkCtrl, 1000);
-
-        Assert.IsFalse(triggered);
+        Assert.AreEqual(expected, detector.OnModifierKeyUp(VkCtrl, 1010 + interval));
+        Assert.IsFalse(detector.OnModifierKeyUp(VkCtrl, 1020 + interval), "An orphan release must not trigger again.");
     }
 
     [TestMethod]
-    public void OnModifierKeyDown_DoubleTapWithinWindow_Triggers()
+    public void OnModifierKeyDown_AutoRepeat_DoesNotCountAsAnotherTap()
     {
         var detector = new ModifierDoubleTapDetector();
         detector.OnModifierKeyDown(VkCtrl, 1000);
-        detector.OnModifierKeyUp();
+        detector.OnModifierKeyDown(VkCtrl, 1150);
 
-        var triggered = detector.OnModifierKeyDown(VkCtrl, 1200); // 200ms later, inside (100, 500)
-
-        Assert.IsTrue(triggered);
+        Assert.IsFalse(detector.OnModifierKeyUp(VkCtrl, 1160));
+        Assert.IsTrue(Tap(detector, 1200));
     }
 
     [TestMethod]
-    public void OnModifierKeyDown_SecondTapTooSoon_DoesNotTrigger()
+    [DataRow(false)]
+    [DataRow(true)]
+    public void ResetOnOtherKey_DuringEitherPress_DoesNotPrimeTheNextTap(bool secondPress)
     {
         var detector = new ModifierDoubleTapDetector();
+        if (secondPress) Assert.IsFalse(Tap(detector, 850));
         detector.OnModifierKeyDown(VkCtrl, 1000);
-        detector.OnModifierKeyUp();
+        detector.ResetOnOtherKey();
+        detector.OnModifierKeyDown(VkCtrl, 1050); // Repeat must not undo cancellation.
 
-        // Only 50ms later -- below the 100ms floor (guards against key-repeat/bounce).
-        var triggered = detector.OnModifierKeyDown(VkCtrl, 1050);
-
-        Assert.IsFalse(triggered);
+        Assert.IsFalse(detector.OnModifierKeyUp(VkCtrl, 1060));
+        Assert.IsFalse(Tap(detector, 1150));
+        Assert.IsTrue(Tap(detector, 1300));
     }
 
     [TestMethod]
-    public void OnModifierKeyDown_SecondTapTooLate_DoesNotTrigger()
+    public void ResetOnOtherKey_BetweenTaps_StartsFreshPair()
     {
         var detector = new ModifierDoubleTapDetector();
-        detector.OnModifierKeyDown(VkCtrl, 1000);
-        detector.OnModifierKeyUp();
-
-        // 400ms later -- past the 300ms ceiling.
-        var triggered = detector.OnModifierKeyDown(VkCtrl, 1400);
-
-        Assert.IsFalse(triggered);
-    }
-
-    [TestMethod]
-    public void OnModifierKeyDown_SecondTapAtUpperBoundary_DoesNotTrigger()
-    {
-        var detector = new ModifierDoubleTapDetector();
-        detector.OnModifierKeyDown(VkCtrl, 1000);
-        detector.OnModifierKeyUp();
-
-        // The upper boundary is exclusive, so exactly 300ms is outside the window.
-        var triggered = detector.OnModifierKeyDown(VkCtrl, 1300);
-
-        Assert.IsFalse(triggered);
-    }
-
-    [TestMethod]
-    public void OnModifierKeyDown_KeyRepeatWithoutKeyUp_IsIgnored()
-    {
-        var detector = new ModifierDoubleTapDetector();
-        detector.OnModifierKeyDown(VkCtrl, 1000);
-
-        // No OnModifierKeyUp() in between -- this is OS key-repeat, must not count as a second tap.
-        var triggered = detector.OnModifierKeyDown(VkCtrl, 1200);
-
-        Assert.IsFalse(triggered);
-    }
-
-    [TestMethod]
-    public void OnModifierKeyDown_DifferentModifierKey_ResetsSequence()
-    {
-        const int vkShift = 0x10;
-        var detector = new ModifierDoubleTapDetector();
-        detector.OnModifierKeyDown(VkCtrl, 1000);
-        detector.OnModifierKeyUp();
-
-        // A different vk code breaks the double-tap sequence rather than completing it.
-        var triggered = detector.OnModifierKeyDown(vkShift, 1200);
-
-        Assert.IsFalse(triggered);
-    }
-
-    [TestMethod]
-    public void ResetOnOtherKey_ClearsInProgressSequence()
-    {
-        var detector = new ModifierDoubleTapDetector();
-        detector.OnModifierKeyDown(VkCtrl, 1000);
-        detector.OnModifierKeyUp();
+        Assert.IsFalse(Tap(detector, 1000));
         detector.ResetOnOtherKey();
 
-        // Without the reset this would complete the double-tap (200ms, same vk); after resetting, it
-        // starts a fresh single-tap count instead.
-        var triggered = detector.OnModifierKeyDown(VkCtrl, 1200);
-
-        Assert.IsFalse(triggered);
+        Assert.IsFalse(Tap(detector, 1150));
+        Assert.IsTrue(Tap(detector, 1300));
     }
 
     [TestMethod]
-    public void OnModifierKeyDown_AfterTriggering_StateIsResetForNextSequence()
+    [DataRow(299u, true)]
+    [DataRow(300u, false)]
+    [DataRow(1000u, false)]
+    public void OnModifierKeyUp_SecondPressDuration_RejectsHolds(uint duration, bool expected)
+    {
+        var detector = new ModifierDoubleTapDetector();
+        Assert.IsFalse(Tap(detector, 1000));
+        detector.OnModifierKeyDown(VkCtrl, 1150);
+
+        Assert.AreEqual(expected, detector.OnModifierKeyUp(VkCtrl, 1150 + duration));
+    }
+
+    [TestMethod]
+    public void OnModifierKeyUp_FirstPressHeld_DoesNotPrimeNextPair()
     {
         var detector = new ModifierDoubleTapDetector();
         detector.OnModifierKeyDown(VkCtrl, 1000);
-        detector.OnModifierKeyUp();
-        detector.OnModifierKeyDown(VkCtrl, 1200); // triggers
-        detector.OnModifierKeyUp();
+        Assert.IsFalse(detector.OnModifierKeyUp(VkCtrl, 1500));
 
-        // A fresh double-tap sequence afterward must work again, not be short-circuited by leftover state.
-        detector.OnModifierKeyDown(VkCtrl, 5000);
-        detector.OnModifierKeyUp();
-        var triggeredAgain = detector.OnModifierKeyDown(VkCtrl, 5200);
+        Assert.IsFalse(Tap(detector, 1600));
+        Assert.IsTrue(Tap(detector, 1750));
+    }
 
-        Assert.IsTrue(triggeredAgain);
+    [TestMethod]
+    public void OnModifierKeyUp_DifferentSides_NeedTwoTapsOnSameSide()
+    {
+        var detector = new ModifierDoubleTapDetector();
+        Assert.IsFalse(Tap(detector, 1000));
+        detector.OnModifierKeyDown(0xA3, 1150);
+        Assert.IsFalse(detector.OnModifierKeyUp(0xA3, 1160));
+        detector.OnModifierKeyDown(0xA3, 1300);
+        Assert.IsTrue(detector.OnModifierKeyUp(0xA3, 1310));
+    }
+
+    [TestMethod]
+    public void OnModifierKeyUp_OverlappingSides_CancelsBoth()
+    {
+        var detector = new ModifierDoubleTapDetector();
+        detector.OnModifierKeyDown(VkCtrl, 1000);
+        detector.OnModifierKeyDown(0xA3, 1050);
+        Assert.IsFalse(detector.OnModifierKeyUp(0xA3, 1060));
+        Assert.IsFalse(detector.OnModifierKeyUp(VkCtrl, 1070));
+
+        Assert.IsFalse(Tap(detector, 1150));
+        Assert.IsTrue(Tap(detector, 1300));
+    }
+
+    [TestMethod]
+    public void OnModifierKeyUp_TimestampWrap_StillRecognizesPair()
+    {
+        var detector = new ModifierDoubleTapDetector();
+        Assert.IsFalse(Tap(detector, uint.MaxValue - 100));
+        Assert.IsTrue(Tap(detector, 50));
+    }
+
+    [TestMethod]
+    public void OnModifierKeyUp_ConsecutivePairs_DoNotShareTaps()
+    {
+        var detector = new ModifierDoubleTapDetector();
+        Assert.IsFalse(Tap(detector, 1000));
+        Assert.IsTrue(Tap(detector, 1150));
+        Assert.IsFalse(Tap(detector, 1300));
+        Assert.IsTrue(Tap(detector, 1450));
+    }
+
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public void Synchronize_MissingRelease_RecoversWithoutInventingATap(bool stillDown)
+    {
+        var detector = new ModifierDoubleTapDetector();
+        detector.OnModifierKeyDown(VkCtrl, 1000);
+        detector.Synchronize(_ => stillDown);
+
+        detector.OnModifierKeyDown(VkCtrl, 1150);
+        Assert.IsFalse(detector.OnModifierKeyUp(VkCtrl, 1160));
+        Assert.IsTrue(Tap(detector, stillDown ? 1200u : 1300u));
+    }
+
+    private static bool Tap(ModifierDoubleTapDetector detector, uint time)
+    {
+        detector.OnModifierKeyDown(VkCtrl, time);
+        return detector.OnModifierKeyUp(VkCtrl, unchecked(time + 10));
     }
 }
