@@ -24,7 +24,6 @@ internal sealed class TreeBuilder
     // AbandonIfRootLost). ponytail: never disposed -- a straggling worker may still touch _token's
     // WaitHandle after Run returns; the registration on the caller's token goes when that source does.
     private readonly CancellationTokenSource _abort;
-    internal Func<string, bool> _rootExists = Directory.Exists;
     internal readonly Action<int, int> _onProgress;
     internal readonly Action<FileRecordStore, NetworkDriveWalkStats>? _onCheckpoint;
     private readonly Channel<WorkItem> _pending;
@@ -227,7 +226,7 @@ internal sealed class TreeBuilder
         // Directory.Exists with true. Do not replace a good index with this incomplete pass.
         var networkNameLost = failure is Win32Exception { NativeErrorCode: 67 }
             or IOException { HResult: unchecked((int)0x80070043) };
-        if (!networkNameLost && _rootExists(_physicalRoot))
+        if (!networkNameLost && Directory.Exists(_physicalRoot))
             return;
 
         Logger.Log($"[NetworkIndexer] {_physicalRoot} became unreachable mid-walk; abandoning this pass and keeping the existing index.", LogLevel.Warn);

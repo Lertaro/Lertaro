@@ -161,9 +161,8 @@ public sealed class TreeBuilderTests
     [DataRow(5, true, false)]
     public void WalkDirectory_FailureBelowTheRoot_AbandonsTheWalkOnlyWhenTheRootIsGone(int error, bool rootExists, bool abandons)
     {
-        var (builder, _) = CreateWalk();
-        builder._rootExists = _ => rootExists;
-        var child = new WorkItem(@"C:\unused\sub", @"C:\unused\sub", 2, 1, NetworkIgnoreRuleSet.Empty);
+        var (builder, current) = CreateWalk(rootExists: rootExists);
+        var child = new WorkItem(current.Path + @"\sub", current.Path + @"\sub", 2, 1, NetworkIgnoreRuleSet.Empty);
 
         void Walk() => builder.WalkDirectory(child, _ => throw new Win32Exception(error), _ => false);
 
@@ -184,8 +183,7 @@ public sealed class TreeBuilderTests
     [TestMethod]
     public void WalkDirectory_RootListingFailsWhileTheRootIsGone_AbandonsTheWalk()
     {
-        var (builder, current) = CreateWalk();
-        builder._rootExists = _ => false;
+        var (builder, current) = CreateWalk(rootExists: false);
 
         Assert.ThrowsExactly<OperationCanceledException>(
             () => builder.WalkDirectory(current, _ => throw new Win32Exception(67), _ => false));
@@ -200,7 +198,6 @@ public sealed class TreeBuilderTests
     public void WalkDirectory_NetworkNameLostWhileExistenceProbeIsStale_AbandonsTheWalk(int depth, bool useIOException)
     {
         var (builder, current) = CreateWalk();
-        builder._rootExists = _ => true;
         var failure = useIOException
             ? (Exception)new IOException("Network name unavailable", unchecked((int)0x80070043))
             : new Win32Exception(67);
@@ -219,8 +216,7 @@ public sealed class TreeBuilderTests
     [DataRow(true, 64)]
     public void WalkDirectory_ListingFailsMidwayWhileTheRootIsGone_AbandonsTheWalk(bool buffered, int error)
     {
-        var (builder, current) = CreateWalk(listed: buffered ? true : null);
-        builder._rootExists = _ => false;
+        var (builder, current) = CreateWalk(listed: buffered ? true : null, rootExists: false);
         IEnumerable<NativeFileEntry> Entries()
         {
             yield return new NativeFileEntry("read-before-the-drop.txt", FileAttributes.Normal, 1, 0, 0, 0);
@@ -247,7 +243,7 @@ public sealed class TreeBuilderTests
     // entry crosses both thresholds.
     private static (int ProgressAfterAbort, int CheckpointsAfterAbort) RunStragglerAfterAbandon()
     {
-        const string path = @"C:\unused";
+        var path = LostRoot();
         var progressAfterAbort = 0;
         var checkpointsAfterAbort = 0;
         TreeBuilder builder = null!;
@@ -257,7 +253,6 @@ public sealed class TreeBuilderTests
             new WalkOptions([], [], [], MaxDepth: 0, WorkerCount: 1, UseIgnoreFiles: false), default,
             (_, _) => { if (builder._token.IsCancellationRequested) Interlocked.Increment(ref progressAfterAbort); },
             (_, _) => { if (builder._token.IsCancellationRequested) Interlocked.Increment(ref checkpointsAfterAbort); });
-        builder._rootExists = _ => false;
         builder._countSinceProgress = TreeBuilder.ProgressBatchSize - TreeBuilder.RecordBatchSize;
         for (var i = 0; i < TreeBuilder.CheckpointBatchSize - TreeBuilder.RecordBatchSize; i++)
             builder._checkpointGate.TryEnter();
@@ -478,9 +473,15 @@ public sealed class TreeBuilderTests
         Assert.IsFalse(builder._store.Records[0].Flags.HasFlag(FileRecordFlags.Listed));
     }
 
+    // The walk probes its real root when a listing fails, so the fake tree hangs off a real folder (the temp
+    // folder, always there) or off a name that never existed (the root is gone). The listings stay faked.
+    private static string ReachableRoot() => Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar);
+
+    private static string LostRoot() => Path.Combine(Path.GetTempPath(), "lertaro-gone-" + Guid.NewGuid().ToString("N"));
+
     private static (TreeBuilder Builder, WorkItem Current) CreateWalkWith(params FileRecord[] previousChildren)
     {
-        const string path = @"C:\unused";
+        var path = ReachableRoot();
         var previousStore = new FileRecordStore();
         previousStore.Records.Add(new FileRecord(1, 1, string.Empty, FileRecordFlags.Directory | FileRecordFlags.SourceRoot | FileRecordFlags.Listed));
         previousStore.Records.AddRange(previousChildren);
@@ -489,13 +490,13 @@ public sealed class TreeBuilderTests
         var builder = new TreeBuilder(store, path, path,
             new WalkOptions([], [], [], MaxDepth: 0, WorkerCount: 1, UseIgnoreFiles: false), default, (_, _) => { },
             diffBaseline: TreeDiffBaseline.From(previousStore));
-        builder._rootExists = _ => true; // the fake root is "reachable" unless a test says otherwise
         return (builder, new WorkItem(path, path, 1, 0, NetworkIgnoreRuleSet.Empty));
     }
 
-    private static (TreeBuilder Builder, WorkItem Current) CreateWalk(bool? listed = true, CancellationToken token = default, bool baselineChild = true)
+    private static (TreeBuilder Builder, WorkItem Current) CreateWalk(bool? listed = true, CancellationToken token = default, bool baselineChild = true,
+        bool rootExists = true)
     {
-        const string path = @"C:\unused";
+        var path = rootExists ? ReachableRoot() : LostRoot();
         var previousStore = new FileRecordStore();
         previousStore.Records.Add(new FileRecord(1, 1, string.Empty,
             FileRecordFlags.Directory | FileRecordFlags.SourceRoot | (listed == true ? FileRecordFlags.Listed : FileRecordFlags.None)));
@@ -506,7 +507,6 @@ public sealed class TreeBuilderTests
         var builder = new TreeBuilder(store, path, path,
             new WalkOptions([], [], [], MaxDepth: 0, WorkerCount: 1, UseIgnoreFiles: false), token, (_, _) => { },
             diffBaseline: listed.HasValue ? TreeDiffBaseline.From(previousStore) : null);
-        builder._rootExists = _ => true; // the fake root is "reachable" unless a test says otherwise
         return (builder, new WorkItem(path, path, 1, 0, NetworkIgnoreRuleSet.Empty));
     }
 
