@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Threading.Channels;
 
@@ -19,6 +20,11 @@ internal sealed class TreeBuilder
     private readonly string _physicalRoot;
     internal readonly WalkFilter _filter;
     internal readonly CancellationToken _token;
+    // Linked to the caller's token so the walk can also end itself once its root is gone (see
+    // AbandonIfRootLost). ponytail: never disposed -- a straggling worker may still touch _token's
+    // WaitHandle after Run returns; the registration on the caller's token goes when that source does.
+    private readonly CancellationTokenSource _abort;
+    internal Func<string, bool> _rootExists = Directory.Exists;
     internal readonly Action<int, int> _onProgress;
     internal readonly Action<FileRecordStore, NetworkDriveWalkStats>? _onCheckpoint;
     private readonly Channel<WorkItem> _pending;
@@ -67,7 +73,8 @@ internal sealed class TreeBuilder
         _root = PathHelpers.NormalizePath(root, true);
         _physicalRoot = PathHelpers.NormalizePath(physicalRoot, true);
         _filter = WalkFilter.Create(_root, options);
-        _token = token;
+        _abort = CancellationTokenSource.CreateLinkedTokenSource(token);
+        _token = _abort.Token;
         _onProgress = onProgress;
         _onCheckpoint = onCheckpoint;
         _diffBaseline = diffBaseline;
@@ -154,13 +161,23 @@ internal sealed class TreeBuilder
         if (!this.TryEnumerateChildren(current.Path, out var children, out var failure, enumerate, waitForCancellation))
         {
             this.CountEnumerationFailure(current.Path, failure!);
+            AbandonIfRootLost(failure!);
+            this.CarryForwardPreviousSubtree(current, current.IgnoreRules, failure!, alreadyCommitted: null);
             return;
         }
 
+        // Buffered whenever the previous walk knows something under this directory, Listed or not: a listing
+        // that fails midway must say which names it captured so the rest can be carried forward, and an
+        // un-Listed directory is exactly what a previous transient failure leaves behind. A directory the
+        // baseline has nothing for streams, since there is nothing to carry. ponytail: one buffered listing
+        // per worker is held in memory at a time, so a single directory with millions of entries costs
+        // that listing's size; the upgrade is a streaming name set instead of the entry list.
         Exception? enumerationFailure = null;
-        if (_diffBaseline?.TryGetListedChildren(current.LocalId, out _) == true)
+        List<NativeFileEntry>? liveEntries = null;
+        if (_diffBaseline != null
+            && (_diffBaseline.HasChildren(current.LocalId) || _diffBaseline.TryGetListedChildren(current.LocalId, out _)))
         {
-            var liveEntries = new List<NativeFileEntry>();
+            liveEntries = new List<NativeFileEntry>();
             try
             {
                 foreach (var child in children)
@@ -179,11 +196,43 @@ internal sealed class TreeBuilder
                 return;
         }
 
-        var ignoreRules = _filter.LoadIgnoreRules(current.Path, current.LogicalPath, current.IgnoreRules);
-        this.ConsumeChildren(current, ignoreRules, children, enumerationFailure);
+        // A listing cut short can't vouch that no ignore file exists, so only a complete one replaces the probes.
+        var ignoreRules = _filter.LoadIgnoreRules(current.Path, current.LogicalPath, current.IgnoreRules,
+            enumerationFailure == null ? liveEntries : null);
+        // Failed midway, buffered or streamed: the root may have gone with it. Only a buffered listing knows
+        // which names it captured, so only it carries the rest forward from the previous walk; a streamed one
+        // has nothing in the baseline to carry.
+        enumerationFailure = this.ConsumeChildren(current, ignoreRules, children, enumerationFailure);
+        if (enumerationFailure != null)
+        {
+            AbandonIfRootLost(enumerationFailure);
+            if (liveEntries != null)
+                this.CarryForwardPreviousSubtree(current, ignoreRules, enumerationFailure,
+                    liveEntries.Select(e => e.Name).ToHashSet(StringComparer.OrdinalIgnoreCase));
+        }
 
         if (stopwatch.ElapsedMilliseconds >= 2_000)
             Interlocked.Increment(ref _slowDirectories);
+    }
+
+    // A failure while the root itself is gone means the share (or the removable drive) dropped mid-walk:
+    // every directory still queued would fail the same way. End the walk instead -- the caller's
+    // cancellation path keeps the index it already has. Whatever the error code: a deleted share answers
+    // 67 for everything under it, and a walk that took that as "gone" saved 12,544 of 6,021,472 records
+    // over the good index. The root's own listing counts too: the share can drop between the caller's
+    // reachability check and the first enumeration. Only a failed directory pays for the probe.
+    private void AbandonIfRootLost(Exception failure)
+    {
+        // ERROR_BAD_NET_NAME proves the share is gone even when SMB's attribute cache still answers
+        // Directory.Exists with true. Do not replace a good index with this incomplete pass.
+        var networkNameLost = failure is Win32Exception { NativeErrorCode: 67 }
+            or IOException { HResult: unchecked((int)0x80070043) };
+        if (!networkNameLost && _rootExists(_physicalRoot))
+            return;
+
+        Logger.Log($"[NetworkIndexer] {_physicalRoot} became unreachable mid-walk; abandoning this pass and keeping the existing index.", LogLevel.Warn);
+        _abort.Cancel();
+        _token.ThrowIfCancellationRequested();
     }
 
     internal void FlushRecords(List<FileRecord> batch)

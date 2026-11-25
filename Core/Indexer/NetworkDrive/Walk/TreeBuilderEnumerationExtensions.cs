@@ -48,7 +48,7 @@ internal static class TreeBuilderEnumerationExtensions
         return false;
     }
 
-    private static bool IsTransientEnumerationFailure(Exception ex)
+    internal static bool IsTransientEnumerationFailure(Exception ex)
     {
         var code = ex switch
         {
@@ -76,8 +76,9 @@ internal static class TreeBuilderEnumerationExtensions
 
     // Records, filters and commits one directory's already-enumerated children, then marks the directory
     // Listed. Takes the sequence instead of enumerating it itself so the mid-iteration failure path stays
-    // exercisable without a real failing share on hand.
-    public static void ConsumeChildren(
+    // exercisable without a real failing share on hand. Returns the enumeration failure (passed in, or hit
+    // while streaming) so the caller can still check whether the root went with it; null when complete.
+    public static Exception? ConsumeChildren(
         this TreeBuilder builder,
         WorkItem current,
         NetworkIgnoreRuleSet ignoreRules,
@@ -123,12 +124,7 @@ internal static class TreeBuilderEnumerationExtensions
                         (record.Attributes & FileAttributes.ReparsePoint) != 0);
                 }
 
-                if (Interlocked.Increment(ref builder._countSinceProgress) >= TreeBuilder.ProgressBatchSize)
-                {
-                    Interlocked.Exchange(ref builder._countSinceProgress, 0);
-                    builder._onProgress(Volatile.Read(ref builder._indexedFiles), Volatile.Read(ref builder._indexedDirs));
-                }
-
+                builder.MaybeReportProgress();
                 builder.MaybeCheckpoint(indexedItems);
             }
         }
@@ -141,10 +137,11 @@ internal static class TreeBuilderEnumerationExtensions
         if (enumerationFailure != null)
         {
             builder.CountEnumerationFailure(current.Path, enumerationFailure);
-            return;
+            return enumerationFailure;
         }
 
         builder.MarkListed(current.LocalId);
+        return null;
     }
 
     // The exceptions a directory enumeration really raises: the native enumerator's own failures

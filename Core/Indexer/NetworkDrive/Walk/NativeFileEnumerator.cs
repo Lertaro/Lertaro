@@ -12,6 +12,9 @@ namespace Lertaro.Core.Indexer.NetworkDrive.Walk;
 internal static class NativeFileEnumerator
 {
     private const int ErrorNoMoreFiles = 18;
+    // Bigger directory-query buffers: fewer round trips per listing, which is most of a walk's cost on
+    // SMB (#305) and still helps local exFAT. Windows ignores it where unsupported.
+    private const int FindFirstExLargeFetch = 2;
     private static readonly IntPtr InvalidHandleValue = new(-1);
 
     public static IEnumerable<NativeFileEntry> Enumerate(string directoryPath)
@@ -25,7 +28,7 @@ internal static class NativeFileEnumerator
             out var findData,
             FindexSearchOps.FindExSearchNameMatch,
             IntPtr.Zero,
-            0);
+            FindFirstExLargeFetch);
         if (handle == InvalidHandleValue)
             throw new Win32Exception(Marshal.GetLastPInvokeError());
 
