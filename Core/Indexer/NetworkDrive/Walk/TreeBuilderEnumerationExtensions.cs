@@ -111,51 +111,63 @@ internal static class TreeBuilderEnumerationExtensions
         Exception? enumerationFailure = null)
     {
         var batch = new List<FileRecord>(TreeBuilder.RecordBatchSize);
-        try
+        // Only the listing itself (MoveNext) can fail this directory. What the per-entry work throws -- a
+        // progress callback, a bug in a checkpoint callback or anywhere else -- propagates instead (a failed
+        // checkpoint WRITE never gets here: MaybeCheckpoint logs it and goes on). Caught here, it was taken
+        // for a failed listing, which carried the previous subtree over a complete one (bringing deleted
+        // entries back) and skipped the listed entries the loop never reached.
+        using var entries = children.GetEnumerator();
+        while (true)
         {
-            foreach (var child in children)
+            NativeFileEntry child;
+            try
             {
-                builder._token.ThrowIfCancellationRequested();
-
-                var childPath = current.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar + child.Name;
-                var createResult = builder.TryCreateRecord(child, current.LogicalPath, current.LocalId, out var record, out var isDirectory, out var logicalFullPath);
-                if (createResult != WalkRecordResult.Success)
-                {
-                    builder.CountCreateFailure(createResult);
-                    continue;
-                }
-
-                if (!builder._filter.ShouldIndex(logicalFullPath, record.Name, isDirectory, record.Attributes, ignoreRules))
-                {
-                    Interlocked.Increment(ref builder._skippedItems);
-                    continue;
-                }
-
-                batch.Add(record);
-                if (batch.Count >= TreeBuilder.RecordBatchSize)
-                    builder.FlushRecords(batch);
-
-                var indexedItems = Interlocked.Increment(ref builder._indexedItems);
-                if (isDirectory) Interlocked.Increment(ref builder._indexedDirs); else Interlocked.Increment(ref builder._indexedFiles);
-
-                if (isDirectory && builder._filter.ShouldDescend(logicalFullPath, record.Attributes, current.Depth + 1, ignoreRules))
-                {
-                    // A directory just added to batch isn't in _indexById until its batch is flushed --
-                    // another worker can dequeue and finish this child (including its own MarkListed)
-                    // before that happens, silently leaving it un-Listed forever. Flush now so the child's
-                    // own record is registered before anyone else can possibly touch it.
-                    builder.FlushRecords(batch);
-                    builder.EnqueueDirectory(childPath, logicalFullPath, record.Id, current.Depth + 1, ignoreRules, current.Ancestors,
-                        (record.Attributes & FileAttributes.ReparsePoint) != 0);
-                }
-
-                builder.MaybeReportProgress();
-                builder.MaybeCheckpoint(indexedItems);
+                if (!entries.MoveNext())
+                    break;
+                child = entries.Current;
             }
-        }
-        catch (Exception ex) when (IsEnumerationFailure(ex))
-        {
-            enumerationFailure = ex;
+            catch (Exception ex) when (IsEnumerationFailure(ex))
+            {
+                enumerationFailure = ex;
+                break;
+            }
+
+            builder._token.ThrowIfCancellationRequested();
+
+            var childPath = current.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar + child.Name;
+            var createResult = builder.TryCreateRecord(child, current.LogicalPath, current.LocalId, out var record, out var isDirectory, out var logicalFullPath);
+            if (createResult != WalkRecordResult.Success)
+            {
+                builder.CountCreateFailure(createResult);
+                continue;
+            }
+
+            if (!builder._filter.ShouldIndex(logicalFullPath, record.Name, isDirectory, record.Attributes, ignoreRules))
+            {
+                Interlocked.Increment(ref builder._skippedItems);
+                continue;
+            }
+
+            batch.Add(record);
+            if (batch.Count >= TreeBuilder.RecordBatchSize)
+                builder.FlushRecords(batch);
+
+            var indexedItems = Interlocked.Increment(ref builder._indexedItems);
+            if (isDirectory) Interlocked.Increment(ref builder._indexedDirs); else Interlocked.Increment(ref builder._indexedFiles);
+
+            if (isDirectory && builder._filter.ShouldDescend(logicalFullPath, record.Attributes, current.Depth + 1, ignoreRules))
+            {
+                // A directory just added to batch isn't in _indexById until its batch is flushed --
+                // another worker can dequeue and finish this child (including its own MarkListed)
+                // before that happens, silently leaving it un-Listed forever. Flush now so the child's
+                // own record is registered before anyone else can possibly touch it.
+                builder.FlushRecords(batch);
+                builder.EnqueueDirectory(childPath, logicalFullPath, record.Id, current.Depth + 1, ignoreRules, current.Ancestors,
+                    (record.Attributes & FileAttributes.ReparsePoint) != 0);
+            }
+
+            builder.MaybeReportProgress();
+            builder.MaybeCheckpoint(indexedItems);
         }
 
         builder.FlushRecords(batch);

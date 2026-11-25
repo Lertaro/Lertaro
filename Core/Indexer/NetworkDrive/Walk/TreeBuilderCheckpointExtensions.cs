@@ -38,7 +38,23 @@ internal static class TreeBuilderCheckpointExtensions
             builder.UnlessAbandoned(() =>
             {
                 builder._onProgress(Volatile.Read(ref builder._indexedFiles), Volatile.Read(ref builder._indexedDirs));
-                builder._onCheckpoint(snapshot, CurrentStats(builder));
+                try
+                {
+                    builder._onCheckpoint(snapshot, CurrentStats(builder));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // A checkpoint is a resume point, not the walk's result: a failed write (a full disk, a
+                    // locked or read-only cache file) leaves the store being built untouched, so the walk goes
+                    // on. What else it costs is the publisher's: PublishLocalDriveCheckpoint fails in
+                    // SnapshotWriter.Write before touching the runtime, so the previous live index keeps
+                    // serving. NetworkIndexerPublisher.PublishCheckpoint catches its own failures, but it has
+                    // already released the drive's cached index by then, so that drive serves no index until a
+                    // later checkpoint or the final save succeeds (that predates this catch). Anything else a
+                    // checkpoint throws is a bug and propagates, and so does cancellation, which the
+                    // publishers throw to stop the walk at a checkpoint boundary.
+                    Logger.Log($"[NetworkIndexer] A mid-walk checkpoint failed; the walk continues without it: {ex.GetType().Name}: {ex.Message}", LogLevel.Warn);
+                }
             });
         }
         finally

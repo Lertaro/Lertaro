@@ -262,6 +262,92 @@ public sealed class TreeBuilderTests
         Assert.AreEqual(0, secondPass._enumerateErrors);
     }
 
+    // Review on the #562 follow-up: a checkpoint failure inside ConsumeChildren was caught as THIS directory's
+    // enumeration failure. In production that is the local non-journal walk, whose checkpoint lets
+    // SnapshotWriter.Write's IOException escape (disk full, cache file locked). After a complete listing,
+    // the carry-forward then re-committed every baseline name the listing no longer had: deleted entries.
+    [TestMethod]
+    [DataRow(112)] // ERROR_DISK_FULL
+    [DataRow(64)]  // ERROR_NETNAME_DELETED, a cache folder on a share: a code the carry-forward keeps for
+    public void WalkDirectory_CheckpointWriteFailsAfterACompleteListing_DoesNotResurrectDeletedEntries(int error)
+    {
+        var (builder, root) = CreateWalkWith(
+        [
+            new FileRecord(2, 1, "deleted.txt", FileRecordFlags.None, 1, 0, 0, 0),
+            new FileRecord(3, 1, "gone", FileRecordFlags.Directory | FileRecordFlags.Listed),
+            new FileRecord(4, 3, "gone-deep.txt", FileRecordFlags.None, 1, 0, 0, 0)
+        ], onProgress: null, onCheckpoint: (_, _) => throw new IOException("checkpoint write failed", unchecked((int)0x80070000) | error));
+        for (var i = 0; i < TreeBuilder.CheckpointBatchSize - 1; i++)
+            builder._checkpointGate.TryEnter();
+
+        builder.WalkDirectory(root, _ => new[] { new NativeFileEntry("new.txt", FileAttributes.Normal, 1, 0, 0, 0) }, _ => false);
+
+        CollectionAssert.AreEquivalent(new[] { "new.txt" }, builder._store.Records.Skip(1).Select(r => r.Name).ToArray(),
+            "The complete live listing holds only new.txt.");
+        Assert.AreEqual(0, builder._enumerateErrors, "A failed checkpoint is not a failed listing.");
+        Assert.IsTrue(builder._store.Records[0].Flags.HasFlag(FileRecordFlags.Listed));
+    }
+
+    // The same failure in the middle of a directory skipped the entries the loop never reached: they were in
+    // the live listing, so the carry-forward treated them as committed. The walk now goes on past the failed
+    // checkpoint and commits them.
+    [TestMethod]
+    public void WalkDirectory_CheckpointWriteFailsMidDirectory_KeepsTheEntriesItNeverCommitted()
+    {
+        var (builder, root) = CreateWalkWith(
+        [
+            new FileRecord(2, 1, "a.txt", FileRecordFlags.None, 1, 0, 0, 0),
+            new FileRecord(3, 1, "b.txt", FileRecordFlags.None, 1, 0, 0, 0),
+            new FileRecord(4, 1, "keep", FileRecordFlags.Directory | FileRecordFlags.Listed),
+            new FileRecord(5, 4, "deep.txt", FileRecordFlags.None, 1, 0, 0, 0)
+        ], onProgress: null, onCheckpoint: (_, _) => throw new IOException("There is not enough space on the disk.", unchecked((int)0x80070070)));
+        for (var i = 0; i < TreeBuilder.CheckpointBatchSize - 1; i++)
+            builder._checkpointGate.TryEnter();
+
+        builder.WalkDirectory(root, _ => new[]
+        {
+            new NativeFileEntry("new.txt", FileAttributes.Normal, 1, 0, 0, 0),
+            new NativeFileEntry("a.txt", FileAttributes.Normal, 1, 0, 0, 0),
+            new NativeFileEntry("b.txt", FileAttributes.Normal, 1, 0, 0, 0),
+            new NativeFileEntry("keep", FileAttributes.Directory, 0, 0, 0, 0)
+        }, _ => false);
+
+        CollectionAssert.AreEquivalent(new[] { "new.txt", "a.txt", "b.txt", "keep" }, builder._store.Records.Skip(1).Select(r => r.Name).ToArray());
+        Assert.AreEqual(0, builder._enumerateErrors);
+    }
+
+    // Any other callback failure is a bug, not a failed listing: it propagates (the refresh reports an error and
+    // saves nothing) instead of being counted against the directory and steering the carry-forward.
+    // Only a failed checkpoint WRITE is logged and walked past; a bug in the checkpoint callback is not.
+    [TestMethod]
+    public void MaybeCheckpoint_CheckpointCallbackHasABug_Propagates()
+    {
+        var (builder, root) = CreateWalkWith(
+            [new FileRecord(2, 1, "old.txt", FileRecordFlags.None, 1, 0, 0, 0)],
+            onProgress: null, onCheckpoint: (_, _) => throw new InvalidOperationException("bug in the checkpoint callback"));
+        for (var i = 0; i < TreeBuilder.CheckpointBatchSize - 1; i++)
+            builder._checkpointGate.TryEnter();
+
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            builder.WalkDirectory(root, _ => new[] { new NativeFileEntry("new.txt", FileAttributes.Normal, 1, 0, 0, 0) }, _ => false));
+        Assert.AreEqual(0, builder._enumerateErrors);
+    }
+
+    [TestMethod]
+    public void WalkDirectory_ProgressCallbackThrowsAnIOException_PropagatesInsteadOfFailingTheListing()
+    {
+        var (builder, root) = CreateWalkWith(
+            [new FileRecord(2, 1, "deleted.txt", FileRecordFlags.None, 1, 0, 0, 0)],
+            onProgress: (_, _) => throw new IOException("progress sink broke"), onCheckpoint: null);
+        builder._countSinceProgress = TreeBuilder.ProgressBatchSize - 1;
+
+        Assert.ThrowsExactly<IOException>(() =>
+            builder.WalkDirectory(root, _ => new[] { new NativeFileEntry("new.txt", FileAttributes.Normal, 1, 0, 0, 0) }, _ => false));
+
+        Assert.AreEqual(0, builder._enumerateErrors);
+        CollectionAssert.DoesNotContain(builder._store.Records.Select(r => r.Name).ToList(), "deleted.txt");
+    }
+
     [TestMethod]
     public void WalkDirectory_TransientMidListingFailure_CarriesForwardOnlyTheUnreadNames()
     {
@@ -649,7 +735,11 @@ public sealed class TreeBuilderTests
 
     private static string LostRoot() => Path.Combine(Path.GetTempPath(), "lertaro-gone-" + Guid.NewGuid().ToString("N"));
 
-    private static (TreeBuilder Builder, WorkItem Current) CreateWalkWith(params FileRecord[] previousChildren)
+    private static (TreeBuilder Builder, WorkItem Current) CreateWalkWith(params FileRecord[] previousChildren) =>
+        CreateWalkWith(previousChildren, onProgress: null, onCheckpoint: null);
+
+    private static (TreeBuilder Builder, WorkItem Current) CreateWalkWith(FileRecord[] previousChildren,
+        Action<int, int>? onProgress, Action<FileRecordStore, NetworkDriveWalkStats>? onCheckpoint)
     {
         var path = ReachableRoot();
         var previousStore = new FileRecordStore();
@@ -658,8 +748,8 @@ public sealed class TreeBuilderTests
         var store = new FileRecordStore();
         store.Records.Add(new FileRecord(1, 1, string.Empty, FileRecordFlags.Directory | FileRecordFlags.SourceRoot));
         var builder = new TreeBuilder(store, path, path,
-            new WalkOptions([], [], [], MaxDepth: 0, WorkerCount: 1, UseIgnoreFiles: false), default, (_, _) => { },
-            diffBaseline: TreeDiffBaseline.From(previousStore));
+            new WalkOptions([], [], [], MaxDepth: 0, WorkerCount: 1, UseIgnoreFiles: false), default, onProgress ?? ((_, _) => { }),
+            onCheckpoint, diffBaseline: TreeDiffBaseline.From(previousStore));
         return (builder, new WorkItem(path, path, 1, 0, NetworkIgnoreRuleSet.Empty));
     }
 

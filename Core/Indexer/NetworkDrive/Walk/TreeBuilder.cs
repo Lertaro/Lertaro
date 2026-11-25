@@ -205,7 +205,10 @@ internal sealed class TreeBuilder
             enumerationFailure == null ? liveEntries : null);
         // Failed midway, buffered or streamed: the root may have gone with it. Only a buffered listing knows
         // which names it captured, so only it carries the rest forward from the previous walk; a streamed one
-        // has nothing in the baseline to carry.
+        // has nothing in the baseline to carry. A buffered listing's failure can only come from buffering
+        // (iterating the in-memory list cannot fail), and ConsumeChildren returns only after processing every
+        // buffered entry, so the captured names are exactly the ones already handled (committed, or skipped
+        // by the filters).
         enumerationFailure = this.ConsumeChildren(current, ignoreRules, children, enumerationFailure);
         if (enumerationFailure != null)
         {
