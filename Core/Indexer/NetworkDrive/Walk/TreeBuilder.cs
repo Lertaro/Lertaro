@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Threading.Channels;
 
@@ -160,7 +161,7 @@ internal sealed class TreeBuilder
         if (!this.TryEnumerateChildren(current.Path, out var children, out var failure, enumerate, waitForCancellation))
         {
             this.CountEnumerationFailure(current.Path, failure!);
-            AbandonIfRootLost(current);
+            AbandonIfRootLost(failure!);
             this.CarryForwardPreviousSubtree(current, current.IgnoreRules, failure!, alreadyCommitted: null);
             return;
         }
@@ -204,7 +205,7 @@ internal sealed class TreeBuilder
         enumerationFailure = this.ConsumeChildren(current, ignoreRules, children, enumerationFailure);
         if (enumerationFailure != null)
         {
-            AbandonIfRootLost(current);
+            AbandonIfRootLost(enumerationFailure);
             if (liveEntries != null)
                 this.CarryForwardPreviousSubtree(current, ignoreRules, enumerationFailure,
                     liveEntries.Select(e => e.Name).ToHashSet(StringComparer.OrdinalIgnoreCase));
@@ -220,9 +221,13 @@ internal sealed class TreeBuilder
     // 67 for everything under it, and a walk that took that as "gone" saved 12,544 of 6,021,472 records
     // over the good index. The root's own listing counts too: the share can drop between the caller's
     // reachability check and the first enumeration. Only a failed directory pays for the probe.
-    private void AbandonIfRootLost(WorkItem current)
+    private void AbandonIfRootLost(Exception failure)
     {
-        if (_rootExists(_physicalRoot))
+        // ERROR_BAD_NET_NAME proves the share is gone even when SMB's attribute cache still answers
+        // Directory.Exists with true. Do not replace a good index with this incomplete pass.
+        var networkNameLost = failure is Win32Exception { NativeErrorCode: 67 }
+            or IOException { HResult: unchecked((int)0x80070043) };
+        if (!networkNameLost && _rootExists(_physicalRoot))
             return;
 
         Logger.Log($"[NetworkIndexer] {_physicalRoot} became unreachable mid-walk; abandoning this pass and keeping the existing index.", LogLevel.Warn);

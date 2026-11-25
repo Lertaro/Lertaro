@@ -192,6 +192,24 @@ public sealed class TreeBuilderTests
         Assert.IsTrue(builder._token.IsCancellationRequested);
     }
 
+    [TestMethod]
+    [DataRow(0, false)]
+    [DataRow(0, true)]
+    [DataRow(1, false)]
+    [DataRow(1, true)]
+    public void WalkDirectory_NetworkNameLostWhileExistenceProbeIsStale_AbandonsTheWalk(int depth, bool useIOException)
+    {
+        var (builder, current) = CreateWalk();
+        builder._rootExists = _ => true;
+        var failure = useIOException
+            ? (Exception)new IOException("Network name unavailable", unchecked((int)0x80070043))
+            : new Win32Exception(67);
+
+        Assert.ThrowsExactly<OperationCanceledException>(
+            () => builder.WalkDirectory(current with { Depth = depth }, _ => throw failure, _ => false));
+        Assert.IsTrue(builder._token.IsCancellationRequested);
+    }
+
     // Review on #562: a STREAMED listing (nothing in the baseline under it: first scan, forced full scan)
     // failing midway was swallowed inside ConsumeChildren, so the root-lost check never ran and the walk
     // finished truncated. `buffered` = true is the control: the buffered path always probed the root.
@@ -216,18 +234,12 @@ public sealed class TreeBuilderTests
     // Review on #562: a worker still mid-directory when another one abandons the walk published a checkpoint
     // afterwards -- MaybeCheckpoint never looked at the walk's own token.
     [TestMethod]
-    public void WalkDirectory_StragglerAfterTheWalkAbandonsItself_PublishesNoCheckpoint()
-    {
-        Assert.AreEqual(0, RunStragglerAfterAbandon().CheckpointsAfterAbort, "A checkpoint was published after the walk abandoned itself.");
-    }
+    public void WalkDirectory_StragglerAfterTheWalkAbandonsItself_PublishesNoCheckpoint() => Assert.AreEqual(0, RunStragglerAfterAbandon().CheckpointsAfterAbort, "A checkpoint was published after the walk abandoned itself.");
 
     // Review on #562: the same straggler reported progress, and DriveRefreshRunner's progress guard checks the
     // caller's token (never cancelled by the abandon), so the drive flipped back to "indexing" after "cached".
     [TestMethod]
-    public void WalkDirectory_StragglerAfterTheWalkAbandonsItself_ReportsNoProgress()
-    {
-        Assert.AreEqual(0, RunStragglerAfterAbandon().ProgressAfterAbort, "Progress was reported after the walk abandoned itself.");
-    }
+    public void WalkDirectory_StragglerAfterTheWalkAbandonsItself_ReportsNoProgress() => Assert.AreEqual(0, RunStragglerAfterAbandon().ProgressAfterAbort, "Progress was reported after the walk abandoned itself.");
 
     // One worker is on the 256th entry of a streamed listing: past that entry's token check, blocked in
     // FlushRecords on _recordsGate (held here). Meanwhile another directory's failure abandons the walk (root
