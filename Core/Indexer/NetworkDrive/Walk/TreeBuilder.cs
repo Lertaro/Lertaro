@@ -24,6 +24,11 @@ internal sealed class TreeBuilder
     // AbandonIfRootLost). ponytail: never disposed -- a straggling worker may still touch _token's
     // WaitHandle after Run returns; the registration on the caller's token goes when that source does.
     private readonly CancellationTokenSource _abort;
+    // Progress and checkpoint callbacks run under the read side; AbandonIfRootLost cancels under the write
+    // side. So the abandon waits for a callback already running, and none starts after it: everything the
+    // walk publishes lands before Run throws and the caller reverts the status. Readers never block each
+    // other, so a slow checkpoint write does not stall other workers' progress. Not disposed, like _abort.
+    internal readonly ReaderWriterLockSlim _callbackGate = new();
     internal readonly Action<int, int> _onProgress;
     internal readonly Action<FileRecordStore, NetworkDriveWalkStats>? _onCheckpoint;
     private readonly Channel<WorkItem> _pending;
@@ -230,7 +235,16 @@ internal sealed class TreeBuilder
             return;
 
         Logger.Log($"[NetworkIndexer] {_physicalRoot} became unreachable mid-walk; abandoning this pass and keeping the existing index.", LogLevel.Warn);
-        _abort.Cancel();
+        _callbackGate.EnterWriteLock();
+        try
+        {
+            _abort.Cancel();
+        }
+        finally
+        {
+            _callbackGate.ExitWriteLock();
+        }
+
         _token.ThrowIfCancellationRequested();
     }
 

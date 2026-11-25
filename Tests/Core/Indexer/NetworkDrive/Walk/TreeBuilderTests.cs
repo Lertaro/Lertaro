@@ -341,6 +341,48 @@ public sealed class TreeBuilderTests
     [TestMethod]
     public void WalkDirectory_StragglerAfterTheWalkAbandonsItself_ReportsNoProgress() => Assert.AreEqual(0, RunStragglerAfterAbandon().ProgressAfterAbort, "Progress was reported after the walk abandoned itself.");
 
+    // Review on #562: the cancellation check sat before BOTH of MaybeCheckpoint's callbacks, so an abandon that
+    // landed while _onProgress ran (in production: SetStatus + StatusesChanged) still published the checkpoint
+    // after it. Here another worker loses the root while this one is inside its progress callback: the abandon
+    // has to wait for this worker's callbacks, so nothing is published after it.
+    [TestMethod]
+    public void MaybeCheckpoint_WalkAbandonedDuringItsProgressCallback_PublishesNothingAfterTheAbandon()
+    {
+        var path = LostRoot();
+        var store = new FileRecordStore();
+        store.Records.Add(new FileRecord(1, 1, string.Empty, FileRecordFlags.Directory | FileRecordFlags.SourceRoot));
+        TreeBuilder builder = null!;
+        Thread? otherWorker = null;
+        Exception? otherWorkerOutcome = null;
+        var abandonWaited = false;
+        var checkpointsAfterAbort = 0;
+        builder = new TreeBuilder(store, path, path,
+            new WalkOptions([], [], [], MaxDepth: 0, WorkerCount: 1, UseIgnoreFiles: false), default,
+            (_, _) =>
+            {
+                otherWorker = new Thread(() =>
+                {
+                    try { builder.WalkDirectory(new WorkItem(path + @"\other", path + @"\other", 99, 1, NetworkIgnoreRuleSet.Empty), _ => throw new Win32Exception(67), _ => false); }
+                    catch (Exception ex) { otherWorkerOutcome = ex; }
+                }) { IsBackground = true };
+                otherWorker.Start();
+                // Stay in the callback until the abandon is either blocked on it or already done.
+                abandonWaited = SpinWait.SpinUntil(() => builder._callbackGate.WaitingWriteCount > 0 || !otherWorker.IsAlive, TimeSpan.FromSeconds(30))
+                    && otherWorker.IsAlive;
+            },
+            (_, _) => { if (builder._token.IsCancellationRequested) checkpointsAfterAbort++; });
+        for (var i = 0; i < TreeBuilder.CheckpointBatchSize - 1; i++)
+            builder._checkpointGate.TryEnter();
+
+        builder.MaybeCheckpoint(TreeBuilder.CheckpointBatchSize);
+
+        Assert.IsTrue(otherWorker!.Join(TimeSpan.FromSeconds(30)), "The abandoning worker did not finish.");
+        Assert.IsInstanceOfType<OperationCanceledException>(otherWorkerOutcome, "precondition: the other worker abandoned the walk");
+        Assert.IsTrue(builder._token.IsCancellationRequested, "precondition: the walk abandoned itself");
+        Assert.IsTrue(abandonWaited, "The abandon must wait for a callback already running.");
+        Assert.AreEqual(0, checkpointsAfterAbort, "A checkpoint was published after the walk abandoned itself.");
+    }
+
     // One worker is on the 256th entry of a streamed listing: past that entry's token check, blocked in
     // FlushRecords on _recordsGate (held here). Meanwhile another directory's failure abandons the walk (root
     // gone), then the worker is released. The progress counter and checkpoint gate are primed so that very
