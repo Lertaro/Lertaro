@@ -276,7 +276,7 @@ internal class SearchEngineInitializer
             Logger.Log($"[SearchEngineInitializer] Index initialization failed: {ex}", LogLevel.Error);
             // A walk recorder kept for a drive whose monitor never started has nobody left to hand over to.
             foreach (var drive in supportedDrives)
-                FolderWalkRecorder.Discard(_indexer, drive);
+                FolderWalkRecorder.Discard(_indexer, drive, cts.Token);
             var settled = ResolveStateAfterFailure(_indexer.Status.State);
             lock (_indexer.LockObj)
             {
@@ -306,6 +306,6 @@ internal class SearchEngineInitializer
     }
 
     private void StartMonitor(string drive, ulong journalId, long nextUsn, CancellationToken token) =>
-        DriveMonitorFactory.EnsureMonitor(_indexer, drive, journalId, nextUsn, token, RequestRebuild,
+        DriveMonitorFactory.EnsureMonitor(_indexer, drive, journalId, nextUsn, token, token, RequestRebuild,
             _onRemovalRequested, RequestRebuildAfterRemoval);
 }

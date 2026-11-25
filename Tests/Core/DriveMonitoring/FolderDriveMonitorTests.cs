@@ -2,8 +2,8 @@ using Lertaro.Core.DriveMonitoring;
 
 namespace Lertaro.Core.Tests.DriveMonitoring;
 
-// Schedule/FlushPending are driven directly; the watcher itself is never started, but the debounce
-// Timer Schedule arms is the real one.
+// Schedule/FlushPending are driven directly, with the real debounce Timer Schedule arms. Only the
+// start-failure test starts a real watcher.
 [TestClass]
 public sealed class FolderDriveMonitorTests
 {
@@ -153,6 +153,42 @@ public sealed class FolderDriveMonitorTests
         Assert.IsTrue(flush.Wait(TimeSpan.FromSeconds(30)) && dispose.Wait(TimeSpan.FromSeconds(30)), "did not finish");
         Assert.IsFalse(returnedWhileBlocked, "Dispose returned while a flush was still delivering");
         CollectionAssert.AreEqual(new[] { @"Z:\first" }, applied);
+    }
+
+    // A watcher that could not start raises no Error, so nothing armed the loss gate and the retry that
+    // finally brought it up asked for no re-walk: missed.txt, created while nothing watched, stayed missing.
+    // Real watcher and DriveWatcherHost's real 10 s retry, so this one takes that long.
+    [TestMethod]
+    public void Start_RootMissingThenAppears_RequestsOneReWalkWhenTheWatcherComesUp()
+    {
+        var root = Path.Combine(Directory.CreateTempSubdirectory("lertaro-tests-").FullName, "not-yet");
+        using var applied = new ManualResetEventSlim();
+        var reindexRequests = 0;
+        var monitor = new FolderDriveMonitor(root, (_, _, _) => applied.Set(), CancellationToken.None,
+            () => Interlocked.Increment(ref reindexRequests));
+        try
+        {
+            monitor.Start();
+            Assert.AreEqual(0, Volatile.Read(ref reindexRequests), "asked for a walk before there was a root to walk");
+            Directory.CreateDirectory(root);
+            File.WriteAllText(Path.Combine(root, "missed.txt"), "x"); // nothing watches yet
+            // Poke the root until the retry's watcher reports something: that proves it is up.
+            var deadline = DateTime.UtcNow.AddSeconds(25);
+            var i = 0;
+            while (!applied.IsSet && DateTime.UtcNow < deadline)
+            {
+                File.WriteAllText(Path.Combine(root, $"probe{i++}.txt"), "x");
+                applied.Wait(500);
+            }
+
+            Assert.IsTrue(applied.IsSet, "precondition: the retry never started the watcher");
+            Assert.AreEqual(1, Volatile.Read(ref reindexRequests), "missed.txt was created while nothing watched");
+        }
+        finally
+        {
+            monitor.Dispose();
+            try { Directory.Delete(Path.GetDirectoryName(root)!, recursive: true); } catch { }
+        }
     }
 
     private static (FolderDriveMonitor Monitor, List<(WatcherChangeTypes Type, string Path)> Applied) Create()

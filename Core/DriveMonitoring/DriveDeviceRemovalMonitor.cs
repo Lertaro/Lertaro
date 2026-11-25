@@ -61,7 +61,16 @@ internal sealed class DriveDeviceRemovalMonitor : IDisposable
         }
     }
 
-    public void Dispose()
+    public void Dispose() => Dispose(waitForCallbacks: true);
+
+    // For an owner that can be released from inside ANOTHER registration's callback -- a removal request on
+    // the drive's live monitor cancels a rebuild, and the cancel releases that rebuild's walk recorder and
+    // this listener with it -- where CM_Unregister_Notification, which waits for callbacks in flight, must
+    // not run (see UnregisterCore). The volume handle, which a pending removal waits on, closes here and now;
+    // the unregistration goes to the pool.
+    internal void DisposeWithoutWaiting() => Dispose(waitForCallbacks: false);
+
+    private void Dispose(bool waitForCallbacks)
     {
         bool defer;
         lock (_gate)
@@ -69,10 +78,15 @@ internal sealed class DriveDeviceRemovalMonitor : IDisposable
             _invalidated = true;
             if (_disposed) return;
             _disposed = true;
-            defer = _callbackDepth != 0;
+            defer = !waitForCallbacks || _callbackDepth != 0;
         }
-        if (defer) _ = Task.Run(UnregisterCore);
-        else UnregisterCore();
+        if (!defer)
+        {
+            UnregisterCore();
+            return;
+        }
+        CloseTargetHandle();
+        _ = Task.Run(UnregisterCore);
     }
 
     internal bool RegisterCore(string drive, SafeFileHandle? volumeHandle)

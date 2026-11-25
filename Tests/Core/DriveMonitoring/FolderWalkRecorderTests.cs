@@ -37,7 +37,7 @@ public sealed class FolderWalkRecorderTests
     // The gap this exists for: a file created behind the walker reaches the rebuilt index once the live
     // monitor takes over, without waiting for the next restart.
     [TestMethod]
-    public void Replay_AppliesWhatChangedDuringTheWalkToTheBuiltIndex_Once()
+    public void Replay_AppliesWhatChangedDuringTheWalkToTheBuiltIndex()
     {
         using var tempDir = new TempDirectory();
         var filePath = Path.Combine(tempDir.Path, "made-during-walk.txt");
@@ -51,8 +51,7 @@ public sealed class FolderWalkRecorderTests
         FolderWalkRecorder.Keep(indexer, "C", recorder);
         var reindexRequests = 0;
 
-        FolderWalkRecorder.Replay(indexer, "C", _ => reindexRequests++);
-        FolderWalkRecorder.Replay(indexer, "C", _ => reindexRequests++);
+        FolderWalkRecorder.Replay(indexer, "C", CancellationToken.None, _ => reindexRequests++);
 
         Assert.AreEqual(1, fixture.Index.GetCounts().Files);
         Assert.AreEqual(0, reindexRequests);
@@ -73,7 +72,7 @@ public sealed class FolderWalkRecorderTests
         FolderWalkRecorder.Keep(indexer, "C", recorder);
         var requested = new List<string>();
 
-        FolderWalkRecorder.Replay(indexer, "C", requested.Add);
+        FolderWalkRecorder.Replay(indexer, "C", CancellationToken.None, requested.Add);
 
         CollectionAssert.AreEqual(new[] { "C" }, requested);
     }
@@ -93,7 +92,7 @@ public sealed class FolderWalkRecorderTests
         File.WriteAllText(file, "back");
         indexer.ApplyFolderChange("C", WatcherChangeTypes.Created, file); // the live monitor's newer event
 
-        FolderWalkRecorder.Replay(indexer, "C", null);
+        FolderWalkRecorder.Replay(indexer, "C", CancellationToken.None, null);
 
         Assert.IsTrue(InIndex(fixture.Index, file, isDirectory: false));
         Dispose(indexer, fixture);
@@ -110,7 +109,7 @@ public sealed class FolderWalkRecorderTests
         recorder.Monitor.Schedule(WatcherChangeTypes.Created, file);
         FolderWalkRecorder.Keep(indexer, "C", recorder);
 
-        FolderWalkRecorder.Replay(indexer, "C", null);
+        FolderWalkRecorder.Replay(indexer, "C", CancellationToken.None, null);
 
         Assert.IsFalse(InIndex(fixture.Index, file, isDirectory: false));
         Dispose(indexer, fixture);
@@ -132,7 +131,7 @@ public sealed class FolderWalkRecorderTests
         recorder.Monitor.Schedule(WatcherChangeTypes.Renamed, newDir, oldDir);
         FolderWalkRecorder.Keep(indexer, "C", recorder);
 
-        FolderWalkRecorder.Replay(indexer, "C", null);
+        FolderWalkRecorder.Replay(indexer, "C", CancellationToken.None, null);
 
         Assert.IsFalse(InIndex(fixture.Index, oldDir, isDirectory: true));
         Assert.IsTrue(InIndex(fixture.Index, newDir, isDirectory: true));
@@ -160,7 +159,7 @@ public sealed class FolderWalkRecorderTests
         recorder.Monitor.Schedule(WatcherChangeTypes.Changed, big);
         FolderWalkRecorder.Keep(indexer, "C", recorder);
 
-        FolderWalkRecorder.Replay(indexer, "C", null);
+        FolderWalkRecorder.Replay(indexer, "C", CancellationToken.None, null);
 
         var pending = fixture.Index.PendingChangeCount;
         Assert.IsTrue(InIndex(fixture.Index, added, isDirectory: false));
@@ -188,7 +187,7 @@ public sealed class FolderWalkRecorderTests
         recorder.Monitor.Schedule(WatcherChangeTypes.Created, p);
         FolderWalkRecorder.Keep(indexer, "C", recorder);
 
-        FolderWalkRecorder.Replay(indexer, "C", null);
+        FolderWalkRecorder.Replay(indexer, "C", CancellationToken.None, null);
 
         Assert.IsTrue(InIndex(fixture.Index, Path.Combine(pOld, "a.txt"), isDirectory: false));
         Assert.IsFalse(InIndex(fixture.Index, Path.Combine(p, "a.txt"), isDirectory: false));
@@ -215,7 +214,7 @@ public sealed class FolderWalkRecorderTests
         recorder.Monitor.Schedule(WatcherChangeTypes.Created, a);
         FolderWalkRecorder.Keep(indexer, "C", recorder);
 
-        FolderWalkRecorder.Replay(indexer, "C", null);
+        FolderWalkRecorder.Replay(indexer, "C", CancellationToken.None, null);
 
         Assert.IsTrue(InIndex(fixture.Index, a, isDirectory: false));
         Assert.IsFalse(InIndex(fixture.Index, Path.Combine(a, "f.txt"), isDirectory: false));
@@ -235,7 +234,7 @@ public sealed class FolderWalkRecorderTests
         FolderWalkRecorder.Keep(indexer, "C", recorder);
         // Replay runs on a thread of its own, so its state says when it blocks. Nothing it does before taking
         // the LiveIndex write lock waits on anything contended, so once it waits, it waits for that lock.
-        var replay = new Thread(() => FolderWalkRecorder.Replay(indexer, "C", null)) { IsBackground = true };
+        var replay = new Thread(() => FolderWalkRecorder.Replay(indexer, "C", CancellationToken.None, null)) { IsBackground = true };
         var replayBlocked = false;
 
         using var held = new ManualResetEventSlim();
@@ -274,7 +273,7 @@ public sealed class FolderWalkRecorderTests
         recorder.Monitor.Schedule(WatcherChangeTypes.Renamed, upper, lower);
         FolderWalkRecorder.Keep(indexer, "C", recorder);
 
-        FolderWalkRecorder.Replay(indexer, "C", null);
+        FolderWalkRecorder.Replay(indexer, "C", CancellationToken.None, null);
 
         var id = (UInt128)PathHelpers.HashPath64(PathHelpers.NormalizePath(upper, false));
         var names = fixture.Index.ToStore().Records.Where(r => r.Id == id).Select(r => r.Name).ToArray();
@@ -297,7 +296,7 @@ public sealed class FolderWalkRecorderTests
 
         fixture.Index.Read((_, _) =>
         {
-            FolderWalkRecorder.Replay(indexer, "C", requested.Add);
+            FolderWalkRecorder.Replay(indexer, "C", CancellationToken.None, requested.Add);
             return 0;
         });
 
@@ -324,7 +323,7 @@ public sealed class FolderWalkRecorderTests
         recorder.Monitor.Schedule(WatcherChangeTypes.Created, file);
         FolderWalkRecorder.Keep(indexer, "C", recorder);
 
-        FolderWalkRecorder.Replay(indexer, "C", null);
+        FolderWalkRecorder.Replay(indexer, "C", CancellationToken.None, null);
 
         Dispose(indexer, fixture);
         Assert.AreEqual(1, signals);
@@ -340,7 +339,7 @@ public sealed class FolderWalkRecorderTests
         var recorder = new FolderWalkRecorder("C");
         FolderWalkRecorder.Keep(indexer, "C", recorder);
 
-        DriveArrivalRecovery.SettleFailedBuild(indexer, "C", wasCancelled: false, CancellationToken.None, null);
+        DriveArrivalRecovery.SettleFailedBuild(indexer, "C", wasCancelled: false, CancellationToken.None, CancellationToken.None, null);
 
         recorder.Monitor.Schedule(WatcherChangeTypes.Created, @"C:\after-failure.txt");
         bool stillKept;
@@ -360,7 +359,7 @@ public sealed class FolderWalkRecorderTests
         FolderWalkRecorder.Keep(indexer, "Q", new FolderWalkRecorder("Q"));
         using var cts = new CancellationTokenSource();
 
-        DriveMonitorFactory.EnsureMonitor(indexer, "Q", 0, 0, cts.Token, null);
+        DriveMonitorFactory.EnsureMonitor(indexer, "Q", 0, 0, cts.Token, CancellationToken.None, null);
 
         bool stillKept;
         lock (indexer.LockObj)
@@ -371,28 +370,22 @@ public sealed class FolderWalkRecorderTests
     }
 
     // A removal request only cancels the walk's token, and the recorder's watcher holds the volume open:
-    // cancelling must dispose it there and then, or "Safely remove" is vetoed. What it missed needs a re-walk.
+    // cancelling must dispose it there and then, or "Safely remove" is vetoed. What it missed needs a re-walk,
+    // which the build's hand-over asks for (the walk still returned a store, so the build hands over).
     [TestMethod]
-    public void Record_WalkTokenCancelled_ReleasesTheWatcherAndMarksItLost()
+    public void Record_WalkTokenCancelled_ItsHandOverAsksForAReWalk()
     {
         using var indexer = new UsnIndexer();
         using var cts = new CancellationTokenSource();
 
-        // The walk still returns a store, so the recorder is kept and its state can be inspected.
         FolderWalkRecorder.Record(indexer, "Q", cts.Token, () =>
         {
             cts.Cancel();
             return new FileRecordStore();
         });
-        FolderWalkRecorder recorder;
-        lock (indexer.LockObj)
-            recorder = indexer._walkRecorders["Q"];
-        recorder.Monitor.Schedule(WatcherChangeTypes.Created, @"Q:\after-cancel.txt");
         var requested = new List<string>();
-        var (changes, _) = recorder.Stop();
-        FolderWalkRecorder.Replay(indexer, "Q", requested.Add);
+        FolderWalkRecorder.Replay(indexer, "Q", cts.Token, requested.Add);
 
-        Assert.HasCount(0, changes, "still recording after the cancel");
         CollectionAssert.AreEqual(new[] { "Q" }, requested);
     }
 
@@ -414,7 +407,7 @@ public sealed class FolderWalkRecorderTests
         FolderWalkRecorder.Keep(indexer, "C", recorder);
         status.State = "ready";
 
-        FolderWalkRecorder.Replay(indexer, "C", null);
+        FolderWalkRecorder.Replay(indexer, "C", CancellationToken.None, null);
 
         Assert.IsFalse(indexer.ConsumeMissedFolderChangeDuringRebuild("C"));
         Assert.IsTrue(InIndex(fixture.Index, file, isDirectory: false));
@@ -433,10 +426,207 @@ public sealed class FolderWalkRecorderTests
         indexer.Status.Drives.Single(d => d.Drive == "C").State = "indexing";
         indexer.ApplyFolderChange("C", WatcherChangeTypes.Created, file);
 
-        FolderWalkRecorder.Replay(indexer, "C", null);
+        FolderWalkRecorder.Replay(indexer, "C", CancellationToken.None, null);
 
         Assert.IsTrue(indexer.ConsumeMissedFolderChangeDuringRebuild("C"));
         Dispose(indexer, fixture);
+    }
+
+    // Keep hands the recorder to EnsureMonitor, which on a cold start runs only after every other drive's
+    // walk. A Stop or removal request in that window still arrives as the walk token's cancel, and must
+    // release the watcher then, not when the hand-over finally comes.
+    [TestMethod]
+    public void Record_CancelledAfterWalkBeforeHandOver_ReleasesTheWatcherAndMarksItLost()
+    {
+        using var indexer = new UsnIndexer();
+        using var cts = new CancellationTokenSource();
+
+        FolderWalkRecorder.Record(indexer, "Q", cts.Token, () => new FileRecordStore());
+        cts.Cancel(); // after the walk, before EnsureMonitor's Replay
+        FolderWalkRecorder recorder;
+        lock (indexer.LockObj)
+            recorder = indexer._walkRecorders["Q"];
+        recorder.Monitor.Schedule(WatcherChangeTypes.Created, @"Q:\after-cancel.txt");
+        var (changes, lost) = recorder.Stop();
+
+        Assert.HasCount(0, changes, "still recording after the walk's token was cancelled");
+        Assert.IsTrue(lost);
+    }
+
+    // "Safely remove" of a drive whose walk is done while other drives are still walking: the walk's removal
+    // scope ended with that walk, and the live monitor's listener only attaches in EnsureMonitor, after every
+    // drive's walk. The recorder's own listener must release the watcher. The PnP callback is raised by hand,
+    // as DriveDeviceRemovalMonitorTests do; "Q" is unmounted, so nothing native is registered.
+    [TestMethod]
+    public void Record_RemovalRequestedAfterTheWalksRemovalScopeEnded_ReleasesTheKeptRecorder()
+    {
+        using var indexer = new UsnIndexer();
+        using var startup = new CancellationTokenSource();
+        Assert.IsFalse(Directory.Exists(@"Q:\"), "precondition: Q: must not be mounted");
+        var scope = DriveIndexRemovalScope.Register("Q", startup.Token, () => { }, _ => { });
+        FolderWalkRecorder.Record(indexer, "Q", startup.Token, () => new FileRecordStore());
+        scope.Dispose(); // IndexBuilder's per-drive iteration ends; other drives are still walking
+        FolderWalkRecorder recorder;
+        lock (indexer.LockObj)
+            recorder = indexer._walkRecorders["Q"];
+
+        recorder.Removal.HandleNotification(IntPtr.Zero, IntPtr.Zero, DeviceNotificationNative.DeviceQueryRemove, IntPtr.Zero, 0);
+        recorder.Monitor.Schedule(WatcherChangeTypes.Created, @"Q:\while-other-drives-walk.txt");
+        // The removal was vetoed elsewhere, or the volume came back, by the time the monitors start.
+        recorder.Removal.HandleNotification(IntPtr.Zero, IntPtr.Zero, DeviceNotificationNative.DeviceQueryRemoveFailed, IntPtr.Zero, 0);
+        var requested = new List<string>();
+        FolderWalkRecorder.Replay(indexer, "Q", startup.Token, requested.Add);
+
+        Assert.HasCount(0, recorder.Stop().Changes, "the kept recorder ignored the removal request and kept recording");
+        CollectionAssert.AreEqual(new[] { "Q" }, requested, "the watcher was released, so exactly one re-walk is owed");
+    }
+
+    // Cold start: the walk runs on its DriveIndexRemovalScope's token, whose source IndexBuilder disposes --
+    // unlinking it from the startup's -- when that drive's walk ends. The recorder is registered on the
+    // startup's own token instead, so a full rebuild or shutdown cancelling it before the hand-over still
+    // releases the watcher.
+    [TestMethod]
+    public void Record_ParentCancelledAfterTheWalksRemovalScopeEnded_ReleasesTheKeptRecorder()
+    {
+        Assert.IsFalse(Directory.Exists(@"Q:\"), "precondition: Q: must not be mounted");
+        using var indexer = new UsnIndexer();
+        using var startup = new CancellationTokenSource();
+        var scope = DriveIndexRemovalScope.Register("Q", startup.Token, () => { }, _ => { });
+        FolderWalkRecorder.Record(indexer, "Q", startup.Token, () =>
+        {
+            scope.Token.ThrowIfCancellationRequested(); // the walk itself runs on the scope's token
+            return new FileRecordStore();
+        });
+        scope.Dispose(); // IndexBuilder's `using var removalScope` ends with this drive's iteration
+        FolderWalkRecorder recorder;
+        lock (indexer.LockObj)
+            recorder = indexer._walkRecorders["Q"];
+
+        startup.Cancel();
+        recorder.Monitor.Schedule(WatcherChangeTypes.Created, @"Q:\after-cancel.txt");
+        var (changes, lost) = recorder.Stop();
+
+        Assert.HasCount(0, changes, "still recording after the startup's token was cancelled");
+        Assert.IsTrue(lost);
+    }
+
+    // A full rebuild starts while a per-drive rebuild of the same drive is past its walk but has not handed
+    // over: the newer build's recording replaces the older one's. The older build's hand-over must leave the
+    // newer recording alone, and since its own stopped early, ask for the walk that recovers the gap.
+    [TestMethod]
+    public void Replay_OfAnOlderBuild_LeavesTheNewerBuildsRecorderAndAsksForAReWalk()
+    {
+        using var tempDir = new TempDirectory();
+        var drive = tempDir.Path; // a real root, so each recorder's watcher starts and loses nothing
+        using var indexer = new UsnIndexer();
+        using var older = new CancellationTokenSource();
+        using var newer = new CancellationTokenSource();
+        FolderWalkRecorder.Record(indexer, drive, older.Token, () => new FileRecordStore());
+        FolderWalkRecorder.Record(indexer, drive, newer.Token, () => new FileRecordStore());
+        var olderRequests = new List<string>();
+        var newerRequests = new List<string>();
+
+        FolderWalkRecorder.Replay(indexer, drive, older.Token, olderRequests.Add);
+        bool newerStillKept;
+        lock (indexer.LockObj)
+            newerStillKept = indexer._walkRecorders.TryGetValue(drive, out var kept) && kept.Owner == newer.Token;
+        FolderWalkRecorder.Replay(indexer, drive, newer.Token, newerRequests.Add);
+
+        Assert.IsTrue(newerStillKept, "the older build's hand-over took the newer build's recording");
+        CollectionAssert.AreEqual(new[] { drive }, olderRequests);
+        Assert.IsEmpty(newerRequests);
+    }
+
+    // A build whose token is already cancelled -- a stale per-drive rebuild a full rebuild cancelled while it
+    // was still on its way to its walk -- registers nothing. If it still hands over, nothing recorded its walk,
+    // so it asks for the re-walk.
+    [TestMethod]
+    public void Record_TokenAlreadyCancelled_RegistersNothingAndItsHandOverAsksForAReWalk()
+    {
+        using var indexer = new UsnIndexer();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        FolderWalkRecorder.Record(indexer, "Q", cts.Token, () => new FileRecordStore());
+        bool registered;
+        lock (indexer.LockObj)
+            registered = indexer._walkRecorders.ContainsKey("Q");
+        var requested = new List<string>();
+        FolderWalkRecorder.Replay(indexer, "Q", cts.Token, requested.Add);
+
+        Assert.IsFalse(registered);
+        CollectionAssert.AreEqual(new[] { "Q" }, requested);
+    }
+
+    // A Stop that lands after the walk, once the build has swapped the walked index in (typically while
+    // OnDriveCompleted writes the snapshot of a large drive), stops nothing any more: the build still hands
+    // over. The cancel abandoned the recorder, so the hand-over applies what it recorded until then and asks
+    // for the walk that recovers the rest.
+    [TestMethod]
+    public void Replay_AfterAStopThatCameOnceTheIndexWasSwappedIn_AppliesTheRecordingAndAsksForAReWalk()
+    {
+        using var tempDir = new TempDirectory();
+        var file = Path.Combine(tempDir.Path, "made-during-walk.txt");
+        File.WriteAllText(file, "x");
+        var (indexer, fixture) = CreateIndexer();
+        using var rebuild = new CancellationTokenSource();
+        var recorder = new FolderWalkRecorder("C", rebuild.Token);
+        FolderWalkRecorder.Keep(indexer, "C", recorder);
+        recorder.Monitor.Schedule(WatcherChangeTypes.Created, file); // made behind the walker
+        recorder.Monitor.FlushPending();
+        rebuild.Cancel(); // Stop, after BuildDrives returned the drive's metadata
+        var requests = new List<string>();
+
+        FolderWalkRecorder.Replay(indexer, "C", rebuild.Token, requests.Add); // EnsureMonitor, unconditionally
+
+        Assert.IsTrue(InIndex(fixture.Index, file, isDirectory: false));
+        CollectionAssert.AreEqual(new[] { "C" }, requests);
+        Dispose(indexer, fixture);
+    }
+
+    // A watcher that cannot start (root missing, or the start threw) raises no Error, and DriveWatcherHost only
+    // retries it 10 s later: a walk shorter than that ran with nothing watching at all, so the recording is
+    // incomplete even though no event was ever dropped.
+    [TestMethod]
+    public void Record_WatcherCannotStartBeforeWalk_MarksTheRecordingLost()
+    {
+        using var tempDir = new TempDirectory();
+        var root = Path.Combine(tempDir.Path, "not-yet");
+        using var indexer = new UsnIndexer();
+
+        FolderWalkRecorder.Record(indexer, root, CancellationToken.None, () =>
+        {
+            Directory.CreateDirectory(root);
+            File.WriteAllText(Path.Combine(root, "made-during-walk.txt"), "x");
+            return new FileRecordStore();
+        });
+        FolderWalkRecorder recorder;
+        lock (indexer.LockObj)
+            recorder = indexer._walkRecorders[root];
+        var (changes, lost) = recorder.Stop();
+
+        Assert.IsTrue(lost, $"watcher never started, recorded {changes.Count} change(s), yet Lost=false");
+    }
+
+    // The same gap through the hand-over: it must ask for a re-walk, which also stands in for the
+    // missed-change flag the hand-over clears.
+    [TestMethod]
+    public void Replay_RecorderWhoseWatcherNeverStarted_RequestsAReWalk()
+    {
+        using var tempDir = new TempDirectory();
+        var root = Path.Combine(tempDir.Path, "not-yet");
+        using var indexer = new UsnIndexer();
+
+        FolderWalkRecorder.Record(indexer, root, CancellationToken.None, () =>
+        {
+            Directory.CreateDirectory(root);
+            File.WriteAllText(Path.Combine(root, "made-during-walk.txt"), "x");
+            return new FileRecordStore();
+        });
+        var requested = new List<string>();
+        FolderWalkRecorder.Replay(indexer, root, CancellationToken.None, requested.Add);
+
+        CollectionAssert.AreEqual(new[] { root }, requested);
     }
 
     private static (UsnIndexer Indexer, LiveIndexFixture Fixture) CreateIndexer()

@@ -84,8 +84,11 @@ public static class UsnIndexerBuildExtensions
             {
                 var previousStore = GetPreviousStore(drive);
                 // Watching from before the walk so nothing changed behind the walker is lost -- see
-                // FolderWalkRecorder; EnsureMonitor replays it once the live monitor is up.
-                return FolderWalkRecorder.Record(indexer, drive, token, () =>
+                // FolderWalkRecorder; EnsureMonitor replays it once the live monitor is up. The recorder takes
+                // the build's own token, not `token`: on a cold start that is the walk's removal scope, which
+                // ends (and stops passing the build's cancellation on) with the walk, while the recorder lives
+                // on until the hand-over. The recorder answers a removal request itself.
+                return FolderWalkRecorder.Record(indexer, drive, getToken?.Invoke(drive) ?? CancellationToken.None, () =>
                     LocalDriveWalkBuilder.Build(drive, $"{drive}:\\", previousStore, onProgress ?? ((_, _) => { }), token,
                         forceFullScan,
                         onCheckpoint: (checkpointStore, _) => indexer.PublishLocalDriveCheckpoint(cacheDir, drive, checkpointStore, token)));

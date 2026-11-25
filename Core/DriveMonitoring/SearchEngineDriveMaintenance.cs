@@ -346,12 +346,12 @@ internal sealed class SearchEngineDriveMaintenance
         catch (Exception ex) when (ex is OperationCanceledException
                                    || (ex is ObjectDisposedException && cts.Token.IsCancellationRequested))
         {
-            DriveArrivalRecovery.SettleFailedBuild(_indexer, drive, wasCancelled: true, _token(), QueueDriveRebuild);
+            DriveArrivalRecovery.SettleFailedBuild(_indexer, drive, wasCancelled: true, cts.Token, _token(), QueueDriveRebuild);
         }
         catch (Exception ex)
         {
             Logger.Log($"[SearchEngine] Failed to build drive {drive}: {ex.Message}", LogLevel.Error);
-            DriveArrivalRecovery.SettleFailedBuild(_indexer, drive, wasCancelled: false, _token(), QueueDriveRebuild);
+            DriveArrivalRecovery.SettleFailedBuild(_indexer, drive, wasCancelled: false, cts.Token, _token(), QueueDriveRebuild);
         }
         finally
         {
@@ -431,19 +431,20 @@ internal sealed class SearchEngineDriveMaintenance
             // "cached" for a Stop, "failed" for an error, and -- if the volume went away mid-scan -- a
             // forced rebuild queued for the moment it is back, since this is the request the user made
             // against this one drive. See DriveRecovery.RestoreOrRebuild for the same three-way settle.
-            DriveArrivalRecovery.SettleFailedBuild(_indexer, drive, wasCancelled, _token(),
+            DriveArrivalRecovery.SettleFailedBuild(_indexer, drive, wasCancelled, token, _token(),
                 name => RebuildDriveIndex(name, followUpIfBusy: true));
             return;
         }
 
-        EnsureDriveMonitor(drive, metadata[0].JournalId, metadata[0].NextUsn);
+        // Always handed over once the new index is in: see DriveRecovery.RestoreOrRebuild.
+        EnsureDriveMonitor(drive, metadata[0].JournalId, metadata[0].NextUsn, token);
         // Same missed-folder-change check as DriveRecovery.RestoreOrRebuild -- queue a rebuild for it.
         if (_indexer.ConsumeMissedFolderChangeDuringRebuild(drive))
             QueueDriveRebuild(drive);
     }
 
-    private void EnsureDriveMonitor(string drive, ulong journalId, long nextUsn) =>
-        DriveMonitorFactory.EnsureMonitor(_indexer, drive, journalId, nextUsn, _token(), QueueDriveRebuild,
+    private void EnsureDriveMonitor(string drive, ulong journalId, long nextUsn, CancellationToken buildToken) =>
+        DriveMonitorFactory.EnsureMonitor(_indexer, drive, journalId, nextUsn, _token(), buildToken, QueueDriveRebuild,
             driveName => this.CancelDriveRebuild(driveName), driveName => this.QueueDriveRebuildAfterRemoval(driveName));
 
     private void PopulateCountsFromCache()

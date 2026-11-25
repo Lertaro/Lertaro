@@ -39,12 +39,14 @@ internal static class DriveArrivalRecovery
 
     // Where a build ended with nothing to show for it: stopped by the user, or failed because the volume was
     // never there (no scan can run on an unmounted drive).
+    // `buildToken` is the failed build's own, which identifies the walk recorder it may have kept.
     internal static void SettleFailedBuild(
-        UsnIndexer indexer, string drive, bool wasCancelled, CancellationToken parentToken, Action<string>? onReindexRequired)
+        UsnIndexer indexer, string drive, bool wasCancelled, CancellationToken buildToken, CancellationToken parentToken,
+        Action<string>? onReindexRequired)
     {
         // The build can fail after its walk kept a recorder (writing the snapshot, say); no monitor will
         // take that recorder over now.
-        FolderWalkRecorder.Discard(indexer, drive);
+        FolderWalkRecorder.Discard(indexer, drive, buildToken);
         if (IsMounted(drive))
         {
             // A Stop request reverts to "cached" (mirrors NetworkIndexer's own CancelDrive), not "failed"
@@ -91,6 +93,10 @@ internal static class DriveArrivalRecovery
     internal static void ArmForReinsertion(
         UsnIndexer indexer, string drive, CancellationToken parentToken, Action<string>? onReindexRequired)
     {
+        // The waiter is the one thing that brings this drive back. A live folder monitor left running here
+        // keeps retrying its watcher, and the retry that finally starts one on re-insertion asked for a
+        // re-walk of its own (FolderDriveMonitor's onStarted): one re-insertion, two whole-drive rebuild requests.
+        indexer.ReleaseDriveMonitor(drive);
         indexer.DropDriveFromRuntime(drive);
         indexer.SetDriveState(drive, "unavailable");
         DriveReattachWaiter.Start(drive, parentToken, () => onReindexRequired?.Invoke(drive));

@@ -43,7 +43,7 @@ internal static class DriveRecovery
                 if (nextUsn >= 0)
                 {
                     TrySaveDriveCache(indexer, cacheDir, new() { (drive, cached.Value.JournalId, nextUsn) }, drive, "USN catch-up");
-                    DriveMonitorFactory.EnsureMonitor(indexer, drive, cached.Value.JournalId, nextUsn, token, onReindexRequired, onRemovalRequested, onReindexAfterRemoval);
+                    DriveMonitorFactory.EnsureMonitor(indexer, drive, cached.Value.JournalId, nextUsn, token, rebuildToken, onReindexRequired, onRemovalRequested, onReindexAfterRemoval);
                     Logger.Log($"[SearchEngine] Restored drive {drive} from cache and USN catch-up.");
                     return;
                 }
@@ -67,17 +67,20 @@ internal static class DriveRecovery
             // Settles as "cached" (a Stop, not an error), "failed", or -- when the volume is simply not
             // mounted any more -- a drive parked for re-insertion. See DriveArrivalRecovery for why the
             // last one must not end here.
-            DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled, token, onReindexRequired);
+            DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled, rebuildToken, token, onReindexRequired);
             return;
         }
 
+        // No cancellation check from here on: the build has already swapped its new index in, so stopping now
+        // would stop nothing, and skipping the hand-over would leave that index without every change made
+        // during its walk. A recording the cancel cut short asks for its own re-walk at the hand-over.
         foreach (var (builtDrive, journalId, nextUsn) in metadata)
-            DriveMonitorFactory.EnsureMonitor(indexer, builtDrive, journalId, nextUsn, token, onReindexRequired, onRemovalRequested, onReindexAfterRemoval);
+            DriveMonitorFactory.EnsureMonitor(indexer, builtDrive, journalId, nextUsn, token, rebuildToken, onReindexRequired, onRemovalRequested, onReindexAfterRemoval);
 
-        // The drive's own monitor stayed alive throughout the rebuild (see
-        // UsnIndexerExtensions.ApplyFolderChange); if it detected a change it couldn't persist against
-        // the doomed old LiveIndex, queue one follow-up refresh so the next walk observes it. A journal
-        // drive (monitor already stopped above) never sets this flag in the first place.
+        // A change the drive's old monitor applied to the doomed old LiveIndex during the rebuild (see
+        // UsnIndexerExtensions.ApplyFolderChange), or a USN batch that found no LiveIndex while the rebuild
+        // swapped it (ApplyUsnRecords), flags the drive: queue one follow-up so the next walk observes it. A
+        // FAT32/exFAT drive's hand-over has already cleared the flag, since its recording covered the walk.
         if (indexer.ConsumeMissedFolderChangeDuringRebuild(drive))
             onReindexRequired?.Invoke(drive);
     }

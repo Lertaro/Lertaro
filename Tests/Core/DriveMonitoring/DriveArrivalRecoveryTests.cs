@@ -52,7 +52,7 @@ public sealed class DriveArrivalRecoveryTests
         var drive = MountedDriveLetter();
         var indexer = IndexerWith(drive, "indexing", null);
 
-        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: true, GoneToken(), null);
+        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: true, CancellationToken.None, GoneToken(), null);
 
         Assert.AreEqual("cached", indexer.Status.Drives.Single(d => d.Drive == drive).State);
     }
@@ -63,7 +63,7 @@ public sealed class DriveArrivalRecoveryTests
         var drive = MountedDriveLetter();
         var indexer = IndexerWith(drive, "indexing", null);
 
-        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: false, GoneToken(), null);
+        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: false, CancellationToken.None, GoneToken(), null);
 
         Assert.AreEqual("failed", indexer.Status.Drives.Single(d => d.Drive == drive).State);
     }
@@ -75,7 +75,7 @@ public sealed class DriveArrivalRecoveryTests
         var live = LiveIndexFixture.Build(drive, new[] { LiveIndexFixture.Root() });
         var indexer = IndexerWith(drive, "indexing", live);
 
-        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: false, GoneToken(), null);
+        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: false, CancellationToken.None, GoneToken(), null);
 
         try
         {
@@ -99,11 +99,27 @@ public sealed class DriveArrivalRecoveryTests
         var indexer = IndexerWith(drive, "indexing", null);
         var reindexRequests = new List<string>();
 
-        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: false, GoneToken(), d => reindexRequests.Add(d));
+        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: false, CancellationToken.None, GoneToken(), d => reindexRequests.Add(d));
 
         Assert.AreEqual("unavailable", indexer.Status.Drives.Single(d => d.Drive == drive).State);
         Assert.IsFalse(indexer._recordIndexes.ContainsKey(drive));
         Assert.IsEmpty(reindexRequests);
+    }
+
+    // A FAT32/exFAT drive whose watcher died with the volume (an Error, no PnP notification) keeps a live
+    // FolderDriveMonitor retrying every 10 s. Parked alongside it, re-insertion woke both the waiter and that
+    // retry, and each asked for its own whole-drive walk. Parking must leave the waiter as the only owner.
+    [TestMethod]
+    public void SettleFailedBuild_VolumeIsGone_StopsTheDrivesLiveMonitor()
+    {
+        var drive = FreeDriveLetter();
+        var indexer = IndexerWith(drive, "indexing", null);
+        var monitor = new CountingDisposable();
+        indexer.RegisterDriveMonitor(drive, new DriveMonitorRegistration(monitor, null));
+
+        DriveArrivalRecovery.SettleFailedBuild(indexer, drive, wasCancelled: false, CancellationToken.None, GoneToken(), null);
+
+        Assert.AreEqual(1, monitor.Disposals);
     }
 
     [TestMethod]
@@ -186,6 +202,12 @@ public sealed class DriveArrivalRecoveryTests
         };
         store.Records.Add(new FileRecord(1, 1, string.Empty, FileRecordFlags.Directory | FileRecordFlags.SourceRoot));
         return store;
+    }
+
+    private sealed class CountingDisposable : IDisposable
+    {
+        public int Disposals { get; private set; }
+        public void Dispose() => Disposals++;
     }
 
     private sealed class TempDirectory : IDisposable

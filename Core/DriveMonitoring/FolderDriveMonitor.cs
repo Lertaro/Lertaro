@@ -9,6 +9,7 @@ internal sealed class FolderDriveMonitor : IDisposable
     private readonly string _drive;
     private readonly Action<WatcherChangeTypes, string, string?> _onChange;
     private readonly Action? _onReindexRequired;
+    private readonly Action? _onUnavailable;
     private readonly CancellationToken _token;
     private readonly object _gate = new();
     private readonly object _flushGate = new();
@@ -24,12 +25,15 @@ internal sealed class FolderDriveMonitor : IDisposable
     private Timer? _debounce;
     private volatile bool _disposed;
 
-    public FolderDriveMonitor(string drive, Action<WatcherChangeTypes, string, string?> onChange, CancellationToken token, Action? onReindexRequired = null)
+    // `onUnavailable` runs on every failed attempt to start the watcher (root missing, or the start threw),
+    // for an owner that needs to know nothing watched at some point; DriveWatcherHost retries meanwhile.
+    public FolderDriveMonitor(string drive, Action<WatcherChangeTypes, string, string?> onChange, CancellationToken token, Action? onReindexRequired = null, Action? onUnavailable = null)
     {
         _drive = drive;
         _ignoredPrefix = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Logger.SharedDataDir)) + Path.DirectorySeparatorChar;
         _onChange = onChange;
         _onReindexRequired = onReindexRequired;
+        _onUnavailable = onUnavailable;
         _token = token;
         _host = new DriveWatcherHost(
             nameof(FolderDriveMonitor),
@@ -41,6 +45,14 @@ internal sealed class FolderDriveMonitor : IDisposable
             {
                 if (!_disposed && !_token.IsCancellationRequested && _lossGate.Recovered(_drive))
                     _onReindexRequired?.Invoke();
+            },
+            // A watcher that could not start raises no Error, yet whatever changes until one does is missed
+            // all the same. Armed here and requested once, by onStarted above, when a watcher finally comes
+            // up: not now, while the root may not even be there to walk.
+            onUnavailable: () =>
+            {
+                _ = RequestReindex();
+                _onUnavailable?.Invoke();
             });
     }
 

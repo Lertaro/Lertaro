@@ -20,6 +20,9 @@ internal static class DriveMonitorFactory
         ulong journalId,
         long nextUsn,
         CancellationToken parentToken,
+        // The token of the build this monitor follows, which identifies the walk recorder it kept (see
+        // FolderWalkRecorder.Take). The startup initialization's builds run on parentToken itself.
+        CancellationToken buildToken,
         Action<string>? onReindexRequired,
         Action<string>? onRemovalRequested = null,
         Action<string>? onReindexAfterRemoval = null)
@@ -29,7 +32,7 @@ internal static class DriveMonitorFactory
         {
             // A walk recorder kept for this drive has no hand-over here (the build saw a folder drive; an
             // unreadable volume reports NTFS by default), and its watcher would otherwise run on unowned.
-            FolderWalkRecorder.Discard(indexer, drive);
+            FolderWalkRecorder.Discard(indexer, drive, buildToken);
             // Keep a linked source per monitor so disposal stops only THIS instance. UsnMonitor.Dispose
             // closes the volume handle immediately; cancellation then lets its loop unwind cleanly.
             var cts = CancellationTokenSource.CreateLinkedTokenSource(parentToken);
@@ -62,7 +65,7 @@ internal static class DriveMonitorFactory
             onRemovalRequested, onReindexAfterRemoval);
         folderMonitor.Start();
         // After Start, so a change made during the hand-over is seen by one watcher or the other.
-        FolderWalkRecorder.Replay(indexer, drive, onReindexRequired);
+        FolderWalkRecorder.Replay(indexer, drive, buildToken, onReindexRequired);
     }
 
     // Every monitor start funnels through here -- cold start, per-drive rebuild, hot-plug recovery -- so
