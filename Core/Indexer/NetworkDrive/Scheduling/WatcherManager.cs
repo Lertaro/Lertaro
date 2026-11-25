@@ -284,6 +284,7 @@ internal class WatcherManager : IDisposable
         {
             var changed = false;
             var isDirectory = false;
+            var unreadable = new List<string>();
             var index = _getIndex(drive);
 
             if (index == null)
@@ -304,7 +305,7 @@ internal class WatcherManager : IDisposable
                 if (exclusionRules.IsExcludedPath(logicalPath, isDirectory))
                     changed = index.ApplyDeleted(logicalPath);
                 else
-                    changed = index.ApplyCreatedOrChanged(PathHelpers.BuildSourceRoot(drive), logicalPath, exclusionRules);
+                    changed = index.ApplyCreatedOrChanged(PathHelpers.BuildSourceRoot(drive), logicalPath, exclusionRules, unreadable);
             }
 
             if (changed)
@@ -317,6 +318,7 @@ internal class WatcherManager : IDisposable
                 if (!_markMissedIfRescanning(drive))
                     SchedulePublish(drive, index, GetChangedDirectory(logicalPath, isDirectory));
             }
+            RefreshIfIncomplete(drive, changeType, unreadable);
         }
         catch (Exception ex)
         {
@@ -341,9 +343,10 @@ internal class WatcherManager : IDisposable
             var logicalNewPath = TranslateToLogical(drive, newPath);
             var exclusionRules = ExclusionRuleSet.From(UserSettings.Load());
             var newIsDirectory = Directory.Exists(newPath);
+            var unreadable = new List<string>();
             var changed = index.ApplyDeleted(logicalOldPath);
             if (!exclusionRules.IsExcludedPath(logicalNewPath, newIsDirectory))
-                changed |= index.ApplyCreatedOrChanged(PathHelpers.BuildSourceRoot(drive), logicalNewPath, exclusionRules);
+                changed |= index.ApplyCreatedOrChanged(PathHelpers.BuildSourceRoot(drive), logicalNewPath, exclusionRules, unreadable);
 
             if (changed)
             {
@@ -355,12 +358,27 @@ internal class WatcherManager : IDisposable
                         Path.GetDirectoryName(logicalOldPath),
                         GetChangedDirectory(logicalNewPath, newIsDirectory));
             }
+            RefreshIfIncomplete(drive, WatcherChangeTypes.Renamed, unreadable);
         }
         catch (Exception ex)
         {
             Logger.Log($"[WatcherManager] Watcher rename handling failed on {drive}: {ex.Message}", LogLevel.Error);
             _queueRefresh(drive, "incremental rename failure");
         }
+    }
+
+    // A Created or Renamed event can bring in a whole folder (moved in from elsewhere) whose contents raise
+    // no events of their own, so whatever of it could not be read stays missing until the drive is
+    // re-walked. A Changed event's walk only re-reads a folder whose children each report their own events,
+    // so a failure there leaves nothing missing, and re-walking for it would turn one permanently unreadable
+    // entry into a re-walk for every change made beside it.
+    private void RefreshIfIncomplete(string drive, WatcherChangeTypes changeType, List<string> unreadable)
+    {
+        if (unreadable.Count == 0 || changeType == WatcherChangeTypes.Changed)
+            return;
+
+        Logger.Log($"[WatcherManager] Could not read {unreadable.Count} path(s) on {drive}, first {unreadable[0]}; re-walking it.", LogLevel.Warn);
+        _queueRefresh(drive, "incremental walk incomplete");
     }
 
     private static string? GetChangedDirectory(string path, bool isDirectory)

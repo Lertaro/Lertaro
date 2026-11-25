@@ -172,9 +172,10 @@ public static class UsnIndexerExtensions
         return true;
     }
 
-    // `onReindexRequired` re-walks the drive (FolderDriveMonitor's own callback), for the debounced save,
-    // which fails later on its own Timer.
-    public static void ApplyFolderChange(this UsnIndexer indexer, string drive, WatcherChangeTypes changeType, string path, string? oldPath, Action onReindexRequired)
+    // Returns whether the drive owes a re-walk for this change, which FolderDriveMonitor asks for once per
+    // batch. `onReindexRequired` (the same re-walk, FolderDriveMonitor's own callback) is for the debounced
+    // save, which fails later on its own Timer.
+    public static bool ApplyFolderChange(this UsnIndexer indexer, string drive, WatcherChangeTypes changeType, string path, string? oldPath, Action onReindexRequired)
     {
         LiveIndex? live;
         lock (indexer.LockObj)
@@ -187,7 +188,7 @@ public static class UsnIndexerExtensions
                 // has nothing left to apply to, but must still be flagged as missed rather than silently
                 // dropped, same as the two cases below. Already inside the lock this method needs.
                 MarkMissedIfRebuilding(indexer, drive);
-                return;
+                return false;
             }
         }
 
@@ -195,14 +196,15 @@ public static class UsnIndexerExtensions
         var isDirectory = Directory.Exists(path);
         var normalizedPath = PathHelpers.NormalizePath(path, isDirectory);
         var changed = false;
+        var unreadable = new List<string>();
 
         try
         {
             live.Mutate((snapshot, delta) => changed = changeType switch
             {
                 WatcherChangeTypes.Deleted => DeltaPathApplier.ApplyDeleted(delta, normalizedPath),
-                WatcherChangeTypes.Renamed when !string.IsNullOrWhiteSpace(oldPath) => DeltaPathApplier.ApplyRenamed(delta, (UInt128)1, root, oldPath, normalizedPath),
-                _ => DeltaPathApplier.ApplyCreatedOrChanged(delta, (UInt128)1, root, normalizedPath),
+                WatcherChangeTypes.Renamed when !string.IsNullOrWhiteSpace(oldPath) => DeltaPathApplier.ApplyRenamed(delta, (UInt128)1, root, oldPath, normalizedPath, unreadable: unreadable),
+                _ => DeltaPathApplier.ApplyCreatedOrChanged(delta, (UInt128)1, root, normalizedPath, unreadable: unreadable),
             });
         }
         catch (ObjectDisposedException)
@@ -215,10 +217,26 @@ public static class UsnIndexerExtensions
             // letting the exception escape into whatever thread the FolderDriveMonitor callback runs on.
             lock (indexer.LockObj)
                 MarkMissedIfRebuilding(indexer, drive);
-            return;
+            return false;
         }
+
+        // Same rule as WatcherManager.RefreshIfIncomplete: a Created/Renamed walk that could not read all it
+        // brought in leaves a gap no later event fills, while a Changed walk only re-reads a folder whose
+        // children each report their own events -- re-walking for that would turn one permanently unreadable
+        // entry into a re-walk of the drive for every change made beside it.
+        var owesRewalk = unreadable.Count > 0 && changeType != WatcherChangeTypes.Changed;
+        if (owesRewalk)
+            Logger.Log($"[UsnIndexer] {drive}: could not read {unreadable.Count} path(s), first {unreadable[0]}; the drive is owed a re-walk.", LogLevel.Warn);
         if (!changed)
-            return;
+        {
+            // Nothing applied, but a debt still is a change this drive's running rebuild may have walked past:
+            // flagged the same way an applied change is below, since the request made for it is refused as a
+            // duplicate while that rebuild is pending.
+            if (owesRewalk)
+                lock (indexer.LockObj)
+                    MarkMissedIfRebuilding(indexer, drive);
+            return owesRewalk;
+        }
 
         // A rename moves something out of one directory and into another, so both are places a
         // subscriber watching either one needs to hear about.
@@ -242,6 +260,7 @@ public static class UsnIndexerExtensions
         if (!isRebuilding)
             indexer._folderChangeSaveDebounce.Schedule(drive, () => indexer.SaveDriveSnapshot(drive, live, onReindexRequired));
         indexer.PublishStatusChanged();
+        return owesRewalk;
     }
 
     // Caller must already hold indexer.LockObj. Flags `drive` as having missed a change during its

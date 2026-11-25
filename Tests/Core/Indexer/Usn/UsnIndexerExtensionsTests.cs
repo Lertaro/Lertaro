@@ -311,23 +311,78 @@ public sealed class UsnIndexerExtensionsTests
 
     // This runs on FolderDriveMonitor's debounce Timer, where an escaping exception ends the process. The
     // "foo " file beside a "foo" folder is how DeltaPathApplierTests makes a directory read fail
-    // mid-enumeration (see the comment there).
+    // mid-enumeration (see the comment there). The drive is mid-rebuild here: the change is flagged missed
+    // like any other change applied during a rebuild, and the re-walk it owes is still reported, for the
+    // monitor to ask SearchEngineDriveMaintenance, which decides about the running rebuild.
     [TestMethod]
     public void ApplyFolderChange_CreatedFolderWithAChildThatFailsWhileBeingRead_DoesNotThrow()
     {
         using var tempDir = new TempDirectory();
-        var drop = Path.Combine(tempDir.Path, "drop");
-        Directory.CreateDirectory(Path.Combine(drop, "foo"));
-        File.WriteAllText(@"\\?\" + Path.Combine(drop, "foo "), "x");
-        File.WriteAllText(Path.Combine(drop, "zzz.txt"), "x");
+        var drop = CreateFolderWithAChildThatFailsWhileBeingRead(tempDir.Path);
         using var fixture = LiveIndexFixture.Build("C", new[] { LiveIndexFixture.Root() });
         var indexer = new UsnIndexer();
         indexer._recordIndexes["C"] = fixture.Index;
         indexer.Status.Drives.Add(new UsnIndexer.DriveIndexStatus { Drive = "C", State = "indexing" });
 
-        indexer.ApplyFolderChange("C", WatcherChangeTypes.Created, drop, null, () => { });
+        var owesRewalk = indexer.ApplyFolderChange("C", WatcherChangeTypes.Created, drop, null, () => { });
 
         Assert.IsTrue(fixture.Index.ToStore().Records.Any(r => r.Name == "zzz.txt"));
+        Assert.IsTrue(owesRewalk);
+        Assert.IsTrue(indexer.ConsumeMissedFolderChangeDuringRebuild("C"));
+    }
+
+    // A Created entry whose own stat fails (a name no Win32 path may carry is the stand-in) owes a re-walk with
+    // nothing applied. While the drive reads "indexing" the request made for it is refused as a duplicate, so
+    // the missed flag has to carry it, as it does for an applied change.
+    [TestMethod]
+    public void ApplyFolderChange_CreatedEntryWhoseStatFailsDuringARebuild_FlagsItMissed()
+    {
+        using var tempDir = new TempDirectory();
+        using var fixture = LiveIndexFixture.Build("C", new[] { LiveIndexFixture.Root() });
+        var indexer = new UsnIndexer();
+        indexer._recordIndexes["C"] = fixture.Index;
+        indexer.Status.Drives.Add(new UsnIndexer.DriveIndexStatus { Drive = "C", State = "indexing" });
+
+        var owesRewalk = indexer.ApplyFolderChange("C", WatcherChangeTypes.Created, Path.Combine(tempDir.Path, "a?b"), null, () => { });
+
+        Assert.IsTrue(owesRewalk);
+        Assert.IsTrue(indexer.ConsumeMissedFolderChangeDuringRebuild("C"));
+    }
+
+    // A folder created or moved in raises one event and nothing for its contents, so what its walk could not
+    // read is missing until the drive is re-walked. A Changed walk only re-reads a folder whose children
+    // report their own events; re-walking the drive for that would turn the one unreadable entry into a
+    // re-walk for every change made beside it. Reporting the debt is all this does: FolderDriveMonitor asks
+    // once per batch (FolderDriveMonitorTests), so nothing here is flagged missed.
+    [TestMethod]
+    [DataRow(WatcherChangeTypes.Created, true)]
+    [DataRow(WatcherChangeTypes.Renamed, true)]
+    [DataRow(WatcherChangeTypes.Changed, false)]
+    public void ApplyFolderChange_FolderWithAChildThatFailsWhileBeingRead_OwesARewalkOnlyForANewFolder(WatcherChangeTypes changeType, bool expected)
+    {
+        using var tempDir = new TempDirectory();
+        var drop = CreateFolderWithAChildThatFailsWhileBeingRead(tempDir.Path);
+        using var fixture = LiveIndexFixture.Build("C", new[] { LiveIndexFixture.Root() });
+        var indexer = new UsnIndexer();
+        indexer._recordIndexes["C"] = fixture.Index;
+        indexer.Status.Drives.Add(new UsnIndexer.DriveIndexStatus { Drive = "C", State = "ready" });
+        var callbacks = 0;
+
+        var owesRewalk = indexer.ApplyFolderChange("C", changeType, drop, Path.Combine(tempDir.Path, "old"), () => callbacks++);
+
+        Assert.IsTrue(fixture.Index.ToStore().Records.Any(r => r.Name == "zzz.txt"));
+        Assert.AreEqual(expected, owesRewalk);
+        Assert.AreEqual(0, callbacks, "The callback is the debounced save's, not the walk's.");
+        Assert.IsFalse(indexer.ConsumeMissedFolderChangeDuringRebuild("C"));
+    }
+
+    private static string CreateFolderWithAChildThatFailsWhileBeingRead(string parent)
+    {
+        var drop = Path.Combine(parent, "drop");
+        Directory.CreateDirectory(Path.Combine(drop, "foo"));
+        File.WriteAllText(@"\\?\" + Path.Combine(drop, "foo "), "x");
+        File.WriteAllText(Path.Combine(drop, "zzz.txt"), "x");
+        return drop;
     }
 
     [TestMethod]

@@ -10,10 +10,14 @@ namespace Lertaro.Core.IndexV2.Delta;
 // ApplyDeleted needs no manual recursive subtree walk: DeltaOverlay.Remove already cascades a directory's children (base, overridden,
 // and delta-added alike) via TombstoneCascade/RemoveAddedCascade, so one Remove() call on the target
 // id is enough.
+//
+// A walk never stops at an entry it cannot read: it skips that entry (or the unread rest of a directory
+// listing) and goes on with the rest. `unreadable` collects each one a re-walk could read better, so the
+// caller can decide whether one is owed -- see OwesRewalk.
 public static class DeltaPathApplier
 {
-    public static bool ApplyCreatedOrChanged(DeltaOverlay delta, UInt128 rootId, string root, string path, ExclusionRuleSet? exclusionRules = null)
-        => UpsertPath(delta, rootId, root, path, includeChildren: Directory.Exists(path), exclusionRules, parentAncestors: null, depth: 0);
+    public static bool ApplyCreatedOrChanged(DeltaOverlay delta, UInt128 rootId, string root, string path, ExclusionRuleSet? exclusionRules = null, ICollection<string>? unreadable = null)
+        => UpsertPath(delta, rootId, root, path, includeChildren: Directory.Exists(path), exclusionRules, parentAncestors: null, depth: 0, unreadable);
 
     public static bool ApplyDeleted(DeltaOverlay delta, string path)
     {
@@ -33,12 +37,20 @@ public static class DeltaPathApplier
         return removedFile || removedDir;
     }
 
-    public static bool ApplyRenamed(DeltaOverlay delta, UInt128 rootId, string root, string oldPath, string newPath, ExclusionRuleSet? exclusionRules = null)
+    public static bool ApplyRenamed(DeltaOverlay delta, UInt128 rootId, string root, string oldPath, string newPath, ExclusionRuleSet? exclusionRules = null, ICollection<string>? unreadable = null)
     {
         var changed = ApplyDeleted(delta, oldPath);
-        changed |= UpsertPath(delta, rootId, root, newPath, includeChildren: Directory.Exists(newPath), exclusionRules, parentAncestors: null, depth: 0);
+        changed |= UpsertPath(delta, rootId, root, newPath, includeChildren: Directory.Exists(newPath), exclusionRules, parentAncestors: null, depth: 0, unreadable);
         return changed;
     }
+
+    // A read that failed for a reason a re-walk could do better on. Not an entry that is gone (its Deleted
+    // event follows) and not one we may not read (UnauthorizedAccessException, not an IOException: a
+    // re-walk runs as the same user and cannot read it either), so a folder created and deleted again at
+    // once, or a protected one, never costs a re-walk. An aborted read (ERROR_OPERATION_ABORTED, which .NET
+    // raises as OperationCanceledException; no token reaches these walks) is owed like any other I/O failure.
+    private static bool OwesRewalk(Exception ex) =>
+        ex is IOException or OperationCanceledException && ex is not (FileNotFoundException or DirectoryNotFoundException);
 
     private static bool UpsertPath(
         DeltaOverlay delta,
@@ -48,7 +60,8 @@ public static class DeltaPathApplier
         bool includeChildren,
         ExclusionRuleSet? exclusionRules,
         AncestorNode? parentAncestors,
-        int depth)
+        int depth,
+        ICollection<string>? unreadable)
     {
         if (depth > 128)
             return false;
@@ -60,8 +73,10 @@ public static class DeltaPathApplier
             info = new FileInfo(path);
             attributes = info.Attributes;
         }
-        catch
+        catch (Exception ex)
         {
+            if (OwesRewalk(ex))
+                unreadable?.Add(path);
             return false;
         }
 
@@ -124,7 +139,7 @@ public static class DeltaPathApplier
             FileTimeHelper.ToUnixSeconds(info.LastAccessTimeUtc));
 
         if (includeChildren && isDirectory && nextAncestors != null)
-            UpsertDirectoryChildren(delta, rootId, root, normalized, exclusionRules, nextAncestors, depth + 1);
+            UpsertDirectoryChildren(delta, rootId, root, normalized, exclusionRules, nextAncestors, depth + 1, unreadable);
 
         return true;
     }
@@ -136,24 +151,25 @@ public static class DeltaPathApplier
         string directory,
         ExclusionRuleSet? exclusionRules,
         AncestorNode ancestors,
-        int depth)
+        int depth,
+        ICollection<string>? unreadable)
     {
         // The loop is guarded, not just the call: the enumerator opens the directory up front but reads it
-        // lazily, so a folder that vanishes or a drive that is pulled mid-read throws from MoveNext. That
-        // runs on FolderDriveMonitor's Timer callback, where an escaping exception ends the process. Every
-        // failure the enumeration maps a Win32 error to is an IOException (DirectoryNotFound, PathTooLong,
-        // a device gone) or an UnauthorizedAccessException; anything else is a bug and should surface.
-        // ponytail: the unread rest of this directory just stays out of the index (the same gap an
-        // unreadable directory has always had), since nothing here can ask for a re-walk. Usually a Deleted
-        // event or the drive's removal follows anyway; if not, return an "incomplete" flag to the callers
-        // so ApplyFolderChange/WatcherManager can queue a refresh.
+        // lazily, so a folder that vanishes or a drive that is pulled mid-read throws from MoveNext. A
+        // child's own read failing is caught in its own call, so what lands here is this listing alone: its
+        // unread rest is skipped and the walk goes on with this directory's siblings. A listing maps every
+        // Win32 error to an IOException or UnauthorizedAccessException except ERROR_OPERATION_ABORTED,
+        // which surfaces as OperationCanceledException and is reported like an IOException. Anything else is
+        // a bug and propagates to the caller's catch, which re-walks the drive.
         try
         {
             foreach (var child in Directory.EnumerateFileSystemEntries(directory))
-                UpsertPath(delta, rootId, root, child, includeChildren: true, exclusionRules, ancestors, depth);
+                UpsertPath(delta, rootId, root, child, includeChildren: true, exclusionRules, ancestors, depth, unreadable);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
         {
+            if (OwesRewalk(ex))
+                unreadable?.Add(directory);
         }
     }
 

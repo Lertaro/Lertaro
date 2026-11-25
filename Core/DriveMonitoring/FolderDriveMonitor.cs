@@ -7,7 +7,8 @@ internal sealed class FolderDriveMonitor : IDisposable
     private readonly record struct PendingChange(WatcherChangeTypes ChangeType, string Path, string? OldPath);
 
     private readonly string _drive;
-    private readonly Action<WatcherChangeTypes, string, string?> _onChange;
+    // Returns whether the change could be applied only in part, so the drive owes a re-walk.
+    private readonly Func<WatcherChangeTypes, string, string?, bool> _onChange;
     private readonly Action? _onReindexRequired;
     private readonly CancellationToken _token;
     private readonly object _gate = new();
@@ -17,7 +18,7 @@ internal sealed class FolderDriveMonitor : IDisposable
     private Timer? _debounce;
     private bool _disposed;
 
-    public FolderDriveMonitor(string drive, Action<WatcherChangeTypes, string, string?> onChange, CancellationToken token, Action? onReindexRequired = null)
+    public FolderDriveMonitor(string drive, Func<WatcherChangeTypes, string, string?, bool> onChange, CancellationToken token, Action? onReindexRequired = null)
     {
         _drive = drive;
         _onChange = onChange;
@@ -113,6 +114,11 @@ internal sealed class FolderDriveMonitor : IDisposable
             _pending.Clear();
         }
 
+        // A re-walk the batch owes is asked for once, after the whole batch: the request marks the drive
+        // "indexing" at once, so every later change in it would be flagged as missed by that rebuild and buy
+        // a second walk, although the walk has not started yet. Whether a rebuild is already pending or
+        // running is SearchEngineDriveMaintenance's to decide, not this monitor's.
+        var owesRewalk = false;
         // Last resort: this runs on a Timer callback, where an unhandled exception terminates the process,
         // and _onChange reaches the index, its subscribers and the persist debouncer. Same answer as
         // WatcherManager's handlers on the network side: log it and re-walk the drive, which also covers
@@ -126,15 +132,23 @@ internal sealed class FolderDriveMonitor : IDisposable
             {
                 if (_token.IsCancellationRequested)
                     return;
-                _onChange(item.ChangeType, item.Path, item.OldPath);
+                owesRewalk |= _onChange(item.ChangeType, item.Path, item.OldPath);
             }
         }
         catch (Exception ex)
         {
             Logger.Log($"[{nameof(FolderDriveMonitor)}] Applying a change on {_drive} failed, re-walking the drive: {ex}", LogLevel.Error);
-            if (!_disposed && !_token.IsCancellationRequested)
-                _onReindexRequired?.Invoke();
+            owesRewalk = true;
         }
+
+        // Asked even if this monitor was disposed meanwhile: the debt belongs to the drive, and a change
+        // already applied to its index is one the replacement monitor (EnsureMonitor after a rebuild disposes
+        // this one without cancelling its token) never hears about again. For a drive removed meanwhile the
+        // request is the same stray one this catch and the watcher's Error path could already make: the
+        // rebuild fails on the unmounted volume and SettleFailedBuild parks it for re-insertion. A cancelled
+        // token (shutdown) asks nothing.
+        if (owesRewalk && !_token.IsCancellationRequested)
+            _onReindexRequired?.Invoke();
     }
 
     public void Dispose()

@@ -115,6 +115,82 @@ public sealed class WatcherManagerTests
         }
     }
 
+    // A folder moved in from elsewhere raises one Created event and nothing for its contents, so a walk of
+    // it that fails part-way leaves a gap only a refresh fills. The "foo " file beside a "foo" folder is
+    // DeltaPathApplierTests' deterministic read failure: the walk takes the file for the folder and then
+    // cannot list it. A re-walk lists it as the file it is.
+    [TestMethod]
+    public async Task WatcherCreatedFolderWhoseWalkFailsPartWay_StillQueuesARefresh()
+    {
+        var (root, staging) = CreateRootOutsideAppData();
+        var drop = Path.Combine(staging, "drop");
+        CreateFolderWithAFileThatReadsAsIt(drop);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var refreshed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var published = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        try
+        {
+            using var index = NetworkIndex.FromSnapshotFile(root, WriteRootOnlySnapshot(root, staging));
+            using var manager = new WatcherManager(
+                (_, reason) => refreshed.TrySetResult(reason),
+                _ => { started.TrySetResult(); return index; },
+                (_, _, _) => published.TrySetResult(), _ => false);
+
+            manager.EnsureWatcher(root);
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Directory.Move(drop, Path.Combine(root, "drop"));
+
+            // The debounced publish (1 s) is the "handled without a refresh" outcome.
+            await Task.WhenAny(refreshed.Task, published.Task).WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.IsTrue(refreshed.Task.IsCompleted, "The walk of the created folder failed part-way, but no refresh was queued.");
+        }
+        finally
+        {
+            try { Directory.Delete(@"\\?\" + root, recursive: true); } catch { }
+            try { Directory.Delete(@"\\?\" + staging, recursive: true); } catch { }
+        }
+    }
+
+    // The other half: that same unreadable entry, already in place, must not cost a refresh for every change
+    // made beside it. A Changed walk only re-reads a folder whose children report their own events, so it
+    // leaves nothing missing; before Changed walks were told apart, each write here re-walked the share.
+    [TestMethod]
+    public async Task WatcherChangesBesideAnUnreadableEntry_QueueNoRefresh()
+    {
+        var (root, staging) = CreateRootOutsideAppData();
+        var drop = Path.Combine(root, "drop");
+        CreateFolderWithAFileThatReadsAsIt(drop);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var published = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var refreshes = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        try
+        {
+            using var index = NetworkIndex.FromSnapshotFile(root, WriteRootOnlySnapshot(root, staging));
+            using var manager = new WatcherManager(
+                (_, reason) => refreshes.Enqueue(reason),
+                _ => { started.TrySetResult(); return index; },
+                (_, _, _) => published.TrySetResult(), _ => false);
+
+            manager.EnsureWatcher(root);
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            for (var i = 0; i < 3; i++)
+            {
+                // Changed on "foo " itself (read as the folder, then unlistable) and on "drop" (whose walk
+                // reaches "foo "), plus a Created for the new file.
+                File.AppendAllText(@"\\?\" + Path.Combine(drop, "foo "), "x");
+                File.WriteAllText(Path.Combine(drop, $"new{i}.txt"), "x");
+            }
+
+            await published.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.AreEqual(0, refreshes.Count, $"Refreshes queued: {string.Join(", ", refreshes)}");
+        }
+        finally
+        {
+            try { Directory.Delete(@"\\?\" + root, recursive: true); } catch { }
+            try { Directory.Delete(@"\\?\" + staging, recursive: true); } catch { }
+        }
+    }
+
     // The debounced publish persists the index on a Timer, where an escaping exception ends the process (if
     // this regresses the test host dies). A failed persist has also dropped the unsaved changes from memory
     // (LiveIndex.Compact reopens the snapshot still on disk), so the share is owed a refresh.
@@ -201,6 +277,12 @@ public sealed class WatcherManagerTests
         var root = Path.Combine(Path.GetPathRoot(Path.GetTempPath())!, "lertaro-watcher-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         return (root, Directory.CreateTempSubdirectory("lertaro-watcher-staging-").FullName);
+    }
+
+    private static void CreateFolderWithAFileThatReadsAsIt(string directory)
+    {
+        Directory.CreateDirectory(Path.Combine(directory, "foo"));
+        File.WriteAllText(@"\\?\" + Path.Combine(directory, "foo "), "x");
     }
 
     private static string WriteRootOnlySnapshot(string root, string staging)
