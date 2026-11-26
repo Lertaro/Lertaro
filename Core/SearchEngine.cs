@@ -18,6 +18,9 @@ public class SearchEngine : IDisposable
     private readonly ManualResetEventSlim _initializationReady = new(initialState: true);
     private MachineSettings _machineSettings = MachineSettings.Load();
     private readonly SearchEngineDriveMaintenance _drives;
+    // The running startup, or the last one. Its RequestRebuild holds a request until that startup completes
+    // and passes it straight on afterwards. Set under _startLock, before _isRebuilding goes true.
+    private volatile SearchEngineInitializer? _initializer;
 
     // Search cancellation: one slot per directory filter (see SearchCancellationRegistry), replacing the
     // previous pair of process-wide "latest wins" slots.
@@ -79,7 +82,7 @@ public class SearchEngine : IDisposable
         // Persist each drive's accumulated delta first, so a restart replays from here instead of
         // from the last cold-start catch-up point. Deliberately before the memory hand-back below: the
         // merge this does is the biggest allocation of the two, and the trim that follows reclaims it.
-        _indexer.CompactIdleDeltas(IndexCacheDir);
+        _indexer.CompactIdleDeltas(IndexCacheDir, RequestRebuildOutsideStartup);
 
         Logger.Log("[SearchEngine] Service has been idle for 3s. Trimming working set...", LogLevel.Debug);
         _indexer.ClearCaches();
@@ -88,6 +91,14 @@ public class SearchEngine : IDisposable
         GC.Collect(2, GCCollectionMode.Forced, blocking: true);
         Win32Api.TrimWorkingSet();
     }
+
+    // A plain rebuild request raised outside the startup's own work (the idle compactor's). While a startup
+    // runs, the engine refuses every rebuild request (SearchEngineDriveMaintenance.TryBeginRebuild), so it goes
+    // through that startup's deferral. Read when the request is made: one made just as a new startup begins
+    // reaches the engine through the previous, completed initializer and can be refused, but that startup
+    // re-walks every FAT32/exFAT drive, the only kind this request is raised for.
+    private void RequestRebuildOutsideStartup(string drive) =>
+        (_initializer?.RequestRebuild ?? _drives.QueueDriveRebuild)(drive);
 
     public Dictionary<string, FileMetadataEntry> GetFileMetadataBatch(IReadOnlyList<string> paths) => _indexer.GetFileMetadataBatch(paths);
 
@@ -234,9 +245,14 @@ public class SearchEngine : IDisposable
 
     public void InitializeOrLoadIndex(bool forceRebuild = false)
     {
+        SearchEngineInitializer initializer;
         lock (_startLock)
         {
             if (_isRebuilding) return;
+            initializer = new SearchEngineInitializer(_indexer, IndexCacheDir, _drives.QueueDriveRebuild,
+                drive => _drives.CancelDriveRebuild(drive),
+                drive => _drives.QueueDriveRebuildAfterRemoval(drive));
+            _initializer = initializer;
             _isRebuilding = true;
             _initializationReady.Reset();
         }
@@ -256,9 +272,6 @@ public class SearchEngine : IDisposable
             _indexer.DisposeAllDriveMonitors();
             _cts = new CancellationTokenSource();
 
-            var initializer = new SearchEngineInitializer(_indexer, IndexCacheDir, _drives.QueueDriveRebuild,
-                drive => _drives.CancelDriveRebuild(drive),
-                drive => _drives.QueueDriveRebuildAfterRemoval(drive));
             initializer.Run(forceRebuild, _cts, isRebuilding =>
             {
                 lock (_startLock)
