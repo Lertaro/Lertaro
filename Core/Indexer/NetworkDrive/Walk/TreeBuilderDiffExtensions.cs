@@ -184,18 +184,19 @@ internal static class TreeBuilderDiffExtensions
         }
     }
 
-    // #258: a directory that failed to list on a transient (network-class) error used to vanish with its
-    // whole subtree, and the walk's result then replaced the good index -- files "disappeared" until some
-    // later pass happened to succeed, and ContentSearch pruned their content rows meanwhile. Re-commit what
-    // the previous walk had beneath it instead, without touching the share again. The directory itself
-    // stays un-Listed and the enumerate error is already counted, so the caller still schedules a retry.
-    // Permanent failures (not found, access denied) carry nothing: that content is really gone or hidden.
+    // #258: a directory that failed to list because the server, connection or device could not answer
+    // right now used to vanish with its whole subtree, and the walk's result then replaced the good index --
+    // files "disappeared" until some later pass happened to succeed, and ContentSearch pruned their content
+    // rows meanwhile. Re-commit what the previous walk had beneath it instead, without touching the share
+    // again. Only such a failure (IsTemporarilyUnavailable) carries anything; one that describes the folder
+    // itself drops it. The enumerate error is already counted: a network refresh marks the drive uncaptured
+    // so the next startup scans it again, and every later pass lists this directory anew.
     // `alreadyCommitted` holds the names a listing that failed midway did capture; those were committed
     // (and, for directories, queued) from the live listing already.
     public static void CarryForwardPreviousSubtree(this TreeBuilder builder, WorkItem current, NetworkIgnoreRuleSet ignoreRules,
         Exception failure, IReadOnlySet<string>? alreadyCommitted)
     {
-        if (builder._diffBaseline == null || !TreeBuilderEnumerationExtensions.IsTransientEnumerationFailure(failure))
+        if (builder._diffBaseline == null || !TreeBuilderEnumerationExtensions.IsTemporarilyUnavailable(failure))
             return;
 
         var batch = new List<FileRecord>(TreeBuilder.RecordBatchSize);

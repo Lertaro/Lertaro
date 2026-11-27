@@ -37,8 +37,8 @@ internal static class NativeFileEnumerator
         // Directory.EnumerateFileSystemEntries's eager path validation. The iterator only ever runs
         // after a valid handle and first entry have been obtained. A failure raised from INSIDE the
         // iterator (FindNextFile below, e.g. the share dropping mid-listing) is caught by
-        // TreeBuilderEnumerationExtensions.ConsumeChildren instead, which leaves that one directory
-        // un-Listed rather than faulting the worker that happened to walk it.
+        // TreeBuilderEnumerationExtensions.ConsumeChildren instead, which counts that one directory as
+        // failed rather than faulting the worker that happened to walk it.
         return EnumerateCore(handle, findData);
     }
 

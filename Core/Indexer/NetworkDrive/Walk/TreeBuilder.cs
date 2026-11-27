@@ -24,7 +24,11 @@ internal sealed class TreeBuilder
     // AbandonIfRootLost). ponytail: never disposed -- a straggling worker may still touch _token's
     // WaitHandle after Run returns; the registration on the caller's token goes when that source does.
     private readonly CancellationTokenSource _abort;
-    internal Func<string, bool> _rootExists = Directory.Exists;
+    // Progress and checkpoint callbacks run under the read side; AbandonIfRootLost cancels under the write
+    // side. So the abandon waits for a callback already running, and none starts after it: everything the
+    // walk publishes lands before Run throws and the caller reverts the status. Readers never block each
+    // other, so a slow checkpoint write does not stall other workers' progress. Not disposed, like _abort.
+    internal readonly ReaderWriterLockSlim _callbackGate = new();
     internal readonly Action<int, int> _onProgress;
     internal readonly Action<FileRecordStore, NetworkDriveWalkStats>? _onCheckpoint;
     private readonly Channel<WorkItem> _pending;
@@ -168,7 +172,7 @@ internal sealed class TreeBuilder
 
         // Buffered whenever the previous walk knows something under this directory, Listed or not: a listing
         // that fails midway must say which names it captured so the rest can be carried forward, and an
-        // un-Listed directory is exactly what a previous transient failure leaves behind. A directory the
+        // un-Listed directory is typically what a previous failure leaves behind. A directory the
         // baseline has nothing for streams, since there is nothing to carry. ponytail: one buffered listing
         // per worker is held in memory at a time, so a single directory with millions of entries costs
         // that listing's size; the upgrade is a streaming name set instead of the entry list.
@@ -201,7 +205,10 @@ internal sealed class TreeBuilder
             enumerationFailure == null ? liveEntries : null);
         // Failed midway, buffered or streamed: the root may have gone with it. Only a buffered listing knows
         // which names it captured, so only it carries the rest forward from the previous walk; a streamed one
-        // has nothing in the baseline to carry.
+        // has nothing in the baseline to carry. A buffered listing's failure can only come from buffering
+        // (iterating the in-memory list cannot fail), and ConsumeChildren returns only after processing every
+        // buffered entry, so the captured names are exactly the ones already handled (committed, or skipped
+        // by the filters).
         enumerationFailure = this.ConsumeChildren(current, ignoreRules, children, enumerationFailure);
         if (enumerationFailure != null)
         {
@@ -227,11 +234,20 @@ internal sealed class TreeBuilder
         // Directory.Exists with true. Do not replace a good index with this incomplete pass.
         var networkNameLost = failure is Win32Exception { NativeErrorCode: 67 }
             or IOException { HResult: unchecked((int)0x80070043) };
-        if (!networkNameLost && _rootExists(_physicalRoot))
+        if (!networkNameLost && Directory.Exists(_physicalRoot))
             return;
 
         Logger.Log($"[NetworkIndexer] {_physicalRoot} became unreachable mid-walk; abandoning this pass and keeping the existing index.", LogLevel.Warn);
-        _abort.Cancel();
+        _callbackGate.EnterWriteLock();
+        try
+        {
+            _abort.Cancel();
+        }
+        finally
+        {
+            _callbackGate.ExitWriteLock();
+        }
+
         _token.ThrowIfCancellationRequested();
     }
 

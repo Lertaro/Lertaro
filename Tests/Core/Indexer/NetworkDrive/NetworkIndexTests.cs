@@ -1,4 +1,5 @@
 using Lertaro.Core.Indexer.NetworkDrive;
+using Lertaro.Core.Indexer.NetworkDrive.Walk;
 using Lertaro.Core.IndexV2.Persistence;
 
 namespace Lertaro.Core.Tests.Indexer.NetworkDrive;
@@ -144,6 +145,41 @@ public sealed class NetworkIndexTests
             new FileRecord(4, 2, "notes.txt", FileRecordFlags.None));
         SnapshotWriter.Write(store, path);
         return NetworkIndex.FromSnapshotFile(@"\\server\share", path);
+    }
+
+    // #562 review: the refresh must keep the previous complete index when the share drops mid-walk (coverage
+    // for what #562 does, not a new fix). The root's listing is read in full first -- buffered, because the
+    // previous index knows a child, so no handle is left open -- and while its entries are being consumed, the
+    // progress callback moves the root away. The next folder then fails with the root gone. Build has to end
+    // in cancellation, which DriveRefreshRunner turns into "cached" without saving, before beforeFinalWrite
+    // (wired to ReleaseCachedIndex, which drops the index being served). That callback runs before
+    // NetworkIndex.FromStore writes the cache file, and throws here, so a failing run writes nothing either.
+    [TestMethod]
+    public void Build_ShareLostMidWalk_EndsBeforeTouchingTheSavedIndex()
+    {
+        using var dir = new TempDirectory();
+        var root = Path.Combine(dir.Path, "share");
+        // Folders, not files: nothing for an on-access scanner to hold open when the root is moved away.
+        for (var i = 0; i < TreeBuilder.ProgressBatchSize + 50; i++)
+            Directory.CreateDirectory(Path.Combine(root, $"d{i:D4}"));
+        var previous = BuildStore(root, new FileRecord(2, 1, "old.txt", FileRecordFlags.None, 1, 0, 0, 0));
+        previous.IsComplete = true;
+        var shareLost = false;
+
+        Assert.Throws<OperationCanceledException>(() => NetworkIndex.Build(root, root, root,
+            new WalkOptions([], [], [], MaxDepth: 0, WorkerCount: 1, UseIgnoreFiles: false), CancellationToken.None,
+            (_, _) =>
+            {
+                if (shareLost)
+                    return;
+                Directory.Move(root, root + "-gone");
+                shareLost = true;
+            },
+            (_, _) => Assert.Fail("No checkpoint is due this early."),
+            previous,
+            beforeFinalWrite: () => throw new AssertFailedException("The walk finished and was about to replace the saved index.")));
+
+        Assert.IsTrue(shareLost, "precondition: the share dropped mid-walk");
     }
 
     private static FileRecordStore BuildStore(string drive, params FileRecord[] records)

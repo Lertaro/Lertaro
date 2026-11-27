@@ -61,7 +61,7 @@ internal static class DriveRefreshRunner
             var uncaptured = index.EnumerateErrors > 0;
             if (uncaptured)
             {
-                Logger.Log($"[NetworkIndexer] {drive}: finished with {index.Errors} error(s) ({index.EnumerateErrors} enumerate, {index.AttributeErrors} attribute); {index.EnumerateErrors} directory listing(s) were never captured -- they stay un-Listed and are marked for another pass.", LogLevel.Warn);
+                Logger.Log($"[NetworkIndexer] {drive}: finished with {index.Errors} error(s) ({index.EnumerateErrors} enumerate, {index.AttributeErrors} attribute); {index.EnumerateErrors} directory listing(s) were never captured -- the drive is marked for another pass.", LogLevel.Warn);
                 // Marker BEFORE the cache write: interrupted between the two, a stale marker only costs
                 // one extra incremental pass, while a missing one would hide these directories behind
                 // "complete" again.

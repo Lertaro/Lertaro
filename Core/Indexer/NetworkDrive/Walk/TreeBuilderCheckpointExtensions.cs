@@ -10,9 +10,8 @@ namespace Lertaro.Core.Indexer.NetworkDrive.Walk;
 // Neither callback runs once builder._token is cancelled: AbandonIfRootLost cancels it from another
 // worker while this one is still mid-directory, and the callers only guard on THEIR token, so a straggler
 // would otherwise publish a checkpoint or flip the status back to "indexing" after the walk was abandoned.
-// ponytail: check-then-act -- a worker that passes the check just before _abort fires still runs that one
-// callback; the window is one callback invocation wide. Closing it means serialising callbacks with
-// AbandonIfRootLost under one lock (or callers checking the walk's own token inside the callback).
+// The check and the callback sit under the read side of builder._callbackGate and the abandon under its
+// write side, so no callback can pass the check and then run after the abandon.
 internal static class TreeBuilderCheckpointExtensions
 {
     public static void MaybeReportProgress(this TreeBuilder builder)
@@ -21,8 +20,7 @@ internal static class TreeBuilderCheckpointExtensions
             return;
 
         Interlocked.Exchange(ref builder._countSinceProgress, 0);
-        if (!builder._token.IsCancellationRequested)
-            builder._onProgress(Volatile.Read(ref builder._indexedFiles), Volatile.Read(ref builder._indexedDirs));
+        builder.UnlessAbandoned(() => builder._onProgress(Volatile.Read(ref builder._indexedFiles), Volatile.Read(ref builder._indexedDirs)));
     }
 
     public static void MaybeCheckpoint(this TreeBuilder builder, int indexedItems)
@@ -37,15 +35,45 @@ internal static class TreeBuilderCheckpointExtensions
         {
             // Cloned first so the cancellation check sits after the slow part, right before publishing.
             var snapshot = CloneStore(builder);
-            if (builder._token.IsCancellationRequested)
-                return;
-
-            builder._onProgress(Volatile.Read(ref builder._indexedFiles), Volatile.Read(ref builder._indexedDirs));
-            builder._onCheckpoint(snapshot, CurrentStats(builder));
+            builder.UnlessAbandoned(() =>
+            {
+                builder._onProgress(Volatile.Read(ref builder._indexedFiles), Volatile.Read(ref builder._indexedDirs));
+                try
+                {
+                    builder._onCheckpoint(snapshot, CurrentStats(builder));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // A checkpoint is a resume point, not the walk's result: a failed write (a full disk, a
+                    // locked or read-only cache file) leaves the store being built untouched, so the walk goes
+                    // on. What else it costs is the publisher's: PublishLocalDriveCheckpoint fails in
+                    // SnapshotWriter.Write before touching the runtime, so the previous live index keeps
+                    // serving. NetworkIndexerPublisher.PublishCheckpoint catches its own failures, but it has
+                    // already released the drive's cached index by then, so that drive serves no index until a
+                    // later checkpoint or the final save succeeds (that predates this catch). Anything else a
+                    // checkpoint throws is a bug and propagates, and so does cancellation, which the
+                    // publishers throw to stop the walk at a checkpoint boundary.
+                    Logger.Log($"[NetworkIndexer] A mid-walk checkpoint failed; the walk continues without it: {ex.GetType().Name}: {ex.Message}", LogLevel.Warn);
+                }
+            });
         }
         finally
         {
             builder._checkpointGate.Completed();
+        }
+    }
+
+    private static void UnlessAbandoned(this TreeBuilder builder, Action callback)
+    {
+        builder._callbackGate.EnterReadLock();
+        try
+        {
+            if (!builder._token.IsCancellationRequested)
+                callback();
+        }
+        finally
+        {
+            builder._callbackGate.ExitReadLock();
         }
     }
 

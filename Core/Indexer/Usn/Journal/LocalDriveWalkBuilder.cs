@@ -60,13 +60,13 @@ internal static class LocalDriveWalkBuilder
         var stats = builder.Run();
 
         // Reaching here without cancellation only means TreeBuilder.Run() drained its queue -- NOT that
-        // every directory's real contents were captured; a directory that failed to enumerate stays
-        // un-Listed for a future rebuild to retry regardless (see TreeBuilder.WalkDirectory). Marking
-        // complete anyway mirrors NetworkIndex's own reasoning -- see DriveRefreshRunner.RefreshDrive's own
-        // comment on why gating this on Errors == 0 would make it functionally never become true.
+        // every directory's real contents were captured; a directory that failed to enumerate is only
+        // counted, and a future rebuild lists it again (see CountEnumerationFailure). Marking complete
+        // anyway mirrors NetworkIndex's own reasoning -- see DriveRefreshRunner.RefreshDrive's own comment
+        // on why gating this on Errors == 0 would make it functionally never become true.
         store.IsComplete = true;
         if (stats.Errors > 0)
-            Logger.Log($"[LocalDriveWalkBuilder] {drive}: finished with {stats.Errors} error(s) ({stats.EnumerateErrors} enumerate, {stats.AttributeErrors} attribute) -- marking complete anyway; affected directories stay un-Listed for a future manual rebuild to retry.", LogLevel.Warn);
+            Logger.Log($"[LocalDriveWalkBuilder] {drive}: finished with {stats.Errors} error(s) ({stats.EnumerateErrors} enumerate, {stats.AttributeErrors} attribute) -- marking complete anyway; a future manual rebuild lists the affected directories again.", LogLevel.Warn);
         return store;
     }
 }
