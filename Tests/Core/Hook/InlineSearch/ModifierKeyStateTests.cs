@@ -82,6 +82,8 @@ public sealed class ModifierKeyStateTests
     [DataRow(0xA3)]
     [DataRow(0xA4)]
     [DataRow(0x01)]
+    [DataRow(0x7B)] // F12 is not part of the high-function-key exclusion.
+    [DataRow(0x88)]
     public void Synchronize_AllKeys_DetectsAnAlreadyHeldKeyOrMouseButton(int heldKey)
     {
         var state = new ModifierKeyState();
@@ -104,5 +106,25 @@ public sealed class ModifierKeyStateTests
 
         state.OnKeyUp(0xA2);
         Assert.IsFalse(state.IsControlDown);
+    }
+
+    public static IEnumerable<int> HighFunctionKeys => Enumerable.Range(0x7C, 12);
+
+    [TestMethod]
+    [DynamicData(nameof(HighFunctionKeys))]
+    public void HasOtherKeyDown_HighFunctionKeyFromEventOrSnapshot_DoesNotBlockTap(int heldKey)
+    {
+        var state = new ModifierKeyState();
+        state.OnKeyDown(heldKey);
+        state.OnKeyDown(0xA2);
+        Assert.IsFalse(state.HasOtherKeyDown(0xA2));
+
+        state.Synchronize(key => key == heldKey, includeAllKeys: true);
+        state.OnKeyDown(0xA2);
+        Assert.IsFalse(state.HasOtherKeyDown(0xA2));
+        Assert.IsTrue(state.IsControlDown);
+
+        state.OnKeyDown(0x56);
+        Assert.IsTrue(state.HasOtherKeyDown(0xA2), "Ignoring a function key must not hide Ctrl+V.");
     }
 }

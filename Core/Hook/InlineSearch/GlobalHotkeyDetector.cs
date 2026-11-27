@@ -49,6 +49,7 @@ public sealed class GlobalHotkeyDetector
 
     private void CancelTapsForOtherKey(int vkCode)
     {
+        if (ModifierKeyState.IsIgnoredForDoubleTap(vkCode)) return;
         // Observe every event before a different shortcut can consume it.
         if (!IsTapKey(vkCode, _settings.Hotkeys.ToggleWindowHotkey)) _toggleWindowTapDetector.ResetOnOtherKey();
         if (!IsTapKey(vkCode, _settings.Hotkeys.QuickSwitchHotkey)) _quickSwitchTapDetector.ResetOnOtherKey();
@@ -91,7 +92,7 @@ public sealed class GlobalHotkeyDetector
             {
                 triggered = CheckModifierTap(_toggleWindowTapDetector, vkCode, time, isKeyUp);
             }
-            else
+            else if (!ModifierKeyState.IsIgnoredForDoubleTap(vkCode))
             {
                 _toggleWindowTapDetector.ResetOnOtherKey();
             }
@@ -104,6 +105,7 @@ public sealed class GlobalHotkeyDetector
             {
                 if (CheckModifiersMatch(modifier))
                 {
+                    CancelDoubleTaps();
                     triggered = true;
                     consumeKey = true;
                 }
@@ -155,6 +157,8 @@ public sealed class GlobalHotkeyDetector
         if (targetVk == 0 || vkCode != targetVk) return false;
         if (!CheckModifiersMatch(modifier)) return false;
 
+        // A configured chord takes precedence over an unfinished modifier double tap, including F13-F24.
+        CancelDoubleTaps();
         consumeKey = true;
         return true;
     }
@@ -167,6 +171,7 @@ public sealed class GlobalHotkeyDetector
         var targetVk = KeyboardUtils.GetKeyVirtualCode(key);
         if (targetVk == 0 || vkCode != targetVk || !CheckModifiersMatch(modifier)) return false;
 
+        CancelDoubleTaps();
         consumeKey = true;
         return true;
     }
@@ -182,7 +187,7 @@ public sealed class GlobalHotkeyDetector
             {
                 triggered = CheckModifierTap(_quickSwitchTapDetector, vkCode, time, isKeyUp);
             }
-            else
+            else if (!ModifierKeyState.IsIgnoredForDoubleTap(vkCode))
             {
                 _quickSwitchTapDetector.ResetOnOtherKey();
             }
@@ -195,6 +200,7 @@ public sealed class GlobalHotkeyDetector
             {
                 if (CheckModifiersMatch(modifier))
                 {
+                    CancelDoubleTaps();
                     triggered = true;
                 }
             }

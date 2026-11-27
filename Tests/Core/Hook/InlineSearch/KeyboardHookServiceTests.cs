@@ -80,6 +80,7 @@ public sealed class KeyboardHookServiceTests
 
     [TestMethod]
     [DataRow(0x41)]
+    [DataRow(0x7B)]
     [DataRow(0xA4)]
     [DataRow(0xA0)]
     [DataRow(0x5B)]
@@ -102,10 +103,14 @@ public sealed class KeyboardHookServiceTests
     }
 
     [TestMethod]
-    public void HookCallbackCore_ConsumedQuickPanelChord_CancelsPendingDoubleTap()
+    [DataRow("Ctrl+F2", 0x71)]
+    [DataRow("Ctrl+F13", 0x7C)]
+    [DataRow("Ctrl+F22", 0x85)]
+    [DataRow("Ctrl+F24", 0x87)]
+    public void HookCallbackCore_ConsumedQuickPanelChord_CancelsPendingDoubleTap(string hotkey, int key)
     {
         using var service = CreateService("Ctrl");
-        service._settings.Hotkeys.QuickPanelHotkey = "Ctrl+F2";
+        service._settings.Hotkeys.QuickPanelHotkey = hotkey;
         var summons = 0;
         var panels = 0;
         service.OnDoubleCtrl += () => summons++;
@@ -113,8 +118,8 @@ public sealed class KeyboardHookServiceTests
         CtrlTap(service, 1000);
         Feed(service, 0xA2, 0x100, 1150);
 
-        Assert.AreEqual((IntPtr)1, Feed(service, 0x71, 0x100, 1160));
-        Feed(service, 0x71, 0x101, 1170);
+        Assert.AreEqual((IntPtr)1, Feed(service, key, 0x100, 1160));
+        Feed(service, key, 0x101, 1170);
         Feed(service, 0xA2, 0x101, 1180);
         CtrlTap(service, 1300);
 
@@ -206,6 +211,49 @@ public sealed class KeyboardHookServiceTests
         Assert.AreEqual(0, requests);
         Assert.AreEqual(IntPtr.Zero, Feed(service, 0xA2, 0x101, 1160));
         Assert.AreEqual(1, requests);
+    }
+
+    public static IEnumerable<(int Key, string Position, uint Flags, bool QuickSwitch)> HighFunctionInterferenceCases =>
+        from key in Enumerable.Range(0x7C, 12)
+        from position in new[] { "held", "first", "between", "second" }
+        from flags in new[] { 0u, 0x10u }
+        from quickSwitch in new[] { false, true }
+        select (key, position, flags, quickSwitch);
+
+    [TestMethod]
+    [DynamicData(nameof(HighFunctionInterferenceCases))]
+    public void HookCallbackCore_HighFunctionInterference_TriggersOnlyOnSecondRelease(
+        int key, string position, uint flags, bool quickSwitch)
+    {
+        using var service = CreateService(quickSwitch ? "Alt+F9" : "Ctrl");
+        var activations = 0;
+        if (quickSwitch)
+        {
+            service._settings.Hotkeys.QuickSwitchHotkey = "Ctrl";
+            service.IsQuickSearchWindowVisible = false;
+            service._explorerTracker.IsActiveWindowDialog = true;
+            service._explorerTracker.ActiveAdapter = new DialogAdapter();
+            service._explorerTracker.UpdatePath(@"D:\Work", false, isDialog: false);
+            service.OnQuickSwitchRequested += _ => activations++;
+        }
+        else service.OnDoubleCtrl += () => activations++;
+
+        void Interfere(uint time, bool release)
+        {
+            Assert.AreEqual(IntPtr.Zero, Feed(service, key, 0x100, time, flags));
+            if (release) Assert.AreEqual(IntPtr.Zero, Feed(service, key, 0x101, time + 1, flags));
+        }
+
+        if (position == "held") Interfere(900, release: false);
+        Feed(service, 0xA2, 0x100, 1000);
+        if (position == "first") Interfere(1002, release: true);
+        Feed(service, 0xA2, 0x101, 1010);
+        if (position == "between") Interfere(1100, release: true);
+        Feed(service, 0xA2, 0x100, 1150);
+        if (position == "second") Interfere(1152, release: true);
+        Assert.AreEqual(0, activations);
+        Assert.AreEqual(IntPtr.Zero, Feed(service, 0xA2, 0x101, 1160));
+        Assert.AreEqual(1, activations);
     }
 
     private sealed class DialogAdapter : IFileDialogAdapter

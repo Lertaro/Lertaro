@@ -32,7 +32,11 @@ internal sealed class ModifierKeyState
         if (IsShiftKey(vkCode) && !_pressedKeys.Contains(0xA0) && !_pressedKeys.Contains(0xA1)) _pressedKeys.Remove(0x10);
     }
 
-    internal bool HasOtherKeyDown(int vkCode) => _pressedKeys.Any(key => key != vkCode
+    // Some applications leave high function keys held (#576). Ignore them only for tap purity;
+    // explicit shortcuts still receive these keys, whether physical or injected.
+    internal static bool IsIgnoredForDoubleTap(int vkCode) => vkCode is >= 0x7C and <= 0x87; // F13-F24
+
+    internal bool HasOtherKeyDown(int vkCode) => _pressedKeys.Any(key => !IsIgnoredForDoubleTap(key) && key != vkCode
         && !(key == 0x11 && IsControlKey(vkCode))
         && !(key == 0x12 && IsAltKey(vkCode))
         && !(key == 0x10 && IsShiftKey(vkCode)));

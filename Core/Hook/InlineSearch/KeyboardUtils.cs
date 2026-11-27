@@ -75,9 +75,9 @@ internal static class KeyboardUtils
         if (key.Length == 1 && key[0] >= '0' && key[0] <= '9')
             return key[0];
 
-        if (key.StartsWith("F") && key.Length > 1 && int.TryParse(key.Substring(1), out var fNum) && fNum >= 1 && fNum <= 12)
+        if (key.StartsWith("F") && key.Length > 1 && int.TryParse(key.Substring(1), out var fNum) && fNum >= 1 && fNum <= 24)
         {
-            return 0x6F + fNum; // F1 is 0x70, F12 is 0x7B
+            return 0x6F + fNum; // F1 is 0x70, F24 is 0x87
         }
 
         return 0;

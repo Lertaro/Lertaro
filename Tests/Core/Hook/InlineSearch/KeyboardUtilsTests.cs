@@ -62,12 +62,15 @@ public sealed class KeyboardUtilsTests
     [TestMethod]
     [DataRow("F1", 0x70)]
     [DataRow("F12", 0x7B)]
+    [DataRow("F13", 0x7C)]
+    [DataRow("f22", 0x85)]
+    [DataRow(" F24 ", 0x87)]
     public void GetKeyVirtualCode_FunctionKeys_ReturnExpectedCode(string key, int expected) => Assert.AreEqual(expected, KeyboardUtils.GetKeyVirtualCode(key));
 
     [TestMethod]
     public void GetKeyVirtualCode_FunctionKeyOutOfRange_ReturnsZero()
     {
-        Assert.AreEqual(0, KeyboardUtils.GetKeyVirtualCode("F13"));
+        Assert.AreEqual(0, KeyboardUtils.GetKeyVirtualCode("F25"));
         Assert.AreEqual(0, KeyboardUtils.GetKeyVirtualCode("F0"));
     }
 
