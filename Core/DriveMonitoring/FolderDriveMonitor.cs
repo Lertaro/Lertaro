@@ -9,19 +9,31 @@ internal sealed class FolderDriveMonitor : IDisposable
     private readonly string _drive;
     private readonly Action<WatcherChangeTypes, string, string?> _onChange;
     private readonly Action? _onReindexRequired;
+    private readonly Action? _onUnavailable;
     private readonly CancellationToken _token;
     private readonly object _gate = new();
+    private readonly object _flushGate = new();
     private readonly DriveWatcherHost _host;
     private readonly List<PendingChange> _pending = new();
+    // Paths already queued for an upsert since their last delete/rename, so a burst of Changed events on
+    // one file (every write raises several) is applied once. Guarded by _gate, cleared with _pending.
+    private readonly HashSet<string> _pendingUpserts = new(StringComparer.OrdinalIgnoreCase);
+    // Our own data directory (the .idx caches and logs). A portable install on this very drive would
+    // otherwise see each index rewrite as a change that schedules the next one, forever.
+    private readonly string _ignoredPrefix;
     private readonly WatcherLossRefreshGate _lossGate = new();
     private Timer? _debounce;
-    private bool _disposed;
+    private volatile bool _disposed;
 
-    public FolderDriveMonitor(string drive, Action<WatcherChangeTypes, string, string?> onChange, CancellationToken token, Action? onReindexRequired = null)
+    // `onUnavailable` runs on every failed attempt to start the watcher (root missing, or the start threw),
+    // for an owner that needs to know nothing watched at some point; DriveWatcherHost retries meanwhile.
+    public FolderDriveMonitor(string drive, Action<WatcherChangeTypes, string, string?> onChange, CancellationToken token, Action? onReindexRequired = null, Action? onUnavailable = null)
     {
         _drive = drive;
+        _ignoredPrefix = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Logger.SharedDataDir)) + Path.DirectorySeparatorChar;
         _onChange = onChange;
         _onReindexRequired = onReindexRequired;
+        _onUnavailable = onUnavailable;
         _token = token;
         _host = new DriveWatcherHost(
             nameof(FolderDriveMonitor),
@@ -33,6 +45,14 @@ internal sealed class FolderDriveMonitor : IDisposable
             {
                 if (!_disposed && !_token.IsCancellationRequested && _lossGate.Recovered(_drive))
                     _onReindexRequired?.Invoke();
+            },
+            // A watcher that could not start raises no Error, yet whatever changes until one does is missed
+            // all the same. Armed here and requested once, by onStarted above, when a watcher finally comes
+            // up: not now, while the root may not even be there to walk.
+            onUnavailable: () =>
+            {
+                _ = RequestReindex();
+                _onUnavailable?.Invoke();
             });
     }
 
@@ -41,7 +61,9 @@ internal sealed class FolderDriveMonitor : IDisposable
     private bool ConfigureWatcher(FileSystemWatcher watcher, string drive, Action restart, Action retry, Action<string> logError)
     {
         watcher.IncludeSubdirectories = true;
-        watcher.InternalBufferSize = 64 * 1024;
+        // An overflow costs a full re-walk of the drive (millions of entries on the large exFAT disks this
+        // serves), so buy headroom: 64 KB is only the ceiling for network watchers, not local ones.
+        watcher.InternalBufferSize = 256 * 1024;
         watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite |
                                NotifyFilters.Size | NotifyFilters.Attributes | NotifyFilters.CreationTime;
         FileSystemEventHandler changed = (_, e) => Schedule(e.ChangeType, e.FullPath, null);
@@ -80,13 +102,31 @@ internal sealed class FolderDriveMonitor : IDisposable
 
     internal void Schedule(WatcherChangeTypes changeType, string path, string? oldPath = null)
     {
-        if (_token.IsCancellationRequested)
+        if (_token.IsCancellationRequested || IsIgnored(path) && (oldPath == null || IsIgnored(oldPath)))
             return;
 
         lock (_gate)
         {
             if (_disposed)
                 return;
+
+            // Apply reads the path's CURRENT state at flush time, so a repeat upsert adds nothing -- unless a
+            // delete or rename of that path sits between the two, which is why those drop it from the set.
+            switch (changeType)
+            {
+                case WatcherChangeTypes.Changed when !_pendingUpserts.Add(path):
+                    return;
+                case WatcherChangeTypes.Created:
+                    _pendingUpserts.Add(path);
+                    break;
+                case WatcherChangeTypes.Deleted:
+                    _pendingUpserts.Remove(path);
+                    break;
+                case WatcherChangeTypes.Renamed:
+                    if (oldPath != null) _pendingUpserts.Remove(oldPath);
+                    _pendingUpserts.Add(path);
+                    break;
+            }
             _pending.Add(new PendingChange(changeType, path, oldPath));
 
             // One timer, re-armed, instead of disposing and rebuilding it per event: a raw
@@ -101,39 +141,51 @@ internal sealed class FolderDriveMonitor : IDisposable
         }
     }
 
-    private void FlushPending()
+    private bool IsIgnored(string path) => path.StartsWith(_ignoredPrefix, StringComparison.OrdinalIgnoreCase);
+
+    // Serialized so a caller flushing by hand (FolderWalkRecorder.Stop) returns only after a timer flush
+    // already in flight has delivered its older batch too, and so Dispose can wait one out.
+    internal void FlushPending()
     {
-        PendingChange[] batch;
-        lock (_gate)
+        lock (_flushGate)
         {
-            if (_pending.Count == 0)
-                return;
-
-            batch = _pending.ToArray();
-            _pending.Clear();
-        }
-
-        // Last resort: this runs on a Timer callback, where an unhandled exception terminates the process,
-        // and _onChange reaches the index, its subscribers and the persist debouncer. Same answer as
-        // WatcherManager's handlers on the network side: log it and re-walk the drive, which also covers
-        // the rest of this batch.
-        // ponytail: not gated like WatcherLossRefreshGate, so a change that fails every time asks for a
-        // re-walk on every flush (QueueDriveRebuild drops duplicates while one is pending). Gate it per
-        // drive if that ever shows up in the logs.
-        try
-        {
-            foreach (var item in batch)
+            PendingChange[] batch;
+            lock (_gate)
             {
-                if (_token.IsCancellationRequested)
+                if (_pending.Count == 0)
                     return;
-                _onChange(item.ChangeType, item.Path, item.OldPath);
+
+                batch = _pending.ToArray();
+                _pending.Clear();
+                _pendingUpserts.Clear();
             }
-        }
-        catch (Exception ex)
-        {
-            Logger.Log($"[{nameof(FolderDriveMonitor)}] Applying a change on {_drive} failed, re-walking the drive: {ex}", LogLevel.Error);
-            if (!_disposed && !_token.IsCancellationRequested)
-                _onReindexRequired?.Invoke();
+
+            // Last resort: this runs on a Timer callback, where an unhandled exception terminates the process,
+            // and _onChange reaches the index and its subscribers (for a walk recorder, only its own list).
+            // Same answer as WatcherManager's handlers on the network side: log it and re-walk the drive,
+            // which also covers the rest of this batch (a walk recorder marks itself lost instead).
+            // ponytail: not gated like WatcherLossRefreshGate, so a change that fails every time asks for a
+            // re-walk on every flush. While the drive's own rebuild walks it, the ask is left to that walk's
+            // recording (UsnIndexerExtensions.RequestFolderReindex); otherwise SearchEngineDriveMaintenance
+            // folds repeated asks into one waiting retry whose delay backs off to 10 min. Gate it per drive if
+            // that ever shows up in the logs.
+            try
+            {
+                foreach (var item in batch)
+                {
+                    // Disposed means a successor monitor (or the walk recorder's hand-over) owns this drive now:
+                    // an older event applied after it would undo what that successor just applied.
+                    if (_token.IsCancellationRequested || _disposed)
+                        return;
+                    _onChange(item.ChangeType, item.Path, item.OldPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[{nameof(FolderDriveMonitor)}] Applying a change on {_drive} failed, re-walking the drive: {ex}", LogLevel.Error);
+                if (!_disposed && !_token.IsCancellationRequested)
+                    _onReindexRequired?.Invoke();
+            }
         }
     }
 
@@ -148,5 +200,9 @@ internal sealed class FolderDriveMonitor : IDisposable
             _debounce = null;
         }
         _host.Dispose();
+        // Wait out a flush already delivering (at most the one callback it is inside: the loop above stops
+        // at the next item), so nothing from this monitor lands after Dispose returns. A caller must not
+        // hold UsnIndexer.LockObj or any other lock that callback (ApplyFolderChange) takes.
+        lock (_flushGate) { }
     }
 }

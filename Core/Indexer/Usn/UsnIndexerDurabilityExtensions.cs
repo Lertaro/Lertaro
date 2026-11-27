@@ -55,10 +55,12 @@ internal static class UsnIndexerDurabilityExtensions
             return indexer._driveMetadata.TryGetValue(drive, out var metadata) && metadata.JournalWatermarkPinned;
     }
 
-    // Folds each journal drive's accumulated delta into its cache file, stamped with the live watermark.
+    // Folds each drive's accumulated delta into its cache file, stamped with the live watermark (journal
+    // drives) or the metadata it was built with (FAT32/exFAT drives, whose only in-session persist this is).
     // Returns how many drives were written. Cheap to call often: drives below IdleCompactPendingThreshold
     // are skipped outright and Compact's own force:false path skips one whose delta emptied meanwhile.
-    public static int CompactIdleDeltas(this UsnIndexer indexer, string cacheDir)
+    // `onReindexRequired` is the plain per-drive rebuild request, for a FAT32/exFAT drive whose write failed.
+    public static int CompactIdleDeltas(this UsnIndexer indexer, string cacheDir, Action<string>? onReindexRequired)
     {
         var targets = new List<(string Drive, LiveIndex Live, CompactionStamp Stamp)>();
         lock (indexer.LockObj)
@@ -68,12 +70,26 @@ internal static class UsnIndexerDurabilityExtensions
                 if (!indexer._driveMetadata.TryGetValue(drive, out var metadata))
                     continue;
 
-                // Journal drives only. A folder/watcher drive already debounces its own persist from
-                // ApplyFolderChange, and its metadata carries no live journal position to stamp with.
-                if (!VolumeHelper.IsJournalCapableFileSystem(metadata.FileSystemType))
+                // A folder (FAT32/exFAT) drive mid-rebuild: this LiveIndex is about to be replaced
+                // wholesale and the rebuild's own SnapshotWriter.Write owns the cache path, so writing it
+                // here would only race that. Its stamp is just the metadata it was built with -- there
+                // is no live journal position to advance.
+                if (!VolumeHelper.IsJournalCapableFileSystem(metadata.FileSystemType) &&
+                    indexer.Status.Drives.Any(d => d.Drive.Equals(drive, StringComparison.OrdinalIgnoreCase) && d.State == "indexing"))
                     continue;
 
-                if (live.PendingChangeCount < IdleCompactPendingThreshold)
+                // Runs on SearchEngine's idle Timer, where an escaping exception ends the process: a LiveIndex
+                // a rebuild disposed (it swapped this one out) is skipped, not read.
+                int pending;
+                try
+                {
+                    pending = live.PendingChangeCount;
+                }
+                catch (ObjectDisposedException)
+                {
+                    continue;
+                }
+                if (pending < IdleCompactPendingThreshold)
                     continue;
 
                 // A replay owns its drive until it finishes: Compact holds the LiveIndex write lock
@@ -103,14 +119,39 @@ internal static class UsnIndexerDurabilityExtensions
                 if (live.Compact(LocalDriveCacheLocator.GetCachePath(cacheDir, drive), stamp))
                     written++;
             }
-            catch (ObjectDisposedException)
-            {
-                // A rebuild swapped this drive's LiveIndex out mid-write; its own SnapshotWriter.Write
-                // owns the cache path now, so there is nothing left for this persist to say.
-            }
             catch (Exception ex)
             {
-                Logger.Log($"[UsnIndexer] {drive}: idle compaction failed: {ex.Message}", LogLevel.Error);
+                bool replaced, walked;
+                lock (indexer.LockObj)
+                {
+                    replaced = !indexer._recordIndexes.TryGetValue(drive, out var current) || !ReferenceEquals(current, live);
+                    walked = indexer._driveMetadata.TryGetValue(drive, out var metadata) &&
+                        !VolumeHelper.IsJournalCapableFileSystem(metadata.FileSystemType);
+                }
+                // A rebuild swapped this drive's LiveIndex out mid-write: its own SnapshotWriter.Write owns the
+                // cache path now, so there is nothing left for this persist to say.
+                if (ex is ObjectDisposedException && replaced)
+                    continue;
+                // A failed write that could not reopen any snapshot either leaves the LiveIndex unusable, and
+                // Compact says so with an ObjectDisposedException wrapping the write's failure -- the only one it
+                // throws with an inner exception (EnsureUsable's, from an index an earlier pass already left
+                // unusable, has none, and that pass asked). A FAT32/exFAT drive then serves nothing until it is
+                // re-walked -- through RequestFolderReindex, so a walk already running for it covers it, and the
+                // walk reads the unusable index as no baseline. Any other failure leaves the index serving: the
+                // snapshot on disk was reopened (without the changes since the last write, unless only the open
+                // of a fresh file failed), or the merge failed before anything was touched. That drive is NOT
+                // re-walked: the re-walk's own hand-in (OnDriveCompleted) drops the index before writing its
+                // file, so under a write failure that persists (a full disk, a read-only cache file) it would end
+                // with no index at all. The changes come back at the next startup, which re-walks every
+                // FAT32/exFAT drive. A journal drive is left as before: its recovery also has to keep the
+                // watermark from stamping the lost changes as persisted, which is a fix of its own.
+                if (replaced || !walked || ex is not ObjectDisposedException { InnerException: not null })
+                {
+                    Logger.Log($"[UsnIndexer] {drive}: idle compaction failed: {ex.Message}", LogLevel.Error);
+                    continue;
+                }
+                Logger.Log($"[UsnIndexer] {drive}: idle compaction left the index unusable; re-walking the drive. {ex.Message}", LogLevel.Error);
+                indexer.RequestFolderReindex(drive, onReindexRequired);
             }
         }
 

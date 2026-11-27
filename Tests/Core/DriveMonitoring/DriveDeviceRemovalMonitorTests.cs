@@ -36,6 +36,22 @@ public sealed class DriveDeviceRemovalMonitorTests
         }
     }
 
+    // The non-blocking release a walk recorder uses: it leaves the unregistration to the pool, but the
+    // registration must stop admitting callbacks at once, like Dispose.
+    [TestMethod]
+    public void DisposeWithoutWaiting_RejectsEveryLaterCallback()
+    {
+        var calls = 0;
+        var monitor = new DriveDeviceRemovalMonitor("C", _ => calls++, _ => calls++, _ => calls++);
+
+        monitor.DisposeWithoutWaiting();
+        Notify(monitor, DeviceNotificationNative.DeviceQueryRemove);
+        Notify(monitor, DeviceNotificationNative.DeviceRemoveComplete);
+        monitor.Dispose();
+
+        Assert.AreEqual(0, calls);
+    }
+
     [TestMethod]
     public void HandleNotification_QueryFailedThenQueryAgain_ReleasesOncePerAttempt()
     {

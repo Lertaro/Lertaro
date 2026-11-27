@@ -66,14 +66,7 @@ public static class UsnIndexerBuildExtensions
             return new List<(string, ulong, long)>();
         }
 
-        FileRecordStore? GetPreviousStore(string drive)
-        {
-            if (forceFullScan)
-                return null;
-
-            lock (indexer.LockObj)
-                return indexer._recordIndexes.TryGetValue(drive, out var live) ? live.ToStore() : null;
-        }
+        FileRecordStore? GetPreviousStore(string drive) => forceFullScan ? null : indexer.GetWalkBaseline(drive);
 
         return IndexBuilder.BuildDrives(
             indexer._reader,
@@ -81,12 +74,17 @@ public static class UsnIndexerBuildExtensions
             indexer.SetDriveState,
             indexer.UpdateDriveProgress,
             (drive, onProgress, token) =>
-            {
-                var previousStore = GetPreviousStore(drive);
-                return LocalDriveWalkBuilder.Build(drive, $"{drive}:\\", previousStore, onProgress ?? ((_, _) => { }), token,
-                    forceFullScan,
-                    onCheckpoint: (checkpointStore, _) => indexer.PublishLocalDriveCheckpoint(cacheDir, drive, checkpointStore, token));
-            },
+                // Watching from before the walk so nothing changed behind the walker is lost -- see
+                // FolderWalkRecorder; EnsureMonitor replays it once the live monitor is up. The recorder takes
+                // the build's own token, not `token`: on a cold start that is the walk's removal scope, which
+                // ends (and stops passing the build's cancellation on) with the walk, while the recorder lives
+                // on until the hand-over. The recorder answers a removal request itself. The baseline is
+                // copied inside the recorded span: on a multi-million-entry drive that copy takes a while, and
+                // the drive's live monitor leaves its requests to the recording only once it is registered.
+                FolderWalkRecorder.Record(indexer, drive, getToken?.Invoke(drive) ?? CancellationToken.None, () =>
+                    LocalDriveWalkBuilder.Build(drive, $"{drive}:\\", GetPreviousStore(drive), onProgress ?? ((_, _) => { }), token,
+                        forceFullScan,
+                        onCheckpoint: (checkpointStore, _) => indexer.PublishLocalDriveCheckpoint(cacheDir, drive, checkpointStore, token))),
             (drive, result, progress, index) => OnDriveCompleted(indexer, cacheDir, drive, result, progress),
             (drive, result, progress, index) => OnDriveCompleted(indexer, cacheDir, drive, result.Store, progress),
             elapsedSeconds =>
@@ -113,6 +111,24 @@ public static class UsnIndexerBuildExtensions
             (drive, checkpointStore, _, token) => indexer.PublishLocalDriveCheckpoint(cacheDir, drive, checkpointStore, token),
             createDriveRemovalScope
         );
+    }
+
+    // The drive's current index as the walk's diff baseline, or null for a full walk. An index a failed
+    // save left unusable (LiveIndex.Compact could not reopen any snapshot) is no baseline: the re-walk asked
+    // for to recover it walks in full instead of failing on it.
+    internal static FileRecordStore? GetWalkBaseline(this UsnIndexer indexer, string drive)
+    {
+        lock (indexer.LockObj)
+        {
+            try
+            {
+                return indexer._recordIndexes.TryGetValue(drive, out var live) ? live.ToStore() : null;
+            }
+            catch (ObjectDisposedException)
+            {
+                return null;
+            }
+        }
     }
 
     // Writes the just-scanned store straight to its V2 cache file, THEN frees the in-memory

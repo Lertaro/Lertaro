@@ -174,6 +174,88 @@ public static class UsnIndexerExtensions
 
     public static void ApplyFolderChange(this UsnIndexer indexer, string drive, WatcherChangeTypes changeType, string path, string? oldPath = null)
     {
+        var root = $"{drive}:\\";
+        var isDirectory = Directory.Exists(path);
+        var normalizedPath = PathHelpers.NormalizePath(path, isDirectory);
+        var changed = false;
+        var pending = MutateFolderDrive(indexer, drive, delta => changed = changeType switch
+        {
+            WatcherChangeTypes.Deleted => DeltaPathApplier.ApplyDeleted(delta, normalizedPath),
+            WatcherChangeTypes.Renamed when !string.IsNullOrWhiteSpace(oldPath) => DeltaPathApplier.ApplyRenamed(delta, (UInt128)1, root, oldPath, normalizedPath),
+            _ => DeltaPathApplier.ApplyCreatedOrChanged(delta, (UInt128)1, root, normalizedPath, includeChildren: changeType != WatcherChangeTypes.Changed),
+        });
+        if (pending == null || !changed)
+            return;
+
+        // A rename moves something out of one directory and into another, so both are places a
+        // subscriber watching either one needs to hear about.
+        var changedDirectories = UsnIndexerChangedDirectories.ForPath(normalizedPath, isDirectory);
+        if (changeType == WatcherChangeTypes.Renamed && !string.IsNullOrWhiteSpace(oldPath))
+            changedDirectories.AddRange(UsnIndexerChangedDirectories.ForPath(oldPath, isDirectory: false));
+        PublishFolderChange(indexer, drive, changedDirectories, pending.Value);
+    }
+
+    // FolderWalkRecorder's hand-over: every path the walk saw change, checked against the disk and applied
+    // inside ONE write lock, so a live monitor's event for the same path cannot land between the check and
+    // the change -- whichever monitor applies last, the index ends up matching the disk. A path only ever
+    // reported Changed (a folder whose LastWrite moved because a child came or went) is re-read on its own,
+    // as the live monitor does. One a create/delete/rename touched is dropped with its whole subtree and
+    // re-read, which also clears children it no longer has: a folder renamed away and recreated, or
+    // replaced by a file of the same name. Anything under such a re-read path is covered by it and skipped.
+    // ponytail: that one write lock is held across every Exists check and every structural subtree re-read, in
+    // proportion to the number of distinct paths the walk recorded, plus the size of each subtree re-read. For
+    // that long, searches on this drive stall, and so does every other drive's change publication and status
+    // poll: they take UsnIndexer.LockObj and then read this drive's counts (UpdateTotalsFromRuntime), which
+    // waits for this lock -- the same stall a large idle Compact already causes. Deliberate: checking the disk
+    // outside the lock let a live event land between the check and the change. Upgrade path: stat the paths and
+    // read the subtrees outside the lock, then apply under it only what no live event has touched since (a
+    // per-path version in the delta to compare against), or apply in bounded batches that each re-check.
+    internal static void ReconcileFolderPaths(this UsnIndexer indexer, string drive, IReadOnlyCollection<(string Path, bool Structural)> paths)
+    {
+        if (paths.Count == 0)
+            return;
+
+        var root = $"{drive}:\\";
+        var changedDirectories = new List<string>();
+        var pending = MutateFolderDrive(indexer, drive, delta =>
+        {
+            var states = paths.Select(p =>
+            {
+                var isDirectory = Directory.Exists(p.Path);
+                return (p.Path, p.Structural, IsDirectory: isDirectory, Exists: isDirectory || File.Exists(p.Path));
+            }).ToList();
+            var rewalked = new HashSet<string>(states.Where(s => s.Structural && s.Exists).Select(s => s.Path), StringComparer.OrdinalIgnoreCase);
+            foreach (var (path, structural, isDirectory, exists) in states)
+            {
+                if (HasAncestorIn(path, rewalked))
+                    continue;
+                var normalized = PathHelpers.NormalizePath(path, isDirectory);
+                var changed = !exists ? DeltaPathApplier.ApplyDeleted(delta, normalized)
+                    : structural ? DeltaPathApplier.ApplyRenamed(delta, (UInt128)1, root, normalized, normalized)
+                    : DeltaPathApplier.ApplyCreatedOrChanged(delta, (UInt128)1, root, normalized, includeChildren: false);
+                if (changed)
+                    changedDirectories.AddRange(UsnIndexerChangedDirectories.ForPath(normalized, isDirectory));
+            }
+        });
+        if (pending == null || changedDirectories.Count == 0)
+            return;
+        PublishFolderChange(indexer, drive, changedDirectories.Distinct(StringComparer.OrdinalIgnoreCase).ToList(), pending.Value);
+    }
+
+    private static bool HasAncestorIn(string path, HashSet<string> directories)
+    {
+        for (var parent = Path.GetDirectoryName(path); !string.IsNullOrEmpty(parent); parent = Path.GetDirectoryName(parent))
+        {
+            if (directories.Contains(parent))
+                return true;
+        }
+        return false;
+    }
+
+    // Runs `mutate` against the drive's LiveIndex and returns the delta's pending-change count after it, or
+    // null when there was no index to apply it to (flagged as missed instead if the drive is mid-rebuild).
+    private static int? MutateFolderDrive(UsnIndexer indexer, string drive, Action<DeltaOverlay> mutate)
+    {
         LiveIndex? live;
         lock (indexer.LockObj)
         {
@@ -185,23 +267,19 @@ public static class UsnIndexerExtensions
                 // has nothing left to apply to, but must still be flagged as missed rather than silently
                 // dropped, same as the two cases below. Already inside the lock this method needs.
                 MarkMissedIfRebuilding(indexer, drive);
-                return;
+                return null;
             }
         }
 
-        var root = $"{drive}:\\";
-        var isDirectory = Directory.Exists(path);
-        var normalizedPath = PathHelpers.NormalizePath(path, isDirectory);
-        var changed = false;
-
         try
         {
-            live.Mutate((snapshot, delta) => changed = changeType switch
+            var pending = 0;
+            live.Mutate((_, delta) =>
             {
-                WatcherChangeTypes.Deleted => DeltaPathApplier.ApplyDeleted(delta, normalizedPath),
-                WatcherChangeTypes.Renamed when !string.IsNullOrWhiteSpace(oldPath) => DeltaPathApplier.ApplyRenamed(delta, (UInt128)1, root, oldPath, normalizedPath),
-                _ => DeltaPathApplier.ApplyCreatedOrChanged(delta, (UInt128)1, root, normalizedPath),
+                mutate(delta);
+                pending = delta.PendingChangeCount;
             });
+            return pending;
         }
         catch (ObjectDisposedException)
         {
@@ -213,32 +291,39 @@ public static class UsnIndexerExtensions
             // letting the exception escape into whatever thread the FolderDriveMonitor callback runs on.
             lock (indexer.LockObj)
                 MarkMissedIfRebuilding(indexer, drive);
-            return;
+            return null;
         }
-        if (!changed)
-            return;
+    }
 
-        // A rename moves something out of one directory and into another, so both are places a
-        // subscriber watching either one needs to hear about.
-        var changedDirectories = UsnIndexerChangedDirectories.ForPath(normalizedPath, isDirectory);
-        if (changeType == WatcherChangeTypes.Renamed && !string.IsNullOrWhiteSpace(oldPath))
-            changedDirectories.AddRange(UsnIndexerChangedDirectories.ForPath(oldPath, isDirectory: false));
-
-        bool isRebuilding;
+    private static void PublishFolderChange(UsnIndexer indexer, string drive, List<string> changedDirectories, int pendingChangeCount)
+    {
         lock (indexer.LockObj)
         {
             indexer.UpdateTotalsFromRuntime();
             indexer.UpdateDriveCounts(drive);
-            isRebuilding = MarkMissedIfRebuilding(indexer, drive);
+            // While this drive is being rebuilt its FolderDriveMonitor stays alive and keeps applying
+            // changes to THIS old LiveIndex (immediately searchable); the flag lets the rebuild's caller
+            // queue one follow-up refresh -- see ConsumeMissedFolderChangeDuringRebuild.
+            MarkMissedIfRebuilding(indexer, drive);
         }
         indexer.RaiseDirectoriesChanged(drive, changedDirectories);
         SearchCoordinator.ClearCaches();
-        // Keep FolderDriveMonitor updates searchable in the old LiveIndex during rebuild, but skip
-        // persistence to avoid racing the rebuild's SnapshotWriter. The missed-change flag schedules a
-        // follow-up refresh for the new index. Outside rebuilds, debounce full snapshot persistence per
-        // drive so a batch of file changes causes one rewrite.
-        if (!isRebuilding)
-            indexer._folderChangeSaveDebounce.Schedule(drive, () => indexer.SaveDriveSnapshot(drive, live));
+        // No persist here. It used to be a debounced full Compact(force: true) of the whole drive about a
+        // second after any change, which on a multi-million-entry exFAT drive meant a constant rewrite
+        // loop (#298). The idle compactor folds the delta in once it is big enough to be worth it
+        // (UsnIndexerDurabilityExtensions.CompactIdleDeltas). Losing an unpersisted delta costs little: a
+        // non-journal drive has no journal to replay, so cold start re-walks it with forceFullScan and its
+        // cache only serves searches until that walk lands; DriveRecovery's non-forced rebuild reads it as
+        // the walk's diff baseline only for a drive that comes back with no index loaded.
+        // Only searches arm that compactor's idle tick (IdleTrimGate), so on a drive nobody searches the
+        // delta would grow without bound: arm it from here too, but only past the threshold, since every
+        // idle tick also forces a full GC and a working-set trim.
+        // ponytail: the tick still waits for 3 s with no change, so a drive that never goes quiet that long
+        // keeps growing until it does, and a long copy with pauses rewrites the whole snapshot once per
+        // IdleCompactPendingThreshold changes. Upgrade path if either bites: a per-drive compaction trigger
+        // that does not wait for quiet, or a threshold scaled to the drive's size.
+        if (pendingChangeCount >= UsnIndexerDurabilityExtensions.IdleCompactPendingThreshold)
+            indexer.DeltaCompactionDue?.Invoke();
         indexer.PublishStatusChanged();
     }
 
@@ -246,8 +331,7 @@ public static class UsnIndexerExtensions
     // current rebuild (if State == "indexing" right now) and returns whether it did -- shared by
     // ApplyFolderChange's three "nothing to apply this change to" cases (drive not tracked at all,
     // caught a concurrent LiveIndex disposal, or applied successfully but the drive turned out to be
-    // rebuilding) and by the normal in-progress path that still needs the bool to decide whether to skip
-    // the persist below.
+    // rebuilding) and by the normal in-progress path.
     private static bool MarkMissedIfRebuilding(UsnIndexer indexer, string drive)
     {
         var item = indexer.Status.Drives.FirstOrDefault(d => d.Drive.Equals(drive, StringComparison.OrdinalIgnoreCase));
@@ -255,6 +339,27 @@ public static class UsnIndexerExtensions
         if (isRebuilding)
             indexer._missedFolderChangeDuringRebuild.Add(drive);
         return isRebuilding;
+    }
+
+    // A re-walk request from a FAT32/exFAT drive's live FolderDriveMonitor: a watcher that errored or came
+    // back after an outage, or a change it could not apply. While the drive's own rebuild has a
+    // FolderWalkRecorder registered -- from before its walk until its hand-over -- the walk sees whatever
+    // happened before it began and the recorder whatever happened since, so queuing another rebuild only
+    // re-walked the whole drive again. The request is left to that recording instead, and it stays owed
+    // whatever happens to the build: the hand-over covers it (a recording cut short by a cancel, a removal or
+    // an overflow asks for its own one re-walk), and a build that never hands over raises it as the plain
+    // request (FolderWalkRecorder.Discard, SettleFailedBuild). Otherwise the request goes through unchanged.
+    internal static void RequestFolderReindex(this UsnIndexer indexer, string drive, Action<string>? onReindexRequired)
+    {
+        lock (indexer.LockObj)
+        {
+            if (indexer._walkRecorders.TryGetValue(drive, out var recorder))
+            {
+                recorder.DeferReindex();
+                return;
+            }
+        }
+        onReindexRequired?.Invoke(drive);
     }
 
     // Consumes (clears) the "a change was detected while this drive was being rebuilt" flag set by
@@ -266,29 +371,5 @@ public static class UsnIndexerExtensions
     {
         lock (indexer.LockObj)
             return indexer._missedFolderChangeDuringRebuild.Remove(drive);
-    }
-
-    public static void SaveDriveSnapshot(this UsnIndexer indexer, string drive, LiveIndex live)
-    {
-        UsnIndexer.DriveRuntimeMetadata? metadata;
-        lock (indexer.LockObj)
-        {
-            if (!indexer._driveMetadata.TryGetValue(drive, out metadata))
-                return;
-        }
-
-        var cacheDir = LocalDriveCacheLocator.DefaultCacheDir;
-        try
-        {
-            live.Compact(LocalDriveCacheLocator.GetCachePath(cacheDir, drive), new CompactionStamp(metadata.JournalId, metadata.NextUsn), force: true);
-        }
-        catch (ObjectDisposedException)
-        {
-            // This runs on a KeyedDebouncer Timer callback up to a second after ApplyFolderChange
-            // scheduled it -- DropDriveFromRuntime's own Cancel only stops a timer that hasn't fired yet;
-            // one already mid-flight (past the dictionary lookup above, about to call Compact) when a
-            // rebuild's Dispose() runs isn't stopped by it. Nothing to persist: a rebuild replacing this
-            // drive's LiveIndex already supersedes whatever this stale save would have written.
-        }
     }
 }

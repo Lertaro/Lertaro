@@ -39,17 +39,33 @@ internal static class DriveArrivalRecovery
 
     // Where a build ended with nothing to show for it: stopped by the user, or failed because the volume was
     // never there (no scan can run on an unmounted drive).
+    // `buildToken` is the failed build's own, which identifies the walk recorder it may have kept.
+    // `onReindexRequired` is what the re-insertion waiter asks for; `onFolderReindex` is the plain per-drive
+    // re-walk request (never the forced rebuild) for what the drive's live monitor left to this build.
     internal static void SettleFailedBuild(
-        UsnIndexer indexer, string drive, bool wasCancelled, CancellationToken parentToken, Action<string>? onReindexRequired)
+        UsnIndexer indexer, string drive, bool wasCancelled, CancellationToken buildToken, CancellationToken parentToken,
+        Action<string>? onReindexRequired, Action<string>? onFolderReindex)
     {
+        // The build's walk registered a recorder, which may still be there (the build failed or was stopped
+        // before its index was swapped in, or the walk itself failed); no monitor will take it over now. A
+        // re-walk the drive's live folder monitor left to it (UsnIndexerExtensions.RequestFolderReindex) is
+        // still unrecovered: it is raised once below, as the plain request the monitor would have made.
+        // Requests the monitor makes from here on go through on their own: the recorder is gone.
+        var reindexOwed = FolderWalkRecorder.Discard(indexer, drive, buildToken);
         if (IsMounted(drive))
         {
             // A Stop request reverts to "cached" (mirrors NetworkIndexer's own CancelDrive), not "failed"
             // -- the user asked for this, it isn't an error.
             indexer.SetDriveState(drive, wasCancelled ? "cached" : "failed");
+            // Raised after a Stop too: the drive keeps serving its old index, which still misses what that
+            // monitor lost, and cancelling a walk does not recover a loss. The request is plain, so it waits
+            // out its backoff instead of restarting the walk the user just stopped.
+            if (reindexOwed)
+                onFolderReindex?.Invoke(drive);
             return;
         }
 
+        // Gone: the re-insertion waiter's rebuild re-walks it anyway, so a deferred request is dropped too.
         ArmForReinsertion(indexer, drive, parentToken, onReindexRequired);
     }
 
@@ -81,12 +97,17 @@ internal static class DriveArrivalRecovery
     // converge instead of staying stale for the rest of the session.
     //
     // ponytail: one waiter per call, polling every 2 s until the process ends, so repeated requests for the
-    // same absent drive arm repeated waiters; the duplicate rebuild each of them asks for is refused by
-    // SearchEngineDriveMaintenance's own per-drive dedupe. If that polling ever shows up in a profile, the
-    // upgrade path is a per-drive set that dedupes the waiters themselves.
+    // same absent drive arm repeated waiters; the duplicate rebuilds they ask for while the first one runs
+    // collapse, in SearchEngineDriveMaintenance's own per-drive dedupe, into at most one follow-up. If that
+    // polling or that follow-up ever shows up in a profile, the upgrade path is a per-drive set that dedupes
+    // the waiters themselves.
     internal static void ArmForReinsertion(
         UsnIndexer indexer, string drive, CancellationToken parentToken, Action<string>? onReindexRequired)
     {
+        // The waiter is the one thing that brings this drive back. A live folder monitor left running here
+        // keeps retrying its watcher, and the retry that finally starts one on re-insertion asked for a
+        // re-walk of its own (FolderDriveMonitor's onStarted): one re-insertion, two whole-drive rebuild requests.
+        indexer.ReleaseDriveMonitor(drive);
         indexer.DropDriveFromRuntime(drive);
         indexer.SetDriveState(drive, "unavailable");
         DriveReattachWaiter.Start(drive, parentToken, () => onReindexRequired?.Invoke(drive));

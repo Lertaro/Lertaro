@@ -137,7 +137,7 @@ public static class UsnIndexerCacheExtensions
         {
             indexer.DropDriveFromRuntime(drive);
             var status = indexer.Status.Drives.FirstOrDefault(d => d.Drive.Equals(drive, StringComparison.OrdinalIgnoreCase));
-            if (status != null) status.State = "unavailable";
+            status?.State = "unavailable";
             // ponytail: retain this stopped registration as the reattach waiter's identity, not another
             // per-drive generation map. Replacement/removal/shutdown invalidates it via the dictionary.
             if (removalCompleted) expected.InvalidateCallbacks();
@@ -148,10 +148,6 @@ public static class UsnIndexerCacheExtensions
 
     public static void DropDriveFromRuntime(this UsnIndexer indexer, string drive)
     {
-        // Cancels (not fires) any pending debounced ApplyFolderChange save for this drive -- letting it
-        // fire after Dispose() below would call Compact() on an already-disposed LiveIndex.
-        indexer._folderChangeSaveDebounce.Cancel(drive);
-
         lock (indexer.LockObj)
         {
             indexer._driveMetadata.Remove(drive);

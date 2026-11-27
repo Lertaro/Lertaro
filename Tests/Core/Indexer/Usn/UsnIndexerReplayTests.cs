@@ -114,11 +114,11 @@ public sealed class UsnIndexerReplayTests
         AddChurn(fixture.Index, UsnIndexerDurabilityExtensions.IdleCompactPendingThreshold);
 
         indexer.BeginReplay("C");
-        Assert.AreEqual(0, indexer.CompactIdleDeltas(tempDir.Path));
+        Assert.AreEqual(0, indexer.CompactIdleDeltas(tempDir.Path, null));
         Assert.IsFalse(File.Exists(LocalDriveCacheLocator.GetCachePath(tempDir.Path, "C")));
 
         indexer.EndReplay("C");
-        Assert.AreEqual(1, indexer.CompactIdleDeltas(tempDir.Path));
+        Assert.AreEqual(1, indexer.CompactIdleDeltas(tempDir.Path, null));
     }
 
     private static ParsedUsnRecord CreateRecord(ulong frn, ulong parentFrn, string name) => new()

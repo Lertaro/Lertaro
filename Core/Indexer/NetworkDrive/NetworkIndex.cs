@@ -174,7 +174,7 @@ internal sealed class NetworkIndex : IDisposable
     }
 
     public void SearchStreaming(ParsedSearchQuery parsed, string rawQuery, string? directoryFilterLower, int limit, Action<SearchResult> onResult, CancellationToken token, string? fileNameFilter = null,
-        Lertaro.PluginSdk.Helpers.SearchCategoryFilter category = Lertaro.PluginSdk.Helpers.SearchCategoryFilter.All)
+        PluginSdk.Helpers.SearchCategoryFilter category = PluginSdk.Helpers.SearchCategoryFilter.All)
     {
         if (_live == null)
             return;
@@ -246,8 +246,8 @@ internal sealed class NetworkIndex : IDisposable
         }
     }
 
-    public bool ApplyCreatedOrChanged(string root, string path, ExclusionRuleSet? exclusionRules = null)
-        => ApplyToLive(delta => DeltaPathApplier.ApplyCreatedOrChanged(delta, RootId, root, path, exclusionRules));
+    public bool ApplyCreatedOrChanged(string root, string path, ExclusionRuleSet? exclusionRules = null, bool includeChildren = true)
+        => ApplyToLive(delta => DeltaPathApplier.ApplyCreatedOrChanged(delta, RootId, root, path, exclusionRules, includeChildren));
 
     public bool ApplyDeleted(string path)
         => ApplyToLive(delta => DeltaPathApplier.ApplyDeleted(delta, path));

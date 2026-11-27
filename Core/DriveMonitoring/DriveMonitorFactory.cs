@@ -20,6 +20,9 @@ internal static class DriveMonitorFactory
         ulong journalId,
         long nextUsn,
         CancellationToken parentToken,
+        // The token of the build this monitor follows, which identifies the walk recorder it kept (see
+        // FolderWalkRecorder.Take). The startup initialization's builds run on parentToken itself.
+        CancellationToken buildToken,
         Action<string>? onReindexRequired,
         Action<string>? onRemovalRequested = null,
         Action<string>? onReindexAfterRemoval = null)
@@ -27,18 +30,21 @@ internal static class DriveMonitorFactory
         var fs = VolumeHelper.GetFileSystemType(drive);
         if (VolumeHelper.IsJournalCapableFileSystem(fs))
         {
+            // A walk recorder kept for this drive has no hand-over here (the build saw a folder drive; an
+            // unreadable volume reports NTFS by default), and its watcher would otherwise run on unowned. A
+            // re-walk the old folder monitor left to it is still owed.
+            if (FolderWalkRecorder.Discard(indexer, drive, buildToken))
+                onReindexRequired?.Invoke(drive);
             // Keep a linked source per monitor so disposal stops only THIS instance. UsnMonitor.Dispose
             // closes the volume handle immediately; cancellation then lets its loop unwind cleanly.
             var cts = CancellationTokenSource.CreateLinkedTokenSource(parentToken);
             var startUsn = ResolveStartUsn(drive, journalId, nextUsn);
             DriveMonitorRegistration? registration = null;
             var monitor = new UsnMonitor(drive, journalId, startUsn, indexer, cts.Token, onReindexRequired, handle =>
-            {
                 // The USN reader can reopen a volume after an invalid handle/disconnect. Its removal
                 // notification must follow that exact handle, not remain on a separate stale one.
-                return AttachRemovalMonitor(indexer, drive, registration!, parentToken, onReindexRequired,
-                    onRemovalRequested, onReindexAfterRemoval, handle);
-            });
+                AttachRemovalMonitor(indexer, drive, registration!, parentToken, onReindexRequired,
+                    onRemovalRequested, onReindexAfterRemoval, handle));
             registration = new DriveMonitorRegistration(new CancellationDisposable(monitor, cts), null);
             indexer.RegisterDriveMonitor(drive, registration);
             monitor.Start();
@@ -51,13 +57,15 @@ internal static class DriveMonitorFactory
             parentToken,
             // A FAT32/exFAT watcher that dies silently loses every change made while it was down; a
             // per-drive re-walk is the only way to reconcile, the same callback a removed-and-reattached
-            // drive uses.
-            () => onReindexRequired?.Invoke(drive));
+            // drive uses -- unless the drive's own rebuild already covers it (see RequestFolderReindex).
+            () => indexer.RequestFolderReindex(drive, onReindexRequired));
         var folderRegistration = new DriveMonitorRegistration(folderMonitor, null);
         indexer.RegisterDriveMonitor(drive, folderRegistration);
         AttachRemovalMonitor(indexer, drive, folderRegistration, parentToken, onReindexRequired,
             onRemovalRequested, onReindexAfterRemoval);
         folderMonitor.Start();
+        // After Start, so a change made during the hand-over is seen by one watcher or the other.
+        FolderWalkRecorder.Replay(indexer, drive, buildToken, onReindexRequired);
     }
 
     // Every monitor start funnels through here -- cold start, per-drive rebuild, hot-plug recovery -- so
