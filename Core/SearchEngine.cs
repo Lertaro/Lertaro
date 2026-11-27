@@ -94,11 +94,13 @@ public class SearchEngine : IDisposable
 
     // A plain rebuild request raised outside the startup's own work (the idle compactor's). While a startup
     // runs, the engine refuses every rebuild request (SearchEngineDriveMaintenance.TryBeginRebuild), so it goes
-    // through that startup's deferral. Read when the request is made: one made just as a new startup begins
-    // reaches the engine through the previous, completed initializer and can be refused, but that startup
-    // re-walks every FAT32/exFAT drive, the only kind this request is raised for.
-    private void RequestRebuildOutsideStartup(string drive) =>
-        (_initializer?.RequestRebuild ?? _drives.QueueDriveRebuild)(drive);
+    // through that startup's deferral. Select it under the same lock that publishes a new initializer,
+    // so a journal recovery cannot reach a completed initializer just as a new startup begins.
+    private void RequestRebuildOutsideStartup(string drive)
+    {
+        lock (_startLock)
+            (_initializer?.RequestRebuild ?? _drives.QueueDriveRebuild)(drive);
+    }
 
     public Dictionary<string, FileMetadataEntry> GetFileMetadataBatch(IReadOnlyList<string> paths) => _indexer.GetFileMetadataBatch(paths);
 

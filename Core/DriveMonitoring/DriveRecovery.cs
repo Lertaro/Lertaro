@@ -42,7 +42,7 @@ internal static class DriveRecovery
                 var nextUsn = indexer.CatchUpDrive(drive, cached.Value.JournalId, cached.Value.NextUsn, rebuildToken);
                 if (nextUsn >= 0)
                 {
-                    TrySaveDriveCache(indexer, cacheDir, new() { (drive, cached.Value.JournalId, nextUsn) }, drive, "USN catch-up");
+                    TrySaveDriveCache(indexer, cacheDir, new() { (drive, cached.Value.JournalId, nextUsn) }, drive, "USN catch-up", onReindexRequired);
                     DriveMonitorFactory.EnsureMonitor(indexer, drive, cached.Value.JournalId, nextUsn, token, rebuildToken, onReindexRequired, onRemovalRequested, onReindexAfterRemoval);
                     Logger.Log($"[SearchEngine] Restored drive {drive} from cache and USN catch-up.");
                     return;
@@ -90,13 +90,14 @@ internal static class DriveRecovery
         string cacheDir,
         List<(string Drive, ulong JournalId, long NextUsn)> metadata,
         string drive,
-        string stage)
+        string stage,
+        Action<string>? onReindexRequired)
     {
         if (metadata.Count == 0)
             return;
         try
         {
-            indexer.SaveDrivesToCache(cacheDir, metadata);
+            indexer.SaveDrivesToCache(cacheDir, metadata, onReindexRequired);
         }
         catch (Exception ex)
         {

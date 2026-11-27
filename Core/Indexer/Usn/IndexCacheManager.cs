@@ -78,7 +78,8 @@ internal static class IndexCacheManager
         string cacheDir,
         List<(string Drive, ulong JournalId, long NextUsn)> driveMetadata,
         IReadOnlyDictionary<string, LiveIndex> recordIndexes,
-        IReadOnlyDictionary<string, UsnIndexer.DriveRuntimeMetadata> driveMetadataMap)
+        IReadOnlyDictionary<string, UsnIndexer.DriveRuntimeMetadata> driveMetadataMap,
+        ICollection<string> recoveryDrives)
     {
         foreach (var meta in driveMetadata)
         {
@@ -87,9 +88,22 @@ internal static class IndexCacheManager
 
             if (recordIndexes.TryGetValue(meta.Drive, out var live))
             {
-                metadata.JournalId = meta.JournalId;
-                metadata.NextUsn = meta.NextUsn;
-                live.Compact(LocalDriveCacheLocator.GetCachePath(cacheDir, meta.Drive), new CompactionStamp(meta.JournalId, meta.NextUsn), force: true);
+                if (!metadata.JournalWatermarkPinned)
+                {
+                    metadata.JournalId = meta.JournalId;
+                    metadata.NextUsn = meta.NextUsn;
+                }
+                try
+                {
+                    live.Compact(LocalDriveCacheLocator.GetCachePath(cacheDir, meta.Drive),
+                        new CompactionStamp(metadata.JournalId, metadata.NextUsn), force: true);
+                }
+                catch
+                {
+                    if (UsnIndexerDurabilityExtensions.PreserveJournalRecoveryStamp(live, metadata))
+                        recoveryDrives.Add(meta.Drive);
+                    throw;
+                }
             }
         }
     }

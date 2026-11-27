@@ -300,7 +300,7 @@ internal class SearchEngineInitializer
             return;
         try
         {
-            _indexer.SaveDrivesToCache(_indexCacheDir, metadata);
+            _indexer.SaveDrivesToCache(_indexCacheDir, metadata, RequestRebuild);
         }
         catch (Exception ex)
         {

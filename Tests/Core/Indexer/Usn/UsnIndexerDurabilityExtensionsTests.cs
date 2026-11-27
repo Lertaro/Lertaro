@@ -12,6 +12,80 @@ namespace Lertaro.Core.Tests.Indexer.Usn;
 [TestClass]
 public sealed class UsnIndexerDurabilityExtensionsTests
 {
+    [TestMethod]
+    [DataRow(false, "NTFS")]
+    [DataRow(true, "NTFS")]
+    [DataRow(false, "ReFS")]
+    [DataRow(true, "ReFS")]
+    public void FailedJournalSave_LaterWriteCannotStampPastLostChanges(bool catchUpSave, string fileSystemType)
+    {
+        using var tempDir = new TempDirectory();
+        using var fixture = LiveIndexFixture.Build("C", new[] { LiveIndexFixture.Root() });
+        var indexer = Loaded(fixture, fileSystemType);
+        AddChurn(fixture.Index, UsnIndexerDurabilityExtensions.IdleCompactPendingThreshold);
+        indexer.AdvanceJournalWatermark("C", JournalId, 4242);
+        Assert.AreEqual(1, indexer.CompactIdleDeltas(tempDir.Path, null));
+        AddChurn(fixture.Index, UsnIndexerDurabilityExtensions.IdleCompactPendingThreshold, first: 100_000);
+        indexer.AdvanceJournalWatermark("C", JournalId, 9999);
+        var recoveryRequests = new List<string>();
+        File.SetAttributes(CachePath(tempDir.Path), FileAttributes.ReadOnly);
+        try
+        {
+            if (catchUpSave)
+                Assert.Throws<Exception>(() => indexer.SaveDrivesToCache(tempDir.Path, new() { ("C", JournalId, 9999) }, recoveryRequests.Add));
+            else
+                Assert.AreEqual(0, indexer.CompactIdleDeltas(tempDir.Path, recoveryRequests.Add));
+        }
+        finally { File.SetAttributes(CachePath(tempDir.Path), FileAttributes.Normal); }
+
+        AddChurn(fixture.Index, UsnIndexerDurabilityExtensions.IdleCompactPendingThreshold, first: 200_000);
+        indexer.AdvanceJournalWatermark("C", JournalId, 12000);
+        indexer.SaveDrivesToCache(tempDir.Path, new() { ("C", JournalId, 12000) });
+
+        var header = SnapshotFormat.TryReadHeaderFromFile(CachePath(tempDir.Path));
+        Assert.IsNotNull(header);
+        Assert.AreEqual(4242L, header.NextUsn, "The later write must leave the lost journal records replayable.");
+        Assert.IsTrue(indexer.IsJournalWatermarkPinned("C"));
+        Assert.AreEqual(4242L, indexer._driveMetadata["C"].NextUsn);
+        CollectionAssert.AreEqual(new[] { "C" }, recoveryRequests);
+        indexer._recordIndexes.Clear();
+    }
+
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public void FailedJournalSave_DuringStartup_DefersRecoveryUntilInitializationCompletes(bool catchUpSave)
+    {
+        using var tempDir = new TempDirectory();
+        using var fixture = LiveIndexFixture.Build("C", new[] { LiveIndexFixture.Root() });
+        var indexer = Loaded(fixture, "NTFS");
+        AddChurn(fixture.Index, UsnIndexerDurabilityExtensions.IdleCompactPendingThreshold);
+        Assert.AreEqual(1, indexer.CompactIdleDeltas(tempDir.Path, null));
+        AddChurn(fixture.Index, UsnIndexerDurabilityExtensions.IdleCompactPendingThreshold, first: 100_000);
+        var starting = true;
+        var requests = new List<string>();
+        var initializer = new SearchEngineInitializer(indexer, tempDir.Path, drive =>
+        {
+            Assert.IsFalse(starting);
+            requests.Add(drive);
+        });
+        File.SetAttributes(CachePath(tempDir.Path), FileAttributes.ReadOnly);
+        try
+        {
+            if (catchUpSave)
+                Assert.Throws<Exception>(() => indexer.SaveDrivesToCache(tempDir.Path, new() { ("C", JournalId, 9999) }, initializer.RequestRebuild));
+            else
+                Assert.AreEqual(0, indexer.CompactIdleDeltas(tempDir.Path, initializer.RequestRebuild));
+        }
+        finally { File.SetAttributes(CachePath(tempDir.Path), FileAttributes.Normal); }
+        Assert.IsEmpty(requests);
+        indexer._recordIndexes.Clear();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        initializer.Run(true, cts, rebuilding => starting = rebuilding, new MachineSettings());
+        CollectionAssert.AreEqual(new[] { "C" }, requests);
+    }
+
     private const ulong JournalId = 7;
     private const long StartUsn = 100;
 
@@ -241,10 +315,9 @@ public sealed class UsnIndexerDurabilityExtensionsTests
         }
     }
 
-    // A journal drive's recovery from a lost delta is not a re-walk: it also has to keep the watermark from
-    // stamping the lost changes as persisted, which is a separate fix. Nothing is asked for from here.
+    // A journal drive with no usable snapshot requests recovery; restore falls back to a full rebuild.
     [TestMethod]
-    public void CompactIdleDeltas_JournalDriveLeftUnusable_IsNotReWalked()
+    public void CompactIdleDeltas_JournalDriveLeftUnusable_PinsAndRequestsRecovery()
     {
         using var tempDir = new TempDirectory();
         var fixture = LiveIndexFixture.Build("C", new[] { LiveIndexFixture.Root() });
@@ -253,15 +326,16 @@ public sealed class UsnIndexerDurabilityExtensionsTests
 
         LeaveUnusable(tempDir.Path, fixture.Index, () => indexer.CompactIdleDeltas(tempDir.Path, requested.Add));
 
-        Assert.IsEmpty(requested);
+        CollectionAssert.AreEqual(new[] { "C" }, requested);
+        Assert.IsTrue(indexer.IsJournalWatermarkPinned("C"));
         indexer._recordIndexes.Clear();
         try { fixture.Dispose(); } catch { }
     }
 
     // A write that fails while the snapshot on disk reopens leaves the index serving. Re-walking would not be
     // safe: the walk's own hand-in drops the index before writing its file, so a write failure that persists
-    // (here, a read-only cache file) would leave the drive with no index at all. A journal drive is never
-    // re-walked from here either (its recovery is a separate fix).
+    // (here, a read-only cache file) would leave the drive with no index at all. A journal drive instead
+    // requests restore/catch-up from the pinned snapshot position.
     [TestMethod]
     [DataRow("exFAT")]
     [DataRow("NTFS")]
@@ -284,7 +358,7 @@ public sealed class UsnIndexerDurabilityExtensionsTests
             File.SetAttributes(CachePath(tempDir.Path), FileAttributes.Normal);
         }
 
-        Assert.IsEmpty(requested);
+        Assert.AreEqual(fileSystemType == "NTFS" ? 1 : 0, requested.Count);
         Assert.AreEqual(0, fixture.Index.PendingChangeCount, "serving the reopened snapshot");
         Assert.IsNotNull(indexer.GetWalkBaseline("C"));
         indexer._recordIndexes.Clear();

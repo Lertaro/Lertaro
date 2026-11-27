@@ -11,11 +11,20 @@ public static class UsnIndexerCacheExtensions
     public static void SaveDrivesToCache(
         this UsnIndexer indexer,
         string cacheDir,
-        List<(string Drive, ulong JournalId, long NextUsn)> driveMetadata)
+        List<(string Drive, ulong JournalId, long NextUsn)> driveMetadata,
+        Action<string>? onReindexRequired = null)
     {
-        lock (indexer.LockObj)
+        var recoveryDrives = new List<string>();
+        try
         {
-            IndexCacheManager.SaveDrivesToCache(cacheDir, driveMetadata, indexer._recordIndexes, indexer._driveMetadata);
+            lock (indexer.LockObj)
+                IndexCacheManager.SaveDrivesToCache(cacheDir, driveMetadata, indexer._recordIndexes, indexer._driveMetadata, recoveryDrives);
+        }
+        finally
+        {
+            // Queue outside LockObj: recovery takes the drive-maintenance lock and can replace this index.
+            foreach (var drive in recoveryDrives)
+                onReindexRequired?.Invoke(drive);
         }
     }
 
@@ -84,8 +93,10 @@ public static class UsnIndexerCacheExtensions
             return null;
         var (live, metadata) = opened.Value;
 
+        LiveIndex? previous;
         lock (indexer.LockObj)
         {
+            indexer._recordIndexes.TryGetValue(drive, out previous);
             indexer._driveMetadata[drive] = metadata;
             indexer._recordIndexes[drive] = live;
 
@@ -98,8 +109,10 @@ public static class UsnIndexerCacheExtensions
             indexer.Status.State = "ready";
             indexer.Status.Progress = 100;
             indexer.UpdateDriveCounts(drive, markReady: true);
-            return (metadata.JournalId, metadata.NextUsn);
         }
+        // Recovery replaces a still-loaded index; release its mapping before the next save.
+        previous?.Dispose();
+        return (metadata.JournalId, metadata.NextUsn);
     }
 
     // Whether the drive's currently-loaded runtime metadata came from a genuinely finished scan, as

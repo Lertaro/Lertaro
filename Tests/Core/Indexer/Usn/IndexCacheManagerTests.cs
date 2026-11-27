@@ -1,11 +1,35 @@
 using Lertaro.Core.Indexer.Usn;
 using Lertaro.Core.Indexer.Usn.Journal;
+using Lertaro.Core.IndexV2;
+using Lertaro.Core.Tests.IndexV2;
 
 namespace Lertaro.Core.Tests.Indexer.Usn;
 
 [TestClass]
 public sealed class IndexCacheManagerTests
 {
+    [TestMethod]
+    public void SaveDrivesToCache_ExistingPin_PreservesJournalAndPosition()
+    {
+        using var fixture = LiveIndexFixture.Build("C", new[] { LiveIndexFixture.Root() });
+        var metadata = new UsnIndexer.DriveRuntimeMetadata { JournalId = 7, NextUsn = 4242, JournalWatermarkPinned = true };
+        var cacheDir = Directory.CreateTempSubdirectory("lertaro-pinned-save-").FullName;
+        try
+        {
+            IndexCacheManager.SaveDrivesToCache(cacheDir, new() { ("C", 8, 9999) },
+                new Dictionary<string, LiveIndex> { ["C"] = fixture.Index },
+                new Dictionary<string, UsnIndexer.DriveRuntimeMetadata> { ["C"] = metadata }, new List<string>());
+            Assert.AreEqual(7UL, fixture.Index.ToStore().JournalId);
+            Assert.AreEqual(4242L, fixture.Index.ToStore().NextUsn);
+            Assert.IsTrue(metadata.JournalWatermarkPinned);
+        }
+        finally
+        {
+            fixture.Index.Dispose();
+            Directory.Delete(cacheDir, recursive: true);
+        }
+    }
+
     // Regression coverage: CreateStoreFromDriveData used to build each record's flags from IsDir alone,
     // silently dropping ReFsItem.Listed -- every non-root directory came out of a ReFS scan (both the
     // final store and every mid-walk checkpoint) with FileRecordFlags.Listed unset, so

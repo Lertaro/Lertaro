@@ -1,4 +1,6 @@
 using Lertaro.Core.Indexer.Usn;
+using Lertaro.Core.IndexV2.Persistence;
+using Lertaro.Core.Tests.IndexV2;
 
 namespace Lertaro.Core.Tests.Indexer.Usn;
 
@@ -8,6 +10,34 @@ namespace Lertaro.Core.Tests.Indexer.Usn;
 [TestClass]
 public sealed class UsnIndexerCacheExtensionsTests
 {
+    [TestMethod]
+    public void TryLoadDriveFromCache_ReplacesPinnedRuntime_ReleasesOldIndexAndRestoresPersistedPosition()
+    {
+        var drive = Path.GetPathRoot(Environment.SystemDirectory)![0].ToString();
+        var cacheDir = Directory.CreateTempSubdirectory("lertaro-reload-").FullName;
+        using var fixture = LiveIndexFixture.Build(drive, new[] { LiveIndexFixture.Root() });
+        var indexer = new UsnIndexer();
+        try
+        {
+            var store = IndexCacheManager.CreateEmptyStore(drive, 1, 4242, 7);
+            SnapshotWriter.Write(store, LocalDriveCacheLocator.GetCachePath(cacheDir, drive));
+            indexer._recordIndexes[drive] = fixture.Index;
+            indexer._driveMetadata[drive] = new UsnIndexer.DriveRuntimeMetadata { JournalId = 7, NextUsn = 9999, JournalWatermarkPinned = true };
+
+            var loaded = indexer.TryLoadDriveFromCache(cacheDir, drive);
+
+            Assert.IsNotNull(loaded);
+            Assert.AreEqual(4242L, loaded.Value.NextUsn);
+            Assert.IsFalse(indexer.IsJournalWatermarkPinned(drive));
+            Assert.ThrowsExactly<ObjectDisposedException>(() => fixture.Index.GetCounts());
+        }
+        finally
+        {
+            indexer.Dispose();
+            Directory.Delete(cacheDir, recursive: true);
+        }
+    }
+
     [TestMethod]
     public void IsDriveIndexComplete_NoMetadataLoadedForDrive_ReturnsFalse() =>
         Assert.IsFalse(new UsnIndexer().IsDriveIndexComplete("C"));

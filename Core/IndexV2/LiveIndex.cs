@@ -22,6 +22,7 @@ public sealed class LiveIndex : IDisposable
     private readonly ReaderWriterLockSlim _lock = new(LockRecursionPolicy.NoRecursion);
     private Snapshot? _snapshot;
     private DeltaOverlay? _delta;
+    private CompactionStamp? _recoveryStamp;
     private long _revision;
     internal QueryPageCache SearchPages { get; } = new();
 
@@ -39,6 +40,18 @@ public sealed class LiveIndex : IDisposable
             throw new ObjectDisposedException(nameof(LiveIndex));
     }
     public long Revision => Interlocked.Read(ref _revision);
+
+    // A failed compaction discarded the delta. Even a save queued before that failure must not stamp
+    // beyond this recovery point. Readable while the index is unusable, until its owner replaces it.
+    internal CompactionStamp? RecoveryStamp
+    {
+        get
+        {
+            _lock.EnterReadLock();
+            try { return _recoveryStamp; }
+            finally { _lock.ExitReadLock(); }
+        }
+    }
 
     // The scan-completeness marker recorded when this snapshot was written. DeltaOverlay never changes
     // it, so this reads straight off the base snapshot rather than merging through ToStore().
@@ -112,7 +125,15 @@ public sealed class LiveIndex : IDisposable
             // guarantees the RENAME succeeds -- can make that immediately-following delete fail on some
             // Windows/filesystem combinations (seen reliably on a Windows 10 VM indexing a network share,
             // not on Windows 11), leaving an orphaned .bak file this exact process still holds open.
-            var mergedStore = Compaction.BuildMergedStore(_snapshot!, _delta!, stamp);
+            if (_recoveryStamp is { } pinned && stamp.JournalId.HasValue)
+                stamp = stamp with
+                {
+                    JournalId = pinned.JournalId,
+                    NextUsn = stamp.JournalId == pinned.JournalId && stamp.NextUsn.HasValue
+                        ? Math.Min(stamp.NextUsn.Value, pinned.NextUsn!.Value) : pinned.NextUsn
+                };
+            var previousStamp = new CompactionStamp(_snapshot!.JournalId, _snapshot.NextUsn);
+            var mergedStore = Compaction.BuildMergedStore(_snapshot, _delta!, stamp);
             _snapshot!.Dispose();
             _snapshot = null;
             _delta = null;
@@ -126,6 +147,8 @@ public sealed class LiveIndex : IDisposable
             }
             catch (Exception originalException)
             {
+                _recoveryStamp ??= previousStamp;
+                Interlocked.Increment(ref _revision);
                 // SnapshotWriter.Write uses File.Replace, which is all-or-nothing. On a write failure the
                 // original pre-compaction file should still be at `path`; on a successful write followed by
                 // an open failure the fresh file is there but unreadable. Either way, try to keep this
@@ -177,6 +200,7 @@ public sealed class LiveIndex : IDisposable
         var old = _snapshot;
         _snapshot = newSnapshot;
         _delta = new DeltaOverlay(newSnapshot);
+        _recoveryStamp = null;
         Interlocked.Increment(ref _revision);
         old?.Dispose();
     }

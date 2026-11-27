@@ -1,4 +1,5 @@
 using Lertaro.Core.IndexV2.Delta;
+using Lertaro.Core.IndexV2;
 using Lertaro.Core.IndexV2.Persistence;
 
 namespace Lertaro.Core.Tests.IndexV2;
@@ -6,6 +7,30 @@ namespace Lertaro.Core.Tests.IndexV2;
 [TestClass]
 public sealed class LiveIndexTests
 {
+    [TestMethod]
+    public void Compact_AfterFailedWrite_ClampsStaleQueuedStampAndInvalidatesCachedPages()
+    {
+        using var fixture = LiveIndexFixture.Build("C", new[] { LiveIndexFixture.Root() });
+        fixture.Index.Compact(fixture.Path, new CompactionStamp(7, 4242), force: true);
+        fixture.Index.Mutate((_, delta) => DeltaLinkOps.AddLink(delta, 2, 1, "lost.txt", FileRecordFlags.None));
+        var beforeFailure = fixture.Index.Revision;
+        File.SetAttributes(fixture.Path, FileAttributes.ReadOnly);
+        try
+        {
+            Assert.Throws<Exception>(() => fixture.Index.Compact(fixture.Path, new CompactionStamp(7, 9999), force: true));
+        }
+        finally { File.SetAttributes(fixture.Path, FileAttributes.Normal); }
+
+        Assert.IsGreaterThan(beforeFailure, fixture.Index.Revision);
+        fixture.Index.Mutate((_, delta) => DeltaLinkOps.AddLink(delta, 3, 1, "later.txt", FileRecordFlags.None));
+        // This stamp could have been selected by a second idle pass before the first write failed.
+        fixture.Index.Compact(fixture.Path, new CompactionStamp(7, 12000), force: true);
+        using var persisted = Snapshot.Open(fixture.Path);
+        Assert.AreEqual(4242L, persisted.NextUsn);
+        Assert.DoesNotContain("lost.txt", fixture.Index.ToStore().Records.Select(r => r.Name));
+        Assert.Contains("later.txt", fixture.Index.ToStore().Records.Select(r => r.Name));
+    }
+
     // Regression coverage for the orphaned/stuck .bak file: Compact() used to keep the OLD snapshot's
     // memory mapping open through the whole write-then-replace swap, only disposing it after reopening
     // the fresh file. Compact() now disposes the old mapping right after merging (the only step that
