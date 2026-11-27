@@ -246,8 +246,8 @@ internal sealed class NetworkIndex : IDisposable
         }
     }
 
-    public bool ApplyCreatedOrChanged(string root, string path, ExclusionRuleSet? exclusionRules = null, bool includeChildren = true)
-        => ApplyToLive(delta => DeltaPathApplier.ApplyCreatedOrChanged(delta, RootId, root, path, exclusionRules, includeChildren));
+    public bool ApplyCreatedOrChanged(string root, string path, ExclusionRuleSet? exclusionRules = null, bool includeChildren = true, ICollection<string>? unreadable = null)
+        => ApplyToLive(delta => DeltaPathApplier.ApplyCreatedOrChanged(delta, RootId, root, path, exclusionRules, includeChildren, unreadable));
 
     public bool ApplyDeleted(string path)
         => ApplyToLive(delta => DeltaPathApplier.ApplyDeleted(delta, path));

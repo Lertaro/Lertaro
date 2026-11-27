@@ -7,7 +7,7 @@ internal sealed class FolderDriveMonitor : IDisposable
     private readonly record struct PendingChange(WatcherChangeTypes ChangeType, string Path, string? OldPath);
 
     private readonly string _drive;
-    private readonly Action<WatcherChangeTypes, string, string?> _onChange;
+    private readonly Func<WatcherChangeTypes, string, string?, bool> _onChange;
     private readonly Action? _onReindexRequired;
     private readonly Action? _onUnavailable;
     private readonly CancellationToken _token;
@@ -27,7 +27,7 @@ internal sealed class FolderDriveMonitor : IDisposable
 
     // `onUnavailable` runs on every failed attempt to start the watcher (root missing, or the start threw),
     // for an owner that needs to know nothing watched at some point; DriveWatcherHost retries meanwhile.
-    public FolderDriveMonitor(string drive, Action<WatcherChangeTypes, string, string?> onChange, CancellationToken token, Action? onReindexRequired = null, Action? onUnavailable = null)
+    public FolderDriveMonitor(string drive, Func<WatcherChangeTypes, string, string?, bool> onChange, CancellationToken token, Action? onReindexRequired = null, Action? onUnavailable = null)
     {
         _drive = drive;
         _ignoredPrefix = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Logger.SharedDataDir)) + Path.DirectorySeparatorChar;
@@ -147,6 +147,7 @@ internal sealed class FolderDriveMonitor : IDisposable
     // already in flight has delivered its older batch too, and so Dispose can wait one out.
     internal void FlushPending()
     {
+        var owesRewalk = false;
         lock (_flushGate)
         {
             PendingChange[] batch;
@@ -175,17 +176,23 @@ internal sealed class FolderDriveMonitor : IDisposable
                 {
                     // Disposed means a successor monitor (or the walk recorder's hand-over) owns this drive now:
                     // an older event applied after it would undo what that successor just applied.
-                    if (_token.IsCancellationRequested || _disposed)
+                    if (_token.IsCancellationRequested)
                         return;
-                    _onChange(item.ChangeType, item.Path, item.OldPath);
+                    if (_disposed)
+                        break;
+                    owesRewalk |= _onChange(item.ChangeType, item.Path, item.OldPath);
                 }
             }
             catch (Exception ex)
             {
                 Logger.Log($"[{nameof(FolderDriveMonitor)}] Applying a change on {_drive} failed, re-walking the drive: {ex}", LogLevel.Error);
-                if (!_disposed && !_token.IsCancellationRequested)
-                    _onReindexRequired?.Invoke();
+                owesRewalk = true;
             }
+
+            // Ask once after the batch, including a partial change applied before this monitor was replaced.
+            // Keep this inside the flush gate so a recorder's Stop also waits for its loss notification.
+            if (owesRewalk && !_token.IsCancellationRequested)
+                _onReindexRequired?.Invoke();
         }
     }
 

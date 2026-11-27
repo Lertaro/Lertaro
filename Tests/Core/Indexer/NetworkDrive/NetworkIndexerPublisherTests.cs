@@ -1,4 +1,5 @@
 using Lertaro.Core.Indexer.NetworkDrive;
+using Lertaro.Core.IndexV2.Persistence;
 
 namespace Lertaro.Core.Tests.Indexer.NetworkDrive;
 
@@ -92,6 +93,42 @@ public sealed class NetworkIndexerPublisherTests
 
         Assert.IsNotNull(store);
         Assert.AreEqual("Z", store.SourceKey);
+    }
+
+    // A persist whose Compact could neither write nor reopen a snapshot leaves the index unusable, and the
+    // refresh queued to recover it starts by reading this baseline. Throwing there would end that refresh in
+    // "error" and keep the unusable index; no baseline means a full walk instead. Staged by pointing the
+    // save at a path below a file, which can be neither written nor reopened.
+    [TestMethod]
+    public void GetPreviousStore_IndexAFailedPersistLeftUnusable_ReturnsNull()
+    {
+        var temp = Directory.CreateTempSubdirectory("lertaro-publisher-tests-").FullName;
+        try
+        {
+            const string drive = @"\server\share";
+            var idxPath = Path.Combine(temp, "test.idx");
+            var store = new FileRecordStore
+            {
+                SourceKey = drive,
+                SourceKind = FileRecordSourceKind.NetworkMappedDrive,
+                IdKind = FileRecordIdKind.SourceLocalId64,
+                RootId = 1,
+            };
+            store.Records.Add(new FileRecord(1, 1, string.Empty, FileRecordFlags.Directory | FileRecordFlags.SourceRoot));
+            SnapshotWriter.Write(store, idxPath);
+            using var index = NetworkIndex.FromSnapshotFile(drive, idxPath);
+            var blocker = Path.Combine(temp, "blocker");
+            File.WriteAllText(blocker, "x");
+            Assert.ThrowsExactly<ObjectDisposedException>(() => index.SaveToCache(Path.Combine(blocker, "cache.idx")));
+            var fixture = new Fixture();
+            fixture.Indexes[drive] = index;
+
+            Assert.IsNull(fixture.CreatePublisher().GetPreviousStore(drive));
+        }
+        finally
+        {
+            try { Directory.Delete(temp, recursive: true); } catch { }
+        }
     }
 
     [TestMethod]

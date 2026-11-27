@@ -30,6 +30,7 @@ internal sealed class FolderWalkRecorder : IDisposable
         {
             lock (_changes)
                 _changes.Add((type, path, oldPath));
+            return false;
         }, CancellationToken.None, MarkLost, onUnavailable: MarkLost);
         // Its own answer to "Safely remove", for as long as it lives. The walk's removal scope ends with the
         // walk, and on a cold start the live monitor's listener only attaches in EnsureMonitor, after EVERY
@@ -197,7 +198,7 @@ internal sealed class FolderWalkRecorder : IDisposable
 
         try
         {
-            indexer.ReconcileFolderPaths(drive, paths.Values);
+            lost |= indexer.ReconcileFolderPaths(drive, paths.Values);
         }
         catch (Exception ex)
         {

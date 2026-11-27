@@ -188,7 +188,7 @@ public sealed class UsnIndexerCheckpointExtensionsTests
             // back where ApplyFolderChange's own lookup will find it, reproducing the exact race shape.
             indexer._recordIndexes["C"] = oldFixture.Index;
 
-            indexer.ApplyFolderChange("C", WatcherChangeTypes.Changed, @"C:\somewhere\new-file.txt");
+            indexer.ApplyFolderChange("C", WatcherChangeTypes.Changed, @"C:\somewhere\new-file.txt", null, () => { });
 
             Assert.IsTrue(indexer.ConsumeMissedFolderChangeDuringRebuild("C"));
         }

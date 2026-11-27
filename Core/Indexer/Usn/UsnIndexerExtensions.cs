@@ -172,20 +172,28 @@ public static class UsnIndexerExtensions
         return true;
     }
 
-    public static void ApplyFolderChange(this UsnIndexer indexer, string drive, WatcherChangeTypes changeType, string path, string? oldPath = null)
+    public static bool ApplyFolderChange(this UsnIndexer indexer, string drive, WatcherChangeTypes changeType, string path, string? oldPath = null)
     {
         var root = $"{drive}:\\";
         var isDirectory = Directory.Exists(path);
         var normalizedPath = PathHelpers.NormalizePath(path, isDirectory);
         var changed = false;
+        var unreadable = new List<string>();
         var pending = MutateFolderDrive(indexer, drive, delta => changed = changeType switch
         {
             WatcherChangeTypes.Deleted => DeltaPathApplier.ApplyDeleted(delta, normalizedPath),
-            WatcherChangeTypes.Renamed when !string.IsNullOrWhiteSpace(oldPath) => DeltaPathApplier.ApplyRenamed(delta, (UInt128)1, root, oldPath, normalizedPath),
-            _ => DeltaPathApplier.ApplyCreatedOrChanged(delta, (UInt128)1, root, normalizedPath, includeChildren: changeType != WatcherChangeTypes.Changed),
+            WatcherChangeTypes.Renamed when !string.IsNullOrWhiteSpace(oldPath) => DeltaPathApplier.ApplyRenamed(delta, (UInt128)1, root, oldPath, normalizedPath, unreadable: unreadable),
+            _ => DeltaPathApplier.ApplyCreatedOrChanged(delta, (UInt128)1, root, normalizedPath, includeChildren: changeType != WatcherChangeTypes.Changed, unreadable: unreadable),
         });
+        var owesRewalk = unreadable.Count > 0 && changeType != WatcherChangeTypes.Changed;
+        if (owesRewalk)
+        {
+            Logger.Log($"[UsnIndexer] {drive}: could not read {unreadable.Count} path(s), first {unreadable[0]}; requesting a re-walk.", LogLevel.Warn);
+            lock (indexer.LockObj)
+                MarkMissedIfRebuilding(indexer, drive);
+        }
         if (pending == null || !changed)
-            return;
+            return owesRewalk;
 
         // A rename moves something out of one directory and into another, so both are places a
         // subscriber watching either one needs to hear about.
@@ -193,6 +201,7 @@ public static class UsnIndexerExtensions
         if (changeType == WatcherChangeTypes.Renamed && !string.IsNullOrWhiteSpace(oldPath))
             changedDirectories.AddRange(UsnIndexerChangedDirectories.ForPath(oldPath, isDirectory: false));
         PublishFolderChange(indexer, drive, changedDirectories, pending.Value);
+        return owesRewalk;
     }
 
     // FolderWalkRecorder's hand-over: every path the walk saw change, checked against the disk and applied
@@ -210,13 +219,14 @@ public static class UsnIndexerExtensions
     // outside the lock let a live event land between the check and the change. Upgrade path: stat the paths and
     // read the subtrees outside the lock, then apply under it only what no live event has touched since (a
     // per-path version in the delta to compare against), or apply in bounded batches that each re-check.
-    internal static void ReconcileFolderPaths(this UsnIndexer indexer, string drive, IReadOnlyCollection<(string Path, bool Structural)> paths)
+    internal static bool ReconcileFolderPaths(this UsnIndexer indexer, string drive, IReadOnlyCollection<(string Path, bool Structural)> paths)
     {
         if (paths.Count == 0)
-            return;
+            return false;
 
         var root = $"{drive}:\\";
         var changedDirectories = new List<string>();
+        var unreadable = new List<string>();
         var pending = MutateFolderDrive(indexer, drive, delta =>
         {
             var states = paths.Select(p =>
@@ -231,15 +241,18 @@ public static class UsnIndexerExtensions
                     continue;
                 var normalized = PathHelpers.NormalizePath(path, isDirectory);
                 var changed = !exists ? DeltaPathApplier.ApplyDeleted(delta, normalized)
-                    : structural ? DeltaPathApplier.ApplyRenamed(delta, (UInt128)1, root, normalized, normalized)
-                    : DeltaPathApplier.ApplyCreatedOrChanged(delta, (UInt128)1, root, normalized, includeChildren: false);
+                    : structural ? DeltaPathApplier.ApplyRenamed(delta, (UInt128)1, root, normalized, normalized, unreadable: unreadable)
+                    : DeltaPathApplier.ApplyCreatedOrChanged(delta, (UInt128)1, root, normalized, includeChildren: false, unreadable: unreadable);
                 if (changed)
                     changedDirectories.AddRange(UsnIndexerChangedDirectories.ForPath(normalized, isDirectory));
             }
         });
+        // An incomplete hand-over still owes recovery after its recording has been consumed.
+        var owesRewalk = pending == null || unreadable.Count > 0;
         if (pending == null || changedDirectories.Count == 0)
-            return;
+            return owesRewalk;
         PublishFolderChange(indexer, drive, changedDirectories.Distinct(StringComparer.OrdinalIgnoreCase).ToList(), pending.Value);
+        return owesRewalk;
     }
 
     private static bool HasAncestorIn(string path, HashSet<string> directories)

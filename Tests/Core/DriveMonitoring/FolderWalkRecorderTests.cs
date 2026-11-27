@@ -12,6 +12,36 @@ namespace Lertaro.Core.Tests.DriveMonitoring;
 [TestClass]
 public sealed class FolderWalkRecorderTests
 {
+    [TestMethod]
+    public void Replay_StructuralSubtreeReadFails_RequestsARewalk()
+    {
+        var root = Directory.CreateTempSubdirectory("lertaro-replay-test-").FullName;
+        try
+        {
+            var drop = Path.Combine(root, "drop");
+            Directory.CreateDirectory(Path.Combine(drop, "foo"));
+            File.WriteAllText(@"\\?\" + Path.Combine(drop, "foo "), "x");
+            File.WriteAllText(Path.Combine(drop, "zzz.txt"), "x");
+            using var fixture = LiveIndexFixture.Build("C", new[] { LiveIndexFixture.Root() });
+            var indexer = new UsnIndexer();
+            indexer._recordIndexes["C"] = fixture.Index;
+            indexer.Status.Drives.Add(new UsnIndexer.DriveIndexStatus { Drive = "C", State = "ready" });
+            using var recorder = new FolderWalkRecorder("C");
+            recorder.Monitor.Schedule(WatcherChangeTypes.Created, drop);
+            FolderWalkRecorder.Keep(indexer, "C", recorder);
+            var requested = new List<string>();
+
+            FolderWalkRecorder.Replay(indexer, "C", CancellationToken.None, requested.Add);
+
+            Assert.Contains("zzz.txt", fixture.Index.ToStore().Records.Select(r => r.Name));
+            CollectionAssert.AreEqual(new[] { "C" }, requested);
+        }
+        finally
+        {
+            Directory.Delete(@"\\?\" + root, recursive: true);
+        }
+    }
+
     // The hand-over race: the live monitor is already up, so whatever the recorder's 250 ms debounce still
     // holds must come back from Stop rather than be dropped with the watcher.
     [TestMethod]
@@ -645,7 +675,9 @@ public sealed class FolderWalkRecorderTests
     {
         using var tempDir = new TempDirectory();
         var drive = tempDir.Path; // a real root, so the full rebuild's own watcher starts and loses nothing by itself
+        using var fixture = LiveIndexFixture.Build(drive, new[] { LiveIndexFixture.Root() });
         using var indexer = new UsnIndexer();
+        indexer._recordIndexes[drive] = fixture.Index;
         using var fullRebuild = new CancellationTokenSource();
         using var stalePerDrive = new CancellationTokenSource();
         stalePerDrive.Cancel(); // the lifetime cancel the full rebuild issued reached the per-drive rebuild
