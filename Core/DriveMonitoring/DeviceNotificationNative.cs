@@ -24,6 +24,7 @@ internal static class DeviceNotificationNative
 
     internal static readonly Guid VolumeLockEvent = new("50708874-c9af-11d1-8fef-00a0c9a06d32");
     internal static readonly Guid VolumeLockFailedEvent = new("ae2eed10-0ba8-11d2-8ffb-00a0c9a06d32");
+    internal static readonly Guid VolumeUnlockEvent = new("9a8c3d68-d0cb-11d1-8fef-00a0c9a06d32");
     internal static readonly Guid VolumeDismountEvent = new("d16a55e8-1059-11d2-8ffd-00a0c9a06d32");
     internal static readonly Guid VolumeDismountFailedEvent = new("e3c5b178-105d-11d2-8ffd-00a0c9a06d32");
 

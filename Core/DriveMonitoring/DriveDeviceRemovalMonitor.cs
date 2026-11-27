@@ -1,4 +1,5 @@
 using Microsoft.Win32.SafeHandles;
+using Lertaro.Core.Indexer.NetworkDrive.Walk;
 
 namespace Lertaro.Core.DriveMonitoring;
 
@@ -18,6 +19,7 @@ internal sealed class DriveDeviceRemovalMonitor : IDisposable
     private bool _disposed;
     private bool _invalidated;
     private bool _removalRequested;
+    private CancellationTokenSource? _accessRecovery;
 
     internal DriveDeviceRemovalMonitor(string drive, Action<DriveDeviceRemovalMonitor> onRemovalRequested,
         Action<DriveDeviceRemovalMonitor> onRemovalFailed, Action<DriveDeviceRemovalMonitor> onRemovalComplete)
@@ -48,7 +50,11 @@ internal sealed class DriveDeviceRemovalMonitor : IDisposable
 
     internal void Invalidate()
     {
-        lock (_gate) _invalidated = true;
+        lock (_gate)
+        {
+            _invalidated = true;
+            _accessRecovery?.Cancel();
+        }
     }
 
     internal bool TryInvoke(Action action)
@@ -76,6 +82,7 @@ internal sealed class DriveDeviceRemovalMonitor : IDisposable
         lock (_gate)
         {
             _invalidated = true;
+            _accessRecovery?.Cancel();
             if (_disposed) return;
             _disposed = true;
             defer = !waitForCallbacks || _callbackDepth != 0;
@@ -187,7 +194,12 @@ internal sealed class DriveDeviceRemovalMonitor : IDisposable
                      DeviceNotificationNative.TryReadCustomEventGuid(eventData, eventDataSize, out var eventGuid))
             {
                 if (eventGuid == DeviceNotificationNative.VolumeLockEvent || eventGuid == DeviceNotificationNative.VolumeDismountEvent)
+                {
                     RequestRemoval();
+                    WaitForVolumeAccess();
+                }
+                else if (eventGuid == DeviceNotificationNative.VolumeUnlockEvent)
+                    WaitForVolumeAccess();
                 else if (eventGuid == DeviceNotificationNative.VolumeLockFailedEvent || eventGuid == DeviceNotificationNative.VolumeDismountFailedEvent)
                     RestoreAfterFailedRemoval();
             }
@@ -232,12 +244,59 @@ internal sealed class DriveDeviceRemovalMonitor : IDisposable
         catch (Exception ex) { Logger.Log($"[DeviceNotification] Failed to release a drive monitor: {ex.Message}", LogLevel.Error); }
     }
 
-    private void RestoreAfterFailedRemoval()
+    private void RestoreAfterFailedRemoval(CancellationTokenSource? expectedRecovery = null)
     {
-        if (!TryInvoke(() => _removalRequested = false)) return;
+        var restore = false;
+        if (!TryInvoke(() =>
+        {
+            if (expectedRecovery != null && !ReferenceEquals(_accessRecovery, expectedRecovery)) return;
+            restore = _removalRequested;
+            _removalRequested = false;
+            _accessRecovery?.Cancel();
+            _accessRecovery = null;
+        }) || !restore) return;
         try { _onRemovalFailed(this); }
         catch (Exception ex) { Logger.Log($"[DeviceNotification] Failed to restore a drive monitor: {ex.Message}", LogLevel.Error); }
         // CM keeps the registration valid after QUERYREMOVEFAILED even though its handle was closed.
         // The owner recreates its monitor/handle; opening a second handle here could race that recovery.
+    }
+
+    // Unlock is signalled when an unlock is attempted, before access is necessarily restored. A short
+    // probe also covers a missing unlock notification after our volume handle has been closed.
+    private void WaitForVolumeAccess()
+    {
+        lock (_gate)
+        {
+            if (_invalidated || !_removalRequested || _accessRecovery != null) return;
+            var recovery = _accessRecovery = new CancellationTokenSource();
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    while (true)
+                    {
+                        // Let the synchronous lock-request callback finish before trying to open the root.
+                        await Task.Delay(TimeSpan.FromSeconds(2), recovery.Token).ConfigureAwait(false);
+                        try
+                        {
+                            using var entries = Directory.EnumerateFileSystemEntries(PathHelpers.BuildSourceRoot(_drive)).GetEnumerator();
+                            _ = entries.MoveNext();
+                        }
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { continue; }
+                        RestoreAfterFailedRemoval(recovery);
+                        return;
+                    }
+                }
+                catch (OperationCanceledException) { }
+                finally
+                {
+                    lock (_gate)
+                    {
+                        if (ReferenceEquals(_accessRecovery, recovery)) _accessRecovery = null;
+                        recovery.Dispose();
+                    }
+                }
+            });
+        }
     }
 }
